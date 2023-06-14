@@ -10,13 +10,26 @@
 		92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C8FD2A3A40EB00672F64 /* AppDelegate.swift */; };
 		92B7C9002A3A40EB00672F64 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C8FF2A3A40EB00672F64 /* SceneDelegate.swift */; };
 		92B7C9022A3A40EB00672F64 /* PostListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9012A3A40EB00672F64 /* PostListViewController.swift */; };
-		92B7C9082A3A40EB00672F64 /* Spud.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9062A3A40EB00672F64 /* Spud.xcdatamodeld */; };
+		92B7C9082A3A40EB00672F64 /* LemmyDataStore.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9062A3A40EB00672F64 /* LemmyDataStore.xcdatamodeld */; };
 		92B7C90A2A3A40F400672F64 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 92B7C9092A3A40F400672F64 /* Assets.xcassets */; };
 		92B7C90D2A3A40F400672F64 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 92B7C90B2A3A40F400672F64 /* LaunchScreen.storyboard */; };
 		92B7C9182A3A40F400672F64 /* SpudTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9172A3A40F400672F64 /* SpudTests.swift */; };
 		92B7C9222A3A40F400672F64 /* SpudUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9212A3A40F400672F64 /* SpudUITests.swift */; };
 		92B7C9242A3A40F400672F64 /* SpudUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9232A3A40F400672F64 /* SpudUITestsLaunchTests.swift */; };
 		92B7C9312A3A493C00672F64 /* PostListCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9302A3A493C00672F64 /* PostListCell.swift */; };
+		92B7C9392A3A59E600672F64 /* LemmyDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9382A3A59E600672F64 /* LemmyDataStore.swift */; };
+		92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */; };
+		92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93D2A3A5C3A00672F64 /* OSLog.swift */; };
+		92B7C9412A3A5DD800672F64 /* LemmyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9402A3A5DD800672F64 /* LemmyService.swift */; };
+		92B7C9462A3A5E7100672F64 /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 92B7C9452A3A5E7100672F64 /* LemmyKit */; };
+		92B7C94B2A3A604300672F64 /* LemmyFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C94A2A3A604300672F64 /* LemmyFeed.swift */; };
+		92B7C94D2A3A658700672F64 /* LemmyPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C94C2A3A658700672F64 /* LemmyPage.swift */; };
+		92B7C94F2A3A65BA00672F64 /* LemmyPageElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C94E2A3A65BA00672F64 /* LemmyPageElement.swift */; };
+		92B7C9512A3A65E200672F64 /* LemmyPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9502A3A65E200672F64 /* LemmyPost.swift */; };
+		92B7C9532A3A667E00672F64 /* LemmyFeed+FeedType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9522A3A667E00672F64 /* LemmyFeed+FeedType.swift */; };
+		92B7C9562A3A738500672F64 /* LemmyFeed+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9552A3A738500672F64 /* LemmyFeed+import.swift */; };
+		92B7C9582A3A745B00672F64 /* LemmyPage+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9572A3A745B00672F64 /* LemmyPage+import.swift */; };
+		92B7C95A2A3A74BE00672F64 /* LemmyPost+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9592A3A74BE00672F64 /* LemmyPost+import.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -51,6 +64,19 @@
 		92B7C9212A3A40F400672F64 /* SpudUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudUITests.swift; sourceTree = "<group>"; };
 		92B7C9232A3A40F400672F64 /* SpudUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		92B7C9302A3A493C00672F64 /* PostListCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListCell.swift; sourceTree = "<group>"; };
+		92B7C9382A3A59E600672F64 /* LemmyDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyDataStore.swift; sourceTree = "<group>"; };
+		92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyContainer.swift; sourceTree = "<group>"; };
+		92B7C93D2A3A5C3A00672F64 /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
+		92B7C9402A3A5DD800672F64 /* LemmyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyService.swift; sourceTree = "<group>"; };
+		92B7C9432A3A5E1400672F64 /* LemmyKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = LemmyKit; path = ../LemmyKit; sourceTree = "<group>"; };
+		92B7C94A2A3A604300672F64 /* LemmyFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyFeed.swift; sourceTree = "<group>"; };
+		92B7C94C2A3A658700672F64 /* LemmyPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyPage.swift; sourceTree = "<group>"; };
+		92B7C94E2A3A65BA00672F64 /* LemmyPageElement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyPageElement.swift; sourceTree = "<group>"; };
+		92B7C9502A3A65E200672F64 /* LemmyPost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyPost.swift; sourceTree = "<group>"; };
+		92B7C9522A3A667E00672F64 /* LemmyFeed+FeedType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyFeed+FeedType.swift"; sourceTree = "<group>"; };
+		92B7C9552A3A738500672F64 /* LemmyFeed+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyFeed+import.swift"; sourceTree = "<group>"; };
+		92B7C9572A3A745B00672F64 /* LemmyPage+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPage+import.swift"; sourceTree = "<group>"; };
+		92B7C9592A3A74BE00672F64 /* LemmyPost+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPost+import.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +84,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				92B7C9462A3A5E7100672F64 /* LemmyKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -81,10 +108,12 @@
 		92B7C8F12A3A40EB00672F64 = {
 			isa = PBXGroup;
 			children = (
+				92B7C9422A3A5E1400672F64 /* Packages */,
 				92B7C8FC2A3A40EB00672F64 /* Spud */,
 				92B7C9162A3A40F400672F64 /* SpudTests */,
 				92B7C9202A3A40F400672F64 /* SpudUITests */,
 				92B7C8FB2A3A40EB00672F64 /* Products */,
+				92B7C9442A3A5E7100672F64 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -101,14 +130,11 @@
 		92B7C8FC2A3A40EB00672F64 /* Spud */ = {
 			isa = PBXGroup;
 			children = (
-				92B7C8FD2A3A40EB00672F64 /* AppDelegate.swift */,
-				92B7C9092A3A40F400672F64 /* Assets.xcassets */,
-				92B7C90E2A3A40F400672F64 /* Info.plist */,
-				92B7C90B2A3A40F400672F64 /* LaunchScreen.storyboard */,
-				92B7C9302A3A493C00672F64 /* PostListCell.swift */,
-				92B7C9012A3A40EB00672F64 /* PostListViewController.swift */,
-				92B7C8FF2A3A40EB00672F64 /* SceneDelegate.swift */,
-				92B7C9062A3A40EB00672F64 /* Spud.xcdatamodeld */,
+				92B7C9322A3A592B00672F64 /* App */,
+				92B7C9332A3A593800672F64 /* Resources */,
+				92B7C9342A3A598900672F64 /* Scenes */,
+				92B7C9362A3A59A000672F64 /* Services */,
+				92B7C93C2A3A5C1B00672F64 /* Utils */,
 			);
 			path = Spud;
 			sourceTree = "<group>";
@@ -130,6 +156,116 @@
 			path = SpudUITests;
 			sourceTree = "<group>";
 		};
+		92B7C9322A3A592B00672F64 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C8FD2A3A40EB00672F64 /* AppDelegate.swift */,
+				92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */,
+				92B7C8FF2A3A40EB00672F64 /* SceneDelegate.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		92B7C9332A3A593800672F64 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C9092A3A40F400672F64 /* Assets.xcassets */,
+				92B7C90E2A3A40F400672F64 /* Info.plist */,
+				92B7C90B2A3A40F400672F64 /* LaunchScreen.storyboard */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		92B7C9342A3A598900672F64 /* Scenes */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C9352A3A599000672F64 /* PostList */,
+			);
+			path = Scenes;
+			sourceTree = "<group>";
+		};
+		92B7C9352A3A599000672F64 /* PostList */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C9302A3A493C00672F64 /* PostListCell.swift */,
+				92B7C9012A3A40EB00672F64 /* PostListViewController.swift */,
+			);
+			path = PostList;
+			sourceTree = "<group>";
+		};
+		92B7C9362A3A59A000672F64 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C93F2A3A5DC800672F64 /* LemmyService */,
+				92B7C9372A3A59AD00672F64 /* LemmyDataStore */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		92B7C9372A3A59AD00672F64 /* LemmyDataStore */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C9382A3A59E600672F64 /* LemmyDataStore.swift */,
+				92B7C9062A3A40EB00672F64 /* LemmyDataStore.xcdatamodeld */,
+				92B7C9492A3A603900672F64 /* Models */,
+			);
+			path = LemmyDataStore;
+			sourceTree = "<group>";
+		};
+		92B7C93C2A3A5C1B00672F64 /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C93D2A3A5C3A00672F64 /* OSLog.swift */,
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
+		92B7C93F2A3A5DC800672F64 /* LemmyService */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C9542A3A737A00672F64 /* ImportHelpers */,
+				92B7C9402A3A5DD800672F64 /* LemmyService.swift */,
+			);
+			path = LemmyService;
+			sourceTree = "<group>";
+		};
+		92B7C9422A3A5E1400672F64 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C9432A3A5E1400672F64 /* LemmyKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		92B7C9442A3A5E7100672F64 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		92B7C9492A3A603900672F64 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C94A2A3A604300672F64 /* LemmyFeed.swift */,
+				92B7C9522A3A667E00672F64 /* LemmyFeed+FeedType.swift */,
+				92B7C94C2A3A658700672F64 /* LemmyPage.swift */,
+				92B7C94E2A3A65BA00672F64 /* LemmyPageElement.swift */,
+				92B7C9502A3A65E200672F64 /* LemmyPost.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		92B7C9542A3A737A00672F64 /* ImportHelpers */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C9552A3A738500672F64 /* LemmyFeed+import.swift */,
+				92B7C9572A3A745B00672F64 /* LemmyPage+import.swift */,
+				92B7C9592A3A74BE00672F64 /* LemmyPost+import.swift */,
+			);
+			path = ImportHelpers;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -146,6 +282,9 @@
 			dependencies = (
 			);
 			name = Spud;
+			packageProductDependencies = (
+				92B7C9452A3A5E7100672F64 /* LemmyKit */,
+			);
 			productName = Spud;
 			productReference = 92B7C8FA2A3A40EB00672F64 /* Spud.app */;
 			productType = "com.apple.product-type.application";
@@ -260,11 +399,23 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				92B7C9532A3A667E00672F64 /* LemmyFeed+FeedType.swift in Sources */,
+				92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */,
 				92B7C9022A3A40EB00672F64 /* PostListViewController.swift in Sources */,
+				92B7C9412A3A5DD800672F64 /* LemmyService.swift in Sources */,
+				92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */,
 				92B7C9312A3A493C00672F64 /* PostListCell.swift in Sources */,
-				92B7C9082A3A40EB00672F64 /* Spud.xcdatamodeld in Sources */,
+				92B7C94B2A3A604300672F64 /* LemmyFeed.swift in Sources */,
+				92B7C95A2A3A74BE00672F64 /* LemmyPost+import.swift in Sources */,
+				92B7C9512A3A65E200672F64 /* LemmyPost.swift in Sources */,
+				92B7C9392A3A59E600672F64 /* LemmyDataStore.swift in Sources */,
+				92B7C9082A3A40EB00672F64 /* LemmyDataStore.xcdatamodeld in Sources */,
 				92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */,
 				92B7C9002A3A40EB00672F64 /* SceneDelegate.swift in Sources */,
+				92B7C94F2A3A65BA00672F64 /* LemmyPageElement.swift in Sources */,
+				92B7C94D2A3A658700672F64 /* LemmyPage.swift in Sources */,
+				92B7C9562A3A738500672F64 /* LemmyFeed+import.swift in Sources */,
+				92B7C9582A3A745B00672F64 /* LemmyPage+import.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -437,7 +588,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = J8B76VBZ57;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Spud/Info.plist;
+				INFOPLIST_FILE = Spud/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -465,7 +616,7 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = J8B76VBZ57;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Spud/Info.plist;
+				INFOPLIST_FILE = Spud/Resources/Info.plist;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -601,14 +752,21 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCSwiftPackageProductDependency section */
+		92B7C9452A3A5E7100672F64 /* LemmyKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = LemmyKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+
 /* Begin XCVersionGroup section */
-		92B7C9062A3A40EB00672F64 /* Spud.xcdatamodeld */ = {
+		92B7C9062A3A40EB00672F64 /* LemmyDataStore.xcdatamodeld */ = {
 			isa = XCVersionGroup;
 			children = (
 				92B7C9072A3A40EB00672F64 /* Spud.xcdatamodel */,
 			);
 			currentVersion = 92B7C9072A3A40EB00672F64 /* Spud.xcdatamodel */;
-			path = Spud.xcdatamodeld;
+			path = LemmyDataStore.xcdatamodeld;
 			sourceTree = "<group>";
 			versionGroupType = wrapper.xcdatamodel;
 		};

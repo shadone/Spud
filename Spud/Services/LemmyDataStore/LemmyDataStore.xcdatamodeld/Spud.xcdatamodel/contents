@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="19574" systemVersion="20G95" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="Feed" representedClassName="LemmyFeed" syncable="YES">
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="frontpageListingTypeRawValue" optional="YES" attributeType="String"/>
+        <attribute name="frontpageSortTypeRawValue" optional="YES" attributeType="String"/>
+        <attribute name="id" attributeType="String"/>
+        <relationship name="pages" toMany="YES" deletionRule="Cascade" destinationEntity="Page" inverseName="feed" inverseEntity="Page"/>
+    </entity>
+    <entity name="Page" representedClassName="LemmyPage" syncable="YES">
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="index" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="feed" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Feed" inverseName="pages" inverseEntity="Feed"/>
+        <relationship name="pageElements" toMany="YES" deletionRule="Cascade" destinationEntity="PageElement" inverseName="page" inverseEntity="PageElement"/>
+    </entity>
+    <entity name="PageElement" representedClassName="LemmyPageElement" syncable="YES">
+        <attribute name="index" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="page" maxCount="1" deletionRule="Nullify" destinationEntity="Page" inverseName="pageElements" inverseEntity="Page"/>
+        <relationship name="post" maxCount="1" deletionRule="Nullify" destinationEntity="Post" inverseName="pageElements" inverseEntity="Post"/>
+    </entity>
+    <entity name="Post" representedClassName="LemmyPost" syncable="YES">
+        <attribute name="communityName" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="id" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="title" attributeType="String"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="pageElements" toMany="YES" deletionRule="Cascade" destinationEntity="PageElement" inverseName="post" inverseEntity="PageElement"/>
+    </entity>
+    <elements>
+        <element name="Feed" positionX="-63" positionY="-18" width="128" height="104"/>
+        <element name="Page" positionX="-18" positionY="45" width="128" height="89"/>
+        <element name="PageElement" positionX="-36" positionY="36" width="128" height="74"/>
+        <element name="Post" positionX="-54" positionY="9" width="128" height="119"/>
+    </elements>
+</model>

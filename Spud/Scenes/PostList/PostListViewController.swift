@@ -5,6 +5,7 @@
 //
 
 import UIKit
+import LemmyKit
 
 class PostListViewController: UIViewController {
     lazy var tableView: UITableView = {
@@ -35,6 +36,20 @@ class PostListViewController: UIViewController {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    var lemmyService: LemmyServiceType!
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+
+        let lemmyApi = LemmyApi()
+        self.lemmyService = LemmyService(
+            lemmyDataStore: AppDelegate.shared.dependencies.lemmyDataStore, lemmyApi: lemmyApi)
+        let feed = lemmyService.createFeed(.frontpage(listingType: .local, sortType: .active))
+        Task {
+            try await lemmyService.fetchFeed(feedId: feed.objectID, page: nil)
+        }
     }
 }
 
