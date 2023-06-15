@@ -27,7 +27,7 @@ class LemmyService: LemmyServiceType {
     // MARK: Private
 
     private let dataStore: DataStoreType
-    private let lemmyApi: LemmyApi
+    private let api: LemmyApi
 
     private var mainContext: NSManagedObjectContext {
         dataStore.mainContext
@@ -44,11 +44,11 @@ class LemmyService: LemmyServiceType {
     init(
         accountObjectId: NSManagedObjectID,
         dataStore: DataStoreType,
-        lemmyApi: LemmyApi
+        api: LemmyApi
     ) {
         self.accountObjectId = accountObjectId
         self.dataStore = dataStore
-        self.lemmyApi = lemmyApi
+        self.api = api
     }
 
     private func object<CoreDataObject>(
@@ -97,7 +97,7 @@ class LemmyService: LemmyServiceType {
 
         switch feed.feedType {
         case let .frontpage(listingType, sortType):
-            let response = try await lemmyApi.getPosts(
+            let response = try await api.getPosts(
                 type: listingType,
                 sort: sortType,
                 page: pageNumber

@@ -89,7 +89,7 @@ class AccountService: AccountServiceType {
         let lemmyService = LemmyService(
             accountObjectId: accountObjectId,
             dataStore: dataStore,
-            lemmyApi: api
+            api: api
         )
         lemmyServices[accountObjectId] = lemmyService
 
