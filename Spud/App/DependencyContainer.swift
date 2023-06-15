@@ -6,16 +6,16 @@
 
 import Foundation
 
-struct DependencyContainer: HasLemmyDataStore, HasAccountService {
-    let lemmyDataStore: LemmyDataStoreType = LemmyDataStore()
+struct DependencyContainer: HasDataStore, HasAccountService {
+    let dataStore: DataStoreType = DataStore()
     let accountService: AccountServiceType
 
     init() {
-        accountService = AccountService(lemmyDataStore: lemmyDataStore)
+        accountService = AccountService(dataStore: dataStore)
         start()
     }
 
     private func start() {
-        lemmyDataStore.startService()
+        dataStore.startService()
     }
 }

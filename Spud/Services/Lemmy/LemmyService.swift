@@ -26,15 +26,15 @@ class LemmyService: LemmyServiceType {
 
     // MARK: Private
 
-    private let lemmyDataStore: LemmyDataStoreType
+    private let dataStore: DataStoreType
     private let lemmyApi: LemmyApi
 
     private var mainContext: NSManagedObjectContext {
-        lemmyDataStore.mainContext
+        dataStore.mainContext
     }
 
     private lazy var backgroundContext: NSManagedObjectContext = {
-        let backgroundContext = lemmyDataStore.newBackgroundContext()
+        let backgroundContext = dataStore.newBackgroundContext()
         backgroundContext.mergePolicy = NSMergePolicy.mergeByPropertyStoreTrump
         return backgroundContext
     }()
@@ -43,11 +43,11 @@ class LemmyService: LemmyServiceType {
 
     init(
         accountObjectId: NSManagedObjectID,
-        lemmyDataStore: LemmyDataStoreType,
+        dataStore: DataStoreType,
         lemmyApi: LemmyApi
     ) {
         self.accountObjectId = accountObjectId
-        self.lemmyDataStore = lemmyDataStore
+        self.dataStore = dataStore
         self.lemmyApi = lemmyApi
     }
 
@@ -75,16 +75,16 @@ class LemmyService: LemmyServiceType {
     }
 
     func createFeed(_ type: LemmyFeed.FeedType) -> LemmyFeed {
-        let accountInMainContext = lemmyDataStore.mainContext
+        let accountInMainContext = dataStore.mainContext
             .object(with: accountObjectId) as! LemmyAccount
 
         let newFeed = LemmyFeed(
             type,
             account: accountInMainContext,
-            in: lemmyDataStore.mainContext
+            in: dataStore.mainContext
         )
 
-        lemmyDataStore.saveIfNeeded()
+        dataStore.saveIfNeeded()
 
         return newFeed
     }

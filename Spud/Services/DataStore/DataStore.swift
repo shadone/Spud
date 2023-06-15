@@ -8,7 +8,7 @@ import CoreData
 import Foundation
 import os.log
 
-protocol LemmyDataStoreType: AnyObject {
+protocol DataStoreType: AnyObject {
     var mainContext: NSManagedObjectContext { get }
     var persistentContainer: NSPersistentContainer? { get }
     func startService()
@@ -16,11 +16,11 @@ protocol LemmyDataStoreType: AnyObject {
     func saveIfNeeded()
 }
 
-protocol HasLemmyDataStore {
-    var lemmyDataStore: LemmyDataStoreType { get }
+protocol HasDataStore {
+    var dataStore: DataStoreType { get }
 }
 
-class LemmyDataStore: LemmyDataStoreType {
+class DataStore: DataStoreType {
     var mainContext: NSManagedObjectContext {
         guard let persistentContainer = persistentContainer else {
             fatalError("Uninitialized persistent store")
@@ -38,7 +38,7 @@ class LemmyDataStore: LemmyDataStoreType {
             return
         }
 
-        let storeName = "LemmyDataStore"
+        let storeName = "DataStore"
         let storeFileName = "\(storeName).sqlite"
 
         let container = NSPersistentContainer(name: storeName)

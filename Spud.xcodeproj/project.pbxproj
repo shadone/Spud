@@ -10,14 +10,14 @@
 		92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C8FD2A3A40EB00672F64 /* AppDelegate.swift */; };
 		92B7C9002A3A40EB00672F64 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C8FF2A3A40EB00672F64 /* SceneDelegate.swift */; };
 		92B7C9022A3A40EB00672F64 /* PostListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9012A3A40EB00672F64 /* PostListViewController.swift */; };
-		92B7C9082A3A40EB00672F64 /* LemmyDataStore.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9062A3A40EB00672F64 /* LemmyDataStore.xcdatamodeld */; };
+		92B7C9082A3A40EB00672F64 /* DataStore.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9062A3A40EB00672F64 /* DataStore.xcdatamodeld */; };
 		92B7C90A2A3A40F400672F64 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 92B7C9092A3A40F400672F64 /* Assets.xcassets */; };
 		92B7C90D2A3A40F400672F64 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 92B7C90B2A3A40F400672F64 /* LaunchScreen.storyboard */; };
 		92B7C9182A3A40F400672F64 /* SpudTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9172A3A40F400672F64 /* SpudTests.swift */; };
 		92B7C9222A3A40F400672F64 /* SpudUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9212A3A40F400672F64 /* SpudUITests.swift */; };
 		92B7C9242A3A40F400672F64 /* SpudUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9232A3A40F400672F64 /* SpudUITestsLaunchTests.swift */; };
 		92B7C9312A3A493C00672F64 /* PostListCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9302A3A493C00672F64 /* PostListCell.swift */; };
-		92B7C9392A3A59E600672F64 /* LemmyDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9382A3A59E600672F64 /* LemmyDataStore.swift */; };
+		92B7C9392A3A59E600672F64 /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9382A3A59E600672F64 /* DataStore.swift */; };
 		92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */; };
 		92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93D2A3A5C3A00672F64 /* OSLog.swift */; };
 		92B7C9412A3A5DD800672F64 /* LemmyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9402A3A5DD800672F64 /* LemmyService.swift */; };
@@ -66,7 +66,7 @@
 		92B7C9212A3A40F400672F64 /* SpudUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudUITests.swift; sourceTree = "<group>"; };
 		92B7C9232A3A40F400672F64 /* SpudUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		92B7C9302A3A493C00672F64 /* PostListCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListCell.swift; sourceTree = "<group>"; };
-		92B7C9382A3A59E600672F64 /* LemmyDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyDataStore.swift; sourceTree = "<group>"; };
+		92B7C9382A3A59E600672F64 /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
 		92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyContainer.swift; sourceTree = "<group>"; };
 		92B7C93D2A3A5C3A00672F64 /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
 		92B7C9402A3A5DD800672F64 /* LemmyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyService.swift; sourceTree = "<group>"; };
@@ -210,8 +210,8 @@
 		92B7C9372A3A59AD00672F64 /* DataStore */ = {
 			isa = PBXGroup;
 			children = (
-				92B7C9382A3A59E600672F64 /* LemmyDataStore.swift */,
-				92B7C9062A3A40EB00672F64 /* LemmyDataStore.xcdatamodeld */,
+				92B7C9382A3A59E600672F64 /* DataStore.swift */,
+				92B7C9062A3A40EB00672F64 /* DataStore.xcdatamodeld */,
 				92B7C9492A3A603900672F64 /* Models */,
 			);
 			path = DataStore;
@@ -422,10 +422,10 @@
 				92B7C94B2A3A604300672F64 /* LemmyFeed.swift in Sources */,
 				92B7C95A2A3A74BE00672F64 /* LemmyPost+import.swift in Sources */,
 				92B7C9512A3A65E200672F64 /* LemmyPost.swift in Sources */,
-				92B7C9392A3A59E600672F64 /* LemmyDataStore.swift in Sources */,
+				92B7C9392A3A59E600672F64 /* DataStore.swift in Sources */,
 				92B7C9612A3B5E8C00672F64 /* AccountService.swift in Sources */,
 				92B7C95E2A3B5A7800672F64 /* LemmyAccount.swift in Sources */,
-				92B7C9082A3A40EB00672F64 /* LemmyDataStore.xcdatamodeld in Sources */,
+				92B7C9082A3A40EB00672F64 /* DataStore.xcdatamodeld in Sources */,
 				92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */,
 				92B7C9002A3A40EB00672F64 /* SceneDelegate.swift in Sources */,
 				92B7C94F2A3A65BA00672F64 /* LemmyPageElement.swift in Sources */,
@@ -776,13 +776,13 @@
 /* End XCSwiftPackageProductDependency section */
 
 /* Begin XCVersionGroup section */
-		92B7C9062A3A40EB00672F64 /* LemmyDataStore.xcdatamodeld */ = {
+		92B7C9062A3A40EB00672F64 /* DataStore.xcdatamodeld */ = {
 			isa = XCVersionGroup;
 			children = (
 				92B7C9072A3A40EB00672F64 /* Spud.xcdatamodel */,
 			);
 			currentVersion = 92B7C9072A3A40EB00672F64 /* Spud.xcdatamodel */;
-			path = LemmyDataStore.xcdatamodeld;
+			path = DataStore.xcdatamodeld;
 			sourceTree = "<group>";
 			versionGroupType = wrapper.xcdatamodel;
 		};

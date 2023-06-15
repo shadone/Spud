@@ -25,7 +25,7 @@ protocol HasAccountService {
 class AccountService: AccountServiceType {
     // MARK: Private
 
-    private let lemmyDataStore: LemmyDataStoreType
+    private let dataStore: DataStoreType
 
     private var signedOutAccountObjectId: NSManagedObjectID?
     private var lemmyServices: [NSManagedObjectID: LemmyService] = [:]
@@ -33,9 +33,9 @@ class AccountService: AccountServiceType {
     // MARK: Functions
 
     init(
-        lemmyDataStore: LemmyDataStoreType
+        dataStore: DataStoreType
     ) {
-        self.lemmyDataStore = lemmyDataStore
+        self.dataStore = dataStore
     }
 
     func accountForSignedOut(instanceUrl: URL) -> LemmyAccount {
@@ -47,7 +47,7 @@ class AccountService: AccountServiceType {
                 instanceUrl.absoluteString
             )
             do {
-                let accounts = try lemmyDataStore.mainContext.fetch(request)
+                let accounts = try dataStore.mainContext.fetch(request)
                 if accounts.count > 1 {
                     os_log("Expected zero or one but found %{public}d signed out accounts instead!",
                            log: .accountService, type: .error,
@@ -65,12 +65,12 @@ class AccountService: AccountServiceType {
         }()
 
         func createAccountForSignedOut() -> LemmyAccount {
-            let account = LemmyAccount(context: lemmyDataStore.mainContext)
+            let account = LemmyAccount(context: dataStore.mainContext)
             account.instanceUrl = instanceUrl
             account.isSignedOutAccountType = true
             account.createdAt = Date()
             account.updatedAt = account.createdAt
-            lemmyDataStore.saveIfNeeded()
+            dataStore.saveIfNeeded()
             return account
         }
 
@@ -88,7 +88,7 @@ class AccountService: AccountServiceType {
 
         let lemmyService = LemmyService(
             accountObjectId: accountObjectId,
-            lemmyDataStore: lemmyDataStore,
+            dataStore: dataStore,
             lemmyApi: api
         )
         lemmyServices[accountObjectId] = lemmyService
