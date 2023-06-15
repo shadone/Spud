@@ -201,20 +201,20 @@
 			isa = PBXGroup;
 			children = (
 				92B7C95F2A3B5E7000672F64 /* Account */,
-				92B7C9372A3A59AD00672F64 /* LemmyDataStore */,
-				92B7C93F2A3A5DC800672F64 /* LemmyService */,
+				92B7C9372A3A59AD00672F64 /* DataStore */,
+				92B7C93F2A3A5DC800672F64 /* Lemmy */,
 			);
 			path = Services;
 			sourceTree = "<group>";
 		};
-		92B7C9372A3A59AD00672F64 /* LemmyDataStore */ = {
+		92B7C9372A3A59AD00672F64 /* DataStore */ = {
 			isa = PBXGroup;
 			children = (
 				92B7C9382A3A59E600672F64 /* LemmyDataStore.swift */,
 				92B7C9062A3A40EB00672F64 /* LemmyDataStore.xcdatamodeld */,
 				92B7C9492A3A603900672F64 /* Models */,
 			);
-			path = LemmyDataStore;
+			path = DataStore;
 			sourceTree = "<group>";
 		};
 		92B7C93C2A3A5C1B00672F64 /* Utils */ = {
@@ -225,13 +225,13 @@
 			path = Utils;
 			sourceTree = "<group>";
 		};
-		92B7C93F2A3A5DC800672F64 /* LemmyService */ = {
+		92B7C93F2A3A5DC800672F64 /* Lemmy */ = {
 			isa = PBXGroup;
 			children = (
 				92B7C9542A3A737A00672F64 /* ImportHelpers */,
 				92B7C9402A3A5DD800672F64 /* LemmyService.swift */,
 			);
-			path = LemmyService;
+			path = Lemmy;
 			sourceTree = "<group>";
 		};
 		92B7C9422A3A5E1400672F64 /* Packages */ = {
