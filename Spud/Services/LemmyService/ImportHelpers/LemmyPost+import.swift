@@ -12,6 +12,7 @@ import LemmyKit
 extension LemmyPost {
     convenience init(
         _ model: PostView,
+        account: LemmyAccount,
         in context: NSManagedObjectContext
     ) {
         self.init(context: context)
@@ -20,18 +21,24 @@ extension LemmyPost {
 
         createdAt = Date()
         updatedAt = createdAt
+
+        self.account = account
     }
 
     static func upsert(
         _ model: PostView,
+        account: LemmyAccount,
         in context: NSManagedObjectContext
     ) -> LemmyPost {
         let request = LemmyPost.fetchRequest() as NSFetchRequest<LemmyPost>
-        request.predicate = NSPredicate(format: "id == %d", model.post.id)
+        request.predicate = NSPredicate(
+            format: "id == %d AND account == %@",
+            model.post.id, account
+        )
         do {
             let results = try context.fetch(request)
             if results.count == 0 {
-                return LemmyPost(model, in: context)
+                return LemmyPost(model, account: account, in: context)
             } else if results.count == 1 {
                 let post = results[0]
                 post.set(from: model, in: context)
@@ -46,7 +53,7 @@ extension LemmyPost {
                    log: .app, type: .error,
                    String(describing: error))
             assertionFailure()
-            return LemmyPost(model, in: context)
+            return LemmyPost(model, account: account, in: context)
         }
     }
 

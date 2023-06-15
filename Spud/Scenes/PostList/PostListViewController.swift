@@ -21,6 +21,11 @@ class PostListViewController: UIViewController {
 
     init() {
         super.init(nibName: nil, bundle: nil)
+
+        setup()
+    }
+
+    private func setup() {
         view.backgroundColor = .white
 
         view.addSubview(tableView)
@@ -38,14 +43,18 @@ class PostListViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    var lemmyService: LemmyServiceType!
-
+    var lemmyService: LemmyServiceType?
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
 
-        let lemmyApi = LemmyApi()
-        self.lemmyService = LemmyService(
-            lemmyDataStore: AppDelegate.shared.dependencies.lemmyDataStore, lemmyApi: lemmyApi)
+        let tchncs = URL(string: "https://discuss.tchncs.de")!
+
+        let accountService = AppDelegate.shared.dependencies.accountService
+
+        let account = accountService.accountForSignedOut(instanceUrl: tchncs)
+        let lemmyService = accountService.lemmyService(for: account)
+        self.lemmyService = lemmyService
+
         let feed = lemmyService.createFeed(.frontpage(listingType: .local, sortType: .active))
         Task {
             try await lemmyService.fetchFeed(feedId: feed.objectID, page: nil)

@@ -22,6 +22,8 @@ protocol LemmyServiceType {
 class LemmyService: LemmyServiceType {
     // MARK: Public
 
+    let accountObjectId: NSManagedObjectID
+
     // MARK: Private
 
     private let lemmyDataStore: LemmyDataStoreType
@@ -39,7 +41,12 @@ class LemmyService: LemmyServiceType {
 
     // MARK: Functions
 
-    init(lemmyDataStore: LemmyDataStoreType, lemmyApi: LemmyApi) {
+    init(
+        accountObjectId: NSManagedObjectID,
+        lemmyDataStore: LemmyDataStoreType,
+        lemmyApi: LemmyApi
+    ) {
+        self.accountObjectId = accountObjectId
         self.lemmyDataStore = lemmyDataStore
         self.lemmyApi = lemmyApi
     }
@@ -68,8 +75,12 @@ class LemmyService: LemmyServiceType {
     }
 
     func createFeed(_ type: LemmyFeed.FeedType) -> LemmyFeed {
+        let accountInMainContext = lemmyDataStore.mainContext
+            .object(with: accountObjectId) as! LemmyAccount
+
         let newFeed = LemmyFeed(
             type,
+            account: accountInMainContext,
             in: lemmyDataStore.mainContext
         )
 

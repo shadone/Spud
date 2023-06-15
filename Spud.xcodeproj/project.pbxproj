@@ -30,6 +30,8 @@
 		92B7C9562A3A738500672F64 /* LemmyFeed+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9552A3A738500672F64 /* LemmyFeed+import.swift */; };
 		92B7C9582A3A745B00672F64 /* LemmyPage+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9572A3A745B00672F64 /* LemmyPage+import.swift */; };
 		92B7C95A2A3A74BE00672F64 /* LemmyPost+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9592A3A74BE00672F64 /* LemmyPost+import.swift */; };
+		92B7C95E2A3B5A7800672F64 /* LemmyAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C95D2A3B5A7800672F64 /* LemmyAccount.swift */; };
+		92B7C9612A3B5E8C00672F64 /* AccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9602A3B5E8C00672F64 /* AccountService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,6 +79,8 @@
 		92B7C9552A3A738500672F64 /* LemmyFeed+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyFeed+import.swift"; sourceTree = "<group>"; };
 		92B7C9572A3A745B00672F64 /* LemmyPage+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPage+import.swift"; sourceTree = "<group>"; };
 		92B7C9592A3A74BE00672F64 /* LemmyPost+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPost+import.swift"; sourceTree = "<group>"; };
+		92B7C95D2A3B5A7800672F64 /* LemmyAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyAccount.swift; sourceTree = "<group>"; };
+		92B7C9602A3B5E8C00672F64 /* AccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -196,8 +200,9 @@
 		92B7C9362A3A59A000672F64 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				92B7C93F2A3A5DC800672F64 /* LemmyService */,
+				92B7C95F2A3B5E7000672F64 /* Account */,
 				92B7C9372A3A59AD00672F64 /* LemmyDataStore */,
+				92B7C93F2A3A5DC800672F64 /* LemmyService */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -247,6 +252,7 @@
 		92B7C9492A3A603900672F64 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				92B7C95D2A3B5A7800672F64 /* LemmyAccount.swift */,
 				92B7C94A2A3A604300672F64 /* LemmyFeed.swift */,
 				92B7C9522A3A667E00672F64 /* LemmyFeed+FeedType.swift */,
 				92B7C94C2A3A658700672F64 /* LemmyPage.swift */,
@@ -264,6 +270,14 @@
 				92B7C9592A3A74BE00672F64 /* LemmyPost+import.swift */,
 			);
 			path = ImportHelpers;
+			sourceTree = "<group>";
+		};
+		92B7C95F2A3B5E7000672F64 /* Account */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C9602A3B5E8C00672F64 /* AccountService.swift */,
+			);
+			path = Account;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -409,6 +423,8 @@
 				92B7C95A2A3A74BE00672F64 /* LemmyPost+import.swift in Sources */,
 				92B7C9512A3A65E200672F64 /* LemmyPost.swift in Sources */,
 				92B7C9392A3A59E600672F64 /* LemmyDataStore.swift in Sources */,
+				92B7C9612A3B5E8C00672F64 /* AccountService.swift in Sources */,
+				92B7C95E2A3B5A7800672F64 /* LemmyAccount.swift in Sources */,
 				92B7C9082A3A40EB00672F64 /* LemmyDataStore.xcdatamodeld in Sources */,
 				92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */,
 				92B7C9002A3A40EB00672F64 /* SceneDelegate.swift in Sources */,

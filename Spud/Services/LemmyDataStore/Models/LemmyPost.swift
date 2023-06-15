@@ -29,4 +29,5 @@ import os.log
     // MARK: Relations
 
     @NSManaged public var pageElements: Set<LemmyPageElement>
+    @NSManaged public var account: LemmyAccount
 }

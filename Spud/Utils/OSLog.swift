@@ -12,4 +12,5 @@ extension OSLog {
 
     static let app = OSLog(subsystem: subsystem, category: "App")
     static let lemmyService = OSLog(subsystem: subsystem, category: "LemmyService")
+    static let accountService = OSLog(subsystem: subsystem, category: "AccountService")
 }

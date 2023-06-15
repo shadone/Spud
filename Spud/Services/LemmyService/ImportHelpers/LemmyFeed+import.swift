@@ -17,6 +17,7 @@ extension LemmyFeed {
         let page = LemmyPage(
             postViews,
             index: Int16(pages.count),
+            account: account,
             in: context
         )
         addToPages(page)

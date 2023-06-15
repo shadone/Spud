@@ -12,6 +12,7 @@ extension LemmyPage {
     convenience init(
         _ postViews: [PostView],
         index: Int16,
+        account: LemmyAccount,
         in context: NSManagedObjectContext
     ) {
         self.init(context: context)
@@ -24,7 +25,7 @@ extension LemmyPage {
             .forEach { index, postView in
                 assert(index < Int16.max)
 
-                let post = LemmyPost.upsert(postView, in: context)
+                let post = LemmyPost.upsert(postView, account: account, in: context)
 
                 let element = LemmyPageElement(context: context)
                 element.index = Int16(index)

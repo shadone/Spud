@@ -33,6 +33,7 @@ import LemmyKit
     // MARK: Relations
 
     @NSManaged public var pages: Set<LemmyPage>
+    @NSManaged public var account: LemmyAccount
 
     // MARK: Functions
 
@@ -88,6 +89,7 @@ extension LemmyFeed {
 
     convenience init(
         _ feedType: FeedType,
+        account: LemmyAccount,
         in context: NSManagedObjectContext
     ) {
         switch feedType {
@@ -98,6 +100,8 @@ extension LemmyFeed {
                 in: context
             )
         }
+
+        self.account = account
     }
 
     /// Creates a new frontpage feed for a given category and sort order.
