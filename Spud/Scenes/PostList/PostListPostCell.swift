@@ -130,12 +130,14 @@ class PostListPostCell: UITableViewCell {
 
     func configure(with viewModel: PostListPostViewModel) {
         viewModel.title
-            .map { Optional(NSAttributedString($0)) }
+            .map { NSAttributedString($0) }
+            .wrapInOptional()
             .assign(to: \.attributedText, on: titleLabel)
             .store(in: &disposables)
 
         viewModel.communityName
-            .map { Optional(NSAttributedString($0)) }
+            .map { NSAttributedString($0) }
+            .wrapInOptional()
             .assign(to: \.attributedText, on: communityLabel)
             .store(in: &disposables)
     }

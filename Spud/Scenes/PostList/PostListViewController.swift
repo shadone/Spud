@@ -99,6 +99,11 @@ class PostListViewController: UIViewController {
                 self?.isLoadingIndicatorHidden = !isFetchingNextPage
             }
             .store(in: &disposables)
+
+        viewModel.outputs.navigationTitle
+            .wrapInOptional()
+            .assign(to: \.title, on: navigationItem)
+            .store(in: &disposables)
     }
 
     override func viewDidLoad() {

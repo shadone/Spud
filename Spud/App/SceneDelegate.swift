@@ -30,10 +30,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let lemmyService = accountService.lemmyService(for: account)
         let feed = lemmyService.createFeed(.frontpage(listingType: .all, sortType: .active))
 
-        let initialViewController = PostListViewController(
+        let postListVC = PostListViewController(
             feed: feed,
             dependencies: AppDelegate.shared.dependencies
         )
+        let initialViewController = UINavigationController(rootViewController: postListVC)
 
         window.rootViewController = initialViewController
 

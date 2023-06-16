@@ -26,6 +26,8 @@ protocol PostListViewModelOutputs {
     var numberOfPosts: CurrentValueSubject<Int, Never> { get }
     var sortType: AnyPublisher<SortType, Never> { get }
     var isFetchingNextPage: CurrentValueSubject<Bool, Never> { get }
+    /// The name of this feed to be put in the navigation bar.
+    var navigationTitle: AnyPublisher<String, Never> { get }
 }
 
 protocol PostListViewModelType {
@@ -51,6 +53,22 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
                 switch feed.feedType {
                 case let .frontpage(_, sortType):
                     return sortType
+                }
+            }
+            .eraseToAnyPublisher()
+
+        navigationTitle = self.feed
+            .map { feed in
+                switch feed.feedType {
+                case let .frontpage(listingType, _):
+                    switch listingType {
+                    case .all:
+                        return "All"
+                    case .local:
+                        return "Local"
+                    case .subscribed:
+                        return "Subscribed"
+                    }
                 }
             }
             .eraseToAnyPublisher()
@@ -88,6 +106,7 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
     let numberOfPosts = CurrentValueSubject<Int, Never>(0)
     let sortType: AnyPublisher<SortType, Never>
     let isFetchingNextPage = CurrentValueSubject<Bool, Never>(false)
+    let navigationTitle: AnyPublisher<String, Never>
 
     // MARK: Inputs
 

@@ -35,6 +35,7 @@
 		92B7C9632A3B9EC700672F64 /* PostListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9622A3B9EC700672F64 /* PostListViewModel.swift */; };
 		92B7C9652A3BA64900672F64 /* ManagedContextScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */; };
 		92B7C9672A3D003B00672F64 /* PostListPostViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9662A3D003B00672F64 /* PostListPostViewModel.swift */; };
+		92B7C9692A3D101300672F64 /* Publisher+wrapInOptional.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,6 +88,7 @@
 		92B7C9622A3B9EC700672F64 /* PostListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListViewModel.swift; sourceTree = "<group>"; };
 		92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagedContextScheduler.swift; sourceTree = "<group>"; };
 		92B7C9662A3D003B00672F64 /* PostListPostViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListPostViewModel.swift; sourceTree = "<group>"; };
+		92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Publisher+wrapInOptional.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -228,8 +230,9 @@
 		92B7C93C2A3A5C1B00672F64 /* Utils */ = {
 			isa = PBXGroup;
 			children = (
-				92B7C93D2A3A5C3A00672F64 /* OSLog.swift */,
 				92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */,
+				92B7C93D2A3A5C3A00672F64 /* OSLog.swift */,
+				92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -426,6 +429,7 @@
 				92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */,
 				92B7C9022A3A40EB00672F64 /* PostListViewController.swift in Sources */,
 				92B7C9412A3A5DD800672F64 /* LemmyService.swift in Sources */,
+				92B7C9692A3D101300672F64 /* Publisher+wrapInOptional.swift in Sources */,
 				92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */,
 				92B7C9312A3A493C00672F64 /* PostListPostCell.swift in Sources */,
 				92B7C94B2A3A604300672F64 /* LemmyFeed.swift in Sources */,
