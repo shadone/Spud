@@ -23,7 +23,18 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let window = UIWindow(windowScene: windowScene)
         self.window = window
 
-        let initialViewController = PostListViewController()
+        let tchncs = URL(string: "https://discuss.tchncs.de")!
+
+        let accountService = AppDelegate.shared.dependencies.accountService
+        let account = accountService.accountForSignedOut(instanceUrl: tchncs)
+        let lemmyService = accountService.lemmyService(for: account)
+        let feed = lemmyService.createFeed(.frontpage(listingType: .all, sortType: .active))
+
+        let initialViewController = PostListViewController(
+            feed: feed,
+            dependencies: AppDelegate.shared.dependencies
+        )
+
         window.rootViewController = initialViewController
 
         window.makeKeyAndVisible()

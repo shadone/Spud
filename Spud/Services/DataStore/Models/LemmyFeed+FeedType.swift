@@ -13,12 +13,12 @@ extension LemmyFeed {
 
         init?(
             frontpageListingType: ListingType?,
-            frontpageSortType: SortType?
+            sortType: SortType?
         ) {
             if let frontpageListingType = frontpageListingType,
-               let frontpageSortType = frontpageSortType
+               let sortType = sortType
             {
-                self = .frontpage(listingType: frontpageListingType, sortType: frontpageSortType)
+                self = .frontpage(listingType: frontpageListingType, sortType: sortType)
                 return
             }
 
@@ -34,7 +34,7 @@ extension LemmyFeed {
         guard
             let value = FeedType(
                 frontpageListingType: frontpageListingType,
-                frontpageSortType: frontpageSortType
+                sortType: sortType
             )
         else {
             assertionFailure("Bad feed with id '\(id)'")

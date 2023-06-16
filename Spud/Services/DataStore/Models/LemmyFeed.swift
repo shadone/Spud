@@ -24,8 +24,8 @@ import LemmyKit
 
     // MARK: Frontpage
 
-    /// See [frontpageSortType](x-source-tag://frontpageSortType)
-    @NSManaged public var frontpageSortTypeRawValue: String?
+    /// See [sortType](x-source-tag://sortType)
+    @NSManaged public var sortTypeRawValue: String?
 
     /// See [frontpageListingType](x-source-tag://frontpageListingType)
     @NSManaged public var frontpageListingTypeRawValue: String?
@@ -49,10 +49,10 @@ import LemmyKit
 }
 
 extension LemmyFeed {
-    /// - Tag: frontpageSortType
-    var frontpageSortType: SortType? {
+    /// - Tag: sortType
+    var sortType: SortType? {
         get {
-            guard let rawValue = frontpageSortTypeRawValue else {
+            guard let rawValue = sortTypeRawValue else {
                 return nil
             }
 
@@ -64,7 +64,7 @@ extension LemmyFeed {
             return value
         }
         set {
-            frontpageSortTypeRawValue = newValue?.rawValue
+            sortTypeRawValue = newValue?.rawValue
         }
     }
 
@@ -116,6 +116,22 @@ extension LemmyFeed {
         createdAt = Date()
 
         frontpageListingType = listingType
-        frontpageSortType = sortType
+        self.sortType = sortType
+    }
+
+    convenience init(
+        duplicateOf originalFeed: LemmyFeed,
+        sortType: SortType?,
+        in context: NSManagedObjectContext
+    ) {
+        self.init(context: context)
+
+        id = UUID().uuidString
+        createdAt = Date()
+
+        account = originalFeed.account
+
+        frontpageListingTypeRawValue = originalFeed.frontpageListingTypeRawValue
+        sortTypeRawValue = sortType?.rawValue ?? originalFeed.sortTypeRawValue
     }
 }

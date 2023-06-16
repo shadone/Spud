@@ -4,10 +4,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Combine
 import UIKit
 
-class PostListCell: UITableViewCell {
-    static let reuseIdentifier = "PostListCell"
+class PostListPostCell: UITableViewCell {
+    static let reuseIdentifier = "PostListPostCell"
+
+    // MARK: UI Properties
 
     lazy var mainHorizontalStackView: UIStackView = {
         let stackView = UIStackView()
@@ -56,7 +59,7 @@ class PostListCell: UITableViewCell {
     lazy var titleLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.text = "Hello world"
+        label.numberOfLines = 0
         label.accessibilityIdentifier = "title"
         return label
     }()
@@ -64,7 +67,6 @@ class PostListCell: UITableViewCell {
     lazy var communityLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.text = "science@lemmy.ml"
         label.accessibilityIdentifier = "community"
         return label
     }()
@@ -76,6 +78,12 @@ class PostListCell: UITableViewCell {
         view.accessibilityIdentifier = "contentBottomSpacerView"
         return view
     }()
+
+    // MARK: Private
+
+    private var disposables = Set<AnyCancellable>()
+
+    // MARK: Functions
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -112,5 +120,23 @@ class PostListCell: UITableViewCell {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+
+        disposables.removeAll()
+    }
+
+    func configure(with viewModel: PostListPostViewModel) {
+        viewModel.title
+            .map { Optional(NSAttributedString($0)) }
+            .assign(to: \.attributedText, on: titleLabel)
+            .store(in: &disposables)
+
+        viewModel.communityName
+            .map { Optional(NSAttributedString($0)) }
+            .assign(to: \.attributedText, on: communityLabel)
+            .store(in: &disposables)
     }
 }

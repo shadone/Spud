@@ -11,8 +11,8 @@
     <entity name="Feed" representedClassName="LemmyFeed" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="frontpageListingTypeRawValue" optional="YES" attributeType="String"/>
-        <attribute name="frontpageSortTypeRawValue" optional="YES" attributeType="String"/>
         <attribute name="id" attributeType="String"/>
+        <attribute name="sortTypeRawValue" optional="YES" attributeType="String"/>
         <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="feeds" inverseEntity="Account"/>
         <relationship name="pages" toMany="YES" deletionRule="Cascade" destinationEntity="Page" inverseName="feed" inverseEntity="Page"/>
     </entity>
@@ -37,10 +37,10 @@
         <relationship name="pageElements" toMany="YES" deletionRule="Cascade" destinationEntity="PageElement" inverseName="post" inverseEntity="PageElement"/>
     </entity>
     <elements>
+        <element name="Account" positionX="0" positionY="90" width="128" height="119"/>
         <element name="Feed" positionX="-63" positionY="-18" width="128" height="119"/>
         <element name="Page" positionX="-18" positionY="45" width="128" height="89"/>
         <element name="PageElement" positionX="-36" positionY="36" width="128" height="74"/>
         <element name="Post" positionX="-54" positionY="9" width="128" height="134"/>
-        <element name="Account" positionX="0" positionY="90" width="128" height="119"/>
     </elements>
 </model>

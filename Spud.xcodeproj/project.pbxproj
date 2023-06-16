@@ -16,7 +16,7 @@
 		92B7C9182A3A40F400672F64 /* SpudTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9172A3A40F400672F64 /* SpudTests.swift */; };
 		92B7C9222A3A40F400672F64 /* SpudUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9212A3A40F400672F64 /* SpudUITests.swift */; };
 		92B7C9242A3A40F400672F64 /* SpudUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9232A3A40F400672F64 /* SpudUITestsLaunchTests.swift */; };
-		92B7C9312A3A493C00672F64 /* PostListCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9302A3A493C00672F64 /* PostListCell.swift */; };
+		92B7C9312A3A493C00672F64 /* PostListPostCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9302A3A493C00672F64 /* PostListPostCell.swift */; };
 		92B7C9392A3A59E600672F64 /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9382A3A59E600672F64 /* DataStore.swift */; };
 		92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */; };
 		92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93D2A3A5C3A00672F64 /* OSLog.swift */; };
@@ -32,6 +32,9 @@
 		92B7C95A2A3A74BE00672F64 /* LemmyPost+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9592A3A74BE00672F64 /* LemmyPost+import.swift */; };
 		92B7C95E2A3B5A7800672F64 /* LemmyAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C95D2A3B5A7800672F64 /* LemmyAccount.swift */; };
 		92B7C9612A3B5E8C00672F64 /* AccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9602A3B5E8C00672F64 /* AccountService.swift */; };
+		92B7C9632A3B9EC700672F64 /* PostListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9622A3B9EC700672F64 /* PostListViewModel.swift */; };
+		92B7C9652A3BA64900672F64 /* ManagedContextScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */; };
+		92B7C9672A3D003B00672F64 /* PostListPostViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9662A3D003B00672F64 /* PostListPostViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -65,7 +68,7 @@
 		92B7C91D2A3A40F400672F64 /* SpudUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpudUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		92B7C9212A3A40F400672F64 /* SpudUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudUITests.swift; sourceTree = "<group>"; };
 		92B7C9232A3A40F400672F64 /* SpudUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudUITestsLaunchTests.swift; sourceTree = "<group>"; };
-		92B7C9302A3A493C00672F64 /* PostListCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListCell.swift; sourceTree = "<group>"; };
+		92B7C9302A3A493C00672F64 /* PostListPostCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListPostCell.swift; sourceTree = "<group>"; };
 		92B7C9382A3A59E600672F64 /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
 		92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyContainer.swift; sourceTree = "<group>"; };
 		92B7C93D2A3A5C3A00672F64 /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
@@ -81,6 +84,9 @@
 		92B7C9592A3A74BE00672F64 /* LemmyPost+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPost+import.swift"; sourceTree = "<group>"; };
 		92B7C95D2A3B5A7800672F64 /* LemmyAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyAccount.swift; sourceTree = "<group>"; };
 		92B7C9602A3B5E8C00672F64 /* AccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountService.swift; sourceTree = "<group>"; };
+		92B7C9622A3B9EC700672F64 /* PostListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListViewModel.swift; sourceTree = "<group>"; };
+		92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagedContextScheduler.swift; sourceTree = "<group>"; };
+		92B7C9662A3D003B00672F64 /* PostListPostViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListPostViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -191,8 +197,10 @@
 		92B7C9352A3A599000672F64 /* PostList */ = {
 			isa = PBXGroup;
 			children = (
-				92B7C9302A3A493C00672F64 /* PostListCell.swift */,
+				92B7C9302A3A493C00672F64 /* PostListPostCell.swift */,
+				92B7C9662A3D003B00672F64 /* PostListPostViewModel.swift */,
 				92B7C9012A3A40EB00672F64 /* PostListViewController.swift */,
+				92B7C9622A3B9EC700672F64 /* PostListViewModel.swift */,
 			);
 			path = PostList;
 			sourceTree = "<group>";
@@ -221,6 +229,7 @@
 			isa = PBXGroup;
 			children = (
 				92B7C93D2A3A5C3A00672F64 /* OSLog.swift */,
+				92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -418,18 +427,21 @@
 				92B7C9022A3A40EB00672F64 /* PostListViewController.swift in Sources */,
 				92B7C9412A3A5DD800672F64 /* LemmyService.swift in Sources */,
 				92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */,
-				92B7C9312A3A493C00672F64 /* PostListCell.swift in Sources */,
+				92B7C9312A3A493C00672F64 /* PostListPostCell.swift in Sources */,
 				92B7C94B2A3A604300672F64 /* LemmyFeed.swift in Sources */,
 				92B7C95A2A3A74BE00672F64 /* LemmyPost+import.swift in Sources */,
+				92B7C9672A3D003B00672F64 /* PostListPostViewModel.swift in Sources */,
 				92B7C9512A3A65E200672F64 /* LemmyPost.swift in Sources */,
 				92B7C9392A3A59E600672F64 /* DataStore.swift in Sources */,
 				92B7C9612A3B5E8C00672F64 /* AccountService.swift in Sources */,
 				92B7C95E2A3B5A7800672F64 /* LemmyAccount.swift in Sources */,
+				92B7C9632A3B9EC700672F64 /* PostListViewModel.swift in Sources */,
 				92B7C9082A3A40EB00672F64 /* DataStore.xcdatamodeld in Sources */,
 				92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */,
 				92B7C9002A3A40EB00672F64 /* SceneDelegate.swift in Sources */,
 				92B7C94F2A3A65BA00672F64 /* LemmyPageElement.swift in Sources */,
 				92B7C94D2A3A658700672F64 /* LemmyPage.swift in Sources */,
+				92B7C9652A3BA64900672F64 /* ManagedContextScheduler.swift in Sources */,
 				92B7C9562A3A738500672F64 /* LemmyFeed+import.swift in Sources */,
 				92B7C9582A3A745B00672F64 /* LemmyPage+import.swift in Sources */,
 			);
