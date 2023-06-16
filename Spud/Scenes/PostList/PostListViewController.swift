@@ -29,6 +29,8 @@ class PostListViewController: UIViewController {
         let tableView = UITableView(frame: .zero, style: .plain)
         tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.rowHeight = UITableView.automaticDimension
+
+        tableView.delegate = self
         tableView.dataSource = self
 
         tableView.register(PostListPostCell.self, forCellReuseIdentifier: PostListPostCell.reuseIdentifier)
@@ -164,6 +166,20 @@ extension PostListViewController {
     }
 }
 
+// MARK: - UITableView Delegate
+
+extension PostListViewController: UITableViewDelegate {
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        let position = scrollView.contentOffset.y + scrollView.bounds.height
+        let totalHeight = scrollView.contentSize.height
+        guard totalHeight > 0 else { return }
+        let verticalFraction = position / totalHeight
+        if verticalFraction > 0.9 {
+            viewModel.inputs.didScrollToBottom()
+        }
+    }
+}
+
 // MARK: - UITableView DataSource
 
 extension PostListViewController: UITableViewDataSource {
@@ -225,11 +241,11 @@ extension PostListViewController: NSFetchedResultsControllerDelegate {
         switch type {
         case .insert:
             guard let newIndexPath = newIndexPath else { fatalError() }
-            tableView.insertRows(at: [newIndexPath], with: .automatic)
+            tableView.insertRows(at: [newIndexPath], with: .fade)
 
         case .delete:
             guard let indexPath = indexPath else { fatalError() }
-            tableView.deleteRows(at: [indexPath], with: .automatic)
+            tableView.deleteRows(at: [indexPath], with: .fade)
 
         case .update:
             guard let indexPath = indexPath else { fatalError() }
