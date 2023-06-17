@@ -5,6 +5,7 @@
 //
 
 import Combine
+import SafariServices
 import UIKit
 
 class PostDetailViewController: UIViewController {
@@ -61,6 +62,14 @@ class PostDetailViewController: UIViewController {
     private func setup() {
         view.backgroundColor = .white
 
+        let openInBrowser = UIBarButtonItem(
+            image: UIImage(systemName: "safari")!,
+            style: .plain,
+            target: self,
+            action: #selector(openInBrowser)
+        )
+        navigationItem.rightBarButtonItem = openInBrowser
+
         view.addSubview(tableView)
 
         NSLayoutConstraint.activate([
@@ -78,7 +87,11 @@ class PostDetailViewController: UIViewController {
     }
 
     private func bindViewModel() {
+    }
 
+    @objc private func openInBrowser() {
+        let safariVC = SFSafariViewController(url: post.originalPostUrl)
+        present(safariVC, animated: true)
     }
 }
 

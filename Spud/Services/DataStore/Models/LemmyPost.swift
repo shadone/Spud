@@ -16,8 +16,11 @@ import os.log
 
     // MARK: Properties
 
-    /// Post id.
+    /// Post identifier. The identifier is local to this instance.
     @NSManaged public var id: Int32
+
+    /// Link to the post in the original Lemmy instance.
+    @NSManaged public var originalPostUrl: URL
 
     @NSManaged public var creatorName: String
     @NSManaged public var communityName: String

@@ -59,6 +59,8 @@ extension LemmyPost {
 
     private func set(from model: PostView, in context: NSManagedObjectContext) {
         id = model.post.id
+        originalPostUrl = model.post.ap_id
+
         title = model.post.name
         body = model.post.body
         creatorName = model.creator.name

@@ -36,6 +36,7 @@
         <attribute name="numberOfComments" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfDownvotes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfUpvotes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="originalPostUrl" attributeType="URI"/>
         <attribute name="published" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="score" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="title" attributeType="String"/>
@@ -48,6 +49,6 @@
         <element name="Feed" positionX="-63" positionY="-18" width="128" height="119"/>
         <element name="Page" positionX="-18" positionY="45" width="128" height="89"/>
         <element name="PageElement" positionX="-36" positionY="36" width="128" height="74"/>
-        <element name="Post" positionX="-54" positionY="9" width="128" height="239"/>
+        <element name="Post" positionX="-54" positionY="9" width="128" height="254"/>
     </elements>
 </model>
