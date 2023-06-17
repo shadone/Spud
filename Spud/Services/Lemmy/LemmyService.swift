@@ -141,7 +141,7 @@ class LemmyService: LemmyServiceType {
             .flatMap { feed -> AnyPublisher<Void, LemmyApiError> in
                 switch feed.feedType {
                 case let .frontpage(listingType, sortType):
-                    os_log("Fetch feed page %{public}@",
+                    os_log("Fetch feed. page=%{public}@",
                            log: .lemmyService, type: .debug,
                            pageNumber.map { "\($0)" } ?? "nil")
                     return self.api.getPosts(type: listingType, sort: sortType, page: pageNumber)
@@ -159,6 +159,12 @@ class LemmyService: LemmyServiceType {
                                 self.saveIfNeeded()
                             }
                         })
+                        .mapError { error in
+                            os_log("Fetch feed failed failed: %{public}@",
+                                   log: .lemmyService, type: .error,
+                                   String(describing: error))
+                            return error
+                        }
                         .map { _ in () }
                         .eraseToAnyPublisher()
                 }
