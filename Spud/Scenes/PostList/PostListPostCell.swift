@@ -64,10 +64,10 @@ class PostListPostCell: UITableViewCell {
         return label
     }()
 
-    lazy var communityLabel: UILabel = {
+    lazy var subtitleLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.accessibilityIdentifier = "community"
+        label.accessibilityIdentifier = "subtitle"
         return label
     }()
 
@@ -102,7 +102,7 @@ class PostListPostCell: UITableViewCell {
 
         [
             titleLabel,
-            communityLabel,
+            subtitleLabel,
             contentBottomSpacerView,
         ].forEach(contentContainer.addArrangedSubview)
 
@@ -135,10 +135,9 @@ class PostListPostCell: UITableViewCell {
             .assign(to: \.attributedText, on: titleLabel)
             .store(in: &disposables)
 
-        viewModel.communityName
-            .map { NSAttributedString($0) }
+        viewModel.subtitle
             .wrapInOptional()
-            .assign(to: \.attributedText, on: communityLabel)
+            .assign(to: \.attributedText, on: subtitleLabel)
             .store(in: &disposables)
     }
 }
