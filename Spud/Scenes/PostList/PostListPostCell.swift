@@ -51,8 +51,24 @@ class PostListPostCell: UITableViewCell {
         let stackView = UIStackView()
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.axis = .vertical
-        stackView.spacing = 8
+        stackView.spacing = 0
         stackView.accessibilityIdentifier = "contentVerticalStackView"
+
+        let contentBottomSpacerView: UIView = {
+            let view = UIView()
+            view.translatesAutoresizingMaskIntoConstraints = false
+            view.setContentHuggingPriority(.defaultLow, for: .vertical)
+            return view
+        }()
+
+        [
+            titleLabel,
+            subtitleLabel,
+            contentBottomSpacerView,
+        ].forEach(stackView.addArrangedSubview)
+
+        stackView.setCustomSpacing(8, after: titleLabel)
+
         return stackView
     }()
 
@@ -69,14 +85,6 @@ class PostListPostCell: UITableViewCell {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.accessibilityIdentifier = "subtitle"
         return label
-    }()
-
-    lazy var contentBottomSpacerView: UIView = {
-        let view = UIView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.setContentHuggingPriority(.defaultLow, for: .vertical)
-        view.accessibilityIdentifier = "contentBottomSpacerView"
-        return view
     }()
 
     // MARK: Private
@@ -99,12 +107,6 @@ class PostListPostCell: UITableViewCell {
             thumbnailImageView,
             thumbnailBottomSpacerView,
         ].forEach(thumbnailContainer.addArrangedSubview)
-
-        [
-            titleLabel,
-            subtitleLabel,
-            contentBottomSpacerView,
-        ].forEach(contentContainer.addArrangedSubview)
 
         NSLayoutConstraint.activate([
             mainHorizontalStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
