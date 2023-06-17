@@ -13,7 +13,10 @@ class PostDetailHeaderViewModel {
 
     var title: AnyPublisher<AttributedString, Never> {
         post.publisher(for: \.title)
-            .map { AttributedString($0) }
+            .combineLatest(titleAttributes)
+            .map { title, attributes in
+                AttributedString(title, attributes: .init(attributes))
+            }
             .eraseToAnyPublisher()
     }
 
