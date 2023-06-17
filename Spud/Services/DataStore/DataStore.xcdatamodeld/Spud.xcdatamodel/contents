@@ -32,7 +32,7 @@
         <attribute name="communityName" attributeType="String"/>
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="creatorName" attributeType="String"/>
-        <attribute name="id" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="localPostId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfComments" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfDownvotes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfUpvotes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>

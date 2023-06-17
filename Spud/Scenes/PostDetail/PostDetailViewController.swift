@@ -90,7 +90,7 @@ class PostDetailViewController: UIViewController {
     }
 
     @objc private func openInBrowser() {
-        let safariVC = SFSafariViewController(url: post.originalPostUrl)
+        let safariVC = SFSafariViewController(url: post.localLemmyUiUrl)
         present(safariVC, animated: true)
     }
 }

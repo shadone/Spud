@@ -32,7 +32,7 @@ extension LemmyPost {
     ) -> LemmyPost {
         let request = LemmyPost.fetchRequest() as NSFetchRequest<LemmyPost>
         request.predicate = NSPredicate(
-            format: "id == %d AND account == %@",
+            format: "localPostId == %d AND account == %@",
             model.post.id, account
         )
         do {
@@ -58,7 +58,7 @@ extension LemmyPost {
     }
 
     private func set(from model: PostView, in context: NSManagedObjectContext) {
-        id = model.post.id
+        localPostId = model.post.id
         originalPostUrl = model.post.ap_id
 
         title = model.post.name

@@ -50,6 +50,7 @@
 		92B7C9852A3D2D8E00672F64 /* UpvotesFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9842A3D2D8E00672F64 /* UpvotesFormatter.swift */; };
 		92B7C9872A3D2DC100672F64 /* CommentsFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9862A3D2DC100672F64 /* CommentsFormatter.swift */; };
 		92B7C98B2A3D2F0100672F64 /* TimeInterval+roundedInt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C98A2A3D2F0100672F64 /* TimeInterval+roundedInt.swift */; };
+		92B7C98D2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C98C2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -117,6 +118,7 @@
 		92B7C9842A3D2D8E00672F64 /* UpvotesFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpvotesFormatter.swift; sourceTree = "<group>"; };
 		92B7C9862A3D2DC100672F64 /* CommentsFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentsFormatter.swift; sourceTree = "<group>"; };
 		92B7C98A2A3D2F0100672F64 /* TimeInterval+roundedInt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TimeInterval+roundedInt.swift"; sourceTree = "<group>"; };
+		92B7C98C2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPost+localLemmyUiUrl.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -301,6 +303,7 @@
 				92B7C94C2A3A658700672F64 /* LemmyPage.swift */,
 				92B7C94E2A3A65BA00672F64 /* LemmyPageElement.swift */,
 				92B7C9502A3A65E200672F64 /* LemmyPost.swift */,
+				92B7C98C2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -510,6 +513,7 @@
 				92B7C9712A3D173300672F64 /* PostDetailHeaderViewModel.swift in Sources */,
 				92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */,
 				92B7C9782A3D241800672F64 /* Publisher+combineLatestSequence.swift in Sources */,
+				92B7C98D2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift in Sources */,
 				92B7C9312A3A493C00672F64 /* PostListPostCell.swift in Sources */,
 				92B7C94B2A3A604300672F64 /* LemmyFeed.swift in Sources */,
 				92B7C96E2A3D15B100672F64 /* PostDetailViewModel.swift in Sources */,
