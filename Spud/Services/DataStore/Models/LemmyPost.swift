@@ -19,9 +19,26 @@ import os.log
     /// Post id.
     @NSManaged public var id: Int32
 
+    @NSManaged public var creatorName: String
     @NSManaged public var communityName: String
 
+    /// The title of the post.
     @NSManaged public var title: String
+    /// The text body of the post.
+    @NSManaged public var body: String?
+
+    /// Number of comments.
+    @NSManaged public var numberOfComments: Int64
+
+    /// Overall score of the post.
+    @NSManaged public var score: Int64
+    /// Number of upvotes.
+    @NSManaged public var numberOfUpvotes: Int64
+    /// Number of downvotes.
+    @NSManaged public var numberOfDownvotes: Int64
+
+    /// The timestamp when the post was published.
+    @NSManaged public var published: Date
 
     @NSManaged public var createdAt: Date
     @NSManaged public var updatedAt: Date

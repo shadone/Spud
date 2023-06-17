@@ -60,6 +60,16 @@ extension LemmyPost {
     private func set(from model: PostView, in context: NSManagedObjectContext) {
         id = model.post.id
         title = model.post.name
+        body = model.post.body
+        creatorName = model.creator.name
         communityName = model.community.name
+
+        published = model.post.published
+
+        numberOfComments = model.counts.comments
+
+        score = model.counts.score
+        numberOfUpvotes = model.counts.upvotes
+        numberOfDownvotes = model.counts.downvotes
     }
 }

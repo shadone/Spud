@@ -11,7 +11,10 @@ import LemmyKit
 import os.log
 
 class PostListViewController: UIViewController {
-    typealias Dependencies = HasAccountService & HasDataStore
+    typealias Dependencies =
+        HasAccountService &
+        HasDataStore &
+        PostDetailViewController.Dependencies
     let dependencies: Dependencies
 
     // MARK: Public
@@ -20,8 +23,6 @@ class PostListViewController: UIViewController {
     var viewModel: PostListViewModelType {
         viewModelSubject.value
     }
-
-    var postSelected: ((LemmyPost?) -> Void)?
 
     // MARK: UI Properties
 
@@ -82,8 +83,9 @@ class PostListViewController: UIViewController {
 
     private func bindViewModel() {
         viewModel.outputs.selectedPost
+            .ignoreNil()
             .sink { [weak self] post in
-                self?.postSelected?(post)
+                self?.postSelected(post)
             }
             .store(in: &disposables)
 
@@ -152,6 +154,11 @@ class PostListViewController: UIViewController {
             viewModel.inputs.didPrepareFetchController()
         }
     }
+
+    private func postSelected(_ post: LemmyPost) {
+        let postDetailVC = PostDetailViewController(post: post, dependencies: dependencies)
+        navigationController?.pushViewController(postDetailVC, animated: true)
+    }
 }
 
 // MARK: - Post helpers
@@ -182,6 +189,11 @@ extension PostListViewController: UITableViewDelegate {
         if verticalFraction > 0.9 {
             viewModel.inputs.didScrollToBottom()
         }
+    }
+
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let post = post(at: indexPath.row)
+        viewModel.inputs.didSelectPost(post)
     }
 }
 
