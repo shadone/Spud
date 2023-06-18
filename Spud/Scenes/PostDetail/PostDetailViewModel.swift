@@ -12,6 +12,7 @@ protocol PostDetailViewModelInputs {
 //    func voteOnPost(_ action: VoteStatus.Action)
 //    func voteOnComment(_ comment: RedditComment, _ action: VoteStatus.Action)
     func didChangeCommentSortType(_ sortType: CommentSortType)
+    func didPrepareFetchController(numberOfFetchedComments: Int)
 }
 
 protocol PostDetailViewModelOutputs {
@@ -87,5 +88,18 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
 
     func didChangeCommentSortType(_ sortType: CommentSortType) {
         commentSortType.send(sortType)
+    }
+
+    func didPrepareFetchController(numberOfFetchedComments: Int) {
+        // if we already have comments lets use that and not trigger a new fetch from server.
+        // TODO: reload from server if comments were fetched too long time ago
+        guard numberOfFetchedComments == 0 else { return }
+
+        accountService.lemmyService(for: post.account)
+            .fetchComments(postId: postObjectId, sortType: commentSortType.value)
+            .sink(receiveCompletion: { _ in
+                // TODO: hide spinner
+            }) { _ in }
+            .store(in: &disposables)
     }
 }

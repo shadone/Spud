@@ -22,7 +22,10 @@ import os.log
 
     @NSManaged public var isSignedOutAccountType: Bool
 
+    /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
+
+    /// Timestamp when this CoreData object was last updated.
     @NSManaged public var updatedAt: Date
 
     // MARK: Relations

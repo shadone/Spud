@@ -161,7 +161,7 @@ class PostListViewController: UIViewController {
     }
 }
 
-// MARK: - Post helpers
+// MARK: - FRC helpers
 
 extension PostListViewController {
     var numberOfPosts: Int {

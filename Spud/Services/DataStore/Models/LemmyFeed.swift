@@ -19,7 +19,7 @@ import LemmyKit
     /// Feed identifier. Random UUID.
     @NSManaged public var id: String
 
-    /// Timestamp when we started fetching the post list.
+    /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 
     // MARK: Frontpage

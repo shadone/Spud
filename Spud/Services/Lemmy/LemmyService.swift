@@ -21,6 +21,11 @@ protocol LemmyServiceType {
         feedId: NSManagedObjectID,
         page pageNumber: Int?
     ) -> AnyPublisher<Void, LemmyApiError>
+
+    func fetchComments(
+        postId: NSManagedObjectID,
+        sortType: CommentSortType
+    ) -> AnyPublisher<Void, LemmyApiError>
 }
 
 extension LemmyServiceType {
@@ -144,7 +149,12 @@ class LemmyService: LemmyServiceType {
                     os_log("Fetch feed. page=%{public}@",
                            log: .lemmyService, type: .debug,
                            pageNumber.map { "\($0)" } ?? "nil")
-                    return self.api.getPosts(type: listingType, sort: sortType, page: pageNumber)
+                    let request = GetPosts.Request(
+                        type_: listingType,
+                        sort: sortType,
+                        page: pageNumber
+                    )
+                    return self.api.getPosts(request)
                         .receive(on: self.backgroundScheduler)
                         .handleEvents(receiveOutput: { response in
                             os_log("Fetch feed complete with %{public}d posts",
@@ -168,6 +178,49 @@ class LemmyService: LemmyServiceType {
                         .map { _ in () }
                         .eraseToAnyPublisher()
                 }
+            }
+            .receive(on: RunLoop.main)
+            .eraseToAnyPublisher()
+    }
+
+    func fetchComments(
+        postId: NSManagedObjectID,
+        sortType: CommentSortType
+    ) -> AnyPublisher<Void, LemmyApiError> {
+        object(with: postId, type: LemmyPost.self)
+            .setFailureType(to: LemmyApiError.self)
+            .flatMap { post -> AnyPublisher<Void, LemmyApiError> in
+                os_log("Fetch comments. post=%{public}d",
+                       log: .lemmyService, type: .debug,
+                       post.localPostId)
+                let request = GetComments.Request(
+                    sort: sortType,
+                    max_depth: 8,
+                    post_id: post.localPostId
+                )
+                return self.api.getComments(request)
+                    .receive(on: self.backgroundScheduler)
+                    .handleEvents(receiveOutput: { response in
+                        os_log("Fetch comments complete with %{public}d comments",
+                               log: .lemmyService, type: .debug,
+                               response.comments.count)
+                        post.upsert(comments: response.comments, for: sortType)
+                    }, receiveCompletion: { completion in
+                        switch completion {
+                        case .failure:
+                            break
+                        case .finished:
+                            self.saveIfNeeded()
+                        }
+                    })
+                    .mapError { error in
+                        os_log("Fetch comments failed failed: %{public}@",
+                               log: .lemmyService, type: .error,
+                               String(describing: error))
+                        return error
+                    }
+                    .map { _ in () }
+                    .eraseToAnyPublisher()
             }
             .receive(on: RunLoop.main)
             .eraseToAnyPublisher()

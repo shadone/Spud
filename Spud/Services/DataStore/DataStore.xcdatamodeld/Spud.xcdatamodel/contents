@@ -8,6 +8,27 @@
         <relationship name="feeds" toMany="YES" deletionRule="Cascade" destinationEntity="Feed" inverseName="account" inverseEntity="Feed"/>
         <relationship name="posts" toMany="YES" deletionRule="Cascade" destinationEntity="Post" inverseName="account" inverseEntity="Post"/>
     </entity>
+    <entity name="Comment" representedClassName="LemmyComment" syncable="YES">
+        <attribute name="body" attributeType="String"/>
+        <attribute name="creatorName" attributeType="String"/>
+        <attribute name="localCommentId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfDownvotes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfUpvotes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="originalCommentUrl" optional="YES" attributeType="URI"/>
+        <attribute name="published" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="score" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="commentElements" toMany="YES" deletionRule="Cascade" destinationEntity="CommentElement" inverseName="comment" inverseEntity="CommentElement"/>
+        <relationship name="post" maxCount="1" deletionRule="Nullify" destinationEntity="Post" inverseName="comments" inverseEntity="Post"/>
+    </entity>
+    <entity name="CommentElement" representedClassName="LemmyCommentElement" syncable="YES">
+        <attribute name="depth" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="index" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="moreChildCountRawValue" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="moreParentIdRawValue" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="sortTypeRawValue" attributeType="String"/>
+        <relationship name="comment" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Comment" inverseName="commentElements" inverseEntity="Comment"/>
+        <relationship name="post" maxCount="1" deletionRule="Nullify" destinationEntity="Post" inverseName="commentElements" inverseEntity="Post"/>
+    </entity>
     <entity name="Feed" representedClassName="LemmyFeed" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="frontpageListingTypeRawValue" optional="YES" attributeType="String"/>
@@ -42,13 +63,17 @@
         <attribute name="title" attributeType="String"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="posts" inverseEntity="Account"/>
+        <relationship name="commentElements" toMany="YES" deletionRule="Nullify" destinationEntity="CommentElement" inverseName="post" inverseEntity="CommentElement"/>
+        <relationship name="comments" toMany="YES" deletionRule="Cascade" destinationEntity="Comment" inverseName="post" inverseEntity="Comment"/>
         <relationship name="pageElements" toMany="YES" deletionRule="Cascade" destinationEntity="PageElement" inverseName="post" inverseEntity="PageElement"/>
     </entity>
     <elements>
         <element name="Account" positionX="0" positionY="90" width="128" height="119"/>
+        <element name="Comment" positionX="18" positionY="162" width="128" height="179"/>
+        <element name="CommentElement" positionX="36" positionY="198" width="128" height="134"/>
         <element name="Feed" positionX="-63" positionY="-18" width="128" height="119"/>
         <element name="Page" positionX="-18" positionY="45" width="128" height="89"/>
         <element name="PageElement" positionX="-36" positionY="36" width="128" height="74"/>
-        <element name="Post" positionX="-54" positionY="9" width="128" height="254"/>
+        <element name="Post" positionX="-54" positionY="9" width="128" height="284"/>
     </elements>
 </model>

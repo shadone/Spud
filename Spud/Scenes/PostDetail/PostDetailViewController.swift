@@ -5,8 +5,10 @@
 //
 
 import Combine
+import CoreData
 import SafariServices
 import UIKit
+import os.log
 
 class PostDetailViewController: UIViewController {
     typealias Dependencies =
@@ -39,6 +41,8 @@ class PostDetailViewController: UIViewController {
     private var viewModel: PostDetailViewModelType
     private var disposables = Set<AnyCancellable>()
 
+    private var commentsFRC: NSFetchedResultsController<LemmyCommentElement>?
+
     // MARK: Functions
 
     init(post: LemmyPost, dependencies: Dependencies) {
@@ -52,6 +56,7 @@ class PostDetailViewController: UIViewController {
         super.init(nibName: nil, bundle: nil)
 
         setup()
+        setupFRC()
     }
 
     @available(*, unavailable)
@@ -86,12 +91,71 @@ class PostDetailViewController: UIViewController {
         bindViewModel()
     }
 
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+
+        execFRC()
+    }
+
+    private func setupFRC() {
+        let postObjectId = viewModel.outputs.post.objectID
+        let sortTypeRawValue = viewModel.outputs.commentSortType.value.rawValue
+
+        let request = LemmyCommentElement.fetchRequest() as NSFetchRequest<LemmyCommentElement>
+        request.predicate = NSPredicate(
+            format: "post == %@ && sortTypeRawValue == %@",
+            postObjectId,
+            sortTypeRawValue
+        )
+        request.fetchBatchSize = 100
+        request.relationshipKeyPathsForPrefetching = ["comment"]
+        request.sortDescriptors = [
+            NSSortDescriptor(keyPath: \LemmyCommentElement.index, ascending: true),
+        ]
+
+        commentsFRC = NSFetchedResultsController(
+            fetchRequest: request,
+            managedObjectContext: dependencies.dataStore.mainContext,
+            sectionNameKeyPath: nil, cacheName: nil
+        )
+        commentsFRC?.delegate = self
+    }
+
+    private func execFRC() {
+        do {
+            try commentsFRC?.performFetch()
+        } catch {
+            os_log("Failed to fetch comments: %{public}@",
+                   log: .app, type: .error,
+                   String(describing: error))
+        }
+
+        viewModel.inputs.didPrepareFetchController(numberOfFetchedComments: numberOfComments)
+    }
+
     private func bindViewModel() {
     }
 
     @objc private func openInBrowser() {
         let safariVC = SFSafariViewController(url: post.localLemmyUiUrl)
         present(safariVC, animated: true)
+    }
+}
+
+// MARK: - FRC helpers
+
+extension PostDetailViewController {
+    var numberOfComments: Int {
+        commentsFRC?.sections?[0].numberOfObjects ?? 0
+    }
+
+    func commentElement(at index: Int) -> LemmyCommentElement {
+        guard
+            let commentElement = commentsFRC?.sections?[0].objects?[index] as? LemmyCommentElement
+        else {
+            fatalError()
+        }
+        return commentElement
     }
 }
 
@@ -136,4 +200,9 @@ extension PostDetailViewController: UITableViewDataSource {
             fatalError()
         }
     }
+}
+
+// MARK: - Core Data
+
+extension PostDetailViewController: NSFetchedResultsControllerDelegate {
 }

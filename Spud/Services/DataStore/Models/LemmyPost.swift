@@ -43,11 +43,15 @@ import os.log
     /// The timestamp when the post was published.
     @NSManaged public var published: Date
 
+    /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
+
+    /// Timestamp when this CoreData object was last updated.
     @NSManaged public var updatedAt: Date
 
     // MARK: Relations
 
     @NSManaged public var pageElements: Set<LemmyPageElement>
+    @NSManaged public var commentElements: Set<LemmyCommentElement>
     @NSManaged public var account: LemmyAccount
 }

@@ -1,0 +1,66 @@
+//
+// Copyright (c) 2023, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
+import CoreData
+import Foundation
+import LemmyKit
+import os.log
+
+extension LemmyComment {
+    convenience init(
+        _ model: CommentView,
+        post: LemmyPost,
+        in context: NSManagedObjectContext
+    ) {
+        self.init(context: context)
+
+        set(model)
+
+        self.post = post
+    }
+
+    private func set(_ model: CommentView) {
+        localCommentId = model.comment.id
+        originalCommentUrl = model.comment.ap_id
+        creatorName = model.creator.name
+        body = model.comment.content
+        score = model.counts.score
+        numberOfUpvotes = model.counts.upvotes
+        numberOfDownvotes = model.counts.downvotes
+        published = model.comment.published
+    }
+
+    static func upsert(
+        _ model: CommentView,
+        post: LemmyPost,
+        in context: NSManagedObjectContext
+    ) -> LemmyComment?
+    {
+        let request = LemmyComment.fetchRequest() as NSFetchRequest<LemmyComment>
+        request.predicate = NSPredicate(
+            format: "localCommentId == %d AND post == %@",
+            model.comment.id, post
+        )
+        request.fetchLimit = 1
+        request.includesPropertyValues = false
+
+        do {
+            let results = try context.fetch(request)
+
+            if let existingComment = results.first {
+                existingComment.set(model)
+                return existingComment
+            } else {
+                return LemmyComment(model, post: post, in: context)
+            }
+        } catch {
+            os_log("Failed to fetch comment %{public}d for upserting: %{public}@",
+                   log: .app, type: .error,
+                   model.comment.id, String(describing: error))
+            return nil
+        }
+    }
+}
