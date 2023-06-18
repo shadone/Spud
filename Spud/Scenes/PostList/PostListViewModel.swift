@@ -24,7 +24,6 @@ protocol PostListViewModelOutputs {
     var selectedPost: CurrentValueSubject<LemmyPost?, Never> { get }
     var selectedPostIndex: CurrentValueSubject<Int?, Never> { get }
     var numberOfPosts: CurrentValueSubject<Int, Never> { get }
-    var sortType: AnyPublisher<SortType, Never> { get }
     var isFetchingNextPage: CurrentValueSubject<Bool, Never> { get }
     /// The name of this feed to be put in the navigation bar.
     var navigationTitle: AnyPublisher<String, Never> { get }
@@ -47,15 +46,6 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
         account = feed.account
         self.accountService = accountService
         self.feed = CurrentValueSubject<LemmyFeed, Never>(feed)
-
-        sortType = self.feed
-            .map { feed in
-                switch feed.feedType {
-                case let .frontpage(_, sortType):
-                    return sortType
-                }
-            }
-            .eraseToAnyPublisher()
 
         navigationTitle = self.feed
             .map { feed in
@@ -104,7 +94,6 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
     let selectedPost = CurrentValueSubject<LemmyPost?, Never>(nil)
     let selectedPostIndex = CurrentValueSubject<Int?, Never>(nil)
     let numberOfPosts = CurrentValueSubject<Int, Never>(0)
-    let sortType: AnyPublisher<SortType, Never>
     let isFetchingNextPage = CurrentValueSubject<Bool, Never>(false)
     let navigationTitle: AnyPublisher<String, Never>
 

@@ -25,7 +25,7 @@ import LemmyKit
     // MARK: Frontpage
 
     /// See [sortType](x-source-tag://sortType)
-    @NSManaged public var sortTypeRawValue: String?
+    @NSManaged public var sortTypeRawValue: String
 
     /// See [frontpageListingType](x-source-tag://frontpageListingType)
     @NSManaged public var frontpageListingTypeRawValue: String?
@@ -50,13 +50,9 @@ import LemmyKit
 
 extension LemmyFeed {
     /// - Tag: sortType
-    var sortType: SortType? {
+    var sortType: SortType {
         get {
-            guard let rawValue = sortTypeRawValue else {
-                return nil
-            }
-
-            guard let value = SortType(rawValue: rawValue) else {
+            guard let value = SortType(rawValue: sortTypeRawValue) else {
                 assertionFailure()
                 return .active
             }
@@ -64,7 +60,7 @@ extension LemmyFeed {
             return value
         }
         set {
-            sortTypeRawValue = newValue?.rawValue
+            sortTypeRawValue = newValue.rawValue
         }
     }
 

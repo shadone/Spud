@@ -47,6 +47,19 @@ class PostListViewController: UIViewController {
 
     var isLoadingIndicatorHidden = true
 
+    var sortTypeBarButtonItem: UIBarButtonItem!
+    var sortTypeActiveAction: UIAction!
+    var sortTypeHotAction: UIAction!
+    var sortTypeNewAction: UIAction!
+    var sortTypeOldAction: UIAction!
+    var sortTypeTopDayAction: UIAction!
+    var sortTypeTopWeekAction: UIAction!
+    var sortTypeTopMonthAction: UIAction!
+    var sortTypeTopYearAction: UIAction!
+    var sortTypeTopAllAction: UIAction!
+    var sortTypeMostCommentsAction: UIAction!
+    var sortTypeNewCommentsAction: UIAction!
+
     // MARK: Functions
 
     init(feed: LemmyFeed, dependencies: Dependencies) {
@@ -61,6 +74,7 @@ class PostListViewController: UIViewController {
         super.init(nibName: nil, bundle: nil)
 
         setup()
+        bindViewModel()
     }
 
     private func setup() {
@@ -74,6 +88,69 @@ class PostListViewController: UIViewController {
             tableView.topAnchor.constraint(equalTo: view.topAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
+
+        sortTypeActiveAction = UIAction(title: "Active", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.active)
+        }
+        sortTypeHotAction = UIAction(title: "Hot", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.hot)
+        }
+        sortTypeNewAction = UIAction(title: "New", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.new)
+        }
+        sortTypeOldAction = UIAction(title: "Old", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.old)
+        }
+        sortTypeTopDayAction = UIAction(title: "Top Day", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.topDay)
+        }
+        sortTypeTopWeekAction = UIAction(title: "Top Week", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.topWeek)
+        }
+        sortTypeTopMonthAction = UIAction(title: "Top Month", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.topMonth)
+        }
+        sortTypeTopYearAction = UIAction(title: "Top Year", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.topYear)
+        }
+        sortTypeTopAllAction = UIAction(title: "Top All", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.topAll)
+        }
+        sortTypeMostCommentsAction = UIAction(title: "Most Comments", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.mostComments)
+        }
+        sortTypeNewCommentsAction = UIAction(title: "New Comments", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.newComments)
+        }
+
+        sortTypeBarButtonItem = UIBarButtonItem(
+            title: "Sort type",
+            image: UIImage(systemName: "line.horizontal.3.decrease.circle"),
+            menu: nil
+        )
+        navigationItem.rightBarButtonItem = sortTypeBarButtonItem
+    }
+
+    private func buildSortTypeMenu() {
+        let sortTypeMenu = UIMenu(
+            title: "",
+            options: .singleSelection,
+            children: [
+                sortTypeActiveAction,
+                sortTypeHotAction,
+                sortTypeNewAction,
+                sortTypeOldAction,
+                sortTypeTopDayAction,
+                sortTypeTopWeekAction,
+                sortTypeTopMonthAction,
+                sortTypeTopYearAction,
+                sortTypeTopAllAction,
+                sortTypeMostCommentsAction,
+                sortTypeNewCommentsAction,
+            ]
+        )
+
+        sortTypeBarButtonItem.menu = sortTypeMenu
     }
 
     @available(*, unavailable)
@@ -92,6 +169,7 @@ class PostListViewController: UIViewController {
         viewModel.outputs.feed
             .sink { [weak self] _ in
                 self?.feedChanged()
+                self?.updateSelectedSortTypeMenu()
             }
             .store(in: &disposables)
 
@@ -108,10 +186,37 @@ class PostListViewController: UIViewController {
             .store(in: &disposables)
     }
 
-    override func viewDidLoad() {
-        super.viewDidLoad()
+    private func updateSelectedSortTypeMenu() {
+        switch viewModel.outputs.feed.value.sortType {
+        case .active:
+            sortTypeActiveAction.state = .on
+        case .hot:
+            sortTypeHotAction.state = .on
+        case .new:
+            sortTypeNewAction.state = .on
+        case .old:
+            sortTypeOldAction.state = .on
+        case .topDay:
+            sortTypeTopDayAction.state = .on
+        case .topWeek:
+            sortTypeTopWeekAction.state = .on
+        case .topMonth:
+            sortTypeTopMonthAction.state = .on
+        case .topYear:
+            sortTypeTopYearAction.state = .on
+        case .topAll:
+            sortTypeTopAllAction.state = .on
+        case .mostComments:
+            sortTypeMostCommentsAction.state = .on
+        case .newComments:
+            sortTypeNewCommentsAction.state = .on
+        }
 
-        bindViewModel()
+        // it seems that setting the state on an action for an existing UIMenu doesn't
+        // update the ui. The menu wasn't picking up a new state, it seems like the UIMenu
+        // caches the state of the actions/menuitems.
+        // Lets rebuild the whole menu.
+        buildSortTypeMenu()
     }
 
     func feedChanged() {
