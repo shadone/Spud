@@ -150,9 +150,7 @@ class PostListViewController: UIViewController {
 
         tableView.reloadData()
 
-        if numberOfPosts == 0 {
-            viewModel.inputs.didPrepareFetchController()
-        }
+        viewModel.inputs.didPrepareFetchController(numberOfFetchedPosts: numberOfPosts)
     }
 
     private func postSelected(_ post: LemmyPost) {

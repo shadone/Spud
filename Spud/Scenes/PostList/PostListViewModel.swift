@@ -16,7 +16,7 @@ protocol PostListViewModelInputs {
     func didChangeSortType(_ sortType: SortType)
     func didClickReload()
     func didScrollToBottom()
-    func didPrepareFetchController()
+    func didPrepareFetchController(numberOfFetchedPosts: Int)
 }
 
 protocol PostListViewModelOutputs {
@@ -141,7 +141,9 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
         fetchNextPage()
     }
 
-    func didPrepareFetchController() {
+    func didPrepareFetchController(numberOfFetchedPosts: Int) {
+        // if we already have posts lets use that and not trigger a new fetch from server.
+        guard numberOfFetchedPosts == 0 else { return }
         fetchNextPage()
     }
 }
