@@ -62,6 +62,8 @@
 		92B7C9A02A3F3B4A00672F64 /* Community+fake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C99F2A3F3B4A00672F64 /* Community+fake.swift */; };
 		92B7C9A22A3F3B5900672F64 /* Comment+fake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A12A3F3B5900672F64 /* Comment+fake.swift */; };
 		92B7C9A42A3F3B6A00672F64 /* CommentView+fake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A32A3F3B6A00672F64 /* CommentView+fake.swift */; };
+		92B7C9A72A3F45B600672F64 /* PostDetailCommentCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */; };
+		92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -141,6 +143,8 @@
 		92B7C99F2A3F3B4A00672F64 /* Community+fake.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Community+fake.swift"; sourceTree = "<group>"; };
 		92B7C9A12A3F3B5900672F64 /* Comment+fake.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Comment+fake.swift"; sourceTree = "<group>"; };
 		92B7C9A32A3F3B6A00672F64 /* CommentView+fake.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentView+fake.swift"; sourceTree = "<group>"; };
+		92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentCell.swift; sourceTree = "<group>"; };
+		92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -358,6 +362,7 @@
 		92B7C96A2A3D150A00672F64 /* PostDetail */ = {
 			isa = PBXGroup;
 			children = (
+				92B7C9A52A3F45A600672F64 /* Comment */,
 				92B7C96F2A3D172500672F64 /* Header */,
 				92B7C96B2A3D158400672F64 /* PostDetailViewController.swift */,
 				92B7C96D2A3D15B100672F64 /* PostDetailViewModel.swift */,
@@ -408,6 +413,15 @@
 				92B7C99D2A3F3B3700672F64 /* Post+fake.swift */,
 			);
 			path = Fakes;
+			sourceTree = "<group>";
+		};
+		92B7C9A52A3F45A600672F64 /* Comment */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */,
+				92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */,
+			);
+			path = Comment;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -568,6 +582,7 @@
 				92B7C97A2A3D279100672F64 /* Publisher+ignoreNil.swift in Sources */,
 				92B7C9932A3F05F000672F64 /* LemmyPost+import+comments.swift in Sources */,
 				92B7C9512A3A65E200672F64 /* LemmyPost.swift in Sources */,
+				92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */,
 				92B7C9392A3A59E600672F64 /* DataStore.swift in Sources */,
 				92B7C9612A3B5E8C00672F64 /* AccountService.swift in Sources */,
 				92B7C9732A3D1A3400672F64 /* PostDetailHeaderCell.swift in Sources */,
@@ -577,6 +592,7 @@
 				92B7C9082A3A40EB00672F64 /* DataStore.xcdatamodeld in Sources */,
 				92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */,
 				92B7C9002A3A40EB00672F64 /* SceneDelegate.swift in Sources */,
+				92B7C9A72A3F45B600672F64 /* PostDetailCommentCell.swift in Sources */,
 				92B7C94F2A3A65BA00672F64 /* LemmyPageElement.swift in Sources */,
 				92B7C94D2A3A658700672F64 /* LemmyPage.swift in Sources */,
 				92B7C9812A3D2B7C00672F64 /* IconValueFormatter.swift in Sources */,

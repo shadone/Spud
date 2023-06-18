@@ -32,6 +32,7 @@ class PostDetailViewController: UIViewController {
         tableView.dataSource = self
 
         tableView.register(PostDetailHeaderCell.self, forCellReuseIdentifier: PostDetailHeaderCell.reuseIdentifier)
+        tableView.register(PostDetailCommentCell.self, forCellReuseIdentifier: PostDetailCommentCell.reuseIdentifier)
 
         return tableView
     }()
@@ -163,7 +164,7 @@ extension PostDetailViewController {
 
 extension PostDetailViewController: UITableViewDataSource {
     func numberOfSections(in tableView: UITableView) -> Int {
-        1
+        2
     }
 
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
@@ -172,7 +173,7 @@ extension PostDetailViewController: UITableViewDataSource {
             return 1
         } else if section == 1 {
             // Section 1: comments
-            return 0
+            return numberOfComments
         } else {
             fatalError()
         }
@@ -195,7 +196,16 @@ extension PostDetailViewController: UITableViewDataSource {
             return cell
         } else if indexPath.section == 1 {
             // Section 1: comments
-            fatalError()
+            let cell = tableView.dequeueReusableCell(
+                withIdentifier: PostDetailCommentCell.reuseIdentifier,
+                for: indexPath
+            ) as! PostDetailCommentCell
+
+            let commentElement = commentElement(at: indexPath.row)
+            let viewModel = PostDetailCommentViewModel(comment: commentElement)
+            cell.configure(with: viewModel)
+
+            return cell
         } else {
             fatalError()
         }
@@ -205,4 +215,50 @@ extension PostDetailViewController: UITableViewDataSource {
 // MARK: - Core Data
 
 extension PostDetailViewController: NSFetchedResultsControllerDelegate {
+    func controllerWillChangeContent(
+        _ controller: NSFetchedResultsController<NSFetchRequestResult>
+    ) {
+        tableView.beginUpdates()
+    }
+
+    func controllerDidChangeContent(_: NSFetchedResultsController<NSFetchRequestResult>) {
+        tableView.endUpdates()
+    }
+
+    func controller(
+        _: NSFetchedResultsController<NSFetchRequestResult>,
+        didChange _: Any,
+        at indexPath: IndexPath?,
+        for type: NSFetchedResultsChangeType,
+        newIndexPath: IndexPath?
+    ) {
+        switch type {
+        case .insert:
+            guard let newIndexPath = newIndexPath else { fatalError() }
+            let adjustedIndexPath = IndexPath(row: newIndexPath.row, section: 1)
+            tableView.insertRows(at: [adjustedIndexPath], with: .fade)
+
+        case .delete:
+            guard let indexPath = indexPath else { fatalError() }
+            let adjustedIndexPath = IndexPath(row: indexPath.row, section: 1)
+            tableView.deleteRows(at: [adjustedIndexPath], with: .fade)
+
+        case .update:
+            guard let indexPath = indexPath else { fatalError() }
+            let adjustedIndexPath = IndexPath(row: indexPath.row, section: 1)
+
+            guard let cell = tableView.cellForRow(at: adjustedIndexPath) else { return }
+            guard let cell = cell as? PostDetailCommentCell else { fatalError() }
+
+            let commentElement = commentElement(at: adjustedIndexPath.row)
+            let viewModel = PostDetailCommentViewModel(comment: commentElement)
+            cell.configure(with: viewModel)
+
+        case .move:
+            assertionFailure()
+
+        @unknown default:
+            assertionFailure()
+        }
+    }
 }
