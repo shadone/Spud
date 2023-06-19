@@ -146,8 +146,9 @@ class LemmyService: LemmyServiceType {
             .flatMap { feed -> AnyPublisher<Void, LemmyApiError> in
                 switch feed.feedType {
                 case let .frontpage(listingType, sortType):
-                    os_log("Fetch feed. page=%{public}@",
+                    os_log("Fetch feed. listingType=%{public}@ sortType=%{public}@ page=%{public}@",
                            log: .lemmyService, type: .debug,
+                           listingType.rawValue, sortType.rawValue,
                            pageNumber.map { "\($0)" } ?? "nil")
                     let request = GetPosts.Request(
                         type_: listingType,

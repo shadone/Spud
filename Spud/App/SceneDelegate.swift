@@ -28,15 +28,21 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         let accountService = AppDelegate.shared.dependencies.accountService
         let account = accountService.accountForSignedOut(instanceUrl: tchncs)
         let lemmyService = accountService.lemmyService(for: account)
+
+        let subscriptionsVC = SubscriptionsViewController(
+            account: account,
+            dependencies: AppDelegate.shared.dependencies
+        )
+
         let feed = lemmyService.createFeed(.frontpage(listingType: .all, sortType: .active))
 
         let postListVC = PostListViewController(
             feed: feed,
             dependencies: AppDelegate.shared.dependencies
         )
-        let initialViewController = UINavigationController(rootViewController: postListVC)
-
-        window.rootViewController = initialViewController
+        let mainNavigationController = UINavigationController()
+        mainNavigationController.setViewControllers([subscriptionsVC, postListVC], animated: false)
+        window.rootViewController = mainNavigationController
 
         window.makeKeyAndVisible()
     }
