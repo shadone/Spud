@@ -5,11 +5,11 @@
 //
 
 import XCTest
-import LemmyKit
+@testable import LemmyKit
 @testable import Spud
 
 class CommentHelperTests: XCTestCase {
-    func testExample() throws {
+    func testFindCommentsWithMissingChildren() throws {
         let person = Person.fake
         let community = Community.fake
         let post = Post.fake(creator: person, community: community)
@@ -95,6 +95,112 @@ class CommentHelperTests: XCTestCase {
                 "0.4.5",
                 "0.7.8",
             ]
+        )
+    }
+
+    func testSort() throws {
+        let person = Person.fake
+        let community = Community.fake
+        let post = Post.fake(creator: person, community: community)
+
+        // 0.123
+        // 0.129
+        // 0.245
+        // 0.249
+        // 0.245.987
+        // 0.123.789
+        // 0.123.222
+        // 0.123.789.555
+        // 0.123.222.456
+
+        let comments: [CommentView] = [
+            // "0.123": 4 children
+            .fake(
+                comment: .fake(id: 123, post: post, creator: person, parent: .root),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 4
+            ),
+
+            // "0.129": no children
+            .fake(
+                comment: .fake(id: 129, post: post, creator: person, parent: .root),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 0
+            ),
+
+            // "0.245": 1 child
+            .fake(
+                comment: .fake(id: 245, post: post, creator: person, parent: .root),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 1
+            ),
+
+            // "0.249": no child
+            .fake(
+                comment: .fake(id: 249, post: post, creator: person, parent: .root),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 0
+            ),
+
+            // "0.245.987": no children
+            .fake(
+                comment: .fake(id: 987, post: post, creator: person, parent: .root.appending(245)),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 0
+            ),
+
+            // "0.123.789": 1 child
+            .fake(
+                comment: .fake(id: 789, post: post, creator: person, parent: .root.appending(123)),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 1
+            ),
+
+            // "0.123.222": 1 child
+            .fake(
+                comment: .fake(id: 222, post: post, creator: person, parent: .root.appending(123)),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 1
+            ),
+
+            // "0.123.789.555": no children
+            .fake(
+                comment: .fake(id: 555, post: post, creator: person, parent: .root.appending(123).appending(789)),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 0
+            ),
+
+            // "0.123.222.456": no children
+            .fake(
+                comment: .fake(id: 456, post: post, creator: person, parent: .root.appending(123).appending(222)),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 0
+            ),
+        ]
+
+        let sortedComments = LemmyCommentImportHelper.sort(comments: comments)
+        let sortedCommentIds = sortedComments.map { $0.comment.id }
+        XCTAssertEqual(
+            sortedCommentIds,
+            [123, 789, 555, 222, 456, 129, 245, 987, 249]
         )
     }
 }

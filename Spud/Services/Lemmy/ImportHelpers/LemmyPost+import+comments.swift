@@ -39,11 +39,13 @@ extension LemmyPost {
             .findCommentsWithMissingChildren(comments)
             .map(\.comment.id)
 
+        let orderedComments = LemmyCommentImportHelper.sort(comments: comments)
+
         // insert fetched comments
 
         var elementIndex: Int64 = 0
 
-        comments.forEach { commentView in
+        orderedComments.forEach { commentView in
             let commentPath = CommentPath(path: commentView.comment.path)
 
             if let newComment = LemmyComment.upsert(commentView, post: self, in: context) {
