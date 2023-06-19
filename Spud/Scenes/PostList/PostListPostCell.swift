@@ -29,14 +29,17 @@ class PostListPostCell: UITableViewCell {
         return stackView
     }()
 
-    lazy var thumbnailImageView: UIView = {
-        let view = UIView()
+    lazy var thumbnailView: PostListThumbnailImageView = {
+        let view = PostListThumbnailImageView()
         view.translatesAutoresizingMaskIntoConstraints = false
-        view.layer.cornerRadius = 8
-        view.clipsToBounds = true
-        view.backgroundColor = .lightGray
-        view.accessibilityIdentifier = "thumbnailImageView"
         return view
+    }()
+
+    lazy var thumbnailTextView: UIImageView = {
+        let imageView = UIImageView()
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.contentMode = .scaleAspectFill
+        return imageView
     }()
 
     lazy var thumbnailBottomSpacerView: UIView = {
@@ -104,7 +107,7 @@ class PostListPostCell: UITableViewCell {
         mainHorizontalStackView.addArrangedSubview(contentContainer)
 
         [
-            thumbnailImageView,
+            thumbnailView,
             thumbnailBottomSpacerView,
         ].forEach(thumbnailContainer.addArrangedSubview)
 
@@ -114,8 +117,8 @@ class PostListPostCell: UITableViewCell {
             mainHorizontalStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
             mainHorizontalStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16),
 
-            thumbnailImageView.widthAnchor.constraint(equalToConstant: 64),
-            thumbnailImageView.heightAnchor.constraint(equalToConstant: 64),
+            thumbnailView.widthAnchor.constraint(equalToConstant: 64),
+            thumbnailView.heightAnchor.constraint(equalToConstant: 64),
         ])
     }
 
@@ -128,6 +131,7 @@ class PostListPostCell: UITableViewCell {
         super.prepareForReuse()
 
         disposables.removeAll()
+        thumbnailView.prepareForReuse()
     }
 
     func configure(with viewModel: PostListPostViewModel) {
@@ -140,6 +144,20 @@ class PostListPostCell: UITableViewCell {
         viewModel.subtitle
             .wrapInOptional()
             .assign(to: \.attributedText, on: subtitleLabel)
+            .store(in: &disposables)
+
+        viewModel.thumbnail
+            .map { thumbnailType in
+                switch thumbnailType {
+                case let .image(image):
+                    return .image(image)
+                case .imageFailure:
+                    return .imageFailure
+                case .text:
+                    return .text
+                }
+            }
+            .assign(to: \.thumbnailType, on: thumbnailView)
             .store(in: &disposables)
     }
 }

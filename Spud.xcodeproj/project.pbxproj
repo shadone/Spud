@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		922AEE062A40E37700AA7B22 /* LemmyPost+ContentType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE052A40E37700AA7B22 /* LemmyPost+ContentType.swift */; };
+		922AEE092A40E50400AA7B22 /* ImageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE082A40E50400AA7B22 /* ImageService.swift */; };
+		922AEE0B2A40E59E00AA7B22 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0A2A40E59E00AA7B22 /* ImageCache.swift */; };
+		922AEE0D2A40EE9000AA7B22 /* PostListThumbnailImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0C2A40EE9000AA7B22 /* PostListThumbnailImageView.swift */; };
 		92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C8FD2A3A40EB00672F64 /* AppDelegate.swift */; };
 		92B7C9002A3A40EB00672F64 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C8FF2A3A40EB00672F64 /* SceneDelegate.swift */; };
 		92B7C9022A3A40EB00672F64 /* PostListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9012A3A40EB00672F64 /* PostListViewController.swift */; };
@@ -84,6 +88,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		922AEE052A40E37700AA7B22 /* LemmyPost+ContentType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPost+ContentType.swift"; sourceTree = "<group>"; };
+		922AEE082A40E50400AA7B22 /* ImageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageService.swift; sourceTree = "<group>"; };
+		922AEE0A2A40E59E00AA7B22 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
+		922AEE0C2A40EE9000AA7B22 /* PostListThumbnailImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListThumbnailImageView.swift; sourceTree = "<group>"; };
 		92B7C8FA2A3A40EB00672F64 /* Spud.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Spud.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		92B7C8FD2A3A40EB00672F64 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		92B7C8FF2A3A40EB00672F64 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
@@ -173,6 +181,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		922AEE072A40E4E600AA7B22 /* Image */ = {
+			isa = PBXGroup;
+			children = (
+				922AEE0A2A40E59E00AA7B22 /* ImageCache.swift */,
+				922AEE082A40E50400AA7B22 /* ImageService.swift */,
+			);
+			path = Image;
+			sourceTree = "<group>";
+		};
 		92B7C8F12A3A40EB00672F64 = {
 			isa = PBXGroup;
 			children = (
@@ -260,6 +277,7 @@
 			children = (
 				92B7C9302A3A493C00672F64 /* PostListPostCell.swift */,
 				92B7C9662A3D003B00672F64 /* PostListPostViewModel.swift */,
+				922AEE0C2A40EE9000AA7B22 /* PostListThumbnailImageView.swift */,
 				92B7C9012A3A40EB00672F64 /* PostListViewController.swift */,
 				92B7C9622A3B9EC700672F64 /* PostListViewModel.swift */,
 			);
@@ -271,6 +289,7 @@
 			children = (
 				92B7C95F2A3B5E7000672F64 /* Account */,
 				92B7C9372A3A59AD00672F64 /* DataStore */,
+				922AEE072A40E4E600AA7B22 /* Image */,
 				92B7C93F2A3A5DC800672F64 /* Lemmy */,
 			);
 			path = Services;
@@ -333,6 +352,7 @@
 				92B7C94C2A3A658700672F64 /* LemmyPage.swift */,
 				92B7C94E2A3A65BA00672F64 /* LemmyPageElement.swift */,
 				92B7C9502A3A65E200672F64 /* LemmyPost.swift */,
+				922AEE052A40E37700AA7B22 /* LemmyPost+ContentType.swift */,
 				92B7C98C2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift */,
 			);
 			path = Models;
@@ -591,7 +611,10 @@
 				92B7C9632A3B9EC700672F64 /* PostListViewModel.swift in Sources */,
 				92B7C9082A3A40EB00672F64 /* DataStore.xcdatamodeld in Sources */,
 				92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */,
+				922AEE062A40E37700AA7B22 /* LemmyPost+ContentType.swift in Sources */,
 				92B7C9002A3A40EB00672F64 /* SceneDelegate.swift in Sources */,
+				922AEE092A40E50400AA7B22 /* ImageService.swift in Sources */,
+				922AEE0B2A40E59E00AA7B22 /* ImageCache.swift in Sources */,
 				92B7C9A72A3F45B600672F64 /* PostDetailCommentCell.swift in Sources */,
 				92B7C94F2A3A65BA00672F64 /* LemmyPageElement.swift in Sources */,
 				92B7C94D2A3A658700672F64 /* LemmyPage.swift in Sources */,
@@ -602,6 +625,7 @@
 				92B7C9762A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift in Sources */,
 				92B7C98F2A3E72DD00672F64 /* LemmyComment.swift in Sources */,
 				92B7C98B2A3D2F0100672F64 /* TimeInterval+roundedInt.swift in Sources */,
+				922AEE0D2A40EE9000AA7B22 /* PostListThumbnailImageView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -14,6 +14,7 @@ class PostListViewController: UIViewController {
     typealias Dependencies =
         HasAccountService &
         HasDataStore &
+        HasImageService &
         PostDetailViewController.Dependencies
     let dependencies: Dependencies
 
@@ -329,7 +330,10 @@ extension PostListViewController: UITableViewDataSource {
         ) as! PostListPostCell
 
         let post = post(at: indexPath.row)
-        let viewModel = PostListPostViewModel(post: post)
+        let viewModel = PostListPostViewModel(
+            post: post,
+            imageService: dependencies.imageService
+        )
         cell.configure(with: viewModel)
 
         return cell
@@ -373,7 +377,10 @@ extension PostListViewController: NSFetchedResultsControllerDelegate {
             guard let cell = cell as? PostListPostCell else { fatalError() }
 
             let post = post(at: indexPath.row)
-            let viewModel = PostListPostViewModel(post: post)
+            let viewModel = PostListPostViewModel(
+                post: post,
+                imageService: dependencies.imageService
+            )
             cell.configure(with: viewModel)
 
         case .move:

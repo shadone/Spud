@@ -30,6 +30,12 @@ import os.log
     /// The text body of the post.
     @NSManaged public var body: String?
 
+    /// Thumbnail for the post.
+    @NSManaged public var thumbnailUrl: URL?
+
+    /// URL the post links to.
+    @NSManaged public var url: URL?
+
     /// Number of comments.
     @NSManaged public var numberOfComments: Int64
 

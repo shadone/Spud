@@ -60,6 +60,33 @@ class PostListPostViewModel {
             .eraseToAnyPublisher()
     }
 
+    enum ThumbnailType {
+        /// Thumbnail is an image.
+        case image(UIImage)
+        /// Image failed to load, we display a broken image icon.
+        case imageFailure
+        /// Text post, we display an icon.
+        case text
+    }
+
+    var thumbnail: AnyPublisher<ThumbnailType, Never> {
+        post.thumbnailType
+            .flatMap { thumbnailType -> AnyPublisher<ThumbnailType, Never> in
+                switch thumbnailType {
+                case let .image(imageUrl):
+                    return self.imageService.get(imageUrl)
+                        .map { .image($0)}
+                        .replaceError(with: .imageFailure)
+                        .eraseToAnyPublisher()
+
+                case .text:
+                    return Just(.text)
+                        .eraseToAnyPublisher()
+                }
+            }
+            .eraseToAnyPublisher()
+    }
+
     // MARK: Private
 
     private var titleAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
@@ -96,10 +123,12 @@ class PostListPostViewModel {
     }
 
     private let post: LemmyPost
+    private let imageService: ImageServiceType
 
     // MARK: Functions
 
-    init(post: LemmyPost) {
+    init(post: LemmyPost, imageService: ImageServiceType) {
         self.post = post
+        self.imageService = imageService
     }
 }

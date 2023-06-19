@@ -60,8 +60,10 @@
         <attribute name="originalPostUrl" attributeType="URI"/>
         <attribute name="published" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="score" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="thumbnailUrl" optional="YES" attributeType="URI"/>
         <attribute name="title" attributeType="String"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="url" optional="YES" attributeType="URI"/>
         <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="posts" inverseEntity="Account"/>
         <relationship name="commentElements" toMany="YES" deletionRule="Nullify" destinationEntity="CommentElement" inverseName="post" inverseEntity="CommentElement"/>
         <relationship name="comments" toMany="YES" deletionRule="Cascade" destinationEntity="Comment" inverseName="post" inverseEntity="Comment"/>
@@ -74,6 +76,6 @@
         <element name="Feed" positionX="-63" positionY="-18" width="128" height="119"/>
         <element name="Page" positionX="-18" positionY="45" width="128" height="89"/>
         <element name="PageElement" positionX="-36" positionY="36" width="128" height="74"/>
-        <element name="Post" positionX="-54" positionY="9" width="128" height="284"/>
+        <element name="Post" positionX="-54" positionY="9" width="128" height="314"/>
     </elements>
 </model>
