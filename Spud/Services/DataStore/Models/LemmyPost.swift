@@ -14,10 +14,12 @@ import os.log
         NSFetchRequest<LemmyPost>(entityName: "Post")
     }
 
+    public typealias PostId = Int32
+
     // MARK: Properties
 
     /// Post identifier. The identifier is local to this instance.
-    @NSManaged public var localPostId: Int32
+    @NSManaged public var localPostId: PostId
 
     /// Link to the post in the original Lemmy instance.
     @NSManaged public var originalPostUrl: URL

@@ -20,29 +20,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // `application:configurationForConnectingSceneSession` instead).
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
-        let window = UIWindow(windowScene: windowScene)
+        let window = MainWindow(windowScene: windowScene)
         self.window = window
-
-        let tchncs = URL(string: "https://discuss.tchncs.de")!
-
-        let accountService = AppDelegate.shared.dependencies.accountService
-        let account = accountService.accountForSignedOut(instanceUrl: tchncs)
-        let lemmyService = accountService.lemmyService(for: account)
-
-        let subscriptionsVC = SubscriptionsViewController(
-            account: account,
-            dependencies: AppDelegate.shared.dependencies
-        )
-
-        let feed = lemmyService.createFeed(.frontpage(listingType: .all, sortType: .active))
-
-        let postListVC = PostListViewController(
-            feed: feed,
-            dependencies: AppDelegate.shared.dependencies
-        )
-        let mainNavigationController = UINavigationController()
-        mainNavigationController.setViewControllers([subscriptionsVC, postListVC], animated: false)
-        window.rootViewController = mainNavigationController
 
         window.makeKeyAndVisible()
     }

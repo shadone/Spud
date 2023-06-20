@@ -22,6 +22,22 @@ class PostDetailViewController: UIViewController {
         viewModel.outputs.post
     }
 
+    func setPost(_ post: LemmyPost) {
+        disposables.removeAll()
+        viewModel = PostDetailViewModel(
+            post: post,
+            accountService: dependencies.accountService
+        )
+
+        bindViewModel()
+        setupFRC()
+
+//        tableView.reloadData()
+//        tableView.contentOffset = .zero
+
+        execFRC()
+    }
+
     // MARK: UI Properties
 
     lazy var tableView: UITableView = {
@@ -99,6 +115,9 @@ class PostDetailViewController: UIViewController {
     }
 
     private func setupFRC() {
+        // reset the old FRC in case we are reusing the same VC for a new post.
+        commentsFRC?.delegate = nil
+
         let postObjectId = viewModel.outputs.post.objectID
         let sortTypeRawValue = viewModel.outputs.commentSortType.value.rawValue
 

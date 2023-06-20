@@ -260,8 +260,22 @@ class PostListViewController: UIViewController {
     }
 
     private func postSelected(_ post: LemmyPost) {
+        guard let splitViewController = splitViewController else {
+            fatalError()
+        }
+
         let postDetailVC = PostDetailViewController(post: post, dependencies: dependencies)
-        navigationController?.pushViewController(postDetailVC, animated: true)
+        if splitViewController.isCollapsed {
+            guard let navigationController = navigationController else {
+                fatalError()
+            }
+            navigationController.pushViewController(postDetailVC, animated: true)
+        } else {
+            // we make a new navigation controller here to make UISplitVC replace the
+            // detail screen instead of pushing a new PostDetail VC onto the stack.
+            let navigationController = UINavigationController(rootViewController: postDetailVC)
+            splitViewController.showDetailViewController(navigationController, sender: self)
+        }
     }
 }
 
