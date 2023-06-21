@@ -78,6 +78,9 @@
 		92B7C9A42A3F3B6A00672F64 /* CommentView+fake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A32A3F3B6A00672F64 /* CommentView+fake.swift */; };
 		92B7C9A72A3F45B600672F64 /* PostDetailCommentCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */; };
 		92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */; };
+		92DD62D12A43A93F00497C3B /* VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D02A43A93F00497C3B /* VoteStatus.swift */; };
+		92DD62D32A43AB3E00497C3B /* LemmyPost+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D22A43AB3E00497C3B /* LemmyPost+VoteStatus.swift */; };
+		92DD62D52A43ABB300497C3B /* LemmyComment+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -173,6 +176,9 @@
 		92B7C9A32A3F3B6A00672F64 /* CommentView+fake.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentView+fake.swift"; sourceTree = "<group>"; };
 		92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentCell.swift; sourceTree = "<group>"; };
 		92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentViewModel.swift; sourceTree = "<group>"; };
+		92DD62D02A43A93F00497C3B /* VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoteStatus.swift; sourceTree = "<group>"; };
+		92DD62D22A43AB3E00497C3B /* LemmyPost+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPost+VoteStatus.swift"; sourceTree = "<group>"; };
+		92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyComment+VoteStatus.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -421,6 +427,7 @@
 			children = (
 				92B7C95D2A3B5A7800672F64 /* LemmyAccount.swift */,
 				92B7C98E2A3E72DD00672F64 /* LemmyComment.swift */,
+				92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */,
 				92B7C9902A3E749900672F64 /* LemmyCommentElement.swift */,
 				92B7C94A2A3A604300672F64 /* LemmyFeed.swift */,
 				92B7C9522A3A667E00672F64 /* LemmyFeed+FeedType.swift */,
@@ -429,6 +436,8 @@
 				92B7C9502A3A65E200672F64 /* LemmyPost.swift */,
 				922AEE052A40E37700AA7B22 /* LemmyPost+ContentType.swift */,
 				92B7C98C2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift */,
+				92DD62D22A43AB3E00497C3B /* LemmyPost+VoteStatus.swift */,
+				92DD62D02A43A93F00497C3B /* VoteStatus.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -669,6 +678,8 @@
 				92B7C9692A3D101300672F64 /* Publisher+wrapInOptional.swift in Sources */,
 				92B7C9712A3D173300672F64 /* PostDetailHeaderViewModel.swift in Sources */,
 				92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */,
+				92DD62D52A43ABB300497C3B /* LemmyComment+VoteStatus.swift in Sources */,
+				92DD62D32A43AB3E00497C3B /* LemmyPost+VoteStatus.swift in Sources */,
 				92B7C9782A3D241800672F64 /* Publisher+combineLatestSequence.swift in Sources */,
 				92B7C98D2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift in Sources */,
 				9297E2F72A4205F600D13E4D /* UIViewController+addChild.swift in Sources */,
@@ -676,6 +687,7 @@
 				92B7C94B2A3A604300672F64 /* LemmyFeed.swift in Sources */,
 				92B7C96E2A3D15B100672F64 /* PostDetailViewModel.swift in Sources */,
 				92B7C95A2A3A74BE00672F64 /* LemmyPost+import.swift in Sources */,
+				92DD62D12A43A93F00497C3B /* VoteStatus.swift in Sources */,
 				92B7C9972A3F221D00672F64 /* LemmyComment+import.swift in Sources */,
 				92B7C97E2A3D27FA00672F64 /* Publisher+justfail.swift in Sources */,
 				92B7C9832A3D2C8800672F64 /* NSAttributedString+symbol.swift in Sources */,

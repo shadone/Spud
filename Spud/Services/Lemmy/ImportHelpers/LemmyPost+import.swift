@@ -77,5 +77,19 @@ extension LemmyPost {
         score = model.counts.score
         numberOfUpvotes = model.counts.upvotes
         numberOfDownvotes = model.counts.downvotes
+
+        voteStatus = {
+            switch model.my_vote {
+            case 1:
+                return .up
+            case -1:
+                return .down
+            case 0, nil:
+                return .neutral
+            default:
+                assertionFailure("Received unexpected my_vote value '\(String(describing: model.my_vote))' for post id \(model.post.id)")
+                return .neutral
+            }
+        }()
     }
 }
