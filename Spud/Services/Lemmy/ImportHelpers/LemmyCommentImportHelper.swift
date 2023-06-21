@@ -23,22 +23,24 @@ struct LemmyCommentImportHelper {
 
         var commentsWithMissingChildren: [CommentView] = []
 
-        var previous: CommentView = commentsByPath[0]
-        for i in 1..<commentsByPath.count - 1 {
-            let comment = commentsByPath[i]
+        if commentsByPath.count > 1 {
+            var previous: CommentView = commentsByPath[0]
+            for i in 1..<commentsByPath.count - 1 {
+                let comment = commentsByPath[i]
 
-            if comment.comment.path.starts(with: previous.comment.path) {
+                if comment.comment.path.starts(with: previous.comment.path) {
+                    previous = comment
+                    continue
+                }
+
+                // previous comment is the last on in the tree that we have.
+                // check if it claims to have more children that we haven't fetched yet.
+                if previous.counts.child_count > 0 {
+                    commentsWithMissingChildren.append(previous)
+                }
+
                 previous = comment
-                continue
             }
-
-            // previous comment is the last on in the tree that we have.
-            // check if it claims to have more children that we haven't fetched yet.
-            if previous.counts.child_count > 0 {
-                commentsWithMissingChildren.append(previous)
-            }
-
-            previous = comment
         }
 
         let last = commentsByPath.last!
