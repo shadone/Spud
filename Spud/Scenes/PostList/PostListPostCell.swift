@@ -18,6 +18,12 @@ class PostListPostCell: UITableViewCell {
         stackView.axis = .horizontal
         stackView.spacing = 8
         stackView.accessibilityIdentifier = "mainHorizontalStackView"
+
+        [
+            thumbnailContainer,
+            contentContainer,
+        ].forEach(stackView.addArrangedSubview)
+
         return stackView
     }()
 
@@ -90,6 +96,36 @@ class PostListPostCell: UITableViewCell {
         return label
     }()
 
+    lazy var swipeActionView: SwipeActionView = {
+        let view = SwipeActionView(
+            contentView: mainHorizontalStackView,
+            margin: UIEdgeInsets(top: 16, left: 16, bottom: -16, right: -16),
+            configuration: .init(
+                leadingPrimaryAction: .init(
+                    image: UIImage(systemName: "arrow.up")!,
+                    backgroundColor: UIColor.orange
+                ),
+                leadingSecondaryAction: .init(
+                    image: UIImage(systemName: "arrow.down")!,
+                    backgroundColor: UIColor.blue
+                ),
+                trailingPrimaryAction: .init(
+                    image: UIImage(systemName: "arrowshape.turn.up.backward")!,
+                    backgroundColor: UIColor.blue
+                ),
+                trailingSecondaryAction: .init(
+                    image: UIImage(systemName: "bookmark")!,
+                    backgroundColor: UIColor.green
+                )
+            )
+        )
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.trigger = { [weak self] action in
+            self?.swipeActionTriggered(action)
+        }
+        return view
+    }()
+
     // MARK: Private
 
     private var disposables = Set<AnyCancellable>()
@@ -101,10 +137,7 @@ class PostListPostCell: UITableViewCell {
 
         selectionStyle = .none
 
-        contentView.addSubview(mainHorizontalStackView)
-
-        mainHorizontalStackView.addArrangedSubview(thumbnailContainer)
-        mainHorizontalStackView.addArrangedSubview(contentContainer)
+        contentView.addSubview(swipeActionView)
 
         [
             thumbnailView,
@@ -112,10 +145,10 @@ class PostListPostCell: UITableViewCell {
         ].forEach(thumbnailContainer.addArrangedSubview)
 
         NSLayoutConstraint.activate([
-            mainHorizontalStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            mainHorizontalStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            mainHorizontalStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
-            mainHorizontalStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16),
+            swipeActionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            swipeActionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            swipeActionView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            swipeActionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
 
             thumbnailView.widthAnchor.constraint(equalToConstant: 64),
             thumbnailView.heightAnchor.constraint(equalToConstant: 64),
@@ -159,5 +192,10 @@ class PostListPostCell: UITableViewCell {
             }
             .assign(to: \.thumbnailType, on: thumbnailView)
             .store(in: &disposables)
+    }
+
+    private func swipeActionTriggered(_ action: SwipeActionView.ActionTrigger) {
+        // TODO: handle the action
+        print(action)
     }
 }
