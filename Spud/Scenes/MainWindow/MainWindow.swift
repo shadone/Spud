@@ -16,8 +16,6 @@ class MainWindow: UIWindow {
 
     // MARK: Private
 
-    private let secondaryNavigationController: UINavigationController
-
     init(
         windowScene: UIWindowScene,
         dependencies: Dependencies
@@ -27,42 +25,27 @@ class MainWindow: UIWindow {
         let tchncs = URL(string: "https://discuss.tchncs.de")!
 
         let account = dependencies.accountService.accountForSignedOut(instanceUrl: tchncs)
-        let lemmyService = dependencies.accountService.lemmyService(for: account)
-
-        // Setup the post list view controller (the primary part of split view controller)
-        let subscriptionsVC = SubscriptionsViewController(
-            account: account,
-            dependencies: dependencies
-        )
-
-        let feed = lemmyService.createFeed(.frontpage(listingType: .all, sortType: .active))
-
-        let postListVC = PostListViewController(
-            feed: feed,
-            dependencies: dependencies
-        )
-        let primaryNavigationController = UINavigationController()
-        primaryNavigationController.setViewControllers([subscriptionsVC, postListVC], animated: false)
-
-        // Setup the post detail (the secondary part of split view controller)
-        let postDetailVC = PostDetailOrEmptyViewController(
-            account: account,
-            dependencies: dependencies
-        )
-        secondaryNavigationController = UINavigationController(rootViewController: postDetailVC)
 
         // Setup the split view controller
-        let splitViewController = UISplitViewController(style: .doubleColumn)
-        splitViewController.setViewController(primaryNavigationController, for: .primary)
-        splitViewController.setViewController(secondaryNavigationController, for: .secondary)
-        splitViewController.setViewController(primaryNavigationController, for: .compact)
-        splitViewController.preferredDisplayMode = .oneBesideSecondary
-        splitViewController.preferredSplitBehavior = .tile
+        let splitViewController = MainWindowSplitViewController(
+            account: account,
+            dependencies: dependencies
+        )
+
+        // Setup the tab bar controller
+        let tabBarController = MainWindowTabBarController()
+        tabBarController.setViewControllers(
+            [
+                splitViewController,
+            ],
+            animated: false
+        )
 
         super.init(windowScene: windowScene)
 
-        rootViewController = splitViewController
         splitViewController.delegate = self
+
+        rootViewController = tabBarController
     }
 
     @available(*, unavailable)

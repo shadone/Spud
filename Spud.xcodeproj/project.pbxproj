@@ -81,6 +81,8 @@
 		92DD62D12A43A93F00497C3B /* VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D02A43A93F00497C3B /* VoteStatus.swift */; };
 		92DD62D32A43AB3E00497C3B /* LemmyPost+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D22A43AB3E00497C3B /* LemmyPost+VoteStatus.swift */; };
 		92DD62D52A43ABB300497C3B /* LemmyComment+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */; };
+		92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D62A458F1100497C3B /* MainWindowTabBarController.swift */; };
+		92DD62D92A45919600497C3B /* MainWindowSplitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D82A45919600497C3B /* MainWindowSplitViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -179,6 +181,8 @@
 		92DD62D02A43A93F00497C3B /* VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoteStatus.swift; sourceTree = "<group>"; };
 		92DD62D22A43AB3E00497C3B /* LemmyPost+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPost+VoteStatus.swift"; sourceTree = "<group>"; };
 		92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyComment+VoteStatus.swift"; sourceTree = "<group>"; };
+		92DD62D62A458F1100497C3B /* MainWindowTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowTabBarController.swift; sourceTree = "<group>"; };
+		92DD62D82A45919600497C3B /* MainWindowSplitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowSplitViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -237,6 +241,8 @@
 			isa = PBXGroup;
 			children = (
 				9297E2F92A420DA500D13E4D /* MainWindow.swift */,
+				92DD62D82A45919600497C3B /* MainWindowSplitViewController.swift */,
+				92DD62D62A458F1100497C3B /* MainWindowTabBarController.swift */,
 			);
 			path = MainWindow;
 			sourceTree = "<group>";
@@ -670,6 +676,7 @@
 				92B7C96C2A3D158400672F64 /* PostDetailViewController.swift in Sources */,
 				92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */,
 				92B7C9022A3A40EB00672F64 /* PostListViewController.swift in Sources */,
+				92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */,
 				92B7C9912A3E749900672F64 /* LemmyCommentElement.swift in Sources */,
 				92B7C97C2A3D27BC00672F64 /* OptionalType.swift in Sources */,
 				92B7C9412A3A5DD800672F64 /* LemmyService.swift in Sources */,
@@ -717,6 +724,7 @@
 				92B7C94D2A3A658700672F64 /* LemmyPage.swift in Sources */,
 				92B7C9812A3D2B7C00672F64 /* IconValueFormatter.swift in Sources */,
 				92B7C9652A3BA64900672F64 /* ManagedContextScheduler.swift in Sources */,
+				92DD62D92A45919600497C3B /* MainWindowSplitViewController.swift in Sources */,
 				9297E2FC2A42453000D13E4D /* Publisher+assignWeak.swift in Sources */,
 				92B7C9562A3A738500672F64 /* LemmyFeed+import.swift in Sources */,
 				92B7C9582A3A745B00672F64 /* LemmyPage+import.swift in Sources */,
