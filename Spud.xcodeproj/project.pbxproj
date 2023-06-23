@@ -83,6 +83,9 @@
 		92DD62D52A43ABB300497C3B /* LemmyComment+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */; };
 		92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D62A458F1100497C3B /* MainWindowTabBarController.swift */; };
 		92DD62D92A45919600497C3B /* MainWindowSplitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D82A45919600497C3B /* MainWindowSplitViewController.swift */; };
+		92DD62DC2A45945A00497C3B /* AccountViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62DB2A45945A00497C3B /* AccountViewController.swift */; };
+		92DD62DF2A4594F900497C3B /* PreferencesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62DE2A4594F900497C3B /* PreferencesViewController.swift */; };
+		92DD62E22A45955600497C3B /* SearchViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E12A45955600497C3B /* SearchViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -183,6 +186,9 @@
 		92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyComment+VoteStatus.swift"; sourceTree = "<group>"; };
 		92DD62D62A458F1100497C3B /* MainWindowTabBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowTabBarController.swift; sourceTree = "<group>"; };
 		92DD62D82A45919600497C3B /* MainWindowSplitViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowSplitViewController.swift; sourceTree = "<group>"; };
+		92DD62DB2A45945A00497C3B /* AccountViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountViewController.swift; sourceTree = "<group>"; };
+		92DD62DE2A4594F900497C3B /* PreferencesViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesViewController.swift; sourceTree = "<group>"; };
+		92DD62E12A45955600497C3B /* SearchViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -350,10 +356,13 @@
 		92B7C9342A3A598900672F64 /* Scenes */ = {
 			isa = PBXGroup;
 			children = (
+				92DD62DA2A45943900497C3B /* Account */,
 				9297E2F82A420D9C00D13E4D /* MainWindow */,
-				922AEE0E2A40FB1C00AA7B22 /* Subscriptions */,
 				92B7C96A2A3D150A00672F64 /* PostDetail */,
 				92B7C9352A3A599000672F64 /* PostList */,
+				92DD62DD2A4594ED00497C3B /* Preferences */,
+				92DD62E02A45954C00497C3B /* Search */,
+				922AEE0E2A40FB1C00AA7B22 /* Subscriptions */,
 			);
 			path = Scenes;
 			sourceTree = "<group>";
@@ -537,6 +546,30 @@
 			path = Comment;
 			sourceTree = "<group>";
 		};
+		92DD62DA2A45943900497C3B /* Account */ = {
+			isa = PBXGroup;
+			children = (
+				92DD62DB2A45945A00497C3B /* AccountViewController.swift */,
+			);
+			path = Account;
+			sourceTree = "<group>";
+		};
+		92DD62DD2A4594ED00497C3B /* Preferences */ = {
+			isa = PBXGroup;
+			children = (
+				92DD62DE2A4594F900497C3B /* PreferencesViewController.swift */,
+			);
+			path = Preferences;
+			sourceTree = "<group>";
+		};
+		92DD62E02A45954C00497C3B /* Search */ = {
+			isa = PBXGroup;
+			children = (
+				92DD62E12A45955600497C3B /* SearchViewController.swift */,
+			);
+			path = Search;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -700,6 +733,7 @@
 				92B7C9832A3D2C8800672F64 /* NSAttributedString+symbol.swift in Sources */,
 				92B7C9672A3D003B00672F64 /* PostListPostViewModel.swift in Sources */,
 				92B7C9992A3F2C7000672F64 /* LemmyCommentImportHelper.swift in Sources */,
+				92DD62DC2A45945A00497C3B /* AccountViewController.swift in Sources */,
 				92B7C97A2A3D279100672F64 /* Publisher+ignoreNil.swift in Sources */,
 				92B7C9932A3F05F000672F64 /* LemmyPost+import+comments.swift in Sources */,
 				92B7C9512A3A65E200672F64 /* LemmyPost.swift in Sources */,
@@ -709,6 +743,7 @@
 				92A87F472A41EA9C0098C20C /* PostDetailEmptyViewController.swift in Sources */,
 				92B7C9612A3B5E8C00672F64 /* AccountService.swift in Sources */,
 				92B7C9732A3D1A3400672F64 /* PostDetailHeaderCell.swift in Sources */,
+				92DD62E22A45955600497C3B /* SearchViewController.swift in Sources */,
 				92B7C95E2A3B5A7800672F64 /* LemmyAccount.swift in Sources */,
 				92B7C9852A3D2D8E00672F64 /* UpvotesFormatter.swift in Sources */,
 				92B7C9632A3B9EC700672F64 /* PostListViewModel.swift in Sources */,
@@ -734,6 +769,7 @@
 				922AEE0D2A40EE9000AA7B22 /* PostListThumbnailImageView.swift in Sources */,
 				92A87F452A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift in Sources */,
 				9297E2F52A42042B00D13E4D /* PostDetailLoadingViewController.swift in Sources */,
+				92DD62DF2A4594F900497C3B /* PreferencesViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

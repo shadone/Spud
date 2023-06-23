@@ -26,17 +26,29 @@ class MainWindow: UIWindow {
 
         let account = dependencies.accountService.accountForSignedOut(instanceUrl: tchncs)
 
-        // Setup the split view controller
+        // Tab: Setup the split view controller
         let splitViewController = MainWindowSplitViewController(
             account: account,
             dependencies: dependencies
         )
+
+        // Tab: Setup the account view controller
+        let accountViewController = AccountViewController()
+
+        // Tab: Setup the search view controller
+        let searchViewController = SearchViewController()
+
+        // Tab: Setup the preferences view controller
+        let preferencesViewController = PreferencesViewController()
 
         // Setup the tab bar controller
         let tabBarController = MainWindowTabBarController()
         tabBarController.setViewControllers(
             [
                 splitViewController,
+                accountViewController,
+                searchViewController,
+                preferencesViewController,
             ],
             animated: false
         )
