@@ -20,7 +20,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // `application:configurationForConnectingSceneSession` instead).
         guard let windowScene = (scene as? UIWindowScene) else { return }
 
-        let window = MainWindow(windowScene: windowScene)
+        let window = MainWindow(
+            windowScene: windowScene,
+            dependencies: AppDelegate.shared.dependencies
+        )
         self.window = window
 
         window.makeKeyAndVisible()

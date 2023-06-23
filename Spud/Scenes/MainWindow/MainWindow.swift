@@ -7,28 +7,39 @@
 import UIKit
 
 class MainWindow: UIWindow {
+    typealias Dependencies =
+        HasAccountService &
+        SubscriptionsViewController.Dependencies &
+        PostListViewController.Dependencies &
+        PostDetailOrEmptyViewController.Dependencies
+    let dependencies: Dependencies
+
+    // MARK: Private
+
     private let secondaryNavigationController: UINavigationController
 
-    override init(
-        windowScene: UIWindowScene
+    init(
+        windowScene: UIWindowScene,
+        dependencies: Dependencies
     ) {
+        self.dependencies = dependencies
+
         let tchncs = URL(string: "https://discuss.tchncs.de")!
 
-        let accountService = AppDelegate.shared.dependencies.accountService
-        let account = accountService.accountForSignedOut(instanceUrl: tchncs)
-        let lemmyService = accountService.lemmyService(for: account)
+        let account = dependencies.accountService.accountForSignedOut(instanceUrl: tchncs)
+        let lemmyService = dependencies.accountService.lemmyService(for: account)
 
         // Setup the post list view controller (the primary part of split view controller)
         let subscriptionsVC = SubscriptionsViewController(
             account: account,
-            dependencies: AppDelegate.shared.dependencies
+            dependencies: dependencies
         )
 
         let feed = lemmyService.createFeed(.frontpage(listingType: .all, sortType: .active))
 
         let postListVC = PostListViewController(
             feed: feed,
-            dependencies: AppDelegate.shared.dependencies
+            dependencies: dependencies
         )
         let primaryNavigationController = UINavigationController()
         primaryNavigationController.setViewControllers([subscriptionsVC, postListVC], animated: false)
@@ -36,7 +47,7 @@ class MainWindow: UIWindow {
         // Setup the post detail (the secondary part of split view controller)
         let postDetailVC = PostDetailOrEmptyViewController(
             account: account,
-            dependencies: AppDelegate.shared.dependencies
+            dependencies: dependencies
         )
         secondaryNavigationController = UINavigationController(rootViewController: postDetailVC)
 
