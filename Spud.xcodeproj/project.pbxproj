@@ -86,6 +86,9 @@
 		92DD62DC2A45945A00497C3B /* AccountViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62DB2A45945A00497C3B /* AccountViewController.swift */; };
 		92DD62DF2A4594F900497C3B /* PreferencesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62DE2A4594F900497C3B /* PreferencesViewController.swift */; };
 		92DD62E22A45955600497C3B /* SearchViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E12A45955600497C3B /* SearchViewController.swift */; };
+		92DD62E52A46427300497C3B /* SiteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E42A46427300497C3B /* SiteService.swift */; };
+		92DD62E72A4648A300497C3B /* LemmySite.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E62A4648A300497C3B /* LemmySite.swift */; };
+		92DD62E92A4648AF00497C3B /* LemmySiteInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E82A4648AF00497C3B /* LemmySiteInfo.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -189,6 +192,9 @@
 		92DD62DB2A45945A00497C3B /* AccountViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountViewController.swift; sourceTree = "<group>"; };
 		92DD62DE2A4594F900497C3B /* PreferencesViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesViewController.swift; sourceTree = "<group>"; };
 		92DD62E12A45955600497C3B /* SearchViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchViewController.swift; sourceTree = "<group>"; };
+		92DD62E42A46427300497C3B /* SiteService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteService.swift; sourceTree = "<group>"; };
+		92DD62E62A4648A300497C3B /* LemmySite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmySite.swift; sourceTree = "<group>"; };
+		92DD62E82A4648AF00497C3B /* LemmySiteInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmySiteInfo.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -386,6 +392,7 @@
 				92B7C9372A3A59AD00672F64 /* DataStore */,
 				922AEE072A40E4E600AA7B22 /* Image */,
 				92B7C93F2A3A5DC800672F64 /* Lemmy */,
+				92DD62E32A46426A00497C3B /* Site */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -452,6 +459,8 @@
 				922AEE052A40E37700AA7B22 /* LemmyPost+ContentType.swift */,
 				92B7C98C2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift */,
 				92DD62D22A43AB3E00497C3B /* LemmyPost+VoteStatus.swift */,
+				92DD62E62A4648A300497C3B /* LemmySite.swift */,
+				92DD62E82A4648AF00497C3B /* LemmySiteInfo.swift */,
 				92DD62D02A43A93F00497C3B /* VoteStatus.swift */,
 			);
 			path = Models;
@@ -568,6 +577,14 @@
 				92DD62E12A45955600497C3B /* SearchViewController.swift */,
 			);
 			path = Search;
+			sourceTree = "<group>";
+		};
+		92DD62E32A46426A00497C3B /* Site */ = {
+			isa = PBXGroup;
+			children = (
+				92DD62E42A46427300497C3B /* SiteService.swift */,
+			);
+			path = Site;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -759,11 +776,14 @@
 				92B7C94D2A3A658700672F64 /* LemmyPage.swift in Sources */,
 				92B7C9812A3D2B7C00672F64 /* IconValueFormatter.swift in Sources */,
 				92B7C9652A3BA64900672F64 /* ManagedContextScheduler.swift in Sources */,
+				92DD62E72A4648A300497C3B /* LemmySite.swift in Sources */,
 				92DD62D92A45919600497C3B /* MainWindowSplitViewController.swift in Sources */,
 				9297E2FC2A42453000D13E4D /* Publisher+assignWeak.swift in Sources */,
+				92DD62E52A46427300497C3B /* SiteService.swift in Sources */,
 				92B7C9562A3A738500672F64 /* LemmyFeed+import.swift in Sources */,
 				92B7C9582A3A745B00672F64 /* LemmyPage+import.swift in Sources */,
 				92B7C9762A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift in Sources */,
+				92DD62E92A4648AF00497C3B /* LemmySiteInfo.swift in Sources */,
 				92B7C98F2A3E72DD00672F64 /* LemmyComment.swift in Sources */,
 				92B7C98B2A3D2F0100672F64 /* TimeInterval+roundedInt.swift in Sources */,
 				922AEE0D2A40EE9000AA7B22 /* PostListThumbnailImageView.swift in Sources */,

@@ -2,11 +2,11 @@
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="21754" systemVersion="22F66" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
     <entity name="Account" representedClassName="LemmyAccount" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="instanceUrl" attributeType="URI"/>
         <attribute name="isSignedOutAccountType" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="feeds" toMany="YES" deletionRule="Cascade" destinationEntity="Feed" inverseName="account" inverseEntity="Feed"/>
         <relationship name="posts" toMany="YES" deletionRule="Cascade" destinationEntity="Post" inverseName="account" inverseEntity="Post"/>
+        <relationship name="site" maxCount="1" deletionRule="Nullify" destinationEntity="Site" inverseName="accounts" inverseEntity="Site"/>
     </entity>
     <entity name="Comment" representedClassName="LemmyComment" syncable="YES">
         <attribute name="body" attributeType="String"/>
@@ -70,5 +70,37 @@
         <relationship name="commentElements" toMany="YES" deletionRule="Nullify" destinationEntity="CommentElement" inverseName="post" inverseEntity="CommentElement"/>
         <relationship name="comments" toMany="YES" deletionRule="Cascade" destinationEntity="Comment" inverseName="post" inverseEntity="Comment"/>
         <relationship name="pageElements" toMany="YES" deletionRule="Cascade" destinationEntity="PageElement" inverseName="post" inverseEntity="PageElement"/>
+    </entity>
+    <entity name="Site" representedClassName="LemmySite" syncable="YES">
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="instanceUrl" attributeType="URI"/>
+        <relationship name="accounts" toMany="YES" deletionRule="Cascade" destinationEntity="Account" inverseName="site" inverseEntity="Account"/>
+        <relationship name="siteInfo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="SiteInfo" inverseName="site" inverseEntity="SiteInfo"/>
+    </entity>
+    <entity name="SiteInfo" representedClassName="LemmySiteInfo" syncable="YES">
+        <attribute name="bannerUrl" attributeType="URI"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="defaultPostListingTypeRawValue" attributeType="String"/>
+        <attribute name="descriptionText" attributeType="String"/>
+        <attribute name="enableDownvotes" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="enableNsfw" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="iconUrl" attributeType="URI"/>
+        <attribute name="infoPublishedDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="infoUpdatedDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="legalInformation" attributeType="String"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="numberOfComments" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfCommunities" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfPosts" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfUsers" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfUsersDay" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfUsersHalfYear" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfUsersMonth" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfUsersWeek" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="publicKey" attributeType="String"/>
+        <attribute name="sidebar" attributeType="String"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="version" attributeType="String"/>
+        <relationship name="site" maxCount="1" deletionRule="Cascade" destinationEntity="Site" inverseName="siteInfo" inverseEntity="Site"/>
     </entity>
 </model>

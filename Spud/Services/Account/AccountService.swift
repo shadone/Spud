@@ -11,7 +11,7 @@ import LemmyKit
 
 protocol AccountServiceType: AnyObject {
     /// Returns an account that represents a signed out user on a given Lemmy instance.
-    func accountForSignedOut(instanceUrl: URL) -> LemmyAccount
+    func accountForSignedOut(at site: LemmySite) -> LemmyAccount
 
     /// Returns a LemmyService instance used for talking to Reddit api.
     /// - Parameter account: which account to act as.
@@ -38,20 +38,20 @@ class AccountService: AccountServiceType {
         self.dataStore = dataStore
     }
 
-    func accountForSignedOut(instanceUrl: URL) -> LemmyAccount {
+    func accountForSignedOut(at site: LemmySite) -> LemmyAccount {
         let account: LemmyAccount? = {
             let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
             request.fetchLimit = 1
             request.predicate = NSPredicate(
-                format: "isSignedOutAccountType == true AND instanceUrl == %@",
-                instanceUrl.absoluteString
+                format: "isSignedOutAccountType == true AND site == %@",
+                site
             )
             do {
                 let accounts = try dataStore.mainContext.fetch(request)
                 if accounts.count > 1 {
-                    os_log("Expected zero or one but found %{public}d signed out accounts instead!",
+                    os_log("Expected zero or one but found %{public}d signed out accounts instead! Site=%{public}@",
                            log: .accountService, type: .error,
-                           accounts.count)
+                           accounts.count, site.instanceUrl.absoluteString)
                     assertionFailure()
                 }
                 return accounts.first
@@ -66,7 +66,7 @@ class AccountService: AccountServiceType {
 
         func createAccountForSignedOut() -> LemmyAccount {
             let account = LemmyAccount(context: dataStore.mainContext)
-            account.instanceUrl = instanceUrl
+            account.site = site
             account.isSignedOutAccountType = true
             account.createdAt = Date()
             account.updatedAt = account.createdAt
@@ -84,7 +84,7 @@ class AccountService: AccountServiceType {
             return redditService
         }
 
-        let api = LemmyApi(instanceUrl: account.instanceUrl)
+        let api = LemmyApi(instanceUrl: account.site.instanceUrl)
 
         let lemmyService = LemmyService(
             accountObjectId: accountObjectId,

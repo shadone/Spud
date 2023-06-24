@@ -16,10 +16,6 @@ import os.log
 
     // MARK: Properties
 
-    /// Identifies on which Lemmy instance this account is used on.
-    /// e.g. "https://lemmy.world"
-    @NSManaged public var instanceUrl: URL
-
     @NSManaged public var isSignedOutAccountType: Bool
 
     /// Timestamp when this CoreData object was created.
@@ -30,6 +26,7 @@ import os.log
 
     // MARK: Relations
 
+    @NSManaged public var site: LemmySite
     @NSManaged public var feeds: Set<LemmyFeed>
     @NSManaged public var posts: Set<LemmyPost>
 }

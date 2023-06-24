@@ -6,12 +6,19 @@
 
 import Foundation
 
-struct DependencyContainer: HasDataStore, HasAccountService, HasImageService {
+struct DependencyContainer:
+    HasDataStore,
+    HasSiteService,
+    HasAccountService,
+    HasImageService
+{
     let dataStore: DataStoreType = DataStore()
+    let siteService: SiteServiceType
     let accountService: AccountServiceType
     let imageService: ImageServiceType = ImageService()
 
     init() {
+        siteService = SiteService(dataStore: dataStore)
         accountService = AccountService(dataStore: dataStore)
         start()
     }
