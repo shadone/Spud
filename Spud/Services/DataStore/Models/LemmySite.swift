@@ -16,10 +16,16 @@ import os.log
 
     // MARK: Properties
 
+    /// Normalized Lemmy instance url.
+    ///
     /// Identifies on which Lemmy instance this account is used on.
     /// aka "actor_id".
     /// e.g. "https://lemmy.world"
-    @NSManaged public var instanceUrl: URL
+    ///
+    /// Stored as ``URL.normalizedInstanceUrlString``
+    ///
+    /// - Note: this is intentionally stored as a string to ensure consistent normalization form.
+    @NSManaged public var normalizedInstanceUrl: String
 
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
@@ -27,5 +33,12 @@ import os.log
     // MARK: Relations
 
     @NSManaged public var accounts: Set<LemmyAccount>
-    @NSManaged public var siteInfo: LemmySiteInfo
+    @NSManaged public var siteInfo: LemmySiteInfo?
+}
+
+extension LemmySite {
+    public override var debugDescription: String {
+        let objectIDUrl = objectID.uriRepresentation().absoluteString
+        return "\(objectIDUrl)[\(normalizedInstanceUrl)]"
+    }
 }

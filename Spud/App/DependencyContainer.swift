@@ -16,14 +16,24 @@ struct DependencyContainer:
     let siteService: SiteServiceType
     let accountService: AccountServiceType
     let imageService: ImageServiceType = ImageService()
+    let schedulerServer: SchedulerServiceType
+
+    // MARK: Functions
 
     init() {
         siteService = SiteService(dataStore: dataStore)
         accountService = AccountService(dataStore: dataStore)
+        schedulerServer = SchedulerService(
+            dataStore: dataStore,
+            accountService: accountService,
+            siteService: siteService
+        )
+
         start()
     }
 
     private func start() {
         dataStore.startService()
+        schedulerServer.startService()
     }
 }

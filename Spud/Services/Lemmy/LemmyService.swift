@@ -26,6 +26,8 @@ protocol LemmyServiceType {
         postId: NSManagedObjectID,
         sortType: CommentSortType
     ) -> AnyPublisher<Void, LemmyApiError>
+
+    func fetchSiteInfo() -> AnyPublisher<Void, LemmyApiError>
 }
 
 extension LemmyServiceType {
@@ -171,7 +173,7 @@ class LemmyService: LemmyServiceType {
                             }
                         })
                         .mapError { error in
-                            os_log("Fetch feed failed failed: %{public}@",
+                            os_log("Fetch feed failed: %{public}@",
                                    log: .lemmyService, type: .error,
                                    String(describing: error))
                             return error
@@ -215,7 +217,43 @@ class LemmyService: LemmyServiceType {
                         }
                     })
                     .mapError { error in
-                        os_log("Fetch comments failed failed: %{public}@",
+                        os_log("Fetch comments failed: %{public}@",
+                               log: .lemmyService, type: .error,
+                               String(describing: error))
+                        return error
+                    }
+                    .map { _ in () }
+                    .eraseToAnyPublisher()
+            }
+            .receive(on: RunLoop.main)
+            .eraseToAnyPublisher()
+    }
+
+    func fetchSiteInfo() -> AnyPublisher<Void, LemmyApiError> {
+        object(with: accountObjectId, type: LemmyAccount.self)
+            .setFailureType(to: LemmyApiError.self)
+            .flatMap { account -> AnyPublisher<Void, LemmyApiError> in
+                os_log("Fetch site %{public}@",
+                       log: .lemmyService, type: .debug,
+                       account.debugDescription)
+                let request = GetSite.Request()
+                return self.api.getSite(request)
+                    .receive(on: self.backgroundScheduler)
+                    .handleEvents(receiveOutput: { response in
+                        os_log("Fetch site complete",
+                               log: .lemmyService, type: .debug)
+                        account.upsert(myUserInfo: response.my_user)
+                        account.site.upsert(siteInfo: response)
+                    }, receiveCompletion: { completion in
+                        switch completion {
+                        case .failure:
+                            break
+                        case .finished:
+                            self.saveIfNeeded()
+                        }
+                    })
+                    .mapError { error in
+                        os_log("Fetch site failed: %{public}@",
                                log: .lemmyService, type: .error,
                                String(describing: error))
                         return error

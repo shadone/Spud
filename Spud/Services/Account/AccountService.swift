@@ -13,6 +13,9 @@ protocol AccountServiceType: AnyObject {
     /// Returns an account that represents a signed out user on a given Lemmy instance.
     func accountForSignedOut(at site: LemmySite) -> LemmyAccount
 
+    /// Returns all signed out accounts. The returned accounts are fetchdd in the specified context.
+    func allSignedOut(in context: NSManagedObjectContext) -> [LemmyAccount]
+
     /// Returns a LemmyService instance used for talking to Reddit api.
     /// - Parameter account: which account to act as.
     func lemmyService(for account: LemmyAccount) -> LemmyServiceType
@@ -27,7 +30,6 @@ class AccountService: AccountServiceType {
 
     private let dataStore: DataStoreType
 
-    private var signedOutAccountObjectId: NSManagedObjectID?
     private var lemmyServices: [NSManagedObjectID: LemmyService] = [:]
 
     // MARK: Functions
@@ -51,7 +53,7 @@ class AccountService: AccountServiceType {
                 if accounts.count > 1 {
                     os_log("Expected zero or one but found %{public}d signed out accounts instead! Site=%{public}@",
                            log: .accountService, type: .error,
-                           accounts.count, site.instanceUrl.absoluteString)
+                           accounts.count, site.normalizedInstanceUrl)
                     assertionFailure()
                 }
                 return accounts.first
@@ -77,6 +79,22 @@ class AccountService: AccountServiceType {
         return account ?? createAccountForSignedOut()
     }
 
+    func allSignedOut(in context: NSManagedObjectContext) -> [LemmyAccount] {
+        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "isSignedOutAccountType == true"
+        )
+        do {
+            return try context.fetch(request)
+        } catch {
+            os_log("Failed to fetch all signed out accounts: %{public}@",
+                   log: .accountService, type: .error,
+                   error.localizedDescription)
+            assertionFailure()
+            return []
+        }
+    }
+
     func lemmyService(for account: LemmyAccount) -> LemmyServiceType {
         let accountObjectId = account.objectID
 
@@ -84,7 +102,11 @@ class AccountService: AccountServiceType {
             return redditService
         }
 
-        let api = LemmyApi(instanceUrl: account.site.instanceUrl)
+        guard let instanceUrl = URL(string: account.site.normalizedInstanceUrl) else {
+            fatalError("Failed to create URL from normalized instance url '\(account.site.normalizedInstanceUrl)'")
+        }
+
+        let api = LemmyApi(instanceUrl: instanceUrl)
 
         let lemmyService = LemmyService(
             accountObjectId: accountObjectId,

@@ -10,7 +10,7 @@ import os.log
 import LemmyKit
 
 protocol SiteServiceType: AnyObject {
-    func site(for instanceUrl: URL) -> LemmySite
+    func site(for instanceUrl: URL) -> LemmySite?
 }
 
 protocol HasSiteService {
@@ -30,14 +30,17 @@ class SiteService: SiteServiceType {
         self.dataStore = dataStore
     }
 
-    func site(for instanceUrl: URL) -> LemmySite {
+    func site(for instanceUrl: URL) -> LemmySite? {
+        guard let normalizedInstanceUrlString = instanceUrl.normalizedInstanceUrlString else {
+            return nil
+        }
+
         let site: LemmySite? = {
             let request: NSFetchRequest<LemmySite> = LemmySite.fetchRequest()
             request.fetchLimit = 1
             request.predicate = NSPredicate(
-                format: "instanceUrl == %@",
-                // TODO: do we ne need to normalize the instance url string here?
-                instanceUrl.absoluteString
+                format: "normalizedInstanceUrl == %@",
+                normalizedInstanceUrlString
             )
             do {
                 let sites = try dataStore.mainContext.fetch(request)
@@ -60,7 +63,7 @@ class SiteService: SiteServiceType {
 
         func createSite() -> LemmySite {
             let site = LemmySite(context: dataStore.mainContext)
-            site.instanceUrl = instanceUrl
+            site.normalizedInstanceUrl = normalizedInstanceUrlString
             site.createdAt = Date()
             dataStore.saveIfNeeded()
             return site

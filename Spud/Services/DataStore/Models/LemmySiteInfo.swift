@@ -19,19 +19,19 @@ import os.log
 
     /// Short name for the instance. E.g. "tchncs"
     @NSManaged public var name: String
-    @NSManaged public var sidebar: String
+    @NSManaged public var sidebar: String?
     /// Lemmy instance version. E.g. "0.18.0"
     @NSManaged public var version: String
 
-    @NSManaged public var bannerUrl: URL
-    @NSManaged public var iconUrl: URL
+    @NSManaged public var bannerUrl: URL?
+    @NSManaged public var iconUrl: URL?
 
     /// See [defaultPostListingType](x-source-tag://defaultPostListingType)
     @NSManaged public var defaultPostListingTypeRawValue: String
-    @NSManaged public var descriptionText: String
+    @NSManaged public var descriptionText: String?
     @NSManaged public var enableDownvotes: Bool
     @NSManaged public var enableNsfw: Bool
-    @NSManaged public var legalInformation: String
+    @NSManaged public var legalInformation: String?
 
     @NSManaged public var numberOfComments: Int64
     @NSManaged public var numberOfCommunities: Int64
@@ -47,7 +47,7 @@ import os.log
     /// The date this sites' info was published by the site admins.
     @NSManaged public var infoPublishedDate: Date
     /// The date this sites' info was last updated by the site admins.
-    @NSManaged public var infoUpdatedDate: Date
+    @NSManaged public var infoUpdatedDate: Date?
 
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
