@@ -53,6 +53,8 @@ class PostListViewController: UIViewController {
     var sortTypeHotAction: UIAction!
     var sortTypeNewAction: UIAction!
     var sortTypeOldAction: UIAction!
+    var sortTypeTopSixHourAction: UIAction!
+    var sortTypeTopTwelveHourAction: UIAction!
     var sortTypeTopDayAction: UIAction!
     var sortTypeTopWeekAction: UIAction!
     var sortTypeTopMonthAction: UIAction!
@@ -102,6 +104,12 @@ class PostListViewController: UIViewController {
         sortTypeOldAction = UIAction(title: "Old", image: nil) { [weak self] _ in
             self?.viewModel.inputs.didChangeSortType(.old)
         }
+        sortTypeTopSixHourAction = UIAction(title: "Top Six Hour", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.topSixHour)
+        }
+        sortTypeTopTwelveHourAction = UIAction(title: "Top Twelve Hour", image: nil) { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(.topTwelveHour)
+        }
         sortTypeTopDayAction = UIAction(title: "Top Day", image: nil) { [weak self] _ in
             self?.viewModel.inputs.didChangeSortType(.topDay)
         }
@@ -141,6 +149,8 @@ class PostListViewController: UIViewController {
                 sortTypeHotAction,
                 sortTypeNewAction,
                 sortTypeOldAction,
+                sortTypeTopSixHourAction,
+                sortTypeTopTwelveHourAction,
                 sortTypeTopDayAction,
                 sortTypeTopWeekAction,
                 sortTypeTopMonthAction,
@@ -197,6 +207,10 @@ class PostListViewController: UIViewController {
             sortTypeNewAction.state = .on
         case .old:
             sortTypeOldAction.state = .on
+        case .topSixHour:
+            sortTypeTopSixHourAction.state = .on
+        case .topTwelveHour:
+            sortTypeTopTwelveHourAction.state = .on
         case .topDay:
             sortTypeTopDayAction.state = .on
         case .topWeek:
