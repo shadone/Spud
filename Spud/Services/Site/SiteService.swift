@@ -5,12 +5,19 @@
 //
 
 import CoreData
+import Combine
 import Foundation
 import os.log
 import LemmyKit
 
 protocol SiteServiceType: AnyObject {
     func site(for instanceUrl: URL) -> LemmySite?
+
+    /// Returns all sites that we know of. The returned sites are fetched in the specified context.
+    func allSites(in context: NSManagedObjectContext) -> [LemmySite]
+
+    /// Populate the Core Data storage with a list of popular Lemmy instances that user can log in to.
+    func populateSiteListWithSuggestedInstancesIfNeeded()
 }
 
 protocol HasSiteService {
@@ -62,13 +69,72 @@ class SiteService: SiteServiceType {
         }()
 
         func createSite() -> LemmySite {
-            let site = LemmySite(context: dataStore.mainContext)
-            site.normalizedInstanceUrl = normalizedInstanceUrlString
-            site.createdAt = Date()
+            let site = LemmySite(
+                normalizedInstanceUrl: normalizedInstanceUrlString,
+                in: dataStore.mainContext
+            )
             dataStore.saveIfNeeded()
             return site
         }
 
         return site ?? createSite()
+    }
+
+    func allSites(in context: NSManagedObjectContext) -> [LemmySite] {
+        let request: NSFetchRequest<LemmySite> = LemmySite.fetchRequest()
+        do {
+            return try context.fetch(request)
+        } catch {
+            os_log("Failed to fetch all sites: %{public}@",
+                   log: .siteService, type: .error,
+                   error.localizedDescription)
+            assertionFailure()
+            return []
+        }
+    }
+
+    func populateSiteListWithSuggestedInstancesIfNeeded() {
+        let suggestedNormalizedInstancesUrls: [String] = [
+            "https://lemmy.world",
+            "https://sopuli.xyz",
+            "https://reddthat.com",
+            "https://sh.itjust.works",
+        ]
+            .map { URL(string: $0)! }
+            .map { $0.normalizedInstanceUrlString! }
+
+        let request: NSFetchRequest<LemmySite> = LemmySite.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "normalizedInstanceUrl IN %@",
+            suggestedNormalizedInstancesUrls
+        )
+
+        let existingSites: [LemmySite]
+        do {
+            existingSites = try dataStore.mainContext.fetch(request)
+        } catch {
+            os_log("Failed to fetch sites: %{public}@",
+                   log: .siteService, type: .error,
+                   error.localizedDescription)
+            assertionFailure()
+            return
+        }
+
+        let existingNormalizedInstanceUrls = existingSites
+            .map { $0.normalizedInstanceUrl }
+
+        let instancesUrlsToAdd = suggestedNormalizedInstancesUrls
+            .filter {
+                !existingNormalizedInstanceUrls.contains($0)
+            }
+
+        instancesUrlsToAdd.forEach { normalizedInstanceUrl in
+            _ = LemmySite(
+                normalizedInstanceUrl: normalizedInstanceUrl,
+                in: dataStore.mainContext
+            )
+        }
+
+        dataStore.saveIfNeeded()
     }
 }

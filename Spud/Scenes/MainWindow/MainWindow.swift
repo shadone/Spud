@@ -27,7 +27,10 @@ class MainWindow: UIWindow {
         let tchncs = URL(string: "https://discuss.tchncs.de")!
 
         let site = dependencies.siteService.site(for: tchncs)!
-        let account = dependencies.accountService.accountForSignedOut(at: site)
+        let account = dependencies.accountService.accountForSignedOut(
+            at: site,
+            in: dependencies.dataStore.mainContext
+        )
 
         // Tab: Setup the split view controller
         let splitViewController = MainWindowSplitViewController(

@@ -11,9 +11,12 @@ import LemmyKit
 
 protocol AccountServiceType: AnyObject {
     /// Returns an account that represents a signed out user on a given Lemmy instance.
-    func accountForSignedOut(at site: LemmySite) -> LemmyAccount
+    func accountForSignedOut(
+        at site: LemmySite,
+        in context: NSManagedObjectContext
+    ) -> LemmyAccount
 
-    /// Returns all signed out accounts. The returned accounts are fetchdd in the specified context.
+    /// Returns all signed out accounts. The returned accounts are fetched in the specified context.
     func allSignedOut(in context: NSManagedObjectContext) -> [LemmyAccount]
 
     /// Returns a LemmyService instance used for talking to Reddit api.
@@ -40,7 +43,12 @@ class AccountService: AccountServiceType {
         self.dataStore = dataStore
     }
 
-    func accountForSignedOut(at site: LemmySite) -> LemmyAccount {
+    func accountForSignedOut(
+        at site: LemmySite,
+        in context: NSManagedObjectContext
+    ) -> LemmyAccount {
+        assert(Thread.current.isMainThread)
+
         let account: LemmyAccount? = {
             let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
             request.fetchLimit = 1
@@ -49,7 +57,7 @@ class AccountService: AccountServiceType {
                 site
             )
             do {
-                let accounts = try dataStore.mainContext.fetch(request)
+                let accounts = try context.fetch(request)
                 if accounts.count > 1 {
                     os_log("Expected zero or one but found %{public}d signed out accounts instead! Site=%{public}@",
                            log: .accountService, type: .error,
@@ -67,7 +75,7 @@ class AccountService: AccountServiceType {
         }()
 
         func createAccountForSignedOut() -> LemmyAccount {
-            let account = LemmyAccount(context: dataStore.mainContext)
+            let account = LemmyAccount(context: context)
             account.site = site
             account.isSignedOutAccountType = true
             account.createdAt = Date()
@@ -80,6 +88,8 @@ class AccountService: AccountServiceType {
     }
 
     func allSignedOut(in context: NSManagedObjectContext) -> [LemmyAccount] {
+        assert(Thread.current.isMainThread)
+
         let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
         request.predicate = NSPredicate(
             format: "isSignedOutAccountType == true"
@@ -96,6 +106,8 @@ class AccountService: AccountServiceType {
     }
 
     func lemmyService(for account: LemmyAccount) -> LemmyServiceType {
+        assert(Thread.current.isMainThread)
+
         let accountObjectId = account.objectID
 
         if let redditService = lemmyServices[accountObjectId] {
@@ -116,4 +128,5 @@ class AccountService: AccountServiceType {
         lemmyServices[accountObjectId] = lemmyService
 
         return lemmyService
-    }}
+    }
+}

@@ -70,6 +70,11 @@ class LemmyService: LemmyServiceType {
         self.accountObjectId = accountObjectId
         self.dataStore = dataStore
         self.api = api
+
+        os_log("Creating new service for account %{public}@ instance %{public}@",
+               log: .lemmyService, type: .info,
+               accountObjectId.uriRepresentation().absoluteString,
+               api.instanceHostname)
     }
 
     private func object<CoreDataObject>(
@@ -102,14 +107,17 @@ class LemmyService: LemmyServiceType {
             do {
                 try backgroundContext.save()
             } catch {
-                os_log("Failed to save context: %{public}@",
+                os_log("Failed to save context for account %{public}@: %{public}@",
                        log: .lemmyService, type: .error,
+                       accountObjectId.uriRepresentation().absoluteString,
                        String(describing: error))
             }
         }
     }
 
     func createFeed(_ type: LemmyFeed.FeedType) -> LemmyFeed {
+        assert(Thread.current.isMainThread)
+
         let accountInMainContext = dataStore.mainContext
             .object(with: accountObjectId) as! LemmyAccount
 
@@ -128,6 +136,8 @@ class LemmyService: LemmyServiceType {
         duplicateOf feed: LemmyFeed,
         sortType: SortType?
     ) -> LemmyFeed {
+        assert(Thread.current.isMainThread)
+
         let newFeed = LemmyFeed(
             duplicateOf: feed,
             sortType: sortType,
@@ -143,13 +153,16 @@ class LemmyService: LemmyServiceType {
         feedId: NSManagedObjectID,
         page pageNumber: Int?
     ) -> AnyPublisher<Void, LemmyApiError> {
-        object(with: feedId, type: LemmyFeed.self)
+        assert(Thread.current.isMainThread)
+
+        return object(with: feedId, type: LemmyFeed.self)
             .setFailureType(to: LemmyApiError.self)
             .flatMap { feed -> AnyPublisher<Void, LemmyApiError> in
                 switch feed.feedType {
                 case let .frontpage(listingType, sortType):
-                    os_log("Fetch feed. listingType=%{public}@ sortType=%{public}@ page=%{public}@",
+                    os_log("Fetch feed for account %{public}@. listingType=%{public}@ sortType=%{public}@ page=%{public}@",
                            log: .lemmyService, type: .debug,
+                           self.accountObjectId.uriRepresentation().absoluteString,
                            listingType.rawValue, sortType.rawValue,
                            pageNumber.map { "\($0)" } ?? "nil")
                     let request = GetPosts.Request(
@@ -160,8 +173,9 @@ class LemmyService: LemmyServiceType {
                     return self.api.getPosts(request)
                         .receive(on: self.backgroundScheduler)
                         .handleEvents(receiveOutput: { response in
-                            os_log("Fetch feed complete with %{public}d posts",
+                            os_log("Fetch feed for account %{public}@ complete with %{public}d posts",
                                    log: .lemmyService, type: .debug,
+                                   self.accountObjectId.uriRepresentation().absoluteString,
                                    response.posts.count)
                             feed.append(contentsOf: response.posts)
                         }, receiveCompletion: { completion in
@@ -173,8 +187,9 @@ class LemmyService: LemmyServiceType {
                             }
                         })
                         .mapError { error in
-                            os_log("Fetch feed failed: %{public}@",
+                            os_log("Fetch feed for account %{public}@ failed: %{public}@",
                                    log: .lemmyService, type: .error,
+                                   self.accountObjectId.uriRepresentation().absoluteString,
                                    String(describing: error))
                             return error
                         }
@@ -190,11 +205,14 @@ class LemmyService: LemmyServiceType {
         postId: NSManagedObjectID,
         sortType: CommentSortType
     ) -> AnyPublisher<Void, LemmyApiError> {
-        object(with: postId, type: LemmyPost.self)
+        assert(Thread.current.isMainThread)
+
+        return object(with: postId, type: LemmyPost.self)
             .setFailureType(to: LemmyApiError.self)
             .flatMap { post -> AnyPublisher<Void, LemmyApiError> in
-                os_log("Fetch comments. post=%{public}d",
+                os_log("Fetch comments for account %{public}@. post=%{public}d",
                        log: .lemmyService, type: .debug,
+                       self.accountObjectId.uriRepresentation().absoluteString,
                        post.localPostId)
                 let request = GetComments.Request(
                     sort: sortType,
@@ -204,8 +222,9 @@ class LemmyService: LemmyServiceType {
                 return self.api.getComments(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        os_log("Fetch comments complete with %{public}d comments",
+                        os_log("Fetch comments for account %{public}@ complete with %{public}d comments",
                                log: .lemmyService, type: .debug,
+                               self.accountObjectId.uriRepresentation().absoluteString,
                                response.comments.count)
                         post.upsert(comments: response.comments, for: sortType)
                     }, receiveCompletion: { completion in
@@ -217,8 +236,9 @@ class LemmyService: LemmyServiceType {
                         }
                     })
                     .mapError { error in
-                        os_log("Fetch comments failed: %{public}@",
+                        os_log("Fetch comments for account %{public}@ failed: %{public}@",
                                log: .lemmyService, type: .error,
+                               self.accountObjectId.uriRepresentation().absoluteString,
                                String(describing: error))
                         return error
                     }
@@ -230,18 +250,21 @@ class LemmyService: LemmyServiceType {
     }
 
     func fetchSiteInfo() -> AnyPublisher<Void, LemmyApiError> {
-        object(with: accountObjectId, type: LemmyAccount.self)
+        assert(Thread.current.isMainThread)
+
+        return object(with: accountObjectId, type: LemmyAccount.self)
             .setFailureType(to: LemmyApiError.self)
             .flatMap { account -> AnyPublisher<Void, LemmyApiError> in
-                os_log("Fetch site %{public}@",
+                os_log("Fetch site for account %{public}@",
                        log: .lemmyService, type: .debug,
-                       account.debugDescription)
+                       self.accountObjectId.uriRepresentation().absoluteString)
                 let request = GetSite.Request()
                 return self.api.getSite(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        os_log("Fetch site complete",
-                               log: .lemmyService, type: .debug)
+                        os_log("Fetch site for account %{public}@ complete",
+                               log: .lemmyService, type: .debug,
+                               self.accountObjectId.uriRepresentation().absoluteString)
                         account.upsert(myUserInfo: response.my_user)
                         account.site.upsert(siteInfo: response)
                     }, receiveCompletion: { completion in
@@ -253,8 +276,9 @@ class LemmyService: LemmyServiceType {
                         }
                     })
                     .mapError { error in
-                        os_log("Fetch site failed: %{public}@",
+                        os_log("Fetch site for account %{public}@ failed: %{public}@",
                                log: .lemmyService, type: .error,
+                               self.accountObjectId.uriRepresentation().absoluteString,
                                String(describing: error))
                         return error
                     }

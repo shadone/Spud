@@ -9,16 +9,16 @@ import Foundation
 import UIKit
 import os.log
 
-class AccountListViewController: UIViewController {
+class SiteListViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
-        SiteListViewController.Dependencies
+        HasSiteService &
+        HasImageService
     let dependencies: Dependencies
 
     // MARK: UI Properties
 
     var cancelBarButtonItem: UIBarButtonItem!
-    var addAccountBarButtonItem: UIBarButtonItem!
 
     lazy var tableView: UITableView = {
         let tableView = UITableView(frame: .zero, style: .plain)
@@ -28,14 +28,14 @@ class AccountListViewController: UIViewController {
         tableView.delegate = self
         tableView.dataSource = self
 
-        tableView.register(AccountListAccountCell.self, forCellReuseIdentifier: AccountListAccountCell.reuseIdentifier)
+        tableView.register(SiteListSiteCell.self, forCellReuseIdentifier: SiteListSiteCell.reuseIdentifier)
 
         return tableView
     }()
 
     // MARK: Private
 
-    var accountsFRC: NSFetchedResultsController<LemmyAccount>?
+    private var sitesFRC: NSFetchedResultsController<LemmySite>?
 
     // MARK: Functions
 
@@ -59,15 +59,9 @@ class AccountListViewController: UIViewController {
             action: #selector(cancelTapped)
         )
 
-        addAccountBarButtonItem = UIBarButtonItem(
-            barButtonSystemItem: .add,
-            target: self,
-            action: #selector(addAccountTapped)
-        )
+        navigationItem.leftBarButtonItems = [cancelBarButtonItem]
 
-        updateBarButtonItems()
-
-        navigationItem.title = "Accounts"
+        navigationItem.title = "Choose an instance"
 
         view.backgroundColor = .white
 
@@ -85,28 +79,28 @@ class AccountListViewController: UIViewController {
 
     private func setupFRC() {
         // reset the old FRC in case we are reusing the same VC for a new post.
-        accountsFRC?.delegate = nil
+        sitesFRC?.delegate = nil
 
-        let request = LemmyAccount.fetchRequest() as NSFetchRequest<LemmyAccount>
+        let request = LemmySite.fetchRequest() as NSFetchRequest<LemmySite>
         request.fetchBatchSize = 100
-        request.relationshipKeyPathsForPrefetching = ["site"]
+        request.relationshipKeyPathsForPrefetching = ["siteInfo"]
         request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \LemmyAccount.isSignedOutAccountType, ascending: true),
+            NSSortDescriptor(keyPath: \LemmySite.createdAt, ascending: true),
         ]
 
-        accountsFRC = NSFetchedResultsController(
+        sitesFRC = NSFetchedResultsController(
             fetchRequest: request,
             managedObjectContext: dependencies.dataStore.mainContext,
             sectionNameKeyPath: nil, cacheName: nil
         )
-        accountsFRC?.delegate = self
+        sitesFRC?.delegate = self
     }
 
     private func execFRC() {
         do {
-            try accountsFRC?.performFetch()
+            try sitesFRC?.performFetch()
         } catch {
-            os_log("Failed to fetch accounts: %{public}@",
+            os_log("Failed to fetch sites: %{public}@",
                    log: .app, type: .error,
                    String(describing: error))
         }
@@ -116,65 +110,43 @@ class AccountListViewController: UIViewController {
         super.viewWillAppear(animated)
 
         execFRC()
-    }
-
-    private func updateBarButtonItems() {
-        if isEditing {
-            navigationItem.leftBarButtonItems = [addAccountBarButtonItem]
-        } else {
-            navigationItem.leftBarButtonItems = [cancelBarButtonItem]
-        }
-        navigationItem.rightBarButtonItems = [editButtonItem]
-    }
-
-    override func setEditing(_ editing: Bool, animated: Bool) {
-        super.setEditing(editing, animated: animated)
-        tableView.isEditing = editing
-        updateBarButtonItems()
+        dependencies.siteService.populateSiteListWithSuggestedInstancesIfNeeded()
     }
 
     @objc private func cancelTapped() {
         dismiss(animated: true)
     }
-
-    @objc private func addAccountTapped() {
-        let siteListViewController = SiteListViewController(
-            dependencies: dependencies
-        )
-        let navigationController = UINavigationController(rootViewController: siteListViewController)
-        present(navigationController, animated: true)
-    }
 }
 
 // MARK: - FRC helpers
 
-extension AccountListViewController {
-    var numberOfAccounts: Int {
-        accountsFRC?.sections?[0].numberOfObjects ?? 0
+extension SiteListViewController {
+    var numberOfSites: Int {
+        sitesFRC?.sections?[0].numberOfObjects ?? 0
     }
 
-    func account(at index: Int) -> LemmyAccount {
+    func site(at index: Int) -> LemmySite {
         guard
-            let account = accountsFRC?.sections?[0].objects?[index] as? LemmyAccount
+            let site = sitesFRC?.sections?[0].objects?[index] as? LemmySite
         else {
             fatalError()
         }
-        return account
+        return site
     }
 }
 
 // MARK: - Table View Delegate
 
-extension AccountListViewController: UITableViewDelegate {
+extension SiteListViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
     }
 }
 
 // MARK: - Table View DataSource
 
-extension AccountListViewController: UITableViewDataSource {
+extension SiteListViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        numberOfAccounts
+        numberOfSites
     }
 
     func tableView(
@@ -182,12 +154,16 @@ extension AccountListViewController: UITableViewDataSource {
         cellForRowAt indexPath: IndexPath
     ) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(
-            withIdentifier: AccountListAccountCell.reuseIdentifier,
+            withIdentifier: SiteListSiteCell.reuseIdentifier,
             for: indexPath
-        ) as! AccountListAccountCell
+        ) as! SiteListSiteCell
 
-        let account = account(at: indexPath.row)
-        cell.configure(with: account)
+        let site = site(at: indexPath.row)
+        let viewModel = SiteListSiteViewModel(
+            site: site,
+            imageService: dependencies.imageService
+        )
+        cell.configure(with: viewModel)
 
         return cell
     }
@@ -195,7 +171,7 @@ extension AccountListViewController: UITableViewDataSource {
 
 // MARK: - Core Data
 
-extension AccountListViewController: NSFetchedResultsControllerDelegate {
+extension SiteListViewController: NSFetchedResultsControllerDelegate {
     func controllerWillChangeContent(
         _ controller: NSFetchedResultsController<NSFetchRequestResult>
     ) {
@@ -226,10 +202,14 @@ extension AccountListViewController: NSFetchedResultsControllerDelegate {
             guard let indexPath = indexPath else { fatalError() }
 
             guard let cell = tableView.cellForRow(at: indexPath) else { return }
-            guard let cell = cell as? AccountListAccountCell else { fatalError() }
+            guard let cell = cell as? SiteListSiteCell else { fatalError() }
 
-            let account = account(at: indexPath.row)
-            cell.configure(with: account)
+            let site = site(at: indexPath.row)
+            let viewModel = SiteListSiteViewModel(
+                site: site,
+                imageService: dependencies.imageService
+            )
+            cell.configure(with: viewModel)
 
         case .move:
             assertionFailure()

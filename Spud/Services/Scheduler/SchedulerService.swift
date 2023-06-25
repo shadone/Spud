@@ -70,6 +70,7 @@ class SchedulerService: SchedulerServiceType {
     }
 
     private func saveIfNeeded() {
+        assert(Thread.current.isMainThread)
         backgroundContext.performAndWait {
             guard backgroundContext.hasChanges else { return }
 
@@ -94,14 +95,14 @@ class SchedulerService: SchedulerServiceType {
     private func fetchSiteInfo(for site: LemmySite) {
         os_log("Fetching site info for %{public}@",
                log: .schedulerService, type: .info,
-               site.debugDescription)
+               site.normalizedInstanceUrl)
 
         // TODO: separate fetching of generic "site info" and account specific info
         // For now we fetch site info as signed out user only,
         // but better would be to fetch site info for each account (to fetch subscriptions)
         // and also extract generic site info from server response.
 
-        let account = accountService.accountForSignedOut(at: site)
+        let account = accountService.accountForSignedOut(at: site, in: backgroundContext)
         accountService
             .lemmyService(for: account)
             .fetchSiteInfo()
@@ -114,7 +115,7 @@ class SchedulerService: SchedulerServiceType {
     private func fetchSiteInfo(for account: LemmyAccount) {
         os_log("Fetching site info for %{public}@",
                log: .schedulerService, type: .info,
-               account.debugDescription)
+               account.objectID.uriRepresentation().absoluteString)
 
         accountService
             .lemmyService(for: account)
@@ -134,6 +135,15 @@ class SchedulerService: SchedulerServiceType {
             .filter { $0.site.siteInfo == nil }
             .forEach { [weak self] account in
                 self?.fetchSiteInfo(for: account)
+            }
+
+        // Fetch initial site info, i.e. sites that have never fetched corresponding site info.
+        // But only for sites that we do have any account for (not even signed out).
+        siteService
+            .allSites(in: backgroundContext)
+            .filter { $0.siteInfo == nil && $0.accounts.isEmpty }
+            .forEach { [weak self] site in
+                self?.fetchSiteInfo(for: site)
             }
 
         // TODO: Also periodically re-fetch Site info for sites that we do not have a local account for?

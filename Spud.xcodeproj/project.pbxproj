@@ -95,6 +95,10 @@
 		92DD62F22A4775F400497C3B /* URL+normalizedInstanceUrlString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62F12A4775F400497C3B /* URL+normalizedInstanceUrlString.swift */; };
 		92DD62F52A477C4300497C3B /* AccountListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62F42A477C4300497C3B /* AccountListViewController.swift */; };
 		92DD62F72A477D3400497C3B /* AccountListAccountCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62F62A477D3400497C3B /* AccountListAccountCell.swift */; };
+		92DD62FC2A484EEF00497C3B /* SiteListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62FB2A484EEF00497C3B /* SiteListViewController.swift */; };
+		92DD62FE2A484FFF00497C3B /* SiteListSiteCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62FD2A484FFF00497C3B /* SiteListSiteCell.swift */; };
+		92DD63002A48502600497C3B /* SiteListSiteViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62FF2A48502600497C3B /* SiteListSiteViewModel.swift */; };
+		92DD63022A48561E00497C3B /* SiteListIconImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63012A48561E00497C3B /* SiteListIconImageView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -207,6 +211,10 @@
 		92DD62F12A4775F400497C3B /* URL+normalizedInstanceUrlString.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+normalizedInstanceUrlString.swift"; sourceTree = "<group>"; };
 		92DD62F42A477C4300497C3B /* AccountListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListViewController.swift; sourceTree = "<group>"; };
 		92DD62F62A477D3400497C3B /* AccountListAccountCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListAccountCell.swift; sourceTree = "<group>"; };
+		92DD62FB2A484EEF00497C3B /* SiteListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteListViewController.swift; sourceTree = "<group>"; };
+		92DD62FD2A484FFF00497C3B /* SiteListSiteCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteListSiteCell.swift; sourceTree = "<group>"; };
+		92DD62FF2A48502600497C3B /* SiteListSiteViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteListSiteViewModel.swift; sourceTree = "<group>"; };
+		92DD63012A48561E00497C3B /* SiteListIconImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteListIconImageView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -575,6 +583,7 @@
 			isa = PBXGroup;
 			children = (
 				92DD62F32A477C3900497C3B /* AccountList */,
+				92DD62FA2A484EE300497C3B /* SiteList */,
 				92DD62DB2A45945A00497C3B /* AccountViewController.swift */,
 			);
 			path = Account;
@@ -619,6 +628,17 @@
 				92DD62F42A477C4300497C3B /* AccountListViewController.swift */,
 			);
 			path = AccountList;
+			sourceTree = "<group>";
+		};
+		92DD62FA2A484EE300497C3B /* SiteList */ = {
+			isa = PBXGroup;
+			children = (
+				92DD63012A48561E00497C3B /* SiteListIconImageView.swift */,
+				92DD62FD2A484FFF00497C3B /* SiteListSiteCell.swift */,
+				92DD62FF2A48502600497C3B /* SiteListSiteViewModel.swift */,
+				92DD62FB2A484EEF00497C3B /* SiteListViewController.swift */,
+			);
+			path = SiteList;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -821,6 +841,10 @@
 				92DD62EC2A46EFF400497C3B /* SchedulerService.swift in Sources */,
 				92DD62E22A45955600497C3B /* SearchViewController.swift in Sources */,
 				92B7C9762A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift in Sources */,
+				92DD63022A48561E00497C3B /* SiteListIconImageView.swift in Sources */,
+				92DD62FE2A484FFF00497C3B /* SiteListSiteCell.swift in Sources */,
+				92DD63002A48502600497C3B /* SiteListSiteViewModel.swift in Sources */,
+				92DD62FC2A484EEF00497C3B /* SiteListViewController.swift in Sources */,
 				92DD62E52A46427300497C3B /* SiteService.swift in Sources */,
 				922AEE162A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift in Sources */,
 				922AEE102A40FBEB00AA7B22 /* SubscriptionsViewController.swift in Sources */,

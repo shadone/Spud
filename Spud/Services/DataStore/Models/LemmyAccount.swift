@@ -30,10 +30,3 @@ import os.log
     @NSManaged public var feeds: Set<LemmyFeed>
     @NSManaged public var posts: Set<LemmyPost>
 }
-
-extension LemmyAccount {
-    public override var debugDescription: String {
-        let objectIDUrl = site.objectID.uriRepresentation().absoluteString
-        return "\(objectIDUrl)[\(site.normalizedInstanceUrl)]"
-    }
-}

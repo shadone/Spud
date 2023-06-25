@@ -37,8 +37,13 @@ import os.log
 }
 
 extension LemmySite {
-    public override var debugDescription: String {
-        let objectIDUrl = objectID.uriRepresentation().absoluteString
-        return "\(objectIDUrl)[\(normalizedInstanceUrl)]"
+    convenience init(
+        normalizedInstanceUrl: String,
+        in context: NSManagedObjectContext
+    ) {
+        self.init(entity: LemmySite.entity(), insertInto: context)
+
+        self.normalizedInstanceUrl = normalizedInstanceUrl
+        createdAt = Date()
     }
 }
