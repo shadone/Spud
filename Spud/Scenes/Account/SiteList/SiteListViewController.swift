@@ -13,7 +13,8 @@ class SiteListViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
         HasSiteService &
-        HasImageService
+        HasImageService &
+        LoginViewController.Dependencies
     let dependencies: Dependencies
 
     // MARK: UI Properties
@@ -150,6 +151,12 @@ extension SiteListViewController {
 
 extension SiteListViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let site = site(at: indexPath.row)
+        let loginViewController = LoginViewController(
+            site: site,
+            dependencies: dependencies
+        )
+        navigationController?.pushViewController(loginViewController, animated: true)
     }
 }
 

@@ -100,6 +100,8 @@
 		92DD63002A48502600497C3B /* SiteListSiteViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62FF2A48502600497C3B /* SiteListSiteViewModel.swift */; };
 		92DD63022A48561E00497C3B /* SiteListIconImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63012A48561E00497C3B /* SiteListIconImageView.swift */; };
 		92DD63042A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */; };
+		92DD63062A48BEAD00497C3B /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63052A48BEAD00497C3B /* LoginViewController.swift */; };
+		92DD63092A48CC2700497C3B /* LoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63082A48CC2700497C3B /* LoginViewModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -217,6 +219,8 @@
 		92DD62FF2A48502600497C3B /* SiteListSiteViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteListSiteViewModel.swift; sourceTree = "<group>"; };
 		92DD63012A48561E00497C3B /* SiteListIconImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteListIconImageView.swift; sourceTree = "<group>"; };
 		92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSManagedObjectContext+saveIfNeeded.swift"; sourceTree = "<group>"; };
+		92DD63052A48BEAD00497C3B /* LoginViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewController.swift; sourceTree = "<group>"; };
+		92DD63082A48CC2700497C3B /* LoginViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -586,6 +590,7 @@
 			isa = PBXGroup;
 			children = (
 				92DD62F32A477C3900497C3B /* AccountList */,
+				92DD63072A48BEB200497C3B /* Login */,
 				92DD62FA2A484EE300497C3B /* SiteList */,
 				92DD62DB2A45945A00497C3B /* AccountViewController.swift */,
 			);
@@ -642,6 +647,15 @@
 				92DD62FB2A484EEF00497C3B /* SiteListViewController.swift */,
 			);
 			path = SiteList;
+			sourceTree = "<group>";
+		};
+		92DD63072A48BEB200497C3B /* Login */ = {
+			isa = PBXGroup;
+			children = (
+				92DD63052A48BEAD00497C3B /* LoginViewController.swift */,
+				92DD63082A48CC2700497C3B /* LoginViewModel.swift */,
+			);
+			path = Login;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -812,6 +826,8 @@
 				92DD62F02A4700B600497C3B /* LemmySite+import.swift in Sources */,
 				92DD62E72A4648A300497C3B /* LemmySite.swift in Sources */,
 				92DD62E92A4648AF00497C3B /* LemmySiteInfo.swift in Sources */,
+				92DD63062A48BEAD00497C3B /* LoginViewController.swift in Sources */,
+				92DD63092A48CC2700497C3B /* LoginViewModel.swift in Sources */,
 				9297E2FA2A420DA500D13E4D /* MainWindow.swift in Sources */,
 				92DD62D92A45919600497C3B /* MainWindowSplitViewController.swift in Sources */,
 				92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */,

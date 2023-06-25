@@ -101,7 +101,6 @@ class SiteListSiteViewModel {
             .eraseToAnyPublisher()
     }
 
-
     private let site: LemmySite
     private let imageService: ImageServiceType
 
