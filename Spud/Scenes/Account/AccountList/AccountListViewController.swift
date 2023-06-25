@@ -190,7 +190,8 @@ extension AccountListViewController: UITableViewDataSource {
         ) as! AccountListAccountCell
 
         let account = account(at: indexPath.row)
-        cell.configure(with: account)
+        let viewModel = AccountListAccountViewModel(account: account)
+        cell.configure(with: viewModel)
 
         return cell
     }
@@ -232,7 +233,8 @@ extension AccountListViewController: NSFetchedResultsControllerDelegate {
             guard let cell = cell as? AccountListAccountCell else { fatalError() }
 
             let account = account(at: indexPath.row)
-            cell.configure(with: account)
+            let viewModel = AccountListAccountViewModel(account: account)
+            cell.configure(with: viewModel)
 
         case .move:
             assertionFailure()

@@ -13,6 +13,7 @@
 		922AEE0D2A40EE9000AA7B22 /* PostListThumbnailImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0C2A40EE9000AA7B22 /* PostListThumbnailImageView.swift */; };
 		922AEE102A40FBEB00AA7B22 /* SubscriptionsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0F2A40FBEB00AA7B22 /* SubscriptionsViewController.swift */; };
 		922AEE162A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE152A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift */; };
+		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		9297E2F52A42042B00D13E4D /* PostDetailLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */; };
 		9297E2F72A4205F600D13E4D /* UIViewController+addChild.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */; };
 		9297E2FA2A420DA500D13E4D /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F92A420DA500D13E4D /* MainWindow.swift */; };
@@ -128,6 +129,7 @@
 		922AEE0C2A40EE9000AA7B22 /* PostListThumbnailImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListThumbnailImageView.swift; sourceTree = "<group>"; };
 		922AEE0F2A40FBEB00AA7B22 /* SubscriptionsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionsViewController.swift; sourceTree = "<group>"; };
 		922AEE152A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionsSpecialCommunityCell.swift; sourceTree = "<group>"; };
+		927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListAccountViewModel.swift; sourceTree = "<group>"; };
 		9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailLoadingViewController.swift; sourceTree = "<group>"; };
 		9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIViewController+addChild.swift"; sourceTree = "<group>"; };
 		9297E2F92A420DA500D13E4D /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
@@ -633,6 +635,7 @@
 			isa = PBXGroup;
 			children = (
 				92DD62F62A477D3400497C3B /* AccountListAccountCell.swift */,
+				927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */,
 				92DD62F42A477C4300497C3B /* AccountListViewController.swift */,
 			);
 			path = AccountList;
@@ -792,6 +795,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				92DD62F72A477D3400497C3B /* AccountListAccountCell.swift in Sources */,
+				927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */,
 				92DD62F52A477C4300497C3B /* AccountListViewController.swift in Sources */,
 				92B7C9612A3B5E8C00672F64 /* AccountService.swift in Sources */,
 				92DD62DC2A45945A00497C3B /* AccountViewController.swift in Sources */,
