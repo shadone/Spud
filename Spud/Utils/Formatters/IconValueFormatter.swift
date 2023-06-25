@@ -58,7 +58,9 @@ struct IconValueFormatter {
             let months = days / 30 // TODO:
             let years = months / 12
 
-            assert(secs >= 0)
+            guard secs >= 0 else {
+                return "in the future"
+            }
 
             if secs < 60 {
                 return "\(secs.roundedInt)s"
