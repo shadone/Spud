@@ -88,6 +88,9 @@ class AccountListViewController: UIViewController {
         accountsFRC?.delegate = nil
 
         let request = LemmyAccount.fetchRequest() as NSFetchRequest<LemmyAccount>
+        request.predicate = NSPredicate(
+            format: "isServiceAccount == false"
+        )
         request.fetchBatchSize = 100
         request.relationshipKeyPathsForPrefetching = ["site"]
         request.sortDescriptors = [

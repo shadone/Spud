@@ -29,6 +29,7 @@ class MainWindow: UIWindow {
         let site = dependencies.siteService.site(for: tchncs)!
         let account = dependencies.accountService.accountForSignedOut(
             at: site,
+            isServiceAccount: false,
             in: dependencies.dataStore.mainContext
         )
 

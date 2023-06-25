@@ -13,6 +13,7 @@ protocol AccountServiceType: AnyObject {
     /// Returns an account that represents a signed out user on a given Lemmy instance.
     func accountForSignedOut(
         at site: LemmySite,
+        isServiceAccount: Bool,
         in context: NSManagedObjectContext
     ) -> LemmyAccount
 
@@ -45,6 +46,7 @@ class AccountService: AccountServiceType {
 
     func accountForSignedOut(
         at site: LemmySite,
+        isServiceAccount: Bool,
         in context: NSManagedObjectContext
     ) -> LemmyAccount {
         assert(Thread.current.isMainThread)
@@ -53,7 +55,8 @@ class AccountService: AccountServiceType {
             let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
             request.fetchLimit = 1
             request.predicate = NSPredicate(
-                format: "isSignedOutAccountType == true AND site == %@",
+                format: "isSignedOutAccountType == true AND isServiceAccount == %@ AND site == %@",
+                NSNumber(booleanLiteral: isServiceAccount),
                 site
             )
             do {
@@ -77,6 +80,7 @@ class AccountService: AccountServiceType {
 
         func createAccountForSignedOut() -> LemmyAccount {
             let account = LemmyAccount(signedOutAt: site, in: context)
+            account.isServiceAccount = isServiceAccount
             context.saveIfNeeded()
             return account
         }

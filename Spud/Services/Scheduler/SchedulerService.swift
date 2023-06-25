@@ -94,7 +94,11 @@ class SchedulerService: SchedulerServiceType {
         // but better would be to fetch site info for each account (to fetch subscriptions)
         // and also extract generic site info from server response.
 
-        let account = accountService.accountForSignedOut(at: site, in: backgroundContext)
+        let account = accountService.accountForSignedOut(
+            at: site,
+            isServiceAccount: true,
+            in: backgroundContext
+        )
         accountService
             .lemmyService(for: account)
             .fetchSiteInfo()
