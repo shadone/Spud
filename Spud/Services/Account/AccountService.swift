@@ -32,7 +32,7 @@ protocol AccountServiceType: AnyObject {
     /// Chooses which account is "default" i.e. used automatically at app launch.
     func setDefaultAccount(_ account: LemmyAccount)
 
-    /// Returns a LemmyService instance used for talking to Reddit api.
+    /// Returns a LemmyService instance used for talking to Lemmy api.
     /// - Parameter account: which account to act as.
     func lemmyService(for account: LemmyAccount) -> LemmyServiceType
 }
@@ -180,8 +180,11 @@ class AccountService: AccountServiceType {
 
         let accountObjectId = account.objectID
 
-        if let redditService = lemmyServices[accountObjectId] {
-            return redditService
+        if let lemmyService = lemmyServices[accountObjectId] {
+            os_log("Returning existing LemmyService for %{public}@",
+                   log: .accountService, type: .debug,
+                   account.identifierForLogging)
+            return lemmyService
         }
 
         guard let instanceUrl = URL(string: account.site.normalizedInstanceUrl) else {
@@ -189,6 +192,10 @@ class AccountService: AccountServiceType {
         }
 
         let api = LemmyApi(instanceUrl: instanceUrl)
+
+        os_log("Creating new LemmyService for %{public}@",
+               log: .accountService, type: .debug,
+               account.identifierForLogging)
 
         let lemmyService = LemmyService(
             account: account,
