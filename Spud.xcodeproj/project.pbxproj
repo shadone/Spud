@@ -99,6 +99,7 @@
 		92DD62FE2A484FFF00497C3B /* SiteListSiteCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62FD2A484FFF00497C3B /* SiteListSiteCell.swift */; };
 		92DD63002A48502600497C3B /* SiteListSiteViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62FF2A48502600497C3B /* SiteListSiteViewModel.swift */; };
 		92DD63022A48561E00497C3B /* SiteListIconImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63012A48561E00497C3B /* SiteListIconImageView.swift */; };
+		92DD63042A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -215,6 +216,7 @@
 		92DD62FD2A484FFF00497C3B /* SiteListSiteCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteListSiteCell.swift; sourceTree = "<group>"; };
 		92DD62FF2A48502600497C3B /* SiteListSiteViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteListSiteViewModel.swift; sourceTree = "<group>"; };
 		92DD63012A48561E00497C3B /* SiteListIconImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteListIconImageView.swift; sourceTree = "<group>"; };
+		92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSManagedObjectContext+saveIfNeeded.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -535,6 +537,7 @@
 			isa = PBXGroup;
 			children = (
 				92B7C9822A3D2C8800672F64 /* NSAttributedString+symbol.swift */,
+				92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */,
 				9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */,
 				92B7C9772A3D241800672F64 /* Publisher+combineLatestSequence.swift */,
 				92B7C9792A3D279100672F64 /* Publisher+ignoreNil.swift */,
@@ -814,6 +817,7 @@
 				92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */,
 				92B7C9652A3BA64900672F64 /* ManagedContextScheduler.swift in Sources */,
 				92B7C9832A3D2C8800672F64 /* NSAttributedString+symbol.swift in Sources */,
+				92DD63042A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift in Sources */,
 				92B7C97C2A3D27BC00672F64 /* OptionalType.swift in Sources */,
 				92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */,
 				92B7C9A72A3F45B600672F64 /* PostDetailCommentCell.swift in Sources */,

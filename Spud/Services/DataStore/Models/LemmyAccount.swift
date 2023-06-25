@@ -30,3 +30,18 @@ import os.log
     @NSManaged public var feeds: Set<LemmyFeed>
     @NSManaged public var posts: Set<LemmyPost>
 }
+
+extension LemmyAccount {
+    convenience init(
+        signedOutAt site: LemmySite,
+        in context: NSManagedObjectContext
+    ) {
+        self.init(entity: LemmyAccount.entity(), insertInto: context)
+
+        self.site = site
+        self.isSignedOutAccountType = true
+
+        createdAt = Date()
+        updatedAt = createdAt
+    }
+}

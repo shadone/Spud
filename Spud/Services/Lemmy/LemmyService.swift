@@ -63,11 +63,12 @@ class LemmyService: LemmyServiceType {
     // MARK: Functions
 
     init(
-        accountObjectId: NSManagedObjectID,
+        account: LemmyAccount,
         dataStore: DataStoreType,
         api: LemmyApi
     ) {
-        self.accountObjectId = accountObjectId
+        self.accountObjectId = account.objectID
+
         self.dataStore = dataStore
         self.api = api
 
@@ -102,16 +103,7 @@ class LemmyService: LemmyServiceType {
 
     private func saveIfNeeded() {
         backgroundContext.performAndWait {
-            guard backgroundContext.hasChanges else { return }
-
-            do {
-                try backgroundContext.save()
-            } catch {
-                os_log("Failed to save context for account %{public}@: %{public}@",
-                       log: .lemmyService, type: .error,
-                       accountObjectId.uriRepresentation().absoluteString,
-                       String(describing: error))
-            }
+            backgroundContext.saveIfNeeded()
         }
     }
 

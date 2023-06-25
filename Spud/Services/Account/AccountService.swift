@@ -75,12 +75,8 @@ class AccountService: AccountServiceType {
         }()
 
         func createAccountForSignedOut() -> LemmyAccount {
-            let account = LemmyAccount(context: context)
-            account.site = site
-            account.isSignedOutAccountType = true
-            account.createdAt = Date()
-            account.updatedAt = account.createdAt
-            dataStore.saveIfNeeded()
+            let account = LemmyAccount(signedOutAt: site, in: context)
+            context.saveIfNeeded()
             return account
         }
 
@@ -121,7 +117,7 @@ class AccountService: AccountServiceType {
         let api = LemmyApi(instanceUrl: instanceUrl)
 
         let lemmyService = LemmyService(
-            accountObjectId: accountObjectId,
+            account: account,
             dataStore: dataStore,
             api: api
         )

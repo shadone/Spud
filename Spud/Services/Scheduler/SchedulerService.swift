@@ -72,15 +72,7 @@ class SchedulerService: SchedulerServiceType {
     private func saveIfNeeded() {
         assert(Thread.current.isMainThread)
         backgroundContext.performAndWait {
-            guard backgroundContext.hasChanges else { return }
-
-            do {
-                try backgroundContext.save()
-            } catch {
-                os_log("Failed to save context: %{public}@",
-                       log: .schedulerService, type: .error,
-                       String(describing: error))
-            }
+            backgroundContext.saveIfNeeded()
         }
     }
 
@@ -106,9 +98,7 @@ class SchedulerService: SchedulerServiceType {
         accountService
             .lemmyService(for: account)
             .fetchSiteInfo()
-            .sink { [weak self] _ in
-                self?.saveIfNeeded()
-            } receiveValue: { _ in }
+            .sink { _ in } receiveValue: { _ in }
             .store(in: &disposables)
     }
 
@@ -120,9 +110,7 @@ class SchedulerService: SchedulerServiceType {
         accountService
             .lemmyService(for: account)
             .fetchSiteInfo()
-            .sink { [weak self] _ in
-                self?.saveIfNeeded()
-            } receiveValue: { _ in }
+            .sink { _ in } receiveValue: { _ in }
             .store(in: &disposables)
     }
 

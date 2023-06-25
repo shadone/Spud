@@ -112,12 +112,6 @@ class DataStore: DataStoreType {
     }
 
     func saveIfNeeded() {
-        guard mainContext.hasChanges else { return }
-
-        do {
-            try mainContext.save()
-        } catch let error as NSError {
-            fatalError("Failed to save main context: \(error), \(error.userInfo)")
-        }
+        mainContext.saveIfNeeded()
     }
 }
