@@ -12,6 +12,7 @@ import os.log
 class AccountListViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
+        HasAccountService &
         SiteListViewController.Dependencies
     let dependencies: Dependencies
 
@@ -170,6 +171,9 @@ extension AccountListViewController {
 
 extension AccountListViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let account = account(at: indexPath.row)
+        dependencies.accountService.setDefaultAccount(account)
+        dismiss(animated: true)
     }
 }
 
