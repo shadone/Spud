@@ -142,6 +142,8 @@ class AccountListViewController: UIViewController {
     }
 
     @objc private func addAccountTapped() {
+        setEditing(false, animated: true)
+
         let siteListViewController = SiteListViewController(
             dependencies: dependencies
         )
