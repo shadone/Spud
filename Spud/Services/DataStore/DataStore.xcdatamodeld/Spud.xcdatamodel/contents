@@ -3,6 +3,7 @@
     <entity name="Account" representedClassName="LemmyAccount" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" attributeType="String"/>
+        <attribute name="isDefaultAccount" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="isServiceAccount" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="isSignedOutAccountType" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>

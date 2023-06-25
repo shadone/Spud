@@ -28,6 +28,10 @@ import os.log
     /// operations are possible.
     @NSManaged public var isSignedOutAccountType: Bool
 
+    /// Specifies if the account is marked as "default" i.e. account that is used by default on app launch.
+    /// Only one account at a time can be default.
+    @NSManaged public var isDefaultAccount: Bool
+
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 
@@ -52,6 +56,7 @@ extension LemmyAccount {
         self.site = site
         self.isSignedOutAccountType = true
         self.isServiceAccount = false
+        self.isDefaultAccount = false
 
         createdAt = Date()
         updatedAt = createdAt

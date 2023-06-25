@@ -107,6 +107,8 @@ class SchedulerService: SchedulerServiceType {
     }
 
     private func fetchSiteInfo(for account: LemmyAccount) {
+        assert(Thread.current.isMainThread)
+
         os_log("Fetching site info for %{public}@",
                log: .schedulerService, type: .info,
                account.identifierForLogging)

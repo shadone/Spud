@@ -13,6 +13,7 @@ protocol LoginViewModelInputs {
 }
 
 protocol LoginViewModelOutputs {
+    var site: CurrentValueSubject<LemmySite, Never> { get }
     var icon: AnyPublisher<UIImage, Never> { get }
 }
 
@@ -24,11 +25,13 @@ protocol LoginViewModelType {
 class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOutputs {
     // MARK: Private
 
-    private let site: LemmySite
     private let imageService: ImageServiceType
 
     var siteInfo: AnyPublisher<LemmySiteInfo, Never> {
-        site.publisher(for: \.siteInfo)
+        site
+            .flatMap { site in
+                site.publisher(for: \.siteInfo)
+            }
             .ignoreNil()
             .eraseToAnyPublisher()
     }
@@ -39,7 +42,7 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
         site: LemmySite,
         imageService: ImageServiceType
     ) {
-        self.site = site
+        self.site = .init(site)
         self.imageService = imageService
 
         icon = site.publisher(for: \.siteInfo)
@@ -66,6 +69,7 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
 
     // MARK: Outputs
 
+    let site: CurrentValueSubject<LemmySite, Never>
     let icon: AnyPublisher<UIImage, Never>
 
     // MARK: Inputs

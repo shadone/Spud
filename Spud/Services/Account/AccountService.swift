@@ -20,6 +20,18 @@ protocol AccountServiceType: AnyObject {
     /// Returns all signed out accounts. The returned accounts are fetched in the specified context.
     func allSignedOut(in context: NSManagedObjectContext) -> [LemmyAccount]
 
+    /// Returns a list of all accounts.
+    func allAccounts(
+        includeSignedOutAccount: Bool,
+        in context: NSManagedObjectContext
+    ) -> [LemmyAccount]
+
+    /// Returns an account that is shown on app launch.
+    func defaultAccount() -> LemmyAccount?
+
+    /// Chooses which account is "default" i.e. used automatically at app launch.
+    func setDefaultAccount(_ account: LemmyAccount)
+
     /// Returns a LemmyService instance used for talking to Reddit api.
     /// - Parameter account: which account to act as.
     func lemmyService(for account: LemmyAccount) -> LemmyServiceType
@@ -104,6 +116,63 @@ class AccountService: AccountServiceType {
             assertionFailure()
             return []
         }
+    }
+
+    func allAccounts(
+        includeSignedOutAccount: Bool,
+        in context: NSManagedObjectContext
+    ) -> [LemmyAccount] {
+        assert(Thread.current.isMainThread)
+
+        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
+        if !includeSignedOutAccount {
+            request.predicate = NSPredicate(
+                format: "isSignedOutAccountType == false"
+            )
+        }
+        do {
+            return try context.fetch(request)
+        } catch {
+            os_log("Failed to fetch all accounts: %{public}@",
+                   log: .accountService, type: .error,
+                   error.localizedDescription)
+            assertionFailure()
+            return []
+        }
+    }
+
+    func defaultAccount() -> LemmyAccount? {
+        assert(Thread.current.isMainThread)
+
+        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
+        request.fetchLimit = 1
+        request.sortDescriptors = [
+            NSSortDescriptor(keyPath: \LemmyAccount.isDefaultAccount, ascending: false),
+            NSSortDescriptor(keyPath: \LemmyAccount.id, ascending: true),
+        ]
+        do {
+            let accounts = try dataStore.mainContext.fetch(request)
+            return accounts.first
+        } catch {
+            os_log("Failed to fetch default account: %{public}@",
+                   log: .accountService, type: .error,
+                   error.localizedDescription)
+            assertionFailure()
+            return nil
+        }
+    }
+
+    func setDefaultAccount(_ accountToMakeDefault: LemmyAccount) {
+        assert(!accountToMakeDefault.isServiceAccount)
+
+        allAccounts(includeSignedOutAccount: true, in: dataStore.mainContext)
+            .forEach {
+                $0.isDefaultAccount = false
+            }
+
+        accountToMakeDefault.isDefaultAccount = true
+
+        dataStore.saveIfNeeded()
     }
 
     func lemmyService(for account: LemmyAccount) -> LemmyServiceType {

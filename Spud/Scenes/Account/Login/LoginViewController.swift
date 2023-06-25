@@ -10,6 +10,8 @@ import UIKit
 
 class LoginViewController: UIViewController {
     typealias Dependencies =
+        HasDataStore &
+        HasAccountService &
         HasImageService
     let dependencies: Dependencies
 
@@ -169,6 +171,12 @@ class LoginViewController: UIViewController {
         let button = UIButton(configuration: config)
         button.translatesAutoresizingMaskIntoConstraints = false
 
+        button.addTarget(
+            self,
+            action: #selector(continueWithSignedOutAccount),
+            for: .touchUpInside
+        )
+
         return button
     }()
 
@@ -191,7 +199,7 @@ class LoginViewController: UIViewController {
 
     // MARK: Private
 
-    let viewModel: LoginViewModel
+    let viewModel: LoginViewModelType
     var disposables = Set<AnyCancellable>()
 
     // MARK: Functions
@@ -264,13 +272,25 @@ class LoginViewController: UIViewController {
     }
 
     private func bindViewModel() {
-        viewModel.icon
+        viewModel.outputs.icon
             .wrapInOptional()
             .assign(to: \.image, on: iconImageView)
             .store(in: &disposables)
     }
 
     @objc private func cancelTapped() {
+        dismiss(animated: true)
+    }
+
+    @objc private func continueWithSignedOutAccount() {
+        let account = dependencies.accountService.accountForSignedOut(
+            at: viewModel.outputs.site.value,
+            isServiceAccount: false,
+            in: dependencies.dataStore.mainContext
+        )
+
+        dependencies.accountService.setDefaultAccount(account)
+
         dismiss(animated: true)
     }
 }
