@@ -8,7 +8,11 @@ import Foundation
 import UIKit
 
 class AccountViewController: UIViewController {
-    // MARK: - Private
+    typealias Dependencies =
+        AccountListViewController.Dependencies
+    let dependencies: Dependencies
+
+    // MARK: - UI Properties
 
     lazy var label: UILabel = {
         let label = UILabel()
@@ -24,8 +28,11 @@ class AccountViewController: UIViewController {
 
     // MARK: - Functions
 
-    init() {
+    init(dependencies: Dependencies) {
+        self.dependencies = dependencies
+
         super.init(nibName: nil, bundle: nil)
+
         setup()
     }
 
@@ -38,6 +45,14 @@ class AccountViewController: UIViewController {
         tabBarItem.title = "Account"
         tabBarItem.image = UIImage(systemName: "person.crop.circle")!
 
+        let accountsBarButtonItem = UIBarButtonItem(
+            title: "Accounts",
+            style: .plain,
+            target: self,
+            action: #selector(accountsTapped)
+        )
+        navigationItem.leftBarButtonItem = accountsBarButtonItem
+
         view.backgroundColor = .white
 
         view.addSubview(label)
@@ -49,5 +64,13 @@ class AccountViewController: UIViewController {
             label.topAnchor.constraint(greaterThanOrEqualTo: view.topAnchor),
             label.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor),
         ])
+    }
+
+    @objc private func accountsTapped() {
+        let accountListViewController = AccountListViewController(
+            dependencies: dependencies
+        )
+        let navigationController = UINavigationController(rootViewController: accountListViewController)
+        present(navigationController, animated: true)
     }
 }

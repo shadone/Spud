@@ -12,7 +12,8 @@ class MainWindow: UIWindow {
         HasSiteService &
         SubscriptionsViewController.Dependencies &
         PostListViewController.Dependencies &
-        PostDetailOrEmptyViewController.Dependencies
+        PostDetailOrEmptyViewController.Dependencies &
+        AccountViewController.Dependencies
     let dependencies: Dependencies
 
     // MARK: Private
@@ -35,7 +36,8 @@ class MainWindow: UIWindow {
         )
 
         // Tab: Setup the account view controller
-        let accountViewController = AccountViewController()
+        let accountViewController = AccountViewController(dependencies: dependencies)
+        let accountNavigationController = UINavigationController(rootViewController: accountViewController)
 
         // Tab: Setup the search view controller
         let searchViewController = SearchViewController()
@@ -48,7 +50,7 @@ class MainWindow: UIWindow {
         tabBarController.setViewControllers(
             [
                 splitViewController,
-                accountViewController,
+                accountNavigationController,
                 searchViewController,
                 preferencesViewController,
             ],

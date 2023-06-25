@@ -9,10 +9,10 @@ import UIKit
 
 class MainWindowSplitViewController: UISplitViewController {
     typealias Dependencies =
-    HasAccountService &
-    SubscriptionsViewController.Dependencies &
-    PostListViewController.Dependencies &
-    PostDetailOrEmptyViewController.Dependencies
+        HasAccountService &
+        SubscriptionsViewController.Dependencies &
+        PostListViewController.Dependencies &
+        PostDetailOrEmptyViewController.Dependencies
     let dependencies: Dependencies
 
     // MARK: Functions
