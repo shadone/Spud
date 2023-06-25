@@ -35,7 +35,10 @@ class SiteListViewController: UIViewController {
 
     // MARK: Private
 
-    private var sitesFRC: NSFetchedResultsController<LemmySite>?
+    private var fetchRequest: NSFetchRequest<LemmySite>!
+    private var sitesFRC: NSFetchedResultsController<LemmySite>!
+
+    private var searchController: UISearchController!
 
     // MARK: Functions
 
@@ -73,6 +76,14 @@ class SiteListViewController: UIViewController {
             tableView.topAnchor.constraint(equalTo: view.topAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
+
+        searchController = UISearchController(searchResultsController: nil)
+        searchController.obscuresBackgroundDuringPresentation = false
+        searchController.delegate = self
+        searchController.searchResultsUpdater = self
+        searchController.searchBar.autocapitalizationType = .none
+
+        navigationItem.searchController = searchController
 
         setupFRC()
     }
@@ -217,5 +228,45 @@ extension SiteListViewController: NSFetchedResultsControllerDelegate {
         @unknown default:
             assertionFailure()
         }
+    }
+}
+
+// MARK: - UISearchController Delegate
+
+extension SiteListViewController: UISearchControllerDelegate {
+    func didDismissSearchController(_ searchController: UISearchController) {
+        sitesFRC.fetchRequest.predicate = nil
+
+        execFRC()
+        tableView.reloadData()
+    }
+}
+
+// MARK: - UISearchResultsUpdating
+
+extension SiteListViewController: UISearchResultsUpdating {
+    func updateSearchResults(for searchController: UISearchController) {
+        let whitespaceCharacterSet = CharacterSet.whitespaces
+
+        let query = searchController.searchBar.text?
+            .trimmingCharacters(in: whitespaceCharacterSet) ?? ""
+
+        let instanceUrl = NSPredicate(
+            format: "normalizedInstanceUrl CONTAINS[cd] %@",
+            query
+        )
+        let descriptionText = NSPredicate(
+            format: "siteInfo.descriptionText CONTAINS[cd] %@",
+            query
+        )
+
+        let predicate = NSCompoundPredicate(orPredicateWithSubpredicates: [
+            instanceUrl,
+            descriptionText,
+        ])
+        sitesFRC.fetchRequest.predicate = predicate
+
+        execFRC()
+        tableView.reloadData()
     }
 }
