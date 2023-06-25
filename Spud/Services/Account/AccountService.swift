@@ -59,15 +59,16 @@ class AccountService: AccountServiceType {
             do {
                 let accounts = try context.fetch(request)
                 if accounts.count > 1 {
-                    os_log("Expected zero or one but found %{public}d signed out accounts instead! Site=%{public}@",
+                    os_log("Expected zero or one but found %{public}d signed out accounts for %{public}@!",
                            log: .accountService, type: .error,
-                           accounts.count, site.normalizedInstanceUrl)
+                           accounts.count, site.identifierForLogging)
                     assertionFailure()
                 }
                 return accounts.first
             } catch {
-                os_log("Failed to fetch account: %{public}@",
+                os_log("Failed to fetch account for %{public}@: %{public}@",
                        log: .accountService, type: .error,
+                       site.identifierForLogging,
                        error.localizedDescription)
                 assertionFailure()
                 return nil

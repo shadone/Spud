@@ -87,7 +87,7 @@ class SchedulerService: SchedulerServiceType {
     private func fetchSiteInfo(for site: LemmySite) {
         os_log("Fetching site info for %{public}@",
                log: .schedulerService, type: .info,
-               site.normalizedInstanceUrl)
+               site.identifierForLogging)
 
         // TODO: separate fetching of generic "site info" and account specific info
         // For now we fetch site info as signed out user only,
@@ -105,7 +105,7 @@ class SchedulerService: SchedulerServiceType {
     private func fetchSiteInfo(for account: LemmyAccount) {
         os_log("Fetching site info for %{public}@",
                log: .schedulerService, type: .info,
-               account.objectID.uriRepresentation().absoluteString)
+               account.identifierForLogging)
 
         accountService
             .lemmyService(for: account)

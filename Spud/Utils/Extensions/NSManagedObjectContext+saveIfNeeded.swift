@@ -16,7 +16,7 @@ extension NSManagedObjectContext {
             try save()
         } catch {
             os_log("Failed to save context for: %{public}@",
-                   log: .app, type: .error,
+                   log: .dataStore, type: .error,
                    String(describing: error))
         }
     }

@@ -40,6 +40,7 @@ class LemmyService: LemmyServiceType {
     // MARK: Public
 
     let accountObjectId: NSManagedObjectID
+    let accountIdentifierForLogging: String
 
     // MARK: Private
 
@@ -68,14 +69,14 @@ class LemmyService: LemmyServiceType {
         api: LemmyApi
     ) {
         self.accountObjectId = account.objectID
+        self.accountIdentifierForLogging = account.identifierForLogging
 
         self.dataStore = dataStore
         self.api = api
 
-        os_log("Creating new service for account %{public}@ instance %{public}@",
+        os_log("Creating new service for %{public}@",
                log: .lemmyService, type: .info,
-               accountObjectId.uriRepresentation().absoluteString,
-               api.instanceHostname)
+               accountIdentifierForLogging)
     }
 
     private func object<CoreDataObject>(
@@ -152,9 +153,9 @@ class LemmyService: LemmyServiceType {
             .flatMap { feed -> AnyPublisher<Void, LemmyApiError> in
                 switch feed.feedType {
                 case let .frontpage(listingType, sortType):
-                    os_log("Fetch feed for account %{public}@. listingType=%{public}@ sortType=%{public}@ page=%{public}@",
+                    os_log("Fetch feed for %{public}@. listingType=%{public}@ sortType=%{public}@ page=%{public}@",
                            log: .lemmyService, type: .debug,
-                           self.accountObjectId.uriRepresentation().absoluteString,
+                           self.accountIdentifierForLogging,
                            listingType.rawValue, sortType.rawValue,
                            pageNumber.map { "\($0)" } ?? "nil")
                     let request = GetPosts.Request(
@@ -165,9 +166,9 @@ class LemmyService: LemmyServiceType {
                     return self.api.getPosts(request)
                         .receive(on: self.backgroundScheduler)
                         .handleEvents(receiveOutput: { response in
-                            os_log("Fetch feed for account %{public}@ complete with %{public}d posts",
+                            os_log("Fetch feed for %{public}@ complete with %{public}d posts",
                                    log: .lemmyService, type: .debug,
-                                   self.accountObjectId.uriRepresentation().absoluteString,
+                                   self.accountIdentifierForLogging,
                                    response.posts.count)
                             feed.append(contentsOf: response.posts)
                         }, receiveCompletion: { completion in
@@ -179,9 +180,9 @@ class LemmyService: LemmyServiceType {
                             }
                         })
                         .mapError { error in
-                            os_log("Fetch feed for account %{public}@ failed: %{public}@",
+                            os_log("Fetch feed for %{public}@ failed: %{public}@",
                                    log: .lemmyService, type: .error,
-                                   self.accountObjectId.uriRepresentation().absoluteString,
+                                   self.accountIdentifierForLogging,
                                    String(describing: error))
                             return error
                         }
@@ -202,9 +203,9 @@ class LemmyService: LemmyServiceType {
         return object(with: postId, type: LemmyPost.self)
             .setFailureType(to: LemmyApiError.self)
             .flatMap { post -> AnyPublisher<Void, LemmyApiError> in
-                os_log("Fetch comments for account %{public}@. post=%{public}d",
+                os_log("Fetch comments for %{public}@. post=%{public}d",
                        log: .lemmyService, type: .debug,
-                       self.accountObjectId.uriRepresentation().absoluteString,
+                       self.accountIdentifierForLogging,
                        post.localPostId)
                 let request = GetComments.Request(
                     sort: sortType,
@@ -214,9 +215,9 @@ class LemmyService: LemmyServiceType {
                 return self.api.getComments(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        os_log("Fetch comments for account %{public}@ complete with %{public}d comments",
+                        os_log("Fetch comments for %{public}@ complete with %{public}d comments",
                                log: .lemmyService, type: .debug,
-                               self.accountObjectId.uriRepresentation().absoluteString,
+                               self.accountIdentifierForLogging,
                                response.comments.count)
                         post.upsert(comments: response.comments, for: sortType)
                     }, receiveCompletion: { completion in
@@ -228,9 +229,9 @@ class LemmyService: LemmyServiceType {
                         }
                     })
                     .mapError { error in
-                        os_log("Fetch comments for account %{public}@ failed: %{public}@",
+                        os_log("Fetch comments for %{public}@ failed: %{public}@",
                                log: .lemmyService, type: .error,
-                               self.accountObjectId.uriRepresentation().absoluteString,
+                               self.accountIdentifierForLogging,
                                String(describing: error))
                         return error
                     }
@@ -247,16 +248,16 @@ class LemmyService: LemmyServiceType {
         return object(with: accountObjectId, type: LemmyAccount.self)
             .setFailureType(to: LemmyApiError.self)
             .flatMap { account -> AnyPublisher<Void, LemmyApiError> in
-                os_log("Fetch site for account %{public}@",
+                os_log("Fetch site for %{public}@",
                        log: .lemmyService, type: .debug,
-                       self.accountObjectId.uriRepresentation().absoluteString)
+                       self.accountIdentifierForLogging)
                 let request = GetSite.Request()
                 return self.api.getSite(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        os_log("Fetch site for account %{public}@ complete",
+                        os_log("Fetch site for %{public}@ complete",
                                log: .lemmyService, type: .debug,
-                               self.accountObjectId.uriRepresentation().absoluteString)
+                               self.accountIdentifierForLogging)
                         account.upsert(myUserInfo: response.my_user)
                         account.site.upsert(siteInfo: response)
                     }, receiveCompletion: { completion in
@@ -268,9 +269,9 @@ class LemmyService: LemmyServiceType {
                         }
                     })
                     .mapError { error in
-                        os_log("Fetch site for account %{public}@ failed: %{public}@",
+                        os_log("Fetch site for %{public}@ failed: %{public}@",
                                log: .lemmyService, type: .error,
-                               self.accountObjectId.uriRepresentation().absoluteString,
+                               self.accountIdentifierForLogging,
                                String(describing: error))
                         return error
                     }

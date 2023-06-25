@@ -16,6 +16,9 @@ import os.log
 
     // MARK: Properties
 
+    /// Unique identifier for an account, merely for internal use e.g. in logging.
+    @NSManaged public var id: String
+
     @NSManaged public var isSignedOutAccountType: Bool
 
     /// Timestamp when this CoreData object was created.
@@ -38,10 +41,17 @@ extension LemmyAccount {
     ) {
         self.init(entity: LemmyAccount.entity(), insertInto: context)
 
+        self.id = "<anon>@\(site.instanceHostname)"
         self.site = site
         self.isSignedOutAccountType = true
 
         createdAt = Date()
         updatedAt = createdAt
+    }
+}
+
+extension LemmyAccount {
+    var identifierForLogging: String {
+        id
     }
 }

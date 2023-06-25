@@ -58,7 +58,7 @@ class DataStore: DataStoreType {
 
         if let error = storeLoadingError {
             os_log("Destroying existing store due to persistent store load failure: %{public}@",
-                   log: .app, type: .error,
+                   log: .dataStore, type: .error,
                    String(describing: error))
             destroyPersistentStore(container)
 
@@ -73,7 +73,7 @@ class DataStore: DataStoreType {
                      Check the error message to determine what the actual problem was.
                      */
                     os_log("Failed to load persistent store: %{public}@",
-                           log: .app, type: .fault,
+                           log: .dataStore, type: .fault,
                            String(describing: error))
                     fatalError("Unresolved error \(error), \(error.userInfo)")
                 }
@@ -98,7 +98,7 @@ class DataStore: DataStoreType {
                 .destroyPersistentStore(at: url, ofType: NSSQLiteStoreType, options: nil)
         } catch {
             os_log("Failed to destroy persistent store: %{public}@",
-                   log: .app, type: .fault,
+                   log: .dataStore, type: .fault,
                    String(describing: error))
             fatalError("Failed to destroy persistent store: \(error)")
         }
