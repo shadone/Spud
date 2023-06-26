@@ -56,10 +56,10 @@ class DataStore: DataStoreType {
             self.storeLoadingError = error as NSError?
         })
 
-        if let error = storeLoadingError {
+        if let storeLoadingError {
             os_log("Destroying existing store due to persistent store load failure: %{public}@",
                    log: .dataStore, type: .error,
-                   String(describing: error))
+                   String(describing: storeLoadingError))
             destroyPersistentStore(container)
 
             container.loadPersistentStores(completionHandler: { _, error in

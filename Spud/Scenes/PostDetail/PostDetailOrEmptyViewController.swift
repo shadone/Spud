@@ -126,7 +126,7 @@ class PostDetailOrEmptyViewController: UIViewController {
             loadingViewController = nil
 
         case let .post(post):
-            if let contentViewController = contentViewController {
+            if let contentViewController {
                 contentViewController.setPost(post)
             } else {
                 contentViewController = PostDetailViewController(

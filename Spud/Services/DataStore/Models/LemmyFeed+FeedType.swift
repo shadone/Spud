@@ -15,9 +15,7 @@ extension LemmyFeed {
             frontpageListingType: ListingType?,
             sortType: SortType?
         ) {
-            if let frontpageListingType = frontpageListingType,
-               let sortType = sortType
-            {
+            if let frontpageListingType, let sortType {
                 self = .frontpage(listingType: frontpageListingType, sortType: sortType)
                 return
             }

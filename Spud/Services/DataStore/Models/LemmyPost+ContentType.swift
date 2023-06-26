@@ -20,7 +20,7 @@ extension LemmyPost {
     var thumbnailType: AnyPublisher<ThumbnailType, Never> {
         publisher(for: \.thumbnailUrl)
             .map { thumbnailUrl in
-                if let thumbnailUrl = thumbnailUrl {
+                if let thumbnailUrl {
                     return .image(thumbnailUrl)
                 }
                 return .text
