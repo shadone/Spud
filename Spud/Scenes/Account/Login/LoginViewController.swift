@@ -10,9 +10,9 @@ import UIKit
 
 class LoginViewController: UIViewController {
     typealias Dependencies =
-        HasDataStore &
-        HasAccountService &
-        HasImageService
+    HasDataStore &
+    HasAccountService &
+    HasImageService
     let dependencies: Dependencies
 
     // MARK: UI Properties
@@ -95,9 +95,11 @@ class LoginViewController: UIViewController {
     lazy var usernameTextField: UITextField = {
         let textField = UITextField()
         textField.translatesAutoresizingMaskIntoConstraints = false
-        textField.placeholder = "Your email or Username"
+        textField.placeholder = "Your Email or Username"
         textField.borderStyle = .roundedRect
         textField.keyboardType = .emailAddress
+        textField.textContentType = .emailAddress
+        textField.autocapitalizationType = .none
         return textField
     }()
 
@@ -126,6 +128,8 @@ class LoginViewController: UIViewController {
 
         let button = UIButton(configuration: config)
         button.translatesAutoresizingMaskIntoConstraints = false
+
+        button.addTarget(self, action: #selector(login), for: .touchUpInside)
 
         return button
     }()
@@ -202,6 +206,9 @@ class LoginViewController: UIViewController {
     let viewModel: LoginViewModelType
     var disposables = Set<AnyCancellable>()
 
+    var usernameChangedObserver: NSObjectProtocol?
+    var passwordChangedObserver: NSObjectProtocol?
+
     // MARK: Functions
 
     init(
@@ -212,13 +219,26 @@ class LoginViewController: UIViewController {
 
         viewModel = LoginViewModel(
             site: site,
-            imageService: dependencies.imageService
+            imageService: dependencies.imageService,
+            accountService: dependencies.accountService
         )
 
         super.init(nibName: nil, bundle: nil)
 
         setup()
         bindViewModel()
+    }
+
+    deinit {
+        if let usernameChangedObserver {
+            NotificationCenter.default.removeObserver(usernameChangedObserver)
+            self.usernameChangedObserver = nil
+        }
+
+        if let passwordChangedObserver {
+            NotificationCenter.default.removeObserver(passwordChangedObserver)
+            self.passwordChangedObserver = nil
+        }
     }
 
     @available(*, unavailable)
@@ -269,12 +289,29 @@ class LoginViewController: UIViewController {
             forgotPasswordButton.widthAnchor.constraint(equalTo: usernameTextField.widthAnchor),
             totp2faTokenTextField.widthAnchor.constraint(equalTo: usernameTextField.widthAnchor),
         ])
+
+        usernameChangedObserver = NotificationCenter.default.addObserver(
+            forName: UITextField.textDidChangeNotification,
+            object: usernameTextField,
+            queue: .main) { [weak self] _ in
+                self?.usernameChanged()
+            }
+        passwordChangedObserver = NotificationCenter.default.addObserver(
+            forName: UITextField.textDidChangeNotification,
+            object: passwordTextField,
+            queue: .main) { [weak self] _ in
+                self?.passwordChanged()
+            }
     }
 
     private func bindViewModel() {
         viewModel.outputs.icon
             .wrapInOptional()
             .assign(to: \.image, on: iconImageView)
+            .store(in: &disposables)
+
+        viewModel.outputs.loginButtonEnabled
+            .assign(to: \.isEnabled, on: loginButton)
             .store(in: &disposables)
     }
 
@@ -292,5 +329,17 @@ class LoginViewController: UIViewController {
         dependencies.accountService.setDefaultAccount(account)
 
         dismiss(animated: true)
+    }
+
+    private func usernameChanged() {
+        viewModel.inputs.usernameChanged(usernameTextField.text ?? "")
+    }
+
+    private func passwordChanged() {
+        viewModel.inputs.passwordChanged(passwordTextField.text ?? "")
+    }
+
+    @objc private func login() {
+        viewModel.inputs.login()
     }
 }

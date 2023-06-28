@@ -79,6 +79,8 @@
 		92B7C9A42A3F3B6A00672F64 /* CommentView+fake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A32A3F3B6A00672F64 /* CommentView+fake.swift */; };
 		92B7C9A72A3F45B600672F64 /* PostDetailCommentCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */; };
 		92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */; };
+		92CEAEAC2A4CD79500FAF4DB /* AccountServiceLoginError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */; };
+		92CEAEAE2A4CD7AC00FAF4DB /* LemmyCredential.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */; };
 		92DD62D12A43A93F00497C3B /* VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D02A43A93F00497C3B /* VoteStatus.swift */; };
 		92DD62D32A43AB3E00497C3B /* LemmyPost+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D22A43AB3E00497C3B /* LemmyPost+VoteStatus.swift */; };
 		92DD62D52A43ABB300497C3B /* LemmyComment+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */; };
@@ -199,6 +201,8 @@
 		92B7C9A32A3F3B6A00672F64 /* CommentView+fake.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentView+fake.swift"; sourceTree = "<group>"; };
 		92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentCell.swift; sourceTree = "<group>"; };
 		92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentViewModel.swift; sourceTree = "<group>"; };
+		92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountServiceLoginError.swift; sourceTree = "<group>"; };
+		92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyCredential.swift; sourceTree = "<group>"; };
 		92DD62D02A43A93F00497C3B /* VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoteStatus.swift; sourceTree = "<group>"; };
 		92DD62D22A43AB3E00497C3B /* LemmyPost+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPost+VoteStatus.swift"; sourceTree = "<group>"; };
 		92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyComment+VoteStatus.swift"; sourceTree = "<group>"; };
@@ -514,6 +518,8 @@
 			isa = PBXGroup;
 			children = (
 				92B7C9602A3B5E8C00672F64 /* AccountService.swift */,
+				92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */,
+				92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */,
 			);
 			path = Account;
 			sourceTree = "<group>";
@@ -798,6 +804,7 @@
 				927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */,
 				92DD62F52A477C4300497C3B /* AccountListViewController.swift in Sources */,
 				92B7C9612A3B5E8C00672F64 /* AccountService.swift in Sources */,
+				92CEAEAC2A4CD79500FAF4DB /* AccountServiceLoginError.swift in Sources */,
 				92DD62DC2A45945A00497C3B /* AccountViewController.swift in Sources */,
 				92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */,
 				92B7C9872A3D2DC100672F64 /* CommentsFormatter.swift in Sources */,
@@ -814,6 +821,7 @@
 				92B7C98F2A3E72DD00672F64 /* LemmyComment.swift in Sources */,
 				92B7C9912A3E749900672F64 /* LemmyCommentElement.swift in Sources */,
 				92B7C9992A3F2C7000672F64 /* LemmyCommentImportHelper.swift in Sources */,
+				92CEAEAE2A4CD7AC00FAF4DB /* LemmyCredential.swift in Sources */,
 				92B7C9532A3A667E00672F64 /* LemmyFeed+FeedType.swift in Sources */,
 				92B7C9562A3A738500672F64 /* LemmyFeed+import.swift in Sources */,
 				92B7C94B2A3A604300672F64 /* LemmyFeed.swift in Sources */,

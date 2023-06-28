@@ -10,11 +10,15 @@ import LemmyKit
 import UIKit
 
 protocol LoginViewModelInputs {
+    func usernameChanged(_ username: String)
+    func passwordChanged(_ password: String)
+    func login()
 }
 
 protocol LoginViewModelOutputs {
     var site: CurrentValueSubject<LemmySite, Never> { get }
     var icon: AnyPublisher<UIImage, Never> { get }
+    var loginButtonEnabled: AnyPublisher<Bool, Never> { get }
 }
 
 protocol LoginViewModelType {
@@ -26,6 +30,8 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
     // MARK: Private
 
     private let imageService: ImageServiceType
+    private let accountService: AccountServiceType
+    private var disposables = Set<AnyCancellable>()
 
     var siteInfo: AnyPublisher<LemmySiteInfo, Never> {
         site
@@ -36,14 +42,19 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
             .eraseToAnyPublisher()
     }
 
+    let username: CurrentValueSubject<String, Never>
+    let password: CurrentValueSubject<String, Never>
+
     // MARK: Functions
 
     init(
         site: LemmySite,
-        imageService: ImageServiceType
+        imageService: ImageServiceType,
+        accountService: AccountServiceType
     ) {
         self.site = .init(site)
         self.imageService = imageService
+        self.accountService = accountService
 
         icon = site.publisher(for: \.siteInfo)
             .ignoreNil()
@@ -60,6 +71,14 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
                     .eraseToAnyPublisher()
             }
             .eraseToAnyPublisher()
+
+        username = .init("")
+        password = .init("")
+        loginButtonEnabled = username.combineLatest(password)
+            .map { username, password in
+                !username.isEmpty && !password.isEmpty
+            }
+            .eraseToAnyPublisher()
     }
 
     // MARK: Type
@@ -71,6 +90,27 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
 
     let site: CurrentValueSubject<LemmySite, Never>
     let icon: AnyPublisher<UIImage, Never>
+    let loginButtonEnabled: AnyPublisher<Bool, Never>
 
     // MARK: Inputs
+
+    func usernameChanged(_ username: String) {
+        self.username.send(username)
+    }
+
+    func passwordChanged(_ password: String) {
+        self.password.send(password)
+    }
+
+    func login() {
+        accountService.login(
+            site: site.value,
+            username: username.value,
+            password: password.value
+        )
+        .sink { _ in
+        } receiveValue: { credential in
+        }
+        .store(in: &disposables)
+    }
 }

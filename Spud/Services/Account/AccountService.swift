@@ -5,6 +5,7 @@
 //
 
 import CoreData
+import Combine
 import Foundation
 import os.log
 import LemmyKit
@@ -26,7 +27,14 @@ protocol AccountServiceType: AnyObject {
         in context: NSManagedObjectContext
     ) -> [LemmyAccount]
 
-    /// Returns an account that is shown on app launch.
+    /// Log in to a given Lemmy instance with explicitly provided username and password.
+    func login(
+        site: LemmySite,
+        username: String,
+        password: String
+    ) -> AnyPublisher<LemmyCredential, AccountServiceLoginError>
+
+        /// Returns an account that is shown on app launch.
     func defaultAccount() -> LemmyAccount?
 
     /// Chooses which account is "default" i.e. used automatically at app launch.
@@ -175,6 +183,13 @@ class AccountService: AccountServiceType {
         dataStore.saveIfNeeded()
     }
 
+    private func api(for site: LemmySite) -> LemmyApi {
+        guard let instanceUrl = URL(string: site.normalizedInstanceUrl) else {
+            fatalError("Failed to create URL from normalized instance url '\(site.normalizedInstanceUrl)'")
+        }
+        return LemmyApi(instanceUrl: instanceUrl)
+    }
+
     func lemmyService(for account: LemmyAccount) -> LemmyServiceType {
         assert(Thread.current.isMainThread)
 
@@ -187,11 +202,7 @@ class AccountService: AccountServiceType {
             return lemmyService
         }
 
-        guard let instanceUrl = URL(string: account.site.normalizedInstanceUrl) else {
-            fatalError("Failed to create URL from normalized instance url '\(account.site.normalizedInstanceUrl)'")
-        }
-
-        let api = LemmyApi(instanceUrl: instanceUrl)
+        let api = api(for: account.site)
 
         os_log("Creating new LemmyService for %{public}@",
                log: .accountService, type: .debug,
@@ -205,5 +216,36 @@ class AccountService: AccountServiceType {
         lemmyServices[accountObjectId] = lemmyService
 
         return lemmyService
+    }
+
+    func login(
+        site: LemmySite,
+        username: String,
+        password: String
+    ) -> AnyPublisher<LemmyCredential, AccountServiceLoginError> {
+        let api = api(for: site)
+        return api.login(.init(username_or_email: username, password: password))
+            .mapError { apiError -> AccountServiceLoginError in
+                switch apiError {
+                case let .serverError(error):
+                    switch error {
+                    case .value(.couldnt_find_that_username_or_email):
+                        return .invalidUsernameOrEmail
+                    case .value(.password_incorrect):
+                        return .invalidPassword
+                    default:
+                        return .apiError(apiError)
+                    }
+                default:
+                    return .apiError(apiError)
+                }
+            }
+            .flatMap { response -> AnyPublisher<LemmyCredential, AccountServiceLoginError> in
+                guard let jwt = response.jwt else {
+                    return .fail(with: AccountServiceLoginError.missingJwt)
+                }
+                return .just(LemmyCredential(jwt: jwt))
+            }
+            .eraseToAnyPublisher()
     }
 }
