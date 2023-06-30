@@ -78,7 +78,6 @@ class LoginViewController: UIViewController {
     lazy var instanceNameLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.text = "instancename.com"
         return label
     }()
 
@@ -308,6 +307,11 @@ class LoginViewController: UIViewController {
         viewModel.outputs.icon
             .wrapInOptional()
             .assign(to: \.image, on: iconImageView)
+            .store(in: &disposables)
+
+        viewModel.outputs.instanceName
+            .wrapInOptional()
+            .assign(to: \.text, on: instanceNameLabel)
             .store(in: &disposables)
 
         viewModel.outputs.loginButtonEnabled

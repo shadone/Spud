@@ -18,6 +18,7 @@ protocol LoginViewModelInputs {
 protocol LoginViewModelOutputs {
     var site: CurrentValueSubject<LemmySite, Never> { get }
     var icon: AnyPublisher<UIImage, Never> { get }
+    var instanceName: AnyPublisher<String, Never> { get }
     var loginButtonEnabled: AnyPublisher<Bool, Never> { get }
     var loggedIn: PassthroughSubject<LemmyAccount, Never> { get }
 }
@@ -73,6 +74,8 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
             }
             .eraseToAnyPublisher()
 
+        instanceName = site.instanceHostnamePublisher
+
         username = .init("")
         password = .init("")
         loginButtonEnabled = username.combineLatest(password)
@@ -92,6 +95,7 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
 
     let site: CurrentValueSubject<LemmySite, Never>
     let icon: AnyPublisher<UIImage, Never>
+    let instanceName: AnyPublisher<String, Never>
     let loginButtonEnabled: AnyPublisher<Bool, Never>
     let loggedIn: PassthroughSubject<LemmyAccount, Never>
 
