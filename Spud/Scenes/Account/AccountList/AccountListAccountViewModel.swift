@@ -16,16 +16,7 @@ class AccountListAccountViewModel {
                 site.publisher(for: \.normalizedInstanceUrl)
             }
             .map { normalizedInstanceUrl in
-                guard let url = URL(string: normalizedInstanceUrl) else {
-                    return normalizedInstanceUrl
-                }
-                let host: String?
-                if #available(iOS 16.0, *) {
-                    host = url.host(percentEncoded: false)
-                } else {
-                    host = url.host
-                }
-                return host ?? normalizedInstanceUrl
+                URL(string: normalizedInstanceUrl)?.safeHost ?? ""
             }
             .combineLatest(titleAttributes)
             .map { description, attributes in

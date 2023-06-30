@@ -49,23 +49,15 @@ extension LemmySite {
 }
 
 extension LemmySite {
-    /// A helper for extracting the hostname part of the instance url
+    var instanceHostnamePublisher: AnyPublisher<String, Never> {
+        publisher(for: \.normalizedInstanceUrl)
+            .map { URL(string: $0)!.safeHost }
+            .eraseToAnyPublisher()
+    }
+
+        /// A helper for extracting the hostname part of the instance url
     var instanceHostname: String {
-        let url = URL(string: normalizedInstanceUrl)!
-
-        let host: String?
-        if #available(iOS 16.0, *) {
-            host = url.host(percentEncoded: false)
-        } else {
-            host = url.host
-        }
-
-        guard let host else {
-            assertionFailure("Failed to get hostname from url '\(normalizedInstanceUrl)'")
-            return url.absoluteString
-        }
-
-        return host
+        URL(string: normalizedInstanceUrl)!.safeHost
     }
 
     var identifierForLogging: String {
