@@ -9,6 +9,7 @@ import Combine
 import Foundation
 import os.log
 import LemmyKit
+import KeychainAccess
 
 protocol AccountServiceType: AnyObject {
     /// Returns an account that represents a signed out user on a given Lemmy instance.
@@ -32,7 +33,7 @@ protocol AccountServiceType: AnyObject {
         site: LemmySite,
         username: String,
         password: String
-    ) -> AnyPublisher<LemmyCredential, AccountServiceLoginError>
+    ) -> AnyPublisher<LemmyAccount, AccountServiceLoginError>
 
         /// Returns an account that is shown on app launch.
     func defaultAccount() -> LemmyAccount?
@@ -208,8 +209,13 @@ class AccountService: AccountServiceType {
                log: .accountService, type: .debug,
                account.identifierForLogging)
 
+        // TODO: it would make for better architecture if auth / credential was part of LemmyApi
+        // i.e. pass jwt to the `LemmyApi(auth: credential.jwt)` and let it add it to requests.
+        let credential = readCredential(for: account)
+
         let lemmyService = LemmyService(
             account: account,
+            credential: credential,
             dataStore: dataStore,
             api: api
         )
@@ -222,7 +228,7 @@ class AccountService: AccountServiceType {
         site: LemmySite,
         username: String,
         password: String
-    ) -> AnyPublisher<LemmyCredential, AccountServiceLoginError> {
+    ) -> AnyPublisher<LemmyAccount, AccountServiceLoginError> {
         let api = api(for: site)
         return api.login(.init(username_or_email: username, password: password))
             .mapError { apiError -> AccountServiceLoginError in
@@ -246,6 +252,82 @@ class AccountService: AccountServiceType {
                 }
                 return .just(LemmyCredential(jwt: jwt))
             }
+            .receive(on: DispatchQueue.main)
+            .map { credential in
+                // TODO: use "sub" from JWT instead of username here.
+                // using username here is wrong, it is not a stable identifier,
+                // it can be changed without invalidating the account.
+                // We should use "sub" claim from JWT.
+                let account = LemmyAccount(
+                    userId: username,
+                    at: site,
+                    in: self.dataStore.mainContext
+                )
+
+                self.setDefaultAccount(account)
+                self.dataStore.saveIfNeeded()
+
+                self.writeCredential(credential, for: account)
+
+                return account
+            }
             .eraseToAnyPublisher()
+    }
+}
+
+// MARK: Credential read/write
+
+extension AccountService {
+    private static let keychainCredentialService = "info.ddenis.Spud.Accounts"
+
+    private func writeCredential(_ credential: LemmyCredential, for account: LemmyAccount) {
+        assert(!account.objectID.isTemporaryID)
+        let key = account.objectID.uriRepresentation().absoluteString
+
+        guard let stringValue = credential.toString() else {
+            assertionFailure()
+            return
+        }
+
+        let keychain = Keychain(service: Self.keychainCredentialService)
+        do {
+            try keychain.set(stringValue, key: key)
+            os_log("Saved credential into keychain",
+                   log: .accountService, type: .debug)
+        } catch {
+            os_log("Failed to save credential into keychain: %{public}@",
+                   log: .accountService, type: .error,
+                   error.localizedDescription)
+        }
+    }
+
+    private func readCredential(for account: LemmyAccount) -> LemmyCredential? {
+        assert(!account.objectID.isTemporaryID)
+        let key = account.objectID.uriRepresentation().absoluteString
+
+        do {
+            let keychain = Keychain(service: Self.keychainCredentialService)
+            guard let stringValue = try keychain.get(key) else {
+                os_log("Did not find credential in keychain",
+                       log: .accountService, type: .debug)
+                return nil
+            }
+
+            guard let credential = LemmyCredential.fromString(stringValue) else {
+                assertionFailure()
+                return nil
+            }
+
+            os_log("Fetched credential from keychain",
+                   log: .accountService, type: .debug)
+
+            return credential
+        } catch {
+            os_log("Failed to get credential from keychain: %{public}@",
+                   log: .accountService, type: .error,
+                   error.localizedDescription)
+            assertionFailure(error.localizedDescription)
+            return nil
+        }
     }
 }

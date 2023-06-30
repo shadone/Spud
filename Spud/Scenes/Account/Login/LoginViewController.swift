@@ -313,6 +313,16 @@ class LoginViewController: UIViewController {
         viewModel.outputs.loginButtonEnabled
             .assign(to: \.isEnabled, on: loginButton)
             .store(in: &disposables)
+
+        viewModel.outputs.loggedIn
+            .sink { [weak self] account in
+                self?.dismissAfterLogin()
+            }
+            .store(in: &disposables)
+    }
+
+    private func dismissAfterLogin() {
+        dismiss(animated: true)
     }
 
     @objc private func cancelTapped() {

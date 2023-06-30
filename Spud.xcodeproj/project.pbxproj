@@ -81,6 +81,7 @@
 		92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */; };
 		92CEAEAC2A4CD79500FAF4DB /* AccountServiceLoginError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */; };
 		92CEAEAE2A4CD7AC00FAF4DB /* LemmyCredential.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */; };
+		92CEAEB12A4D5B4800FAF4DB /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */; };
 		92DD62D12A43A93F00497C3B /* VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D02A43A93F00497C3B /* VoteStatus.swift */; };
 		92DD62D32A43AB3E00497C3B /* LemmyPost+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D22A43AB3E00497C3B /* LemmyPost+VoteStatus.swift */; };
 		92DD62D52A43ABB300497C3B /* LemmyComment+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */; };
@@ -234,6 +235,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				92CEAEB12A4D5B4800FAF4DB /* KeychainAccess in Frameworks */,
 				92B7C9462A3A5E7100672F64 /* LemmyKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -685,6 +687,7 @@
 			name = Spud;
 			packageProductDependencies = (
 				92B7C9452A3A5E7100672F64 /* LemmyKit */,
+				92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */,
 			);
 			productName = Spud;
 			productReference = 92B7C8FA2A3A40EB00672F64 /* Spud.app */;
@@ -758,6 +761,9 @@
 				Base,
 			);
 			mainGroup = 92B7C8F12A3A40EB00672F64;
+			packageReferences = (
+				92CEAEAF2A4D5B4800FAF4DB /* XCRemoteSwiftPackageReference "KeychainAccess" */,
+			);
 			productRefGroup = 92B7C8FB2A3A40EB00672F64 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -1228,10 +1234,26 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		92CEAEAF2A4D5B4800FAF4DB /* XCRemoteSwiftPackageReference "KeychainAccess" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kishikawakatsumi/KeychainAccess";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.2.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		92B7C9452A3A5E7100672F64 /* LemmyKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = LemmyKit;
+		};
+		92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 92CEAEAF2A4D5B4800FAF4DB /* XCRemoteSwiftPackageReference "KeychainAccess" */;
+			productName = KeychainAccess;
 		};
 /* End XCSwiftPackageProductDependency section */
 

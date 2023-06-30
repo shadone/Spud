@@ -19,6 +19,7 @@ protocol LoginViewModelOutputs {
     var site: CurrentValueSubject<LemmySite, Never> { get }
     var icon: AnyPublisher<UIImage, Never> { get }
     var loginButtonEnabled: AnyPublisher<Bool, Never> { get }
+    var loggedIn: PassthroughSubject<LemmyAccount, Never> { get }
 }
 
 protocol LoginViewModelType {
@@ -79,6 +80,7 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
                 !username.isEmpty && !password.isEmpty
             }
             .eraseToAnyPublisher()
+        loggedIn = .init()
     }
 
     // MARK: Type
@@ -91,6 +93,7 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
     let site: CurrentValueSubject<LemmySite, Never>
     let icon: AnyPublisher<UIImage, Never>
     let loginButtonEnabled: AnyPublisher<Bool, Never>
+    let loggedIn: PassthroughSubject<LemmyAccount, Never>
 
     // MARK: Inputs
 
@@ -109,7 +112,8 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
             password: password.value
         )
         .sink { _ in
-        } receiveValue: { credential in
+        } receiveValue: { [weak self] account in
+            self?.loggedIn.send(account)
         }
         .store(in: &disposables)
     }

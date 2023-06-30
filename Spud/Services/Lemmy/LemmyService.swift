@@ -44,6 +44,7 @@ class LemmyService: LemmyServiceType {
 
     // MARK: Private
 
+    private let credential: LemmyCredential?
     private let dataStore: DataStoreType
     private let api: LemmyApi
 
@@ -65,12 +66,14 @@ class LemmyService: LemmyServiceType {
 
     init(
         account: LemmyAccount,
+        credential: LemmyCredential?,
         dataStore: DataStoreType,
         api: LemmyApi
     ) {
         self.accountObjectId = account.objectID
         self.accountIdentifierForLogging = account.identifierForLogging
 
+        self.credential = credential
         self.dataStore = dataStore
         self.api = api
 
@@ -161,7 +164,8 @@ class LemmyService: LemmyServiceType {
                     let request = GetPosts.Request(
                         type_: listingType,
                         sort: sortType,
-                        page: pageNumber
+                        page: pageNumber,
+                        auth: self.credential?.jwt
                     )
                     return self.api.getPosts(request)
                         .receive(on: self.backgroundScheduler)
@@ -210,7 +214,8 @@ class LemmyService: LemmyServiceType {
                 let request = GetComments.Request(
                     sort: sortType,
                     max_depth: 8,
-                    post_id: post.localPostId
+                    post_id: post.localPostId,
+                    auth: self.credential?.jwt
                 )
                 return self.api.getComments(request)
                     .receive(on: self.backgroundScheduler)
@@ -251,7 +256,9 @@ class LemmyService: LemmyServiceType {
                 os_log("Fetch site for %{public}@",
                        log: .lemmyService, type: .debug,
                        self.accountIdentifierForLogging)
-                let request = GetSite.Request()
+                let request = GetSite.Request(
+                    auth: self.credential?.jwt
+                )
                 return self.api.getSite(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in

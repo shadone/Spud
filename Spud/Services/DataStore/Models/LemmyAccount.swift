@@ -16,7 +16,7 @@ import os.log
 
     // MARK: Properties
 
-    /// Unique identifier for an account, merely for internal use e.g. in logging.
+    /// Unique identifier for an account, merely for internal use e.g. in logging or storing credentials in keychain.
     @NSManaged public var id: String
 
     /// Returns true if the account is created automatically by the app for internal purposes e.g. fetching
@@ -55,6 +55,23 @@ extension LemmyAccount {
         self.id = "<anon>@\(site.instanceHostname)"
         self.site = site
         self.isSignedOutAccountType = true
+        self.isServiceAccount = false
+        self.isDefaultAccount = false
+
+        createdAt = Date()
+        updatedAt = createdAt
+    }
+
+    convenience init(
+        userId: String,
+        at site: LemmySite,
+        in context: NSManagedObjectContext
+    ) {
+        self.init(entity: LemmyAccount.entity(), insertInto: context)
+
+        self.id = "\(userId)@\(site.instanceHostname)"
+        self.site = site
+        self.isSignedOutAccountType = false
         self.isServiceAccount = false
         self.isDefaultAccount = false
 
