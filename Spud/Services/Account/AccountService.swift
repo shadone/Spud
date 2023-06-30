@@ -303,10 +303,11 @@ extension AccountService {
 
     private func readCredential(for account: LemmyAccount) -> LemmyCredential? {
         assert(!account.objectID.isTemporaryID)
-        let key = account.objectID.uriRepresentation().absoluteString
+        guard !account.isSignedOutAccountType else { return nil }
 
         do {
             let keychain = Keychain(service: Self.keychainCredentialService)
+            let key = account.objectID.uriRepresentation().absoluteString
             guard let stringValue = try keychain.get(key) else {
                 os_log("Did not find credential in keychain",
                        log: .accountService, type: .debug)
