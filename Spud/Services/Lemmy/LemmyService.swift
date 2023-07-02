@@ -40,7 +40,7 @@ class LemmyService: LemmyServiceType {
     // MARK: Public
 
     let accountObjectId: NSManagedObjectID
-    let accountIdentifierForLogging: String
+    @Atomic var accountIdentifierForLogging: String
 
     // MARK: Private
 
@@ -278,7 +278,7 @@ class LemmyService: LemmyServiceType {
                     .mapError { error in
                         os_log("Fetch site for %{public}@ failed: %{public}@",
                                log: .lemmyService, type: .error,
-                               self.accountIdentifierForLogging,
+                               "self.accountIdentifierForLogging",
                                String(describing: error))
                         return error
                     }

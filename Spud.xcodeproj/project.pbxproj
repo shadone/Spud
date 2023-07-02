@@ -83,6 +83,7 @@
 		92CEAEAE2A4CD7AC00FAF4DB /* LemmyCredential.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */; };
 		92CEAEB12A4D5B4800FAF4DB /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */; };
 		92CEAEB82A4EDC0800FAF4DB /* URL+safeHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */; };
+		92CEAEBA2A4F362A00FAF4DB /* Atomic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEB92A4F362A00FAF4DB /* Atomic.swift */; };
 		92DD62D12A43A93F00497C3B /* VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D02A43A93F00497C3B /* VoteStatus.swift */; };
 		92DD62D32A43AB3E00497C3B /* LemmyPost+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D22A43AB3E00497C3B /* LemmyPost+VoteStatus.swift */; };
 		92DD62D52A43ABB300497C3B /* LemmyComment+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */; };
@@ -206,6 +207,7 @@
 		92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountServiceLoginError.swift; sourceTree = "<group>"; };
 		92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyCredential.swift; sourceTree = "<group>"; };
 		92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+safeHost.swift"; sourceTree = "<group>"; };
+		92CEAEB92A4F362A00FAF4DB /* Atomic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Atomic.swift; sourceTree = "<group>"; };
 		92DD62D02A43A93F00497C3B /* VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoteStatus.swift; sourceTree = "<group>"; };
 		92DD62D22A43AB3E00497C3B /* LemmyPost+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPost+VoteStatus.swift"; sourceTree = "<group>"; };
 		92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyComment+VoteStatus.swift"; sourceTree = "<group>"; };
@@ -450,6 +452,7 @@
 				92B7C9742A3D22C000672F64 /* Extensions */,
 				92B7C97F2A3D2B7200672F64 /* Formatters */,
 				9297E2FD2A42492E00D13E4D /* Views */,
+				92CEAEB92A4F362A00FAF4DB /* Atomic.swift */,
 				92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */,
 				92B7C97B2A3D27BC00672F64 /* OptionalType.swift */,
 				92B7C93D2A3A5C3A00672F64 /* OSLog.swift */,
@@ -816,6 +819,7 @@
 				92CEAEAC2A4CD79500FAF4DB /* AccountServiceLoginError.swift in Sources */,
 				92DD62DC2A45945A00497C3B /* AccountViewController.swift in Sources */,
 				92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */,
+				92CEAEBA2A4F362A00FAF4DB /* Atomic.swift in Sources */,
 				92B7C9872A3D2DC100672F64 /* CommentsFormatter.swift in Sources */,
 				92B7C9392A3A59E600672F64 /* DataStore.swift in Sources */,
 				92B7C9082A3A40EB00672F64 /* DataStore.xcdatamodeld in Sources */,

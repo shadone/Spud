@@ -33,16 +33,6 @@ class SchedulerService: SchedulerServiceType {
         dataStore.mainContext
     }
 
-    private lazy var backgroundContext: NSManagedObjectContext = {
-        let backgroundContext = dataStore.newBackgroundContext()
-        backgroundContext.mergePolicy = NSMergePolicy.mergeByPropertyStoreTrump
-        return backgroundContext
-    }()
-
-    private lazy var backgroundScheduler: ManagedContextSchedulerOf<DispatchQueue> = {
-        DispatchQueue.managedContentScheduler(backgroundContext)
-    }()
-
     // MARK: Functions
 
     init(
@@ -69,13 +59,6 @@ class SchedulerService: SchedulerServiceType {
         }
     }
 
-    private func saveIfNeeded() {
-        assert(Thread.current.isMainThread)
-        backgroundContext.performAndWait {
-            backgroundContext.saveIfNeeded()
-        }
-    }
-
     func processNewSite(_ site: LemmySite) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             self.fetchSiteInfo(for: site)
@@ -97,7 +80,7 @@ class SchedulerService: SchedulerServiceType {
         let account = accountService.accountForSignedOut(
             at: site,
             isServiceAccount: true,
-            in: backgroundContext
+            in: mainContext
         )
         accountService
             .lemmyService(for: account)
@@ -125,7 +108,7 @@ class SchedulerService: SchedulerServiceType {
         // But only for signed out accounts (signed in accounts site info will be fetched
         // together with subscribed communities).
         accountService
-            .allSignedOut(in: backgroundContext)
+            .allSignedOut(in: mainContext)
             .filter { $0.site.siteInfo == nil }
             .forEach { [weak self] account in
                 self?.fetchSiteInfo(for: account)
@@ -134,7 +117,7 @@ class SchedulerService: SchedulerServiceType {
         // Fetch initial site info, i.e. sites that have never fetched corresponding site info.
         // But only for sites that we do have any account for (not even signed out).
         siteService
-            .allSites(in: backgroundContext)
+            .allSites(in: mainContext)
             .filter { $0.siteInfo == nil && $0.accounts.isEmpty }
             .forEach { [weak self] site in
                 self?.fetchSiteInfo(for: site)
