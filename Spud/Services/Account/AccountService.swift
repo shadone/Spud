@@ -173,6 +173,11 @@ class AccountService: AccountServiceType {
 
     func setDefaultAccount(_ accountToMakeDefault: LemmyAccount) {
         assert(!accountToMakeDefault.isServiceAccount)
+        assert(Thread.current.isMainThread)
+
+        os_log("Setting default account %{public}@",
+               log: .accountService, type: .error,
+               accountToMakeDefault.identifierForLogging)
 
         allAccounts(includeSignedOutAccount: true, in: dataStore.mainContext)
             .forEach {
