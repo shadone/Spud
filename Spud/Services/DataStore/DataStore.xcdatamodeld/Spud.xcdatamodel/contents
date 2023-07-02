@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="21754" systemVersion="22F66" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="21754" systemVersion="22F82" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
     <entity name="Account" representedClassName="LemmyAccount" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" attributeType="String"/>
@@ -7,9 +7,28 @@
         <attribute name="isServiceAccount" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="isSignedOutAccountType" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="accountInfo" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="AccountInfo" inverseName="account" inverseEntity="AccountInfo"/>
         <relationship name="feeds" toMany="YES" deletionRule="Cascade" destinationEntity="Feed" inverseName="account" inverseEntity="Feed"/>
         <relationship name="posts" toMany="YES" deletionRule="Cascade" destinationEntity="Post" inverseName="account" inverseEntity="Post"/>
         <relationship name="site" maxCount="1" deletionRule="Nullify" destinationEntity="Site" inverseName="accounts" inverseEntity="Site"/>
+    </entity>
+    <entity name="AccountInfo" representedClassName="LemmyAccountInfo" syncable="YES">
+        <attribute name="acceptedApplication" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="defaultListingTypeRawValue" attributeType="String"/>
+        <attribute name="defaultSortTypeRawValue" attributeType="String"/>
+        <attribute name="email" optional="YES" attributeType="String"/>
+        <attribute name="emailVerified" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="localAccountId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="personId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="showAvatars" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="showBotAccounts" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="showNsfw" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="showReadPosts" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="showScores" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="totp2faUrl" optional="YES" attributeType="URI"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="accountInfo" inverseEntity="Account"/>
     </entity>
     <entity name="Comment" representedClassName="LemmyComment" syncable="YES">
         <attribute name="body" attributeType="String"/>

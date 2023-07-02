@@ -19,6 +19,20 @@ extension LemmyAccount {
         )
         guard let model else { return }
 
-        // TODO: update LemmyAccountInfo
+        guard let context = managedObjectContext else {
+            assertionFailure()
+            return
+        }
+
+        func createAccountInfo() -> LemmyAccountInfo {
+            let accountInfo = LemmyAccountInfo(in: context)
+            accountInfo.account = self
+            return accountInfo
+        }
+
+        let accountInfo = self.accountInfo ?? createAccountInfo()
+        self.accountInfo = accountInfo
+
+        accountInfo.set(from: model.local_user_view.local_user)
     }
 }

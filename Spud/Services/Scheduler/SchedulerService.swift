@@ -49,7 +49,7 @@ class SchedulerService: SchedulerServiceType {
         let fiveMinutes: TimeInterval = 300
         timer = Timer.scheduledTimer(withTimeInterval: fiveMinutes, repeats: true) { [weak self] _ in
             // Periodically check if there is anything new needs to be fetched.
-            self?.fetchSubscribedCommunitiesIfNeeded()
+            self?.fetchSiteInfoAndMyUserInfoForSignedInIfNeeded()
             self?.fetchSiteInfoForSignedOutIfNeeded()
         }
 
@@ -128,8 +128,17 @@ class SchedulerService: SchedulerServiceType {
 
     // MARK: Subscribed communities
 
-    private func fetchSubscribedCommunitiesIfNeeded() {
-        // TODO: periodically fetch subscribed communities
-        // get a list of signed in accounts, check if the data is older than X days and fetch.
+    /// For signed in accounts periodically re-fetch user info e.g. list of subscribed communities.
+    private func fetchSiteInfoAndMyUserInfoForSignedInIfNeeded() {
+        // Fetch initial site info (which includes `MyUserInfo`) for new accounts
+        // that we never fetched it before.
+        accountService
+            .allAccounts(includeSignedOutAccount: false, in: mainContext)
+            .filter { $0.accountInfo == nil }
+            .forEach { [weak self] account in
+                self?.fetchSiteInfo(for: account)
+            }
+
+        // TODO: also periodically re-fetch e.g. check if the data is older than X days and fetch.
     }
 }
