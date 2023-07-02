@@ -67,7 +67,8 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
     func fetchNextPage() {
         // TODO: this seems bad, wouldn't this causes a fault on "pages"
         //       and suddenly fetch all pages from this feed into memory?
-        let nextPageNumber = feed.value.pages.count + 1
+        assert(feed.value.pages.count + 1 < Int64.max)
+        let nextPageNumber = Int64(feed.value.pages.count + 1)
 
         isFetchingNextPage.send(true)
         accountService

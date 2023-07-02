@@ -19,7 +19,7 @@ protocol LemmyServiceType {
 
     func fetchFeed(
         feedId: NSManagedObjectID,
-        page pageNumber: Int?
+        page pageNumber: Int64?
     ) -> AnyPublisher<Void, LemmyApiError>
 
     func fetchComments(
@@ -147,7 +147,7 @@ class LemmyService: LemmyServiceType {
 
     func fetchFeed(
         feedId: NSManagedObjectID,
-        page pageNumber: Int?
+        page pageNumber: Int64?
     ) -> AnyPublisher<Void, LemmyApiError> {
         assert(Thread.current.isMainThread)
 
