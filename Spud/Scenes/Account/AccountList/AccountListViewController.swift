@@ -233,14 +233,7 @@ extension AccountListViewController: NSFetchedResultsControllerDelegate {
             tableView.deleteRows(at: [indexPath], with: .fade)
 
         case .update:
-            guard let indexPath = indexPath else { fatalError() }
-
-            guard let cell = tableView.cellForRow(at: indexPath) else { return }
-            guard let cell = cell as? AccountListAccountCell else { fatalError() }
-
-            let account = account(at: indexPath.row)
-            let viewModel = AccountListAccountViewModel(account: account)
-            cell.configure(with: viewModel)
+            break
 
         case .move:
             assertionFailure()
