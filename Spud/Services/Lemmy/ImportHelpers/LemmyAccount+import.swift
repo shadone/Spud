@@ -25,14 +25,18 @@ extension LemmyAccount {
         }
 
         func createAccountInfo() -> LemmyAccountInfo {
-            let accountInfo = LemmyAccountInfo(in: context)
+            let accountInfo = LemmyAccountInfo(
+                personId: model.local_user_view.local_user.person_id,
+                in: context
+            )
             accountInfo.account = self
+            accountInfo.person.site = site
             return accountInfo
         }
 
         let accountInfo = self.accountInfo ?? createAccountInfo()
         self.accountInfo = accountInfo
 
-        accountInfo.set(from: model.local_user_view.local_user)
+        accountInfo.set(from: model.local_user_view)
     }
 }

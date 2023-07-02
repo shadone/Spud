@@ -34,6 +34,7 @@ import os.log
 
     @NSManaged public var accounts: Set<LemmyAccount>
     @NSManaged public var siteInfo: LemmySiteInfo?
+    @NSManaged public var persons: Set<LemmyPerson>
 }
 
 extension LemmySite {

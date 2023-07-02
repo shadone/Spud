@@ -20,9 +20,6 @@ import os.log
     /// Internal Lemmy user identifier. The same identifier as in JWT sub claim.
     @NSManaged public var localAccountId: Int32
 
-    /// The person identifier for the account.
-    @NSManaged public var personId: Int32
-
     /// User's email address.
     @NSManaged public var email: String?
 
@@ -67,11 +64,19 @@ import os.log
     // MARK: Relations
 
     @NSManaged public var account: LemmyAccount
+    @NSManaged public var person: LemmyPerson
 }
 
 extension LemmyAccountInfo {
-    convenience init(in context: NSManagedObjectContext) {
+    convenience init(
+        personId: Int32,
+        in context: NSManagedObjectContext
+    ) {
         self.init(context: context)
+
+        person = LemmyPerson(personId: personId, in: context)
+        person.accountInfo = self
+
         createdAt = Date()
         updatedAt = createdAt
     }

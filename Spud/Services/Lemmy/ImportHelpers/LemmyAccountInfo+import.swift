@@ -10,9 +10,13 @@ import os.log
 import LemmyKit
 
 extension LemmyAccountInfo {
-    func set(from model: LocalUser) {
+    func set(from model: LocalUserView) {
+        set(from: model.local_user)
+        person.set(from: model)
+    }
+
+    private func set(from model: LocalUser) {
         localAccountId = model.id
-        personId = model.person_id
         email = model.email
         showNsfw = model.show_nsfw
         defaultSortType = model.default_sort_type

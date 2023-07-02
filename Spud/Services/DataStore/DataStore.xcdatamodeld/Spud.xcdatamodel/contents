@@ -20,7 +20,6 @@
         <attribute name="email" optional="YES" attributeType="String"/>
         <attribute name="emailVerified" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="localAccountId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="personId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="showAvatars" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="showBotAccounts" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="showNsfw" attributeType="Boolean" usesScalarValueType="YES"/>
@@ -29,6 +28,7 @@
         <attribute name="totp2faUrl" optional="YES" attributeType="URI"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="accountInfo" inverseEntity="Account"/>
+        <relationship name="person" maxCount="1" deletionRule="Nullify" destinationEntity="Person" inverseName="accountInfo" inverseEntity="Person"/>
     </entity>
     <entity name="Comment" representedClassName="LemmyComment" syncable="YES">
         <attribute name="body" attributeType="String"/>
@@ -71,6 +71,32 @@
         <relationship name="page" maxCount="1" deletionRule="Nullify" destinationEntity="Page" inverseName="pageElements" inverseEntity="Page"/>
         <relationship name="post" maxCount="1" deletionRule="Nullify" destinationEntity="Post" inverseName="pageElements" inverseEntity="Post"/>
     </entity>
+    <entity name="Person" representedClassName="LemmyPerson" syncable="YES">
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="personId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="accountInfo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AccountInfo" inverseName="person" inverseEntity="AccountInfo"/>
+        <relationship name="personInfo" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="PersonInfo" inverseName="person" inverseEntity="PersonInfo"/>
+        <relationship name="site" maxCount="1" deletionRule="Nullify" destinationEntity="Site" inverseName="persons" inverseEntity="Site"/>
+    </entity>
+    <entity name="PersonInfo" representedClassName="LemmyPersonInfo" syncable="YES">
+        <attribute name="accountCreationDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="actorId" attributeType="URI"/>
+        <attribute name="avatarUrl" optional="YES" attributeType="URI"/>
+        <attribute name="banExpires" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="bannerUrl" optional="YES" attributeType="URI"/>
+        <attribute name="bio" optional="YES" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="displayName" optional="YES" attributeType="String"/>
+        <attribute name="isAdmin" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="isBanned" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="isBotAccount" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="isDeletedPerson" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="matrixUserId" optional="YES" attributeType="String"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="person" maxCount="1" deletionRule="Nullify" destinationEntity="Person" inverseName="personInfo" inverseEntity="Person"/>
+    </entity>
     <entity name="Post" representedClassName="LemmyPost" syncable="YES">
         <attribute name="body" optional="YES" attributeType="String"/>
         <attribute name="communityName" attributeType="String"/>
@@ -97,6 +123,7 @@
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="normalizedInstanceUrl" attributeType="String"/>
         <relationship name="accounts" toMany="YES" deletionRule="Cascade" destinationEntity="Account" inverseName="site" inverseEntity="Account"/>
+        <relationship name="persons" toMany="YES" deletionRule="Nullify" destinationEntity="Person" inverseName="site" inverseEntity="Person"/>
         <relationship name="siteInfo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="SiteInfo" inverseName="site" inverseEntity="SiteInfo"/>
     </entity>
     <entity name="SiteInfo" representedClassName="LemmySiteInfo" syncable="YES">
