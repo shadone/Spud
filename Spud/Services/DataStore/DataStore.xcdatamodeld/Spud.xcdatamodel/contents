@@ -94,6 +94,10 @@
         <attribute name="isDeletedPerson" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="matrixUserId" optional="YES" attributeType="String"/>
         <attribute name="name" attributeType="String"/>
+        <attribute name="numberOfComments" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfPosts" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="totalScoreForComments" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="totalScoreForPosts" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="person" maxCount="1" deletionRule="Nullify" destinationEntity="Person" inverseName="personInfo" inverseEntity="Person"/>
     </entity>

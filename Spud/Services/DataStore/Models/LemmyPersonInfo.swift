@@ -57,6 +57,18 @@ import os.log
     /// When their ban, if it exists, expires, if at all.
     @NSManaged public var banExpires: Date?
 
+    /// Number of posts made by the person.
+    @NSManaged public var numberOfPosts: Int64
+
+    /// Total upvote score for all posts for the person.
+    @NSManaged public var totalScoreForPosts: Int64
+
+    /// Number of comments made by the person.
+    @NSManaged public var numberOfComments: Int64
+
+    /// Total upvote score for all comments for the person.
+    @NSManaged public var totalScoreForComments: Int64
+
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 
