@@ -13,6 +13,7 @@ import os.log
 class PostDetailViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
+        HasImageService &
         HasAccountService
     let dependencies: Dependencies
 
@@ -26,7 +27,8 @@ class PostDetailViewController: UIViewController {
         disposables.removeAll()
         viewModel = PostDetailViewModel(
             post: post,
-            accountService: dependencies.accountService
+            accountService: dependencies.accountService,
+            imageService: dependencies.imageService
         )
 
         bindViewModel()
@@ -67,7 +69,8 @@ class PostDetailViewController: UIViewController {
 
         viewModel = PostDetailViewModel(
             post: post,
-            accountService: dependencies.accountService
+            accountService: dependencies.accountService,
+            imageService: dependencies.imageService
         )
 
         super.init(nibName: nil, bundle: nil)
@@ -209,7 +212,10 @@ extension PostDetailViewController: UITableViewDataSource {
                 for: indexPath
             ) as! PostDetailHeaderCell
 
-            let viewModel = PostDetailHeaderViewModel(post: post)
+            let viewModel = PostDetailHeaderViewModel(
+                post: post,
+                imageService: dependencies.imageService
+            )
             cell.configure(with: viewModel)
 
             return cell

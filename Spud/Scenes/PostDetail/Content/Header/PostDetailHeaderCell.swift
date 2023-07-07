@@ -16,6 +16,7 @@ class PostDetailHeaderCell: UITableViewCell {
         let stackView = UIStackView()
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.axis = .vertical
+        stackView.alignment = .leading
         stackView.spacing = 8
         return stackView
     }()
@@ -34,6 +35,15 @@ class PostDetailHeaderCell: UITableViewCell {
         label.numberOfLines = 0
         label.accessibilityIdentifier = "body"
         return label
+    }()
+
+    lazy var linkPreviewView: LinkPreviewView = {
+        let view = LinkPreviewView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.tapped = { [weak self] url in
+            self?.linkPreviewTapped(url)
+        }
+        return view
     }()
 
     lazy var attributionLabel: UILabel = {
@@ -99,15 +109,23 @@ class PostDetailHeaderCell: UITableViewCell {
         [
             titleLabel,
             bodyLabel,
+            linkPreviewView,
             attributionLabel,
             subtitleHorizontalStackView,
         ].forEach(mainVerticalStackView.addArrangedSubview)
+
+        let linkPreviewWidthConstraint = linkPreviewView.widthAnchor.constraint(equalToConstant: 200)
+        linkPreviewWidthConstraint.priority = .defaultLow
+        let linkPreviewTrailingConstraint = linkPreviewView.trailingAnchor.constraint(lessThanOrEqualTo: mainVerticalStackView.trailingAnchor, constant: -8)
 
         NSLayoutConstraint.activate([
             mainVerticalStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             mainVerticalStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
             mainVerticalStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
             mainVerticalStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16),
+
+            linkPreviewWidthConstraint,
+            linkPreviewTrailingConstraint,
         ])
     }
 
@@ -120,6 +138,9 @@ class PostDetailHeaderCell: UITableViewCell {
         super.prepareForReuse()
 
         disposables.removeAll()
+
+        linkPreviewView.isHidden = true
+        linkPreviewView.prepareForReuse()
     }
 
     func configure(with viewModel: PostDetailHeaderViewModel) {
@@ -154,5 +175,30 @@ class PostDetailHeaderCell: UITableViewCell {
             .wrapInOptional()
             .assign(to: \.attributedText, on: subtitleAgeLabel)
             .store(in: &disposables)
+
+        viewModel.linkPreviewThumbnail
+            .sink(receiveValue: { [weak self] thumbnail in
+                switch thumbnail {
+                case let .image(image):
+                    self?.linkPreviewView.thumbnailImage = image
+                    self?.linkPreviewView.isHidden = false
+                case .imageFailure:
+                    self?.linkPreviewView.isHidden = false
+                case .none:
+                    self?.linkPreviewView.isHidden = true
+                }
+            })
+            .store(in: &disposables)
+
+        viewModel.url
+            .sink(receiveValue: { [weak self] url in
+                self?.linkPreviewView.url = url
+                self?.linkPreviewView.isHidden = false
+            })
+            .store(in: &disposables)
+    }
+
+    private func linkPreviewTapped(_ url: URL) {
+        UIApplication.shared.open(url)
     }
 }

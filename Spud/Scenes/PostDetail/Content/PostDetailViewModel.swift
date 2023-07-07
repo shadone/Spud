@@ -32,6 +32,7 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
     let postObjectId: NSManagedObjectID
 
     private let accountService: AccountServiceType
+    private let imageService: ImageServiceType
 
     private var disposables = Set<AnyCancellable>()
 
@@ -39,15 +40,18 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
 
     init(
         post: LemmyPost,
-        accountService: AccountServiceType
+        accountService: AccountServiceType,
+        imageService: ImageServiceType
     ) {
         self.accountService = accountService
+        self.imageService = imageService
         self.post = post
 
         postObjectId = post.objectID
 
         headerViewModel = PostDetailHeaderViewModel(
-            post: self.post
+            post: self.post,
+            imageService: imageService
         )
 
         commentSortType = CurrentValueSubject(.hot)

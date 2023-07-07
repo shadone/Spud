@@ -81,6 +81,35 @@ class PostDetailHeaderViewModel {
             .eraseToAnyPublisher()
     }
 
+    enum ThumbnailType {
+        /// Thumbnail is an image.
+        case image(UIImage)
+        /// Image failed to load, we display a broken image icon.
+        case imageFailure
+        /// Used before we have an image set.
+        case none
+    }
+
+    var linkPreviewThumbnail: AnyPublisher<ThumbnailType, Never> {
+        post.publisher(for: \.thumbnailUrl)
+            .flatMap { imageUrl -> AnyPublisher<ThumbnailType, Never> in
+                guard let imageUrl else {
+                    return .just(.none)
+                }
+                return self.imageService.get(imageUrl)
+                    .map { .image($0)}
+                    .replaceError(with: .imageFailure)
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+
+    var url: AnyPublisher<URL, Never> {
+        post.publisher(for: \.url)
+            .ignoreNil()
+            .eraseToAnyPublisher()
+    }
+
     // MARK: Private
 
     private var titleAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
@@ -117,10 +146,15 @@ class PostDetailHeaderViewModel {
     }
 
     private let post: LemmyPost
+    private let imageService: ImageServiceType
 
     // MARK: Functions
 
-    init(post: LemmyPost) {
+    init(
+        post: LemmyPost,
+        imageService: ImageServiceType
+    ) {
         self.post = post
+        self.imageService = imageService
     }
 }
