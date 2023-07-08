@@ -80,6 +80,8 @@
 		92B7C9A42A3F3B6A00672F64 /* CommentView+fake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A32A3F3B6A00672F64 /* CommentView+fake.swift */; };
 		92B7C9A72A3F45B600672F64 /* PostDetailCommentCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */; };
 		92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */; };
+		92C82A372A58643600B5B431 /* PostContentDetectorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C82A362A58643600B5B431 /* PostContentDetectorService.swift */; };
+		92C82A392A5955DD00B5B431 /* PostContentType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C82A382A5955DD00B5B431 /* PostContentType.swift */; };
 		92CEAEAC2A4CD79500FAF4DB /* AccountServiceLoginError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */; };
 		92CEAEAE2A4CD7AC00FAF4DB /* LemmyCredential.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */; };
 		92CEAEB12A4D5B4800FAF4DB /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */; };
@@ -214,6 +216,8 @@
 		92B7C9A32A3F3B6A00672F64 /* CommentView+fake.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentView+fake.swift"; sourceTree = "<group>"; };
 		92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentCell.swift; sourceTree = "<group>"; };
 		92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentViewModel.swift; sourceTree = "<group>"; };
+		92C82A362A58643600B5B431 /* PostContentDetectorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostContentDetectorService.swift; sourceTree = "<group>"; };
+		92C82A382A5955DD00B5B431 /* PostContentType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostContentType.swift; sourceTree = "<group>"; };
 		92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountServiceLoginError.swift; sourceTree = "<group>"; };
 		92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyCredential.swift; sourceTree = "<group>"; };
 		92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+safeHost.swift"; sourceTree = "<group>"; };
@@ -449,6 +453,7 @@
 				92B7C9372A3A59AD00672F64 /* DataStore */,
 				922AEE072A40E4E600AA7B22 /* Image */,
 				92B7C93F2A3A5DC800672F64 /* Lemmy */,
+				92C82A352A58625F00B5B431 /* PostContentDetector */,
 				92DD62EA2A46EFE600497C3B /* Scheduler */,
 				92DD62E32A46426A00497C3B /* Site */,
 			);
@@ -627,6 +632,15 @@
 				92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */,
 			);
 			path = Comment;
+			sourceTree = "<group>";
+		};
+		92C82A352A58625F00B5B431 /* PostContentDetector */ = {
+			isa = PBXGroup;
+			children = (
+				92C82A362A58643600B5B431 /* PostContentDetectorService.swift */,
+				92C82A382A5955DD00B5B431 /* PostContentType.swift */,
+			);
+			path = PostContentDetector;
 			sourceTree = "<group>";
 		};
 		92DD62DA2A45943900497C3B /* Account */ = {
@@ -895,6 +909,8 @@
 				92DD63042A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift in Sources */,
 				92B7C97C2A3D27BC00672F64 /* OptionalType.swift in Sources */,
 				92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */,
+				92C82A372A58643600B5B431 /* PostContentDetectorService.swift in Sources */,
+				92C82A392A5955DD00B5B431 /* PostContentType.swift in Sources */,
 				92B7C9A72A3F45B600672F64 /* PostDetailCommentCell.swift in Sources */,
 				92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */,
 				92A87F472A41EA9C0098C20C /* PostDetailEmptyViewController.swift in Sources */,

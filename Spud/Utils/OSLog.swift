@@ -17,4 +17,5 @@ extension OSLog {
     static let accountService = OSLog(subsystem: subsystem, category: "AccountService")
     static let siteService = OSLog(subsystem: subsystem, category: "SiteService")
     static let schedulerService = OSLog(subsystem: subsystem, category: "SchedulerService")
+    static let postContentDetectorService = OSLog(subsystem: subsystem, category: "PostContentDetectorService")
 }
