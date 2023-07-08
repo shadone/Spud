@@ -117,6 +117,8 @@
         <attribute name="title" attributeType="String"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="url" optional="YES" attributeType="URI"/>
+        <attribute name="urlEmbedDescription" optional="YES" attributeType="String"/>
+        <attribute name="urlEmbedTitle" optional="YES" attributeType="String"/>
         <attribute name="voteStatusRawValue" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="posts" inverseEntity="Account"/>
         <relationship name="commentElements" toMany="YES" deletionRule="Nullify" destinationEntity="CommentElement" inverseName="post" inverseEntity="CommentElement"/>

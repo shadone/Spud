@@ -38,6 +38,12 @@ import os.log
     /// URL the post links to.
     @NSManaged public var url: URL?
 
+    /// OEmbed title for the url.
+    @NSManaged public var urlEmbedTitle: String?
+
+    /// OEmbed description for the url.
+    @NSManaged public var urlEmbedDescription: String?
+
     /// Number of comments.
     @NSManaged public var numberOfComments: Int64
 

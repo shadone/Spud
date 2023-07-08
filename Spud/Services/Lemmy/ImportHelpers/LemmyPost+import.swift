@@ -65,7 +65,10 @@ extension LemmyPost {
         body = model.post.body
 
         thumbnailUrl = model.post.thumbnail_url
+
         url = model.post.url
+        urlEmbedTitle = model.post.embed_title
+        urlEmbedDescription = model.post.embed_description
 
         creatorName = model.creator.name
         communityName = model.community.name
