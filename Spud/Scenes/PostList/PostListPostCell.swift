@@ -182,10 +182,12 @@ class PostListPostCell: UITableViewCell {
         viewModel.thumbnail
             .map { thumbnailType in
                 switch thumbnailType {
-                case let .image(image):
-                    return .image(image)
-                case .imageFailure:
+                case .image(.loading):
+                    return .none
+                case .image(.failure):
                     return .imageFailure
+                case let .image(.ready(image)):
+                    return .image(image)
                 case .text:
                     return .text
                 }

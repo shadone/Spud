@@ -9,7 +9,8 @@ import UIKit
 
 class PostListPostViewModel {
     typealias Dependencies =
-        HasImageService
+        HasImageService &
+        HasPostContentDetectorService
     private let dependencies: Dependencies
 
     // MARK: Public
@@ -66,26 +67,42 @@ class PostListPostViewModel {
 
     enum ThumbnailType {
         /// Thumbnail is an image.
-        case image(UIImage)
-        /// Image failed to load, we display a broken image icon.
-        case imageFailure
+        case image(ImageLoadingState)
         /// Text post, we display an icon.
         case text
     }
 
-    var thumbnail: AnyPublisher<ThumbnailType, Never> {
-        post.thumbnailType
-            .flatMap { thumbnailType -> AnyPublisher<ThumbnailType, Never> in
-                switch thumbnailType {
-                case let .image(imageUrl):
-                    return self.dependencies.imageService
-                        .get(imageUrl)
-                        .map { .image($0)}
-                        .replaceError(with: .imageFailure)
-                        .eraseToAnyPublisher()
+    var postContentType: AnyPublisher<PostContentType, Never> {
+        dependencies.postContentDetectorService
+            .contentTypeForUrl(in: post)
+    }
 
-                case .text:
-                    return Just(.text)
+    var thumbnail: AnyPublisher<ThumbnailType, Never> {
+        postContentType
+            .flatMap { postContentType -> AnyPublisher<ThumbnailType, Never> in
+                switch postContentType {
+                case .externalLink:
+                    // TODO: display a link icon / overlay.
+                    fallthrough
+
+                case .textOrEmpty:
+                    return .just(.text)
+
+                case let .image(image):
+                    // TODO: is it ok to fetch image url when thumbnail is not available?
+                    // It happens for posts with imgur links e.g.
+                    // ```
+                    //   "post": {
+                    //     "id": 595454,
+                    //     "url": "https://i.imgur.com/7sOcLD8.jpg",
+                    //     "ap_id": "https://lemmy.ml/post/1865618",
+                    //     ...
+                    //   },
+                    // ```
+                    let thumbnailUrl = image.thumbnailUrl ?? image.imageUrl
+                    return self.dependencies.imageService
+                        .fetch(thumbnailUrl)
+                        .map { .image($0) }
                         .eraseToAnyPublisher()
                 }
             }
