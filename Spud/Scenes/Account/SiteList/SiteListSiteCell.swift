@@ -153,12 +153,14 @@ class SiteListSiteCell: UITableViewCell {
             .store(in: &disposables)
 
         viewModel.icon
-            .map { iconType in
-                switch iconType {
-                case let .image(image):
+            .map { imageLoadingState in
+                switch imageLoadingState {
+                case let .ready(image):
                     return .image(image)
-                case .imageFailure:
-                    return .imageFailure
+                case .failure:
+                    return .failure
+                case .loading:
+                    return .none
                 case .none:
                     return .noIcon
                 }

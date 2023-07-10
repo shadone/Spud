@@ -15,7 +15,7 @@ class SiteListIconImageView: UIView {
         case image(UIImage)
 
         /// The image has failed to load, we display a "broken image icon".
-        case imageFailure
+        case failure
 
         /// The instance does not have an icon set.
         case noIcon
@@ -36,7 +36,7 @@ class SiteListIconImageView: UIView {
                 imageView.isHidden = false
                 imageView.image = image
 
-            case .imageFailure:
+            case .failure:
                 brokenView.isHidden = false
 
             case .noIcon:

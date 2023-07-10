@@ -35,28 +35,18 @@ class SiteListSiteViewModel {
             .eraseToAnyPublisher()
     }
 
-    enum IconType {
-        /// Site icon.
-        case image(UIImage)
-        /// Site has no provided icon
-        case none
-        /// Image failed to load, we display a broken image icon.
-        case imageFailure
-    }
-
-    var icon: AnyPublisher<IconType, Never> {
+    var icon: AnyPublisher<ImageLoadingState?, Never> {
         siteInfo
             .flatMap { siteInfo in
                 siteInfo.publisher(for: \.iconUrl)
             }
-            .flatMap { iconUrl -> AnyPublisher<IconType, Never> in
+            .flatMap { iconUrl -> AnyPublisher<ImageLoadingState?, Never> in
                 guard let iconUrl else {
-                    return Just(.none)
+                    return Just(nil)
                         .eraseToAnyPublisher()
                 }
-                return self.imageService.get(iconUrl)
-                    .map { .image($0) }
-                    .replaceError(with: .imageFailure)
+                return self.imageService.fetch(iconUrl)
+                    .wrapInOptional()
                     .eraseToAnyPublisher()
             }
             .eraseToAnyPublisher()
