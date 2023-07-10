@@ -30,7 +30,14 @@ protocol ImageServiceType: AnyObject {
     // TODO: deprecate get() in favour of fetch(); make get() private
     func get(_ url: URL) -> AnyPublisher<UIImage, ImageError>
 
+    func fetch(_ url: URL) -> AnyPublisher<ImageLoadingState, Never>
     func fetch(_ url: URL, thumbnail thumbnailUrl: URL?) -> AnyPublisher<ImageLoadingState, Never>
+}
+
+extension ImageServiceType {
+    func fetch(_ url: URL) -> AnyPublisher<ImageLoadingState, Never> {
+        fetch(url, thumbnail: nil)
+    }
 }
 
 protocol HasImageService {

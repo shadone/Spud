@@ -114,20 +114,13 @@ class PostDetailHeaderViewModel {
             .eraseToAnyPublisher()
     }
 
-    enum LinkPreviewThumbnailType {
-        /// Thumbnail is an image.
-        case image(UIImage)
-        /// Image failed to load, we display a broken image icon.
-        case imageFailure
-    }
-
-    var linkPreviewThumbnail: AnyPublisher<(URL, LinkPreviewThumbnailType)?, Never> {
+    var linkPreviewThumbnail: AnyPublisher<(URL, ImageLoadingState)?, Never> {
         postContentType
             .combineLatest(
                 post.publisher(for: \.thumbnailUrl),
                 post.publisher(for: \.url)
             )
-            .flatMap { tuple -> AnyPublisher<(URL, LinkPreviewThumbnailType)?, Never> in
+            .flatMap { tuple -> AnyPublisher<(URL, ImageLoadingState)?, Never> in
                 let postContentType = tuple.0
                 let thumbnailUrl = tuple.1
                 let url = tuple.2
@@ -139,9 +132,8 @@ class PostDetailHeaderViewModel {
                 switch postContentType {
                 case .externalLink:
                     return self.dependencies.imageService
-                        .get(thumbnailUrl)
-                        .map { (url, .image($0)) }
-                        .replaceError(with: (url, .imageFailure))
+                        .fetch(thumbnailUrl)
+                        .map { (url, $0) }
                         .eraseToAnyPublisher()
                 case .image, .textOrEmpty:
                     return .just(nil)

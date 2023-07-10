@@ -264,7 +264,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         UIApplication.shared.open(url)
     }
 
-    private func configureLinkPreview(_ tuple: (URL, PostDetailHeaderViewModel.LinkPreviewThumbnailType)?) {
+    private func configureLinkPreview(_ tuple: (URL, ImageLoadingState)?) {
         guard
             let url = tuple?.0,
             let thumbnailType = tuple?.1
@@ -277,10 +277,14 @@ class PostDetailHeaderCell: UITableViewCellBase {
         linkPreviewView.isHidden = false
 
         switch thumbnailType {
-        case let .image(image):
+        case .loading:
+            // noop. We just show the link preview which was already done above.
+            break
+
+        case let .ready(image):
             linkPreviewView.thumbnailImage = image
 
-        case .imageFailure:
+        case .failure:
             // TODO: display broken image icon
             break
         }
