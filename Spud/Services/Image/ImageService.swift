@@ -10,7 +10,7 @@ import UIKit
 
 enum ImageLoadingState {
     /// The image is being fetched.
-    case loading
+    case loading(thumbnail: UIImage?)
 
     /// The image was successfully fetched.
     case ready(UIImage)
@@ -30,7 +30,7 @@ protocol ImageServiceType: AnyObject {
     // TODO: deprecate get() in favour of fetch(); make get() private
     func get(_ url: URL) -> AnyPublisher<UIImage, ImageError>
 
-    func fetch(_ url: URL) -> AnyPublisher<ImageLoadingState, Never>
+    func fetch(_ url: URL, thumbnail thumbnailUrl: URL?) -> AnyPublisher<ImageLoadingState, Never>
 }
 
 protocol HasImageService {
@@ -42,7 +42,10 @@ class ImageService: ImageServiceType {
 
     let session = URLSession.shared
 
-    func fetch(_ url: URL) -> AnyPublisher<ImageLoadingState, Never> {
+    func fetch(
+        _ url: URL,
+        thumbnail thumbnailUrl: URL?
+    ) -> AnyPublisher<ImageLoadingState, Never> {
         assert(Thread.isMainThread, "This code is not thread safe")
 
         if let cachedImage = memoryCache.get(for: url) {
@@ -55,6 +58,8 @@ class ImageService: ImageServiceType {
 
         // TODO: check if the image is present in URLSession cache.
 
+        let cachedThumbnailImage = thumbnailUrl.flatMap { memoryCache.get(for: $0) }
+
         return get(url)
             .map { image -> ImageLoadingState in
                 .ready(image)
@@ -62,7 +67,7 @@ class ImageService: ImageServiceType {
             .catch { imageError -> AnyPublisher<ImageLoadingState, Never> in
                 .just(.failure)
             }
-            .prepend(.loading)
+            .prepend(.loading(thumbnail: cachedThumbnailImage))
             .eraseToAnyPublisher()
     }
 

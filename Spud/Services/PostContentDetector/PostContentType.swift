@@ -6,13 +6,13 @@
 
 import Foundation
 
-enum PostContentType {
-    struct Image {
+enum PostContentType: Equatable {
+    struct Image: Equatable {
         let thumbnailUrl: URL?
         let imageUrl: URL
     }
 
-    struct Link {
+    struct Link: Equatable {
         let url: URL
         let embedTitle: String?
         let embedDescription: String?

@@ -86,16 +86,23 @@ class PostDetailHeaderViewModel {
     }
 
     var image: AnyPublisher<ImageLoadingState, Never> {
-        post.publisher(for: \.url)
+        postContentType
             .removeDuplicates()
-            .combineLatest(postContentType)
-            .flatMap { url, postContentType -> AnyPublisher<ImageLoadingState, Never> in
+            .combineLatest(
+                post.publisher(for: \.thumbnailUrl)
+                    .removeDuplicates()
+            )
+            .flatMap { tuple -> AnyPublisher<ImageLoadingState, Never> in
+                let postContentType = tuple.0
+                let thumbnailUrl = tuple.1
+
                 switch postContentType {
                 case .textOrEmpty, .externalLink:
                     return .empty(completeImmediately: false)
 
                 case let .image(image):
-                    return self.dependencies.imageService.fetch(image.imageUrl)
+                    return self.dependencies.imageService
+                        .fetch(image.imageUrl, thumbnail: thumbnailUrl)
                 }
             }
             .eraseToAnyPublisher()

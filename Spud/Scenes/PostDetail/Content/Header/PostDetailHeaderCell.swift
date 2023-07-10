@@ -243,9 +243,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
         viewModel.image
             .sink { [weak self] imageLoadingState in
                 switch imageLoadingState {
-                case .loading:
-                    // TODO: display loading indicator
-                    break
+                case let .loading(thumbnailImage):
+                    if let thumbnailImage {
+                        // TODO: display loading indicator
+                        self?.setImage(thumbnailImage)
+                    }
 
                 case let .ready(image):
                     self?.setImage(image)
