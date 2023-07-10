@@ -9,7 +9,7 @@ import UIKit
 extension UIViewController {
     /// Adds given view controller
     func add(child viewController: UIViewController?) {
-        guard let viewController = viewController else {
+        guard let viewController else {
             return
         }
         addChild(viewController)
@@ -17,7 +17,7 @@ extension UIViewController {
 
     /// Make the child occupy the whole parents view.
     func addSubviewWithEdgeConstraints(child viewController: UIViewController?) {
-        guard let viewController = viewController else {
+        guard let viewController else {
             return
         }
 
@@ -35,7 +35,7 @@ extension UIViewController {
 
     /// Remove child view controller
     func remove(child viewController: UIViewController?) {
-        guard let viewController = viewController else {
+        guard let viewController else {
             return
         }
         viewController.view.removeFromSuperview()

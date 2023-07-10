@@ -262,12 +262,12 @@ extension PostDetailViewController: NSFetchedResultsControllerDelegate {
     ) {
         switch type {
         case .insert:
-            guard let newIndexPath = newIndexPath else { fatalError() }
+            guard let newIndexPath else { fatalError() }
             let adjustedIndexPath = IndexPath(row: newIndexPath.row, section: 1)
             tableView.insertRows(at: [adjustedIndexPath], with: .fade)
 
         case .delete:
-            guard let indexPath = indexPath else { fatalError() }
+            guard let indexPath else { fatalError() }
             let adjustedIndexPath = IndexPath(row: indexPath.row, section: 1)
             tableView.deleteRows(at: [adjustedIndexPath], with: .fade)
 

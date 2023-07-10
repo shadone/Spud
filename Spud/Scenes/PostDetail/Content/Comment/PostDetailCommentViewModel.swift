@@ -12,7 +12,7 @@ class PostDetailCommentViewModel {
     // MARK: Public
 
     var author: AnyPublisher<NSAttributedString, Never> {
-        guard let commentValue = commentValue else {
+        guard let commentValue else {
             return .empty(completeImmediately: false)
         }
         return commentValue
@@ -28,7 +28,7 @@ class PostDetailCommentViewModel {
     }
 
     var body: AnyPublisher<NSAttributedString, Never> {
-        guard let commentValue = commentValue else {
+        guard let commentValue else {
             return .empty(completeImmediately: false)
         }
 
@@ -87,7 +87,7 @@ class PostDetailCommentViewModel {
     }
 
     var subtitle: AnyPublisher<NSAttributedString, Never> {
-        guard let commentValue = commentValue else {
+        guard let commentValue else {
             return .empty(completeImmediately: false)
         }
 
@@ -117,7 +117,7 @@ class PostDetailCommentViewModel {
     }
 
 //    var voteStatusPublisher: AnyPublisher<VoteStatus, Never> {
-//        guard let commentValue = commentValue else {
+//        guard let commentValue else {
 //            return .empty(completeImmediately: false)
 //        }
 //
@@ -125,7 +125,7 @@ class PostDetailCommentViewModel {
 //    }
 //
 //    var isUpvoted: AnyPublisher<Bool, Never> {
-//        guard let commentValue = commentValue else {
+//        guard let commentValue else {
 //            return .empty(completeImmediately: false)
 //        }
 //
@@ -135,7 +135,7 @@ class PostDetailCommentViewModel {
 //    }
 //
 //    var isDownvoted: AnyPublisher<Bool, Never> {
-//        guard let commentValue = commentValue else {
+//        guard let commentValue else {
 //            return .empty(completeImmediately: false)
 //        }
 //

@@ -14,7 +14,7 @@ extension URL {
     /// for `www.google.com` returns `google.com`.
     /// for `www.thesun.co.uk` returns `thesun.co.uk`.
     var canonicalHost: String? {
-        guard let host = self.host else { return nil }
+        guard let host else { return nil }
         // TODO: implement me
         return host
     }

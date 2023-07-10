@@ -225,11 +225,11 @@ extension AccountListViewController: NSFetchedResultsControllerDelegate {
     ) {
         switch type {
         case .insert:
-            guard let newIndexPath = newIndexPath else { fatalError() }
+            guard let newIndexPath else { fatalError() }
             tableView.insertRows(at: [newIndexPath], with: .fade)
 
         case .delete:
-            guard let indexPath = indexPath else { fatalError() }
+            guard let indexPath else { fatalError() }
             tableView.deleteRows(at: [indexPath], with: .fade)
 
         case .update:

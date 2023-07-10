@@ -273,13 +273,13 @@ class PostListViewController: UIViewController {
     }
 
     private func postSelected(_ post: LemmyPost) {
-        guard let splitViewController = splitViewController else {
+        guard let splitViewController else {
             fatalError()
         }
 
         let postDetailVC = PostDetailViewController(post: post, dependencies: dependencies)
         if splitViewController.isCollapsed {
-            guard let navigationController = navigationController else {
+            guard let navigationController else {
                 fatalError()
             }
             navigationController.pushViewController(postDetailVC, animated: true)
@@ -391,15 +391,15 @@ extension PostListViewController: NSFetchedResultsControllerDelegate {
     ) {
         switch type {
         case .insert:
-            guard let newIndexPath = newIndexPath else { fatalError() }
+            guard let newIndexPath else { fatalError() }
             tableView.insertRows(at: [newIndexPath], with: .fade)
 
         case .delete:
-            guard let indexPath = indexPath else { fatalError() }
+            guard let indexPath else { fatalError() }
             tableView.deleteRows(at: [indexPath], with: .fade)
 
         case .update:
-            guard let indexPath = indexPath else { fatalError() }
+            guard let indexPath else { fatalError() }
             guard let cell = tableView.cellForRow(at: indexPath) else { return }
             guard let cell = cell as? PostListPostCell else { fatalError() }
 

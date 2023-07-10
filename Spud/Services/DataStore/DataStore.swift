@@ -22,7 +22,7 @@ protocol HasDataStore {
 
 class DataStore: DataStoreType {
     var mainContext: NSManagedObjectContext {
-        guard let persistentContainer = persistentContainer else {
+        guard let persistentContainer else {
             fatalError("Uninitialized persistent store")
         }
         return persistentContainer.viewContext
@@ -105,7 +105,7 @@ class DataStore: DataStoreType {
     }
 
     func newBackgroundContext() -> NSManagedObjectContext {
-        guard let persistentContainer = persistentContainer else {
+        guard let persistentContainer else {
             fatalError("Uninitialized persistent store")
         }
         return persistentContainer.newBackgroundContext()
