@@ -55,6 +55,20 @@ class PostContentDetectorService: PostContentDetectorServiceType {
             imageUrl: url
         ))
 
+        let path = url.safePath
+        let hasKnownImageExtension = [
+            ".jpg",
+            ".jpeg",
+            ".png",
+            ".webp",
+        ].first { substr in
+            path.endsWith(substr)
+        } != nil
+
+        if hasKnownImageExtension {
+            return .just(image)
+        }
+
         let session = URLSession.shared
 
         var request = URLRequest(url: url)

@@ -82,6 +82,8 @@
 		92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */; };
 		92BBE4A12A5BEEAD008C2F55 /* UITableViewCellBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */; };
 		92BBE4A32A5C03FF008C2F55 /* UIImage+fittingWidth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */; };
+		92BBE4A92A5C2D6D008C2F55 /* URL+safePath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A82A5C2D6D008C2F55 /* URL+safePath.swift */; };
+		92BBE4AB2A5C39D9008C2F55 /* String+endsWith.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4AA2A5C39D9008C2F55 /* String+endsWith.swift */; };
 		92C82A372A58643600B5B431 /* PostContentDetectorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C82A362A58643600B5B431 /* PostContentDetectorService.swift */; };
 		92C82A392A5955DD00B5B431 /* PostContentType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C82A382A5955DD00B5B431 /* PostContentType.swift */; };
 		92CEAEAC2A4CD79500FAF4DB /* AccountServiceLoginError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */; };
@@ -220,6 +222,8 @@
 		92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentViewModel.swift; sourceTree = "<group>"; };
 		92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITableViewCellBase.swift; sourceTree = "<group>"; };
 		92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+fittingWidth.swift"; sourceTree = "<group>"; };
+		92BBE4A82A5C2D6D008C2F55 /* URL+safePath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+safePath.swift"; sourceTree = "<group>"; };
+		92BBE4AA2A5C39D9008C2F55 /* String+endsWith.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+endsWith.swift"; sourceTree = "<group>"; };
 		92C82A362A58643600B5B431 /* PostContentDetectorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostContentDetectorService.swift; sourceTree = "<group>"; };
 		92C82A382A5955DD00B5B431 /* PostContentType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostContentType.swift; sourceTree = "<group>"; };
 		92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountServiceLoginError.swift; sourceTree = "<group>"; };
@@ -599,12 +603,14 @@
 				92B7C97D2A3D27FA00672F64 /* Publisher+justfail.swift */,
 				92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */,
 				92B7C9752A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift */,
+				92BBE4AA2A5C39D9008C2F55 /* String+endsWith.swift */,
 				92B7C98A2A3D2F0100672F64 /* TimeInterval+roundedInt.swift */,
 				92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */,
 				9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */,
 				92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */,
 				92DD62F12A4775F400497C3B /* URL+normalizedInstanceUrlString.swift */,
 				92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */,
+				92BBE4A82A5C2D6D008C2F55 /* URL+safePath.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -947,6 +953,7 @@
 				92DD63002A48502600497C3B /* SiteListSiteViewModel.swift in Sources */,
 				92DD62FC2A484EEF00497C3B /* SiteListViewController.swift in Sources */,
 				92DD62E52A46427300497C3B /* SiteService.swift in Sources */,
+				92BBE4AB2A5C39D9008C2F55 /* String+endsWith.swift in Sources */,
 				922AEE162A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift in Sources */,
 				922AEE102A40FBEB00AA7B22 /* SubscriptionsViewController.swift in Sources */,
 				9297E2FF2A42494900D13E4D /* SwipeActionView.swift in Sources */,
@@ -959,6 +966,7 @@
 				92CEAECA2A54450700FAF4DB /* URL+canonicalHost.swift in Sources */,
 				92DD62F22A4775F400497C3B /* URL+normalizedInstanceUrlString.swift in Sources */,
 				92CEAEB82A4EDC0800FAF4DB /* URL+safeHost.swift in Sources */,
+				92BBE4A92A5C2D6D008C2F55 /* URL+safePath.swift in Sources */,
 				92DD62D12A43A93F00497C3B /* VoteStatus.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
