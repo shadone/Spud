@@ -19,6 +19,11 @@ protocol HasPostContentDetectorService {
 }
 
 class PostContentDetectorService: PostContentDetectorServiceType {
+    /// Local in-memory cache of the detected content types that involved network (async) calls.
+    /// This is to avoid doing too many network requests (and load remote servers) as well as improve user experience
+    /// when opening the same post requires the same work of detecting post content type.
+    var cache: [URL: PostContentType] = [:]
+
     func contentTypeForUrl(in post: LemmyPost) -> AnyPublisher<PostContentType, Never> {
         guard let url = post.url else {
             return .just(.textOrEmpty)
@@ -28,7 +33,13 @@ class PostContentDetectorService: PostContentDetectorServiceType {
         // - check if the domain is in Core Data as LemmySite (i.e. link to pictrs resource).
         // - check if popular image hosting like imgur.
 
-        // TODO: cache the content detection type in memory so consequative calls are faster.
+        if let contentTypeFromCache = cache[url] {
+            return .just(contentTypeFromCache)
+        }
+
+        func addToCache(_ contentType: PostContentType) {
+            cache[url] = contentType
+        }
 
         func isImageMimeType(_ response: URLResponse) -> Bool {
             response.mimeType?.starts(with: "image/") ?? false
@@ -57,9 +68,11 @@ class PostContentDetectorService: PostContentDetectorServiceType {
                 switch httpUrlResponse.statusCode {
                 case 200..<299: // Success
                     if isImageMimeType(response) {
+                        addToCache(image)
                         return .just(image)
                     }
 
+                    addToCache(externalLink)
                     return .just(externalLink)
 
                 case 405: // HTTP 405: Method Not Allowed
@@ -78,18 +91,26 @@ class PostContentDetectorService: PostContentDetectorServiceType {
                             switch httpUrlResponse.statusCode {
                             case 200..<299: // Success
                                 if isImageMimeType(response) {
+                                    addToCache(image)
                                     return .just(image)
                                 }
 
+                                addToCache(externalLink)
                                 return .just(externalLink)
 
                             default:
+                                addToCache(externalLink)
                                 return .just(externalLink)
                             }
                         }
                         .eraseToAnyPublisher()
 
                 default:
+                    os_log("Failed to detect content type. Received HTTP status %{public}d for url %{public}@",
+                           log: .postContentDetectorService, type: .error,
+                           httpUrlResponse.statusCode, url.absoluteString)
+                    // We could not detect the content type, lets assume this is an external link,
+                    // but no need to cache this response.
                     return .just(externalLink)
                 }
             }
