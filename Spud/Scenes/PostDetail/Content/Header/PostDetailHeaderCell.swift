@@ -181,6 +181,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
             postImageContainerHeightConstraint,
         ])
+
+        prepareForReuse()
     }
 
     @available(*, unavailable)
@@ -233,23 +235,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
             .store(in: &disposables)
 
         viewModel.linkPreviewThumbnail
-            .sink(receiveValue: { [weak self] thumbnail in
-                switch thumbnail {
-                case let .image(image):
-                    self?.linkPreviewView.thumbnailImage = image
-                    self?.linkPreviewView.isHidden = false
-                case .imageFailure:
-                    self?.linkPreviewView.isHidden = false
-                case .none:
-                    self?.linkPreviewView.isHidden = true
-                }
-            })
-            .store(in: &disposables)
-
-        viewModel.url
-            .sink(receiveValue: { [weak self] url in
-                self?.linkPreviewView.url = url
-                self?.linkPreviewView.isHidden = false
+            .sink(receiveValue: { [weak self] tuple in
+                self?.configureLinkPreview(tuple)
             })
             .store(in: &disposables)
 
@@ -273,6 +260,34 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
     private func linkPreviewTapped(_ url: URL) {
         UIApplication.shared.open(url)
+    }
+
+    private func configureLinkPreview(_ tuple: (URL, PostDetailHeaderViewModel.LinkPreviewThumbnailType)?) {
+        guard
+            let url = tuple?.0,
+            let thumbnailType = tuple?.1
+        else {
+            linkPreviewView.isHidden = true
+            return
+        }
+
+        linkPreviewView.url = url
+        linkPreviewView.isHidden = false
+
+        switch thumbnailType {
+        case let .image(image):
+            linkPreviewView.thumbnailImage = image
+
+        case .imageFailure:
+            // TODO: display broken image icon
+            break
+        }
+
+        if !isBeingConfigured {
+            // Tell UITableView we want to change our cell height.
+            tableView?.beginUpdates()
+            tableView?.endUpdates()
+        }
     }
 
     private func setImage(_ image: UIImage) {

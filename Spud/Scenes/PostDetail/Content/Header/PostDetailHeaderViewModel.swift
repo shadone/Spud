@@ -80,13 +80,16 @@ class PostDetailHeaderViewModel {
             .eraseToAnyPublisher()
     }
 
+    var postContentType: AnyPublisher<PostContentType, Never> {
+        dependencies.postContentDetectorService
+            .contentTypeForUrl(in: post)
+    }
+
     var image: AnyPublisher<ImageLoadingState, Never> {
         post.publisher(for: \.url)
             .removeDuplicates()
-            .flatMap { url -> AnyPublisher<PostContentType, Never> in
-                self.dependencies.postContentDetectorService.contentTypeForUrl(in: self.post)
-            }
-            .flatMap { postContentType -> AnyPublisher<ImageLoadingState, Never> in
+            .combineLatest(postContentType)
+            .flatMap { url, postContentType -> AnyPublisher<ImageLoadingState, Never> in
                 switch postContentType {
                 case .textOrEmpty, .externalLink:
                     return .empty(completeImmediately: false)
@@ -104,33 +107,39 @@ class PostDetailHeaderViewModel {
             .eraseToAnyPublisher()
     }
 
-    enum ThumbnailType {
+    enum LinkPreviewThumbnailType {
         /// Thumbnail is an image.
         case image(UIImage)
         /// Image failed to load, we display a broken image icon.
         case imageFailure
-        /// Used before we have an image set.
-        case none
     }
 
-    var linkPreviewThumbnail: AnyPublisher<ThumbnailType, Never> {
-        post.publisher(for: \.thumbnailUrl)
-            .flatMap { imageUrl -> AnyPublisher<ThumbnailType, Never> in
-                guard let imageUrl else {
-                    return .just(.none)
+    var linkPreviewThumbnail: AnyPublisher<(URL, LinkPreviewThumbnailType)?, Never> {
+        postContentType
+            .combineLatest(
+                post.publisher(for: \.thumbnailUrl),
+                post.publisher(for: \.url)
+            )
+            .flatMap { tuple -> AnyPublisher<(URL, LinkPreviewThumbnailType)?, Never> in
+                let postContentType = tuple.0
+                let thumbnailUrl = tuple.1
+                let url = tuple.2
+
+                guard let thumbnailUrl, let url else {
+                    return .just(nil)
                 }
-                return self.dependencies.imageService
-                    .get(imageUrl)
-                    .map { .image($0)}
-                    .replaceError(with: .imageFailure)
-                    .eraseToAnyPublisher()
-            }
-            .eraseToAnyPublisher()
-    }
 
-    var url: AnyPublisher<URL, Never> {
-        post.publisher(for: \.url)
-            .ignoreNil()
+                switch postContentType {
+                case .externalLink:
+                    return self.dependencies.imageService
+                        .get(thumbnailUrl)
+                        .map { (url, .image($0)) }
+                        .replaceError(with: (url, .imageFailure))
+                        .eraseToAnyPublisher()
+                case .image, .textOrEmpty:
+                    return .just(nil)
+                }
+            }
             .eraseToAnyPublisher()
     }
 
