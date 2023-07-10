@@ -16,8 +16,21 @@ class PostDetailHeaderCell: UITableViewCellBase {
         let stackView = UIStackView()
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.axis = .vertical
-        stackView.alignment = .leading
+        stackView.alignment = .center
         stackView.spacing = 8
+        stackView.accessibilityIdentifier = "mainVerticalStackView"
+
+        [
+            postImageContainer,
+            postContentVerticalStackView,
+        ].forEach(stackView.addArrangedSubview)
+
+        NSLayoutConstraint.activate([
+            postImageContainer.widthAnchor.constraint(equalTo: stackView.widthAnchor),
+            postContentVerticalStackView.widthAnchor.constraint(
+                equalTo: stackView.widthAnchor, constant: -16 * 2),
+        ])
+
         return stackView
     }()
 
@@ -35,6 +48,26 @@ class PostDetailHeaderCell: UITableViewCellBase {
         imageView.contentMode = .scaleAspectFit
         imageView.accessibilityIdentifier = "postImageView"
         return imageView
+    }()
+
+    lazy var postContentVerticalStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .vertical
+        stackView.alignment = .leading
+        stackView.spacing = 8
+        stackView.accessibilityIdentifier = "postContentVerticalStackView"
+
+        [
+            postImageContainer,
+            titleLabel,
+            bodyLabel,
+            linkPreviewView,
+            attributionLabel,
+            subtitleHorizontalStackView,
+        ].forEach(stackView.addArrangedSubview)
+
+        return stackView
     }()
 
     lazy var titleLabel: UILabel = {
@@ -125,15 +158,6 @@ class PostDetailHeaderCell: UITableViewCellBase {
         postImageContainer.addSubview(postImageView)
         contentView.addSubview(mainVerticalStackView)
 
-        [
-            postImageContainer,
-            titleLabel,
-            bodyLabel,
-            linkPreviewView,
-            attributionLabel,
-            subtitleHorizontalStackView,
-        ].forEach(mainVerticalStackView.addArrangedSubview)
-
         let postImageContainerHeightConstraint = postImageContainer.heightAnchor.constraint(equalToConstant: 0)
         self.postImageContainerHeightConstraint = postImageContainerHeightConstraint
 
@@ -142,10 +166,10 @@ class PostDetailHeaderCell: UITableViewCellBase {
         let linkPreviewTrailingConstraint = linkPreviewView.trailingAnchor.constraint(lessThanOrEqualTo: mainVerticalStackView.trailingAnchor, constant: -8)
 
         NSLayoutConstraint.activate([
-            mainVerticalStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
-            mainVerticalStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
-            mainVerticalStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
-            mainVerticalStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -16),
+            mainVerticalStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            mainVerticalStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            mainVerticalStackView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            mainVerticalStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
 
             linkPreviewWidthConstraint,
             linkPreviewTrailingConstraint,
