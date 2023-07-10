@@ -7,7 +7,7 @@
 import Combine
 import UIKit
 
-class PostDetailHeaderCell: UITableViewCell {
+class PostDetailHeaderCell: UITableViewCellBase {
     static let reuseIdentifier = "PostDetailHeaderCell"
 
     // MARK: UI Properties
@@ -19,6 +19,22 @@ class PostDetailHeaderCell: UITableViewCell {
         stackView.alignment = .leading
         stackView.spacing = 8
         return stackView
+    }()
+
+    lazy var postImageContainer: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.backgroundColor = .tertiarySystemGroupedBackground
+        view.accessibilityIdentifier = "postImageContainer"
+        return view
+    }()
+
+    lazy var postImageView: UIImageView = {
+        let imageView = UIImageView()
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.contentMode = .scaleAspectFit
+        imageView.accessibilityIdentifier = "postImageView"
+        return imageView
     }()
 
     lazy var titleLabel: UILabel = {
@@ -97,6 +113,8 @@ class PostDetailHeaderCell: UITableViewCell {
 
     private var disposables = Set<AnyCancellable>()
 
+    private var postImageContainerHeightConstraint: NSLayoutConstraint!
+
     // MARK: Functions
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -104,15 +122,20 @@ class PostDetailHeaderCell: UITableViewCell {
 
         selectionStyle = .none
 
+        postImageContainer.addSubview(postImageView)
         contentView.addSubview(mainVerticalStackView)
 
         [
+            postImageContainer,
             titleLabel,
             bodyLabel,
             linkPreviewView,
             attributionLabel,
             subtitleHorizontalStackView,
         ].forEach(mainVerticalStackView.addArrangedSubview)
+
+        let postImageContainerHeightConstraint = postImageContainer.heightAnchor.constraint(equalToConstant: 0)
+        self.postImageContainerHeightConstraint = postImageContainerHeightConstraint
 
         let linkPreviewWidthConstraint = linkPreviewView.widthAnchor.constraint(equalToConstant: 200)
         linkPreviewWidthConstraint.priority = .defaultLow
@@ -126,6 +149,13 @@ class PostDetailHeaderCell: UITableViewCell {
 
             linkPreviewWidthConstraint,
             linkPreviewTrailingConstraint,
+
+            postImageView.leadingAnchor.constraint(equalTo: postImageContainer.leadingAnchor),
+            postImageView.trailingAnchor.constraint(equalTo: postImageContainer.trailingAnchor),
+            postImageView.topAnchor.constraint(equalTo: postImageContainer.topAnchor),
+            postImageView.bottomAnchor.constraint(equalTo: postImageContainer.bottomAnchor),
+
+            postImageContainerHeightConstraint,
         ])
     }
 
@@ -141,6 +171,8 @@ class PostDetailHeaderCell: UITableViewCell {
 
         linkPreviewView.isHidden = true
         linkPreviewView.prepareForReuse()
+
+        postImageContainer.isHidden = true
     }
 
     func configure(with viewModel: PostDetailHeaderViewModel) {
@@ -196,9 +228,39 @@ class PostDetailHeaderCell: UITableViewCell {
                 self?.linkPreviewView.isHidden = false
             })
             .store(in: &disposables)
+
+        viewModel.image
+            .sink { [weak self] imageLoadingState in
+                switch imageLoadingState {
+                case .loading:
+                    // TODO: display loading indicator
+                    break
+
+                case let .ready(image):
+                    self?.setImage(image)
+
+                case .failure:
+                    // TODO: Image loading failed. Display retry button to try to load the image again.
+                    break
+                }
+            }
+            .store(in: &disposables)
     }
 
     private func linkPreviewTapped(_ url: URL) {
         UIApplication.shared.open(url)
+    }
+
+    private func setImage(_ image: UIImage) {
+        postImageView.image = image
+        postImageContainer.isHidden = false
+
+        postImageContainerHeightConstraint.constant = 310
+
+        if !isBeingConfigured {
+            // Tell UITableView we want to change our cell height.
+            tableView?.beginUpdates()
+            tableView?.endUpdates()
+        }
     }
 }

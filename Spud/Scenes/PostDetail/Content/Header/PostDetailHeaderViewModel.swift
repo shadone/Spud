@@ -75,6 +75,24 @@ class PostDetailHeaderViewModel {
             .eraseToAnyPublisher()
     }
 
+    var image: AnyPublisher<ImageLoadingState, Never> {
+        post.publisher(for: \.url)
+            .removeDuplicates()
+            .flatMap { url -> AnyPublisher<PostContentType, Never> in
+                self.postContentDetectorService.contentType(for: self.post)
+            }
+            .flatMap { postContentType -> AnyPublisher<ImageLoadingState, Never> in
+                switch postContentType {
+                case .textOrEmpty, .externalLink:
+                    return .empty(completeImmediately: false)
+
+                case let .image(image):
+                    return self.imageService.fetch(image.imageUrl)
+                }
+            }
+            .eraseToAnyPublisher()
+    }
+
     var body: AnyPublisher<AttributedString, Never> {
         post.publisher(for: \.body)
             .map { AttributedString($0 ?? "") }
@@ -147,14 +165,17 @@ class PostDetailHeaderViewModel {
 
     private let post: LemmyPost
     private let imageService: ImageServiceType
+    private let postContentDetectorService: PostContentDetectorServiceType
 
     // MARK: Functions
 
     init(
         post: LemmyPost,
-        imageService: ImageServiceType
+        imageService: ImageServiceType,
+        postContentDetectorService: PostContentDetectorServiceType
     ) {
         self.post = post
         self.imageService = imageService
+        self.postContentDetectorService = postContentDetectorService
     }
 }

@@ -41,7 +41,8 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
     init(
         post: LemmyPost,
         accountService: AccountServiceType,
-        imageService: ImageServiceType
+        imageService: ImageServiceType,
+        postContentDetectorService: PostContentDetectorServiceType
     ) {
         self.accountService = accountService
         self.imageService = imageService
@@ -51,7 +52,8 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
 
         headerViewModel = PostDetailHeaderViewModel(
             post: self.post,
-            imageService: imageService
+            imageService: imageService,
+            postContentDetectorService: postContentDetectorService
         )
 
         commentSortType = CurrentValueSubject(.hot)

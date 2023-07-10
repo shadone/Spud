@@ -8,6 +8,17 @@ import Combine
 import Foundation
 import UIKit
 
+enum ImageLoadingState {
+    /// The image is being fetched.
+    case loading
+
+    /// The image was successfully fetched.
+    case ready(UIImage)
+
+    /// The image failed to load, we display a broken image icon.
+    case failure
+}
+
 enum ImageError: Error {
     case network(Error)
     case invalid
@@ -16,7 +27,10 @@ enum ImageError: Error {
 }
 
 protocol ImageServiceType: AnyObject {
+    // TODO: deprecate get() in favour of fetch(); make get() private
     func get(_ url: URL) -> AnyPublisher<UIImage, ImageError>
+
+    func fetch(_ url: URL) -> AnyPublisher<ImageLoadingState, Never>
 }
 
 protocol HasImageService {
@@ -26,16 +40,42 @@ protocol HasImageService {
 class ImageService: ImageServiceType {
     let memoryCache = ImageCache()
 
+    let session = URLSession.shared
+
+    func fetch(_ url: URL) -> AnyPublisher<ImageLoadingState, Never> {
+        assert(Thread.isMainThread, "This code is not thread safe")
+
+        if let cachedImage = memoryCache.get(for: url) {
+            // no need to specify .receive(on:) here (neither RunLoop.main nor DispatchQueue.main).
+            // Doing do will trigger the callbacks on the next runloop breaking UITableViewCell
+            // configuration.
+            return .just(.ready(cachedImage))
+                .eraseToAnyPublisher()
+        }
+
+        // TODO: check if the image is present in URLSession cache.
+
+        return get(url)
+            .map { image -> ImageLoadingState in
+                .ready(image)
+            }
+            .catch { imageError -> AnyPublisher<ImageLoadingState, Never> in
+                .just(.failure)
+            }
+            .prepend(.loading)
+            .eraseToAnyPublisher()
+    }
+
     func get(_ url: URL) -> AnyPublisher<UIImage, ImageError> {
         assert(Thread.isMainThread, "This code is not thread safe")
 
         if let cachedImage = memoryCache.get(for: url) {
             return .just(cachedImage)
-                .receive(on: DispatchQueue.main)
+                .receive(on: RunLoop.main)
                 .eraseToAnyPublisher()
         }
 
-        return URLSession.shared.dataTaskPublisher(for: url)
+        return session.dataTaskPublisher(for: url)
             .mapError { urlError -> ImageError in
                 .network(urlError)
             }
@@ -57,7 +97,7 @@ class ImageService: ImageServiceType {
 
                 return .just(image)
             }
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .eraseToAnyPublisher()
     }
 }

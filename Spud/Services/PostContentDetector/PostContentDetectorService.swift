@@ -28,6 +28,8 @@ class PostContentDetectorService: PostContentDetectorServiceType {
         // - check if the domain is in Core Data as LemmySite (i.e. link to pictrs resource).
         // - check if popular image hosting like imgur.
 
+        // TODO: cache the content detection type in memory so consequative calls are faster.
+
         func isImageMimeType(_ response: URLResponse) -> Bool {
             response.mimeType?.starts(with: "image/") ?? false
         }
@@ -104,6 +106,7 @@ class PostContentDetectorService: PostContentDetectorServiceType {
 
                 return .just(externalLink)
             }
+            .receive(on: RunLoop.main)
             .eraseToAnyPublisher()
     }
 }

@@ -14,7 +14,8 @@ class PostDetailViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
         HasImageService &
-        HasAccountService
+        HasAccountService &
+        HasPostContentDetectorService
     let dependencies: Dependencies
 
     // MARK: - Public
@@ -28,7 +29,8 @@ class PostDetailViewController: UIViewController {
         viewModel = PostDetailViewModel(
             post: post,
             accountService: dependencies.accountService,
-            imageService: dependencies.imageService
+            imageService: dependencies.imageService,
+            postContentDetectorService: dependencies.postContentDetectorService
         )
 
         bindViewModel()
@@ -70,7 +72,8 @@ class PostDetailViewController: UIViewController {
         viewModel = PostDetailViewModel(
             post: post,
             accountService: dependencies.accountService,
-            imageService: dependencies.imageService
+            imageService: dependencies.imageService,
+            postContentDetectorService: dependencies.postContentDetectorService
         )
 
         super.init(nibName: nil, bundle: nil)
@@ -214,9 +217,15 @@ extension PostDetailViewController: UITableViewDataSource {
 
             let viewModel = PostDetailHeaderViewModel(
                 post: post,
-                imageService: dependencies.imageService
+                imageService: dependencies.imageService,
+                postContentDetectorService: dependencies.postContentDetectorService
             )
+
+            cell.isBeingConfigured = true
             cell.configure(with: viewModel)
+            cell.isBeingConfigured = false
+
+            cell.tableView = tableView
 
             return cell
         } else if indexPath.section == 1 {
@@ -269,15 +278,7 @@ extension PostDetailViewController: NSFetchedResultsControllerDelegate {
             tableView.deleteRows(at: [adjustedIndexPath], with: .fade)
 
         case .update:
-            guard let indexPath = indexPath else { fatalError() }
-            let adjustedIndexPath = IndexPath(row: indexPath.row, section: 1)
-
-            guard let cell = tableView.cellForRow(at: adjustedIndexPath) else { return }
-            guard let cell = cell as? PostDetailCommentCell else { fatalError() }
-
-            let commentElement = commentElement(at: adjustedIndexPath.row)
-            let viewModel = PostDetailCommentViewModel(comment: commentElement)
-            cell.configure(with: viewModel)
+            break
 
         case .move:
             assertionFailure()
