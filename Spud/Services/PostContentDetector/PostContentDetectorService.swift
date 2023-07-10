@@ -11,7 +11,7 @@ import os.log
 protocol PostContentDetectorServiceType: AnyObject {
     /// Attempt to detect the content type of the url that the given post contains.
     /// The main point is to detect if the url points to an image.
-    func contentType(for post: LemmyPost) -> AnyPublisher<PostContentType, Never>
+    func contentTypeForUrl(in post: LemmyPost) -> AnyPublisher<PostContentType, Never>
 }
 
 protocol HasPostContentDetectorService {
@@ -19,7 +19,7 @@ protocol HasPostContentDetectorService {
 }
 
 class PostContentDetectorService: PostContentDetectorServiceType {
-    func contentType(for post: LemmyPost) -> AnyPublisher<PostContentType, Never> {
+    func contentTypeForUrl(in post: LemmyPost) -> AnyPublisher<PostContentType, Never> {
         guard let url = post.url else {
             return .just(.textOrEmpty)
         }

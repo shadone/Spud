@@ -79,7 +79,7 @@ class PostDetailHeaderViewModel {
         post.publisher(for: \.url)
             .removeDuplicates()
             .flatMap { url -> AnyPublisher<PostContentType, Never> in
-                self.postContentDetectorService.contentType(for: self.post)
+                self.postContentDetectorService.contentTypeForUrl(in: self.post)
             }
             .flatMap { postContentType -> AnyPublisher<ImageLoadingState, Never> in
                 switch postContentType {
