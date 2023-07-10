@@ -215,11 +215,11 @@ extension PostDetailViewController: UITableViewDataSource {
                 dependencies: dependencies
             )
 
+            cell.tableView = tableView
+
             cell.isBeingConfigured = true
             cell.configure(with: viewModel)
             cell.isBeingConfigured = false
-
-            cell.tableView = tableView
 
             return cell
         } else if indexPath.section == 1 {

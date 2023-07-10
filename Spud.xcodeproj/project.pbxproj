@@ -81,6 +81,7 @@
 		92B7C9A72A3F45B600672F64 /* PostDetailCommentCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */; };
 		92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */; };
 		92BBE4A12A5BEEAD008C2F55 /* UITableViewCellBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */; };
+		92BBE4A32A5C03FF008C2F55 /* UIImage+fittingWidth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */; };
 		92C82A372A58643600B5B431 /* PostContentDetectorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C82A362A58643600B5B431 /* PostContentDetectorService.swift */; };
 		92C82A392A5955DD00B5B431 /* PostContentType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C82A382A5955DD00B5B431 /* PostContentType.swift */; };
 		92CEAEAC2A4CD79500FAF4DB /* AccountServiceLoginError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */; };
@@ -218,6 +219,7 @@
 		92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentCell.swift; sourceTree = "<group>"; };
 		92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentViewModel.swift; sourceTree = "<group>"; };
 		92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITableViewCellBase.swift; sourceTree = "<group>"; };
+		92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+fittingWidth.swift"; sourceTree = "<group>"; };
 		92C82A362A58643600B5B431 /* PostContentDetectorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostContentDetectorService.swift; sourceTree = "<group>"; };
 		92C82A382A5955DD00B5B431 /* PostContentType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostContentType.swift; sourceTree = "<group>"; };
 		92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountServiceLoginError.swift; sourceTree = "<group>"; };
@@ -598,6 +600,7 @@
 				92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */,
 				92B7C9752A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift */,
 				92B7C98A2A3D2F0100672F64 /* TimeInterval+roundedInt.swift */,
+				92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */,
 				9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */,
 				92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */,
 				92DD62F12A4775F400497C3B /* URL+normalizedInstanceUrlString.swift */,
@@ -948,6 +951,7 @@
 				922AEE102A40FBEB00AA7B22 /* SubscriptionsViewController.swift in Sources */,
 				9297E2FF2A42494900D13E4D /* SwipeActionView.swift in Sources */,
 				92B7C98B2A3D2F0100672F64 /* TimeInterval+roundedInt.swift in Sources */,
+				92BBE4A32A5C03FF008C2F55 /* UIImage+fittingWidth.swift in Sources */,
 				92BBE4A12A5BEEAD008C2F55 /* UITableViewCellBase.swift in Sources */,
 				9297E2F72A4205F600D13E4D /* UIViewController+addChild.swift in Sources */,
 				927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */,

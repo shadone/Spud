@@ -255,7 +255,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
         postImageView.image = image
         postImageContainer.isHidden = false
 
-        postImageContainerHeightConstraint.constant = 310
+        assert(tableView != nil)
+        let cellWidth = tableView?.bounds.width ?? 100
+        postImageContainerHeightConstraint.constant = image.fittingHeight(for: cellWidth)
 
         if !isBeingConfigured {
             // Tell UITableView we want to change our cell height.
