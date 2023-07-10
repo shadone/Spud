@@ -8,6 +8,10 @@ import Combine
 import UIKit
 
 class PostListPostViewModel {
+    typealias Dependencies =
+        HasImageService
+    private let dependencies: Dependencies
+
     // MARK: Public
 
     var title: AnyPublisher<AttributedString, Never> {
@@ -74,7 +78,8 @@ class PostListPostViewModel {
             .flatMap { thumbnailType -> AnyPublisher<ThumbnailType, Never> in
                 switch thumbnailType {
                 case let .image(imageUrl):
-                    return self.imageService.get(imageUrl)
+                    return self.dependencies.imageService
+                        .get(imageUrl)
                         .map { .image($0)}
                         .replaceError(with: .imageFailure)
                         .eraseToAnyPublisher()
@@ -123,12 +128,11 @@ class PostListPostViewModel {
     }
 
     private let post: LemmyPost
-    private let imageService: ImageServiceType
 
     // MARK: Functions
 
-    init(post: LemmyPost, imageService: ImageServiceType) {
+    init(post: LemmyPost, dependencies: Dependencies) {
         self.post = post
-        self.imageService = imageService
+        self.dependencies = dependencies
     }
 }

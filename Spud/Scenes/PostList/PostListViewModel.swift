@@ -35,16 +35,20 @@ protocol PostListViewModelType {
 }
 
 class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostListViewModelOutputs {
+    typealias Dependencies =
+        HasAccountService
+    private let dependencies: Dependencies
+
     private let account: LemmyAccount
-    private let accountService: AccountServiceType
     private var disposables = Set<AnyCancellable>()
 
     init(
         feed: LemmyFeed,
-        accountService: AccountServiceType
+        dependencies: Dependencies
     ) {
+        self.dependencies = dependencies
+
         account = feed.account
-        self.accountService = accountService
         self.feed = CurrentValueSubject<LemmyFeed, Never>(feed)
 
         navigationTitle = self.feed
@@ -71,7 +75,7 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
         let nextPageNumber = Int64(feed.value.pages.count + 1)
 
         isFetchingNextPage.send(true)
-        accountService
+        dependencies.accountService
             .lemmyService(for: account)
             .fetchFeed(feedId: feed.value.objectID, page: nextPageNumber)
             // Explicitly specify RunLoop.main is required to ensure early delivery.
@@ -113,14 +117,16 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
     }
 
     func didChangeSortType(_ sortType: SortType) {
-        let lemmyService = accountService.lemmyService(for: account)
-        let newFeed = lemmyService.createFeed(duplicateOf: feed.value, sortType: sortType)
+        let newFeed = dependencies.accountService
+            .lemmyService(for: account)
+            .createFeed(duplicateOf: feed.value, sortType: sortType)
         feed.send(newFeed)
     }
 
     func didClickReload() {
-        let lemmyService = accountService.lemmyService(for: account)
-        let newFeed = lemmyService.createFeed(duplicateOf: feed.value)
+        let newFeed = dependencies.accountService
+            .lemmyService(for: account)
+            .createFeed(duplicateOf: feed.value)
         feed.send(newFeed)
     }
 

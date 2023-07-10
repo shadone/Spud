@@ -12,9 +12,8 @@ import os.log
 
 class PostListViewController: UIViewController {
     typealias Dependencies =
-        HasAccountService &
         HasDataStore &
-        HasImageService &
+        PostListPostViewModel.Dependencies &
         PostDetailViewController.Dependencies
     private let dependencies: Dependencies
 
@@ -70,7 +69,7 @@ class PostListViewController: UIViewController {
 
         let viewModel = PostListViewModel(
             feed: feed,
-            accountService: dependencies.accountService
+            dependencies: dependencies
         )
         viewModelSubject = .init(viewModel)
 
@@ -360,7 +359,7 @@ extension PostListViewController: UITableViewDataSource {
         let post = post(at: indexPath.row)
         let viewModel = PostListPostViewModel(
             post: post,
-            imageService: dependencies.imageService
+            dependencies: dependencies
         )
         cell.configure(with: viewModel)
 
@@ -407,7 +406,7 @@ extension PostListViewController: NSFetchedResultsControllerDelegate {
             let post = post(at: indexPath.row)
             let viewModel = PostListPostViewModel(
                 post: post,
-                imageService: dependencies.imageService
+                dependencies: dependencies
             )
             cell.configure(with: viewModel)
 
