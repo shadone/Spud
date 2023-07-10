@@ -10,10 +10,10 @@ import UIKit
 
 class LoginViewController: UIViewController {
     typealias Dependencies =
-    HasDataStore &
-    HasAccountService &
-    HasImageService
-    let dependencies: Dependencies
+        HasDataStore &
+        HasAccountService &
+        HasImageService
+    private let dependencies: Dependencies
 
     // MARK: UI Properties
 

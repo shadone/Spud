@@ -16,7 +16,7 @@ class PostListViewController: UIViewController {
         HasDataStore &
         HasImageService &
         PostDetailViewController.Dependencies
-    let dependencies: Dependencies
+    private let dependencies: Dependencies
 
     // MARK: Public
 

@@ -17,7 +17,7 @@ class MainWindow: UIWindow {
         PostListViewController.Dependencies &
         PostDetailOrEmptyViewController.Dependencies &
         AccountViewController.Dependencies
-    let dependencies: Dependencies
+    private let dependencies: Dependencies
 
     // MARK: Private
 

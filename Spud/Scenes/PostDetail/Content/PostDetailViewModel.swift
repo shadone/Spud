@@ -27,12 +27,14 @@ protocol PostDetailViewModelType {
 }
 
 class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, PostDetailViewModelOutputs {
+    typealias Dependencies =
+        HasAccountService &
+        PostDetailHeaderViewModel.Dependencies
+    private let dependencies: Dependencies
+
     // MARK: Private
 
     let postObjectId: NSManagedObjectID
-
-    private let accountService: AccountServiceType
-    private let imageService: ImageServiceType
 
     private var disposables = Set<AnyCancellable>()
 
@@ -40,20 +42,16 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
 
     init(
         post: LemmyPost,
-        accountService: AccountServiceType,
-        imageService: ImageServiceType,
-        postContentDetectorService: PostContentDetectorServiceType
+        dependencies: Dependencies
     ) {
-        self.accountService = accountService
-        self.imageService = imageService
+        self.dependencies = dependencies
         self.post = post
 
         postObjectId = post.objectID
 
         headerViewModel = PostDetailHeaderViewModel(
             post: self.post,
-            imageService: imageService,
-            postContentDetectorService: postContentDetectorService
+            dependencies: dependencies
         )
 
         commentSortType = CurrentValueSubject(.hot)
@@ -101,7 +99,8 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
         // TODO: reload from server if comments were fetched too long time ago
         guard numberOfFetchedComments == 0 else { return }
 
-        accountService.lemmyService(for: post.account)
+        dependencies.accountService
+            .lemmyService(for: post.account)
             .fetchComments(postId: postObjectId, sortType: commentSortType.value)
             .sink(receiveCompletion: { _ in
                 // TODO: hide spinner

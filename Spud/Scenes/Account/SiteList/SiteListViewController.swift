@@ -15,7 +15,7 @@ class SiteListViewController: UIViewController {
         HasSiteService &
         HasImageService &
         LoginViewController.Dependencies
-    let dependencies: Dependencies
+    private let dependencies: Dependencies
 
     // MARK: UI Properties
 

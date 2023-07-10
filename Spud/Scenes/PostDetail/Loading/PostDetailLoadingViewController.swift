@@ -10,7 +10,7 @@ import os.log
 
 class PostDetailLoadingViewController: UIViewController {
     typealias Dependencies = HasAccountService
-    let dependencies: Dependencies
+    private let dependencies: Dependencies
 
     // MARK: - Public
 

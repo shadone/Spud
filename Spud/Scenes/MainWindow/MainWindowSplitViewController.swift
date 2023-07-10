@@ -13,7 +13,7 @@ class MainWindowSplitViewController: UISplitViewController {
         SubscriptionsViewController.Dependencies &
         PostListViewController.Dependencies &
         PostDetailOrEmptyViewController.Dependencies
-    let dependencies: Dependencies
+    private let dependencies: Dependencies
 
     // MARK: Functions
 

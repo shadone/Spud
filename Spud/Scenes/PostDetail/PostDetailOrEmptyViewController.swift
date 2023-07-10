@@ -11,7 +11,7 @@ class PostDetailOrEmptyViewController: UIViewController {
     typealias Dependencies =
         PostDetailViewController.Dependencies &
         PostDetailLoadingViewController.Dependencies
-    let dependencies: Dependencies
+    private let dependencies: Dependencies
 
     // MARK: - Public
 

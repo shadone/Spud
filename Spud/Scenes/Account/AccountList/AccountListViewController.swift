@@ -14,7 +14,7 @@ class AccountListViewController: UIViewController {
         HasDataStore &
         HasAccountService &
         SiteListViewController.Dependencies
-    let dependencies: Dependencies
+    private let dependencies: Dependencies
 
     // MARK: UI Properties
 

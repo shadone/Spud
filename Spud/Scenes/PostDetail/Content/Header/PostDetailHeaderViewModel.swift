@@ -9,6 +9,11 @@ import LemmyKit
 import UIKit
 
 class PostDetailHeaderViewModel {
+    typealias Dependencies =
+        HasImageService &
+        HasPostContentDetectorService
+    private let dependencies: Dependencies
+
     // MARK: Public
 
     var title: AnyPublisher<AttributedString, Never> {
@@ -79,7 +84,7 @@ class PostDetailHeaderViewModel {
         post.publisher(for: \.url)
             .removeDuplicates()
             .flatMap { url -> AnyPublisher<PostContentType, Never> in
-                self.postContentDetectorService.contentTypeForUrl(in: self.post)
+                self.dependencies.postContentDetectorService.contentTypeForUrl(in: self.post)
             }
             .flatMap { postContentType -> AnyPublisher<ImageLoadingState, Never> in
                 switch postContentType {
@@ -87,7 +92,7 @@ class PostDetailHeaderViewModel {
                     return .empty(completeImmediately: false)
 
                 case let .image(image):
-                    return self.imageService.fetch(image.imageUrl)
+                    return self.dependencies.imageService.fetch(image.imageUrl)
                 }
             }
             .eraseToAnyPublisher()
@@ -114,7 +119,8 @@ class PostDetailHeaderViewModel {
                 guard let imageUrl else {
                     return .just(.none)
                 }
-                return self.imageService.get(imageUrl)
+                return self.dependencies.imageService
+                    .get(imageUrl)
                     .map { .image($0)}
                     .replaceError(with: .imageFailure)
                     .eraseToAnyPublisher()
@@ -164,18 +170,14 @@ class PostDetailHeaderViewModel {
     }
 
     private let post: LemmyPost
-    private let imageService: ImageServiceType
-    private let postContentDetectorService: PostContentDetectorServiceType
 
     // MARK: Functions
 
     init(
         post: LemmyPost,
-        imageService: ImageServiceType,
-        postContentDetectorService: PostContentDetectorServiceType
+        dependencies: Dependencies
     ) {
         self.post = post
-        self.imageService = imageService
-        self.postContentDetectorService = postContentDetectorService
+        self.dependencies = dependencies
     }
 }

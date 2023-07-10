@@ -10,7 +10,7 @@ class SubscriptionsViewController: UIViewController {
     typealias Dependencies =
         HasAccountService &
         PostListViewController.Dependencies
-    let dependencies: Dependencies
+    private let dependencies: Dependencies
 
     // MARK: UI Properties
 

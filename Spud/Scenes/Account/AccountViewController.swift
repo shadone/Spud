@@ -10,7 +10,7 @@ import UIKit
 class AccountViewController: UIViewController {
     typealias Dependencies =
         AccountListViewController.Dependencies
-    let dependencies: Dependencies
+    private let dependencies: Dependencies
 
     // MARK: - UI Properties
 

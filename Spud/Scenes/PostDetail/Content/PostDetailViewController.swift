@@ -13,10 +13,9 @@ import os.log
 class PostDetailViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
-        HasImageService &
-        HasAccountService &
-        HasPostContentDetectorService
-    let dependencies: Dependencies
+        PostDetailViewModel.Dependencies &
+        PostDetailHeaderViewModel.Dependencies
+    private let dependencies: Dependencies
 
     // MARK: - Public
 
@@ -28,9 +27,7 @@ class PostDetailViewController: UIViewController {
         disposables.removeAll()
         viewModel = PostDetailViewModel(
             post: post,
-            accountService: dependencies.accountService,
-            imageService: dependencies.imageService,
-            postContentDetectorService: dependencies.postContentDetectorService
+            dependencies: dependencies
         )
 
         bindViewModel()
@@ -71,9 +68,7 @@ class PostDetailViewController: UIViewController {
 
         viewModel = PostDetailViewModel(
             post: post,
-            accountService: dependencies.accountService,
-            imageService: dependencies.imageService,
-            postContentDetectorService: dependencies.postContentDetectorService
+            dependencies: dependencies
         )
 
         super.init(nibName: nil, bundle: nil)
@@ -217,8 +212,7 @@ extension PostDetailViewController: UITableViewDataSource {
 
             let viewModel = PostDetailHeaderViewModel(
                 post: post,
-                imageService: dependencies.imageService,
-                postContentDetectorService: dependencies.postContentDetectorService
+                dependencies: dependencies
             )
 
             cell.isBeingConfigured = true
