@@ -71,16 +71,10 @@ class PostDetailCommentViewModel {
     }
 
     var indentationRibbonColor: AnyPublisher<UIColor, Never> {
-//        commentElement.publisher(for: \.depth)
-//            .combineLatest(appearance.commentRibbonThemePublisher)
-//            .map { indentationLevel, theme in
-//                let colors = theme.colors
-//                return colors[Int(indentationLevel) % colors.count]
-//            }
-//            .eraseToAnyPublisher()
         commentElement.publisher(for: \.depth)
-            .map { indentationLevel in
-                let colors: [UIColor] = [.red, .green, .blue]
+            .combineLatest(appearance.commentRibbonThemePublisher)
+            .map { indentationLevel, theme in
+                let colors = theme.colors
                 return colors[Int(indentationLevel) % colors.count]
             }
             .eraseToAnyPublisher()
@@ -193,11 +187,15 @@ class PostDetailCommentViewModel {
     private let commentElement: LemmyCommentElement
     private let commentValue: LemmyComment?
 
+    private let appearance: PostDetailAppearanceType
+
     // MARK: Functions
 
     init(
-        comment commentElement: LemmyCommentElement
+        comment commentElement: LemmyCommentElement,
+        appearance: PostDetailAppearanceType
     ) {
+        self.appearance = appearance
         self.commentElement = commentElement
         commentValue = commentElement.comment
         post = commentElement.post

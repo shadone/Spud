@@ -13,6 +13,7 @@ import os.log
 class PostDetailViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
+        HasAppearanceService &
         PostDetailViewModel.Dependencies &
         PostDetailHeaderViewModel.Dependencies
     private let dependencies: Dependencies
@@ -230,7 +231,10 @@ extension PostDetailViewController: UITableViewDataSource {
             ) as! PostDetailCommentCell
 
             let commentElement = commentElement(at: indexPath.row)
-            let viewModel = PostDetailCommentViewModel(comment: commentElement)
+            let viewModel = PostDetailCommentViewModel(
+                comment: commentElement,
+                appearance: dependencies.appearanceService.postDetail
+            )
             cell.configure(with: viewModel)
 
             return cell
