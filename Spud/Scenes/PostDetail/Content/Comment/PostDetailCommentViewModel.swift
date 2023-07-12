@@ -59,13 +59,21 @@ class PostDetailCommentViewModel {
         commentElement.depth == 0
     }
 
-    let indentationRibbonWidth: CGFloat = 2
+    private let indentationRibbonStandardWidth: CGFloat = 2
+
+    var indentationRibbonWidth: AnyPublisher<CGFloat, Never> {
+        return commentElement.publisher(for: \.depth)
+            .map { indentationLevel in
+                indentationLevel == 1 ? 0 : self.indentationRibbonStandardWidth
+            }
+            .eraseToAnyPublisher()
+    }
 
     var indentationRibbonLeadingMargin: AnyPublisher<CGFloat, Never> {
         let leadingMargin: CGFloat = 4
         return commentElement.publisher(for: \.depth)
             .map { indentationLevel in
-                (self.indentationRibbonWidth + 4) * CGFloat(indentationLevel) + leadingMargin
+                (self.indentationRibbonStandardWidth + 4) * CGFloat(indentationLevel - 1) + leadingMargin
             }
             .eraseToAnyPublisher()
     }
@@ -75,7 +83,7 @@ class PostDetailCommentViewModel {
             .combineLatest(appearance.commentRibbonThemePublisher)
             .map { indentationLevel, theme in
                 let colors = theme.colors
-                return colors[Int(indentationLevel) % colors.count]
+                return colors[Int(indentationLevel - 1) % colors.count]
             }
             .eraseToAnyPublisher()
     }

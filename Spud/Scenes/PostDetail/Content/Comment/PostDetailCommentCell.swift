@@ -69,7 +69,8 @@ class PostDetailCommentCell: UITableViewCell {
         return label
     }()
 
-    var indentationRibbonViewLeadingConstaint: NSLayoutConstraint?
+    var indentationRibbonViewLeadingConstaint: NSLayoutConstraint!
+    var indentationRibbonWidthConstraint: NSLayoutConstraint!
 
     lazy var indentationRibbonView: UIView = {
         let view = UIView()
@@ -103,6 +104,7 @@ class PostDetailCommentCell: UITableViewCell {
 
         let indentationRibbonWidthConstraint = indentationRibbonView.widthAnchor
             .constraint(equalToConstant: 2)
+        self.indentationRibbonWidthConstraint = indentationRibbonWidthConstraint
 
         NSLayoutConstraint.activate([
             indentationRibbonViewLeadingConstaint,
@@ -148,7 +150,11 @@ class PostDetailCommentCell: UITableViewCell {
             .store(in: &disposables)
 
         viewModel.indentationRibbonLeadingMargin
-            .assign(to: \.constant, on: indentationRibbonViewLeadingConstaint!)
+            .assign(to: \.constant, on: indentationRibbonViewLeadingConstaint)
+            .store(in: &disposables)
+
+        viewModel.indentationRibbonWidth
+            .assign(to: \.constant, on: indentationRibbonWidthConstraint)
             .store(in: &disposables)
 
         viewModel.indentationRibbonColor
