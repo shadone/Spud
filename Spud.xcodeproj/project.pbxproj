@@ -26,6 +26,10 @@
 		9273432C2A61BF450089556E /* Date+relativeString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273432B2A61BF450089556E /* Date+relativeString.swift */; };
 		9273432E2A61BFF70089556E /* PersonHeaderStatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273432D2A61BFF70089556E /* PersonHeaderStatView.swift */; };
 		927343302A61C1FD0089556E /* HasVoid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273432F2A61C1FD0089556E /* HasVoid.swift */; };
+		927343332A61C6550089556E /* LinkLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343322A61C6550089556E /* LinkLabel.swift */; };
+		927343352A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343342A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift */; };
+		927343372A61C6960089556E /* TouchDownGestureRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343362A61C6960089556E /* TouchDownGestureRecognizer.swift */; };
+		927343392A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
 		9297E2F52A42042B00D13E4D /* PostDetailLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */; };
@@ -176,6 +180,10 @@
 		9273432B2A61BF450089556E /* Date+relativeString.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+relativeString.swift"; sourceTree = "<group>"; };
 		9273432D2A61BFF70089556E /* PersonHeaderStatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonHeaderStatView.swift; sourceTree = "<group>"; };
 		9273432F2A61C1FD0089556E /* HasVoid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HasVoid.swift; sourceTree = "<group>"; };
+		927343322A61C6550089556E /* LinkLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkLabel.swift; sourceTree = "<group>"; };
+		927343342A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSMutableAttributedString+RemoveAttributes.swift"; sourceTree = "<group>"; };
+		927343362A61C6960089556E /* TouchDownGestureRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchDownGestureRecognizer.swift; sourceTree = "<group>"; };
+		927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UITapGestureRecognizer+LabelLinks.swift"; sourceTree = "<group>"; };
 		927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListAccountViewModel.swift; sourceTree = "<group>"; };
 		927E1F3B2A5841B4002327EC /* UIViewPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIViewPreview.swift; sourceTree = "<group>"; };
 		9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailLoadingViewController.swift; sourceTree = "<group>"; };
@@ -376,6 +384,17 @@
 			path = Header;
 			sourceTree = "<group>";
 		};
+		927343312A61C64D0089556E /* LinkLabel */ = {
+			isa = PBXGroup;
+			children = (
+				927343322A61C6550089556E /* LinkLabel.swift */,
+				927343342A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift */,
+				927343362A61C6960089556E /* TouchDownGestureRecognizer.swift */,
+				927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */,
+			);
+			path = LinkLabel;
+			sourceTree = "<group>";
+		};
 		9297E2F32A42041B00D13E4D /* Loading */ = {
 			isa = PBXGroup;
 			children = (
@@ -397,6 +416,7 @@
 		9297E2FD2A42492E00D13E4D /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				927343312A61C64D0089556E /* LinkLabel */,
 				92CEAEC72A54422C00FAF4DB /* LinkPreviewView.swift */,
 				9297E2FE2A42494900D13E4D /* SwipeActionView.swift */,
 				92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */,
@@ -995,6 +1015,7 @@
 				92DD62F02A4700B600497C3B /* LemmySite+import.swift in Sources */,
 				92DD62E72A4648A300497C3B /* LemmySite.swift in Sources */,
 				92DD62E92A4648AF00497C3B /* LemmySiteInfo.swift in Sources */,
+				927343332A61C6550089556E /* LinkLabel.swift in Sources */,
 				92CEAEC82A54422C00FAF4DB /* LinkPreviewView.swift in Sources */,
 				92DD63062A48BEAD00497C3B /* LoginViewController.swift in Sources */,
 				92DD63092A48CC2700497C3B /* LoginViewModel.swift in Sources */,
@@ -1004,6 +1025,7 @@
 				92B7C9652A3BA64900672F64 /* ManagedContextScheduler.swift in Sources */,
 				92B7C9832A3D2C8800672F64 /* NSAttributedString+symbol.swift in Sources */,
 				92DD63042A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift in Sources */,
+				927343352A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift in Sources */,
 				92B7C97C2A3D27BC00672F64 /* OptionalType.swift in Sources */,
 				92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */,
 				9273432A2A61BE9D0089556E /* PersonFormatter.swift in Sources */,
@@ -1053,8 +1075,10 @@
 				922AEE102A40FBEB00AA7B22 /* SubscriptionsViewController.swift in Sources */,
 				9297E2FF2A42494900D13E4D /* SwipeActionView.swift in Sources */,
 				92B7C98B2A3D2F0100672F64 /* TimeInterval+roundedInt.swift in Sources */,
+				927343372A61C6960089556E /* TouchDownGestureRecognizer.swift in Sources */,
 				92BBE4A32A5C03FF008C2F55 /* UIImage+fittingWidth.swift in Sources */,
 				92BBE4A12A5BEEAD008C2F55 /* UITableViewCellBase.swift in Sources */,
+				927343392A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift in Sources */,
 				9297E2F72A4205F600D13E4D /* UIViewController+addChild.swift in Sources */,
 				927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */,
 				92B7C9852A3D2D8E00672F64 /* UpvotesFormatter.swift in Sources */,
