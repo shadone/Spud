@@ -63,7 +63,9 @@ class PostDetailHeaderViewModel {
             .combineLatest(secondaryHighlightedAttributes)
             .map { tuple -> NSAttributedString in
                 let creator = tuple.0
-                let attributes = tuple.1
+                var attributes = tuple.1
+
+                attributes[.link] = URL.Lemmy.person(name: creator).url
 
                 return NSAttributedString(string: creator, attributes: attributes)
             }

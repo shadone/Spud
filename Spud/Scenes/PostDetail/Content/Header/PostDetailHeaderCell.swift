@@ -10,6 +10,10 @@ import UIKit
 class PostDetailHeaderCell: UITableViewCellBase {
     static let reuseIdentifier = "PostDetailHeaderCell"
 
+    // MARK: Public
+
+    var linkTapped: ((URL) -> Void)?
+
     // MARK: UI Properties
 
     lazy var mainVerticalStackView: UIStackView = {
@@ -95,11 +99,14 @@ class PostDetailHeaderCell: UITableViewCellBase {
         return view
     }()
 
-    lazy var attributionLabel: UILabel = {
-        let label = UILabel()
+    lazy var attributionLabel: LinkLabel = {
+        let label = LinkLabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.numberOfLines = 0
         label.accessibilityIdentifier = "attribution"
+        label.tapped = { [weak self] url in
+            self?.linkTapped?(url)
+        }
         return label
     }()
 
@@ -194,6 +201,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         super.prepareForReuse()
 
         disposables.removeAll()
+        linkTapped = nil
 
         linkPreviewView.isHidden = true
         linkPreviewView.prepareForReuse()

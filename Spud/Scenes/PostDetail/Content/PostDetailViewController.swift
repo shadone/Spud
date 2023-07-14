@@ -215,6 +215,9 @@ extension PostDetailViewController: UITableViewDataSource {
 
             cell.isBeingConfigured = true
             cell.configure(with: viewModel.outputs.headerViewModel)
+            cell.linkTapped = { [weak self] url in
+                self?.linkTapped(url)
+            }
             cell.isBeingConfigured = false
 
             return cell
@@ -235,6 +238,16 @@ extension PostDetailViewController: UITableViewDataSource {
             return cell
         } else {
             fatalError()
+        }
+    }
+
+    private func linkTapped(_ url: URL) {
+        switch url.lemmy {
+        case let .person(name):
+            print("### \(name)")
+
+        case .none:
+            assertionFailure()
         }
     }
 }

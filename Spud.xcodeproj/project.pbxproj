@@ -30,6 +30,7 @@
 		927343352A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343342A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift */; };
 		927343372A61C6960089556E /* TouchDownGestureRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343362A61C6960089556E /* TouchDownGestureRecognizer.swift */; };
 		927343392A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */; };
+		9273433B2A61DF050089556E /* URL+lemmy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273433A2A61DF050089556E /* URL+lemmy.swift */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
 		9297E2F52A42042B00D13E4D /* PostDetailLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */; };
@@ -184,6 +185,7 @@
 		927343342A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSMutableAttributedString+RemoveAttributes.swift"; sourceTree = "<group>"; };
 		927343362A61C6960089556E /* TouchDownGestureRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchDownGestureRecognizer.swift; sourceTree = "<group>"; };
 		927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UITapGestureRecognizer+LabelLinks.swift"; sourceTree = "<group>"; };
+		9273433A2A61DF050089556E /* URL+lemmy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+lemmy.swift"; sourceTree = "<group>"; };
 		927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListAccountViewModel.swift; sourceTree = "<group>"; };
 		927E1F3B2A5841B4002327EC /* UIViewPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIViewPreview.swift; sourceTree = "<group>"; };
 		9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailLoadingViewController.swift; sourceTree = "<group>"; };
@@ -709,6 +711,7 @@
 				92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */,
 				9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */,
 				92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */,
+				9273433A2A61DF050089556E /* URL+lemmy.swift */,
 				92DD62F12A4775F400497C3B /* URL+normalizedInstanceUrlString.swift */,
 				92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */,
 				92BBE4A82A5C2D6D008C2F55 /* URL+safePath.swift */,
@@ -1083,6 +1086,7 @@
 				927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */,
 				92B7C9852A3D2D8E00672F64 /* UpvotesFormatter.swift in Sources */,
 				92CEAECA2A54450700FAF4DB /* URL+canonicalHost.swift in Sources */,
+				9273433B2A61DF050089556E /* URL+lemmy.swift in Sources */,
 				92DD62F22A4775F400497C3B /* URL+normalizedInstanceUrlString.swift in Sources */,
 				92CEAEB82A4EDC0800FAF4DB /* URL+safeHost.swift in Sources */,
 				92BBE4A92A5C2D6D008C2F55 /* URL+safePath.swift in Sources */,
