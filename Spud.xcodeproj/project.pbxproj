@@ -19,6 +19,13 @@
 		926602C52A5F69E0005A1641 /* PostCommentRibbonTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 926602C42A5F69E0005A1641 /* PostCommentRibbonTheme.swift */; };
 		926602C72A5F6A03005A1641 /* PostDetailAppearance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 926602C62A5F6A03005A1641 /* PostDetailAppearance.swift */; };
 		926602C92A5F6AA8005A1641 /* PostListPreviewImageSize.swift in Sources */ = {isa = PBXBuildFile; fileRef = 926602C82A5F6AA8005A1641 /* PostListPreviewImageSize.swift */; };
+		927343232A61B30B0089556E /* PersonViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343222A61B30B0089556E /* PersonViewModel.swift */; };
+		927343262A61B6250089556E /* PersonHeaderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343252A61B6250089556E /* PersonHeaderViewModel.swift */; };
+		927343282A61B9180089556E /* PersonHeaderCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343272A61B9180089556E /* PersonHeaderCell.swift */; };
+		9273432A2A61BE9D0089556E /* PersonFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343292A61BE9D0089556E /* PersonFormatter.swift */; };
+		9273432C2A61BF450089556E /* Date+relativeString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273432B2A61BF450089556E /* Date+relativeString.swift */; };
+		9273432E2A61BFF70089556E /* PersonHeaderStatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273432D2A61BFF70089556E /* PersonHeaderStatView.swift */; };
+		927343302A61C1FD0089556E /* HasVoid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273432F2A61C1FD0089556E /* HasVoid.swift */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
 		9297E2F52A42042B00D13E4D /* PostDetailLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */; };
@@ -26,6 +33,7 @@
 		9297E2FA2A420DA500D13E4D /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F92A420DA500D13E4D /* MainWindow.swift */; };
 		9297E2FC2A42453000D13E4D /* Publisher+assignWeak.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */; };
 		9297E2FF2A42494900D13E4D /* SwipeActionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2FE2A42494900D13E4D /* SwipeActionView.swift */; };
+		92A7AE1C2A60832D00990539 /* PersonViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A7AE1B2A60832D00990539 /* PersonViewController.swift */; };
 		92A87F432A41EA200098C20C /* PostDetailOrEmptyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */; };
 		92A87F452A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */; };
 		92A87F472A41EA9C0098C20C /* PostDetailEmptyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F462A41EA9C0098C20C /* PostDetailEmptyViewController.swift */; };
@@ -161,6 +169,13 @@
 		926602C42A5F69E0005A1641 /* PostCommentRibbonTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostCommentRibbonTheme.swift; sourceTree = "<group>"; };
 		926602C62A5F6A03005A1641 /* PostDetailAppearance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailAppearance.swift; sourceTree = "<group>"; };
 		926602C82A5F6AA8005A1641 /* PostListPreviewImageSize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListPreviewImageSize.swift; sourceTree = "<group>"; };
+		927343222A61B30B0089556E /* PersonViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonViewModel.swift; sourceTree = "<group>"; };
+		927343252A61B6250089556E /* PersonHeaderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonHeaderViewModel.swift; sourceTree = "<group>"; };
+		927343272A61B9180089556E /* PersonHeaderCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonHeaderCell.swift; sourceTree = "<group>"; };
+		927343292A61BE9D0089556E /* PersonFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonFormatter.swift; sourceTree = "<group>"; };
+		9273432B2A61BF450089556E /* Date+relativeString.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+relativeString.swift"; sourceTree = "<group>"; };
+		9273432D2A61BFF70089556E /* PersonHeaderStatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonHeaderStatView.swift; sourceTree = "<group>"; };
+		9273432F2A61C1FD0089556E /* HasVoid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HasVoid.swift; sourceTree = "<group>"; };
 		927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListAccountViewModel.swift; sourceTree = "<group>"; };
 		927E1F3B2A5841B4002327EC /* UIViewPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIViewPreview.swift; sourceTree = "<group>"; };
 		9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailLoadingViewController.swift; sourceTree = "<group>"; };
@@ -168,6 +183,7 @@
 		9297E2F92A420DA500D13E4D /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
 		9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Publisher+assignWeak.swift"; sourceTree = "<group>"; };
 		9297E2FE2A42494900D13E4D /* SwipeActionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeActionView.swift; sourceTree = "<group>"; };
+		92A7AE1B2A60832D00990539 /* PersonViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonViewController.swift; sourceTree = "<group>"; };
 		92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailOrEmptyViewController.swift; sourceTree = "<group>"; };
 		92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailOrEmptyViewModel.swift; sourceTree = "<group>"; };
 		92A87F462A41EA9C0098C20C /* PostDetailEmptyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailEmptyViewController.swift; sourceTree = "<group>"; };
@@ -350,6 +366,16 @@
 			path = PostDetail;
 			sourceTree = "<group>";
 		};
+		927343242A61B61C0089556E /* Header */ = {
+			isa = PBXGroup;
+			children = (
+				927343272A61B9180089556E /* PersonHeaderCell.swift */,
+				9273432D2A61BFF70089556E /* PersonHeaderStatView.swift */,
+				927343252A61B6250089556E /* PersonHeaderViewModel.swift */,
+			);
+			path = Header;
+			sourceTree = "<group>";
+		};
 		9297E2F32A42041B00D13E4D /* Loading */ = {
 			isa = PBXGroup;
 			children = (
@@ -376,6 +402,16 @@
 				92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		92A7AE1A2A60832200990539 /* Person */ = {
+			isa = PBXGroup;
+			children = (
+				927343242A61B61C0089556E /* Header */,
+				92A7AE1B2A60832D00990539 /* PersonViewController.swift */,
+				927343222A61B30B0089556E /* PersonViewModel.swift */,
+			);
+			path = Person;
 			sourceTree = "<group>";
 		};
 		92A87F402A41E9F20098C20C /* Content */ = {
@@ -475,6 +511,7 @@
 			children = (
 				92DD62DA2A45943900497C3B /* Account */,
 				9297E2F82A420D9C00D13E4D /* MainWindow */,
+				92A7AE1A2A60832200990539 /* Person */,
 				92B7C96A2A3D150A00672F64 /* PostDetail */,
 				92B7C9352A3A599000672F64 /* PostList */,
 				92DD62DD2A4594ED00497C3B /* Preferences */,
@@ -507,6 +544,7 @@
 				92C82A352A58625F00B5B431 /* PostContentDetector */,
 				92DD62EA2A46EFE600497C3B /* Scheduler */,
 				92DD62E32A46426A00497C3B /* Site */,
+				9273432F2A61C1FD0089556E /* HasVoid.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -637,6 +675,7 @@
 		92B7C9742A3D22C000672F64 /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				9273432B2A61BF450089556E /* Date+relativeString.swift */,
 				92B7C9822A3D2C8800672F64 /* NSAttributedString+symbol.swift */,
 				92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */,
 				9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */,
@@ -662,6 +701,7 @@
 			children = (
 				92B7C9862A3D2DC100672F64 /* CommentsFormatter.swift */,
 				92B7C9802A3D2B7C00672F64 /* IconValueFormatter.swift */,
+				927343292A61BE9D0089556E /* PersonFormatter.swift */,
 				92B7C9842A3D2D8E00672F64 /* UpvotesFormatter.swift */,
 			);
 			path = Formatters;
@@ -919,8 +959,10 @@
 				92B7C9872A3D2DC100672F64 /* CommentsFormatter.swift in Sources */,
 				92B7C9392A3A59E600672F64 /* DataStore.swift in Sources */,
 				92B7C9082A3A40EB00672F64 /* DataStore.xcdatamodeld in Sources */,
+				9273432C2A61BF450089556E /* Date+relativeString.swift in Sources */,
 				92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */,
 				926602BD2A5F68DA005A1641 /* GeneralAppearance.swift in Sources */,
+				927343302A61C1FD0089556E /* HasVoid.swift in Sources */,
 				92B7C9812A3D2B7C00672F64 /* IconValueFormatter.swift in Sources */,
 				922AEE0B2A40E59E00AA7B22 /* ImageCache.swift in Sources */,
 				922AEE092A40E50400AA7B22 /* ImageService.swift in Sources */,
@@ -964,6 +1006,12 @@
 				92DD63042A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift in Sources */,
 				92B7C97C2A3D27BC00672F64 /* OptionalType.swift in Sources */,
 				92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */,
+				9273432A2A61BE9D0089556E /* PersonFormatter.swift in Sources */,
+				927343282A61B9180089556E /* PersonHeaderCell.swift in Sources */,
+				9273432E2A61BFF70089556E /* PersonHeaderStatView.swift in Sources */,
+				927343262A61B6250089556E /* PersonHeaderViewModel.swift in Sources */,
+				92A7AE1C2A60832D00990539 /* PersonViewController.swift in Sources */,
+				927343232A61B30B0089556E /* PersonViewModel.swift in Sources */,
 				926602C52A5F69E0005A1641 /* PostCommentRibbonTheme.swift in Sources */,
 				92C82A372A58643600B5B431 /* PostContentDetectorService.swift in Sources */,
 				92C82A392A5955DD00B5B431 /* PostContentType.swift in Sources */,

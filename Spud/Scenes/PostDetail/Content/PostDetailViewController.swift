@@ -211,15 +211,10 @@ extension PostDetailViewController: UITableViewDataSource {
                 for: indexPath
             ) as! PostDetailHeaderCell
 
-            let viewModel = PostDetailHeaderViewModel(
-                post: post,
-                dependencies: dependencies
-            )
-
             cell.tableView = tableView
 
             cell.isBeingConfigured = true
-            cell.configure(with: viewModel)
+            cell.configure(with: viewModel.outputs.headerViewModel)
             cell.isBeingConfigured = false
 
             return cell

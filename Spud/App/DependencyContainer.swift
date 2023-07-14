@@ -7,6 +7,7 @@
 import Foundation
 
 struct DependencyContainer:
+    HasVoid,
     HasDataStore,
     HasSiteService,
     HasAccountService,

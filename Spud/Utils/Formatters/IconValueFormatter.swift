@@ -49,40 +49,9 @@ struct IconValueFormatter {
         relativeDate timestamp: Date,
         attributes: [NSAttributedString.Key: Any]
     ) -> NSAttributedString {
-
-        func relativeString(for date: Date) -> String {
-            let secs = -date.timeIntervalSinceNow
-            let mins = secs / 60
-            let hours = mins / 60
-            let days = hours / 24
-            let months = days / 30 // TODO:
-            let years = months / 12
-
-            guard secs >= 0 else {
-                return "in the future"
-            }
-
-            if secs < 60 {
-                return "\(secs.roundedInt)s"
-            }
-            if mins < 60 {
-                return "\(mins.roundedInt)m"
-            }
-            if hours < 24 {
-                return "\(hours.roundedInt)h"
-            }
-            if days <= 30 {
-                return "\(days.roundedInt)d"
-            }
-            if months < 12 {
-                return "\(months.roundedInt)mo"
-            }
-            return "\(years.roundedInt)y"
-        }
-
         return Self.attributedString(
             UIImage(systemName: "clock")!,
-            "\(relativeString(for: timestamp))",
+            "\(timestamp.relativeString)",
             attributes: attributes
         )
     }
