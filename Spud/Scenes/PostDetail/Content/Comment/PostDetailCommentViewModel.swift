@@ -12,11 +12,7 @@ class PostDetailCommentViewModel {
     // MARK: Public
 
     var author: AnyPublisher<NSAttributedString, Never> {
-        guard let commentValue else {
-            return .empty(completeImmediately: false)
-        }
-        return commentValue
-            .publisher(for: \.creatorName)
+        creatorName
             .combineLatest(authorAttributes)
             .map { tuple in
                 let title = tuple.0
@@ -187,6 +183,32 @@ class PostDetailCommentViewModel {
                     .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .regular),
                     .foregroundColor: UIColor.link,
                 ]
+            }
+            .eraseToAnyPublisher()
+    }
+
+    private var creator: AnyPublisher<LemmyPerson, Never> {
+        guard let commentValue else {
+            return .empty(completeImmediately: false)
+        }
+
+        return commentValue.publisher(for: \.creator)
+            .eraseToAnyPublisher()
+    }
+
+    private var creatorInfo: AnyPublisher<LemmyPersonInfo?, Never> {
+        creator
+            .flatMap { person -> AnyPublisher<LemmyPersonInfo?, Never> in
+                person.publisher(for: \.personInfo)
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+
+    private var creatorName: AnyPublisher<String, Never> {
+        creatorInfo
+            .map { personInfo in
+                personInfo?.name ?? ""
             }
             .eraseToAnyPublisher()
     }

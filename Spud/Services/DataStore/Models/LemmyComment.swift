@@ -22,9 +22,6 @@ import LemmyKit
     /// Link to the comment in the original Lemmy instance.
     @NSManaged public var originalCommentUrl: URL
 
-    /// The author of the comment.
-    @NSManaged public var creatorName: String
-
     /// The content of the comment.
     @NSManaged public var body: String
 
@@ -44,4 +41,7 @@ import LemmyKit
 
     @NSManaged public var commentElements: Set<LemmyCommentElement>
     @NSManaged public var post: LemmyPost
+
+    /// The author of the comment.
+    @NSManaged public var creator: LemmyPerson
 }

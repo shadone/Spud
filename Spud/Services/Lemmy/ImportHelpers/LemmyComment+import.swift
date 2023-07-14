@@ -20,12 +20,12 @@ extension LemmyComment {
         set(model)
 
         self.post = post
+        self.creator = LemmyPerson.upsert(model.creator, site: post.account.site, in: context)
     }
 
     private func set(_ model: CommentView) {
         localCommentId = model.comment.id
         originalCommentUrl = model.comment.ap_id
-        creatorName = model.creator.name
         body = model.comment.content
 
         score = model.counts.score

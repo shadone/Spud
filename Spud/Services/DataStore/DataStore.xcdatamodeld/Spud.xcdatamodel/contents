@@ -32,7 +32,6 @@
     </entity>
     <entity name="Comment" representedClassName="LemmyComment" syncable="YES">
         <attribute name="body" attributeType="String"/>
-        <attribute name="creatorName" attributeType="String"/>
         <attribute name="localCommentId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfDownvotes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfUpvotes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
@@ -41,6 +40,7 @@
         <attribute name="score" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="voteStatusRawValue" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <relationship name="commentElements" toMany="YES" deletionRule="Cascade" destinationEntity="CommentElement" inverseName="comment" inverseEntity="CommentElement"/>
+        <relationship name="creator" maxCount="1" deletionRule="Nullify" destinationEntity="Person" inverseName="comments" inverseEntity="Person"/>
         <relationship name="post" maxCount="1" deletionRule="Nullify" destinationEntity="Post" inverseName="comments" inverseEntity="Post"/>
     </entity>
     <entity name="CommentElement" representedClassName="LemmyCommentElement" syncable="YES">
@@ -76,6 +76,7 @@
         <attribute name="personId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="accountInfo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AccountInfo" inverseName="person" inverseEntity="AccountInfo"/>
+        <relationship name="comments" toMany="YES" deletionRule="Nullify" destinationEntity="Comment" inverseName="creator" inverseEntity="Comment"/>
         <relationship name="personInfo" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="PersonInfo" inverseName="person" inverseEntity="PersonInfo"/>
         <relationship name="posts" toMany="YES" deletionRule="Cascade" destinationEntity="Post" inverseName="creator" inverseEntity="Post"/>
         <relationship name="site" maxCount="1" deletionRule="Nullify" destinationEntity="Site" inverseName="persons" inverseEntity="Site"/>
