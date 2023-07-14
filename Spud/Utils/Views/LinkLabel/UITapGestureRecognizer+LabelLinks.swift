@@ -9,17 +9,8 @@
 import UIKit
 import UIKit.UIGestureRecognizerSubclass
 
-extension UIGestureRecognizer {
-    //Returns a character that was touched, or nil if none.
-    func indexOfCharacterTouched(label: UILabel) -> Int? {
-        let locationOfTouchInLabel = self.location(in: label)
-
-        return label.indexOfCharacter(atPoint: locationOfTouchInLabel)
-    }
-}
-
-public extension UILabel {
-    public func indexOfCharacter(atPoint point: CGPoint) -> Int? {
+extension UILabel {
+    func indexOfCharacter(at point: CGPoint) -> Int? {
         if self.attributedText == nil {
             return nil
         }
