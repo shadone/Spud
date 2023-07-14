@@ -1,16 +1,23 @@
 {
-  "object": {
-    "pins": [
-      {
-        "package": "KeychainAccess",
-        "repositoryURL": "https://github.com/kishikawakatsumi/KeychainAccess",
-        "state": {
-          "branch": null,
-          "revision": "84e546727d66f1adc5439debad16270d0fdd04e7",
-          "version": "4.2.2"
-        }
+  "pins" : [
+    {
+      "identity" : "keychainaccess",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/kishikawakatsumi/KeychainAccess",
+      "state" : {
+        "revision" : "84e546727d66f1adc5439debad16270d0fdd04e7",
+        "version" : "4.2.2"
       }
-    ]
-  },
-  "version": 1
+    },
+    {
+      "identity" : "lemmykit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/shadone/LemmyKit",
+      "state" : {
+        "branch" : "main",
+        "revision" : "fbd07cea376cd9f6be249e3382b89349eca2d1b4"
+      }
+    }
+  ],
+  "version" : 2
 }

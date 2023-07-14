@@ -31,6 +31,7 @@
 		927343372A61C6960089556E /* TouchDownGestureRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343362A61C6960089556E /* TouchDownGestureRecognizer.swift */; };
 		927343392A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */; };
 		9273433B2A61DF050089556E /* URL+lemmy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273433A2A61DF050089556E /* URL+lemmy.swift */; };
+		9273433E2A61FAB70089556E /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9273433D2A61FAB70089556E /* LemmyKit */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
 		9297E2F52A42042B00D13E4D /* PostDetailLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */; };
@@ -56,7 +57,6 @@
 		92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */; };
 		92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93D2A3A5C3A00672F64 /* OSLog.swift */; };
 		92B7C9412A3A5DD800672F64 /* LemmyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9402A3A5DD800672F64 /* LemmyService.swift */; };
-		92B7C9462A3A5E7100672F64 /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 92B7C9452A3A5E7100672F64 /* LemmyKit */; };
 		92B7C94B2A3A604300672F64 /* LemmyFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C94A2A3A604300672F64 /* LemmyFeed.swift */; };
 		92B7C94D2A3A658700672F64 /* LemmyPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C94C2A3A658700672F64 /* LemmyPage.swift */; };
 		92B7C94F2A3A65BA00672F64 /* LemmyPageElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C94E2A3A65BA00672F64 /* LemmyPageElement.swift */; };
@@ -215,7 +215,6 @@
 		92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyContainer.swift; sourceTree = "<group>"; };
 		92B7C93D2A3A5C3A00672F64 /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
 		92B7C9402A3A5DD800672F64 /* LemmyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyService.swift; sourceTree = "<group>"; };
-		92B7C9432A3A5E1400672F64 /* LemmyKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = LemmyKit; path = ../LemmyKit; sourceTree = "<group>"; };
 		92B7C94A2A3A604300672F64 /* LemmyFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyFeed.swift; sourceTree = "<group>"; };
 		92B7C94C2A3A658700672F64 /* LemmyPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyPage.swift; sourceTree = "<group>"; };
 		92B7C94E2A3A65BA00672F64 /* LemmyPageElement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyPageElement.swift; sourceTree = "<group>"; };
@@ -308,7 +307,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				92CEAEB12A4D5B4800FAF4DB /* KeychainAccess in Frameworks */,
-				92B7C9462A3A5E7100672F64 /* LemmyKit in Frameworks */,
+				9273433E2A61FAB70089556E /* LemmyKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -458,7 +457,6 @@
 		92B7C8F12A3A40EB00672F64 = {
 			isa = PBXGroup;
 			children = (
-				92B7C9422A3A5E1400672F64 /* Packages */,
 				92B7C8FC2A3A40EB00672F64 /* Spud */,
 				92B7C9162A3A40F400672F64 /* SpudTests */,
 				92B7C9202A3A40F400672F64 /* SpudUITests */,
@@ -604,14 +602,6 @@
 				92B7C9402A3A5DD800672F64 /* LemmyService.swift */,
 			);
 			path = Lemmy;
-			sourceTree = "<group>";
-		};
-		92B7C9422A3A5E1400672F64 /* Packages */ = {
-			isa = PBXGroup;
-			children = (
-				92B7C9432A3A5E1400672F64 /* LemmyKit */,
-			);
-			name = Packages;
 			sourceTree = "<group>";
 		};
 		92B7C9442A3A5E7100672F64 /* Frameworks */ = {
@@ -850,8 +840,8 @@
 			);
 			name = Spud;
 			packageProductDependencies = (
-				92B7C9452A3A5E7100672F64 /* LemmyKit */,
 				92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */,
+				9273433D2A61FAB70089556E /* LemmyKit */,
 			);
 			productName = Spud;
 			productReference = 92B7C8FA2A3A40EB00672F64 /* Spud.app */;
@@ -927,6 +917,7 @@
 			mainGroup = 92B7C8F12A3A40EB00672F64;
 			packageReferences = (
 				92CEAEAF2A4D5B4800FAF4DB /* XCRemoteSwiftPackageReference "KeychainAccess" */,
+				9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */,
 			);
 			productRefGroup = 92B7C8FB2A3A40EB00672F64 /* Products */;
 			projectDirPath = "";
@@ -1435,6 +1426,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/shadone/LemmyKit";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		92CEAEAF2A4D5B4800FAF4DB /* XCRemoteSwiftPackageReference "KeychainAccess" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/kishikawakatsumi/KeychainAccess";
@@ -1446,8 +1445,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		92B7C9452A3A5E7100672F64 /* LemmyKit */ = {
+		9273433D2A61FAB70089556E /* LemmyKit */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = 9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */;
 			productName = LemmyKit;
 		};
 		92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */ = {
