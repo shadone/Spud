@@ -24,7 +24,6 @@ import os.log
     /// Link to the post in the original Lemmy instance.
     @NSManaged public var originalPostUrl: URL
 
-    @NSManaged public var creatorName: String
     @NSManaged public var communityName: String
 
     /// The title of the post.
@@ -70,4 +69,7 @@ import os.log
     @NSManaged public var pageElements: Set<LemmyPageElement>
     @NSManaged public var commentElements: Set<LemmyCommentElement>
     @NSManaged public var account: LemmyAccount
+
+    /// Post author.
+    @NSManaged public var creator: LemmyPerson
 }

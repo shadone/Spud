@@ -30,6 +30,7 @@ import os.log
     @NSManaged public var site: LemmySite
     @NSManaged public var accountInfo: LemmyAccountInfo?
     @NSManaged public var personInfo: LemmyPersonInfo?
+    @NSManaged public var posts: Set<LemmyPost>
 }
 
 extension LemmyPerson {

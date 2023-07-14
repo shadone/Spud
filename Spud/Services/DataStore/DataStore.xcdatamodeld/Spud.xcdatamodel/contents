@@ -77,6 +77,7 @@
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="accountInfo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AccountInfo" inverseName="person" inverseEntity="AccountInfo"/>
         <relationship name="personInfo" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="PersonInfo" inverseName="person" inverseEntity="PersonInfo"/>
+        <relationship name="posts" toMany="YES" deletionRule="Cascade" destinationEntity="Post" inverseName="creator" inverseEntity="Post"/>
         <relationship name="site" maxCount="1" deletionRule="Nullify" destinationEntity="Site" inverseName="persons" inverseEntity="Site"/>
     </entity>
     <entity name="PersonInfo" representedClassName="LemmyPersonInfo" syncable="YES">
@@ -105,7 +106,6 @@
         <attribute name="body" optional="YES" attributeType="String"/>
         <attribute name="communityName" attributeType="String"/>
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="creatorName" attributeType="String"/>
         <attribute name="localPostId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfComments" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfDownvotes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
@@ -123,6 +123,7 @@
         <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="posts" inverseEntity="Account"/>
         <relationship name="commentElements" toMany="YES" deletionRule="Nullify" destinationEntity="CommentElement" inverseName="post" inverseEntity="CommentElement"/>
         <relationship name="comments" toMany="YES" deletionRule="Cascade" destinationEntity="Comment" inverseName="post" inverseEntity="Comment"/>
+        <relationship name="creator" maxCount="1" deletionRule="Nullify" destinationEntity="Person" inverseName="posts" inverseEntity="Person"/>
         <relationship name="pageElements" toMany="YES" deletionRule="Cascade" destinationEntity="PageElement" inverseName="post" inverseEntity="PageElement"/>
     </entity>
     <entity name="Site" representedClassName="LemmySite" syncable="YES">

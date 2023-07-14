@@ -59,7 +59,7 @@ class PostDetailHeaderViewModel {
             .combineLatest(secondaryAttributes)
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()
-        let creator = post.publisher(for: \.creatorName)
+        let creator = creatorName
             .combineLatest(secondaryHighlightedAttributes)
             .map { tuple -> NSAttributedString in
                 let creator = tuple.0
@@ -175,6 +175,28 @@ class PostDetailHeaderViewModel {
                     .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .medium),
                     .foregroundColor: UIColor.secondaryLabel,
                 ]
+            }
+            .eraseToAnyPublisher()
+    }
+
+    private var creator: AnyPublisher<LemmyPerson, Never> {
+        post.publisher(for: \.creator)
+            .eraseToAnyPublisher()
+    }
+
+    private var creatorInfo: AnyPublisher<LemmyPersonInfo?, Never> {
+        creator
+            .flatMap { person -> AnyPublisher<LemmyPersonInfo?, Never> in
+                person.publisher(for: \.personInfo)
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+
+    private var creatorName: AnyPublisher<String, Never> {
+        creatorInfo
+            .map { personInfo in
+                personInfo?.name ?? ""
             }
             .eraseToAnyPublisher()
     }

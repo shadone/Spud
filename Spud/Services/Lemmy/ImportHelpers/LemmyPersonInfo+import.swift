@@ -17,7 +17,7 @@ extension LemmyPersonInfo {
         updatedAt = Date()
     }
 
-    private func set(from model: Person) {
+    func set(from model: Person) {
         name = model.name
         displayName = model.display_name
         avatarUrl = model.avatar

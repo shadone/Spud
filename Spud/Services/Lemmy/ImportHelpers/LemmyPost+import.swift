@@ -17,12 +17,13 @@ extension LemmyPost {
     ) {
         self.init(context: context)
 
-        set(from: model, in: context)
+        set(from: model)
 
         createdAt = Date()
         updatedAt = createdAt
 
         self.account = account
+        self.creator = LemmyPerson.upsert(model.creator, site: account.site, in: context)
     }
 
     static func upsert(
@@ -41,7 +42,7 @@ extension LemmyPost {
                 return LemmyPost(model, account: account, in: context)
             } else if results.count == 1 {
                 let post = results[0]
-                post.set(from: model, in: context)
+                post.set(from: model)
                 post.updatedAt = Date()
                 return post
             } else {
@@ -57,7 +58,7 @@ extension LemmyPost {
         }
     }
 
-    private func set(from model: PostView, in context: NSManagedObjectContext) {
+    private func set(from model: PostView) {
         localPostId = model.post.id
         originalPostUrl = model.post.ap_id
 
@@ -70,7 +71,6 @@ extension LemmyPost {
         urlEmbedTitle = model.post.embed_title
         urlEmbedDescription = model.post.embed_description
 
-        creatorName = model.creator.name
         communityName = model.community.name
 
         published = model.post.published
