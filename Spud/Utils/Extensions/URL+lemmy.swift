@@ -5,41 +5,50 @@
 //
 
 import Foundation
+import LemmyKit
 
 extension URL {
-    enum Lemmy {
-        case person(name: String)
+    enum SpudInternalLink {
+        /// Identifies a Person at a given Instance.
+        /// - Note: the instance specifies the Lemmy instance the personId is valid for. I.e. it is **not** the persons home site.
+        case person(personId: PersonId, instance: String)
 
         var url: URL {
             switch self {
-            case let .person(name):
+            case let .person(personId, instance):
                 guard
-                    let encodedName = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                    let encodedinstance = instance
+                        .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
                 else {
-                    fatalError("Failed to url encode '\(name)'")
+                    fatalError("Failed to url encode '\(self)'")
                 }
-                return URL(string: "spud://lemmy/person?name=\(encodedName)")!
+                return URL(string: "spud://internal/person?personId=\(personId)&instance=\(encodedinstance)")!
             }
         }
     }
 
-    var lemmy: Lemmy? {
+    var spud: SpudInternalLink? {
         guard
             let components = URLComponents(url: self, resolvingAgainstBaseURL: false),
-            components.host == "lemmy"
+            components.scheme == "spud",
+            components.host == "internal"
         else {
             return nil
         }
 
         if components.path == "/person" {
             guard
-                let name = components.queryItems?.first(where: { $0.name == "name" })?.value
+                let personIdString = components.queryItems?
+                    .first(where: { $0.name == "personId" })?.value,
+                let personId = PersonId(personIdString),
+                let instance = components.queryItems?
+                    .first(where: { $0.name == "instance" })?.value
             else {
                 assertionFailure()
                 return nil
             }
 
-            return .person(name: name)
+            return .person(personId: personId, instance: instance)
         }
 
         return nil

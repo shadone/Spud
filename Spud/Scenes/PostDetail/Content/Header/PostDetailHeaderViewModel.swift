@@ -59,15 +59,21 @@ class PostDetailHeaderViewModel {
             .combineLatest(secondaryAttributes)
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()
-        let creator = creatorName
+        let creator = self.creator
             .combineLatest(secondaryHighlightedAttributes)
             .map { tuple -> NSAttributedString in
                 let creator = tuple.0
                 var attributes = tuple.1
 
-                attributes[.link] = URL.Lemmy.person(name: creator).url
+                attributes[.link] = URL.SpudInternalLink.person(
+                    personId: creator.personId,
+                    instance: creator.site.normalizedInstanceUrl
+                ).url
 
-                return NSAttributedString(string: creator, attributes: attributes)
+                assert(creator.personInfo != nil)
+                let name = creator.personInfo?.name ?? ""
+
+                return NSAttributedString(string: name, attributes: attributes)
             }
             .eraseToAnyPublisher()
 

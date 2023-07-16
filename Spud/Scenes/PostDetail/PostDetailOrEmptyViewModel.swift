@@ -5,6 +5,7 @@
 //
 
 import Combine
+import LemmyKit
 import UIKit
 
 enum PostDetailOrEmpty {
@@ -16,7 +17,7 @@ enum PostDetailOrEmpty {
 }
 
 protocol PostDetailOrEmptyViewModelInputs {
-    func startLoadingPost(postId: LemmyPost.PostId)
+    func startLoadingPost(postId: PostId)
     func didFinishLoadingPost(_ post: LemmyPost)
     func displayPost(_ post: LemmyPost)
     func displayEmpty()
@@ -24,7 +25,7 @@ protocol PostDetailOrEmptyViewModelInputs {
 
 protocol PostDetailOrEmptyViewModelOutputs {
     var currentPost: AnyPublisher<LemmyPost?, Never> { get }
-    var loadPostById: AnyPublisher<LemmyPost.PostId, Never> { get }
+    var loadPostById: AnyPublisher<PostId, Never> { get }
     var postLoaded: AnyPublisher<LemmyPost, Never> { get }
     var viewState: AnyPublisher<PostDetailOrEmpty.ViewState, Never> { get }
 }
@@ -85,14 +86,14 @@ class PostDetailOrEmptyViewModel: PostDetailOrEmptyViewModelType, PostDetailOrEm
     // MARK: Outputs
 
     let currentPost: AnyPublisher<LemmyPost?, Never>
-    let loadPostById: AnyPublisher<LemmyPost.PostId, Never>
+    let loadPostById: AnyPublisher<PostId, Never>
     let postLoaded: AnyPublisher<LemmyPost, Never>
     let viewState: AnyPublisher<PostDetailOrEmpty.ViewState, Never>
 
     // MARK: Inputs
 
-    private let startLoadingPostSubject = PassthroughSubject<LemmyPost.PostId?, Never>()
-    func startLoadingPost(postId: LemmyPost.PostId) {
+    private let startLoadingPostSubject = PassthroughSubject<PostId?, Never>()
+    func startLoadingPost(postId: PostId) {
         startLoadingPostSubject.send(postId)
     }
 

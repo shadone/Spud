@@ -7,14 +7,13 @@
 import Combine
 import CoreData
 import Foundation
+import LemmyKit
 import os.log
 
 @objc(LemmyPost) public final class LemmyPost: NSManagedObject {
     @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmyPost> {
         NSFetchRequest<LemmyPost>(entityName: "Post")
     }
-
-    public typealias PostId = Int32
 
     // MARK: Properties
 

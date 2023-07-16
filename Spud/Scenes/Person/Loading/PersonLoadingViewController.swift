@@ -9,13 +9,13 @@ import LemmyKit
 import UIKit
 import os.log
 
-class PostDetailLoadingViewController: UIViewController {
+class PersonLoadingViewController: UIViewController {
     typealias Dependencies = HasAccountService
     private let dependencies: Dependencies
 
     // MARK: - Public
 
-    var didFinishLoading: ((LemmyPost) -> Void)?
+    var didFinishLoading: ((LemmyPersonInfo) -> Void)?
 
     // MARK: - Private
 
@@ -51,16 +51,14 @@ class PostDetailLoadingViewController: UIViewController {
 
     // MARK: Private
 
-    private let account: LemmyAccount
-    private let postId: PostId
+    private let person: LemmyPerson
     private var disposables = Set<AnyCancellable>()
 
     // MARK: - Functions
 
-    init(postId: PostId, account: LemmyAccount, dependencies: Dependencies) {
+    init(person: LemmyPerson, dependencies: Dependencies) {
         self.dependencies = dependencies
-        self.account = account
-        self.postId = postId
+        self.person = person
 
         super.init(nibName: nil, bundle: nil)
 
@@ -73,6 +71,8 @@ class PostDetailLoadingViewController: UIViewController {
     }
 
     private func setup() {
+        view.backgroundColor = .systemBackground
+
         view.addSubview(stackView)
 
         NSLayoutConstraint.activate([
@@ -89,22 +89,6 @@ class PostDetailLoadingViewController: UIViewController {
 
         loadingIndicator.startAnimating()
 
-        assertionFailure("not fully implemented")
-//        dependencies.accountService
-//            .lemmyService(for: account)
-//            .fetchPostAndComments(postId: postId, sortOrder: .confidence)
-//            .sink { complete in
-//                switch complete {
-//                case let .failure(error):
-//                    os_log("Failed to fetch post: %{public}@",
-//                           log: .app, type: .error,
-//                           String(describing: error))
-//                case .finished:
-//                    break
-//                }
-//            } receiveValue: { [weak self] post in
-//                self?.didFinishLoading?(post)
-//            }
-//            .store(in: &disposables)
+        // TODO: start loading person details
     }
 }

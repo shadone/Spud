@@ -27,7 +27,14 @@ import os.log
 
     // MARK: Relations
 
+    /// The site this person info was fetched via.
+    ///
+    /// - Note: This is **not** the persons home site.
+    ///
+    /// For example when fetching `@user@kbin.social` person info using an account logged in to `lemmy.world`,
+    /// this site points to `lemmy.world`.
     @NSManaged public var site: LemmySite
+
     @NSManaged public var accountInfo: LemmyAccountInfo?
     @NSManaged public var personInfo: LemmyPersonInfo?
     @NSManaged public var posts: Set<LemmyPost>

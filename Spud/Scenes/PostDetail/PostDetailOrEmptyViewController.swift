@@ -5,6 +5,7 @@
 //
 
 import Combine
+import LemmyKit
 import UIKit
 
 class PostDetailOrEmptyViewController: UIViewController {
@@ -29,7 +30,7 @@ class PostDetailOrEmptyViewController: UIViewController {
         viewModel.inputs.displayEmpty()
     }
 
-    func startLoadingPost(postId: LemmyPost.PostId) {
+    func startLoadingPost(postId: PostId) {
         viewModel.inputs.startLoadingPost(postId: postId)
     }
 
@@ -40,7 +41,7 @@ class PostDetailOrEmptyViewController: UIViewController {
     private enum State {
         case empty
         case post(LemmyPost)
-        case load(postId: LemmyPost.PostId)
+        case load(postId: PostId)
     }
 
     private var state: State = .empty {
