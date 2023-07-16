@@ -91,14 +91,16 @@ class LemmyService: LemmyServiceType {
         }
     }
 
-    private func object<CoreDataObject>(
+    private func object<CoreDataObject: NSManagedObject>(
         with objectId: NSManagedObjectID,
-        type _: CoreDataObject.Type
+        type: CoreDataObject.Type
     ) -> AnyPublisher<CoreDataObject, Never> {
         Future<CoreDataObject, Never> { promise in
             self.backgroundContext.perform {
-                let object = self.backgroundContext.object(with: objectId) as! CoreDataObject
-                promise(.success(object))
+                let object = self.backgroundContext.object(with: objectId)
+                assert(object.entity == type.entity())
+                let coreDataObject = object as! CoreDataObject
+                promise(.success(coreDataObject))
             }
         }
         .subscribe(on: backgroundScheduler)
