@@ -10,6 +10,8 @@ import Foundation
 import os.log
 import LemmyKit
 
+private let logger = Logger(.lemmyService)
+
 protocol LemmyServiceType {
     func createFeed(_ type: LemmyFeed.FeedType) -> LemmyFeed
 
@@ -81,9 +83,7 @@ class LemmyService: LemmyServiceType {
         self.dataStore = dataStore
         self.api = api
 
-        os_log("Creating new service for %{public}@",
-               log: .lemmyService, type: .info,
-               accountIdentifierForLogging)
+        logger.info("Creating new service for \(self.accountIdentifierForLogging, privacy: .public)")
     }
 
     private func object<CoreDataObject>(
@@ -162,11 +162,12 @@ class LemmyService: LemmyServiceType {
             .flatMap { feed -> AnyPublisher<Void, LemmyApiError> in
                 switch feed.feedType {
                 case let .frontpage(listingType, sortType):
-                    os_log("Fetch feed for %{public}@. listingType=%{public}@ sortType=%{public}@ page=%{public}@",
-                           log: .lemmyService, type: .debug,
-                           self.accountIdentifierForLogging,
-                           listingType.rawValue, sortType.rawValue,
-                           pageNumber.map { "\($0)" } ?? "nil")
+                    logger.debug("""
+                        Fetch feed for \(self.accountIdentifierForLogging, privacy: .public). \
+                        listingType=\(listingType.rawValue, privacy: .public) \
+                        sortType=\(sortType.rawValue, privacy: .public) \
+                        page=\(pageNumber.map { "\($0)" } ?? "nil", privacy: .public)
+                        """)
                     let request = GetPosts.Request(
                         type_: listingType,
                         sort: sortType,
@@ -176,10 +177,10 @@ class LemmyService: LemmyServiceType {
                     return self.api.getPosts(request)
                         .receive(on: self.backgroundScheduler)
                         .handleEvents(receiveOutput: { response in
-                            os_log("Fetch feed for %{public}@ complete with %{public}d posts",
-                                   log: .lemmyService, type: .debug,
-                                   self.accountIdentifierForLogging,
-                                   response.posts.count)
+                            logger.debug("""
+                                Fetch feed for \(self.accountIdentifierForLogging, privacy: .public) \
+                                complete with \(response.posts.count, privacy: .public) posts
+                                """)
                             feed.append(contentsOf: response.posts)
                         }, receiveCompletion: { completion in
                             switch completion {
@@ -190,10 +191,10 @@ class LemmyService: LemmyServiceType {
                             }
                         })
                         .mapError { error in
-                            os_log("Fetch feed for %{public}@ failed: %{public}@",
-                                   log: .lemmyService, type: .error,
-                                   self.accountIdentifierForLogging,
-                                   String(describing: error))
+                            logger.error("""
+                                Fetch feed for \(self.accountIdentifierForLogging, privacy: .public) \
+                                failed: \(String(describing: error), privacy: .public)
+                                """)
                             return error
                         }
                         .map { _ in () }
@@ -213,10 +214,10 @@ class LemmyService: LemmyServiceType {
         return object(with: postId, type: LemmyPost.self)
             .setFailureType(to: LemmyApiError.self)
             .flatMap { post -> AnyPublisher<Void, LemmyApiError> in
-                os_log("Fetch comments for %{public}@. post=%{public}d",
-                       log: .lemmyService, type: .debug,
-                       self.accountIdentifierForLogging,
-                       post.localPostId)
+                logger.debug("""
+                    Fetch comments for \(self.accountIdentifierForLogging, privacy: .public). \
+                    post=\(post.localPostId, privacy: .public)
+                    """)
                 let request = GetComments.Request(
                     sort: sortType,
                     max_depth: 8,
@@ -226,10 +227,10 @@ class LemmyService: LemmyServiceType {
                 return self.api.getComments(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        os_log("Fetch comments for %{public}@ complete with %{public}d comments",
-                               log: .lemmyService, type: .debug,
-                               self.accountIdentifierForLogging,
-                               response.comments.count)
+                        logger.debug("""
+                            Fetch comments for \(self.accountIdentifierForLogging, privacy: .public) \
+                            complete with \(response.comments.count, privacy: .public) comments
+                            """)
                         post.upsert(comments: response.comments, for: sortType)
                     }, receiveCompletion: { completion in
                         switch completion {
@@ -240,10 +241,10 @@ class LemmyService: LemmyServiceType {
                         }
                     })
                     .mapError { error in
-                        os_log("Fetch comments for %{public}@ failed: %{public}@",
-                               log: .lemmyService, type: .error,
-                               self.accountIdentifierForLogging,
-                               String(describing: error))
+                        logger.error("""
+                            Fetch comments for \(self.accountIdentifierForLogging, privacy: .public) \
+                            failed: \(String(describing: error), privacy: .public)
+                            """)
                         return error
                     }
                     .map { _ in () }
@@ -259,18 +260,14 @@ class LemmyService: LemmyServiceType {
         return object(with: accountObjectId, type: LemmyAccount.self)
             .setFailureType(to: LemmyApiError.self)
             .flatMap { account -> AnyPublisher<Void, LemmyApiError> in
-                os_log("Fetch site for %{public}@",
-                       log: .lemmyService, type: .debug,
-                       self.accountIdentifierForLogging)
+                logger.debug("Fetch site for \(self.accountIdentifierForLogging, privacy: .public)")
                 let request = GetSite.Request(
                     auth: self.credential?.jwt
                 )
                 return self.api.getSite(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        os_log("Fetch site for %{public}@ complete",
-                               log: .lemmyService, type: .debug,
-                               self.accountIdentifierForLogging)
+                        logger.debug("Fetch site for \(self.accountIdentifierForLogging, privacy: .public) complete")
                         account.upsert(myUserInfo: response.my_user)
                         account.site.upsert(siteInfo: response)
                     }, receiveCompletion: { completion in
@@ -282,10 +279,10 @@ class LemmyService: LemmyServiceType {
                         }
                     })
                     .mapError { error in
-                        os_log("Fetch site for %{public}@ failed: %{public}@",
-                               log: .lemmyService, type: .error,
-                               self.accountIdentifierForLogging,
-                               String(describing: error))
+                        logger.error("""
+                            Fetch site for \(self.accountIdentifierForLogging, privacy: .public) \
+                            failed: \(String(describing: error), privacy: .public)
+                            """)
                         return error
                     }
                     .map { _ in () }
@@ -303,9 +300,7 @@ class LemmyService: LemmyServiceType {
         return object(with: personId, type: LemmyPerson.self)
             .setFailureType(to: LemmyApiError.self)
             .flatMap { person -> AnyPublisher<LemmyPersonInfo, LemmyApiError> in
-                os_log("Fetch person info for %{public}@",
-                       log: .lemmyService, type: .debug,
-                       person.identifierForLogging)
+                logger.debug("Fetch person info for \(person.identifierForLogging, privacy: .public)")
                 let request = GetPersonDetails.Request(
                     person_id: person.personId,
                     auth: self.credential?.jwt
@@ -313,9 +308,7 @@ class LemmyService: LemmyServiceType {
                 return self.api.getPersonDetails(request)
                     .receive(on: self.backgroundScheduler)
                     .map { response -> LemmyPersonInfo in
-                        os_log("Fetch person info for %{public}@ complete",
-                               log: .lemmyService, type: .debug,
-                               person.identifierForLogging)
+                        logger.debug("Fetch person info for \(person.identifierForLogging, privacy: .public) complete")
 
                         person.set(from: response.person_view)
 
@@ -332,10 +325,10 @@ class LemmyService: LemmyServiceType {
                         }
                     })
                     .mapError { error in
-                        os_log("Fetch person info for %{public}@ failed: %{public}@",
-                               log: .lemmyService, type: .error,
-                               person.identifierForLogging,
-                               String(describing: error))
+                        logger.error("""
+                            Fetch person info for \(person.identifierForLogging, privacy: .public) \
+                            failed: \(String(describing: error), privacy: .public)
+                            """)
                         return error
                     }
                     .eraseToAnyPublisher()

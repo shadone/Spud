@@ -9,6 +9,8 @@ import Foundation
 import os.log
 import LemmyKit
 
+private let logger = Logger(.app)
+
 extension LemmyPost {
     func upsert(comments: [CommentView], for sortType: CommentSortType) {
         guard let context = managedObjectContext else {
@@ -28,10 +30,10 @@ extension LemmyPost {
             let elements = try context.fetch(request)
             elements.forEach { context.delete($0) }
         } catch {
-            os_log("Failed to fetch comment elements (for post %{public}d) for deletion: %{public}@",
-                   log: .app, type: .error,
-                   localPostId,
-                   error.localizedDescription)
+            logger.error("""
+                Failed to fetch comment elements (for post \(self.localPostId, privacy: .public) \
+                for deletion: \(error.localizedDescription, privacy: .public)
+                """)
             assertionFailure()
         }
 

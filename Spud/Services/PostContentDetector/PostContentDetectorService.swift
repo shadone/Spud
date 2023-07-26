@@ -8,6 +8,8 @@ import Combine
 import Foundation
 import os.log
 
+private let logger = Logger(.postContentDetectorService)
+
 protocol PostContentDetectorServiceType: AnyObject {
     /// Attempt to detect the content type of the url that the given post contains.
     /// The main point is to detect if the url points to an image.
@@ -90,9 +92,7 @@ class PostContentDetectorService: PostContentDetectorServiceType {
                     return .just(externalLink)
 
                 case 405: // HTTP 405: Method Not Allowed
-                    os_log("The server does not allow HEAD requests for url %{public}@",
-                           log: .postContentDetectorService, type: .debug,
-                           url.absoluteString)
+                    logger.debug("The server does not allow HEAD requests for url \(url.absoluteString, privacy: .public)")
 
                     // fallback to retry the same request but this time as a GET request.
                     let request = URLRequest(url: url)
@@ -120,24 +120,29 @@ class PostContentDetectorService: PostContentDetectorServiceType {
                         .eraseToAnyPublisher()
 
                 default:
-                    os_log("Failed to detect content type. Received HTTP status %{public}d for url %{public}@",
-                           log: .postContentDetectorService, type: .error,
-                           httpUrlResponse.statusCode, url.absoluteString)
+                    logger.error("""
+                        Failed to detect content type. \
+                        Received HTTP status \(httpUrlResponse.statusCode, privacy: .public) \
+                        for url \(url.absoluteString, privacy: .public)
+                        """)
                     // We could not detect the content type, lets assume this is an external link,
                     // but no need to cache this response.
                     return .just(externalLink)
                 }
             }
             .map { postContentType in
-                os_log("Detected content type %{public}@ for url %{public}@",
-                       log: .postContentDetectorService, type: .debug,
-                       postContentType.debugDescription, url.absoluteString)
+                logger.debug("""
+                    Detected content type \(postContentType.debugDescription, privacy: .public) \
+                    for url \(url.absoluteString, privacy: .public)
+                    """)
                 return postContentType
             }
             .catch { urlError -> AnyPublisher<PostContentType, Never> in
-                os_log("An error occurred while trying to detect content type for url %{public}@: %{public}@",
-                       log: .postContentDetectorService, type: .error,
-                       url.absoluteString, urlError.localizedDescription)
+                logger.error("""
+                    An error occurred while trying to detect content type \
+                    for url \(url.absoluteString, privacy: .public): \
+                    \(urlError.localizedDescription, privacy: .public)
+                    """)
 
                 return .just(externalLink)
             }

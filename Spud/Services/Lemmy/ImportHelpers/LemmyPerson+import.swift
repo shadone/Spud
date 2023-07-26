@@ -9,6 +9,8 @@ import Foundation
 import os.log
 import LemmyKit
 
+private let logger = Logger(.app)
+
 extension LemmyPerson {
     convenience init(
         _ model: Person,
@@ -98,9 +100,10 @@ extension LemmyPerson {
                 return results[0]
             }
         } catch {
-            os_log("Failed to fetch persons for upserting: %{public}@",
-                   log: .app, type: .error,
-                   String(describing: error))
+            logger.error("""
+                Failed to fetch persons for upserting: \
+                \(String(describing: error), privacy: .public)
+                """)
             assertionFailure()
             return LemmyPerson(model, site: site, in: context)
         }

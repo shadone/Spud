@@ -8,6 +8,8 @@ import CoreData
 import Foundation
 import os.log
 
+private let logger = Logger(.dataStore)
+
 extension NSManagedObjectContext {
     func saveIfNeeded() {
         guard hasChanges else { return }
@@ -15,9 +17,7 @@ extension NSManagedObjectContext {
         do {
             try save()
         } catch {
-            os_log("Failed to save context for: %{public}@",
-                   log: .dataStore, type: .error,
-                   String(describing: error))
+            logger.error("Failed to save context for: \(String(describing: error), privacy: .public)")
         }
     }
 }

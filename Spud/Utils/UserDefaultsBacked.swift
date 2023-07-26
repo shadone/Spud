@@ -8,6 +8,8 @@ import Combine
 import Foundation
 import os.log
 
+private let logger = Logger(.app)
+
 // https://www.swiftbysundell.com/articles/property-wrappers-in-swift/
 
 // Since our property wrapper's Value type isn't optional, but
@@ -70,9 +72,10 @@ extension Optional: AnyOptional {
                 do {
                     maybeValue = try decoder.decode(Value.self, from: data)
                 } catch {
-                    os_log("Failed to decode '%{public}@' value from user defaults: %{public}@",
-                           log: .app, type: .error,
-                           key, error.localizedDescription)
+                    logger.error("""
+                        Failed to decode '\(key, privacy: .public)' value from user defaults: \
+                        \(error.localizedDescription, privacy: .public)
+                        """)
                 }
             }
         }
@@ -92,9 +95,10 @@ extension Optional: AnyOptional {
                 }
                 storage.setValue(jsonString, forKey: key)
             } catch {
-                os_log("Failed to encode '%{public}@' value for user defaults: %{public}@",
-                       log: .app, type: .error,
-                       key, error.localizedDescription)
+                logger.error("""
+                    Failed to encode '\(key, privacy: .public)' value for user defaults: \
+                    \(error.localizedDescription, privacy: .public)
+                    """)
             }
         }
         valuePublisher.send(newValue)

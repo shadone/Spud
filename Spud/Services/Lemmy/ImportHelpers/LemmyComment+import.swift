@@ -9,6 +9,8 @@ import Foundation
 import LemmyKit
 import os.log
 
+private let logger = Logger(.app)
+
 extension LemmyComment {
     convenience init(
         _ model: CommentView,
@@ -73,9 +75,10 @@ extension LemmyComment {
                 return LemmyComment(model, post: post, in: context)
             }
         } catch {
-            os_log("Failed to fetch comment %{public}d for upserting: %{public}@",
-                   log: .app, type: .error,
-                   model.comment.id, String(describing: error))
+            logger.error("""
+                Failed to fetch comment \(model.comment.id, privacy: .public) for upserting: \
+                \(String(describing: error), privacy: .public)
+                """)
             return nil
         }
     }

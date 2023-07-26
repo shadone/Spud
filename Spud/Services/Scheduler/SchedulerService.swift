@@ -10,6 +10,8 @@ import Foundation
 import os.log
 import LemmyKit
 
+private let logger = Logger(.schedulerService)
+
 protocol SchedulerServiceType {
     func startService()
     func processNewSite(_ site: LemmySite)
@@ -68,9 +70,7 @@ class SchedulerService: SchedulerServiceType {
     // MARK: Site Info
 
     private func fetchSiteInfo(for site: LemmySite) {
-        os_log("Fetching site info for %{public}@",
-               log: .schedulerService, type: .info,
-               site.identifierForLogging)
+        logger.info("Fetching site info for \(site.identifierForLogging, privacy: .public)")
 
         // TODO: separate fetching of generic "site info" and account specific info
         // For now we fetch site info as signed out user only,
@@ -92,9 +92,7 @@ class SchedulerService: SchedulerServiceType {
     private func fetchSiteInfo(for account: LemmyAccount) {
         assert(Thread.current.isMainThread)
 
-        os_log("Fetching site info for %{public}@",
-               log: .schedulerService, type: .info,
-               account.identifierForLogging)
+        logger.info("Fetching site info for \(account.identifierForLogging, privacy: .public)")
 
         accountService
             .lemmyService(for: account)

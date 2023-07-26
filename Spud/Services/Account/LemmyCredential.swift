@@ -7,6 +7,8 @@
 import Foundation
 import os.log
 
+private let logger = Logger(.auth)
+
 struct LemmyCredential: Codable {
     let jwt: String
 }
@@ -19,9 +21,7 @@ extension LemmyCredential {
             // TODO: shall we decode jwt and store the metadata e.g. claims?
             data = try JSONEncoder().encode(self)
         } catch {
-            os_log("Failed to encode credential: %{public}",
-                   log: .auth, type: .error,
-                   error.localizedDescription)
+            logger.error("Failed to encode credential: \(error.localizedDescription, privacy: .public)")
             return nil
         }
 
@@ -36,9 +36,7 @@ extension LemmyCredential {
         do {
             return try JSONDecoder().decode(self, from: data)
         } catch {
-            os_log("Failed to decode credential: %{public}@",
-                   log: .auth, type: .error,
-                   error.localizedDescription)
+            logger.error("Failed to decode credential: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }

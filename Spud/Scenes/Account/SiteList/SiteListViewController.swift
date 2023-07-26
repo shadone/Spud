@@ -9,6 +9,8 @@ import Foundation
 import UIKit
 import os.log
 
+private let logger = Logger(.app)
+
 class SiteListViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
@@ -112,9 +114,7 @@ class SiteListViewController: UIViewController {
         do {
             try sitesFRC?.performFetch()
         } catch {
-            os_log("Failed to fetch sites: %{public}@",
-                   log: .app, type: .error,
-                   String(describing: error))
+            logger.error("Failed to fetch sites: \(String(describing: error), privacy: .public)")
         }
     }
 

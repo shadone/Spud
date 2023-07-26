@@ -10,6 +10,8 @@ import UIKit
 import LemmyKit
 import os.log
 
+private let logger = Logger(.app)
+
 class PostListViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
@@ -257,9 +259,7 @@ class PostListViewController: UIViewController {
         do {
             try postsResults?.performFetch()
         } catch {
-            os_log("Failed to fetch: %{public}@",
-                   log: .app, type: .error,
-                   String(describing: error))
+            logger.error("Failed to fetch: \(String(describing: error), privacy: .public)")
         }
 
         viewModel.inputs.didSelectPost(nil)

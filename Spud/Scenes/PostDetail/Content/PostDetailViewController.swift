@@ -10,6 +10,8 @@ import SafariServices
 import UIKit
 import os.log
 
+private let logger = Logger(.app)
+
 class PostDetailViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
@@ -147,9 +149,7 @@ class PostDetailViewController: UIViewController {
         do {
             try commentsFRC?.performFetch()
         } catch {
-            os_log("Failed to fetch comments: %{public}@",
-                   log: .app, type: .error,
-                   String(describing: error))
+            logger.error("Failed to fetch comments: \(String(describing: error), privacy: .public)")
         }
 
         viewModel.inputs.didPrepareFetchController(numberOfFetchedComments: numberOfComments)

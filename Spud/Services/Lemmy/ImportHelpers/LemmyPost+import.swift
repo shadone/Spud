@@ -9,6 +9,8 @@ import Foundation
 import os.log
 import LemmyKit
 
+private let logger = Logger(.app)
+
 extension LemmyPost {
     convenience init(
         _ model: PostView,
@@ -50,9 +52,7 @@ extension LemmyPost {
                 return results[0]
             }
         } catch {
-            os_log("Failed to fetch posts for upserting: %{public}@",
-                   log: .app, type: .error,
-                   String(describing: error))
+            logger.error("Failed to fetch posts for upserting: \(String(describing: error), privacy: .public)")
             assertionFailure()
             return LemmyPost(model, account: account, in: context)
         }

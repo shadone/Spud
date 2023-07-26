@@ -11,6 +11,8 @@ import os.log
 import LemmyKit
 import KeychainAccess
 
+private let logger = Logger(.accountService)
+
 protocol AccountServiceType: AnyObject {
     /// Returns an account that represents a signed out user on a given Lemmy instance.
     func accountForSignedOut(
@@ -83,17 +85,18 @@ class AccountService: AccountServiceType {
             do {
                 let accounts = try context.fetch(request)
                 if accounts.count > 1 {
-                    os_log("Expected zero or one but found %{public}d signed out accounts for %{public}@!",
-                           log: .accountService, type: .error,
-                           accounts.count, site.identifierForLogging)
+                    logger.error("""
+                        Expected zero or one but found \(accounts.count, privacy: .public) \
+                        signed out accounts for \(site.identifierForLogging, privacy: .public)!
+                        """)
                     assertionFailure()
                 }
                 return accounts.first
             } catch {
-                os_log("Failed to fetch account for %{public}@: %{public}@",
-                       log: .accountService, type: .error,
-                       site.identifierForLogging,
-                       error.localizedDescription)
+                logger.error("""
+                    Failed to fetch account for \(site.identifierForLogging, privacy: .public): \
+                    \(error.localizedDescription, privacy: .public)
+                    """)
                 assertionFailure()
                 return nil
             }
@@ -119,9 +122,7 @@ class AccountService: AccountServiceType {
         do {
             return try context.fetch(request)
         } catch {
-            os_log("Failed to fetch all signed out accounts: %{public}@",
-                   log: .accountService, type: .error,
-                   error.localizedDescription)
+            logger.error("Failed to fetch all signed out accounts: \(error.localizedDescription, privacy: .public)")
             assertionFailure()
             return []
         }
@@ -142,9 +143,7 @@ class AccountService: AccountServiceType {
         do {
             return try context.fetch(request)
         } catch {
-            os_log("Failed to fetch all accounts: %{public}@",
-                   log: .accountService, type: .error,
-                   error.localizedDescription)
+            logger.error("Failed to fetch all accounts: \(error.localizedDescription, privacy: .public)")
             assertionFailure()
             return []
         }
@@ -163,9 +162,7 @@ class AccountService: AccountServiceType {
             let accounts = try dataStore.mainContext.fetch(request)
             return accounts.first
         } catch {
-            os_log("Failed to fetch default account: %{public}@",
-                   log: .accountService, type: .error,
-                   error.localizedDescription)
+            logger.error("Failed to fetch default account: \(error.localizedDescription, privacy: .public)")
             assertionFailure()
             return nil
         }
@@ -175,9 +172,7 @@ class AccountService: AccountServiceType {
         assert(!accountToMakeDefault.isServiceAccount)
         assert(Thread.current.isMainThread)
 
-        os_log("Setting default account %{public}@",
-               log: .accountService, type: .error,
-               accountToMakeDefault.identifierForLogging)
+        logger.info("Setting default account \(accountToMakeDefault.identifierForLogging, privacy: .public)")
 
         allAccounts(includeSignedOutAccount: true, in: dataStore.mainContext)
             .forEach {
@@ -202,17 +197,13 @@ class AccountService: AccountServiceType {
         let accountObjectId = account.objectID
 
         if let lemmyService = lemmyServices[accountObjectId] {
-            os_log("Returning existing LemmyService for %{public}@",
-                   log: .accountService, type: .debug,
-                   account.identifierForLogging)
+            logger.debug("Returning existing LemmyService for \(account.identifierForLogging)")
             return lemmyService
         }
 
         let api = api(for: account.site)
 
-        os_log("Creating new LemmyService for %{public}@",
-               log: .accountService, type: .debug,
-               account.identifierForLogging)
+        logger.debug("Creating new LemmyService for \(account.identifierForLogging, privacy: .public)")
 
         // TODO: it would make for better architecture if auth / credential was part of LemmyApi
         // i.e. pass jwt to the `LemmyApi(auth: credential.jwt)` and let it add it to requests.
@@ -297,12 +288,9 @@ extension AccountService {
         let keychain = Keychain(service: Self.keychainCredentialService)
         do {
             try keychain.set(stringValue, key: key)
-            os_log("Saved credential into keychain",
-                   log: .accountService, type: .debug)
+            logger.debug("Saved credential into keychain")
         } catch {
-            os_log("Failed to save credential into keychain: %{public}@",
-                   log: .accountService, type: .error,
-                   error.localizedDescription)
+            logger.error("Failed to save credential into keychain: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -314,8 +302,7 @@ extension AccountService {
             let keychain = Keychain(service: Self.keychainCredentialService)
             let key = account.objectID.uriRepresentation().absoluteString
             guard let stringValue = try keychain.get(key) else {
-                os_log("Did not find credential in keychain",
-                       log: .accountService, type: .debug)
+                logger.debug("Did not find credential in keychain")
                 return nil
             }
 
@@ -324,14 +311,11 @@ extension AccountService {
                 return nil
             }
 
-            os_log("Fetched credential from keychain",
-                   log: .accountService, type: .debug)
+            logger.debug("Fetched credential from keychain")
 
             return credential
         } catch {
-            os_log("Failed to get credential from keychain: %{public}@",
-                   log: .accountService, type: .error,
-                   error.localizedDescription)
+            logger.error("Failed to get credential from keychain: \(error.localizedDescription, privacy: .public)")
             assertionFailure(error.localizedDescription)
             return nil
         }

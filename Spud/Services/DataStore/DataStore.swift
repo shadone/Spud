@@ -8,6 +8,8 @@ import CoreData
 import Foundation
 import os.log
 
+private let logger = Logger(.dataStore)
+
 protocol DataStoreType: AnyObject {
     var mainContext: NSManagedObjectContext { get }
     var persistentContainer: NSPersistentContainer? { get }
@@ -57,9 +59,7 @@ class DataStore: DataStoreType {
         })
 
         if let storeLoadingError {
-            os_log("Destroying existing store due to persistent store load failure: %{public}@",
-                   log: .dataStore, type: .error,
-                   String(describing: storeLoadingError))
+            logger.error("Destroying existing store due to persistent store load failure: \(String(describing: storeLoadingError), privacy: .public)")
             destroyPersistentStore(container)
 
             container.loadPersistentStores(completionHandler: { _, error in
@@ -72,9 +72,7 @@ class DataStore: DataStoreType {
                      * The store could not be migrated to the current model version.
                      Check the error message to determine what the actual problem was.
                      */
-                    os_log("Failed to load persistent store: %{public}@",
-                           log: .dataStore, type: .fault,
-                           String(describing: error))
+                    logger.fault("Failed to load persistent store: \(String(describing: error), privacy: .public)")
                     fatalError("Unresolved error \(error), \(error.userInfo)")
                 }
             })
@@ -97,9 +95,7 @@ class DataStore: DataStoreType {
             try container.persistentStoreCoordinator
                 .destroyPersistentStore(at: url, ofType: NSSQLiteStoreType, options: nil)
         } catch {
-            os_log("Failed to destroy persistent store: %{public}@",
-                   log: .dataStore, type: .fault,
-                   String(describing: error))
+            logger.fault("Failed to destroy persistent store: \(String(describing: error), privacy: .public)")
             fatalError("Failed to destroy persistent store: \(error)")
         }
     }

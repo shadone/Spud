@@ -10,6 +10,8 @@ import Foundation
 import os.log
 import LemmyKit
 
+private let logger = Logger(.siteService)
+
 protocol SiteServiceType: AnyObject {
     func site(for instanceUrl: URL) -> LemmySite?
 
@@ -52,17 +54,18 @@ class SiteService: SiteServiceType {
             do {
                 let sites = try dataStore.mainContext.fetch(request)
                 if sites.count > 1 {
-                    os_log("Expected zero or one but found %{public}d sites instead! instanceUrl=%{public}@",
-                           log: .siteService, type: .error,
-                           sites.count, instanceUrl.absoluteString)
+                    logger.error("""
+                        Expected zero or one but found \(sites.count, privacy: .public) sites instead! \
+                        instanceUrl=\(instanceUrl.absoluteString, privacy: .public)
+                        """)
                     assertionFailure()
                 }
                 return sites.first
             } catch {
-                os_log("Failed to fetch site '%{public}@': %{public}@",
-                       log: .siteService, type: .error,
-                       instanceUrl.absoluteString,
-                       error.localizedDescription)
+                logger.error("""
+                    Failed to fetch site '\(instanceUrl.absoluteString, privacy: .public)': \
+                    \(error.localizedDescription, privacy: .public)
+                    """)
                 assertionFailure()
                 return nil
             }
@@ -85,9 +88,7 @@ class SiteService: SiteServiceType {
         do {
             return try context.fetch(request)
         } catch {
-            os_log("Failed to fetch all sites: %{public}@",
-                   log: .siteService, type: .error,
-                   error.localizedDescription)
+            logger.error("Failed to fetch all sites: \(error.localizedDescription, privacy: .public)")
             assertionFailure()
             return []
         }
@@ -149,9 +150,7 @@ class SiteService: SiteServiceType {
         do {
             existingSites = try dataStore.mainContext.fetch(request)
         } catch {
-            os_log("Failed to fetch sites: %{public}@",
-                   log: .siteService, type: .error,
-                   error.localizedDescription)
+            logger.error("Failed to fetch sites: \(error.localizedDescription, privacy: .public)")
             assertionFailure()
             return
         }

@@ -9,6 +9,8 @@ import Foundation
 import UIKit
 import os.log
 
+private let logger = Logger(.app)
+
 class AccountListViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
@@ -110,9 +112,7 @@ class AccountListViewController: UIViewController {
         do {
             try accountsFRC?.performFetch()
         } catch {
-            os_log("Failed to fetch accounts: %{public}@",
-                   log: .app, type: .error,
-                   String(describing: error))
+            logger.error("Failed to fetch accounts: \(String(describing: error), privacy: .public)")
         }
     }
 
