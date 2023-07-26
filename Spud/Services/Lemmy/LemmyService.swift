@@ -28,6 +28,10 @@ protocol LemmyServiceType {
     ) -> AnyPublisher<Void, LemmyApiError>
 
     func fetchSiteInfo() -> AnyPublisher<Void, LemmyApiError>
+
+    func fetchPersonDetails(
+        personId: NSManagedObjectID
+    ) -> AnyPublisher<LemmyPersonInfo, LemmyApiError>
 }
 
 extension LemmyServiceType {
@@ -285,6 +289,55 @@ class LemmyService: LemmyServiceType {
                         return error
                     }
                     .map { _ in () }
+                    .eraseToAnyPublisher()
+            }
+            .receive(on: RunLoop.main)
+            .eraseToAnyPublisher()
+    }
+
+    func fetchPersonDetails(
+        personId: NSManagedObjectID
+    ) -> AnyPublisher<LemmyPersonInfo, LemmyApiError> {
+        assert(Thread.current.isMainThread)
+
+        return object(with: personId, type: LemmyPerson.self)
+            .setFailureType(to: LemmyApiError.self)
+            .flatMap { person -> AnyPublisher<LemmyPersonInfo, LemmyApiError> in
+                os_log("Fetch person info for %{public}@",
+                       log: .lemmyService, type: .debug,
+                       person.identifierForLogging)
+                let request = GetPersonDetails.Request(
+                    person_id: person.personId,
+                    auth: self.credential?.jwt
+                )
+                return self.api.getPersonDetails(request)
+                    .receive(on: self.backgroundScheduler)
+                    .map { response -> LemmyPersonInfo in
+                        os_log("Fetch person info for %{public}@ complete",
+                               log: .lemmyService, type: .debug,
+                               person.identifierForLogging)
+
+                        person.set(from: response.person_view)
+
+                        assert(person.personInfo != nil)
+                        return person.personInfo!
+                    }
+                    .handleEvents(receiveOutput: { response in
+                    }, receiveCompletion: { completion in
+                        switch completion {
+                        case .failure:
+                            break
+                        case .finished:
+                            self.saveIfNeeded()
+                        }
+                    })
+                    .mapError { error in
+                        os_log("Fetch person info for %{public}@ failed: %{public}@",
+                               log: .lemmyService, type: .error,
+                               person.identifierForLogging,
+                               String(describing: error))
+                        return error
+                    }
                     .eraseToAnyPublisher()
             }
             .receive(on: RunLoop.main)

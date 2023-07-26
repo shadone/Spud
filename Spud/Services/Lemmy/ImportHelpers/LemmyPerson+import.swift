@@ -57,6 +57,17 @@ extension LemmyPerson {
 
         let personInfo = getOrCreatePersonInfo()
         personInfo?.set(from: model)
+
+        updatedAt = Date()
+    }
+
+    func set(from model: PersonView) {
+        set(from: model.person)
+
+        let personInfo = getOrCreatePersonInfo()
+        personInfo?.set(from: model)
+
+        updatedAt = Date()
     }
 
     static func upsert(

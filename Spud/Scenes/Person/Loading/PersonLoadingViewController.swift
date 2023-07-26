@@ -52,13 +52,19 @@ class PersonLoadingViewController: UIViewController {
     // MARK: Private
 
     private let person: LemmyPerson
+    private let account: LemmyAccount
     private var disposables = Set<AnyCancellable>()
 
     // MARK: - Functions
 
-    init(person: LemmyPerson, dependencies: Dependencies) {
+    init(
+        person: LemmyPerson,
+        account: LemmyAccount,
+        dependencies: Dependencies
+    ) {
         self.dependencies = dependencies
         self.person = person
+        self.account = account
 
         super.init(nibName: nil, bundle: nil)
 
@@ -90,5 +96,13 @@ class PersonLoadingViewController: UIViewController {
         loadingIndicator.startAnimating()
 
         // TODO: start loading person details
+        dependencies.accountService
+            .lemmyService(for: account)
+            .fetchPersonDetails(personId: person.objectID)
+            .sink(receiveCompletion: { _ in
+            }, receiveValue: { [weak self] personInfo in
+                self?.didFinishLoading?(personInfo)
+            })
+            .store(in: &disposables)
     }
 }

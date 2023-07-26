@@ -38,16 +38,19 @@ class PersonOrLoadingViewController: UIViewController {
 
     // MARK: - Functions
 
-    init(person: LemmyPerson, dependencies: Dependencies) {
+    init(
+        person: LemmyPerson,
+        account: LemmyAccount,
+        dependencies: Dependencies
+    ) {
         self.dependencies = dependencies
 
         state = .load(person)
-        viewModel = PersonOrLoadingViewModel()
+        viewModel = PersonOrLoadingViewModel(person: person, account: account)
 
         super.init(nibName: nil, bundle: nil)
 
         bindViewModel()
-        stateChanged()
     }
 
     @available(*, unavailable)
@@ -56,13 +59,13 @@ class PersonOrLoadingViewController: UIViewController {
     }
 
     private func bindViewModel() {
-        viewModel.outputs.personInfoLoaded
+        viewModel.outputs.loadedPersonInfo
             .sink { [weak self] personInfo in
                 self?.state = .personInfo(personInfo)
             }
             .store(in: &disposables)
 
-        viewModel.outputs.loadPersonInfo
+        viewModel.outputs.loadingPersonInfo
             .sink { [weak self] person in
                 self?.state = .load(person)
             }
@@ -87,10 +90,12 @@ class PersonOrLoadingViewController: UIViewController {
         case let .load(person):
             let loadingViewController = PersonLoadingViewController(
                 person: person,
+                account: viewModel.outputs.account,
                 dependencies: dependencies
             )
             self.loadingViewController = loadingViewController
 
+            viewModel.inputs.startLoadingPersonInfo()
             loadingViewController.didFinishLoading = { [weak self] personInfo in
                 self?.viewModel.inputs.didFinishLoadingPersonInfo(personInfo)
             }

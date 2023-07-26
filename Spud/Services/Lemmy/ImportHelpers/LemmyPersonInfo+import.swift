@@ -17,6 +17,13 @@ extension LemmyPersonInfo {
         updatedAt = Date()
     }
 
+    func set(from model: PersonView) {
+        set(from: model.person)
+        set(from: model.counts)
+
+        updatedAt = Date()
+    }
+
     func set(from model: Person) {
         name = model.name
         displayName = model.display_name

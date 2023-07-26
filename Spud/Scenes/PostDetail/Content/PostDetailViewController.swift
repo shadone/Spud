@@ -254,6 +254,7 @@ extension PostDetailViewController: UITableViewDataSource {
             let person = results.first!
             let vc = PersonOrLoadingViewController(
                 person: person,
+                account: post.account,
                 dependencies: AppDelegate.shared.dependencies
             )
             navigationController?.pushViewController(vc, animated: true)

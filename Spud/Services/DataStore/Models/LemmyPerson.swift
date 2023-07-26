@@ -51,3 +51,9 @@ extension LemmyPerson {
         self.updatedAt = createdAt
     }
 }
+
+extension LemmyPerson {
+    var identifierForLogging: String {
+        "[\(personId)]@\(site.identifierForLogging)"
+    }
+}
