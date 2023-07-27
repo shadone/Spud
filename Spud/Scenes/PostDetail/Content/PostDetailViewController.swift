@@ -234,6 +234,9 @@ extension PostDetailViewController: UITableViewDataSource {
                 dependencies: dependencies
             )
             cell.configure(with: viewModel)
+            cell.linkTapped = { [weak self] url in
+                self?.linkTapped(url)
+            }
 
             return cell
         } else {

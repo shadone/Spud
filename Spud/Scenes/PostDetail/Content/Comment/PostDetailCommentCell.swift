@@ -10,6 +10,10 @@ import UIKit
 class PostDetailCommentCell: UITableViewCell {
     static let reuseIdentifier = "PostDetailCommentCell"
 
+    // MARK: Public
+
+    var linkTapped: ((URL) -> Void)?
+
     // MARK: UI Properties
 
     lazy var verticalStackView: UIStackView = {
@@ -61,11 +65,14 @@ class PostDetailCommentCell: UITableViewCell {
         return label
     }()
 
-    lazy var messageLabel: UILabel = {
-        let label = UILabel()
+    lazy var messageLabel: LinkLabel = {
+        let label = LinkLabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.numberOfLines = 0
         label.accessibilityIdentifier = "message"
+        label.tapped = { [weak self] url in
+            self?.linkTapped?(url)
+        }
         return label
     }()
 
@@ -131,6 +138,7 @@ class PostDetailCommentCell: UITableViewCell {
         super.prepareForReuse()
 
         disposables.removeAll()
+        linkTapped = nil
     }
 
     func configure(with viewModel: PostDetailCommentViewModel) {
