@@ -49,11 +49,14 @@ class PostDetailCommentCell: UITableViewCell {
         return stackView
     }()
 
-    lazy var authorLabel: UILabel = {
-        let label = UILabel()
+    lazy var authorLabel: LinkLabel = {
+        let label = LinkLabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.backgroundColor = .clear
         label.accessibilityIdentifier = "author"
+        label.tapped = { [weak self] url in
+            self?.linkTapped?(url)
+        }
         return label
     }()
 

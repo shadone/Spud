@@ -17,13 +17,21 @@ class PostDetailCommentViewModel {
     // MARK: Public
 
     var author: AnyPublisher<NSAttributedString, Never> {
-        creatorName
+        creator
             .combineLatest(authorAttributes)
             .map { tuple in
-                let title = tuple.0
-                let attributes = tuple.1
+                let creator = tuple.0
+                var attributes = tuple.1
 
-                return NSAttributedString(string: title, attributes: attributes)
+                attributes[.link] = URL.SpudInternalLink.person(
+                    personId: creator.personId,
+                    instance: creator.site.normalizedInstanceUrl
+                ).url
+
+                assert(creator.personInfo != nil)
+                let name = creator.personInfo?.name ?? ""
+
+                return NSAttributedString(string: name, attributes: attributes)
             }
             .eraseToAnyPublisher()
     }
