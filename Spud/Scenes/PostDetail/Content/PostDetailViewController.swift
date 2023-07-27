@@ -6,7 +6,6 @@
 
 import Combine
 import CoreData
-import SafariServices
 import UIKit
 import os.log
 
@@ -16,6 +15,7 @@ class PostDetailViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
         HasAppearanceService &
+        HasAppService &
         PostDetailViewModel.Dependencies &
         PostDetailHeaderViewModel.Dependencies
     private let dependencies: Dependencies
@@ -159,8 +159,7 @@ class PostDetailViewController: UIViewController {
     }
 
     @objc private func openInBrowser() {
-        let safariVC = SFSafariViewController(url: post.localLemmyUiUrl)
-        present(safariVC, animated: true)
+        dependencies.appService.openInBrowser(post: post, on: self)
     }
 }
 
@@ -260,7 +259,7 @@ extension PostDetailViewController: UITableViewDataSource {
             navigationController?.pushViewController(vc, animated: true)
 
         case .none:
-            assertionFailure()
+            dependencies.appService.open(url: url, on: self)
         }
     }
 }

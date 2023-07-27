@@ -35,6 +35,7 @@
 		927343392A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */; };
 		9273433B2A61DF050089556E /* URL+lemmy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273433A2A61DF050089556E /* URL+lemmy.swift */; };
 		9273433E2A61FAB70089556E /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9273433D2A61FAB70089556E /* LemmyKit */; };
+		927618182A730C25003D49D4 /* AppService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618172A730C25003D49D4 /* AppService.swift */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
 		9297E2F52A42042B00D13E4D /* PostDetailLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */; };
@@ -192,6 +193,7 @@
 		927343362A61C6960089556E /* TouchDownGestureRecognizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchDownGestureRecognizer.swift; sourceTree = "<group>"; };
 		927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UITapGestureRecognizer+LabelLinks.swift"; sourceTree = "<group>"; };
 		9273433A2A61DF050089556E /* URL+lemmy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+lemmy.swift"; sourceTree = "<group>"; };
+		927618172A730C25003D49D4 /* AppService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppService.swift; sourceTree = "<group>"; };
 		927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListAccountViewModel.swift; sourceTree = "<group>"; };
 		927E1F3B2A5841B4002327EC /* UIViewPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIViewPreview.swift; sourceTree = "<group>"; };
 		9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailLoadingViewController.swift; sourceTree = "<group>"; };
@@ -420,6 +422,14 @@
 			path = LinkLabel;
 			sourceTree = "<group>";
 		};
+		927618162A730C19003D49D4 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				927618172A730C25003D49D4 /* AppService.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
 		9297E2F32A42041B00D13E4D /* Loading */ = {
 			isa = PBXGroup;
 			children = (
@@ -582,6 +592,7 @@
 			isa = PBXGroup;
 			children = (
 				92B7C95F2A3B5E7000672F64 /* Account */,
+				927618162A730C19003D49D4 /* App */,
 				926602B92A5F68AF005A1641 /* Appearance */,
 				92B7C9372A3A59AD00672F64 /* DataStore */,
 				922AEE072A40E4E600AA7B22 /* Image */,
@@ -994,6 +1005,7 @@
 				92DD62DC2A45945A00497C3B /* AccountViewController.swift in Sources */,
 				92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */,
 				926602BB2A5F68BF005A1641 /* AppearanceService.swift in Sources */,
+				927618182A730C25003D49D4 /* AppService.swift in Sources */,
 				92CEAEBA2A4F362A00FAF4DB /* Atomic.swift in Sources */,
 				92B7C9872A3D2DC100672F64 /* CommentsFormatter.swift in Sources */,
 				92B7C9392A3A59E600672F64 /* DataStore.swift in Sources */,

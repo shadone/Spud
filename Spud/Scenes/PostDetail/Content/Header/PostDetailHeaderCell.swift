@@ -94,7 +94,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         let view = LinkPreviewView()
         view.translatesAutoresizingMaskIntoConstraints = false
         view.tapped = { [weak self] url in
-            self?.linkPreviewTapped(url)
+            self?.linkTapped?(url)
         }
         return view
     }()
@@ -266,10 +266,6 @@ class PostDetailHeaderCell: UITableViewCellBase {
                 }
             }
             .store(in: &disposables)
-    }
-
-    private func linkPreviewTapped(_ url: URL) {
-        UIApplication.shared.open(url)
     }
 
     private func configureLinkPreview(_ tuple: (URL, ImageLoadingState)?) {

@@ -14,7 +14,8 @@ struct DependencyContainer:
     HasImageService,
     HasSchedulerService,
     HasPostContentDetectorService,
-    HasAppearanceService
+    HasAppearanceService,
+    HasAppService
 {
     let dataStore: DataStoreType = DataStore()
     let siteService: SiteServiceType
@@ -23,6 +24,7 @@ struct DependencyContainer:
     let schedulerService: SchedulerServiceType
     let postContentDetectorService: PostContentDetectorServiceType
     let appearanceService: AppearanceServiceType = AppearanceService()
+    var appService: AppServiceType = AppService()
 
     // MARK: Functions
 
