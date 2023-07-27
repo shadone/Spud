@@ -12,8 +12,8 @@ import UIKit
 protocol PostDetailAppearanceType: AnyObject {
     var bodyStylerConfiguration: AnyPublisher<DownStylerConfiguration, Never> { get }
 
-//    var textSizeAdjustmentPublisher: AnyPublisher<CGFloat, Never> { get }
-//    var textSizeAdjustment: CGFloat { get set }
+    var textSizeAdjustmentPublisher: AnyPublisher<CGFloat, Never> { get }
+    var textSizeAdjustment: CGFloat { get set }
 
     var commentRibbonThemePublisher: AnyPublisher<PostCommentRibbonTheme, Never> { get }
     var commentRibbonTheme: PostCommentRibbonTheme { get set }

@@ -159,7 +159,7 @@ class PostDetailCommentViewModel {
     // MARK: Private
 
     private var authorAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
-        Just(0)
+        appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
                     .font: UIFont.systemFont(ofSize: UIFont.systemFontSize + textSizeAdjustment, weight: .medium),
@@ -169,7 +169,7 @@ class PostDetailCommentViewModel {
     }
 
     private var bodyAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
-        Just(0)
+        appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
                     .font: UIFont.systemFont(ofSize: UIFont.systemFontSize + textSizeAdjustment, weight: .regular),
@@ -180,7 +180,7 @@ class PostDetailCommentViewModel {
     }
 
     private var secondaryAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
-        Just(0)
+        appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
                     .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .regular),
@@ -191,7 +191,7 @@ class PostDetailCommentViewModel {
     }
 
     private var moreTextAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
-        Just(0)
+        appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
                     .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .regular),

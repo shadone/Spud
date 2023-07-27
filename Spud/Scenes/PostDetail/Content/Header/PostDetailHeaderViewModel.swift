@@ -167,7 +167,7 @@ class PostDetailHeaderViewModel {
     // MARK: Private
 
     private var titleAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
-        Just(0)
+        appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
                     .foregroundColor: UIColor.label,
@@ -178,7 +178,7 @@ class PostDetailHeaderViewModel {
     }
 
     private var secondaryAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
-        Just(0)
+        appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
                     .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .regular),
@@ -189,7 +189,7 @@ class PostDetailHeaderViewModel {
     }
 
     private var secondaryHighlightedAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
-        Just(0)
+        appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
                     .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .medium),
