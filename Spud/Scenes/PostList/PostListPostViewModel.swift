@@ -10,6 +10,7 @@ import UIKit
 class PostListPostViewModel {
     typealias Dependencies =
         HasImageService &
+        HasAppearanceService &
         HasPostContentDetectorService
     private let dependencies: Dependencies
 
@@ -112,7 +113,7 @@ class PostListPostViewModel {
     // MARK: Private
 
     private var titleAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
-        Just(0)
+        appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
                     .font: UIFont.systemFont(ofSize: UIFont.systemFontSize + textSizeAdjustment, weight: .medium),
@@ -123,7 +124,7 @@ class PostListPostViewModel {
     }
 
     private var communityNameAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
-        Just(0)
+        appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
                     .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .regular),
@@ -134,7 +135,7 @@ class PostListPostViewModel {
     }
 
     private var secondaryAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
-        Just(0)
+        appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
                     .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .regular),
@@ -145,6 +146,9 @@ class PostListPostViewModel {
     }
 
     private let post: LemmyPost
+    private var appearance: PostListAppearanceType {
+        dependencies.appearanceService.postList
+    }
 
     // MARK: Functions
 

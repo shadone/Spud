@@ -8,7 +8,7 @@ import Foundation
 
 protocol AppearanceServiceType {
 //    var general: GeneralAppearance { get }
-//    var postList: PostListAppearanceType { get }
+    var postList: PostListAppearanceType { get }
     var postDetail: PostDetailAppearanceType { get }
 }
 

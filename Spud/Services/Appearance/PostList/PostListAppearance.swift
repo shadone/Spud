@@ -8,14 +8,14 @@ import Foundation
 import Combine
 
 protocol PostListAppearanceType: AnyObject {
-    var previewImageSizePublisher: AnyPublisher<PostListPreviewImageSize, Never> { get }
-    var previewImageSize: PostListPreviewImageSize { get set }
+//    var previewImageSizePublisher: AnyPublisher<PostListPreviewImageSize, Never> { get }
+//    var previewImageSize: PostListPreviewImageSize { get set }
 
     var textSizeAdjustmentPublisher: AnyPublisher<CGFloat, Never> { get }
     var textSizeAdjustment: CGFloat { get set }
 
-    var displayVotingButtonsPublisher: AnyPublisher<Bool, Never> { get }
-    var displayVotingButtons: Bool { get set }
+//    var displayVotingButtonsPublisher: AnyPublisher<Bool, Never> { get }
+//    var displayVotingButtons: Bool { get set }
 }
 
 class PostListAppearance: PostListAppearanceType {
