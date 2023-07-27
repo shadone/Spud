@@ -92,13 +92,20 @@ class LinkLabel: UILabel {
                 attributes.forEach { (key, value) in
                     switch key {
                     case .link:
-                        guard let urlValue = value as? URL else {
-                            assertionFailure()
+                        let url: URL
+                        if let urlValue = value as? URL {
+                            url = urlValue
+                        } else if
+                            let stringValue = value as? String,
+                            let urlValue = URL(string: stringValue) {
+                            url = urlValue
+                        } else {
+                            assertionFailure("Got link that is neither URL or a String: \(type(of: value)): \(value)")
                             return
                         }
 
                         let linkAttribute = LinkAttribute(
-                            url: urlValue,
+                            url: url,
                             range: range
                         )
                         linkAttributes.append(linkAttribute)
