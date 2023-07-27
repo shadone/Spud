@@ -6,9 +6,14 @@
 
 import Combine
 import CoreData
+import Down
 import UIKit
 
 class PostDetailCommentViewModel {
+    typealias Dependencies =
+        HasAppearanceService
+    private let dependencies: Dependencies
+
     // MARK: Public
 
     var author: AnyPublisher<NSAttributedString, Never> {
@@ -30,8 +35,17 @@ class PostDetailCommentViewModel {
 
         return commentValue
             .publisher(for: \.body)
-            .map { text in
-                return NSAttributedString(string: text)
+            .combineLatest(appearance.bodyStylerConfiguration)
+            .map { text, stylerConfiguration in
+                guard
+                    let attributedString = try? Down(markdownString: text)
+                    .toAttributedString(styler: DownStyler(configuration: stylerConfiguration))
+                else {
+                    assertionFailure()
+                    return NSAttributedString(string: text)
+                }
+
+                return attributedString
             }
             .eraseToAnyPublisher()
     }
@@ -217,15 +231,17 @@ class PostDetailCommentViewModel {
     private let commentElement: LemmyCommentElement
     private let commentValue: LemmyComment?
 
-    private let appearance: PostDetailAppearanceType
+    private var appearance: PostDetailAppearanceType {
+        dependencies.appearanceService.postDetail
+    }
 
     // MARK: Functions
 
     init(
         comment commentElement: LemmyCommentElement,
-        appearance: PostDetailAppearanceType
+        dependencies: Dependencies
     ) {
-        self.appearance = appearance
+        self.dependencies = dependencies
         self.commentElement = commentElement
         commentValue = commentElement.comment
         post = commentElement.post

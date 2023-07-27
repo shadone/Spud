@@ -217,7 +217,6 @@ class PostDetailHeaderCell: UITableViewCellBase {
             .store(in: &disposables)
 
         viewModel.body
-            .map { NSAttributedString($0) }
             .wrapInOptional()
             .assign(to: \.attributedText, on: bodyLabel)
             .store(in: &disposables)

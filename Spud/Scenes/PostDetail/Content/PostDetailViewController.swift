@@ -17,7 +17,8 @@ class PostDetailViewController: UIViewController {
         HasAppearanceService &
         HasAppService &
         PostDetailViewModel.Dependencies &
-        PostDetailHeaderViewModel.Dependencies
+        PostDetailHeaderViewModel.Dependencies &
+        PostDetailCommentViewModel.Dependencies
     private let dependencies: Dependencies
 
     // MARK: - Public
@@ -230,7 +231,7 @@ extension PostDetailViewController: UITableViewDataSource {
             let commentElement = commentElement(at: indexPath.row)
             let viewModel = PostDetailCommentViewModel(
                 comment: commentElement,
-                appearance: dependencies.appearanceService.postDetail
+                dependencies: dependencies
             )
             cell.configure(with: viewModel)
 

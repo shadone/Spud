@@ -36,6 +36,7 @@
 		9273433B2A61DF050089556E /* URL+lemmy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273433A2A61DF050089556E /* URL+lemmy.swift */; };
 		9273433E2A61FAB70089556E /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9273433D2A61FAB70089556E /* LemmyKit */; };
 		927618182A730C25003D49D4 /* AppService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618172A730C25003D49D4 /* AppService.swift */; };
+		9276185E2A731AD5003D49D4 /* Down in Frameworks */ = {isa = PBXBuildFile; productRef = 9276185D2A731AD5003D49D4 /* Down */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
 		9297E2F52A42042B00D13E4D /* PostDetailLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */; };
@@ -314,6 +315,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9276185E2A731AD5003D49D4 /* Down in Frameworks */,
 				92CEAEB12A4D5B4800FAF4DB /* KeychainAccess in Frameworks */,
 				9273433E2A61FAB70089556E /* LemmyKit in Frameworks */,
 			);
@@ -878,6 +880,7 @@
 			packageProductDependencies = (
 				92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */,
 				9273433D2A61FAB70089556E /* LemmyKit */,
+				9276185D2A731AD5003D49D4 /* Down */,
 			);
 			productName = Spud;
 			productReference = 92B7C8FA2A3A40EB00672F64 /* Spud.app */;
@@ -954,6 +957,7 @@
 			packageReferences = (
 				92CEAEAF2A4D5B4800FAF4DB /* XCRemoteSwiftPackageReference "KeychainAccess" */,
 				9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */,
+				9276185C2A731AD5003D49D4 /* XCRemoteSwiftPackageReference "Down" */,
 			);
 			productRefGroup = 92B7C8FB2A3A40EB00672F64 /* Products */;
 			projectDirPath = "";
@@ -1474,6 +1478,14 @@
 				kind = branch;
 			};
 		};
+		9276185C2A731AD5003D49D4 /* XCRemoteSwiftPackageReference "Down" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/johnxnguyen/Down";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 		92CEAEAF2A4D5B4800FAF4DB /* XCRemoteSwiftPackageReference "KeychainAccess" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/kishikawakatsumi/KeychainAccess";
@@ -1489,6 +1501,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */;
 			productName = LemmyKit;
+		};
+		9276185D2A731AD5003D49D4 /* Down */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9276185C2A731AD5003D49D4 /* XCRemoteSwiftPackageReference "Down" */;
+			productName = Down;
 		};
 		92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */ = {
 			isa = XCSwiftPackageProductDependency;

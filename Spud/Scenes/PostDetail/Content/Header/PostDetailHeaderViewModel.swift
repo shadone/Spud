@@ -5,12 +5,14 @@
 //
 
 import Combine
+import Down
 import LemmyKit
 import UIKit
 
 class PostDetailHeaderViewModel {
     typealias Dependencies =
         HasImageService &
+        HasAppearanceService &
         HasPostContentDetectorService
     private let dependencies: Dependencies
 
@@ -116,9 +118,21 @@ class PostDetailHeaderViewModel {
             .eraseToAnyPublisher()
     }
 
-    var body: AnyPublisher<AttributedString, Never> {
+    var body: AnyPublisher<NSAttributedString, Never> {
         post.publisher(for: \.body)
-            .map { AttributedString($0 ?? "") }
+            .replaceNil(with: "")
+            .combineLatest(appearance.bodyStylerConfiguration)
+            .map { text, stylerConfiguration in
+                guard
+                    let attributedString = try? Down(markdownString: text)
+                    .toAttributedString(styler: DownStyler(configuration: stylerConfiguration))
+                else {
+                    assertionFailure()
+                    return NSAttributedString(string: text)
+                }
+
+                return attributedString
+            }
             .eraseToAnyPublisher()
     }
 
@@ -208,6 +222,10 @@ class PostDetailHeaderViewModel {
     }
 
     private let post: LemmyPost
+
+    private var appearance: PostDetailAppearanceType {
+        dependencies.appearanceService.postDetail
+    }
 
     // MARK: Functions
 
