@@ -9,6 +9,10 @@ import CoreData
 import Foundation
 import os.log
 
+/// Describes a person, e.g. post or comment author.
+///
+/// This is a "header" used as a placeholder that views can watch for changes, the actual person data is
+/// stored in ``LemmyPersonInfo``.
 @objc(LemmyPerson) public final class LemmyPerson: NSManagedObject {
     @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmyPerson> {
         NSFetchRequest<LemmyPerson>(entityName: "Person")
@@ -35,8 +39,10 @@ import os.log
     /// this site points to `lemmy.world`.
     @NSManaged public var site: LemmySite
 
-    @NSManaged public var accountInfo: LemmyAccountInfo?
+    /// The extended info about the person.
     @NSManaged public var personInfo: LemmyPersonInfo?
+
+    @NSManaged public var accountInfo: LemmyAccountInfo?
     @NSManaged public var posts: Set<LemmyPost>
     @NSManaged public var comments: Set<LemmyComment>
 }
