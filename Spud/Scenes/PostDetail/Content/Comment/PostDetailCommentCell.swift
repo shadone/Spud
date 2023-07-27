@@ -54,6 +54,8 @@ class PostDetailCommentCell: UITableViewCell {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.backgroundColor = .clear
         label.accessibilityIdentifier = "author"
+        label.linkTextAttributes = [:]
+        label.highlightedLinkTextAttributes = [:]
         label.tapped = { [weak self] url in
             self?.linkTapped?(url)
         }

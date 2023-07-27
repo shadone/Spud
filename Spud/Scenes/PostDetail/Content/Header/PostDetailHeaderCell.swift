@@ -104,6 +104,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.numberOfLines = 0
         label.accessibilityIdentifier = "attribution"
+        label.linkTextAttributes = [:]
+        label.highlightedLinkTextAttributes = [:]
         label.tapped = { [weak self] url in
             self?.linkTapped?(url)
         }
