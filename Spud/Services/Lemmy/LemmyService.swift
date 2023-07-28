@@ -83,7 +83,7 @@ class LemmyService: LemmyServiceType {
         self.dataStore = dataStore
         self.api = api
 
-        logger.info("Creating new service for \(self.accountIdentifierForLogging, privacy: .public)")
+        logger.info("Creating new service for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
     }
 
     private func object<CoreDataObject>(
@@ -163,7 +163,7 @@ class LemmyService: LemmyServiceType {
                 switch feed.feedType {
                 case let .frontpage(listingType, sortType):
                     logger.debug("""
-                        Fetch feed for \(self.accountIdentifierForLogging, privacy: .public). \
+                        Fetch feed for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
                         listingType=\(listingType.rawValue, privacy: .public) \
                         sortType=\(sortType.rawValue, privacy: .public) \
                         page=\(pageNumber.map { "\($0)" } ?? "nil", privacy: .public)
@@ -178,7 +178,7 @@ class LemmyService: LemmyServiceType {
                         .receive(on: self.backgroundScheduler)
                         .handleEvents(receiveOutput: { response in
                             logger.debug("""
-                                Fetch feed for \(self.accountIdentifierForLogging, privacy: .public) \
+                                Fetch feed for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
                                 complete with \(response.posts.count, privacy: .public) posts
                                 """)
                             feed.append(contentsOf: response.posts)
@@ -192,7 +192,7 @@ class LemmyService: LemmyServiceType {
                         })
                         .mapError { error in
                             logger.error("""
-                                Fetch feed for \(self.accountIdentifierForLogging, privacy: .public) \
+                                Fetch feed for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
                                 failed: \(String(describing: error), privacy: .public)
                                 """)
                             return error
@@ -215,7 +215,7 @@ class LemmyService: LemmyServiceType {
             .setFailureType(to: LemmyApiError.self)
             .flatMap { post -> AnyPublisher<Void, LemmyApiError> in
                 logger.debug("""
-                    Fetch comments for \(self.accountIdentifierForLogging, privacy: .public). \
+                    Fetch comments for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
                     post=\(post.localPostId, privacy: .public)
                     """)
                 let request = GetComments.Request(
@@ -228,7 +228,7 @@ class LemmyService: LemmyServiceType {
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
                         logger.debug("""
-                            Fetch comments for \(self.accountIdentifierForLogging, privacy: .public) \
+                            Fetch comments for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
                             complete with \(response.comments.count, privacy: .public) comments
                             """)
                         post.upsert(comments: response.comments, for: sortType)
@@ -242,7 +242,7 @@ class LemmyService: LemmyServiceType {
                     })
                     .mapError { error in
                         logger.error("""
-                            Fetch comments for \(self.accountIdentifierForLogging, privacy: .public) \
+                            Fetch comments for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
                             failed: \(String(describing: error), privacy: .public)
                             """)
                         return error
@@ -260,14 +260,14 @@ class LemmyService: LemmyServiceType {
         return object(with: accountObjectId, type: LemmyAccount.self)
             .setFailureType(to: LemmyApiError.self)
             .flatMap { account -> AnyPublisher<Void, LemmyApiError> in
-                logger.debug("Fetch site for \(self.accountIdentifierForLogging, privacy: .public)")
+                logger.debug("Fetch site for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
                 let request = GetSite.Request(
                     auth: self.credential?.jwt
                 )
                 return self.api.getSite(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        logger.debug("Fetch site for \(self.accountIdentifierForLogging, privacy: .public) complete")
+                        logger.debug("Fetch site for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) complete")
                         account.upsert(myUserInfo: response.my_user)
                         account.site.upsert(siteInfo: response)
                     }, receiveCompletion: { completion in
@@ -280,7 +280,7 @@ class LemmyService: LemmyServiceType {
                     })
                     .mapError { error in
                         logger.error("""
-                            Fetch site for \(self.accountIdentifierForLogging, privacy: .public) \
+                            Fetch site for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
                             failed: \(String(describing: error), privacy: .public)
                             """)
                         return error
