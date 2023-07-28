@@ -82,11 +82,14 @@ class PostDetailHeaderCell: UITableViewCellBase {
         return label
     }()
 
-    lazy var bodyLabel: UILabel = {
-        let label = UILabel()
+    lazy var bodyLabel: LinkLabel = {
+        let label = LinkLabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.numberOfLines = 0
         label.accessibilityIdentifier = "body"
+        label.tapped = { [weak self] url in
+            self?.linkTapped?(url)
+        }
         return label
     }()
 
