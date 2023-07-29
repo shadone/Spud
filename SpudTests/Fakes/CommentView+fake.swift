@@ -27,7 +27,8 @@ extension CommentView {
                 upvotes: 1,
                 downvotes: 0,
                 published: Date(timeIntervalSince1970: 1685938028),
-                child_count: childCount
+                child_count: childCount,
+                hot_rank: 0
             ),
             creator_banned_from_community: false,
             subscribed: .notSubscribed,
