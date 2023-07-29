@@ -195,6 +195,7 @@
 		927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UITapGestureRecognizer+LabelLinks.swift"; sourceTree = "<group>"; };
 		9273433A2A61DF050089556E /* URL+lemmy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+lemmy.swift"; sourceTree = "<group>"; };
 		927618172A730C25003D49D4 /* AppService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppService.swift; sourceTree = "<group>"; };
+		927618602A74F765003D49D4 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListAccountViewModel.swift; sourceTree = "<group>"; };
 		927E1F3B2A5841B4002327EC /* UIViewPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIViewPreview.swift; sourceTree = "<group>"; };
 		9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailLoadingViewController.swift; sourceTree = "<group>"; };
@@ -416,6 +417,7 @@
 		927343312A61C64D0089556E /* LinkLabel */ = {
 			isa = PBXGroup;
 			children = (
+				927618602A74F765003D49D4 /* LICENSE */,
 				927343322A61C6550089556E /* LinkLabel.swift */,
 				927343342A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift */,
 				927343362A61C6960089556E /* TouchDownGestureRecognizer.swift */,
@@ -430,6 +432,14 @@
 				927618172A730C25003D49D4 /* AppService.swift */,
 			);
 			path = App;
+			sourceTree = "<group>";
+		};
+		9276185F2A74F71E003D49D4 /* 3rdparty */ = {
+			isa = PBXGroup;
+			children = (
+				927343312A61C64D0089556E /* LinkLabel */,
+			);
+			path = 3rdparty;
 			sourceTree = "<group>";
 		};
 		9297E2F32A42041B00D13E4D /* Loading */ = {
@@ -453,7 +463,6 @@
 		9297E2FD2A42492E00D13E4D /* Views */ = {
 			isa = PBXGroup;
 			children = (
-				927343312A61C64D0089556E /* LinkLabel */,
 				92CEAEC72A54422C00FAF4DB /* LinkPreviewView.swift */,
 				9297E2FE2A42494900D13E4D /* SwipeActionView.swift */,
 				92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */,
@@ -515,6 +524,7 @@
 		92B7C8FC2A3A40EB00672F64 /* Spud */ = {
 			isa = PBXGroup;
 			children = (
+				9276185F2A74F71E003D49D4 /* 3rdparty */,
 				92B7C9322A3A592B00672F64 /* App */,
 				92B7C9332A3A593800672F64 /* Resources */,
 				92B7C9342A3A598900672F64 /* Scenes */,
