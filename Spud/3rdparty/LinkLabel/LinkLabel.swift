@@ -105,7 +105,7 @@ class LinkLabel: UILabel {
                         if let urlValue = value as? URL {
                             link = .url(urlValue)
                         } else if let stringValue = value as? String {
-                            if let urlValue = URL(string: stringValue) {
+                            if let urlValue = URL(lenientString: stringValue) {
                                 link = .url(urlValue)
                             } else {
                                 logger.warning("Attribute contains a link that cannot be represented as URL: '\(stringValue, privacy: .public)'")
