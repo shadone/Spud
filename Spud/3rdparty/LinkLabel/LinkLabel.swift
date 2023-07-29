@@ -53,6 +53,11 @@ private class Attribute {
 }
 
 private class LinkAttribute {
+    enum Link {
+        case url(URL)
+        case string(String)
+    }
+
     let link: Link
     let range: NSRange
 
@@ -60,11 +65,6 @@ private class LinkAttribute {
         self.link = link
         self.range = range
     }
-}
-
-enum Link {
-    case url(URL)
-    case string(String)
 }
 
 class LinkLabel: UILabel {
@@ -101,7 +101,7 @@ class LinkLabel: UILabel {
                 attributes.forEach { (key, value) in
                     switch key {
                     case .link:
-                        let link: Link
+                        let link: LinkAttribute.Link
                         if let urlValue = value as? URL {
                             link = .url(urlValue)
                         } else if let stringValue = value as? String {
@@ -199,7 +199,7 @@ class LinkLabel: UILabel {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func link(atPoint point: CGPoint) -> Link? {
+    private func link(atPoint point: CGPoint) -> LinkAttribute.Link? {
         let indexOfCharacter = self.indexOfCharacter(at: point)
 
         if indexOfCharacter == nil {
