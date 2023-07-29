@@ -37,6 +37,8 @@
 		9273433E2A61FAB70089556E /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9273433D2A61FAB70089556E /* LemmyKit */; };
 		927618182A730C25003D49D4 /* AppService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618172A730C25003D49D4 /* AppService.swift */; };
 		9276185E2A731AD5003D49D4 /* Down in Frameworks */ = {isa = PBXBuildFile; productRef = 9276185D2A731AD5003D49D4 /* Down */; };
+		927618622A74FA70003D49D4 /* URL+lenientString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618612A74FA70003D49D4 /* URL+lenientString.swift */; };
+		927618642A74FB9D003D49D4 /* URLLenientStringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618632A74FB9D003D49D4 /* URLLenientStringTests.swift */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
 		9297E2F52A42042B00D13E4D /* PostDetailLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */; };
@@ -196,6 +198,8 @@
 		9273433A2A61DF050089556E /* URL+lemmy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+lemmy.swift"; sourceTree = "<group>"; };
 		927618172A730C25003D49D4 /* AppService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppService.swift; sourceTree = "<group>"; };
 		927618602A74F765003D49D4 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		927618612A74FA70003D49D4 /* URL+lenientString.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+lenientString.swift"; sourceTree = "<group>"; };
+		927618632A74FB9D003D49D4 /* URLLenientStringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLLenientStringTests.swift; sourceTree = "<group>"; };
 		927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListAccountViewModel.swift; sourceTree = "<group>"; };
 		927E1F3B2A5841B4002327EC /* UIViewPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIViewPreview.swift; sourceTree = "<group>"; };
 		9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailLoadingViewController.swift; sourceTree = "<group>"; };
@@ -540,6 +544,7 @@
 				92B7C99A2A3F3B1100672F64 /* Fakes */,
 				92B7C9942A3F1E3100672F64 /* CommentHelperTests.swift */,
 				92B7C9172A3A40F400672F64 /* SpudTests.swift */,
+				927618632A74FB9D003D49D4 /* URLLenientStringTests.swift */,
 			);
 			path = SpudTests;
 			sourceTree = "<group>";
@@ -638,6 +643,7 @@
 				92B7C97B2A3D27BC00672F64 /* OptionalType.swift */,
 				92B7C93D2A3A5C3A00672F64 /* OSLog.swift */,
 				927E1F3B2A5841B4002327EC /* UIViewPreview.swift */,
+				927618612A74FA70003D49D4 /* URL+lenientString.swift */,
 				926602C12A5F69B8005A1641 /* UserDefaultsBacked.swift */,
 			);
 			path = Utils;
@@ -1132,6 +1138,7 @@
 				92B7C9852A3D2D8E00672F64 /* UpvotesFormatter.swift in Sources */,
 				92CEAECA2A54450700FAF4DB /* URL+canonicalHost.swift in Sources */,
 				9273433B2A61DF050089556E /* URL+lemmy.swift in Sources */,
+				927618622A74FA70003D49D4 /* URL+lenientString.swift in Sources */,
 				92DD62F22A4775F400497C3B /* URL+normalizedInstanceUrlString.swift in Sources */,
 				92CEAEB82A4EDC0800FAF4DB /* URL+safeHost.swift in Sources */,
 				92BBE4A92A5C2D6D008C2F55 /* URL+safePath.swift in Sources */,
@@ -1151,6 +1158,7 @@
 				92B7C99C2A3F3B2100672F64 /* Person+fake.swift in Sources */,
 				92B7C99E2A3F3B3700672F64 /* Post+fake.swift in Sources */,
 				92B7C9182A3A40F400672F64 /* SpudTests.swift in Sources */,
+				927618642A74FB9D003D49D4 /* URLLenientStringTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
