@@ -7,6 +7,10 @@
 //
 
 import UIKit
+import os.log
+
+private let logger = Logger(.app)
+
 private func < <T: Comparable>(lhs: T?, rhs: T?) -> Bool {
     switch (lhs, rhs) {
     case let (l?, r?):
@@ -49,13 +53,18 @@ private class Attribute {
 }
 
 private class LinkAttribute {
-    let url: URL
+    let link: Link
     let range: NSRange
 
-    init(url: URL, range: NSRange) {
-        self.url = url
+    init(link: Link, range: NSRange) {
+        self.link = link
         self.range = range
     }
+}
+
+enum Link {
+    case url(URL)
+    case string(String)
 }
 
 class LinkLabel: UILabel {
@@ -92,20 +101,23 @@ class LinkLabel: UILabel {
                 attributes.forEach { (key, value) in
                     switch key {
                     case .link:
-                        let url: URL
+                        let link: Link
                         if let urlValue = value as? URL {
-                            url = urlValue
-                        } else if
-                            let stringValue = value as? String,
-                            let urlValue = URL(string: stringValue) {
-                            url = urlValue
+                            link = .url(urlValue)
+                        } else if let stringValue = value as? String {
+                            if let urlValue = URL(string: stringValue) {
+                                link = .url(urlValue)
+                            } else {
+                                logger.warning("Attribute contains a link that cannot be represented as URL: '\(stringValue, privacy: .public)'")
+                                link = .string(stringValue)
+                            }
                         } else {
                             assertionFailure("Got link that is neither URL or a String: \(type(of: value)): \(value)")
                             return
                         }
 
                         let linkAttribute = LinkAttribute(
-                            url: url,
+                            link: link,
                             range: range
                         )
                         linkAttributes.append(linkAttribute)
@@ -187,7 +199,7 @@ class LinkLabel: UILabel {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func link(atPoint point: CGPoint) -> URL? {
+    func link(atPoint point: CGPoint) -> Link? {
         let indexOfCharacter = self.indexOfCharacter(at: point)
 
         if indexOfCharacter == nil {
@@ -197,7 +209,7 @@ class LinkLabel: UILabel {
         for linkAttribute in self.linkAttributes {
             if indexOfCharacter! >= linkAttribute.range.location &&
                 indexOfCharacter! <= linkAttribute.range.location + linkAttribute.range.length {
-                return linkAttribute.url
+                return linkAttribute.link
             }
         }
 
@@ -259,7 +271,14 @@ class LinkLabel: UILabel {
                 indexOfCharacterTouched <= linkRange.location + linkRange.length
 
             if touchedInsideLink {
-                tapped?(linkAttribute.url)
+                switch linkAttribute.link {
+                case let .url(url):
+                    tapped?(url)
+
+                case let .string(stringValue):
+                    logger.warning("Tapped on a link that cannot be represented as URL: '\(stringValue, privacy: .public)'")
+                }
+
                 break
             }
         }
