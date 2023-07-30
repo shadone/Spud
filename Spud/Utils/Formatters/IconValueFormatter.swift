@@ -24,12 +24,30 @@ struct IconValueFormatter {
     }
 
     static func attributedString(
-        numberOfUpvotes: Int64,
-        attributes: [NSAttributedString.Key: Any]
+        numberOfVotesOrScore value: Int64,
+        voteStatus: VoteStatus,
+        attributes: [NSAttributedString.Key: Any],
+        appearance: GeneralAppearance
     ) -> NSAttributedString {
+        let icon: UIImage
+        var attributes = attributes
+
+        switch voteStatus {
+        case .up:
+            icon = UIImage(systemName: "arrow.up")!
+            attributes[.foregroundColor] = appearance.upvoteButtonActiveColor
+
+        case .neutral:
+            icon = UIImage(systemName: "arrow.up")!
+
+        case .down:
+            icon = UIImage(systemName: "arrow.down")!
+            attributes[.foregroundColor] = appearance.downvoteButtonActiveColor
+        }
+
         return Self.attributedString(
-            UIImage(systemName: "arrow.up")!,
-            UpvotesFormatter.string(from: numberOfUpvotes),
+            icon,
+            UpvotesFormatter.string(from: value),
             attributes: attributes
         )
     }

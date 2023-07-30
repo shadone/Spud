@@ -112,9 +112,19 @@ class PostDetailCommentViewModel {
         }
 
         let upvotes = commentValue
-            .publisher(for: \.numberOfUpvotes)
-            .combineLatest(secondaryAttributes)
-            .map { IconValueFormatter.attributedString(numberOfUpvotes: $0, attributes: $1) }
+            .publisher(for: \.score)
+            .combineLatest(commentValue.voteStatusPublisher, secondaryAttributes)
+            .map { tuple in
+                let score = tuple.0
+                let voteStatus = tuple.1
+                let attributes = tuple.2
+                return IconValueFormatter.attributedString(
+                    numberOfVotesOrScore: score,
+                    voteStatus: voteStatus,
+                    attributes: attributes,
+                    appearance: self.dependencies.appearanceService.general
+                )
+            }
             .eraseToAnyPublisher()
         let age = commentValue
             .publisher(for: \.published)

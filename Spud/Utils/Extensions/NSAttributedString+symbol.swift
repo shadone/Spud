@@ -14,15 +14,14 @@ extension NSAttributedString {
         let attachment = NSTextAttachment()
 
         let image: UIImage
-        // TODO: do we need this? It used to be needed for custom images in AppKit.
-//        if let color = attributes[.strokeColor] as? UIColor {
-//            image = sourceImage.tinted(with: color)
-//        } else if let color = attributes[.foregroundColor] as? UIColor {
-//            image = sourceImage.tinted(with: color)
-//        } else {
-//            image = sourceImage
-//        }
-        image = sourceImage
+        // If the attributes change text color lets apply this as tint color on the image.
+        if let color = attributes[.strokeColor] as? UIColor {
+            image = sourceImage.withTintColor(color)
+        } else if let color = attributes[.foregroundColor] as? UIColor {
+            image = sourceImage.withTintColor(color)
+        } else {
+            image = sourceImage
+        }
 
         attachment.image = image
 

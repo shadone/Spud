@@ -32,8 +32,18 @@ class PostListPostViewModel {
             .eraseToAnyPublisher()
 
         let score = post.publisher(for: \.score)
-            .combineLatest(secondaryAttributes)
-            .map { IconValueFormatter.attributedString(numberOfUpvotes: $0, attributes: $1) }
+            .combineLatest(post.voteStatusPublisher, secondaryAttributes)
+            .map { tuple in
+                let score = tuple.0
+                let voteStatus = tuple.1
+                let attributes = tuple.2
+                return IconValueFormatter.attributedString(
+                    numberOfVotesOrScore: score,
+                    voteStatus: voteStatus,
+                    attributes: attributes,
+                    appearance: self.dependencies.appearanceService.general
+                )
+            }
             .eraseToAnyPublisher()
 
         let numberOfComments = post.publisher(for: \.numberOfComments)
