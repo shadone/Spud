@@ -13,7 +13,7 @@ import LemmyKit
 private let logger = Logger(.siteService)
 
 protocol SiteServiceType: AnyObject {
-    func site(for instanceUrl: URL) -> LemmySite?
+    func startService()
 
     /// Returns all sites that we know of. The returned sites are fetched in the specified context.
     func allSites(in context: NSManagedObjectContext) -> [LemmySite]
@@ -39,48 +39,51 @@ class SiteService: SiteServiceType {
         self.dataStore = dataStore
     }
 
-    func site(for instanceUrl: URL) -> LemmySite? {
-        guard let normalizedInstanceUrlString = instanceUrl.normalizedInstanceUrlString else {
-            return nil
+    func startService() {
+        seedInitialSitesIfNeeded()
+    }
+
+    private func seedInitialSitesIfNeeded() {
+        let suggestedInstancesActorIds: [String] = [
+            "https://discuss.tchncs.de",
+        ]
+
+        let request: NSFetchRequest<Instance> = Instance.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "actorId IN %@",
+            suggestedInstancesActorIds
+        )
+
+        let existingInstances: [Instance]
+        do {
+            existingInstances = try dataStore.mainContext.fetch(request)
+        } catch {
+            logger.error("Failed to fetch instances: \(error.localizedDescription, privacy: .public)")
+            assertionFailure()
+            return
         }
 
-        let site: LemmySite? = {
-            let request: NSFetchRequest<LemmySite> = LemmySite.fetchRequest()
-            request.fetchLimit = 1
-            request.predicate = NSPredicate(
-                format: "normalizedInstanceUrl == %@",
-                normalizedInstanceUrlString
-            )
-            do {
-                let sites = try dataStore.mainContext.fetch(request)
-                if sites.count > 1 {
-                    logger.error("""
-                        Expected zero or one but found \(sites.count, privacy: .public) sites instead! \
-                        instanceUrl=\(instanceUrl.absoluteString, privacy: .public)
-                        """)
-                    assertionFailure()
-                }
-                return sites.first
-            } catch {
-                logger.error("""
-                    Failed to fetch site '\(instanceUrl.absoluteString, privacy: .public)': \
-                    \(error.localizedDescription, privacy: .public)
-                    """)
-                assertionFailure()
-                return nil
-            }
-        }()
+        let existingInstanceActorIds = existingInstances
+            .map { $0.actorId }
 
-        func createSite() -> LemmySite {
-            let site = LemmySite(
-                normalizedInstanceUrl: normalizedInstanceUrlString,
+        let instancesActorIdsToAdd = suggestedInstancesActorIds
+            .filter {
+                !existingInstanceActorIds.contains($0)
+            }
+
+        instancesActorIdsToAdd.forEach { actorId in
+            let instance = Instance(
+                actorId: actorId,
                 in: dataStore.mainContext
             )
-            dataStore.saveIfNeeded()
-            return site
+
+            _ = LemmySite(
+                instance: instance,
+                in: dataStore.mainContext
+            )
         }
 
-        return site ?? createSite()
+        dataStore.saveIfNeeded()
     }
 
     func allSites(in context: NSManagedObjectContext) -> [LemmySite] {
@@ -140,23 +143,23 @@ class SiteService: SiteServiceType {
             .map { URL(string: $0)! }
             .map { $0.normalizedInstanceUrlString! }
 
-        let request: NSFetchRequest<LemmySite> = LemmySite.fetchRequest()
+        let request: NSFetchRequest<Instance> = Instance.fetchRequest()
         request.predicate = NSPredicate(
-            format: "normalizedInstanceUrl IN %@",
+            format: "actorId IN %@",
             suggestedNormalizedInstancesUrls
         )
 
-        let existingSites: [LemmySite]
+        let existingInstances: [Instance]
         do {
-            existingSites = try dataStore.mainContext.fetch(request)
+            existingInstances = try dataStore.mainContext.fetch(request)
         } catch {
-            logger.error("Failed to fetch sites: \(error.localizedDescription, privacy: .public)")
+            logger.error("Failed to fetch instances: \(error.localizedDescription, privacy: .public)")
             assertionFailure()
             return
         }
 
-        let existingNormalizedInstanceUrls = existingSites
-            .map { $0.normalizedInstanceUrl }
+        let existingNormalizedInstanceUrls = existingInstances
+            .map { $0.actorId }
 
         let instancesUrlsToAdd = suggestedNormalizedInstancesUrls
             .filter {
@@ -164,8 +167,13 @@ class SiteService: SiteServiceType {
             }
 
         instancesUrlsToAdd.forEach { normalizedInstanceUrl in
+            let instance = Instance(
+                actorId: normalizedInstanceUrl,
+                in: dataStore.mainContext
+            )
+
             _ = LemmySite(
-                normalizedInstanceUrl: normalizedInstanceUrl,
+                instance: instance,
                 in: dataStore.mainContext
             )
         }

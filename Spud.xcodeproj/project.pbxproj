@@ -10,6 +10,10 @@
 		92116E942A633DEA00344251 /* PersonOrLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92116E932A633DEA00344251 /* PersonOrLoadingViewController.swift */; };
 		92116E962A633FE400344251 /* PersonOrLoadingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92116E952A633FE400344251 /* PersonOrLoadingViewModel.swift */; };
 		92116E992A64463600344251 /* PersonLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92116E982A64463600344251 /* PersonLoadingViewController.swift */; };
+		9219433D2A7562390005474D /* Instance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9219433C2A7562390005474D /* Instance.swift */; };
+		9219433F2A7564650005474D /* NodeInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9219433E2A7564650005474D /* NodeInfo.swift */; };
+		921943462A75E83A0005474D /* NodeInfoSoftware.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921943452A75E83A0005474D /* NodeInfoSoftware.swift */; };
+		921943492A75ED7F0005474D /* SemVer in Frameworks */ = {isa = PBXBuildFile; productRef = 921943482A75ED7F0005474D /* SemVer */; };
 		922AEE092A40E50400AA7B22 /* ImageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE082A40E50400AA7B22 /* ImageService.swift */; };
 		922AEE0B2A40E59E00AA7B22 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0A2A40E59E00AA7B22 /* ImageCache.swift */; };
 		922AEE0D2A40EE9000AA7B22 /* PostListThumbnailImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0C2A40EE9000AA7B22 /* PostListThumbnailImageView.swift */; };
@@ -172,6 +176,10 @@
 		92116E932A633DEA00344251 /* PersonOrLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonOrLoadingViewController.swift; sourceTree = "<group>"; };
 		92116E952A633FE400344251 /* PersonOrLoadingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonOrLoadingViewModel.swift; sourceTree = "<group>"; };
 		92116E982A64463600344251 /* PersonLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonLoadingViewController.swift; sourceTree = "<group>"; };
+		9219433C2A7562390005474D /* Instance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Instance.swift; sourceTree = "<group>"; };
+		9219433E2A7564650005474D /* NodeInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeInfo.swift; sourceTree = "<group>"; };
+		921943442A75BEC20005474D /* DiasporaNodeInfo */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = DiasporaNodeInfo; path = ../DiasporaNodeInfo; sourceTree = "<group>"; };
+		921943452A75E83A0005474D /* NodeInfoSoftware.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeInfoSoftware.swift; sourceTree = "<group>"; };
 		922AEE082A40E50400AA7B22 /* ImageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageService.swift; sourceTree = "<group>"; };
 		922AEE0A2A40E59E00AA7B22 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
 		922AEE0C2A40EE9000AA7B22 /* PostListThumbnailImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListThumbnailImageView.swift; sourceTree = "<group>"; };
@@ -323,6 +331,7 @@
 				9276185E2A731AD5003D49D4 /* Down in Frameworks */,
 				92CEAEB12A4D5B4800FAF4DB /* KeychainAccess in Frameworks */,
 				9273433E2A61FAB70089556E /* LemmyKit in Frameworks */,
+				921943492A75ED7F0005474D /* SemVer in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -359,6 +368,14 @@
 				92116E982A64463600344251 /* PersonLoadingViewController.swift */,
 			);
 			path = Loading;
+			sourceTree = "<group>";
+		};
+		921943432A75BEC20005474D /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				921943442A75BEC20005474D /* DiasporaNodeInfo */,
+			);
+			name = Packages;
 			sourceTree = "<group>";
 		};
 		922AEE072A40E4E600AA7B22 /* Image */ = {
@@ -507,6 +524,7 @@
 		92B7C8F12A3A40EB00672F64 = {
 			isa = PBXGroup;
 			children = (
+				921943432A75BEC20005474D /* Packages */,
 				92B7C8FC2A3A40EB00672F64 /* Spud */,
 				92B7C9162A3A40F400672F64 /* SpudTests */,
 				92B7C9202A3A40F400672F64 /* SpudUITests */,
@@ -640,6 +658,7 @@
 				9297E2FD2A42492E00D13E4D /* Views */,
 				92CEAEB92A4F362A00FAF4DB /* Atomic.swift */,
 				92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */,
+				921943452A75E83A0005474D /* NodeInfoSoftware.swift */,
 				92B7C97B2A3D27BC00672F64 /* OptionalType.swift */,
 				92B7C93D2A3A5C3A00672F64 /* OSLog.swift */,
 				927E1F3B2A5841B4002327EC /* UIViewPreview.swift */,
@@ -668,6 +687,7 @@
 		92B7C9492A3A603900672F64 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				9219433C2A7562390005474D /* Instance.swift */,
 				92B7C95D2A3B5A7800672F64 /* LemmyAccount.swift */,
 				92CEAEBB2A51ABC700FAF4DB /* LemmyAccountInfo.swift */,
 				92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */,
@@ -684,6 +704,7 @@
 				92B7C9502A3A65E200672F64 /* LemmyPost.swift */,
 				92DD62E62A4648A300497C3B /* LemmySite.swift */,
 				92DD62E82A4648AF00497C3B /* LemmySiteInfo.swift */,
+				9219433E2A7564650005474D /* NodeInfo.swift */,
 				92DD62D02A43A93F00497C3B /* VoteStatus.swift */,
 			);
 			path = Models;
@@ -897,6 +918,7 @@
 				92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */,
 				9273433D2A61FAB70089556E /* LemmyKit */,
 				9276185D2A731AD5003D49D4 /* Down */,
+				921943482A75ED7F0005474D /* SemVer */,
 			);
 			productName = Spud;
 			productReference = 92B7C8FA2A3A40EB00672F64 /* Spud.app */;
@@ -974,6 +996,7 @@
 				92CEAEAF2A4D5B4800FAF4DB /* XCRemoteSwiftPackageReference "KeychainAccess" */,
 				9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */,
 				9276185C2A731AD5003D49D4 /* XCRemoteSwiftPackageReference "Down" */,
+				921943472A75ED7F0005474D /* XCRemoteSwiftPackageReference "semver" */,
 			);
 			productRefGroup = 92B7C8FB2A3A40EB00672F64 /* Products */;
 			projectDirPath = "";
@@ -1037,6 +1060,7 @@
 				92B7C9812A3D2B7C00672F64 /* IconValueFormatter.swift in Sources */,
 				922AEE0B2A40E59E00AA7B22 /* ImageCache.swift in Sources */,
 				922AEE092A40E50400AA7B22 /* ImageService.swift in Sources */,
+				9219433D2A7562390005474D /* Instance.swift in Sources */,
 				92DD62EE2A46F8F400497C3B /* LemmyAccount+import.swift in Sources */,
 				92B7C95E2A3B5A7800672F64 /* LemmyAccount.swift in Sources */,
 				92CEAEBE2A51F14300FAF4DB /* LemmyAccountInfo+import.swift in Sources */,
@@ -1074,6 +1098,8 @@
 				92DD62D92A45919600497C3B /* MainWindowSplitViewController.swift in Sources */,
 				92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */,
 				92B7C9652A3BA64900672F64 /* ManagedContextScheduler.swift in Sources */,
+				9219433F2A7564650005474D /* NodeInfo.swift in Sources */,
+				921943462A75E83A0005474D /* NodeInfoSoftware.swift in Sources */,
 				92B7C9832A3D2C8800672F64 /* NSAttributedString+symbol.swift in Sources */,
 				92DD63042A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift in Sources */,
 				927343352A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift in Sources */,
@@ -1488,6 +1514,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		921943472A75ED7F0005474D /* XCRemoteSwiftPackageReference "semver" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sersoft-gmbh/semver";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
 		9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/shadone/LemmyKit";
@@ -1515,6 +1549,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		921943482A75ED7F0005474D /* SemVer */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 921943472A75ED7F0005474D /* XCRemoteSwiftPackageReference "semver" */;
+			productName = SemVer;
+		};
 		9273433D2A61FAB70089556E /* LemmyKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */;

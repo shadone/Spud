@@ -16,21 +16,12 @@ import os.log
 
     // MARK: Properties
 
-    /// Normalized Lemmy instance url.
-    ///
-    /// Identifies on which Lemmy instance this account is used on.
-    /// aka "actor_id".
-    /// e.g. "https://lemmy.world"
-    ///
-    /// Stored as ``URL.normalizedInstanceUrlString``
-    ///
-    /// - Note: this is intentionally stored as a string to ensure consistent normalization form.
-    @NSManaged public var normalizedInstanceUrl: String
-
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 
     // MARK: Relations
+
+    @NSManaged public var instance: Instance
 
     @NSManaged public var accounts: Set<LemmyAccount>
     @NSManaged public var siteInfo: LemmySiteInfo?
@@ -39,29 +30,27 @@ import os.log
 
 extension LemmySite {
     convenience init(
-        normalizedInstanceUrl: String,
+        instance: Instance,
         in context: NSManagedObjectContext
     ) {
         self.init(entity: LemmySite.entity(), insertInto: context)
 
-        self.normalizedInstanceUrl = normalizedInstanceUrl
+        self.instance = instance
         createdAt = Date()
     }
 }
 
 extension LemmySite {
     var instanceHostnamePublisher: AnyPublisher<String, Never> {
-        publisher(for: \.normalizedInstanceUrl)
-            .map { URL(string: $0)!.safeHost }
-            .eraseToAnyPublisher()
+        instance.instanceHostnamePublisher
     }
 
         /// A helper for extracting the hostname part of the instance url
     var instanceHostname: String {
-        URL(string: normalizedInstanceUrl)!.safeHost
+        instance.instanceHostname
     }
 
     var identifierForLogging: String {
-        instanceHostname
+        instance.identifierForLogging
     }
 }

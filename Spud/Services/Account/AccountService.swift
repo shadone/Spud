@@ -37,8 +37,8 @@ protocol AccountServiceType: AnyObject {
         password: String
     ) -> AnyPublisher<LemmyAccount, AccountServiceLoginError>
 
-        /// Returns an account that is shown on app launch.
-    func defaultAccount() -> LemmyAccount?
+    /// Returns an account that is shown on app launch.
+    func defaultAccount() -> LemmyAccount
 
     /// Chooses which account is "default" i.e. used automatically at app launch.
     func setDefaultAccount(_ account: LemmyAccount)
@@ -56,15 +56,18 @@ class AccountService: AccountServiceType {
     // MARK: Private
 
     private let dataStore: DataStoreType
+    private let siteService: SiteServiceType
 
     private var lemmyServices: [NSManagedObjectID: LemmyService] = [:]
 
     // MARK: Functions
 
     init(
+        siteService: SiteServiceType,
         dataStore: DataStoreType
     ) {
         self.dataStore = dataStore
+        self.siteService = siteService
     }
 
     func accountForSignedOut(
@@ -149,23 +152,48 @@ class AccountService: AccountServiceType {
         }
     }
 
-    func defaultAccount() -> LemmyAccount? {
+    func defaultAccount() -> LemmyAccount {
         assert(Thread.current.isMainThread)
 
         let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
+        // We intentionally do not set predicate here.
+        // In case there is a problem with the data and we somehow lost the default account,
+        // we would pick the next available account to make the default one.
+        request.predicate = NSPredicate(
+            format: "isServiceAccount == false"
+        )
         request.fetchLimit = 1
         request.sortDescriptors = [
             NSSortDescriptor(keyPath: \LemmyAccount.isDefaultAccount, ascending: false),
             NSSortDescriptor(keyPath: \LemmyAccount.id, ascending: true),
         ]
+
+        let accounts: [LemmyAccount]
         do {
-            let accounts = try dataStore.mainContext.fetch(request)
-            return accounts.first
+            accounts = try dataStore.mainContext.fetch(request)
         } catch {
-            logger.error("Failed to fetch default account: \(error.localizedDescription, privacy: .public)")
-            assertionFailure()
-            return nil
+            logger.fault("Failed to fetch default account: \(error.localizedDescription, privacy: .public)")
+            fatalError("Failed to fetch default account: \(error.localizedDescription)")
         }
+
+        if let account = accounts.first {
+            if !account.isDefaultAccount {
+                setDefaultAccount(account)
+            }
+            return account
+        }
+
+        // we do not have a usable account, this is likely first app launch,
+        // lets create a new account.
+        return createDefaultAccount()
+    }
+
+    private func createDefaultAccount() -> LemmyAccount {
+        // TODO: add separate call siteService.siteForDefaultAccount
+        let site = siteService.allSites(in: dataStore.mainContext).first!
+        let account = LemmyAccount(signedOutAt: site, in: dataStore.mainContext)
+        dataStore.saveIfNeeded()
+        return account
     }
 
     func setDefaultAccount(_ accountToMakeDefault: LemmyAccount) {
@@ -185,8 +213,8 @@ class AccountService: AccountServiceType {
     }
 
     private func api(for site: LemmySite) -> LemmyApi {
-        guard let instanceUrl = URL(string: site.normalizedInstanceUrl) else {
-            fatalError("Failed to create URL from normalized instance url '\(site.normalizedInstanceUrl)'")
+        guard let instanceUrl = URL(string: site.instance.actorId) else {
+            fatalError("Failed to create URL from normalized instance url '\(site.instance.actorId)'")
         }
         return LemmyApi(instanceUrl: instanceUrl)
     }

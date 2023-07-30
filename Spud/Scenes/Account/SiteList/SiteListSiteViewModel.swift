@@ -11,10 +11,7 @@ class SiteListSiteViewModel {
     // MARK: Public
 
     var title: AnyPublisher<AttributedString, Never> {
-        site.publisher(for: \.normalizedInstanceUrl)
-            .map { normalizedInstanceUrl in
-                URL(string: normalizedInstanceUrl)?.safeHost ?? ""
-            }
+        instanceHostname
             .combineLatest(titleAttributes)
             .map { description, attributes in
                 AttributedString(description, attributes: .init(attributes))
@@ -76,9 +73,22 @@ class SiteListSiteViewModel {
             .eraseToAnyPublisher()
     }
 
-    var siteInfo: AnyPublisher<LemmySiteInfo, Never> {
+    private var siteInfo: AnyPublisher<LemmySiteInfo, Never> {
         site.publisher(for: \.siteInfo)
             .ignoreNil()
+            .eraseToAnyPublisher()
+    }
+
+    private var instance: AnyPublisher<Instance, Never> {
+        site.publisher(for: \.instance)
+            .eraseToAnyPublisher()
+    }
+
+    private var instanceHostname: AnyPublisher<String, Never> {
+        instance
+            .flatMap { instance in
+                instance.instanceHostnamePublisher
+            }
             .eraseToAnyPublisher()
     }
 

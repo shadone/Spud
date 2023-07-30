@@ -19,8 +19,8 @@ extension LemmySite {
         }
 
         let actorId = model.site_view.site.actor_id
-        assert(normalizedInstanceUrl == actorId.normalizedInstanceUrlString,
-               "\(normalizedInstanceUrl) != \(actorId)")
+        assert(instance.actorId == actorId.normalizedInstanceUrlString,
+               "\(instance.actorId) != \(actorId)")
 
         func createSiteInfo() -> LemmySiteInfo {
             let siteInfo = LemmySiteInfo(context: context)

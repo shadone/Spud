@@ -30,7 +30,10 @@ struct DependencyContainer:
 
     init() {
         siteService = SiteService(dataStore: dataStore)
-        accountService = AccountService(dataStore: dataStore)
+        accountService = AccountService(
+            siteService: siteService,
+            dataStore: dataStore
+        )
         schedulerService = SchedulerService(
             dataStore: dataStore,
             accountService: accountService,
@@ -44,5 +47,6 @@ struct DependencyContainer:
     private func start() {
         dataStore.startService()
         schedulerService.startService()
+        siteService.startService()
     }
 }

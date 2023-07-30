@@ -60,6 +60,25 @@
         <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="feeds" inverseEntity="Account"/>
         <relationship name="pages" toMany="YES" deletionRule="Cascade" destinationEntity="Page" inverseName="feed" inverseEntity="Page"/>
     </entity>
+    <entity name="Instance" representedClassName="Instance" syncable="YES">
+        <attribute name="actorId" attributeType="String"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="nodeInfo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="NodeInfo" inverseName="instance" inverseEntity="NodeInfo"/>
+        <relationship name="site" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Site" inverseName="instance" inverseEntity="Site"/>
+    </entity>
+    <entity name="NodeInfo" representedClassName="NodeInfo" syncable="YES">
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isOpenRegistrationsAllowed" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="numberOfLocalComments" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfLocalPosts" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfUsersHalfYear" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfUsersMonth" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="numberOfUsersTotal" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="softwareNameRawValue" attributeType="String"/>
+        <attribute name="softwareVersionRawValue" attributeType="String"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="instance" maxCount="1" deletionRule="Nullify" destinationEntity="Instance" inverseName="nodeInfo" inverseEntity="Instance"/>
+    </entity>
     <entity name="Page" representedClassName="LemmyPage" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="index" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
@@ -129,8 +148,8 @@
     </entity>
     <entity name="Site" representedClassName="LemmySite" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="normalizedInstanceUrl" attributeType="String"/>
         <relationship name="accounts" toMany="YES" deletionRule="Cascade" destinationEntity="Account" inverseName="site" inverseEntity="Account"/>
+        <relationship name="instance" maxCount="1" deletionRule="Nullify" destinationEntity="Instance" inverseName="site" inverseEntity="Instance"/>
         <relationship name="persons" toMany="YES" deletionRule="Nullify" destinationEntity="Person" inverseName="site" inverseEntity="Person"/>
         <relationship name="siteInfo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="SiteInfo" inverseName="site" inverseEntity="SiteInfo"/>
     </entity>

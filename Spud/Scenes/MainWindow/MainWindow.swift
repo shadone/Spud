@@ -74,22 +74,7 @@ class MainWindow: UIWindow {
     ) {
         self.dependencies = dependencies
 
-        let account: LemmyAccount = {
-            if let account = dependencies.accountService.defaultAccount() {
-                return account
-            }
-
-            let tchncs = URL(string: "https://discuss.tchncs.de")!
-
-            let site = dependencies.siteService.site(for: tchncs)!
-            let account = dependencies.accountService.accountForSignedOut(
-                at: site,
-                isServiceAccount: false,
-                in: dependencies.dataStore.mainContext
-            )
-
-            return account
-        }()
+        let account = dependencies.accountService.defaultAccount()
 
         tabBarController = MainWindowTabBarController()
 

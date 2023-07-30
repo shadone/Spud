@@ -10,7 +10,8 @@ extension LemmyPost {
     /// Returns a link to this post, a url that can be opened in a browser.
     /// - Note: This assumes the instance runs standard install of Lemmy-UI which is not entirely correct.
     var localLemmyUiUrl: URL {
-        let url = URL(string: account.site.normalizedInstanceUrl)!
+        // TODO: check if Lemmy in the intance.nodeInfo?.softwareName
+        let url = URL(string: account.site.instance.actorId)!
 
         if #available(iOS 16.0, *) {
             return url.appending(path: "post/\(localPostId)")

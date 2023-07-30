@@ -26,6 +26,15 @@
         "branch" : "main",
         "revision" : "fbd07cea376cd9f6be249e3382b89349eca2d1b4"
       }
+    },
+    {
+      "identity" : "semver",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sersoft-gmbh/semver",
+      "state" : {
+        "revision" : "405806381f52ea32fe4406adf066ed58ee0b9d25",
+        "version" : "3.6.0"
+      }
     }
   ],
   "version" : 2

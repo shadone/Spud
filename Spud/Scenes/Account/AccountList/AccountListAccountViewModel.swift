@@ -11,7 +11,7 @@ class AccountListAccountViewModel {
     // MARK: Public
 
     var title: AnyPublisher<AttributedString, Never> {
-        normalizedInstanceHost
+        instanceHostname
             .combineLatest(nickname, titleAttributes)
             .map { tuple in
                 let description = tuple.0
@@ -93,18 +93,18 @@ class AccountListAccountViewModel {
             .eraseToAnyPublisher()
     }
 
-    private var normalizedInstanceUrl: AnyPublisher<String, Never> {
+    private var instance: AnyPublisher<Instance, Never> {
         site
             .flatMap { site in
-                site.publisher(for: \.normalizedInstanceUrl)
+                site.publisher(for: \.instance)
             }
             .eraseToAnyPublisher()
     }
 
-    private var normalizedInstanceHost: AnyPublisher<String, Never> {
-        normalizedInstanceUrl
-            .map { normalizedInstanceUrl in
-                URL(string: normalizedInstanceUrl)?.safeHost ?? ""
+    private var instanceHostname: AnyPublisher<String, Never> {
+        instance
+            .flatMap { instance in
+                instance.instanceHostnamePublisher
             }
             .eraseToAnyPublisher()
     }

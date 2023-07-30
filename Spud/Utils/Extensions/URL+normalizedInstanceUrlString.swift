@@ -16,6 +16,6 @@ extension URL {
 
         assert(pathComponents == [] || pathComponents == ["/"])
 
-        return "https://\(safeHost)/"
+        return "https://\(safeHost)"
     }
 }

@@ -69,7 +69,7 @@ class PostDetailHeaderViewModel {
 
                 attributes[.link] = URL.SpudInternalLink.person(
                     personId: creator.personId,
-                    instance: creator.site.normalizedInstanceUrl
+                    instance: creator.site.instance.actorId
                 ).url
 
                 assert(creator.personInfo != nil)
