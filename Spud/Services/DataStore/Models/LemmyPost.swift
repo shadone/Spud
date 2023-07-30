@@ -72,3 +72,9 @@ import os.log
     /// Post author.
     @NSManaged public var creator: LemmyPerson
 }
+
+extension LemmyPost {
+    var identifierForLogging: String {
+        "[\(localPostId)]@\(account.site.identifierForLogging)"
+    }
+}

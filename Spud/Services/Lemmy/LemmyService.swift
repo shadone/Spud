@@ -12,6 +12,14 @@ import LemmyKit
 
 private let logger = Logger(.lemmyService)
 
+enum LemmyServiceError: Error {
+    /// The request request authentication but the current LemmyService is signed out kind.
+    case missingCredential
+
+    /// A low level API error has occurred.
+    case apiError(LemmyApiError)
+}
+
 protocol LemmyServiceType {
     func createFeed(_ type: LemmyFeed.FeedType) -> LemmyFeed
 
@@ -34,6 +42,11 @@ protocol LemmyServiceType {
     func fetchPersonDetails(
         personId: NSManagedObjectID
     ) -> AnyPublisher<LemmyPersonInfo, LemmyApiError>
+
+    func vote(
+        postId: NSManagedObjectID,
+        vote action: VoteStatus.Action
+    ) -> AnyPublisher<Void, LemmyServiceError>
 }
 
 extension LemmyServiceType {
@@ -331,6 +344,70 @@ class LemmyService: LemmyServiceType {
                             """)
                         return error
                     }
+                    .eraseToAnyPublisher()
+            }
+            .receive(on: RunLoop.main)
+            .eraseToAnyPublisher()
+    }
+
+    func vote(
+        postId: NSManagedObjectID,
+        vote action: VoteStatus.Action
+    ) -> AnyPublisher<Void, LemmyServiceError> {
+        assert(Thread.current.isMainThread)
+
+        return object(with: postId, type: LemmyPost.self)
+            .setFailureType(to: LemmyServiceError.self)
+            .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
+                let effectiveAction = post.voteStatus.effectiveAction(for: action)
+
+                logger.debug("""
+                    Vote '\(action, privacy: .public)' \
+                    (effective '\(effectiveAction, privacy: .public)') \
+                    for \(post.identifierForLogging, privacy: .public)
+                    """)
+
+                let previousNumberOfUpvotes = post.numberOfUpvotes
+                let previousVoteStatus = post.voteStatus
+
+                // Update vote count to visually indicate something is happening
+                post.numberOfUpvotes += post.voteStatus.voteCountChange(for: action)
+
+                // Set the vote status to the new value without waiting for confirmation from the server.
+                switch effectiveAction {
+                case .upvote:
+                    post.voteStatus = .up
+                case .downvote:
+                    post.voteStatus = .down
+                case .unvote:
+                    post.voteStatus = .neutral
+                }
+
+                guard let credential = self.credential else {
+                    return .fail(with: .missingCredential)
+                }
+
+                let request = CreatePostLike.Request(
+                    post_id: post.localPostId,
+                    score: effectiveAction,
+                    auth: credential.jwt
+                )
+                return self.api.createPostLike(request)
+                    .receive(on: self.backgroundScheduler)
+                    .handleEvents(receiveOutput: { response in
+                        // TODO: update post with latest data
+                    }, receiveCompletion: { completion in
+                        switch completion {
+                        case .failure:
+                            post.voteStatus = previousVoteStatus
+                            post.numberOfUpvotes = previousNumberOfUpvotes
+                            self.saveIfNeeded()
+                        case .finished:
+                            self.saveIfNeeded()
+                        }
+                    })
+                    .map { _ in () }
+                    .mapError { .apiError($0) }
                     .eraseToAnyPublisher()
             }
             .receive(on: RunLoop.main)

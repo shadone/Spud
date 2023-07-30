@@ -10,6 +10,10 @@ import UIKit
 class PostListPostCell: UITableViewCell {
     static let reuseIdentifier = "PostListPostCell"
 
+    // MARK: Public
+
+    var voteTriggered: ((VoteStatus.Action) -> Void)?
+
     // MARK: UI Properties
 
     lazy var mainHorizontalStackView: UIStackView = {
@@ -165,6 +169,7 @@ class PostListPostCell: UITableViewCell {
 
         disposables.removeAll()
         thumbnailView.prepareForReuse()
+        voteTriggered = nil
     }
 
     func configure(with viewModel: PostListPostViewModel) {
@@ -197,7 +202,16 @@ class PostListPostCell: UITableViewCell {
     }
 
     private func swipeActionTriggered(_ action: SwipeActionView.ActionTrigger) {
-        // TODO: handle the action
-        print(action)
+        switch action {
+        case .leadingPrimary:
+            voteTriggered?(.upvote)
+
+        case .leadingSecondary:
+            voteTriggered?(.downvote)
+
+        case .trailingPrimary, .trailingSecondary:
+            // TODO: handle the action
+            print(action)
+        }
     }
 }

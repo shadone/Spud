@@ -21,6 +21,7 @@ protocol PostListViewModelInputs {
 
 protocol PostListViewModelOutputs {
     var feed: CurrentValueSubject<LemmyFeed, Never> { get }
+    var account: LemmyAccount { get }
     var selectedPost: CurrentValueSubject<LemmyPost?, Never> { get }
     var selectedPostIndex: CurrentValueSubject<Int?, Never> { get }
     var numberOfPosts: CurrentValueSubject<Int, Never> { get }
@@ -39,7 +40,6 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
         HasAccountService
     private let dependencies: Dependencies
 
-    private let account: LemmyAccount
     private var disposables = Set<AnyCancellable>()
 
     init(
@@ -96,6 +96,7 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
     // MARK: Outputs
 
     let feed: CurrentValueSubject<LemmyFeed, Never>
+    let account: LemmyAccount
     let selectedPost = CurrentValueSubject<LemmyPost?, Never>(nil)
     let selectedPostIndex = CurrentValueSubject<Int?, Never>(nil)
     let numberOfPosts = CurrentValueSubject<Int, Never>(0)

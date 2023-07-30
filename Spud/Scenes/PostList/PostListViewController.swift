@@ -15,6 +15,7 @@ private let logger = Logger(.app)
 class PostListViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
+        HasAccountService &
         PostListPostViewModel.Dependencies &
         PostDetailViewController.Dependencies
     private let dependencies: Dependencies
@@ -290,6 +291,16 @@ class PostListViewController: UIViewController {
             splitViewController.showDetailViewController(navigationController, sender: self)
         }
     }
+
+    private func vote(_ post: LemmyPost, _ action: VoteStatus.Action) {
+        dependencies.accountService
+            .lemmyService(for: viewModel.outputs.account)
+            .vote(postId: post.objectID, vote: action)
+            .sink(receiveCompletion: { c in print(c)
+            }) { _ in
+            }
+            .store(in: &disposables)
+    }
 }
 
 // MARK: - FRC helpers
@@ -362,6 +373,9 @@ extension PostListViewController: UITableViewDataSource {
             dependencies: dependencies
         )
         cell.configure(with: viewModel)
+        cell.voteTriggered = { [weak self] action in
+            self?.vote(post, action)
+        }
 
         return cell
     }

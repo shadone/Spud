@@ -53,9 +53,16 @@ enum VoteStatus {
 }
 
 extension VoteStatus {
-    enum Action {
+    enum Action: CustomStringConvertible {
         case upvote
         case downvote
+
+        var description: String {
+            switch self {
+            case .upvote: return "upvote"
+            case .downvote: return "downvote"
+            }
+        }
     }
 
     /// The action to take if the user interacts with a vote button.
