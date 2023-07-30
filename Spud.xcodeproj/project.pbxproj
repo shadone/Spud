@@ -664,6 +664,7 @@
 				927E1F3B2A5841B4002327EC /* UIViewPreview.swift */,
 				927618612A74FA70003D49D4 /* URL+lenientString.swift */,
 				926602C12A5F69B8005A1641 /* UserDefaultsBacked.swift */,
+				92DD62D02A43A93F00497C3B /* VoteStatus.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -705,7 +706,6 @@
 				92DD62E62A4648A300497C3B /* LemmySite.swift */,
 				92DD62E82A4648AF00497C3B /* LemmySiteInfo.swift */,
 				9219433E2A7564650005474D /* NodeInfo.swift */,
-				92DD62D02A43A93F00497C3B /* VoteStatus.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
