@@ -30,18 +30,18 @@ protocol LemmyServiceType {
     func fetchFeed(
         feedId: NSManagedObjectID,
         page pageNumber: Int64?
-    ) -> AnyPublisher<Void, LemmyApiError>
+    ) -> AnyPublisher<Void, LemmyServiceError>
 
     func fetchComments(
         postId: NSManagedObjectID,
         sortType: CommentSortType
-    ) -> AnyPublisher<Void, LemmyApiError>
+    ) -> AnyPublisher<Void, LemmyServiceError>
 
-    func fetchSiteInfo() -> AnyPublisher<Void, LemmyApiError>
+    func fetchSiteInfo() -> AnyPublisher<Void, LemmyServiceError>
 
     func fetchPersonDetails(
         personId: NSManagedObjectID
-    ) -> AnyPublisher<LemmyPersonInfo, LemmyApiError>
+    ) -> AnyPublisher<LemmyPersonInfo, LemmyServiceError>
 
     func vote(
         postId: NSManagedObjectID,
@@ -167,12 +167,12 @@ class LemmyService: LemmyServiceType {
     func fetchFeed(
         feedId: NSManagedObjectID,
         page pageNumber: Int64?
-    ) -> AnyPublisher<Void, LemmyApiError> {
+    ) -> AnyPublisher<Void, LemmyServiceError> {
         assert(Thread.current.isMainThread)
 
         return object(with: feedId, type: LemmyFeed.self)
-            .setFailureType(to: LemmyApiError.self)
-            .flatMap { feed -> AnyPublisher<Void, LemmyApiError> in
+            .setFailureType(to: LemmyServiceError.self)
+            .flatMap { feed -> AnyPublisher<Void, LemmyServiceError> in
                 switch feed.feedType {
                 case let .frontpage(listingType, sortType):
                     logger.debug("""
@@ -208,7 +208,7 @@ class LemmyService: LemmyServiceType {
                                 Fetch feed for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
                                 failed: \(String(describing: error), privacy: .public)
                                 """)
-                            return error
+                            return .apiError(error)
                         }
                         .map { _ in () }
                         .eraseToAnyPublisher()
@@ -221,12 +221,12 @@ class LemmyService: LemmyServiceType {
     func fetchComments(
         postId: NSManagedObjectID,
         sortType: CommentSortType
-    ) -> AnyPublisher<Void, LemmyApiError> {
+    ) -> AnyPublisher<Void, LemmyServiceError> {
         assert(Thread.current.isMainThread)
 
         return object(with: postId, type: LemmyPost.self)
-            .setFailureType(to: LemmyApiError.self)
-            .flatMap { post -> AnyPublisher<Void, LemmyApiError> in
+            .setFailureType(to: LemmyServiceError.self)
+            .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("""
                     Fetch comments for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
                     post=\(post.localPostId, privacy: .public)
@@ -258,7 +258,7 @@ class LemmyService: LemmyServiceType {
                             Fetch comments for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
                             failed: \(String(describing: error), privacy: .public)
                             """)
-                        return error
+                        return .apiError(error)
                     }
                     .map { _ in () }
                     .eraseToAnyPublisher()
@@ -267,12 +267,12 @@ class LemmyService: LemmyServiceType {
             .eraseToAnyPublisher()
     }
 
-    func fetchSiteInfo() -> AnyPublisher<Void, LemmyApiError> {
+    func fetchSiteInfo() -> AnyPublisher<Void, LemmyServiceError> {
         assert(Thread.current.isMainThread)
 
         return object(with: accountObjectId, type: LemmyAccount.self)
-            .setFailureType(to: LemmyApiError.self)
-            .flatMap { account -> AnyPublisher<Void, LemmyApiError> in
+            .setFailureType(to: LemmyServiceError.self)
+            .flatMap { account -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("Fetch site for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
                 let request = GetSite.Request(
                     auth: self.credential?.jwt
@@ -296,7 +296,7 @@ class LemmyService: LemmyServiceType {
                             Fetch site for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
                             failed: \(String(describing: error), privacy: .public)
                             """)
-                        return error
+                        return .apiError(error)
                     }
                     .map { _ in () }
                     .eraseToAnyPublisher()
@@ -307,12 +307,12 @@ class LemmyService: LemmyServiceType {
 
     func fetchPersonDetails(
         personId: NSManagedObjectID
-    ) -> AnyPublisher<LemmyPersonInfo, LemmyApiError> {
+    ) -> AnyPublisher<LemmyPersonInfo, LemmyServiceError> {
         assert(Thread.current.isMainThread)
 
         return object(with: personId, type: LemmyPerson.self)
-            .setFailureType(to: LemmyApiError.self)
-            .flatMap { person -> AnyPublisher<LemmyPersonInfo, LemmyApiError> in
+            .setFailureType(to: LemmyServiceError.self)
+            .flatMap { person -> AnyPublisher<LemmyPersonInfo, LemmyServiceError> in
                 logger.debug("Fetch person info for \(person.identifierForLogging, privacy: .public)")
                 let request = GetPersonDetails.Request(
                     person_id: person.personId,
@@ -342,7 +342,7 @@ class LemmyService: LemmyServiceType {
                             Fetch person info for \(person.identifierForLogging, privacy: .public) \
                             failed: \(String(describing: error), privacy: .public)
                             """)
-                        return error
+                        return .apiError(error)
                     }
                     .eraseToAnyPublisher()
             }

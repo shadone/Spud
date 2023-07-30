@@ -27,6 +27,7 @@ class SchedulerService: SchedulerServiceType {
     private let dataStore: DataStoreType
     private let accountService: AccountServiceType
     private let siteService: SiteServiceType
+    private let alertService: AlertServiceType
 
     private var timer: Timer?
     private var disposables = Set<AnyCancellable>()
@@ -40,11 +41,13 @@ class SchedulerService: SchedulerServiceType {
     init(
         dataStore: DataStoreType,
         accountService: AccountServiceType,
-        siteService: SiteServiceType
+        siteService: SiteServiceType,
+        alertService: AlertServiceType
     ) {
         self.dataStore = dataStore
         self.accountService = accountService
         self.siteService = siteService
+        self.alertService = alertService
     }
 
     func startService() {
@@ -85,7 +88,10 @@ class SchedulerService: SchedulerServiceType {
         accountService
             .lemmyService(for: account)
             .fetchSiteInfo()
-            .sink { _ in } receiveValue: { _ in }
+            .sink(
+                receiveCompletion: alertService.errorHandler(for: .fetchSiteInfo),
+                receiveValue: { _ in }
+            )
             .store(in: &disposables)
     }
 
@@ -97,7 +103,10 @@ class SchedulerService: SchedulerServiceType {
         accountService
             .lemmyService(for: account)
             .fetchSiteInfo()
-            .sink { _ in } receiveValue: { _ in }
+            .sink(
+                receiveCompletion: alertService.errorHandler(for: .fetchSiteInfo),
+                receiveValue: { _ in }
+            )
             .store(in: &disposables)
     }
 

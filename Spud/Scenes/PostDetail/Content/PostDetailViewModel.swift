@@ -29,6 +29,7 @@ protocol PostDetailViewModelType {
 class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, PostDetailViewModelOutputs {
     typealias Dependencies =
         HasAccountService &
+        HasAlertService &
         PostDetailHeaderViewModel.Dependencies
     private let dependencies: Dependencies
 
@@ -102,9 +103,10 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
         dependencies.accountService
             .lemmyService(for: post.account)
             .fetchComments(postId: postObjectId, sortType: commentSortType.value)
-            .sink(receiveCompletion: { _ in
-                // TODO: hide spinner
-            }) { _ in }
+            .sink(
+                receiveCompletion: dependencies.alertService.errorHandler(for: .fetchComments),
+                receiveValue: { _ in }
+            )
             .store(in: &disposables)
     }
 }

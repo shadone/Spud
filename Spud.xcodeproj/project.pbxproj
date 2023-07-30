@@ -51,6 +51,8 @@
 		9297E2FC2A42453000D13E4D /* Publisher+assignWeak.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */; };
 		9297E2FF2A42494900D13E4D /* SwipeActionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2FE2A42494900D13E4D /* SwipeActionView.swift */; };
 		929D138A2A76FFBD00E7E5DB /* VoteStatus+Action.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D13892A76FFBD00E7E5DB /* VoteStatus+Action.swift */; };
+		929D138D2A77073A00E7E5DB /* AlertService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D138C2A77073A00E7E5DB /* AlertService.swift */; };
+		929D138F2A770E0C00E7E5DB /* AlertHandlerRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D138E2A770E0C00E7E5DB /* AlertHandlerRequest.swift */; };
 		92A7AE1C2A60832D00990539 /* PersonViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A7AE1B2A60832D00990539 /* PersonViewController.swift */; };
 		92A87F432A41EA200098C20C /* PostDetailOrEmptyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */; };
 		92A87F452A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */; };
@@ -217,6 +219,8 @@
 		9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Publisher+assignWeak.swift"; sourceTree = "<group>"; };
 		9297E2FE2A42494900D13E4D /* SwipeActionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeActionView.swift; sourceTree = "<group>"; };
 		929D13892A76FFBD00E7E5DB /* VoteStatus+Action.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VoteStatus+Action.swift"; sourceTree = "<group>"; };
+		929D138C2A77073A00E7E5DB /* AlertService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertService.swift; sourceTree = "<group>"; };
+		929D138E2A770E0C00E7E5DB /* AlertHandlerRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertHandlerRequest.swift; sourceTree = "<group>"; };
 		92A7AE1B2A60832D00990539 /* PersonViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonViewController.swift; sourceTree = "<group>"; };
 		92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailOrEmptyViewController.swift; sourceTree = "<group>"; };
 		92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailOrEmptyViewModel.swift; sourceTree = "<group>"; };
@@ -493,6 +497,15 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
+		929D138B2A77070D00E7E5DB /* Alert */ = {
+			isa = PBXGroup;
+			children = (
+				929D138E2A770E0C00E7E5DB /* AlertHandlerRequest.swift */,
+				929D138C2A77073A00E7E5DB /* AlertService.swift */,
+			);
+			path = Alert;
+			sourceTree = "<group>";
+		};
 		92A7AE1A2A60832200990539 /* Person */ = {
 			isa = PBXGroup;
 			children = (
@@ -629,6 +642,7 @@
 			isa = PBXGroup;
 			children = (
 				92B7C95F2A3B5E7000672F64 /* Account */,
+				929D138B2A77070D00E7E5DB /* Alert */,
 				927618162A730C19003D49D4 /* App */,
 				926602B92A5F68AF005A1641 /* Appearance */,
 				92B7C9372A3A59AD00672F64 /* DataStore */,
@@ -1049,6 +1063,8 @@
 				92B7C9612A3B5E8C00672F64 /* AccountService.swift in Sources */,
 				92CEAEAC2A4CD79500FAF4DB /* AccountServiceLoginError.swift in Sources */,
 				92DD62DC2A45945A00497C3B /* AccountViewController.swift in Sources */,
+				929D138F2A770E0C00E7E5DB /* AlertHandlerRequest.swift in Sources */,
+				929D138D2A77073A00E7E5DB /* AlertService.swift in Sources */,
 				92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */,
 				926602BB2A5F68BF005A1641 /* AppearanceService.swift in Sources */,
 				927618182A730C25003D49D4 /* AppService.swift in Sources */,

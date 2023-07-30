@@ -37,7 +37,8 @@ protocol PostListViewModelType {
 
 class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostListViewModelOutputs {
     typealias Dependencies =
-        HasAccountService
+        HasAccountService &
+        HasAlertService
     private let dependencies: Dependencies
 
     private var disposables = Set<AnyCancellable>()
@@ -82,7 +83,8 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
             // Without it the completion is not triggered while scroll view is
             // scrolling, instead the completion is delayed until scrolling finishes.
             .receive(on: RunLoop.main)
-            .sink(receiveCompletion: { [weak self] _ in
+            .sink(receiveCompletion: { [weak self] completion in
+                self?.dependencies.alertService.errorHandler(for: .fetchPostList)(completion)
                 self?.isFetchingNextPage.send(false)
             }) { _ in }
             .store(in: &disposables)

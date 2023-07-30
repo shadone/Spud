@@ -16,6 +16,7 @@ class PostListViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
         HasAccountService &
+        HasAlertService &
         PostListPostViewModel.Dependencies &
         PostDetailViewController.Dependencies
     private let dependencies: Dependencies
@@ -296,9 +297,10 @@ class PostListViewController: UIViewController {
         dependencies.accountService
             .lemmyService(for: viewModel.outputs.account)
             .vote(postId: post.objectID, vote: action)
-            .sink(receiveCompletion: { c in print(c)
-            }) { _ in
-            }
+            .sink(
+                receiveCompletion: dependencies.alertService.errorHandler(for: .vote),
+                receiveValue: { _ in }
+            )
             .store(in: &disposables)
     }
 }

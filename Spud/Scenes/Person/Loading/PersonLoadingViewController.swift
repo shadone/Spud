@@ -10,7 +10,9 @@ import UIKit
 import os.log
 
 class PersonLoadingViewController: UIViewController {
-    typealias Dependencies = HasAccountService
+    typealias Dependencies =
+        HasAccountService &
+        HasAlertService
     private let dependencies: Dependencies
 
     // MARK: - Public
@@ -99,10 +101,12 @@ class PersonLoadingViewController: UIViewController {
         dependencies.accountService
             .lemmyService(for: account)
             .fetchPersonDetails(personId: person.objectID)
-            .sink(receiveCompletion: { _ in
-            }, receiveValue: { [weak self] personInfo in
-                self?.didFinishLoading?(personInfo)
-            })
+            .sink(
+                receiveCompletion: dependencies.alertService.errorHandler(for: .fetchPersonDetails),
+                receiveValue: { [weak self] personInfo in
+                    self?.didFinishLoading?(personInfo)
+                }
+            )
             .store(in: &disposables)
     }
 }
