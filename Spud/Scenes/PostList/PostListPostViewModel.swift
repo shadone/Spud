@@ -31,7 +31,7 @@ class PostListPostViewModel {
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()
 
-        let numberOfUpvotes = post.publisher(for: \.numberOfUpvotes)
+        let score = post.publisher(for: \.score)
             .combineLatest(secondaryAttributes)
             .map { IconValueFormatter.attributedString(numberOfUpvotes: $0, attributes: $1) }
             .eraseToAnyPublisher()
@@ -55,7 +55,7 @@ class PostListPostViewModel {
             .combineLatest([
                 communityName,
                 space,
-                numberOfUpvotes,
+                score,
                 space,
                 numberOfComments,
                 space,
