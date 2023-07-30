@@ -395,7 +395,7 @@ class LemmyService: LemmyServiceType {
                 return self.api.createPostLike(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        // TODO: update post with latest data
+                        post.set(from: response.post_view)
                     }, receiveCompletion: { completion in
                         switch completion {
                         case .failure:

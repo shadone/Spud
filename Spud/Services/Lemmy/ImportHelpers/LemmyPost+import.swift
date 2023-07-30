@@ -45,7 +45,6 @@ extension LemmyPost {
             } else if results.count == 1 {
                 let post = results[0]
                 post.set(from: model)
-                post.updatedAt = Date()
                 return post
             } else {
                 assertionFailure("Found \(results.count) posts with id '\(model.post.id)'")
@@ -58,7 +57,7 @@ extension LemmyPost {
         }
     }
 
-    private func set(from model: PostView) {
+    func set(from model: PostView) {
         localPostId = model.post.id
         originalPostUrl = model.post.ap_id
 
@@ -94,5 +93,7 @@ extension LemmyPost {
                 return .neutral
             }
         }()
+
+        updatedAt = Date()
     }
 }
