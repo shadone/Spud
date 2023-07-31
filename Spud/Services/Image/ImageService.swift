@@ -20,8 +20,14 @@ enum ImageLoadingState {
 }
 
 enum ImageError: Error {
+    /// Failed to decode image data.
+    case cannotDecode
+
+    /// Failed to fetch the image, the server returned unexpected HTTP status code.
+    case serverError(statusCode: Int)
+
+    /// Network error has occurred.
     case network(Error)
-    case invalid
 
     var localizedDescription: String { String(describing: self) }
 }
@@ -88,18 +94,18 @@ class ImageService: ImageServiceType {
             .mapError { urlError -> ImageError in
                 .network(urlError)
             }
-            .flatMap { [weak self] pair -> AnyPublisher<UIImage, ImageError> in
-                guard let response = pair.response as? HTTPURLResponse else {
-                    assertionFailure()
-                    return .fail(with: .invalid)
+            .flatMap { [weak self] (data, urlResponse) -> AnyPublisher<UIImage, ImageError> in
+                guard let httpUrlResponse = urlResponse as? HTTPURLResponse else {
+                    fatalError("Huh")
                 }
 
-                guard response.statusCode == 200 else {
-                    return .fail(with: .invalid)
+                let statusCode = httpUrlResponse.statusCode
+                guard statusCode == 200 else {
+                    return .fail(with: .serverError(statusCode: statusCode))
                 }
 
-                guard let image = UIImage(data: pair.data) else {
-                    return .fail(with: .invalid)
+                guard let image = UIImage(data: data) else {
+                    return .fail(with: .cannotDecode)
                 }
 
                 self?.memoryCache.add(image, for: url)
