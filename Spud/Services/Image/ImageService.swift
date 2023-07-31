@@ -84,12 +84,6 @@ class ImageService: ImageServiceType {
     private func get(_ url: URL) -> AnyPublisher<UIImage, ImageError> {
         assert(Thread.isMainThread, "This code is not thread safe")
 
-        if let cachedImage = memoryCache.get(for: url) {
-            return .just(cachedImage)
-                .receive(on: RunLoop.main)
-                .eraseToAnyPublisher()
-        }
-
         return session.dataTaskPublisher(for: url)
             .mapError { urlError -> ImageError in
                 .network(urlError)
