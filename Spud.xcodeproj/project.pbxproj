@@ -15,7 +15,6 @@
 		921943462A75E83A0005474D /* NodeInfoSoftware.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921943452A75E83A0005474D /* NodeInfoSoftware.swift */; };
 		921943492A75ED7F0005474D /* SemVer in Frameworks */ = {isa = PBXBuildFile; productRef = 921943482A75ED7F0005474D /* SemVer */; };
 		922AEE092A40E50400AA7B22 /* ImageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE082A40E50400AA7B22 /* ImageService.swift */; };
-		922AEE0B2A40E59E00AA7B22 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0A2A40E59E00AA7B22 /* ImageCache.swift */; };
 		922AEE0D2A40EE9000AA7B22 /* PostListThumbnailImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0C2A40EE9000AA7B22 /* PostListThumbnailImageView.swift */; };
 		922AEE102A40FBEB00AA7B22 /* SubscriptionsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0F2A40FBEB00AA7B22 /* SubscriptionsViewController.swift */; };
 		922AEE162A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE152A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift */; };
@@ -184,7 +183,6 @@
 		921943442A75BEC20005474D /* DiasporaNodeInfo */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = DiasporaNodeInfo; path = ../DiasporaNodeInfo; sourceTree = "<group>"; };
 		921943452A75E83A0005474D /* NodeInfoSoftware.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeInfoSoftware.swift; sourceTree = "<group>"; };
 		922AEE082A40E50400AA7B22 /* ImageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageService.swift; sourceTree = "<group>"; };
-		922AEE0A2A40E59E00AA7B22 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
 		922AEE0C2A40EE9000AA7B22 /* PostListThumbnailImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListThumbnailImageView.swift; sourceTree = "<group>"; };
 		922AEE0F2A40FBEB00AA7B22 /* SubscriptionsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionsViewController.swift; sourceTree = "<group>"; };
 		922AEE152A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionsSpecialCommunityCell.swift; sourceTree = "<group>"; };
@@ -387,7 +385,6 @@
 		922AEE072A40E4E600AA7B22 /* Image */ = {
 			isa = PBXGroup;
 			children = (
-				922AEE0A2A40E59E00AA7B22 /* ImageCache.swift */,
 				922AEE082A40E50400AA7B22 /* ImageService.swift */,
 			);
 			path = Image;
@@ -1077,7 +1074,6 @@
 				926602BD2A5F68DA005A1641 /* GeneralAppearance.swift in Sources */,
 				927343302A61C1FD0089556E /* HasVoid.swift in Sources */,
 				92B7C9812A3D2B7C00672F64 /* IconValueFormatter.swift in Sources */,
-				922AEE0B2A40E59E00AA7B22 /* ImageCache.swift in Sources */,
 				922AEE092A40E50400AA7B22 /* ImageService.swift in Sources */,
 				9219433D2A7562390005474D /* Instance.swift in Sources */,
 				92DD62EE2A46F8F400497C3B /* LemmyAccount+import.swift in Sources */,
