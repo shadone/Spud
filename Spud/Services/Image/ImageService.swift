@@ -27,9 +27,6 @@ enum ImageError: Error {
 }
 
 protocol ImageServiceType: AnyObject {
-    // TODO: deprecate get() in favour of fetch(); make get() private
-    func get(_ url: URL) -> AnyPublisher<UIImage, ImageError>
-
     func fetch(_ url: URL) -> AnyPublisher<ImageLoadingState, Never>
     func fetch(_ url: URL, thumbnail thumbnailUrl: URL?) -> AnyPublisher<ImageLoadingState, Never>
 }
@@ -78,7 +75,7 @@ class ImageService: ImageServiceType {
             .eraseToAnyPublisher()
     }
 
-    func get(_ url: URL) -> AnyPublisher<UIImage, ImageError> {
+    private func get(_ url: URL) -> AnyPublisher<UIImage, ImageError> {
         assert(Thread.isMainThread, "This code is not thread safe")
 
         if let cachedImage = memoryCache.get(for: url) {
