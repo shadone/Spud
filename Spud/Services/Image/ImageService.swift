@@ -8,30 +8,6 @@ import Combine
 import Foundation
 import UIKit
 
-enum ImageLoadingState {
-    /// The image is being fetched.
-    case loading(thumbnail: UIImage?)
-
-    /// The image was successfully fetched.
-    case ready(UIImage)
-
-    /// The image failed to load, we display a broken image icon.
-    case failure
-}
-
-enum ImageError: Error {
-    /// Failed to decode image data.
-    case cannotDecode
-
-    /// Failed to fetch the image, the server returned unexpected HTTP status code.
-    case serverError(statusCode: Int)
-
-    /// Network error has occurred.
-    case network(Error)
-
-    var localizedDescription: String { String(describing: self) }
-}
-
 protocol ImageServiceType: AnyObject {
     func fetch(_ url: URL) -> AnyPublisher<ImageLoadingState, Never>
     func fetch(_ url: URL, thumbnail thumbnailUrl: URL?) -> AnyPublisher<ImageLoadingState, Never>
@@ -96,14 +72,14 @@ class ImageService: ImageServiceType {
             .eraseToAnyPublisher()
     }
 
-    private func get(_ url: URL) -> AnyPublisher<UIImage, ImageError> {
+    private func get(_ url: URL) -> AnyPublisher<UIImage, ImageLoadingError> {
         assert(Thread.isMainThread, "This code is not thread safe")
 
         return session.dataTaskPublisher(for: url)
-            .mapError { urlError -> ImageError in
+            .mapError { urlError -> ImageLoadingError in
                 .network(urlError)
             }
-            .flatMap { [weak self] (data, urlResponse) -> AnyPublisher<UIImage, ImageError> in
+            .flatMap { [weak self] (data, urlResponse) -> AnyPublisher<UIImage, ImageLoadingError> in
                 guard let httpUrlResponse = urlResponse as? HTTPURLResponse else {
                     fatalError("Huh")
                 }
