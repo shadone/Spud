@@ -31,9 +31,13 @@ class ImageService: ImageServiceType {
 
     let session = URLSession.shared
 
+    let alertService: AlertServiceType
+
     // MARK: Functions
 
-    init() {
+    init(alertService: AlertServiceType) {
+        self.alertService = alertService
+
         memoryCache = NSCache()
         // There is no science to this limit, only guesswork.
         memoryCache.countLimit = 100
@@ -66,7 +70,8 @@ class ImageService: ImageServiceType {
                 .ready(image)
             }
             .catch { imageError -> AnyPublisher<ImageLoadingState, Never> in
-                .just(.failure)
+                self.alertService.image(error: imageError, for: url)
+                return .just(.failure)
             }
             .prepend(.loading(thumbnail: cachedThumbnailImage))
             .eraseToAnyPublisher()

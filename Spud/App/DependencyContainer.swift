@@ -21,7 +21,7 @@ struct DependencyContainer:
     let dataStore: DataStoreType = DataStore()
     let siteService: SiteServiceType
     let accountService: AccountServiceType
-    let imageService: ImageServiceType = ImageService()
+    let imageService: ImageServiceType
     let schedulerService: SchedulerServiceType
     let postContentDetectorService: PostContentDetectorServiceType
     let appearanceService: AppearanceServiceType = AppearanceService()
@@ -31,6 +31,7 @@ struct DependencyContainer:
     // MARK: Functions
 
     init() {
+        imageService = ImageService(alertService: alertService)
         siteService = SiteService(dataStore: dataStore)
         accountService = AccountService(
             siteService: siteService,

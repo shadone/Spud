@@ -17,9 +17,16 @@ protocol AlertServiceType: AnyObject {
         for request: AlertHandlerRequest
     ) -> (Subscribers.Completion<LemmyServiceError>) -> Void
 
+    /// Returns a closure for handling errors coming from ``AccountService`` requests.
     func errorHandler(
         for request: AlertHandlerRequest
     ) -> (Subscribers.Completion<AccountServiceLoginError>) -> Void
+
+    /// Returns a closure for handling errors coming from ``ImageService`` requests.
+    func image(
+        error: ImageLoadingError,
+        for imageUrl: URL
+    )
 }
 
 protocol HasAlertService {
@@ -53,5 +60,12 @@ class AlertService: AlertServiceType {
                 logger.error("\(request) request failed: \(error, privacy: .public)")
             }
         }
+    }
+
+    func image(
+        error: ImageLoadingError,
+        for imageUrl: URL
+    ) {
+        logger.error("Failed to load image '\(imageUrl, privacy: .public)': \(error, privacy: .public)")
     }
 }
