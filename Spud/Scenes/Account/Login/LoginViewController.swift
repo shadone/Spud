@@ -12,7 +12,7 @@ class LoginViewController: UIViewController {
     typealias Dependencies =
         HasDataStore &
         HasAccountService &
-        HasImageService
+        LoginViewModel.Dependencies
     private let dependencies: Dependencies
 
     // MARK: UI Properties
@@ -218,8 +218,7 @@ class LoginViewController: UIViewController {
 
         viewModel = LoginViewModel(
             site: site,
-            imageService: dependencies.imageService,
-            accountService: dependencies.accountService
+            dependencies: dependencies
         )
 
         super.init(nibName: nil, bundle: nil)

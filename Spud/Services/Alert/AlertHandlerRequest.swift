@@ -12,6 +12,7 @@ enum AlertHandlerRequest: CustomStringConvertible {
     case fetchComments
     case fetchPersonDetails
     case fetchSiteInfo
+    case login
 
     var description: String {
         switch self {
@@ -29,6 +30,9 @@ enum AlertHandlerRequest: CustomStringConvertible {
 
         case .fetchSiteInfo:
             return "fetchSiteInfo"
+
+        case .login:
+            return "login"
         }
     }
 }

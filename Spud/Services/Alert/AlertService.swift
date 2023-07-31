@@ -16,6 +16,10 @@ protocol AlertServiceType: AnyObject {
     func errorHandler(
         for request: AlertHandlerRequest
     ) -> (Subscribers.Completion<LemmyServiceError>) -> Void
+
+    func errorHandler(
+        for request: AlertHandlerRequest
+    ) -> (Subscribers.Completion<AccountServiceLoginError>) -> Void
 }
 
 protocol HasAlertService {
@@ -26,6 +30,20 @@ class AlertService: AlertServiceType {
     func errorHandler(
         for request: AlertHandlerRequest
     ) -> (Subscribers.Completion<LemmyServiceError>) -> Void {
+        { completion in
+            switch completion {
+            case .finished:
+                break
+
+            case let .failure(error):
+                logger.error("\(request) request failed: \(error, privacy: .public)")
+            }
+        }
+    }
+
+    func errorHandler(
+        for request: AlertHandlerRequest
+    ) -> (Subscribers.Completion<AccountServiceLoginError>) -> Void {
         { completion in
             switch completion {
             case .finished:

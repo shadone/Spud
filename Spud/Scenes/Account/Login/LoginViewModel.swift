@@ -29,13 +29,17 @@ protocol LoginViewModelType {
 }
 
 class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOutputs {
+    typealias Dependencies =
+        HasImageService &
+        HasAccountService &
+        HasAlertService
+    private let dependencies: Dependencies
+
     // MARK: Private
 
-    private let imageService: ImageServiceType
-    private let accountService: AccountServiceType
     private var disposables = Set<AnyCancellable>()
 
-    var siteInfo: AnyPublisher<LemmySiteInfo, Never> {
+    private var siteInfo: AnyPublisher<LemmySiteInfo, Never> {
         site
             .flatMap { site in
                 site.publisher(for: \.siteInfo)
@@ -44,19 +48,17 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
             .eraseToAnyPublisher()
     }
 
-    let username: CurrentValueSubject<String, Never>
-    let password: CurrentValueSubject<String, Never>
+    private let username: CurrentValueSubject<String, Never>
+    private let password: CurrentValueSubject<String, Never>
 
     // MARK: Functions
 
     init(
         site: LemmySite,
-        imageService: ImageServiceType,
-        accountService: AccountServiceType
+        dependencies: Dependencies
     ) {
         self.site = .init(site)
-        self.imageService = imageService
-        self.accountService = accountService
+        self.dependencies = dependencies
 
         icon = site.publisher(for: \.siteInfo)
             .ignoreNil()
@@ -68,7 +70,7 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
                 guard let iconUrl else {
                     return Just(placeholder).eraseToAnyPublisher()
                 }
-                return imageService.get(iconUrl)
+                return dependencies.imageService.get(iconUrl)
                     .replaceError(with: placeholder)
                     .eraseToAnyPublisher()
             }
@@ -110,15 +112,17 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
     }
 
     func login() {
-        accountService.login(
+        dependencies.accountService.login(
             site: site.value,
             username: username.value,
             password: password.value
         )
-        .sink { _ in
-        } receiveValue: { [weak self] account in
-            self?.loggedIn.send(account)
-        }
+        .sink(
+            receiveCompletion: dependencies.alertService.errorHandler(for: .login),
+            receiveValue: { [weak self] account in
+                self?.loggedIn.send(account)
+            }
+        )
         .store(in: &disposables)
     }
 }
