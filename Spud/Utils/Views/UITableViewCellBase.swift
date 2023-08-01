@@ -17,7 +17,7 @@ class UITableViewCellBase: UITableViewCell {
     /// While being configured layout changes are picked up automatically; otherwise
     /// we need to explicitly tell the UITableView that the row height has changed e.g.
     /// by calling the following:
-    /// ```
+    /// ```swift
     ///   tableView.beginUpdates()
     ///   tableView.endUpdates()
     /// ```

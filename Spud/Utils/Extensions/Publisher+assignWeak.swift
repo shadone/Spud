@@ -14,7 +14,7 @@ extension Publisher where Failure == Never {
     ///
     /// The following code in MainWindowController was causing retain cycles:
     ///
-    /// ```
+    /// ```swift
     ///   viewModel.outputs.searchResults
     ///       .assign(to: \.currentSearchResults, on: self)
     ///       .store(in: &disposables)

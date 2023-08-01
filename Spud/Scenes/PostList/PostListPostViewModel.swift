@@ -102,7 +102,7 @@ class PostListPostViewModel {
                 case let .image(image):
                     // TODO: is it ok to fetch image url when thumbnail is not available?
                     // It happens for posts with imgur links e.g.
-                    // ```
+                    // ```json
                     //   "post": {
                     //     "id": 595454,
                     //     "url": "https://i.imgur.com/7sOcLD8.jpg",
