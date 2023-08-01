@@ -47,12 +47,12 @@ class PostContentDetectorService: PostContentDetectorServiceType {
             response.mimeType?.starts(with: "image/") ?? false
         }
 
-        let externalLink = PostContentType.externalLink(link: .init(
+        let externalLink = PostContentType.externalLink(.init(
             url: url,
             embedTitle: post.urlEmbedTitle,
             embedDescription: post.urlEmbedDescription
         ))
-        let image = PostContentType.image(image: .init(
+        let image = PostContentType.image(.init(
             thumbnailUrl: post.thumbnailUrl,
             imageUrl: url
         ))

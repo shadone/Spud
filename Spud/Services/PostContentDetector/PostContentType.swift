@@ -73,7 +73,7 @@ enum PostContentType: Equatable {
     ///   ...
     /// }
     /// ```
-    case image(image: Image)
+    case image(Image)
 
     /// The post contains a link to an external service (and optionally body etc).
     ///
@@ -87,7 +87,7 @@ enum PostContentType: Equatable {
     ///   ...
     /// }
     /// ```
-    case externalLink(link: Link)
+    case externalLink(Link)
 }
 
 extension PostContentType: CustomDebugStringConvertible {
