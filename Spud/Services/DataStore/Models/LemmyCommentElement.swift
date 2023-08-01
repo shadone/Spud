@@ -35,13 +35,13 @@ import LemmyKit
     /// Index of the comment for presentation in order.
     @NSManaged public var index: Int64
 
-    /// See [sortType](x-source-tag://sortType)
+    /// See ``sortType``.
     @NSManaged public var sortTypeRawValue: String
 
-    /// See [voteStatus](x-source-tag://moreChildCount)
+    /// See ``moreChildCount``.
     @NSManaged public var moreChildCountRawValue: NSNumber?
 
-    /// See [voteStatus](x-source-tag://moreParentId)
+    /// See ``moreParentId``.
     @NSManaged public var moreParentIdRawValue: NSNumber?
 
     // MARK: Relations
@@ -52,7 +52,6 @@ import LemmyKit
 
 extension LemmyCommentElement {
     /// Comment sort order.
-    /// - Tag: sortType
     var sortType: CommentSortType {
         get {
             CommentSortType(rawValue: sortTypeRawValue) ?? .hot
@@ -63,7 +62,6 @@ extension LemmyCommentElement {
     }
 
     /// The number of child comments that could be fetched for this "More element.
-    /// - Tag: moreChildCount
     var moreChildCount: Int32? {
         get {
             moreChildCountRawValue.map(\.int32Value)
@@ -74,7 +72,6 @@ extension LemmyCommentElement {
     }
 
     /// The local comment identifier that is the parent comment for this "More" element.
-    /// - Tag: moreParentId
     var moreParentId: Int32? {
         get {
             moreParentIdRawValue.map(\.int32Value)

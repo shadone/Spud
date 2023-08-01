@@ -26,7 +26,7 @@ import os.log
     @NSManaged public var bannerUrl: URL?
     @NSManaged public var iconUrl: URL?
 
-    /// See [defaultPostListingType](x-source-tag://defaultPostListingType)
+    /// See ``defaultPostListingType``.
     @NSManaged public var defaultPostListingTypeRawValue: String
     @NSManaged public var descriptionText: String?
     @NSManaged public var enableDownvotes: Bool
@@ -61,7 +61,7 @@ import os.log
 }
 
 extension LemmySiteInfo {
-    /// - Tag: defaultPostListingType
+    /// Which listing type should be opened by default.
     var defaultPostListingType: ListingType {
         get {
             guard let value = ListingType(rawValue: defaultPostListingTypeRawValue) else {

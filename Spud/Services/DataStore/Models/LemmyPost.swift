@@ -51,7 +51,7 @@ import os.log
     @NSManaged public var numberOfUpvotes: Int64
     /// Number of downvotes.
     @NSManaged public var numberOfDownvotes: Int64
-    /// See [voteStatus](x-source-tag://voteStatus)
+    /// See ``voteStatus``
     @NSManaged public var voteStatusRawValue: NSNumber?
 
     /// The timestamp when the post was published.

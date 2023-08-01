@@ -26,12 +26,10 @@ import os.log
     /// Whether to show NSFW content.
     @NSManaged public var showNsfw: Bool
 
-    /// The default sort type for the user.
-    /// See [sortType](x-source-tag://defaultSortType)
+    /// See ``defaultSortType``.
     @NSManaged public var defaultSortTypeRawValue: String
 
-    /// The default listing type.
-    /// See [sortType](x-source-tag://defaultListingType)
+    /// See ``defaultListingType``.
     @NSManaged public var defaultListingTypeRawValue: String
 
     /// Whether to show avatars.
@@ -83,7 +81,7 @@ extension LemmyAccountInfo {
 }
 
 extension LemmyAccountInfo {
-    /// - Tag: defaultSortType
+    /// The default sort type for the user.
     var defaultSortType: SortType {
         get {
             guard let value = SortType(rawValue: defaultSortTypeRawValue) else {
@@ -98,7 +96,7 @@ extension LemmyAccountInfo {
         }
     }
 
-    /// - Tag: defaultSortType
+    /// The default listing type.
     var defaultListingType: ListingType {
         get {
             guard let value = ListingType(rawValue: defaultListingTypeRawValue) else {

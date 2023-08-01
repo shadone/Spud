@@ -17,10 +17,10 @@ import os.log
 
     // MARK: Properties
 
-    /// See [softwareName](x-source-tag://softwareName)
+    /// See ``softwareName``.
     @NSManaged public var softwareNameRawValue: String
 
-    /// See [softwareVersion](x-source-tag://softwareVersion)
+    /// See ``softwareVersion``.
     @NSManaged public var softwareVersionRawValue: String
 
     /// The amount of posts that were made by users that are registered on this server.
@@ -54,8 +54,6 @@ import os.log
 
 extension NodeInfo {
     /// The canonical name of this server software.
-    ///
-    /// - Tag: softwareName
     var softwareName: NodeInfoSoftware {
         get {
             guard let software = NodeInfoSoftware(rawValue: softwareNameRawValue) else {
@@ -69,7 +67,7 @@ extension NodeInfo {
         }
     }
 
-    /// - Tag: softwareVersion
+    /// The version of the software the instance runs on.
     var softwareVersion: Version {
         get {
             guard let version = Version(softwareVersionRawValue) else {

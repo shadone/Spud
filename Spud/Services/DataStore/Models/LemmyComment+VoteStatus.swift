@@ -9,7 +9,6 @@ import Foundation
 
 extension LemmyComment {
     /// Describes whether the user has upvoted this comment.
-    /// - Tag: voteStatus
     var voteStatus: VoteStatus {
         get {
             VoteStatus(rawValue: voteStatusRawValue)
@@ -19,7 +18,7 @@ extension LemmyComment {
         }
     }
 
-    /// Publisher for [voteStatus](x-source-tag://voteStatus)
+    /// Publisher for ``voteStatus``.
     var voteStatusPublisher: AnyPublisher<VoteStatus, Never> {
         publisher(for: \.voteStatusRawValue)
             .map { VoteStatus(rawValue: $0) }

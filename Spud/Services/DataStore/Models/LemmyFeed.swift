@@ -24,10 +24,10 @@ import LemmyKit
 
     // MARK: Frontpage
 
-    /// See [sortType](x-source-tag://sortType)
+    /// See ``sortType``.
     @NSManaged public var sortTypeRawValue: String
 
-    /// See [frontpageListingType](x-source-tag://frontpageListingType)
+    /// See ``frontpageListingType``.
     @NSManaged public var frontpageListingTypeRawValue: String?
 
     // MARK: Relations
@@ -49,7 +49,7 @@ import LemmyKit
 }
 
 extension LemmyFeed {
-    /// - Tag: sortType
+    /// Sort order for the feed.
     var sortType: SortType {
         get {
             guard let value = SortType(rawValue: sortTypeRawValue) else {
@@ -64,7 +64,7 @@ extension LemmyFeed {
         }
     }
 
-    /// - Tag: frontpageListingType
+    /// The type of frontpage listing for the feed.
     var frontpageListingType: ListingType? {
         get {
             guard let rawValue = frontpageListingTypeRawValue else {
