@@ -16,7 +16,8 @@ struct DependencyContainer:
     HasPostContentDetectorService,
     HasAppearanceService,
     HasAppService,
-    HasAlertService
+    HasAlertService,
+    HasPreferencesService
 {
     let dataStore: DataStoreType = DataStore()
     let siteService: SiteServiceType
@@ -25,8 +26,9 @@ struct DependencyContainer:
     let schedulerService: SchedulerServiceType
     let postContentDetectorService: PostContentDetectorServiceType
     let appearanceService: AppearanceServiceType = AppearanceService()
-    let appService: AppServiceType = AppService()
+    let appService: AppServiceType
     let alertService: AlertServiceType = AlertService()
+    let preferencesService: PreferencesServiceType = PreferencesService()
 
     // MARK: Functions
 
@@ -44,6 +46,7 @@ struct DependencyContainer:
             alertService: alertService
         )
         postContentDetectorService = PostContentDetectorService()
+        appService = AppService(preferencesService: preferencesService)
 
         start()
     }

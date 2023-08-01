@@ -21,6 +21,14 @@ protocol HasAppService {
 }
 
 class AppService: AppServiceType {
+    private let preferencesService: PreferencesServiceType
+
+    // MARK: Functions
+
+    init(preferencesService: PreferencesServiceType) {
+        self.preferencesService = preferencesService
+    }
+
     func openInBrowser(post: LemmyPost, on viewController: UIViewController) {
         let safariVC = SFSafariViewController(url: post.localLemmyUiUrl)
         viewController.present(safariVC, animated: true)
@@ -28,7 +36,20 @@ class AppService: AppServiceType {
 
     func open(url: URL, on viewController: UIViewController) {
         assert(url.spud == nil)
-        let safariVC = SFSafariViewController(url: url)
-        viewController.present(safariVC, animated: true)
+
+        switch preferencesService.openExternalLinks {
+        case .safariViewController:
+            let configuration = SFSafariViewController.Configuration()
+
+            if preferencesService.openExternalLinksInSafariVCReaderMode {
+                configuration.entersReaderIfAvailable = true
+            }
+
+            let safariVC = SFSafariViewController(url: url, configuration: configuration)
+            viewController.present(safariVC, animated: true)
+
+        case .browser:
+            UIApplication.shared.open(url)
+        }
     }
 }
