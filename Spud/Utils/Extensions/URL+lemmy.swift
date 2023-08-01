@@ -10,6 +10,10 @@ import LemmyKit
 extension URL {
     enum SpudInternalLink {
         /// Identifies a Person at a given Instance.
+        ///
+        /// - Parameter personId: PersonId identifier local to the specified instance.
+        /// - Parameter instance: Instance actorId. e.g. "https://lemmy.world", see ``URL/normalizedInstanceUrlString``.
+        ///
         /// - Note: the instance specifies the Lemmy instance the personId is valid for. I.e. it is **not** the persons home site.
         case person(personId: PersonId, instance: String)
 

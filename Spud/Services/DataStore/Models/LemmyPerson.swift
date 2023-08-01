@@ -7,6 +7,7 @@
 import Combine
 import CoreData
 import Foundation
+import LemmyKit
 import os.log
 
 /// Describes a person, e.g. post or comment author.
@@ -16,6 +17,24 @@ import os.log
 @objc(LemmyPerson) public final class LemmyPerson: NSManagedObject {
     @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmyPerson> {
         NSFetchRequest<LemmyPerson>(entityName: "Person")
+    }
+
+    /// Identifies a Person at a given Instance.
+    ///
+    /// - Parameter personId: PersonId identifier local to the specified instance.
+    /// - Parameter instanceUrl: Instance actorId. e.g. "https://lemmy.world", see ``URL/normalizedInstanceUrlString``.
+    ///
+    /// - Note: the instance specifies the Lemmy instance the personId is valid for. I.e. it is **not** the persons home site.
+    @nonobjc public class func fetchRequest(
+        personId: PersonId,
+        instanceUrl: String
+    ) -> NSFetchRequest<LemmyPerson> {
+        let request = NSFetchRequest<LemmyPerson>(entityName: "Person")
+        request.predicate = NSPredicate(
+            format: "personId == %d && site.instance.actorId == %@",
+            personId, instanceUrl
+        )
+        return request
     }
 
     // MARK: Properties

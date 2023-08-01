@@ -248,11 +248,7 @@ extension PostDetailViewController: UITableViewDataSource {
         switch url.spud {
         case let .person(personId, instance):
             let context = dependencies.dataStore.mainContext
-            let request = LemmyPerson.fetchRequest()
-            request.predicate = NSPredicate(
-                format: "personId == %d && site.normalizedInstanceUrl == %@",
-                personId, instance
-            )
+            let request = LemmyPerson.fetchRequest(personId: personId, instanceUrl: instance)
             let results = try! context.fetch(request)
             let person = results.first!
             let vc = PersonOrLoadingViewController(
