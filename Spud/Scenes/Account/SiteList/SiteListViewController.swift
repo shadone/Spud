@@ -259,7 +259,7 @@ extension SiteListViewController: UISearchResultsUpdating {
             .trimmingCharacters(in: whitespaceCharacterSet) ?? ""
 
         let instanceUrl = NSPredicate(
-            format: "normalizedInstanceUrl CONTAINS[cd] %@",
+            format: "instance.actorId CONTAINS[cd] %@",
             query
         )
         let descriptionText = NSPredicate(
