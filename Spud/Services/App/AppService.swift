@@ -10,10 +10,10 @@ import UIKit
 
 protocol AppServiceType: AnyObject {
     /// Opens the post itself in a browser.
-    func openInBrowser(post: LemmyPost, on viewController: UIViewController)
+    func openInBrowser(post: LemmyPost, on viewController: UIViewController) async
 
     /// Opens an external link in a browser.
-    func open(url: URL, on viewController: UIViewController)
+    func open(url: URL, on viewController: UIViewController) async
 }
 
 protocol HasAppService {
@@ -34,11 +34,10 @@ class AppService: AppServiceType {
         viewController.present(safariVC, animated: true)
     }
 
-    func open(url: URL, on viewController: UIViewController) {
+    @MainActor func open(url: URL, on viewController: UIViewController) async {
         assert(url.spud == nil)
 
-        switch preferencesService.openExternalLinks {
-        case .safariViewController:
+        func openInSafariViewController() {
             let configuration = SFSafariViewController.Configuration()
 
             if preferencesService.openExternalLinksInSafariVCReaderMode {
@@ -47,9 +46,21 @@ class AppService: AppServiceType {
 
             let safariVC = SFSafariViewController(url: url, configuration: configuration)
             viewController.present(safariVC, animated: true)
+        }
+
+        switch preferencesService.openExternalLinks {
+        case .safariViewController:
+            if preferencesService.openUniversalLinkInApp {
+                let wasOpened = await UIApplication.shared.open(url, options: [.universalLinksOnly: true])
+                if !wasOpened {
+                    openInSafariViewController()
+                }
+            } else {
+                openInSafariViewController()
+            }
 
         case .browser:
-            UIApplication.shared.open(url)
+            await UIApplication.shared.open(url)
         }
     }
 }

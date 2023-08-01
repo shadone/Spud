@@ -160,7 +160,9 @@ class PostDetailViewController: UIViewController {
     }
 
     @objc private func openInBrowser() {
-        dependencies.appService.openInBrowser(post: post, on: self)
+        Task {
+            await dependencies.appService.openInBrowser(post: post, on: self)
+        }
     }
 }
 
@@ -259,7 +261,9 @@ extension PostDetailViewController: UITableViewDataSource {
             navigationController?.pushViewController(vc, animated: true)
 
         case .none:
-            dependencies.appService.open(url: url, on: self)
+            Task {
+                await dependencies.appService.open(url: url, on: self)
+            }
         }
     }
 }

@@ -27,6 +27,9 @@ protocol PreferencesServiceType: AnyObject {
 
     /// Specifies whether to open Reader mode when opening external link in SFSafariViewController.
     var openExternalLinksInSafariVCReaderMode: Bool { get set }
+
+    /// When opening external link first check if it's a universal link first and then open it in the app.
+    var openUniversalLinkInApp: Bool { get set }
 }
 
 protocol HasPreferencesService {
@@ -41,4 +44,7 @@ class PreferencesService: PreferencesServiceType {
 
     @UserDefaultsBacked(key: "openExternalLinksInSafariVCReaderMode")
     var openExternalLinksInSafariVCReaderMode = true
+
+    @UserDefaultsBacked(key: "openUniversalLinkInApp")
+    var openUniversalLinkInApp: Bool = true
 }
