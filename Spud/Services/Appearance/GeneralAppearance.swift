@@ -9,6 +9,9 @@ import Foundation
 import UIKit
 
 class GeneralAppearance {
+    let upvoteIcon = UIImage(systemName: "arrow.up")!
+    let downvoteIcon = UIImage(systemName: "arrow.down")!
+
     @Published var upvoteButtonActiveColor: UIColor = .systemRed
     @Published var downvoteButtonActiveColor: UIColor = .systemIndigo
 }

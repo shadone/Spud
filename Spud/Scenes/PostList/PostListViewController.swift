@@ -303,6 +303,11 @@ class PostListViewController: UIViewController {
             )
             .store(in: &disposables)
     }
+
+    private func vote(postAtIndex index: Int, _ action: VoteStatus.Action) {
+        let post = self.post(at: index)
+        vote(post, action)
+    }
 }
 
 // MARK: - FRC helpers
@@ -338,6 +343,40 @@ extension PostListViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let post = post(at: indexPath.row)
         viewModel.inputs.didSelectPost(post)
+    }
+
+    // MARK: Context Menu
+
+    func tableView(
+        _ tableView: UITableView,
+        contextMenuConfigurationForRowAt indexPath: IndexPath,
+        point: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        let generalAppearance = dependencies.appearanceService.general
+        return UIContextMenuConfiguration(
+            identifier: nil,
+            previewProvider: nil,
+            actionProvider: { suggestedActions in
+                let upvoteAction = UIAction(
+                    title: NSLocalizedString("Upvote", comment: ""),
+                    image: generalAppearance.upvoteIcon
+                ) { [weak self] action in
+                    self?.vote(postAtIndex: indexPath.row, .upvote)
+                }
+
+                let downvoteAction = UIAction(
+                    title: NSLocalizedString("Downvote", comment: ""),
+                    image: generalAppearance.downvoteIcon
+                ) { [weak self] action in
+                    self?.vote(postAtIndex: indexPath.row, .downvote)
+                }
+
+                return UIMenu(title: "", children: [
+                    upvoteAction,
+                    downvoteAction,
+                ])
+            }
+        )
     }
 }
 
