@@ -61,6 +61,7 @@ class PostDetailViewController: UIViewController {
         tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.rowHeight = UITableView.automaticDimension
 
+        tableView.delegate = self
         tableView.dataSource = self
 
         tableView.register(PostDetailHeaderCell.self, forCellReuseIdentifier: PostDetailHeaderCell.reuseIdentifier)
@@ -194,6 +195,11 @@ class PostDetailViewController: UIViewController {
         // Trigger haptic feedback
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
+
+    private func vote(commentAtIndex index: Int, _ action: VoteStatus.Action) {
+        let commentElement = commentElement(at: index)
+        vote(commentElement, action)
+    }
 }
 
 // MARK: - FRC helpers
@@ -210,6 +216,59 @@ extension PostDetailViewController {
             fatalError()
         }
         return commentElement
+    }
+}
+
+// MARK: - UITableView Delegate
+
+extension PostDetailViewController: UITableViewDelegate {
+    // MARK: Context Menu
+
+    func tableView(
+        _ tableView: UITableView,
+        previewForHighlightingContextMenuWithConfiguration configuration: UIContextMenuConfiguration
+    ) -> UITargetedPreview? {
+        guard let indexPath = configuration.identifier as? IndexPath else { fatalError() }
+        guard let cell = tableView.cellForRow(at: indexPath) else { return nil }
+        guard let cell = cell as? PostDetailCommentCell else { fatalError() }
+
+        let parameters = UIPreviewParameters()
+        parameters.backgroundColor = .clear
+        parameters.visiblePath = UIBezierPath(roundedRect: cell.bounds, cornerRadius: 12)
+
+        return UITargetedPreview(view: cell, parameters: parameters)
+    }
+
+    func tableView(
+        _ tableView: UITableView,
+        contextMenuConfigurationForRowAt indexPath: IndexPath,
+        point: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        let generalAppearance = appearanceService.general
+        return UIContextMenuConfiguration(
+            identifier: indexPath as NSCopying,
+            previewProvider: nil,
+            actionProvider: { suggestedActions in
+                let upvoteAction = UIAction(
+                    title: NSLocalizedString("Upvote", comment: ""),
+                    image: generalAppearance.upvoteIcon
+                ) { [weak self] action in
+                    self?.vote(commentAtIndex: indexPath.row, .upvote)
+                }
+
+                let downvoteAction = UIAction(
+                    title: NSLocalizedString("Downvote", comment: ""),
+                    image: generalAppearance.downvoteIcon
+                ) { [weak self] action in
+                    self?.vote(commentAtIndex: indexPath.row, .downvote)
+                }
+
+                return UIMenu(title: "", children: [
+                    upvoteAction,
+                    downvoteAction,
+                ])
+            }
+        )
     }
 }
 
