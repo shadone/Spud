@@ -47,6 +47,11 @@ protocol LemmyServiceType {
         postId: NSManagedObjectID,
         vote action: VoteStatus.Action
     ) -> AnyPublisher<Void, LemmyServiceError>
+
+    func vote(
+        commentId: NSManagedObjectID,
+        vote action: VoteStatus.Action
+    ) -> AnyPublisher<Void, LemmyServiceError>
 }
 
 extension LemmyServiceType {
@@ -401,6 +406,70 @@ class LemmyService: LemmyServiceType {
                         case .failure:
                             post.voteStatus = previousVoteStatus
                             post.numberOfUpvotes = previousNumberOfUpvotes
+                            self.saveIfNeeded()
+                        case .finished:
+                            self.saveIfNeeded()
+                        }
+                    })
+                    .map { _ in () }
+                    .mapError { .apiError($0) }
+                    .eraseToAnyPublisher()
+            }
+            .receive(on: RunLoop.main)
+            .eraseToAnyPublisher()
+    }
+
+    func vote(
+        commentId: NSManagedObjectID,
+        vote action: VoteStatus.Action
+    ) -> AnyPublisher<Void, LemmyServiceError> {
+        assert(Thread.current.isMainThread)
+
+        return object(with: commentId, type: LemmyComment.self)
+            .setFailureType(to: LemmyServiceError.self)
+            .flatMap { comment -> AnyPublisher<Void, LemmyServiceError> in
+                let effectiveAction = comment.voteStatus.effectiveAction(for: action)
+
+                logger.debug("""
+                    Vote '\(action, privacy: .public)' \
+                    (effective '\(effectiveAction, privacy: .public)') \
+                    for \(comment.identifierForLogging, privacy: .public)
+                    """)
+
+                let previousNumberOfUpvotes = comment.numberOfUpvotes
+                let previousVoteStatus = comment.voteStatus
+
+                // Update vote count to visually indicate something is happening
+                comment.numberOfUpvotes += comment.voteStatus.voteCountChange(for: action)
+
+                // Set the vote status to the new value without waiting for confirmation from the server.
+                switch effectiveAction {
+                case .upvote:
+                    comment.voteStatus = .up
+                case .downvote:
+                    comment.voteStatus = .down
+                case .unvote:
+                    comment.voteStatus = .neutral
+                }
+
+                guard let credential = self.credential else {
+                    return .fail(with: .missingCredential)
+                }
+
+                let request = CreateCommentLike.Request(
+                    comment_id: comment.localCommentId,
+                    score: effectiveAction,
+                    auth: credential.jwt
+                )
+                return self.api.createCommentLike(request)
+                    .receive(on: self.backgroundScheduler)
+                    .handleEvents(receiveOutput: { response in
+                        comment.set(from: response.comment_view)
+                    }, receiveCompletion: { completion in
+                        switch completion {
+                        case .failure:
+                            comment.voteStatus = previousVoteStatus
+                            comment.numberOfUpvotes = previousNumberOfUpvotes
                             self.saveIfNeeded()
                         case .finished:
                             self.saveIfNeeded()

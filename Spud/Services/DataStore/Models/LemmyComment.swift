@@ -45,3 +45,9 @@ import LemmyKit
     /// The author of the comment.
     @NSManaged public var creator: LemmyPerson
 }
+
+extension LemmyComment {
+    var identifierForLogging: String {
+        "[\(localCommentId)]@\(post.account.site.identifierForLogging)"
+    }
+}

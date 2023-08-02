@@ -15,7 +15,9 @@ class PostDetailViewController: UIViewController {
     typealias OwnDependencies =
         HasDataStore &
         HasAppearanceService &
-        HasAppService
+        HasAppService &
+        HasAccountService &
+        HasAlertService
     typealias NestedDependencies =
         PostDetailViewModel.Dependencies &
         PostDetailHeaderViewModel.Dependencies &
@@ -27,6 +29,8 @@ class PostDetailViewController: UIViewController {
     var dataStore: DataStoreType { dependencies.own.dataStore }
     var appearanceService: AppearanceServiceType { dependencies.own.appearanceService }
     var appService: AppServiceType { dependencies.own.appService }
+    var accountService: AccountServiceType { dependencies.own.accountService }
+    var alertService: AlertServiceType { dependencies.own.alertService }
 
     // MARK: - Public
 
@@ -173,7 +177,22 @@ class PostDetailViewController: UIViewController {
     }
 
     private func vote(_ commentElement: LemmyCommentElement, _ action: VoteStatus.Action) {
-        // TODO:
+        guard let comment = commentElement.comment else {
+            assertionFailure("Vote on more element?")
+            return
+        }
+
+        accountService
+            .lemmyService(for: post.account)
+            .vote(commentId: comment.objectID, vote: action)
+            .sink(
+                receiveCompletion: alertService.errorHandler(for: .vote),
+                receiveValue: { _ in }
+            )
+            .store(in: &disposables)
+
+        // Trigger haptic feedback
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 }
 

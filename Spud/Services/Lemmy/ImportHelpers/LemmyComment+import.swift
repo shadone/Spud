@@ -19,13 +19,13 @@ extension LemmyComment {
     ) {
         self.init(context: context)
 
-        set(model)
+        set(from: model)
 
         self.post = post
         self.creator = LemmyPerson.upsert(model.creator, site: post.account.site, in: context)
     }
 
-    private func set(_ model: CommentView) {
+    func set(from model: CommentView) {
         localCommentId = model.comment.id
         originalCommentUrl = model.comment.ap_id
         body = model.comment.content
@@ -49,6 +49,8 @@ extension LemmyComment {
         }()
 
         published = model.comment.published
+
+        // TODO: set new updatedAt
     }
 
     static func upsert(
@@ -69,7 +71,7 @@ extension LemmyComment {
             let results = try context.fetch(request)
 
             if let existingComment = results.first {
-                existingComment.set(model)
+                existingComment.set(from: model)
                 return existingComment
             } else {
                 return LemmyComment(model, post: post, in: context)
