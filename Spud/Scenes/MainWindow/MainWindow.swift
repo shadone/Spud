@@ -10,16 +10,14 @@ import UIKit
 
 class MainWindow: UIWindow {
     typealias OwnDependencies =
-        HasAccountService &
-        HasSiteService &
-        HasSchedulerService
+        HasAccountService
     typealias NestedDependencies =
-        SubscriptionsViewController.Dependencies &
-        PostListViewController.Dependencies &
-        PostDetailOrEmptyViewController.Dependencies &
+        MainWindowSplitViewController.Dependencies &
         AccountViewController.Dependencies
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
+
+    var accountService: AccountServiceType { dependencies.own.accountService }
 
     // MARK: Private
 
@@ -76,8 +74,6 @@ class MainWindow: UIWindow {
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
-        let account = self.dependencies.own.accountService.defaultAccount()
-
         tabBarController = MainWindowTabBarController()
 
         super.init(windowScene: windowScene)
@@ -93,6 +89,7 @@ class MainWindow: UIWindow {
             }
             .store(in: &disposables)
 
+        let account = accountService.defaultAccount()
         recreateTabBarViewControllers(for: account)
 
         rootViewController = tabBarController

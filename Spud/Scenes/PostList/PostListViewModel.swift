@@ -45,7 +45,14 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var accountService: AccountServiceType { dependencies.own.accountService }
+    var alertService: AlertServiceType { dependencies.own.alertService }
+
+    // MARK: Private
+
     private var disposables = Set<AnyCancellable>()
+
+    // MARK: Functions
 
     init(
         feed: LemmyFeed,
@@ -80,7 +87,7 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
         let nextPageNumber = Int64(feed.value.pages.count + 1)
 
         isFetchingNextPage.send(true)
-        dependencies.own.accountService
+        accountService
             .lemmyService(for: account)
             .fetchFeed(feedId: feed.value.objectID, page: nextPageNumber)
             // Explicitly specify RunLoop.main is required to ensure early delivery.
@@ -88,7 +95,7 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
             // scrolling, instead the completion is delayed until scrolling finishes.
             .receive(on: RunLoop.main)
             .sink(receiveCompletion: { [weak self] completion in
-                self?.dependencies.own.alertService.errorHandler(for: .fetchPostList)(completion)
+                self?.alertService.errorHandler(for: .fetchPostList)(completion)
                 self?.isFetchingNextPage.send(false)
             }) { _ in }
             .store(in: &disposables)
@@ -124,14 +131,14 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
     }
 
     func didChangeSortType(_ sortType: SortType) {
-        let newFeed = dependencies.own.accountService
+        let newFeed = accountService
             .lemmyService(for: account)
             .createFeed(duplicateOf: feed.value, sortType: sortType)
         feed.send(newFeed)
     }
 
     func didClickReload() {
-        let newFeed = dependencies.own.accountService
+        let newFeed = accountService
             .lemmyService(for: account)
             .createFeed(duplicateOf: feed.value)
         feed.send(newFeed)

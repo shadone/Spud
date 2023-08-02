@@ -38,6 +38,9 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var accountService: AccountServiceType { dependencies.own.accountService }
+    var alertService: AlertServiceType { dependencies.own.alertService }
+
     // MARK: Private
 
     private var disposables = Set<AnyCancellable>()
@@ -125,13 +128,13 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
     }
 
     func login() {
-        dependencies.own.accountService.login(
+        accountService.login(
             site: site.value,
             username: username.value,
             password: password.value
         )
         .sink(
-            receiveCompletion: dependencies.own.alertService.errorHandler(for: .login),
+            receiveCompletion: alertService.errorHandler(for: .login),
             receiveValue: { [weak self] account in
                 self?.loggedIn.send(account)
             }

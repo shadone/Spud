@@ -18,6 +18,9 @@ class PersonLoadingViewController: UIViewController {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var accountService: AccountServiceType { dependencies.own.accountService }
+    var alertService: AlertServiceType { dependencies.own.alertService }
+
     // MARK: - Public
 
     var didFinishLoading: ((LemmyPersonInfo) -> Void)?
@@ -101,11 +104,11 @@ class PersonLoadingViewController: UIViewController {
         loadingIndicator.startAnimating()
 
         // TODO: start loading person details
-        dependencies.own.accountService
+        accountService
             .lemmyService(for: account)
             .fetchPersonDetails(personId: person.objectID)
             .sink(
-                receiveCompletion: dependencies.own.alertService.errorHandler(for: .fetchPersonDetails),
+                receiveCompletion: alertService.errorHandler(for: .fetchPersonDetails),
                 receiveValue: { [weak self] personInfo in
                     self?.didFinishLoading?(personInfo)
                 }

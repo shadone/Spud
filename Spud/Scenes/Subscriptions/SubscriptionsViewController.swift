@@ -14,6 +14,8 @@ class SubscriptionsViewController: UIViewController {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var accountService: AccountServiceType { dependencies.own.accountService }
+
     // MARK: UI Properties
 
     lazy var tableView: UITableView = {
@@ -86,7 +88,7 @@ extension SubscriptionsViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
 
-        let lemmyService = dependencies.own.accountService.lemmyService(for: account)
+        let lemmyService = accountService.lemmyService(for: account)
         let feed: LemmyFeed
 
         switch SpecialCommunity(from: indexPath) {

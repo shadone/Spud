@@ -20,6 +20,9 @@ class AccountListViewController: UIViewController {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var dataStore: DataStoreType { dependencies.own.dataStore }
+    var accountService: AccountServiceType { dependencies.own.accountService }
+
     // MARK: UI Properties
 
     var cancelBarButtonItem: UIBarButtonItem!
@@ -104,7 +107,7 @@ class AccountListViewController: UIViewController {
 
         accountsFRC = NSFetchedResultsController(
             fetchRequest: request,
-            managedObjectContext: dependencies.own.dataStore.mainContext,
+            managedObjectContext: dataStore.mainContext,
             sectionNameKeyPath: nil, cacheName: nil
         )
         accountsFRC?.delegate = self
@@ -176,7 +179,7 @@ extension AccountListViewController {
 extension AccountListViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let account = account(at: indexPath.row)
-        dependencies.own.accountService.setDefaultAccount(account)
+        accountService.setDefaultAccount(account)
         dismiss(animated: true)
     }
 }

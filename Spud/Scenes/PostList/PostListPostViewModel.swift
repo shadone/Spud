@@ -17,6 +17,10 @@ class PostListPostViewModel {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var imageService: ImageServiceType { dependencies.own.imageService }
+    var appearanceService: AppearanceServiceType { dependencies.own.appearanceService }
+    var postContentDetectorService: PostContentDetectorServiceType { dependencies.own.postContentDetectorService }
+
     // MARK: Public
 
     var title: AnyPublisher<AttributedString, Never> {
@@ -44,7 +48,7 @@ class PostListPostViewModel {
                     numberOfVotesOrScore: score,
                     voteStatus: voteStatus,
                     attributes: attributes,
-                    appearance: self.dependencies.own.appearanceService.general
+                    appearance: self.appearanceService.general
                 )
             }
             .eraseToAnyPublisher()
@@ -87,7 +91,7 @@ class PostListPostViewModel {
     }
 
     var postContentType: AnyPublisher<PostContentType, Never> {
-        dependencies.own.postContentDetectorService
+        postContentDetectorService
             .contentTypeForUrl(in: post)
     }
 
@@ -114,7 +118,7 @@ class PostListPostViewModel {
                     //   },
                     // ```
                     let thumbnailUrl = image.thumbnailUrl ?? image.imageUrl
-                    return self.dependencies.own.imageService
+                    return self.imageService
                         .fetch(thumbnailUrl)
                         .map { .image($0) }
                         .eraseToAnyPublisher()
@@ -160,7 +164,7 @@ class PostListPostViewModel {
 
     private let post: LemmyPost
     private var appearance: PostListAppearanceType {
-        dependencies.own.appearanceService.postList
+        appearanceService.postList
     }
 
     // MARK: Functions

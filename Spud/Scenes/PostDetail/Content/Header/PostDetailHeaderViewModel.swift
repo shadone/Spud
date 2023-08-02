@@ -19,6 +19,10 @@ class PostDetailHeaderViewModel {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var imageService: ImageServiceType { dependencies.own.imageService }
+    var appearanceService: AppearanceServiceType { dependencies.own.appearanceService }
+    var postContentDetectorService: PostContentDetectorServiceType { dependencies.own.postContentDetectorService }
+
     // MARK: Public
 
     var title: AnyPublisher<AttributedString, Never> {
@@ -41,7 +45,7 @@ class PostDetailHeaderViewModel {
                     numberOfVotesOrScore: score,
                     voteStatus: voteStatus,
                     attributes: attributes,
-                    appearance: self.dependencies.own.appearanceService.general
+                    appearance: self.appearanceService.general
                 )
             }
             .eraseToAnyPublisher()
@@ -104,7 +108,7 @@ class PostDetailHeaderViewModel {
     }
 
     var postContentType: AnyPublisher<PostContentType, Never> {
-        dependencies.own.postContentDetectorService
+        postContentDetectorService
             .contentTypeForUrl(in: post)
     }
 
@@ -124,7 +128,7 @@ class PostDetailHeaderViewModel {
                     return .empty(completeImmediately: false)
 
                 case let .image(image):
-                    return self.dependencies.own.imageService
+                    return self.imageService
                         .fetch(image.imageUrl, thumbnail: thumbnailUrl)
                 }
             }
@@ -166,7 +170,7 @@ class PostDetailHeaderViewModel {
 
                 switch postContentType {
                 case .externalLink:
-                    return self.dependencies.own.imageService
+                    return self.imageService
                         .fetch(thumbnailUrl)
                         .map { (url, $0) }
                         .eraseToAnyPublisher()
@@ -237,7 +241,7 @@ class PostDetailHeaderViewModel {
     private let post: LemmyPost
 
     private var appearance: PostDetailAppearanceType {
-        dependencies.own.appearanceService.postDetail
+        appearanceService.postDetail
     }
 
     // MARK: Functions

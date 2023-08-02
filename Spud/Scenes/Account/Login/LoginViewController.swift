@@ -17,6 +17,9 @@ class LoginViewController: UIViewController {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var dataStore: DataStoreType { dependencies.own.dataStore }
+    var accountService: AccountServiceType { dependencies.own.accountService }
+
     // MARK: UI Properties
 
     lazy var scrollView: UIScrollView = {
@@ -335,13 +338,13 @@ class LoginViewController: UIViewController {
     }
 
     @objc private func continueWithSignedOutAccount() {
-        let account = dependencies.own.accountService.accountForSignedOut(
+        let account = accountService.accountForSignedOut(
             at: viewModel.outputs.site.value,
             isServiceAccount: false,
-            in: dependencies.own.dataStore.mainContext
+            in: dataStore.mainContext
         )
 
-        dependencies.own.accountService.setDefaultAccount(account)
+        accountService.setDefaultAccount(account)
 
         dismiss(animated: true)
     }

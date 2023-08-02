@@ -17,6 +17,8 @@ class PostDetailCommentViewModel {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var appearanceService: AppearanceServiceType { dependencies.own.appearanceService }
+
     // MARK: Public
 
     var author: AnyPublisher<NSAttributedString, Never> {
@@ -125,7 +127,7 @@ class PostDetailCommentViewModel {
                     numberOfVotesOrScore: score,
                     voteStatus: voteStatus,
                     attributes: attributes,
-                    appearance: self.dependencies.own.appearanceService.general
+                    appearance: self.appearanceService.general
                 )
             }
             .eraseToAnyPublisher()
@@ -253,7 +255,7 @@ class PostDetailCommentViewModel {
     private let commentValue: LemmyComment?
 
     private var appearance: PostDetailAppearanceType {
-        dependencies.own.appearanceService.postDetail
+        appearanceService.postDetail
     }
 
     // MARK: Functions

@@ -14,13 +14,15 @@ private let logger = Logger(.app)
 class SiteListViewController: UIViewController {
     typealias OwnDependencies =
         HasDataStore &
-        HasSiteService &
-        HasImageService
+        HasSiteService
     typealias NestedDependencies =
         LoginViewController.Dependencies &
         SiteListSiteViewModel.Dependencies
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
+
+    var dataStore: DataStoreType { dependencies.own.dataStore }
+    var siteService: SiteServiceType { dependencies.own.siteService }
 
     // MARK: UI Properties
 
@@ -107,7 +109,7 @@ class SiteListViewController: UIViewController {
 
         sitesFRC = NSFetchedResultsController(
             fetchRequest: request,
-            managedObjectContext: dependencies.own.dataStore.mainContext,
+            managedObjectContext: dataStore.mainContext,
             sectionNameKeyPath: nil, cacheName: nil
         )
         sitesFRC?.delegate = self
@@ -125,7 +127,7 @@ class SiteListViewController: UIViewController {
         super.viewWillAppear(animated)
 
         execFRC()
-        dependencies.own.siteService.populateSiteListWithSuggestedInstancesIfNeeded()
+        siteService.populateSiteListWithSuggestedInstancesIfNeeded()
     }
 
     @objc private func cancelTapped() {

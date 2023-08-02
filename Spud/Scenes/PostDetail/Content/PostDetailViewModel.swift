@@ -35,6 +35,9 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var accountService: AccountServiceType { dependencies.own.accountService }
+    var alertService: AlertServiceType { dependencies.own.alertService }
+
     // MARK: Private
 
     let postObjectId: NSManagedObjectID
@@ -102,11 +105,11 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
         // TODO: reload from server if comments were fetched too long time ago
         guard numberOfFetchedComments == 0 else { return }
 
-        dependencies.own.accountService
+        accountService
             .lemmyService(for: post.account)
             .fetchComments(postId: postObjectId, sortType: commentSortType.value)
             .sink(
-                receiveCompletion: dependencies.own.alertService.errorHandler(for: .fetchComments),
+                receiveCompletion: alertService.errorHandler(for: .fetchComments),
                 receiveValue: { _ in }
             )
             .store(in: &disposables)

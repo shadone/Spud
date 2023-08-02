@@ -24,6 +24,10 @@ class PostDetailViewController: UIViewController {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var dataStore: DataStoreType { dependencies.own.dataStore }
+    var appearanceService: AppearanceServiceType { dependencies.own.appearanceService }
+    var appService: AppServiceType { dependencies.own.appService }
+
     // MARK: - Public
 
     var post: LemmyPost {
@@ -143,7 +147,7 @@ class PostDetailViewController: UIViewController {
 
         commentsFRC = NSFetchedResultsController(
             fetchRequest: request,
-            managedObjectContext: dependencies.own.dataStore.mainContext,
+            managedObjectContext: dataStore.mainContext,
             sectionNameKeyPath: nil, cacheName: nil
         )
         commentsFRC?.delegate = self
@@ -164,7 +168,7 @@ class PostDetailViewController: UIViewController {
 
     @objc private func openInBrowser() {
         Task {
-            await dependencies.own.appService.openInBrowser(post: post, on: self)
+            await appService.openInBrowser(post: post, on: self)
         }
     }
 }
@@ -252,7 +256,7 @@ extension PostDetailViewController: UITableViewDataSource {
     private func linkTapped(_ url: URL) {
         switch url.spud {
         case let .person(personId, instance):
-            let context = dependencies.own.dataStore.mainContext
+            let context = dataStore.mainContext
             let request = LemmyPerson.fetchRequest(personId: personId, instanceUrl: instance)
             let results = try! context.fetch(request)
             let person = results.first!
@@ -265,7 +269,7 @@ extension PostDetailViewController: UITableViewDataSource {
 
         case .none:
             Task {
-                await dependencies.own.appService.open(url: url, on: self)
+                await appService.open(url: url, on: self)
             }
         }
     }

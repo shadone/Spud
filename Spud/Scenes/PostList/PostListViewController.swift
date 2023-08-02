@@ -24,6 +24,11 @@ class PostListViewController: UIViewController {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var dataStore: DataStoreType { dependencies.own.dataStore }
+    var accountService: AccountServiceType { dependencies.own.accountService }
+    var alertService: AlertServiceType { dependencies.own.alertService }
+    var appearanceService: AppearanceServiceType { dependencies.own.appearanceService }
+
     // MARK: Public
 
     var viewModelSubject: CurrentValueSubject<PostListViewModelType, Never>
@@ -256,7 +261,7 @@ class PostListViewController: UIViewController {
 
         postsResults = NSFetchedResultsController(
             fetchRequest: request,
-            managedObjectContext: dependencies.own.dataStore.mainContext,
+            managedObjectContext: dataStore.mainContext,
             sectionNameKeyPath: nil, cacheName: nil
         )
         postsResults?.delegate = self
@@ -297,11 +302,11 @@ class PostListViewController: UIViewController {
     }
 
     private func vote(_ post: LemmyPost, _ action: VoteStatus.Action) {
-        dependencies.own.accountService
+        accountService
             .lemmyService(for: viewModel.outputs.account)
             .vote(postId: post.objectID, vote: action)
             .sink(
-                receiveCompletion: dependencies.own.alertService.errorHandler(for: .vote),
+                receiveCompletion: alertService.errorHandler(for: .vote),
                 receiveValue: { _ in }
             )
             .store(in: &disposables)
@@ -384,7 +389,7 @@ extension PostListViewController: UITableViewDelegate {
         contextMenuConfigurationForRowAt indexPath: IndexPath,
         point: CGPoint
     ) -> UIContextMenuConfiguration? {
-        let generalAppearance = dependencies.own.appearanceService.general
+        let generalAppearance = appearanceService.general
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
             previewProvider: nil,
@@ -447,7 +452,7 @@ extension PostListViewController: UITableViewDataSource {
         )
         cell.configure(with: viewModel)
 
-        let generalAppearance = dependencies.own.appearanceService.general
+        let generalAppearance = appearanceService.general
         cell.swipeActionConfiguration = .init(
             leadingPrimaryAction: .init(
                 image: generalAppearance.upvoteIcon,

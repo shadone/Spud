@@ -17,6 +17,8 @@ class MainWindowSplitViewController: UISplitViewController {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    var accountService: AccountServiceType { dependencies.own.accountService }
+
     // MARK: Functions
 
     init(account: LemmyAccount, dependencies: Dependencies) {
@@ -30,7 +32,7 @@ class MainWindowSplitViewController: UISplitViewController {
             dependencies: self.dependencies.nested
         )
 
-        let feed = self.dependencies.own.accountService
+        let feed = accountService
             .lemmyService(for: account)
             .createFeed(.frontpage(listingType: .all, sortType: .active))
 
