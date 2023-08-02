@@ -21,6 +21,9 @@ extension LemmyComment {
 
         set(from: model)
 
+        self.createdAt = Date()
+        self.updatedAt = createdAt
+
         self.post = post
         self.creator = LemmyPerson.upsert(model.creator, site: post.account.site, in: context)
     }
@@ -50,7 +53,7 @@ extension LemmyComment {
 
         published = model.comment.published
 
-        // TODO: set new updatedAt
+        updatedAt = Date()
     }
 
     static func upsert(
