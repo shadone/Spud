@@ -303,6 +303,9 @@ class PostListViewController: UIViewController {
                 receiveValue: { _ in }
             )
             .store(in: &disposables)
+
+        // Trigger haptic feedback
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
     private func vote(postAtIndex index: Int, _ action: VoteStatus.Action) {
