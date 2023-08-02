@@ -17,6 +17,7 @@ class PostListViewController: UIViewController {
         HasDataStore &
         HasAccountService &
         HasAlertService &
+        HasAppearanceService &
         PostListPostViewModel.Dependencies &
         PostDetailViewController.Dependencies
     private let dependencies: Dependencies
@@ -429,8 +430,41 @@ extension PostListViewController: UITableViewDataSource {
             dependencies: dependencies
         )
         cell.configure(with: viewModel)
-        cell.voteTriggered = { [weak self] action in
-            self?.vote(post, action)
+
+        let generalAppearance = dependencies.appearanceService.general
+        cell.swipeActionConfiguration = .init(
+            leadingPrimaryAction: .init(
+                image: generalAppearance.upvoteIcon,
+                backgroundColor: generalAppearance.upvoteSwipeActionBackgroundColor
+            ),
+            leadingSecondaryAction: .init(
+                image: generalAppearance.downvoteIcon,
+                backgroundColor: generalAppearance.downvoteSwipeActionBackgroundColor
+            ),
+            trailingPrimaryAction: .init(
+                // TODO: make reply action
+                image: UIImage(systemName: "arrowshape.turn.up.backward")!,
+                backgroundColor: UIColor.blue
+            ),
+            trailingSecondaryAction: .init(
+                // TODO: make save post action
+                image: UIImage(systemName: "bookmark")!,
+                backgroundColor: UIColor.green
+            )
+        )
+
+        cell.swipeActionTriggered = { [weak self] action in
+            switch action {
+            case .leadingPrimary:
+                self?.vote(post, .upvote)
+
+            case .leadingSecondary:
+                self?.vote(post, .downvote)
+
+            case .trailingPrimary, .trailingSecondary:
+                // TODO: will be reply and save actions
+                break
+            }
         }
 
         return cell

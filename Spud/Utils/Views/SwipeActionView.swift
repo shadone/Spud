@@ -22,7 +22,11 @@ class SwipeActionView: UIView {
     }
 
     let panGestureRecognizer = UIPanGestureRecognizer()
-    let configuration: Configuration
+    var configuration: Configuration? {
+        didSet {
+            configurationUpdated()
+        }
+    }
 
     enum ActionTrigger {
         case leadingPrimary
@@ -88,7 +92,7 @@ class SwipeActionView: UIView {
     init(
         contentView: UIView,
         margin: UIEdgeInsets,
-        configuration: Configuration
+        configuration: Configuration?
     ) {
         self.configuration = configuration
 
@@ -154,8 +158,7 @@ class SwipeActionView: UIView {
             trailingSwipeActionLeadingConstraint
         ])
 
-        leadingSwipeActionImageView.image = configuration.leadingPrimaryAction.image
-        trailingSwipeActionImageView.image = configuration.trailingPrimaryAction.image
+        configurationUpdated()
 
         panGestureRecognizer.addTarget(self, action: #selector(panHandler(_:)))
         panGestureRecognizer.delegate = self
@@ -165,6 +168,13 @@ class SwipeActionView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    private func configurationUpdated() {
+        panGestureRecognizer.isEnabled = configuration != nil
+
+        leadingSwipeActionImageView.image = configuration?.leadingPrimaryAction.image
+        trailingSwipeActionImageView.image = configuration?.trailingPrimaryAction.image
     }
 
     private func setImageWithPopAnimation(_ image: UIImage, on imageView: UIImageView) {
@@ -181,6 +191,10 @@ class SwipeActionView: UIView {
     @objc private func panHandler(_ gestureRecognizer: UIPanGestureRecognizer) {
         let offsetX = gestureRecognizer.translation(in: self).x
         let swipeDistance = abs(offsetX)
+
+        guard let configuration else {
+            fatalError("Gesture should have been disabled")
+        }
 
         switch gestureRecognizer.state {
         case .began:

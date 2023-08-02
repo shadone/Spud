@@ -12,7 +12,16 @@ class PostListPostCell: UITableViewCell {
 
     // MARK: Public
 
-    var voteTriggered: ((VoteStatus.Action) -> Void)?
+    var swipeActionConfiguration: SwipeActionView.Configuration? {
+        get {
+            swipeActionView.configuration
+        }
+        set {
+            swipeActionView.configuration = newValue
+        }
+    }
+
+    var swipeActionTriggered: ((SwipeActionView.ActionTrigger) -> Void)?
 
     // MARK: UI Properties
 
@@ -104,28 +113,11 @@ class PostListPostCell: UITableViewCell {
         let view = SwipeActionView(
             contentView: mainHorizontalStackView,
             margin: UIEdgeInsets(top: 16, left: 16, bottom: -16, right: -16),
-            configuration: .init(
-                leadingPrimaryAction: .init(
-                    image: UIImage(systemName: "arrow.up")!,
-                    backgroundColor: UIColor.orange
-                ),
-                leadingSecondaryAction: .init(
-                    image: UIImage(systemName: "arrow.down")!,
-                    backgroundColor: UIColor.blue
-                ),
-                trailingPrimaryAction: .init(
-                    image: UIImage(systemName: "arrowshape.turn.up.backward")!,
-                    backgroundColor: UIColor.blue
-                ),
-                trailingSecondaryAction: .init(
-                    image: UIImage(systemName: "bookmark")!,
-                    backgroundColor: UIColor.green
-                )
-            )
+            configuration: nil
         )
         view.translatesAutoresizingMaskIntoConstraints = false
         view.trigger = { [weak self] action in
-            self?.swipeActionTriggered(action)
+            self?.swipeActionTriggered?(action)
         }
         return view
     }()
@@ -168,8 +160,11 @@ class PostListPostCell: UITableViewCell {
         super.prepareForReuse()
 
         disposables.removeAll()
+
         thumbnailView.prepareForReuse()
-        voteTriggered = nil
+
+        swipeActionConfiguration = nil
+        swipeActionTriggered = nil
     }
 
     func configure(with viewModel: PostListPostViewModel) {
@@ -199,19 +194,5 @@ class PostListPostCell: UITableViewCell {
             }
             .assign(to: \.thumbnailType, on: thumbnailView)
             .store(in: &disposables)
-    }
-
-    private func swipeActionTriggered(_ action: SwipeActionView.ActionTrigger) {
-        switch action {
-        case .leadingPrimary:
-            voteTriggered?(.upvote)
-
-        case .leadingSecondary:
-            voteTriggered?(.downvote)
-
-        case .trailingPrimary, .trailingSecondary:
-            // TODO: handle the action
-            print(action)
-        }
     }
 }
