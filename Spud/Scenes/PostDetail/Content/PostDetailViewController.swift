@@ -177,6 +177,27 @@ class PostDetailViewController: UIViewController {
         }
     }
 
+    private func linkTapped(_ url: URL) {
+        switch url.spud {
+        case let .person(personId, instance):
+            let context = dataStore.mainContext
+            let request = LemmyPerson.fetchRequest(personId: personId, instanceUrl: instance)
+            let results = try! context.fetch(request)
+            let person = results.first!
+            let vc = PersonOrLoadingViewController(
+                person: person,
+                account: post.account,
+                dependencies: dependencies.nested
+            )
+            navigationController?.pushViewController(vc, animated: true)
+
+        case .none:
+            Task {
+                await appService.open(url: url, on: self)
+            }
+        }
+    }
+
     private func vote(_ commentElement: LemmyCommentElement, _ action: VoteStatus.Action) {
         guard let comment = commentElement.comment else {
             assertionFailure("Vote on more element?")
@@ -369,27 +390,6 @@ extension PostDetailViewController: UITableViewDataSource {
             return cell
         } else {
             fatalError()
-        }
-    }
-
-    private func linkTapped(_ url: URL) {
-        switch url.spud {
-        case let .person(personId, instance):
-            let context = dataStore.mainContext
-            let request = LemmyPerson.fetchRequest(personId: personId, instanceUrl: instance)
-            let results = try! context.fetch(request)
-            let person = results.first!
-            let vc = PersonOrLoadingViewController(
-                person: person,
-                account: post.account,
-                dependencies: dependencies.nested
-            )
-            navigationController?.pushViewController(vc, animated: true)
-
-        case .none:
-            Task {
-                await appService.open(url: url, on: self)
-            }
         }
     }
 }
