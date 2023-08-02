@@ -9,10 +9,13 @@ import LemmyKit
 import UIKit
 
 class PersonOrLoadingViewController: UIViewController {
-    typealias Dependencies =
+    typealias OwnDependencies =
+        HasVoid
+    typealias NestedDependencies =
         PersonViewController.Dependencies &
         PersonLoadingViewController.Dependencies
-    private let dependencies: Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: - Public
 
@@ -43,7 +46,7 @@ class PersonOrLoadingViewController: UIViewController {
         account: LemmyAccount,
         dependencies: Dependencies
     ) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
         state = .load(person)
         viewModel = PersonOrLoadingViewModel(person: person, account: account)
@@ -78,7 +81,7 @@ class PersonOrLoadingViewController: UIViewController {
             assert(contentViewController == nil, "content should only be loaded once")
             contentViewController = PersonViewController(
                 personInfo: personInfo,
-                dependencies: dependencies
+                dependencies: dependencies.nested
             )
 
             remove(child: loadingViewController)
@@ -91,7 +94,7 @@ class PersonOrLoadingViewController: UIViewController {
             let loadingViewController = PersonLoadingViewController(
                 person: person,
                 account: viewModel.outputs.account,
-                dependencies: dependencies
+                dependencies: dependencies.nested
             )
             self.loadingViewController = loadingViewController
 

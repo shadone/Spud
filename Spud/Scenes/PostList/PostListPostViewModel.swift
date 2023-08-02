@@ -8,11 +8,14 @@ import Combine
 import UIKit
 
 class PostListPostViewModel {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasImageService &
         HasAppearanceService &
         HasPostContentDetectorService
-    private let dependencies: Dependencies
+    typealias NestedDependencies =
+        HasVoid
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: Public
 
@@ -41,7 +44,7 @@ class PostListPostViewModel {
                     numberOfVotesOrScore: score,
                     voteStatus: voteStatus,
                     attributes: attributes,
-                    appearance: self.dependencies.appearanceService.general
+                    appearance: self.dependencies.own.appearanceService.general
                 )
             }
             .eraseToAnyPublisher()
@@ -84,7 +87,7 @@ class PostListPostViewModel {
     }
 
     var postContentType: AnyPublisher<PostContentType, Never> {
-        dependencies.postContentDetectorService
+        dependencies.own.postContentDetectorService
             .contentTypeForUrl(in: post)
     }
 
@@ -111,7 +114,7 @@ class PostListPostViewModel {
                     //   },
                     // ```
                     let thumbnailUrl = image.thumbnailUrl ?? image.imageUrl
-                    return self.dependencies.imageService
+                    return self.dependencies.own.imageService
                         .fetch(thumbnailUrl)
                         .map { .image($0) }
                         .eraseToAnyPublisher()
@@ -157,13 +160,13 @@ class PostListPostViewModel {
 
     private let post: LemmyPost
     private var appearance: PostListAppearanceType {
-        dependencies.appearanceService.postList
+        dependencies.own.appearanceService.postList
     }
 
     // MARK: Functions
 
     init(post: LemmyPost, dependencies: Dependencies) {
         self.post = post
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
     }
 }

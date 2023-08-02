@@ -10,8 +10,12 @@ import UIKit
 import os.log
 
 class PostDetailLoadingViewController: UIViewController {
-    typealias Dependencies = HasAccountService
-    private let dependencies: Dependencies
+    typealias OwnDependencies =
+        HasAccountService
+    typealias NestedDependencies =
+        HasVoid
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: - Public
 
@@ -58,7 +62,7 @@ class PostDetailLoadingViewController: UIViewController {
     // MARK: - Functions
 
     init(postId: PostId, account: LemmyAccount, dependencies: Dependencies) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
         self.account = account
         self.postId = postId
 

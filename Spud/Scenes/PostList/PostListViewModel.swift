@@ -36,10 +36,14 @@ protocol PostListViewModelType {
 }
 
 class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostListViewModelOutputs {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasAccountService &
         HasAlertService
-    private let dependencies: Dependencies
+    typealias NestedDependencies =
+        PostListPostViewModel.Dependencies &
+        PostDetailViewController.Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     private var disposables = Set<AnyCancellable>()
 
@@ -47,7 +51,7 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
         feed: LemmyFeed,
         dependencies: Dependencies
     ) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
         account = feed.account
         self.feed = CurrentValueSubject<LemmyFeed, Never>(feed)
@@ -76,7 +80,7 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
         let nextPageNumber = Int64(feed.value.pages.count + 1)
 
         isFetchingNextPage.send(true)
-        dependencies.accountService
+        dependencies.own.accountService
             .lemmyService(for: account)
             .fetchFeed(feedId: feed.value.objectID, page: nextPageNumber)
             // Explicitly specify RunLoop.main is required to ensure early delivery.
@@ -84,7 +88,7 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
             // scrolling, instead the completion is delayed until scrolling finishes.
             .receive(on: RunLoop.main)
             .sink(receiveCompletion: { [weak self] completion in
-                self?.dependencies.alertService.errorHandler(for: .fetchPostList)(completion)
+                self?.dependencies.own.alertService.errorHandler(for: .fetchPostList)(completion)
                 self?.isFetchingNextPage.send(false)
             }) { _ in }
             .store(in: &disposables)
@@ -120,14 +124,14 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
     }
 
     func didChangeSortType(_ sortType: SortType) {
-        let newFeed = dependencies.accountService
+        let newFeed = dependencies.own.accountService
             .lemmyService(for: account)
             .createFeed(duplicateOf: feed.value, sortType: sortType)
         feed.send(newFeed)
     }
 
     func didClickReload() {
-        let newFeed = dependencies.accountService
+        let newFeed = dependencies.own.accountService
             .lemmyService(for: account)
             .createFeed(duplicateOf: feed.value)
         feed.send(newFeed)

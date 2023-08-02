@@ -10,9 +10,12 @@ import Down
 import UIKit
 
 class PostDetailCommentViewModel {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasAppearanceService
-    private let dependencies: Dependencies
+    typealias NestedDependencies =
+        HasVoid
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: Public
 
@@ -122,7 +125,7 @@ class PostDetailCommentViewModel {
                     numberOfVotesOrScore: score,
                     voteStatus: voteStatus,
                     attributes: attributes,
-                    appearance: self.dependencies.appearanceService.general
+                    appearance: self.dependencies.own.appearanceService.general
                 )
             }
             .eraseToAnyPublisher()
@@ -250,7 +253,7 @@ class PostDetailCommentViewModel {
     private let commentValue: LemmyComment?
 
     private var appearance: PostDetailAppearanceType {
-        dependencies.appearanceService.postDetail
+        dependencies.own.appearanceService.postDetail
     }
 
     // MARK: Functions
@@ -259,7 +262,7 @@ class PostDetailCommentViewModel {
         comment commentElement: LemmyCommentElement,
         dependencies: Dependencies
     ) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
         self.commentElement = commentElement
         commentValue = commentElement.comment
         post = commentElement.post

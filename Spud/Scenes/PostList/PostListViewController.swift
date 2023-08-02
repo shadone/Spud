@@ -13,14 +13,16 @@ import os.log
 private let logger = Logger(.app)
 
 class PostListViewController: UIViewController {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasDataStore &
         HasAccountService &
         HasAlertService &
-        HasAppearanceService &
+        HasAppearanceService
+    typealias NestedDependencies =
         PostListPostViewModel.Dependencies &
         PostDetailViewController.Dependencies
-    private let dependencies: Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: Public
 
@@ -70,7 +72,7 @@ class PostListViewController: UIViewController {
     // MARK: Functions
 
     init(feed: LemmyFeed, dependencies: Dependencies) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
         let viewModel = PostListViewModel(
             feed: feed,
@@ -254,7 +256,7 @@ class PostListViewController: UIViewController {
 
         postsResults = NSFetchedResultsController(
             fetchRequest: request,
-            managedObjectContext: dependencies.dataStore.mainContext,
+            managedObjectContext: dependencies.own.dataStore.mainContext,
             sectionNameKeyPath: nil, cacheName: nil
         )
         postsResults?.delegate = self
@@ -280,7 +282,7 @@ class PostListViewController: UIViewController {
             fatalError()
         }
 
-        let postDetailVC = PostDetailViewController(post: post, dependencies: dependencies)
+        let postDetailVC = PostDetailViewController(post: post, dependencies: dependencies.nested)
         if splitViewController.isCollapsed {
             guard let navigationController else {
                 fatalError()
@@ -295,11 +297,11 @@ class PostListViewController: UIViewController {
     }
 
     private func vote(_ post: LemmyPost, _ action: VoteStatus.Action) {
-        dependencies.accountService
+        dependencies.own.accountService
             .lemmyService(for: viewModel.outputs.account)
             .vote(postId: post.objectID, vote: action)
             .sink(
-                receiveCompletion: dependencies.alertService.errorHandler(for: .vote),
+                receiveCompletion: dependencies.own.alertService.errorHandler(for: .vote),
                 receiveValue: { _ in }
             )
             .store(in: &disposables)
@@ -382,7 +384,7 @@ extension PostListViewController: UITableViewDelegate {
         contextMenuConfigurationForRowAt indexPath: IndexPath,
         point: CGPoint
     ) -> UIContextMenuConfiguration? {
-        let generalAppearance = dependencies.appearanceService.general
+        let generalAppearance = dependencies.own.appearanceService.general
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
             previewProvider: nil,
@@ -441,11 +443,11 @@ extension PostListViewController: UITableViewDataSource {
         let post = post(at: indexPath.row)
         let viewModel = PostListPostViewModel(
             post: post,
-            dependencies: dependencies
+            dependencies: dependencies.nested
         )
         cell.configure(with: viewModel)
 
-        let generalAppearance = dependencies.appearanceService.general
+        let generalAppearance = dependencies.own.appearanceService.general
         cell.swipeActionConfiguration = .init(
             leadingPrimaryAction: .init(
                 image: generalAppearance.upvoteIcon,
@@ -524,7 +526,7 @@ extension PostListViewController: NSFetchedResultsControllerDelegate {
             let post = post(at: indexPath.row)
             let viewModel = PostListPostViewModel(
                 post: post,
-                dependencies: dependencies
+                dependencies: dependencies.nested
             )
             cell.configure(with: viewModel)
 

@@ -12,12 +12,15 @@ import os.log
 private let logger = Logger(.app)
 
 class SiteListViewController: UIViewController {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasDataStore &
         HasSiteService &
-        HasImageService &
-        LoginViewController.Dependencies
-    private let dependencies: Dependencies
+        HasImageService
+    typealias NestedDependencies =
+        LoginViewController.Dependencies &
+        SiteListSiteViewModel.Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: UI Properties
 
@@ -46,7 +49,7 @@ class SiteListViewController: UIViewController {
     // MARK: Functions
 
     init(dependencies: Dependencies) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
         super.init(nibName: nil, bundle: nil)
 
@@ -104,7 +107,7 @@ class SiteListViewController: UIViewController {
 
         sitesFRC = NSFetchedResultsController(
             fetchRequest: request,
-            managedObjectContext: dependencies.dataStore.mainContext,
+            managedObjectContext: dependencies.own.dataStore.mainContext,
             sectionNameKeyPath: nil, cacheName: nil
         )
         sitesFRC?.delegate = self
@@ -122,7 +125,7 @@ class SiteListViewController: UIViewController {
         super.viewWillAppear(animated)
 
         execFRC()
-        dependencies.siteService.populateSiteListWithSuggestedInstancesIfNeeded()
+        dependencies.own.siteService.populateSiteListWithSuggestedInstancesIfNeeded()
     }
 
     @objc private func cancelTapped() {
@@ -154,7 +157,7 @@ extension SiteListViewController: UITableViewDelegate {
         let site = site(at: indexPath.row)
         let loginViewController = LoginViewController(
             site: site,
-            dependencies: dependencies
+            dependencies: dependencies.nested
         )
         navigationController?.pushViewController(loginViewController, animated: true)
     }
@@ -179,7 +182,7 @@ extension SiteListViewController: UITableViewDataSource {
         let site = site(at: indexPath.row)
         let viewModel = SiteListSiteViewModel(
             site: site,
-            imageService: dependencies.imageService
+            dependencies: dependencies.nested
         )
         cell.configure(with: viewModel)
 
@@ -225,7 +228,7 @@ extension SiteListViewController: NSFetchedResultsControllerDelegate {
             let site = site(at: indexPath.row)
             let viewModel = SiteListSiteViewModel(
                 site: site,
-                imageService: dependencies.imageService
+                dependencies: dependencies.nested
             )
             cell.configure(with: viewModel)
 

@@ -29,11 +29,14 @@ protocol LoginViewModelType {
 }
 
 class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOutputs {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasImageService &
         HasAccountService &
         HasAlertService
-    private let dependencies: Dependencies
+    typealias NestedDependencies =
+        HasVoid
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: Private
 
@@ -58,7 +61,7 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
         dependencies: Dependencies
     ) {
         self.site = .init(site)
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
         icon = site.publisher(for: \.siteInfo)
             .ignoreNil()
@@ -122,13 +125,13 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
     }
 
     func login() {
-        dependencies.accountService.login(
+        dependencies.own.accountService.login(
             site: site.value,
             username: username.value,
             password: password.value
         )
         .sink(
-            receiveCompletion: dependencies.alertService.errorHandler(for: .login),
+            receiveCompletion: dependencies.own.alertService.errorHandler(for: .login),
             receiveValue: { [weak self] account in
                 self?.loggedIn.send(account)
             }

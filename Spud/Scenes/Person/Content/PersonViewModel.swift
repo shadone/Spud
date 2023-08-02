@@ -22,9 +22,12 @@ protocol PersonViewModelType {
 }
 
 class PersonViewModel: PersonViewModelType, PersonViewModelInputs, PersonViewModelOutputs {
-    typealias Dependencies =
+    typealias OwnDependencies =
         PersonHeaderViewModel.Dependencies
-    private let dependencies: Dependencies
+    typealias NestedDependencies =
+        HasVoid
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: Private
 
@@ -36,12 +39,12 @@ class PersonViewModel: PersonViewModelType, PersonViewModelInputs, PersonViewMod
         personInfo: LemmyPersonInfo,
         dependencies: Dependencies
     ) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
         self.personInfo = personInfo
 
         headerViewModel = PersonHeaderViewModel(
             personInfo: personInfo,
-            dependencies: dependencies
+            dependencies: self.dependencies.nested
         )
     }
 

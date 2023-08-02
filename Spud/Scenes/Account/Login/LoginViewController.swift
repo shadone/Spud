@@ -9,11 +9,13 @@ import Foundation
 import UIKit
 
 class LoginViewController: UIViewController {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasDataStore &
-        HasAccountService &
+        HasAccountService
+    typealias NestedDependencies =
         LoginViewModel.Dependencies
-    private let dependencies: Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: UI Properties
 
@@ -214,11 +216,11 @@ class LoginViewController: UIViewController {
         site: LemmySite,
         dependencies: Dependencies
     ) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
         viewModel = LoginViewModel(
             site: site,
-            dependencies: dependencies
+            dependencies: self.dependencies.nested
         )
 
         super.init(nibName: nil, bundle: nil)
@@ -333,13 +335,13 @@ class LoginViewController: UIViewController {
     }
 
     @objc private func continueWithSignedOutAccount() {
-        let account = dependencies.accountService.accountForSignedOut(
+        let account = dependencies.own.accountService.accountForSignedOut(
             at: viewModel.outputs.site.value,
             isServiceAccount: false,
-            in: dependencies.dataStore.mainContext
+            in: dependencies.own.dataStore.mainContext
         )
 
-        dependencies.accountService.setDefaultAccount(account)
+        dependencies.own.accountService.setDefaultAccount(account)
 
         dismiss(animated: true)
     }

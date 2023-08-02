@@ -8,9 +8,12 @@ import Foundation
 import UIKit
 
 class AccountViewController: UIViewController {
-    typealias Dependencies =
+    typealias OwnDependencies =
+        HasVoid
+    typealias NestedDependencies =
         AccountListViewController.Dependencies
-    private let dependencies: Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: - UI Properties
 
@@ -29,7 +32,7 @@ class AccountViewController: UIViewController {
     // MARK: - Functions
 
     init(dependencies: Dependencies) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
         super.init(nibName: nil, bundle: nil)
 
@@ -68,7 +71,7 @@ class AccountViewController: UIViewController {
 
     @objc private func accountsTapped() {
         let accountListViewController = AccountListViewController(
-            dependencies: dependencies
+            dependencies: dependencies.nested
         )
         let navigationController = UINavigationController(rootViewController: accountListViewController)
         present(navigationController, animated: true)

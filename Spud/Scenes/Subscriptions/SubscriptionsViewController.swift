@@ -7,10 +7,12 @@
 import UIKit
 
 class SubscriptionsViewController: UIViewController {
-    typealias Dependencies =
-        HasAccountService &
+    typealias OwnDependencies =
+        HasAccountService
+    typealias NestedDependencies =
         PostListViewController.Dependencies
-    private let dependencies: Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: UI Properties
 
@@ -50,7 +52,7 @@ class SubscriptionsViewController: UIViewController {
     // MARK: Functions
 
     init(account: LemmyAccount, dependencies: Dependencies) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
         self.account = account
 
@@ -84,7 +86,7 @@ extension SubscriptionsViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
 
-        let lemmyService = dependencies.accountService.lemmyService(for: account)
+        let lemmyService = dependencies.own.accountService.lemmyService(for: account)
         let feed: LemmyFeed
 
         switch SpecialCommunity(from: indexPath) {
@@ -107,7 +109,7 @@ extension SubscriptionsViewController: UITableViewDelegate {
             ))
         }
 
-        let postListVC = PostListViewController(feed: feed, dependencies: dependencies)
+        let postListVC = PostListViewController(feed: feed, dependencies: dependencies.nested)
         navigationController?.pushViewController(postListVC, animated: true)
     }
 }

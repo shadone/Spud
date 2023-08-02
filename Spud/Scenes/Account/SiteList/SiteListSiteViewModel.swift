@@ -8,6 +8,15 @@ import Combine
 import UIKit
 
 class SiteListSiteViewModel {
+    typealias OwnDependencies =
+        HasImageService
+    typealias NestedDependencies =
+        HasVoid
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
+
+    var imageService: ImageServiceType { dependencies.own.imageService }
+
     // MARK: Public
 
     var title: AnyPublisher<AttributedString, Never> {
@@ -93,12 +102,11 @@ class SiteListSiteViewModel {
     }
 
     private let site: LemmySite
-    private let imageService: ImageServiceType
 
     // MARK: Functions
 
-    init(site: LemmySite, imageService: ImageServiceType) {
+    init(site: LemmySite, dependencies: Dependencies) {
         self.site = site
-        self.imageService = imageService
+        self.dependencies = (own: dependencies, nested: dependencies)
     }
 }

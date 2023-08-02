@@ -8,9 +8,12 @@ import Foundation
 import UIKit
 
 class PersonViewController: UIViewController {
-    typealias Dependencies =
+    typealias OwnDependencies =
+        HasVoid
+    typealias NestedDependencies =
         PersonViewModel.Dependencies
-    private let dependencies: Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: - UI Properties
 
@@ -33,11 +36,11 @@ class PersonViewController: UIViewController {
     // MARK: - Functions
 
     init(personInfo: LemmyPersonInfo, dependencies: Dependencies) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
         viewModel = PersonViewModel(
             personInfo: personInfo,
-            dependencies: dependencies
+            dependencies: self.dependencies.nested
         )
         super.init(nibName: nil, bundle: nil)
 

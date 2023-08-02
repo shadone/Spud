@@ -12,14 +12,17 @@ import os.log
 private let logger = Logger(.app)
 
 class PostDetailViewController: UIViewController {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasDataStore &
         HasAppearanceService &
-        HasAppService &
+        HasAppService
+    typealias NestedDependencies =
         PostDetailViewModel.Dependencies &
         PostDetailHeaderViewModel.Dependencies &
-        PostDetailCommentViewModel.Dependencies
-    private let dependencies: Dependencies
+        PostDetailCommentViewModel.Dependencies &
+        PersonOrLoadingViewController.Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: - Public
 
@@ -31,7 +34,7 @@ class PostDetailViewController: UIViewController {
         disposables.removeAll()
         viewModel = PostDetailViewModel(
             post: post,
-            dependencies: dependencies
+            dependencies: dependencies.nested
         )
 
         bindViewModel()
@@ -68,7 +71,7 @@ class PostDetailViewController: UIViewController {
     // MARK: Functions
 
     init(post: LemmyPost, dependencies: Dependencies) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
         viewModel = PostDetailViewModel(
             post: post,
@@ -140,7 +143,7 @@ class PostDetailViewController: UIViewController {
 
         commentsFRC = NSFetchedResultsController(
             fetchRequest: request,
-            managedObjectContext: dependencies.dataStore.mainContext,
+            managedObjectContext: dependencies.own.dataStore.mainContext,
             sectionNameKeyPath: nil, cacheName: nil
         )
         commentsFRC?.delegate = self
@@ -161,7 +164,7 @@ class PostDetailViewController: UIViewController {
 
     @objc private func openInBrowser() {
         Task {
-            await dependencies.appService.openInBrowser(post: post, on: self)
+            await dependencies.own.appService.openInBrowser(post: post, on: self)
         }
     }
 }
@@ -233,7 +236,7 @@ extension PostDetailViewController: UITableViewDataSource {
             let commentElement = commentElement(at: indexPath.row)
             let viewModel = PostDetailCommentViewModel(
                 comment: commentElement,
-                dependencies: dependencies
+                dependencies: dependencies.nested
             )
             cell.configure(with: viewModel)
             cell.linkTapped = { [weak self] url in
@@ -249,20 +252,20 @@ extension PostDetailViewController: UITableViewDataSource {
     private func linkTapped(_ url: URL) {
         switch url.spud {
         case let .person(personId, instance):
-            let context = dependencies.dataStore.mainContext
+            let context = dependencies.own.dataStore.mainContext
             let request = LemmyPerson.fetchRequest(personId: personId, instanceUrl: instance)
             let results = try! context.fetch(request)
             let person = results.first!
             let vc = PersonOrLoadingViewController(
                 person: person,
                 account: post.account,
-                dependencies: AppDelegate.shared.dependencies
+                dependencies: dependencies.nested
             )
             navigationController?.pushViewController(vc, animated: true)
 
         case .none:
             Task {
-                await dependencies.appService.open(url: url, on: self)
+                await dependencies.own.appService.open(url: url, on: self)
             }
         }
     }

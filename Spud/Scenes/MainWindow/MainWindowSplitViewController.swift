@@ -8,33 +8,35 @@ import Foundation
 import UIKit
 
 class MainWindowSplitViewController: UISplitViewController {
-    typealias Dependencies =
-        HasAccountService &
+    typealias OwnDependencies =
+        HasAccountService
+    typealias NestedDependencies =
         SubscriptionsViewController.Dependencies &
         PostListViewController.Dependencies &
         PostDetailOrEmptyViewController.Dependencies
-    private let dependencies: Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: Functions
 
     init(account: LemmyAccount, dependencies: Dependencies) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
         super.init(style: .doubleColumn)
 
         // Setup the post list view controller (the primary part of split view controller)
         let subscriptionsVC = SubscriptionsViewController(
             account: account,
-            dependencies: dependencies
+            dependencies: self.dependencies.nested
         )
 
-        let lemmyService = dependencies.accountService.lemmyService(for: account)
-
-        let feed = lemmyService.createFeed(.frontpage(listingType: .all, sortType: .active))
+        let feed = self.dependencies.own.accountService
+            .lemmyService(for: account)
+            .createFeed(.frontpage(listingType: .all, sortType: .active))
 
         let postListVC = PostListViewController(
             feed: feed,
-            dependencies: dependencies
+            dependencies: self.dependencies.nested
         )
         let primaryNavigationController = UINavigationController()
         primaryNavigationController.setViewControllers([subscriptionsVC, postListVC], animated: false)
@@ -42,7 +44,7 @@ class MainWindowSplitViewController: UISplitViewController {
         // Setup the post detail (the secondary part of split view controller)
         let postDetailVC = PostDetailOrEmptyViewController(
             account: account,
-            dependencies: dependencies
+            dependencies: self.dependencies.nested
         )
         let secondaryNavigationController = UINavigationController(rootViewController: postDetailVC)
 

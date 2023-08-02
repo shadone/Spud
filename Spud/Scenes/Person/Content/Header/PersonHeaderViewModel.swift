@@ -9,9 +9,12 @@ import LemmyKit
 import UIKit
 
 class PersonHeaderViewModel {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasVoid
-    private let dependencies: Dependencies
+    typealias NestedDependencies =
+        HasVoid
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: Public
 
@@ -50,6 +53,6 @@ class PersonHeaderViewModel {
         dependencies: Dependencies
     ) {
         self.personInfo = personInfo
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
     }
 }

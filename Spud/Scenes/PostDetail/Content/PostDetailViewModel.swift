@@ -27,11 +27,13 @@ protocol PostDetailViewModelType {
 }
 
 class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, PostDetailViewModelOutputs {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasAccountService &
-        HasAlertService &
+        HasAlertService
+    typealias NestedDependencies =
         PostDetailHeaderViewModel.Dependencies
-    private let dependencies: Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: Private
 
@@ -45,7 +47,7 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
         post: LemmyPost,
         dependencies: Dependencies
     ) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
         self.post = post
 
         postObjectId = post.objectID
@@ -100,11 +102,11 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
         // TODO: reload from server if comments were fetched too long time ago
         guard numberOfFetchedComments == 0 else { return }
 
-        dependencies.accountService
+        dependencies.own.accountService
             .lemmyService(for: post.account)
             .fetchComments(postId: postObjectId, sortType: commentSortType.value)
             .sink(
-                receiveCompletion: dependencies.alertService.errorHandler(for: .fetchComments),
+                receiveCompletion: dependencies.own.alertService.errorHandler(for: .fetchComments),
                 receiveValue: { _ in }
             )
             .store(in: &disposables)

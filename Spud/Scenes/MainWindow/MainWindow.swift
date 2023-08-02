@@ -9,15 +9,17 @@ import CoreData
 import UIKit
 
 class MainWindow: UIWindow {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasAccountService &
         HasSiteService &
-        HasSchedulerService &
+        HasSchedulerService
+    typealias NestedDependencies =
         SubscriptionsViewController.Dependencies &
         PostListViewController.Dependencies &
         PostDetailOrEmptyViewController.Dependencies &
         AccountViewController.Dependencies
-    private let dependencies: Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: Private
 
@@ -72,9 +74,9 @@ class MainWindow: UIWindow {
         windowScene: UIWindowScene,
         dependencies: Dependencies
     ) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
-        let account = dependencies.accountService.defaultAccount()
+        let account = self.dependencies.own.accountService.defaultAccount()
 
         tabBarController = MainWindowTabBarController()
 
@@ -112,12 +114,12 @@ class MainWindow: UIWindow {
         // Tab: Setup the split view controller
         let splitViewController = MainWindowSplitViewController(
             account: account,
-            dependencies: dependencies
+            dependencies: dependencies.nested
         )
         splitViewController.delegate = self
 
         // Tab: Setup the account view controller
-        let accountViewController = AccountViewController(dependencies: dependencies)
+        let accountViewController = AccountViewController(dependencies: dependencies.nested)
         let accountNavigationController = UINavigationController(rootViewController: accountViewController)
 
         // Tab: Setup the search view controller

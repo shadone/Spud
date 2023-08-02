@@ -10,10 +10,13 @@ import UIKit
 import os.log
 
 class PersonLoadingViewController: UIViewController {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasAccountService &
         HasAlertService
-    private let dependencies: Dependencies
+    typealias NestedDependencies =
+        HasVoid
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: - Public
 
@@ -64,7 +67,7 @@ class PersonLoadingViewController: UIViewController {
         account: LemmyAccount,
         dependencies: Dependencies
     ) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
         self.person = person
         self.account = account
 
@@ -98,11 +101,11 @@ class PersonLoadingViewController: UIViewController {
         loadingIndicator.startAnimating()
 
         // TODO: start loading person details
-        dependencies.accountService
+        dependencies.own.accountService
             .lemmyService(for: account)
             .fetchPersonDetails(personId: person.objectID)
             .sink(
-                receiveCompletion: dependencies.alertService.errorHandler(for: .fetchPersonDetails),
+                receiveCompletion: dependencies.own.alertService.errorHandler(for: .fetchPersonDetails),
                 receiveValue: { [weak self] personInfo in
                     self?.didFinishLoading?(personInfo)
                 }

@@ -10,11 +10,14 @@ import LemmyKit
 import UIKit
 
 class PostDetailHeaderViewModel {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasImageService &
         HasAppearanceService &
         HasPostContentDetectorService
-    private let dependencies: Dependencies
+    typealias NestedDependencies =
+        HasVoid
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: Public
 
@@ -38,7 +41,7 @@ class PostDetailHeaderViewModel {
                     numberOfVotesOrScore: score,
                     voteStatus: voteStatus,
                     attributes: attributes,
-                    appearance: self.dependencies.appearanceService.general
+                    appearance: self.dependencies.own.appearanceService.general
                 )
             }
             .eraseToAnyPublisher()
@@ -101,7 +104,7 @@ class PostDetailHeaderViewModel {
     }
 
     var postContentType: AnyPublisher<PostContentType, Never> {
-        dependencies.postContentDetectorService
+        dependencies.own.postContentDetectorService
             .contentTypeForUrl(in: post)
     }
 
@@ -121,7 +124,7 @@ class PostDetailHeaderViewModel {
                     return .empty(completeImmediately: false)
 
                 case let .image(image):
-                    return self.dependencies.imageService
+                    return self.dependencies.own.imageService
                         .fetch(image.imageUrl, thumbnail: thumbnailUrl)
                 }
             }
@@ -163,7 +166,7 @@ class PostDetailHeaderViewModel {
 
                 switch postContentType {
                 case .externalLink:
-                    return self.dependencies.imageService
+                    return self.dependencies.own.imageService
                         .fetch(thumbnailUrl)
                         .map { (url, $0) }
                         .eraseToAnyPublisher()
@@ -234,7 +237,7 @@ class PostDetailHeaderViewModel {
     private let post: LemmyPost
 
     private var appearance: PostDetailAppearanceType {
-        dependencies.appearanceService.postDetail
+        dependencies.own.appearanceService.postDetail
     }
 
     // MARK: Functions
@@ -244,6 +247,6 @@ class PostDetailHeaderViewModel {
         dependencies: Dependencies
     ) {
         self.post = post
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
     }
 }

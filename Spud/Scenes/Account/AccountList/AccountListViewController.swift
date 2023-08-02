@@ -12,11 +12,13 @@ import os.log
 private let logger = Logger(.app)
 
 class AccountListViewController: UIViewController {
-    typealias Dependencies =
+    typealias OwnDependencies =
         HasDataStore &
-        HasAccountService &
+        HasAccountService
+    typealias NestedDependencies =
         SiteListViewController.Dependencies
-    private let dependencies: Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: UI Properties
 
@@ -43,7 +45,7 @@ class AccountListViewController: UIViewController {
     // MARK: Functions
 
     init(dependencies: Dependencies) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
 
         super.init(nibName: nil, bundle: nil)
 
@@ -102,7 +104,7 @@ class AccountListViewController: UIViewController {
 
         accountsFRC = NSFetchedResultsController(
             fetchRequest: request,
-            managedObjectContext: dependencies.dataStore.mainContext,
+            managedObjectContext: dependencies.own.dataStore.mainContext,
             sectionNameKeyPath: nil, cacheName: nil
         )
         accountsFRC?.delegate = self
@@ -145,7 +147,7 @@ class AccountListViewController: UIViewController {
         setEditing(false, animated: true)
 
         let siteListViewController = SiteListViewController(
-            dependencies: dependencies
+            dependencies: dependencies.nested
         )
         let navigationController = UINavigationController(rootViewController: siteListViewController)
         present(navigationController, animated: true)
@@ -174,7 +176,7 @@ extension AccountListViewController {
 extension AccountListViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let account = account(at: indexPath.row)
-        dependencies.accountService.setDefaultAccount(account)
+        dependencies.own.accountService.setDefaultAccount(account)
         dismiss(animated: true)
     }
 }

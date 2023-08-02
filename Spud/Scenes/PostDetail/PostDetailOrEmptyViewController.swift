@@ -9,10 +9,13 @@ import LemmyKit
 import UIKit
 
 class PostDetailOrEmptyViewController: UIViewController {
-    typealias Dependencies =
+    typealias OwnDependencies =
+        HasVoid
+    typealias NestedDependencies =
         PostDetailViewController.Dependencies &
         PostDetailLoadingViewController.Dependencies
-    private let dependencies: Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: - Public
 
@@ -57,7 +60,7 @@ class PostDetailOrEmptyViewController: UIViewController {
     // MARK: - Functions
 
     init(post: LemmyPost, dependencies: Dependencies) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
         account = post.account
 
         viewModel = PostDetailOrEmptyViewModel(post)
@@ -71,7 +74,7 @@ class PostDetailOrEmptyViewController: UIViewController {
     }
 
     init(account: LemmyAccount, dependencies: Dependencies) {
-        self.dependencies = dependencies
+        self.dependencies = (own: dependencies, nested: dependencies)
         self.account = account
 
         viewModel = PostDetailOrEmptyViewModel(nil)
@@ -132,7 +135,7 @@ class PostDetailOrEmptyViewController: UIViewController {
             } else {
                 contentViewController = PostDetailViewController(
                     post: post,
-                    dependencies: dependencies
+                    dependencies: dependencies.nested
                 )
 
                 remove(child: loadingViewController)
@@ -146,7 +149,7 @@ class PostDetailOrEmptyViewController: UIViewController {
             let loadingViewController = PostDetailLoadingViewController(
                 postId: postId,
                 account: account,
-                dependencies: dependencies
+                dependencies: dependencies.nested
             )
             self.loadingViewController = loadingViewController
 
