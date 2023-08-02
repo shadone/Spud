@@ -171,6 +171,10 @@ class PostDetailViewController: UIViewController {
             await appService.openInBrowser(post: post, on: self)
         }
     }
+
+    private func vote(_ commentElement: LemmyCommentElement, _ action: VoteStatus.Action) {
+        // TODO:
+    }
 }
 
 // MARK: - FRC helpers
@@ -243,8 +247,45 @@ extension PostDetailViewController: UITableViewDataSource {
                 dependencies: dependencies.nested
             )
             cell.configure(with: viewModel)
+
             cell.linkTapped = { [weak self] url in
                 self?.linkTapped(url)
+            }
+
+            let generalAppearance = appearanceService.general
+            cell.swipeActionConfiguration = .init(
+                leadingPrimaryAction: .init(
+                    image: generalAppearance.upvoteIcon,
+                    backgroundColor: generalAppearance.upvoteSwipeActionBackgroundColor
+                ),
+                leadingSecondaryAction: .init(
+                    image: generalAppearance.downvoteIcon,
+                    backgroundColor: generalAppearance.downvoteSwipeActionBackgroundColor
+                ),
+                trailingPrimaryAction: .init(
+                    // TODO: make reply action
+                    image: UIImage(systemName: "arrowshape.turn.up.backward")!,
+                    backgroundColor: UIColor.blue
+                ),
+                trailingSecondaryAction: .init(
+                    // TODO: make save comment action
+                    image: UIImage(systemName: "bookmark")!,
+                    backgroundColor: UIColor.green
+                )
+            )
+
+            cell.swipeActionTriggered = { [weak self] action in
+                switch action {
+                case .leadingPrimary:
+                    self?.vote(commentElement, .upvote)
+
+                case .leadingSecondary:
+                    self?.vote(commentElement, .downvote)
+
+                case .trailingPrimary, .trailingSecondary:
+                    // TODO: will be reply and save actions
+                    break
+                }
             }
 
             return cell

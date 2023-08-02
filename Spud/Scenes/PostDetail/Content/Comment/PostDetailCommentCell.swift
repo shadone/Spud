@@ -14,7 +14,41 @@ class PostDetailCommentCell: UITableViewCell {
 
     var linkTapped: ((URL) -> Void)?
 
+    var swipeActionConfiguration: SwipeActionView.Configuration? {
+        get {
+            swipeActionView.configuration
+        }
+        set {
+            swipeActionView.configuration = newValue
+        }
+    }
+
+    var swipeActionTriggered: ((SwipeActionView.ActionTrigger) -> Void)?
+
     // MARK: UI Properties
+
+    lazy var mainHorizontalStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .horizontal
+        stackView.spacing = 0
+        stackView.accessibilityIdentifier = "mainHorizontalStackView"
+
+        [
+            indentationRibbonLeadingSpacerView,
+            indentationRibbonView,
+            verticalStackView,
+        ].forEach(stackView.addArrangedSubview)
+
+        stackView.setCustomSpacing(4, after: indentationRibbonView)
+
+        NSLayoutConstraint.activate([
+            indentationRibbonView.topAnchor.constraint(equalTo: stackView.topAnchor, constant: 4),
+            indentationRibbonView.bottomAnchor.constraint(equalTo: stackView.bottomAnchor, constant: -4),
+        ])
+
+        return stackView
+    }()
 
     lazy var verticalStackView: UIStackView = {
         let stackView = UIStackView()
@@ -84,9 +118,30 @@ class PostDetailCommentCell: UITableViewCell {
     var indentationRibbonViewLeadingConstaint: NSLayoutConstraint!
     var indentationRibbonWidthConstraint: NSLayoutConstraint!
 
+    lazy var indentationRibbonLeadingSpacerView: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+
     lazy var indentationRibbonView: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+
+    lazy var swipeActionView: SwipeActionView = {
+        let view = SwipeActionView(
+            contentView: mainHorizontalStackView,
+            // setting smaller left margin because there is indentation ribbon that adds
+            // additional spacing.
+            margin: UIEdgeInsets(top: 8, left: 4, bottom: -8, right: -8),
+            configuration: nil
+        )
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.trigger = { [weak self] action in
+            self?.swipeActionTriggered?(action)
+        }
         return view
     }()
 
@@ -108,10 +163,10 @@ class PostDetailCommentCell: UITableViewCell {
         selectionStyle = .none
 
         contentView.addSubview(indentationRibbonView)
-        contentView.addSubview(verticalStackView)
+        contentView.addSubview(swipeActionView)
 
-        let indentationRibbonViewLeadingConstaint = indentationRibbonView.leadingAnchor
-            .constraint(equalTo: contentView.leadingAnchor)
+        let indentationRibbonViewLeadingConstaint = indentationRibbonLeadingSpacerView.widthAnchor
+            .constraint(equalToConstant: 0)
         self.indentationRibbonViewLeadingConstaint = indentationRibbonViewLeadingConstaint
 
         let indentationRibbonWidthConstraint = indentationRibbonView.widthAnchor
@@ -120,17 +175,12 @@ class PostDetailCommentCell: UITableViewCell {
 
         NSLayoutConstraint.activate([
             indentationRibbonViewLeadingConstaint,
-            indentationRibbonView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
-            indentationRibbonView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
             indentationRibbonWidthConstraint,
 
-            verticalStackView.leadingAnchor.constraint(equalTo: indentationRibbonView.trailingAnchor, constant: 8),
-            verticalStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -8),
-            verticalStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 8),
-            verticalStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -8),
-
-            messageLabel.leadingAnchor.constraint(equalTo: verticalStackView.leadingAnchor),
-            messageLabel.trailingAnchor.constraint(equalTo: verticalStackView.trailingAnchor),
+            swipeActionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            swipeActionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            swipeActionView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            swipeActionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
         ])
     }
 
