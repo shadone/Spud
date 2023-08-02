@@ -365,6 +365,17 @@ extension PostListViewController: UITableViewDelegate {
 
     func tableView(
         _ tableView: UITableView,
+        willPerformPreviewActionForMenuWith configuration: UIContextMenuConfiguration,
+        animator: UIContextMenuInteractionCommitAnimating
+    ) {
+        // The user pressed on the preview -> lets open the cell
+        guard let indexPath = configuration.identifier as? IndexPath else { fatalError() }
+        let post = post(at: indexPath.row)
+        viewModel.inputs.didSelectPost(post)
+    }
+
+    func tableView(
+        _ tableView: UITableView,
         contextMenuConfigurationForRowAt indexPath: IndexPath,
         point: CGPoint
     ) -> UIContextMenuConfiguration? {
