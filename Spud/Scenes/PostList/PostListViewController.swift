@@ -349,12 +349,27 @@ extension PostListViewController: UITableViewDelegate {
 
     func tableView(
         _ tableView: UITableView,
+        previewForHighlightingContextMenuWithConfiguration configuration: UIContextMenuConfiguration
+    ) -> UITargetedPreview? {
+        guard let indexPath = configuration.identifier as? IndexPath else { fatalError() }
+        guard let cell = tableView.cellForRow(at: indexPath) else { return nil }
+        guard let cell = cell as? PostListPostCell else { fatalError() }
+
+        let parameters = UIPreviewParameters()
+        parameters.backgroundColor = .clear
+        parameters.visiblePath = UIBezierPath(roundedRect: cell.bounds, cornerRadius: 12)
+
+        return UITargetedPreview(view: cell, parameters: parameters)
+    }
+
+    func tableView(
+        _ tableView: UITableView,
         contextMenuConfigurationForRowAt indexPath: IndexPath,
         point: CGPoint
     ) -> UIContextMenuConfiguration? {
         let generalAppearance = dependencies.appearanceService.general
         return UIContextMenuConfiguration(
-            identifier: nil,
+            identifier: indexPath as NSCopying,
             previewProvider: nil,
             actionProvider: { suggestedActions in
                 let upvoteAction = UIAction(
