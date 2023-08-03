@@ -7,6 +7,8 @@
 import Combine
 import CoreData
 import UIKit
+import SpudWidgetData
+import WidgetKit
 
 class MainWindow: UIWindow {
     typealias OwnDependencies =
@@ -62,6 +64,20 @@ class MainWindow: UIWindow {
         }
         .eraseToAnyPublisher()
 
+    private var feedUpdated: AnyPublisher<LemmyFeed, Never> = NotificationCenter.default
+        .publisher(for: .NSManagedObjectContextObjectsDidChange)
+        .compactMap { notification -> LemmyFeed? in
+            guard
+                let updatedObjects = notification.userInfo?[NSUpdatedObjectsKey] as? NSSet
+            else {
+                return nil
+            }
+            let feeds = updatedObjects.compactMap { $0 as? LemmyFeed }
+            assert(feeds.count <= 1)
+            return feeds.first
+        }
+        .eraseToAnyPublisher()
+
     private let tabBarController: MainWindowTabBarController
 
     private var disposables = Set<AnyCancellable>()
@@ -86,6 +102,47 @@ class MainWindow: UIWindow {
             .receive(on: RunLoop.main)
             .sink { account in
                 self.checkForUpdatedDefaultAccount(account)
+            }
+            .store(in: &disposables)
+
+        feedUpdated
+            .sink { feed in
+                guard
+                    let topPosts = feed.pages
+                        .sorted(by: { $0.index < $1.index })
+                        .first?
+                        .pageElements
+                        .sorted(by: { $0.index < $1.index })
+                        .prefix(3)
+                        .map(\.post)
+                else {
+                    return
+                }
+
+                let value = TopPosts(posts: topPosts.map { post in
+                    let postType: Post.PostType
+                    if let thumbnailUrl = post.thumbnailUrl {
+                        postType = .image(thumbnailUrl)
+                    } else {
+                        postType = .text
+                    }
+
+                    // TODO:
+                    let postUrl = URL(string: "spud://foobar/post/\(post.localPostId)")!
+
+                    return .init(
+                        spudUrl: postUrl,
+                        title: post.title,
+                        type: postType,
+                        community: .init(name: post.communityName, site: "XXX"),
+                        score: post.score,
+                        numberOfComments: post.numberOfComments
+                    )
+                })
+
+                WidgetDataProvider.shared.write(value)
+
+                WidgetCenter.shared.reloadAllTimelines()
             }
             .store(in: &disposables)
 
