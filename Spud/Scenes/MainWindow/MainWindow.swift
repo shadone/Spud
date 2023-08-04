@@ -7,8 +7,6 @@
 import Combine
 import CoreData
 import UIKit
-import SpudWidgetData
-import WidgetKit
 
 class MainWindow: UIWindow {
     typealias OwnDependencies =
@@ -37,47 +35,6 @@ class MainWindow: UIWindow {
         }
         .eraseToAnyPublisher()
 
-    private var accountDeleted: AnyPublisher<LemmyAccount, Never> = NotificationCenter.default
-        .publisher(for: .NSManagedObjectContextObjectsDidChange)
-        .compactMap { notification -> LemmyAccount? in
-            guard
-                let deletedObjects = notification.userInfo?[NSDeletedObjectsKey] as? NSSet
-            else {
-                return nil
-            }
-            let accounts = deletedObjects.compactMap { $0 as? LemmyAccount }
-            assert(accounts.count <= 1)
-            return accounts.first
-        }
-        .eraseToAnyPublisher()
-
-    private var accountUpdated: AnyPublisher<Void, Never> = NotificationCenter.default
-        .publisher(for: .NSManagedObjectContextObjectsDidChange)
-        .compactMap { notification -> Void? in
-            guard
-                let updatedObjects = notification.userInfo?[NSUpdatedObjectsKey] as? NSSet
-            else {
-                return nil
-            }
-            let accounts = updatedObjects.compactMap { $0 as? LemmyAccount }
-            return accounts.isEmpty ? nil : ()
-        }
-        .eraseToAnyPublisher()
-
-    private var feedUpdated: AnyPublisher<LemmyFeed, Never> = NotificationCenter.default
-        .publisher(for: .NSManagedObjectContextObjectsDidChange)
-        .compactMap { notification -> LemmyFeed? in
-            guard
-                let updatedObjects = notification.userInfo?[NSUpdatedObjectsKey] as? NSSet
-            else {
-                return nil
-            }
-            let feeds = updatedObjects.compactMap { $0 as? LemmyFeed }
-            assert(feeds.count <= 1)
-            return feeds.first
-        }
-        .eraseToAnyPublisher()
-
     private let tabBarController: MainWindowTabBarController
 
     private var disposables = Set<AnyCancellable>()
@@ -102,53 +59,6 @@ class MainWindow: UIWindow {
             .receive(on: RunLoop.main)
             .sink { account in
                 self.checkForUpdatedDefaultAccount(account)
-            }
-            .store(in: &disposables)
-
-        feedUpdated
-            .sink { feed in
-                guard
-                    let topPosts = feed.pages
-                        .sorted(by: { $0.index < $1.index })
-                        .first?
-                        .pageElements
-                        .sorted(by: { $0.index < $1.index })
-                        // The max number of posts widget of any size might need.
-                        .prefix(6)
-                        .map(\.post)
-                else {
-                    return
-                }
-
-                let value = TopPosts(posts: topPosts
-                    .compactMap(\.postInfo)
-                    .map { postInfo in
-                        let postType: Post.PostType
-                        if let thumbnailUrl = postInfo.thumbnailUrl {
-                            postType = .image(thumbnailUrl)
-                        } else {
-                            postType = .text
-                        }
-
-                        let postUrl = URL.SpudInternalLink.post(
-                            postId: postInfo.post.postId,
-                            instance: postInfo.post.account.site.instance.actorId
-                        ).url
-
-                        return .init(
-                            spudUrl: postUrl,
-                            title: postInfo.title,
-                            type: postType,
-                            community: .init(name: postInfo.communityName, site: "XXX"),
-                            score: postInfo.score,
-                            numberOfComments: postInfo.numberOfComments
-                        )
-                    }
-                )
-
-                WidgetDataProvider.shared.write(value)
-
-                WidgetCenter.shared.reloadAllTimelines()
             }
             .store(in: &disposables)
 

@@ -146,6 +146,7 @@
 		92BBE4AB2A5C39D9008C2F55 /* String+endsWith.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4AA2A5C39D9008C2F55 /* String+endsWith.swift */; };
 		92C82A372A58643600B5B431 /* PostContentDetectorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C82A362A58643600B5B431 /* PostContentDetectorService.swift */; };
 		92C82A392A5955DD00B5B431 /* PostContentType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C82A382A5955DD00B5B431 /* PostContentType.swift */; };
+		92CC5D542A7DAE3F0019436A /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5D532A7DAE3F0019436A /* AppCoordinator.swift */; };
 		92CEAEAC2A4CD79500FAF4DB /* AccountServiceLoginError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */; };
 		92CEAEAE2A4CD7AC00FAF4DB /* LemmyCredential.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */; };
 		92CEAEB12A4D5B4800FAF4DB /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */; };
@@ -401,6 +402,7 @@
 		92BBE4AA2A5C39D9008C2F55 /* String+endsWith.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+endsWith.swift"; sourceTree = "<group>"; };
 		92C82A362A58643600B5B431 /* PostContentDetectorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostContentDetectorService.swift; sourceTree = "<group>"; };
 		92C82A382A5955DD00B5B431 /* PostContentType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostContentType.swift; sourceTree = "<group>"; };
+		92CC5D532A7DAE3F0019436A /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
 		92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountServiceLoginError.swift; sourceTree = "<group>"; };
 		92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyCredential.swift; sourceTree = "<group>"; };
 		92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+safeHost.swift"; sourceTree = "<group>"; };
@@ -775,6 +777,7 @@
 		92B7C9322A3A592B00672F64 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				92CC5D532A7DAE3F0019436A /* AppCoordinator.swift */,
 				92B7C8FD2A3A40EB00672F64 /* AppDelegate.swift */,
 				92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */,
 				92B7C8FF2A3A40EB00672F64 /* SceneDelegate.swift */,
@@ -1353,6 +1356,7 @@
 				92DD62DC2A45945A00497C3B /* AccountViewController.swift in Sources */,
 				929D138F2A770E0C00E7E5DB /* AlertHandlerRequest.swift in Sources */,
 				929D138D2A77073A00E7E5DB /* AlertService.swift in Sources */,
+				92CC5D542A7DAE3F0019436A /* AppCoordinator.swift in Sources */,
 				92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */,
 				926602BB2A5F68BF005A1641 /* AppearanceService.swift in Sources */,
 				927618182A730C25003D49D4 /* AppService.swift in Sources */,

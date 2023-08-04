@@ -25,7 +25,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         let window = MainWindow(
             windowScene: windowScene,
-            dependencies: AppDelegate.shared.dependencies
+            dependencies: AppCoordinator.shared.dependencies
         )
         self.window = window
 
@@ -61,7 +61,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         // Save changes in the application's managed object context when the application
         // transitions to the background.
-        AppDelegate.shared.dependencies.dataStore.saveIfNeeded()
+        AppCoordinator.shared.dependencies.dataStore.saveIfNeeded()
     }
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
@@ -81,10 +81,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         case let .post(postId, instance):
             // FIXME: for now assume the post's instance is the same as the default account.
             _ = instance
-            let account = AppDelegate.shared.dependencies.accountService.defaultAccount()
+            let account = AppCoordinator.shared.dependencies.accountService.defaultAccount()
             let postDetailVC = PostDetailOrEmptyViewController(
                 account: account,
-                dependencies: AppDelegate.shared.dependencies
+                dependencies: AppCoordinator.shared.dependencies
             )
             postDetailVC.startLoadingPost(postId: postId)
             window?.rootViewController?.present(postDetailVC, animated: true)

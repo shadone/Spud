@@ -47,11 +47,9 @@ struct DependencyContainer:
         )
         postContentDetectorService = PostContentDetectorService()
         appService = AppService(preferencesService: preferencesService)
-
-        start()
     }
 
-    private func start() {
+    func start() {
         dataStore.startService()
         schedulerService.startService()
         siteService.startService()
