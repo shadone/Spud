@@ -17,6 +17,8 @@ class PostDetailLoadingViewController: UIViewController {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    private var accountService: AccountServiceType { dependencies.own.accountService }
+
     // MARK: - Public
 
     var didFinishLoading: ((LemmyPost) -> Void)?
@@ -77,6 +79,7 @@ class PostDetailLoadingViewController: UIViewController {
     }
 
     private func setup() {
+        view.backgroundColor = .systemBackground
         view.addSubview(stackView)
 
         NSLayoutConstraint.activate([
@@ -93,22 +96,21 @@ class PostDetailLoadingViewController: UIViewController {
 
         loadingIndicator.startAnimating()
 
-        assertionFailure("not fully implemented")
-//        dependencies.accountService
-//            .lemmyService(for: account)
-//            .fetchPostAndComments(postId: postId, sortOrder: .confidence)
-//            .sink { complete in
-//                switch complete {
-//                case let .failure(error):
-//                    os_log("Failed to fetch post: %{public}@",
-//                           log: .app, type: .error,
-//                           String(describing: error))
-//                case .finished:
-//                    break
-//                }
-//            } receiveValue: { [weak self] post in
-//                self?.didFinishLoading?(post)
-//            }
-//            .store(in: &disposables)
+        accountService
+            .lemmyService(for: account)
+            .fetchPost(postId: postId)
+            .sink { complete in
+                switch complete {
+                case let .failure(error):
+                    os_log("Failed to fetch post: %{public}@",
+                           log: .app, type: .error,
+                           String(describing: error))
+                case .finished:
+                    break
+                }
+            } receiveValue: { [weak self] post in
+                self?.didFinishLoading?(post)
+            }
+            .store(in: &disposables)
     }
 }

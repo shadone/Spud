@@ -5,6 +5,9 @@
 //
 
 import UIKit
+import os.log
+
+private let logger = Logger(.app)
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: UIWindow?
@@ -59,5 +62,39 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Save changes in the application's managed object context when the application
         // transitions to the background.
         AppDelegate.shared.dependencies.dataStore.saveIfNeeded()
+    }
+
+    func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+        URLContexts.forEach { urlContext in
+            logger.debug("""
+                Received open URL request: \(urlContext.url, privacy: .public) \
+                [\
+                sourceApplication=\(urlContext.options.sourceApplication ?? "nil", privacy: .public), \
+                eventAttribution=\(String(describing: urlContext.options.eventAttribution) ?? "nil", privacy: .public)\
+                ]
+                """)
+        }
+
+        guard let url = URLContexts.first?.url else { return }
+
+        switch url.spud {
+        case let .post(postId, instance):
+            // FIXME: for now assume the post's instance is the same as the default account.
+            _ = instance
+            let account = AppDelegate.shared.dependencies.accountService.defaultAccount()
+            let postDetailVC = PostDetailOrEmptyViewController(
+                account: account,
+                dependencies: AppDelegate.shared.dependencies
+            )
+            postDetailVC.startLoadingPost(postId: postId)
+            window?.rootViewController?.present(postDetailVC, animated: true)
+
+        case .person:
+            // TODO: open PersonVC
+            break
+
+        case .none:
+            logger.error("Received open url request for url that we can't handle: \(url.absoluteString, privacy: .public)")
+        }
     }
 }

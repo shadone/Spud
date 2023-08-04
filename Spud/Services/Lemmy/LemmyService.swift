@@ -52,6 +52,10 @@ protocol LemmyServiceType {
         commentId: NSManagedObjectID,
         vote action: VoteStatus.Action
     ) -> AnyPublisher<Void, LemmyServiceError>
+
+    func fetchPost(
+        postId: PostId
+    ) -> AnyPublisher<LemmyPost, LemmyServiceError>
 }
 
 extension LemmyServiceType {
@@ -85,6 +89,11 @@ class LemmyService: LemmyServiceType {
     private lazy var backgroundScheduler: ManagedContextSchedulerOf<DispatchQueue> = {
         DispatchQueue.managedContentScheduler(backgroundContext)
     }()
+
+    /// Returns account object in **background context**.
+    private var account: LemmyAccount {
+        backgroundContext.object(with: accountObjectId) as! LemmyAccount
+    }
 
     // MARK: Functions
 
@@ -478,6 +487,49 @@ class LemmyService: LemmyServiceType {
                     .map { _ in () }
                     .mapError { .apiError($0) }
                     .eraseToAnyPublisher()
+            }
+            .receive(on: RunLoop.main)
+            .eraseToAnyPublisher()
+    }
+
+    func fetchPost(
+        postId: PostId
+    ) -> AnyPublisher<LemmyPost, LemmyServiceError> {
+        assert(Thread.current.isMainThread)
+
+        logger.debug("Fetch post \(postId, privacy: .public)")
+        let request = GetPost.Request(
+            id: postId,
+            auth: self.credential?.jwt
+        )
+        return self.api.getPost(request)
+            .receive(on: self.backgroundScheduler)
+            .map { response -> LemmyPost in
+                logger.debug("Fetch post \(postId, privacy: .public) complete")
+
+                let post = LemmyPost.upsert(response.post_view, account: self.account, in: self.backgroundContext)
+
+                // TODO: upsert from response.community_view
+                // TODO: upsert from response.moderators
+                // TODO: upsert from response.cross_posts
+
+                return post
+            }
+            .handleEvents(receiveOutput: { response in
+            }, receiveCompletion: { completion in
+                switch completion {
+                case .failure:
+                    break
+                case .finished:
+                    self.saveIfNeeded()
+                }
+            })
+            .mapError { error in
+                logger.error("""
+                    Fetch post \(postId, privacy: .public) \
+                    failed: \(String(describing: error), privacy: .public)
+                    """)
+                return .apiError(error)
             }
             .receive(on: RunLoop.main)
             .eraseToAnyPublisher()
