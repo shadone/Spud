@@ -12,6 +12,7 @@ enum AlertHandlerRequest: CustomStringConvertible {
     case fetchComments
     case fetchPersonInfo
     case fetchSiteInfo
+    case fetchPostInfo
     case login
     case fetchImage
 
@@ -28,6 +29,9 @@ enum AlertHandlerRequest: CustomStringConvertible {
 
         case .fetchPersonInfo:
             return "fetchPersonInfo"
+
+        case .fetchPostInfo:
+            return "fetchPostInfo"
 
         case .fetchSiteInfo:
             return "fetchSiteInfo"

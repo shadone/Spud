@@ -12,13 +12,15 @@ import os.log
 class PostDetailLoadingViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
-        HasDataStore
+        HasDataStore &
+        HasAlertService
     typealias NestedDependencies =
         HasVoid
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     private var accountService: AccountServiceType { dependencies.own.accountService }
+    private var alertService: AlertServiceType { dependencies.own.alertService }
     private var dataStore: DataStoreType { dependencies.own.dataStore }
 
     // MARK: - Public
@@ -109,18 +111,12 @@ class PostDetailLoadingViewController: UIViewController {
         accountService
             .lemmyService(for: account)
             .fetchPostInfo(postId: post.objectID)
-            .sink { complete in
-                switch complete {
-                case let .failure(error):
-                    os_log("Failed to fetch post: %{public}@",
-                           log: .app, type: .error,
-                           String(describing: error))
-                case .finished:
-                    break
+            .sink(
+                receiveCompletion: alertService.errorHandler(for: .fetchPostInfo),
+                receiveValue: { [weak self] postInfo in
+                    self?.didFinishLoading?(postInfo)
                 }
-            } receiveValue: { [weak self] postInfo in
-                self?.didFinishLoading?(postInfo)
-            }
+            )
             .store(in: &disposables)
     }
 }
