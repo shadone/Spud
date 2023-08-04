@@ -14,9 +14,9 @@ extension LemmyPost {
         let url = URL(string: account.site.instance.actorId)!
 
         if #available(iOS 16.0, *) {
-            return url.appending(path: "post/\(localPostId)")
+            return url.appending(path: "post/\(postId)")
         } else {
-            return url.appendingPathComponent("post/\(localPostId)")
+            return url.appendingPathComponent("post/\(postId)")
         }
     }
 }

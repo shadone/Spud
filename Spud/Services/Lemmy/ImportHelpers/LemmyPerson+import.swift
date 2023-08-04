@@ -19,6 +19,8 @@ extension LemmyPerson {
     ) {
         self.init(context: context)
 
+        personId = model.id
+
         set(from: model)
 
         createdAt = Date()
@@ -48,14 +50,15 @@ extension LemmyPerson {
     }
 
     func set(from model: LocalUserView) {
-        self.personId = model.local_user.person_id
+        assert(personId == model.local_user.person_id)
+        //self.personId = model.local_user.person_id
 
         let personInfo = getOrCreatePersonInfo()
         personInfo?.set(from: model)
     }
 
     func set(from model: Person) {
-        self.personId = model.id
+        assert(personId == model.id)
 
         let personInfo = getOrCreatePersonInfo()
         personInfo?.set(from: model)
@@ -64,6 +67,8 @@ extension LemmyPerson {
     }
 
     func set(from model: PersonView) {
+        assert(personId == model.person.id)
+
         set(from: model.person)
 
         let personInfo = getOrCreatePersonInfo()

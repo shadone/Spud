@@ -7,7 +7,7 @@
 import Combine
 import Foundation
 
-extension LemmyPost {
+extension LemmyPostInfo {
     /// Describes whether the user has upvoted this post.
     var voteStatus: VoteStatus {
         get {

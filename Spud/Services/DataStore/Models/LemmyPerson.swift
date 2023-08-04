@@ -56,13 +56,16 @@ import os.log
     ///
     /// For example when fetching `@user@kbin.social` person info using an account logged in to `lemmy.world`,
     /// this site points to `lemmy.world`.
+    ///
+    /// - Note: This could've been a "LemmyAccount" but since Person objects don't have anything account specific
+    /// we associate Person with a Site instead of making it per-account.
     @NSManaged public var site: LemmySite
 
     /// The extended info about the person.
     @NSManaged public var personInfo: LemmyPersonInfo?
 
     @NSManaged public var accountInfo: LemmyAccountInfo?
-    @NSManaged public var posts: Set<LemmyPost>
+    @NSManaged public var postInfos: Set<LemmyPostInfo>
     @NSManaged public var comments: Set<LemmyComment>
 }
 

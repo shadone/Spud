@@ -18,15 +18,15 @@ enum PostDetailOrEmpty {
 
 protocol PostDetailOrEmptyViewModelInputs {
     func startLoadingPost(postId: PostId)
-    func didFinishLoadingPost(_ post: LemmyPost)
-    func displayPost(_ post: LemmyPost)
+    func didFinishLoadingPostInfo(_ postInfo: LemmyPostInfo)
+    func displayPostInfo(_ postInfo: LemmyPostInfo)
     func displayEmpty()
 }
 
 protocol PostDetailOrEmptyViewModelOutputs {
-    var currentPost: AnyPublisher<LemmyPost?, Never> { get }
+    var currentPostInfo: AnyPublisher<LemmyPostInfo?, Never> { get }
     var loadPostById: AnyPublisher<PostId, Never> { get }
-    var postLoaded: AnyPublisher<LemmyPost, Never> { get }
+    var postInfoLoaded: AnyPublisher<LemmyPostInfo, Never> { get }
     var viewState: AnyPublisher<PostDetailOrEmpty.ViewState, Never> { get }
 }
 
@@ -36,21 +36,21 @@ protocol PostDetailOrEmptyViewModelType {
 }
 
 class PostDetailOrEmptyViewModel: PostDetailOrEmptyViewModelType, PostDetailOrEmptyViewModelInputs, PostDetailOrEmptyViewModelOutputs {
-    private let currentlyDisplayedPost: CurrentValueSubject<LemmyPost?, Never>
+    private let currentlyDisplayedPostInfo: CurrentValueSubject<LemmyPostInfo?, Never>
     private let viewStateSubject: CurrentValueSubject<PostDetailOrEmpty.ViewState, Never>
     private var disposables = Set<AnyCancellable>()
 
-    init(_ initialPost: LemmyPost?) {
-        currentlyDisplayedPost = CurrentValueSubject<LemmyPost?, Never>(initialPost)
+    init(_ initialPostInfo: LemmyPostInfo?) {
+        currentlyDisplayedPostInfo = CurrentValueSubject<LemmyPostInfo?, Never>(initialPostInfo)
 
-        postLoaded = currentlyDisplayedPost
+        postInfoLoaded = currentlyDisplayedPostInfo
             .ignoreNil()
             .eraseToAnyPublisher()
 
-        currentPost = currentlyDisplayedPost
+        currentPostInfo = currentlyDisplayedPostInfo
             .eraseToAnyPublisher()
 
-        viewStateSubject = CurrentValueSubject(initialPost == nil ? .empty : .displayingPost)
+        viewStateSubject = CurrentValueSubject(initialPostInfo == nil ? .empty : .displayingPost)
         viewState = viewStateSubject
             .eraseToAnyPublisher()
 
@@ -58,22 +58,22 @@ class PostDetailOrEmptyViewModel: PostDetailOrEmptyViewModelType, PostDetailOrEm
             .ignoreNil()
             .eraseToAnyPublisher()
 
-        didFinishLoadingPostSubject
-            .sink { [weak self] post in
-                self?.currentlyDisplayedPost.send(post)
+        didFinishLoadingPostInfoSubject
+            .sink { [weak self] postInfo in
+                self?.currentlyDisplayedPostInfo.send(postInfo)
             }
             .store(in: &disposables)
 
-        displayPostSubject
-            .sink { [weak self] post in
-                self?.currentlyDisplayedPost.send(post)
+        displayPostInfoSubject
+            .sink { [weak self] postInfo in
+                self?.currentlyDisplayedPostInfo.send(postInfo)
             }
             .store(in: &disposables)
 
         displayEmptySubject
             .sink { [weak self] _ in
                 self?.viewStateSubject.send(.empty)
-                self?.currentlyDisplayedPost.send(nil)
+                self?.currentlyDisplayedPostInfo.send(nil)
             }
             .store(in: &disposables)
     }
@@ -85,9 +85,9 @@ class PostDetailOrEmptyViewModel: PostDetailOrEmptyViewModelType, PostDetailOrEm
 
     // MARK: Outputs
 
-    let currentPost: AnyPublisher<LemmyPost?, Never>
+    let currentPostInfo: AnyPublisher<LemmyPostInfo?, Never>
     let loadPostById: AnyPublisher<PostId, Never>
-    let postLoaded: AnyPublisher<LemmyPost, Never>
+    let postInfoLoaded: AnyPublisher<LemmyPostInfo, Never>
     let viewState: AnyPublisher<PostDetailOrEmpty.ViewState, Never>
 
     // MARK: Inputs
@@ -97,14 +97,14 @@ class PostDetailOrEmptyViewModel: PostDetailOrEmptyViewModelType, PostDetailOrEm
         startLoadingPostSubject.send(postId)
     }
 
-    private let didFinishLoadingPostSubject = PassthroughSubject<LemmyPost?, Never>()
-    func didFinishLoadingPost(_ post: LemmyPost) {
-        didFinishLoadingPostSubject.send(post)
+    private let didFinishLoadingPostInfoSubject = PassthroughSubject<LemmyPostInfo?, Never>()
+    func didFinishLoadingPostInfo(_ postInfo: LemmyPostInfo) {
+        didFinishLoadingPostInfoSubject.send(postInfo)
     }
 
-    private let displayPostSubject = PassthroughSubject<LemmyPost?, Never>()
-    func displayPost(_ post: LemmyPost) {
-        displayPostSubject.send(post)
+    private let displayPostInfoSubject = PassthroughSubject<LemmyPostInfo?, Never>()
+    func displayPostInfo(_ postInfo: LemmyPostInfo) {
+        displayPostInfoSubject.send(postInfo)
     }
 
     private let displayEmptySubject = PassthroughSubject<Void, Never>()

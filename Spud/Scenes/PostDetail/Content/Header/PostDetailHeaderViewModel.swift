@@ -26,7 +26,7 @@ class PostDetailHeaderViewModel {
     // MARK: Public
 
     var title: AnyPublisher<AttributedString, Never> {
-        post.publisher(for: \.title)
+        postInfo.publisher(for: \.title)
             .combineLatest(titleAttributes)
             .map { title, attributes in
                 AttributedString(title, attributes: .init(attributes))
@@ -35,8 +35,8 @@ class PostDetailHeaderViewModel {
     }
 
     var subtitleScore: AnyPublisher<NSAttributedString, Never> {
-        post.publisher(for: \.score)
-            .combineLatest(post.voteStatusPublisher, secondaryAttributes)
+        postInfo.publisher(for: \.score)
+            .combineLatest(postInfo.voteStatusPublisher, secondaryAttributes)
             .map { tuple in
                 let score = tuple.0
                 let voteStatus = tuple.1
@@ -52,14 +52,14 @@ class PostDetailHeaderViewModel {
     }
 
     var subtitleComments: AnyPublisher<NSAttributedString, Never> {
-        post.publisher(for: \.numberOfComments)
+        postInfo.publisher(for: \.numberOfComments)
             .combineLatest(secondaryAttributes)
             .map { IconValueFormatter.attributedString(numberOfComments: $0, attributes: $1) }
             .eraseToAnyPublisher()
     }
 
     var subtitleAge: AnyPublisher<NSAttributedString, Never> {
-        post.publisher(for: \.published)
+        postInfo.publisher(for: \.published)
             .combineLatest(secondaryAttributes)
             .map { IconValueFormatter.attributedString(relativeDate: $0, attributes: $1) }
             .eraseToAnyPublisher()
@@ -70,7 +70,7 @@ class PostDetailHeaderViewModel {
             .combineLatest(secondaryAttributes)
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()
-        let subreddit = post.publisher(for: \.communityName)
+        let subreddit = postInfo.publisher(for: \.communityName)
             .combineLatest(secondaryHighlightedAttributes)
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()
@@ -109,14 +109,14 @@ class PostDetailHeaderViewModel {
 
     var postContentType: AnyPublisher<PostContentType, Never> {
         postContentDetectorService
-            .contentTypeForUrl(in: post)
+            .contentTypeForUrl(in: postInfo)
     }
 
     var image: AnyPublisher<ImageLoadingState, Never> {
         postContentType
             .removeDuplicates()
             .combineLatest(
-                post.publisher(for: \.thumbnailUrl)
+                postInfo.publisher(for: \.thumbnailUrl)
                     .removeDuplicates()
             )
             .flatMap { tuple -> AnyPublisher<ImageLoadingState, Never> in
@@ -136,7 +136,7 @@ class PostDetailHeaderViewModel {
     }
 
     var body: AnyPublisher<NSAttributedString, Never> {
-        post.publisher(for: \.body)
+        postInfo.publisher(for: \.body)
             .replaceNil(with: "")
             .combineLatest(appearance.bodyStylerConfiguration)
             .map { text, stylerConfiguration in
@@ -156,8 +156,8 @@ class PostDetailHeaderViewModel {
     var linkPreviewThumbnail: AnyPublisher<(URL, ImageLoadingState)?, Never> {
         postContentType
             .combineLatest(
-                post.publisher(for: \.thumbnailUrl),
-                post.publisher(for: \.url)
+                postInfo.publisher(for: \.thumbnailUrl),
+                postInfo.publisher(for: \.url)
             )
             .flatMap { tuple -> AnyPublisher<(URL, ImageLoadingState)?, Never> in
                 let postContentType = tuple.0
@@ -217,7 +217,7 @@ class PostDetailHeaderViewModel {
     }
 
     private var creator: AnyPublisher<LemmyPerson, Never> {
-        post.publisher(for: \.creator)
+        postInfo.publisher(for: \.creator)
             .eraseToAnyPublisher()
     }
 
@@ -238,7 +238,7 @@ class PostDetailHeaderViewModel {
             .eraseToAnyPublisher()
     }
 
-    private let post: LemmyPost
+    private let postInfo: LemmyPostInfo
 
     private var appearance: PostDetailAppearanceType {
         appearanceService.postDetail
@@ -247,10 +247,10 @@ class PostDetailHeaderViewModel {
     // MARK: Functions
 
     init(
-        post: LemmyPost,
+        postInfo: LemmyPostInfo,
         dependencies: Dependencies
     ) {
-        self.post = post
+        self.postInfo = postInfo
         self.dependencies = (own: dependencies, nested: dependencies)
     }
 }

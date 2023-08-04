@@ -15,47 +15,22 @@ import os.log
         NSFetchRequest<LemmyPost>(entityName: "Post")
     }
 
+    @nonobjc public class func fetchRequest(
+        postId: PostId,
+        account: LemmyAccount
+    ) -> NSFetchRequest<LemmyPost> {
+        let request = NSFetchRequest<LemmyPost>(entityName: "Post")
+        request.predicate = NSPredicate(
+            format: "postId == %d && account == %@",
+            postId, account
+        )
+        return request
+    }
+
     // MARK: Properties
 
     /// Post identifier. The identifier is local to this instance.
-    @NSManaged public var localPostId: PostId
-
-    /// Link to the post in the original Lemmy instance.
-    @NSManaged public var originalPostUrl: URL
-
-    @NSManaged public var communityName: String
-
-    /// The title of the post.
-    @NSManaged public var title: String
-    /// The text body of the post.
-    @NSManaged public var body: String?
-
-    /// Thumbnail for the post.
-    @NSManaged public var thumbnailUrl: URL?
-
-    /// URL the post links to.
-    @NSManaged public var url: URL?
-
-    /// OEmbed title for the url.
-    @NSManaged public var urlEmbedTitle: String?
-
-    /// OEmbed description for the url.
-    @NSManaged public var urlEmbedDescription: String?
-
-    /// Number of comments.
-    @NSManaged public var numberOfComments: Int64
-
-    /// Overall score of the post.
-    @NSManaged public var score: Int64
-    /// Number of upvotes.
-    @NSManaged public var numberOfUpvotes: Int64
-    /// Number of downvotes.
-    @NSManaged public var numberOfDownvotes: Int64
-    /// See ``voteStatus``
-    @NSManaged public var voteStatusRawValue: NSNumber?
-
-    /// The timestamp when the post was published.
-    @NSManaged public var published: Date
+    @NSManaged public var postId: PostId
 
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
@@ -65,16 +40,29 @@ import os.log
 
     // MARK: Relations
 
-    @NSManaged public var pageElements: Set<LemmyPageElement>
-    @NSManaged public var commentElements: Set<LemmyCommentElement>
+    /// The account this post was fetched with.
     @NSManaged public var account: LemmyAccount
 
-    /// Post author.
-    @NSManaged public var creator: LemmyPerson
+    /// Additional info about the post.
+    @NSManaged public var postInfo: LemmyPostInfo?
+
+    @NSManaged public var pageElements: Set<LemmyPageElement>
+    @NSManaged public var commentElements: Set<LemmyCommentElement>
+}
+
+extension LemmyPost {
+    convenience init(postId: PostId, in context: NSManagedObjectContext) {
+        self.init(context: context)
+
+        self.postId = postId
+
+        self.createdAt = Date()
+        self.updatedAt = createdAt
+    }
 }
 
 extension LemmyPost {
     var identifierForLogging: String {
-        "[\(localPostId)]@\(account.site.identifierForLogging)"
+        "[\(postId)]@\(account.site.identifierForLogging)"
     }
 }

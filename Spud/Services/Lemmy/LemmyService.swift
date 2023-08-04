@@ -16,6 +16,8 @@ enum LemmyServiceError: Error {
     /// The request request authentication but the current LemmyService is signed out kind.
     case missingCredential
 
+    case internalInconsistency(description: String)
+
     /// A low level API error has occurred.
     case apiError(LemmyApiError)
 }
@@ -54,8 +56,8 @@ protocol LemmyServiceType {
     ) -> AnyPublisher<Void, LemmyServiceError>
 
     func fetchPost(
-        postId: PostId
-    ) -> AnyPublisher<LemmyPost, LemmyServiceError>
+        postId: NSManagedObjectID
+    ) -> AnyPublisher<LemmyPostInfo, LemmyServiceError>
 }
 
 extension LemmyServiceType {
@@ -243,12 +245,12 @@ class LemmyService: LemmyServiceType {
             .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("""
                     Fetch comments for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
-                    post=\(post.localPostId, privacy: .public)
+                    post=\(post.postId, privacy: .public)
                     """)
                 let request = GetComments.Request(
                     sort: sortType,
                     max_depth: 8,
-                    post_id: post.localPostId,
+                    post_id: post.postId,
                     auth: self.credential?.jwt
                 )
                 return self.api.getComments(request)
@@ -373,7 +375,12 @@ class LemmyService: LemmyServiceType {
         return object(with: postId, type: LemmyPost.self)
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
-                let effectiveAction = post.voteStatus.effectiveAction(for: action)
+                guard let postInfo = post.postInfo else {
+                    assertionFailure()
+                    return .fail(with: .internalInconsistency(description: "missing post info"))
+                }
+
+                let effectiveAction = postInfo.voteStatus.effectiveAction(for: action)
 
                 logger.debug("""
                     Vote '\(action, privacy: .public)' \
@@ -381,20 +388,20 @@ class LemmyService: LemmyServiceType {
                     for \(post.identifierForLogging, privacy: .public)
                     """)
 
-                let previousNumberOfUpvotes = post.numberOfUpvotes
-                let previousVoteStatus = post.voteStatus
+                let previousNumberOfUpvotes = postInfo.numberOfUpvotes
+                let previousVoteStatus = postInfo.voteStatus
 
                 // Update vote count to visually indicate something is happening
-                post.numberOfUpvotes += post.voteStatus.voteCountChange(for: action)
+                postInfo.numberOfUpvotes += postInfo.voteStatus.voteCountChange(for: action)
 
                 // Set the vote status to the new value without waiting for confirmation from the server.
                 switch effectiveAction {
                 case .upvote:
-                    post.voteStatus = .up
+                    postInfo.voteStatus = .up
                 case .downvote:
-                    post.voteStatus = .down
+                    postInfo.voteStatus = .down
                 case .unvote:
-                    post.voteStatus = .neutral
+                    postInfo.voteStatus = .neutral
                 }
 
                 guard let credential = self.credential else {
@@ -402,7 +409,7 @@ class LemmyService: LemmyServiceType {
                 }
 
                 let request = CreatePostLike.Request(
-                    post_id: post.localPostId,
+                    post_id: post.postId,
                     score: effectiveAction,
                     auth: credential.jwt
                 )
@@ -413,8 +420,8 @@ class LemmyService: LemmyServiceType {
                     }, receiveCompletion: { completion in
                         switch completion {
                         case .failure:
-                            post.voteStatus = previousVoteStatus
-                            post.numberOfUpvotes = previousNumberOfUpvotes
+                            postInfo.voteStatus = previousVoteStatus
+                            postInfo.numberOfUpvotes = previousNumberOfUpvotes
                             self.saveIfNeeded()
                         case .finished:
                             self.saveIfNeeded()
@@ -493,43 +500,48 @@ class LemmyService: LemmyServiceType {
     }
 
     func fetchPost(
-        postId: PostId
-    ) -> AnyPublisher<LemmyPost, LemmyServiceError> {
+        postId: NSManagedObjectID
+    ) -> AnyPublisher<LemmyPostInfo, LemmyServiceError> {
         assert(Thread.current.isMainThread)
 
-        logger.debug("Fetch post \(postId, privacy: .public)")
-        let request = GetPost.Request(
-            id: postId,
-            auth: self.credential?.jwt
-        )
-        return self.api.getPost(request)
-            .receive(on: self.backgroundScheduler)
-            .map { response -> LemmyPost in
-                logger.debug("Fetch post \(postId, privacy: .public) complete")
+        return object(with: postId, type: LemmyPost.self)
+            .setFailureType(to: LemmyServiceError.self)
+            .flatMap { post -> AnyPublisher<LemmyPostInfo, LemmyServiceError> in
+                logger.debug("Fetch post \(post.postId, privacy: .public)")
+                let request = GetPost.Request(
+                    id: post.postId,
+                    auth: self.credential?.jwt
+                )
+                return self.api.getPost(request)
+                    .receive(on: self.backgroundScheduler)
+                    .map { response -> LemmyPostInfo in
+                        logger.debug("Fetch post \(post.postId, privacy: .public) complete")
 
-                let post = LemmyPost.upsert(response.post_view, account: self.account, in: self.backgroundContext)
+                        post.set(from: response.post_view)
 
-                // TODO: upsert from response.community_view
-                // TODO: upsert from response.moderators
-                // TODO: upsert from response.cross_posts
+                        // TODO: upsert from response.community_view
+                        // TODO: upsert from response.moderators
+                        // TODO: upsert from response.cross_posts
 
-                return post
-            }
-            .handleEvents(receiveOutput: { response in
-            }, receiveCompletion: { completion in
-                switch completion {
-                case .failure:
-                    break
-                case .finished:
-                    self.saveIfNeeded()
-                }
-            })
-            .mapError { error in
-                logger.error("""
-                    Fetch post \(postId, privacy: .public) \
+                        return post.postInfo!
+                    }
+                    .handleEvents(receiveOutput: { response in
+                    }, receiveCompletion: { completion in
+                        switch completion {
+                        case .failure:
+                            break
+                        case .finished:
+                            self.saveIfNeeded()
+                        }
+                    })
+                    .mapError { error in
+                        logger.error("""
+                    Fetch post \(post.postId, privacy: .public) \
                     failed: \(String(describing: error), privacy: .public)
                     """)
-                return .apiError(error)
+                        return .apiError(error)
+                    }
+                    .eraseToAnyPublisher()
             }
             .receive(on: RunLoop.main)
             .eraseToAnyPublisher()

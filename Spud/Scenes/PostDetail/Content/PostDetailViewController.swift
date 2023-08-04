@@ -34,14 +34,15 @@ class PostDetailViewController: UIViewController {
 
     // MARK: - Public
 
-    var post: LemmyPost {
-        viewModel.outputs.post
+    var postInfo: LemmyPostInfo {
+        viewModel.outputs.postInfo
     }
 
-    func setPost(_ post: LemmyPost) {
+    func setPostInfo(_ postInfo: LemmyPostInfo) {
         disposables.removeAll()
+
         viewModel = PostDetailViewModel(
-            post: post,
+            postInfo: postInfo,
             dependencies: dependencies.nested
         )
 
@@ -79,11 +80,11 @@ class PostDetailViewController: UIViewController {
 
     // MARK: Functions
 
-    init(post: LemmyPost, dependencies: Dependencies) {
+    init(postInfo: LemmyPostInfo, dependencies: Dependencies) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
         viewModel = PostDetailViewModel(
-            post: post,
+            postInfo: postInfo,
             dependencies: dependencies
         )
 
@@ -135,7 +136,7 @@ class PostDetailViewController: UIViewController {
         // reset the old FRC in case we are reusing the same VC for a new post.
         commentsFRC?.delegate = nil
 
-        let postObjectId = viewModel.outputs.post.objectID
+        let postObjectId = viewModel.outputs.postInfo.post.objectID
         let sortTypeRawValue = viewModel.outputs.commentSortType.value.rawValue
 
         let request = LemmyCommentElement.fetchRequest() as NSFetchRequest<LemmyCommentElement>
@@ -173,7 +174,7 @@ class PostDetailViewController: UIViewController {
 
     @objc private func openInBrowser() {
         Task {
-            await appService.openInBrowser(post: post, on: self)
+            await appService.openInBrowser(post: postInfo.post, on: self)
         }
     }
 
@@ -186,7 +187,7 @@ class PostDetailViewController: UIViewController {
             let person = results.first!
             let vc = PersonOrLoadingViewController(
                 person: person,
-                account: post.account,
+                account: postInfo.post.account,
                 dependencies: dependencies.nested
             )
             navigationController?.pushViewController(vc, animated: true)
@@ -209,7 +210,7 @@ class PostDetailViewController: UIViewController {
         }
 
         accountService
-            .lemmyService(for: post.account)
+            .lemmyService(for: postInfo.post.account)
             .vote(commentId: comment.objectID, vote: action)
             .sink(
                 receiveCompletion: alertService.errorHandler(for: .vote),

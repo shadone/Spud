@@ -11,17 +11,19 @@ import os.log
 
 class PostDetailLoadingViewController: UIViewController {
     typealias OwnDependencies =
-        HasAccountService
+        HasAccountService &
+        HasDataStore
     typealias NestedDependencies =
         HasVoid
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     private var accountService: AccountServiceType { dependencies.own.accountService }
+    private var dataStore: DataStoreType { dependencies.own.dataStore }
 
     // MARK: - Public
 
-    var didFinishLoading: ((LemmyPost) -> Void)?
+    var didFinishLoading: ((LemmyPostInfo) -> Void)?
 
     // MARK: - Private
 
@@ -96,9 +98,17 @@ class PostDetailLoadingViewController: UIViewController {
 
         loadingIndicator.startAnimating()
 
+        // TODO: find a better way to get LemmyPost object if exists or create new otherwise.
+        // e.g. something like
+        // dataStore.getOrCreate(postId: postId)
+        let context = dataStore.mainContext
+        let request = LemmyPost.fetchRequest(postId: postId, account: account)
+        let results = try! context.fetch(request)
+        let post = results.first!
+
         accountService
             .lemmyService(for: account)
-            .fetchPost(postId: postId)
+            .fetchPost(postId: post.objectID)
             .sink { complete in
                 switch complete {
                 case let .failure(error):
@@ -108,8 +118,8 @@ class PostDetailLoadingViewController: UIViewController {
                 case .finished:
                     break
                 }
-            } receiveValue: { [weak self] post in
-                self?.didFinishLoading?(post)
+            } receiveValue: { [weak self] postInfo in
+                self?.didFinishLoading?(postInfo)
             }
             .store(in: &disposables)
     }

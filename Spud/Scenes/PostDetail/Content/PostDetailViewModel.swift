@@ -16,7 +16,7 @@ protocol PostDetailViewModelInputs {
 }
 
 protocol PostDetailViewModelOutputs {
-    var post: LemmyPost { get }
+    var postInfo: LemmyPostInfo { get }
     var headerViewModel: PostDetailHeaderViewModel { get }
     var commentSortType: CurrentValueSubject<CommentSortType, Never> { get }
 }
@@ -47,16 +47,16 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
     // MARK: Functions
 
     init(
-        post: LemmyPost,
+        postInfo: LemmyPostInfo,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
-        self.post = post
+        self.postInfo = postInfo
 
-        postObjectId = post.objectID
+        postObjectId = postInfo.post.objectID
 
         headerViewModel = PostDetailHeaderViewModel(
-            post: self.post,
+            postInfo: postInfo,
             dependencies: dependencies
         )
 
@@ -70,7 +70,7 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
 
     // MARK: Outputs
 
-    let post: LemmyPost
+    let postInfo: LemmyPostInfo
     let headerViewModel: PostDetailHeaderViewModel
     let commentSortType: CurrentValueSubject<CommentSortType, Never>
 
@@ -106,7 +106,7 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
         guard numberOfFetchedComments == 0 else { return }
 
         accountService
-            .lemmyService(for: post.account)
+            .lemmyService(for: postInfo.post.account)
             .fetchComments(postId: postObjectId, sortType: commentSortType.value)
             .sink(
                 receiveCompletion: alertService.errorHandler(for: .fetchComments),

@@ -31,7 +31,7 @@ extension LemmyPost {
             elements.forEach { context.delete($0) }
         } catch {
             logger.error("""
-                Failed to fetch comment elements (for post \(self.localPostId, privacy: .public) \
+                Failed to fetch comment elements (for post \(self.postId, privacy: .public) \
                 for deletion: \(error.localizedDescription, privacy: .public)
                 """)
             assertionFailure()

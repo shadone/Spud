@@ -287,7 +287,15 @@ class PostListViewController: UIViewController {
             fatalError()
         }
 
-        let postDetailVC = PostDetailViewController(post: post, dependencies: dependencies.nested)
+        guard let postInfo = post.postInfo else {
+            fatalError("We have post list with posts containing no info?")
+        }
+
+        let postDetailVC = PostDetailViewController(
+            postInfo: postInfo,
+            dependencies: dependencies.nested
+        )
+
         if splitViewController.isCollapsed {
             guard let navigationController else {
                 fatalError()
@@ -335,6 +343,16 @@ extension PostListViewController {
             fatalError()
         }
         return pageElement.post
+    }
+
+    func postInfo(at index: Int) -> LemmyPostInfo {
+        let post = post(at: index)
+
+        guard let postInfo = post.postInfo else {
+            fatalError("We have post list with posts containing no info?")
+        }
+
+        return postInfo
     }
 }
 
@@ -445,9 +463,9 @@ extension PostListViewController: UITableViewDataSource {
             for: indexPath
         ) as! PostListPostCell
 
-        let post = post(at: indexPath.row)
+        let postInfo = postInfo(at: indexPath.row)
         let viewModel = PostListPostViewModel(
-            post: post,
+            postInfo: postInfo,
             dependencies: dependencies.nested
         )
         cell.configure(with: viewModel)
@@ -477,10 +495,10 @@ extension PostListViewController: UITableViewDataSource {
         cell.swipeActionTriggered = { [weak self] action in
             switch action {
             case .leadingPrimary:
-                self?.vote(post, .upvote)
+                self?.vote(postInfo.post, .upvote)
 
             case .leadingSecondary:
-                self?.vote(post, .downvote)
+                self?.vote(postInfo.post, .downvote)
 
             case .trailingPrimary, .trailingSecondary:
                 // TODO: will be reply and save actions
@@ -524,13 +542,14 @@ extension PostListViewController: NSFetchedResultsControllerDelegate {
             tableView.deleteRows(at: [indexPath], with: .fade)
 
         case .update:
+            // TODO: why are we doing this? we use combine to monitor for changes already...
             guard let indexPath else { fatalError() }
             guard let cell = tableView.cellForRow(at: indexPath) else { return }
             guard let cell = cell as? PostListPostCell else { fatalError() }
 
-            let post = post(at: indexPath.row)
+            let postInfo = postInfo(at: indexPath.row)
             let viewModel = PostListPostViewModel(
-                post: post,
+                postInfo: postInfo,
                 dependencies: dependencies.nested
             )
             cell.configure(with: viewModel)

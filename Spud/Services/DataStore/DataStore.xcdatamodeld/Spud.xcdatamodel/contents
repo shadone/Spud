@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22203.2" systemVersion="22F82" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="21754" systemVersion="22F82" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
     <entity name="Account" representedClassName="LemmyAccount" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" attributeType="String"/>
@@ -99,7 +99,7 @@
         <relationship name="accountInfo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AccountInfo" inverseName="person" inverseEntity="AccountInfo"/>
         <relationship name="comments" toMany="YES" deletionRule="Nullify" destinationEntity="Comment" inverseName="creator" inverseEntity="Comment"/>
         <relationship name="personInfo" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="PersonInfo" inverseName="person" inverseEntity="PersonInfo"/>
-        <relationship name="posts" toMany="YES" deletionRule="Cascade" destinationEntity="Post" inverseName="creator" inverseEntity="Post"/>
+        <relationship name="postInfos" toMany="YES" deletionRule="Cascade" destinationEntity="PostInfo" inverseName="creator" inverseEntity="PostInfo"/>
         <relationship name="site" maxCount="1" deletionRule="Nullify" destinationEntity="Site" inverseName="persons" inverseEntity="Site"/>
     </entity>
     <entity name="PersonInfo" representedClassName="LemmyPersonInfo" syncable="YES">
@@ -125,10 +125,19 @@
         <relationship name="person" maxCount="1" deletionRule="Nullify" destinationEntity="Person" inverseName="personInfo" inverseEntity="Person"/>
     </entity>
     <entity name="Post" representedClassName="LemmyPost" syncable="YES">
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="postId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="posts" inverseEntity="Account"/>
+        <relationship name="commentElements" toMany="YES" deletionRule="Nullify" destinationEntity="CommentElement" inverseName="post" inverseEntity="CommentElement"/>
+        <relationship name="comments" toMany="YES" deletionRule="Cascade" destinationEntity="Comment" inverseName="post" inverseEntity="Comment"/>
+        <relationship name="pageElements" toMany="YES" deletionRule="Cascade" destinationEntity="PageElement" inverseName="post" inverseEntity="PageElement"/>
+        <relationship name="postInfo" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="PostInfo" inverseName="post" inverseEntity="PostInfo"/>
+    </entity>
+    <entity name="PostInfo" representedClassName="LemmyPostInfo" syncable="YES">
         <attribute name="body" optional="YES" attributeType="String"/>
         <attribute name="communityName" attributeType="String"/>
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="localPostId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfComments" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfDownvotes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfUpvotes" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
@@ -142,11 +151,8 @@
         <attribute name="urlEmbedDescription" optional="YES" attributeType="String"/>
         <attribute name="urlEmbedTitle" optional="YES" attributeType="String"/>
         <attribute name="voteStatusRawValue" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
-        <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="posts" inverseEntity="Account"/>
-        <relationship name="commentElements" toMany="YES" deletionRule="Nullify" destinationEntity="CommentElement" inverseName="post" inverseEntity="CommentElement"/>
-        <relationship name="comments" toMany="YES" deletionRule="Cascade" destinationEntity="Comment" inverseName="post" inverseEntity="Comment"/>
-        <relationship name="creator" maxCount="1" deletionRule="Nullify" destinationEntity="Person" inverseName="posts" inverseEntity="Person"/>
-        <relationship name="pageElements" toMany="YES" deletionRule="Cascade" destinationEntity="PageElement" inverseName="post" inverseEntity="PageElement"/>
+        <relationship name="creator" maxCount="1" deletionRule="Nullify" destinationEntity="Person" inverseName="postInfos" inverseEntity="Person"/>
+        <relationship name="post" maxCount="1" deletionRule="Nullify" destinationEntity="Post" inverseName="postInfo" inverseEntity="Post"/>
     </entity>
     <entity name="Site" representedClassName="LemmySite" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>

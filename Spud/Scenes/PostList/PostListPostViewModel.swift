@@ -24,7 +24,7 @@ class PostListPostViewModel {
     // MARK: Public
 
     var title: AnyPublisher<AttributedString, Never> {
-        post.publisher(for: \.title)
+        postInfo.publisher(for: \.title)
             .combineLatest(titleAttributes)
             .map { title, attributes in
                 AttributedString(title, attributes: .init(attributes))
@@ -33,13 +33,13 @@ class PostListPostViewModel {
     }
 
     var subtitle: AnyPublisher<NSAttributedString, Never> {
-        let communityName = post.publisher(for: \.communityName)
+        let communityName = postInfo.publisher(for: \.communityName)
             .combineLatest(communityNameAttributes)
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()
 
-        let score = post.publisher(for: \.score)
-            .combineLatest(post.voteStatusPublisher, secondaryAttributes)
+        let score = postInfo.publisher(for: \.score)
+            .combineLatest(postInfo.voteStatusPublisher, secondaryAttributes)
             .map { tuple in
                 let score = tuple.0
                 let voteStatus = tuple.1
@@ -53,12 +53,12 @@ class PostListPostViewModel {
             }
             .eraseToAnyPublisher()
 
-        let numberOfComments = post.publisher(for: \.numberOfComments)
+        let numberOfComments = postInfo.publisher(for: \.numberOfComments)
             .combineLatest(secondaryAttributes)
             .map { IconValueFormatter.attributedString(numberOfComments: $0, attributes: $1) }
             .eraseToAnyPublisher()
 
-        let age = post.publisher(for: \.published)
+        let age = postInfo.publisher(for: \.published)
             .combineLatest(secondaryAttributes)
             .map { IconValueFormatter.attributedString(relativeDate: $0, attributes: $1) }
             .eraseToAnyPublisher()
@@ -92,7 +92,7 @@ class PostListPostViewModel {
 
     var postContentType: AnyPublisher<PostContentType, Never> {
         postContentDetectorService
-            .contentTypeForUrl(in: post)
+            .contentTypeForUrl(in: postInfo)
     }
 
     var thumbnail: AnyPublisher<ThumbnailType, Never> {
@@ -162,15 +162,15 @@ class PostListPostViewModel {
             .eraseToAnyPublisher()
     }
 
-    private let post: LemmyPost
+    private let postInfo: LemmyPostInfo
     private var appearance: PostListAppearanceType {
         appearanceService.postList
     }
 
     // MARK: Functions
 
-    init(post: LemmyPost, dependencies: Dependencies) {
-        self.post = post
+    init(postInfo: LemmyPostInfo, dependencies: Dependencies) {
+        self.postInfo = postInfo
         self.dependencies = (own: dependencies, nested: dependencies)
     }
 }

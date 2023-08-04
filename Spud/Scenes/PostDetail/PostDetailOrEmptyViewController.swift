@@ -21,12 +21,12 @@ class PostDetailOrEmptyViewController: UIViewController {
 
     private(set) var contentViewController: PostDetailViewController?
 
-    var postPublisher: AnyPublisher<LemmyPost?, Never> {
-        viewModel.outputs.currentPost
+    var postInfoPublisher: AnyPublisher<LemmyPostInfo?, Never> {
+        viewModel.outputs.currentPostInfo
     }
 
-    func displayPost(_ post: LemmyPost) {
-        viewModel.inputs.displayPost(post)
+    func displayPostInfo(_ postInfo: LemmyPostInfo) {
+        viewModel.inputs.displayPostInfo(postInfo)
     }
 
     func displayEmpty() {
@@ -43,7 +43,7 @@ class PostDetailOrEmptyViewController: UIViewController {
 
     private enum State {
         case empty
-        case post(LemmyPost)
+        case post(LemmyPostInfo)
         case load(postId: PostId)
     }
 
@@ -59,17 +59,17 @@ class PostDetailOrEmptyViewController: UIViewController {
 
     // MARK: - Functions
 
-    init(post: LemmyPost, dependencies: Dependencies) {
+    init(postInfo: LemmyPostInfo, dependencies: Dependencies) {
         self.dependencies = (own: dependencies, nested: dependencies)
-        account = post.account
+        account = postInfo.post.account
 
-        viewModel = PostDetailOrEmptyViewModel(post)
+        viewModel = PostDetailOrEmptyViewModel(postInfo)
 
         super.init(nibName: nil, bundle: nil)
 
         bindViewModel()
 
-        state = .post(post)
+        state = .post(postInfo)
         stateChanged()
     }
 
@@ -92,9 +92,9 @@ class PostDetailOrEmptyViewController: UIViewController {
     }
 
     private func bindViewModel() {
-        viewModel.outputs.postLoaded
-            .sink { [weak self] post in
-                self?.state = .post(post)
+        viewModel.outputs.postInfoLoaded
+            .sink { [weak self] postInfo in
+                self?.state = .post(postInfo)
             }
             .store(in: &disposables)
 
@@ -129,12 +129,12 @@ class PostDetailOrEmptyViewController: UIViewController {
             contentViewController = nil
             loadingViewController = nil
 
-        case let .post(post):
+        case let .post(postInfo):
             if let contentViewController {
-                contentViewController.setPost(post)
+                contentViewController.setPostInfo(postInfo)
             } else {
                 contentViewController = PostDetailViewController(
-                    post: post,
+                    postInfo: postInfo,
                     dependencies: dependencies.nested
                 )
 
@@ -153,9 +153,9 @@ class PostDetailOrEmptyViewController: UIViewController {
             )
             self.loadingViewController = loadingViewController
 
-            loadingViewController.didFinishLoading = { [weak self] post in
-                self?.viewModel.inputs.didFinishLoadingPost(post)
-                self?.state = .post(post)
+            loadingViewController.didFinishLoading = { [weak self] postInfo in
+                self?.viewModel.inputs.didFinishLoadingPostInfo(postInfo)
+                self?.state = .post(postInfo)
             }
 
             remove(child: contentViewController)

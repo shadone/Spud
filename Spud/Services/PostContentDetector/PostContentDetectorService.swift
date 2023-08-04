@@ -13,7 +13,7 @@ private let logger = Logger(.postContentDetectorService)
 protocol PostContentDetectorServiceType: AnyObject {
     /// Attempt to detect the content type of the url that the given post contains.
     /// The main point is to detect if the url points to an image.
-    func contentTypeForUrl(in post: LemmyPost) -> AnyPublisher<PostContentType, Never>
+    func contentTypeForUrl(in post: LemmyPostInfo) -> AnyPublisher<PostContentType, Never>
 }
 
 protocol HasPostContentDetectorService {
@@ -26,8 +26,8 @@ class PostContentDetectorService: PostContentDetectorServiceType {
     /// when opening the same post requires the same work of detecting post content type.
     var cache: [URL: PostContentType] = [:]
 
-    func contentTypeForUrl(in post: LemmyPost) -> AnyPublisher<PostContentType, Never> {
-        guard let url = post.url else {
+    func contentTypeForUrl(in postInfo: LemmyPostInfo) -> AnyPublisher<PostContentType, Never> {
+        guard let url = postInfo.url else {
             return .just(.textOrEmpty)
         }
 
@@ -49,11 +49,11 @@ class PostContentDetectorService: PostContentDetectorServiceType {
 
         let externalLink = PostContentType.externalLink(.init(
             url: url,
-            embedTitle: post.urlEmbedTitle,
-            embedDescription: post.urlEmbedDescription
+            embedTitle: postInfo.urlEmbedTitle,
+            embedDescription: postInfo.urlEmbedDescription
         ))
         let image = PostContentType.image(.init(
-            thumbnailUrl: post.thumbnailUrl,
+            thumbnailUrl: postInfo.thumbnailUrl,
             imageUrl: url
         ))
 

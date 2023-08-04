@@ -119,28 +119,31 @@ class MainWindow: UIWindow {
                     return
                 }
 
-                let value = TopPosts(posts: topPosts.map { post in
-                    let postType: Post.PostType
-                    if let thumbnailUrl = post.thumbnailUrl {
-                        postType = .image(thumbnailUrl)
-                    } else {
-                        postType = .text
+                let value = TopPosts(posts: topPosts
+                    .compactMap(\.postInfo)
+                    .map { postInfo in
+                        let postType: Post.PostType
+                        if let thumbnailUrl = postInfo.thumbnailUrl {
+                            postType = .image(thumbnailUrl)
+                        } else {
+                            postType = .text
+                        }
+
+                        let postUrl = URL.SpudInternalLink.post(
+                            postId: postInfo.post.postId,
+                            instance: postInfo.post.account.site.instance.actorId
+                        ).url
+
+                        return .init(
+                            spudUrl: postUrl,
+                            title: postInfo.title,
+                            type: postType,
+                            community: .init(name: postInfo.communityName, site: "XXX"),
+                            score: postInfo.score,
+                            numberOfComments: postInfo.numberOfComments
+                        )
                     }
-
-                    let postUrl = URL.SpudInternalLink.post(
-                        postId: post.localPostId,
-                        instance: post.account.site.instance.actorId
-                    ).url
-
-                    return .init(
-                        spudUrl: postUrl,
-                        title: post.title,
-                        type: postType,
-                        community: .init(name: post.communityName, site: "XXX"),
-                        score: post.score,
-                        numberOfComments: post.numberOfComments
-                    )
-                })
+                )
 
                 WidgetDataProvider.shared.write(value)
 

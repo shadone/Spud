@@ -19,13 +19,47 @@ extension LemmyPost {
     ) {
         self.init(context: context)
 
+        postId = model.post.id
+
         set(from: model)
 
         createdAt = Date()
         updatedAt = createdAt
 
         self.account = account
-        self.creator = LemmyPerson.upsert(model.creator, site: account.site, in: context)
+
+        assert(postInfo != nil, "should have been created by the set()")
+        postInfo?.creator = LemmyPerson.upsert(model.creator, site: account.site, in: context)
+    }
+
+    private func getOrCreatePostInfo() -> LemmyPostInfo? {
+        func createPostInfo() -> LemmyPostInfo? {
+            guard let context = managedObjectContext else {
+                assertionFailure()
+                return nil
+            }
+
+            let postInfo = LemmyPostInfo(in: context)
+            postInfo.post = self
+
+            return postInfo
+        }
+
+        guard let postInfo else {
+            postInfo = createPostInfo()
+            return postInfo
+        }
+        return postInfo
+    }
+
+    func set(from model: PostView) {
+        assert(postId == model.post.id)
+
+        let postInfo = getOrCreatePostInfo()
+        assert(postInfo != nil)
+        postInfo?.set(from: model)
+
+        updatedAt = Date()
     }
 
     static func upsert(
@@ -35,7 +69,7 @@ extension LemmyPost {
     ) -> LemmyPost {
         let request = LemmyPost.fetchRequest() as NSFetchRequest<LemmyPost>
         request.predicate = NSPredicate(
-            format: "localPostId == %d AND account == %@",
+            format: "postId == %d AND account == %@",
             model.post.id, account
         )
         do {
@@ -55,45 +89,5 @@ extension LemmyPost {
             assertionFailure()
             return LemmyPost(model, account: account, in: context)
         }
-    }
-
-    func set(from model: PostView) {
-        localPostId = model.post.id
-        originalPostUrl = model.post.ap_id
-
-        title = model.post.name
-        body = model.post.body
-
-        thumbnailUrl = model.post.thumbnail_url
-
-        url = model.post.url
-        urlEmbedTitle = model.post.embed_title
-        urlEmbedDescription = model.post.embed_description
-
-        communityName = model.community.name
-
-        published = model.post.published
-
-        numberOfComments = model.counts.comments
-
-        score = model.counts.score
-        numberOfUpvotes = model.counts.upvotes
-        numberOfDownvotes = model.counts.downvotes
-
-        voteStatus = {
-            switch model.my_vote {
-            case 1:
-                return .up
-            case -1:
-                return .down
-            case 0, nil:
-                return .neutral
-            default:
-                assertionFailure("Received unexpected my_vote value '\(String(describing: model.my_vote))' for post id \(model.post.id)")
-                return .neutral
-            }
-        }()
-
-        updatedAt = Date()
     }
 }
