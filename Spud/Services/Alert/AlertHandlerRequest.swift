@@ -6,7 +6,9 @@
 
 import Foundation
 
-enum AlertHandlerRequest: CustomStringConvertible {
+/// Describes the context in which an error has occurred.
+/// Used by``AlertServiceType``.
+enum AlertHandlerRequest: String, CustomStringConvertible {
     case vote
     case fetchPostList
     case fetchComments
@@ -17,30 +19,6 @@ enum AlertHandlerRequest: CustomStringConvertible {
     case fetchImage
 
     var description: String {
-        switch self {
-        case .vote:
-            return "vote"
-
-        case .fetchPostList:
-            return "fetchPostList"
-
-        case .fetchComments:
-            return "fetchComments"
-
-        case .fetchPersonInfo:
-            return "fetchPersonInfo"
-
-        case .fetchPostInfo:
-            return "fetchPostInfo"
-
-        case .fetchSiteInfo:
-            return "fetchSiteInfo"
-
-        case .login:
-            return "login"
-
-        case .fetchImage:
-            return "fetchImage"
-        }
+        rawValue
     }
 }
