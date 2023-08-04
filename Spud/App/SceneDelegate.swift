@@ -70,7 +70,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 Received open URL request: \(urlContext.url, privacy: .public) \
                 [\
                 sourceApplication=\(urlContext.options.sourceApplication ?? "nil", privacy: .public), \
-                eventAttribution=\(String(describing: urlContext.options.eventAttribution) ?? "nil", privacy: .public)\
+                eventAttribution=\(String(describing: urlContext.options.eventAttribution), privacy: .public)\
                 ]
                 """)
         }
