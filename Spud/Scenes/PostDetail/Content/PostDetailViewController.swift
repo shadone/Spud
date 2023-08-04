@@ -269,6 +269,8 @@ extension PostDetailViewController: UITableViewDelegate {
         contextMenuConfigurationForRowAt indexPath: IndexPath,
         point: CGPoint
     ) -> UIContextMenuConfiguration? {
+        guard indexPath.section == 1 else { return nil }
+
         let generalAppearance = appearanceService.general
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
