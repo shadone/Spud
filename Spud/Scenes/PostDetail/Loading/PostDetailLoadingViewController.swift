@@ -108,7 +108,7 @@ class PostDetailLoadingViewController: UIViewController {
 
         accountService
             .lemmyService(for: account)
-            .fetchPost(postId: post.objectID)
+            .fetchPostInfo(postId: post.objectID)
             .sink { complete in
                 switch complete {
                 case let .failure(error):

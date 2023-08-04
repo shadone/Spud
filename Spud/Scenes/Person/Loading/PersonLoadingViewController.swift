@@ -106,9 +106,9 @@ class PersonLoadingViewController: UIViewController {
         // TODO: start loading person details
         accountService
             .lemmyService(for: account)
-            .fetchPersonDetails(personId: person.objectID)
+            .fetchPersonInfo(personId: person.objectID)
             .sink(
-                receiveCompletion: alertService.errorHandler(for: .fetchPersonDetails),
+                receiveCompletion: alertService.errorHandler(for: .fetchPersonInfo),
                 receiveValue: { [weak self] personInfo in
                     self?.didFinishLoading?(personInfo)
                 }

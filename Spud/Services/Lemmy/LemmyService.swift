@@ -41,7 +41,7 @@ protocol LemmyServiceType {
 
     func fetchSiteInfo() -> AnyPublisher<Void, LemmyServiceError>
 
-    func fetchPersonDetails(
+    func fetchPersonInfo(
         personId: NSManagedObjectID
     ) -> AnyPublisher<LemmyPersonInfo, LemmyServiceError>
 
@@ -55,7 +55,7 @@ protocol LemmyServiceType {
         vote action: VoteStatus.Action
     ) -> AnyPublisher<Void, LemmyServiceError>
 
-    func fetchPost(
+    func fetchPostInfo(
         postId: NSManagedObjectID
     ) -> AnyPublisher<LemmyPostInfo, LemmyServiceError>
 }
@@ -321,7 +321,7 @@ class LemmyService: LemmyServiceType {
             .eraseToAnyPublisher()
     }
 
-    func fetchPersonDetails(
+    func fetchPersonInfo(
         personId: NSManagedObjectID
     ) -> AnyPublisher<LemmyPersonInfo, LemmyServiceError> {
         assert(Thread.current.isMainThread)
@@ -499,7 +499,7 @@ class LemmyService: LemmyServiceType {
             .eraseToAnyPublisher()
     }
 
-    func fetchPost(
+    func fetchPostInfo(
         postId: NSManagedObjectID
     ) -> AnyPublisher<LemmyPostInfo, LemmyServiceError> {
         assert(Thread.current.isMainThread)
