@@ -113,7 +113,8 @@ class MainWindow: UIWindow {
                         .first?
                         .pageElements
                         .sorted(by: { $0.index < $1.index })
-                        .prefix(3)
+                        // The max number of posts widget of any size might need.
+                        .prefix(6)
                         .map(\.post)
                 else {
                     return

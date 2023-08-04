@@ -41,5 +41,38 @@ public extension TopPosts {
             score: 12345,
             numberOfComments: 42
         ),
+        .init(
+            spudUrl: URL(string: "spud://fake4")!,
+            title: "The Feet Issue: Where They’re Going, Where They’ve Been",
+            type: .text,
+            community: .init(
+                name: "media",
+                site: "the.onion"
+            ),
+            score: 553,
+            numberOfComments: 12
+        ),
+        .init(
+            spudUrl: URL(string: "spud://fake5")!,
+            title: "Marvel Not Even Bothering To Replace Green Screens With CGI Anymore",
+            type: .text,
+            community: .init(
+                name: "media",
+                site: "the.onion"
+            ),
+            score: 99688,
+            numberOfComments: 654
+        ),
+        .init(
+            spudUrl: URL(string: "spud://fake6")!,
+            title: "MrBeast Claims He Narrowly Avoided Death Aboard Space Shuttle Challenger",
+            type: .text,
+            community: .init(
+                name: "media",
+                site: "the.onion"
+            ),
+            score: 433,
+            numberOfComments: 2
+        ),
     ])
 }

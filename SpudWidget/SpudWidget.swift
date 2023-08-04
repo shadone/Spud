@@ -165,12 +165,33 @@ struct PostView: View {
 struct SpudWidgetEntryView: View {
     var entry: Provider.Entry
 
+    @Environment(\.widgetFamily) var family
+
+    @State var numberOfPosts = 3
+
     var body: some View {
-        VStack {
-            ForEach(entry.topPosts.posts.prefix(3)) { post in
-                Link(destination: post.spudUrl) {
-                    PostView(post: post, images: entry.images)
+        VStack(alignment: .leading) {
+            switch family {
+            case .systemMedium:
+                ForEach(entry.topPosts.posts.prefix(3)) { post in
+                    Link(destination: post.spudUrl) {
+                        PostView(post: post, images: entry.images)
+                    }
                 }
+
+            case .systemLarge:
+                Text("Top posts")
+                ForEach(entry.topPosts.posts.prefix(6)) { post in
+                    Link(destination: post.spudUrl) {
+                        PostView(post: post, images: entry.images)
+                    }
+                }
+
+            case .systemSmall, .systemExtraLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline:
+                fatalError("Unsupported widget family")
+
+            @unknown default:
+                fatalError("Got unknown widget family \(family)")
             }
         }
         .padding()
@@ -190,7 +211,7 @@ struct SpudWidget: Widget {
         }
         .configurationDisplayName("Top Posts")
         .description("This is an example widget.")
-        .supportedFamilies([.systemMedium])
+        .supportedFamilies([.systemMedium, .systemLarge])
     }
 }
 
@@ -204,6 +225,6 @@ struct SpudWidget_Previews: PreviewProvider {
                 images: [:]
             )
         )
-        .previewContext(WidgetPreviewContext(family: .systemMedium))
+        .previewContext(WidgetPreviewContext(family: .systemLarge))
     }
 }
