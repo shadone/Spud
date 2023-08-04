@@ -11,22 +11,39 @@ extension URL {
     enum SpudInternalLink {
         /// Identifies a Person at a given Instance.
         ///
-        /// - Parameter personId: PersonId identifier local to the specified instance.
+        /// - Parameter personId: person identifier local to the specified instance.
         /// - Parameter instance: Instance actorId. e.g. "https://lemmy.world", see ``URL/normalizedInstanceUrlString``.
         ///
         /// - Note: the instance specifies the Lemmy instance the personId is valid for. I.e. it is **not** the persons home site.
         case person(personId: PersonId, instance: String)
 
+        /// Identifies a Post at a given Instance.
+        ///
+        /// - Parameter postId: post identifier local to the specified instance.
+        /// - Parameter instance: Instance actorId. e.g. "https://lemmy.world", see ``URL/normalizedInstanceUrlString``.
+        ///
+        /// - Note: the instance specifies the Lemmy instance the personId is valid for. I.e. it is **not** the persons home site.
+        case post(postId: PostId, instance: String)
+
         var url: URL {
             switch self {
             case let .person(personId, instance):
                 guard
-                    let encodedinstance = instance
+                    let encodedInstance = instance
                         .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
                 else {
                     fatalError("Failed to url encode '\(self)'")
                 }
-                return URL(string: "spud://internal/person?personId=\(personId)&instance=\(encodedinstance)")!
+                return URL(string: "spud://internal/person?personId=\(personId)&instance=\(encodedInstance)")!
+
+            case let .post(postId, instance):
+                guard
+                    let encodedInstance = instance
+                        .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                else {
+                    fatalError("Failed to url encode '\(self)'")
+                }
+                return URL(string: "spud://internal/post?postId=\(postId)&instance=\(encodedInstance)")!
             }
         }
     }
@@ -53,8 +70,22 @@ extension URL {
             }
 
             return .person(personId: personId, instance: instance)
+        } else if components.path == "/post" {
+            guard
+                let postIdString = components.queryItems?
+                    .first(where: { $0.name == "postId" })?.value,
+                let postId = PostId(postIdString),
+                let instance = components.queryItems?
+                    .first(where: { $0.name == "instance" })?.value
+            else {
+                assertionFailure()
+                return nil
+            }
+
+            return .post(postId: postId, instance: instance)
         }
 
+        assertionFailure("Unhandled url: \(absoluteString)")
         return nil
     }
 }

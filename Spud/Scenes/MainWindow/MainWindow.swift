@@ -127,8 +127,10 @@ class MainWindow: UIWindow {
                         postType = .text
                     }
 
-                    // TODO:
-                    let postUrl = URL(string: "spud://foobar/post/\(post.localPostId)")!
+                    let postUrl = URL.SpudInternalLink.post(
+                        postId: post.localPostId,
+                        instance: post.account.site.instance.actorId
+                    ).url
 
                     return .init(
                         spudUrl: postUrl,

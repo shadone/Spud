@@ -191,6 +191,10 @@ class PostDetailViewController: UIViewController {
             )
             navigationController?.pushViewController(vc, animated: true)
 
+        case .post:
+            // TODO: push a new post detail
+            assertionFailure("unimplemented")
+
         case .none:
             Task {
                 await appService.open(url: url, on: self)
