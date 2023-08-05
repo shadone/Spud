@@ -71,7 +71,7 @@ class PostDetailHeaderViewModel {
             .combineLatest(secondaryAttributes)
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()
-        let subreddit = postInfo.publisher(for: \.communityName)
+        let communityName = self.communityName
             .combineLatest(secondaryHighlightedAttributes)
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()
@@ -100,7 +100,7 @@ class PostDetailHeaderViewModel {
         return Just(NSAttributedString())
             .combineLatest([
                 inString,
-                subreddit,
+                communityName,
                 byString,
                 creator,
             ])
@@ -235,6 +235,28 @@ class PostDetailHeaderViewModel {
         creatorInfo
             .map { personInfo in
                 personInfo?.name ?? ""
+            }
+            .eraseToAnyPublisher()
+    }
+
+    private var community: AnyPublisher<LemmyCommunity, Never> {
+        postInfo.publisher(for: \.community)
+            .eraseToAnyPublisher()
+    }
+
+    private var communityInfo: AnyPublisher<LemmyCommunityInfo?, Never> {
+        community
+            .flatMap { community -> AnyPublisher<LemmyCommunityInfo?, Never> in
+                community.publisher(for: \.communityInfo)
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+
+    private var communityName: AnyPublisher<String, Never> {
+        communityInfo
+            .map { communityInfo in
+                communityInfo?.name ?? ""
             }
             .eraseToAnyPublisher()
     }

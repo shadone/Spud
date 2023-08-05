@@ -34,7 +34,7 @@ class PostListPostViewModel {
     }
 
     var subtitle: AnyPublisher<NSAttributedString, Never> {
-        let communityName = postInfo.publisher(for: \.communityName)
+        let communityName = self.communityName
             .combineLatest(communityNameAttributes)
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()
@@ -159,6 +159,28 @@ class PostListPostViewModel {
                     .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .regular),
                     .foregroundColor: UIColor.secondaryLabel,
                 ]
+            }
+            .eraseToAnyPublisher()
+    }
+
+    private var community: AnyPublisher<LemmyCommunity, Never> {
+        postInfo.publisher(for: \.community)
+            .eraseToAnyPublisher()
+    }
+
+    private var communityInfo: AnyPublisher<LemmyCommunityInfo?, Never> {
+        community
+            .flatMap { community -> AnyPublisher<LemmyCommunityInfo?, Never> in
+                community.publisher(for: \.communityInfo)
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+
+    private var communityName: AnyPublisher<String, Never> {
+        communityInfo
+            .map { communityInfo in
+                communityInfo?.name ?? ""
             }
             .eraseToAnyPublisher()
     }

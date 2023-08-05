@@ -28,8 +28,6 @@ extension LemmyPostInfo {
             }
         }()
 
-        communityName = model.community.name
-
         updatedAt = Date()
     }
 

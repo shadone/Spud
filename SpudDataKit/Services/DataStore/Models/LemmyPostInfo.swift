@@ -20,8 +20,6 @@ import os.log
     /// Link to the post in the original Lemmy instance.
     @NSManaged public var originalPostUrl: URL
 
-    @NSManaged public var communityName: String
-
     /// The title of the post.
     @NSManaged public var title: String
     /// The text body of the post.
