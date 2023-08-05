@@ -44,6 +44,7 @@ import os.log
     @NSManaged public var accountInfo: LemmyAccountInfo?
     @NSManaged public var feeds: Set<LemmyFeed>
     @NSManaged public var posts: Set<LemmyPost>
+    @NSManaged public var communities: Set<LemmyCommunity>
 }
 
 extension LemmyAccount {

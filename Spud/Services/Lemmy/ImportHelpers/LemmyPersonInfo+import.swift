@@ -24,6 +24,8 @@ extension LemmyPersonInfo {
         updatedAt = Date()
     }
 
+    /// Partial update of the ``LemmyPersonInfo``.
+    /// - Note: we do **not** touch ``updatedAt`` property here as it is only a partial update.
     func set(from model: Person) {
         name = model.name
         displayName = model.display_name
@@ -41,6 +43,8 @@ extension LemmyPersonInfo {
         banExpires = model.ban_expires
     }
 
+    /// Partial update of the ``LemmyPersonInfo``.
+    /// - Note: we do **not** touch ``updatedAt`` property here as it is only a partial update.
     private func set(from model: PersonAggregates) {
         numberOfPosts = model.post_count
         totalScoreForPosts = model.post_score

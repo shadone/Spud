@@ -8,6 +8,7 @@
         <attribute name="isSignedOutAccountType" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="accountInfo" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="AccountInfo" inverseName="account" inverseEntity="AccountInfo"/>
+        <relationship name="communities" toMany="YES" deletionRule="Nullify" destinationEntity="Community" inverseName="account" inverseEntity="Community"/>
         <relationship name="feeds" toMany="YES" deletionRule="Cascade" destinationEntity="Feed" inverseName="account" inverseEntity="Feed"/>
         <relationship name="posts" toMany="YES" deletionRule="Cascade" destinationEntity="Post" inverseName="account" inverseEntity="Post"/>
         <relationship name="site" maxCount="1" deletionRule="Nullify" destinationEntity="Site" inverseName="accounts" inverseEntity="Site"/>
@@ -53,6 +54,32 @@
         <attribute name="sortTypeRawValue" attributeType="String"/>
         <relationship name="comment" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Comment" inverseName="commentElements" inverseEntity="Comment"/>
         <relationship name="post" maxCount="1" deletionRule="Nullify" destinationEntity="Post" inverseName="commentElements" inverseEntity="Post"/>
+    </entity>
+    <entity name="Community" representedClassName="LemmyCommunity" syncable="YES">
+        <attribute name="communityId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="communities" inverseEntity="Account"/>
+        <relationship name="communityInfo" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="CommunityInfo" inverseName="community" inverseEntity="CommunityInfo"/>
+        <relationship name="postInfos" toMany="YES" deletionRule="Cascade" destinationEntity="PostInfo" inverseName="community" inverseEntity="PostInfo"/>
+    </entity>
+    <entity name="CommunityInfo" representedClassName="LemmyCommunityInfo" syncable="YES">
+        <attribute name="actorId" attributeType="URI"/>
+        <attribute name="banner" optional="YES" attributeType="URI"/>
+        <attribute name="communityCreatedDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="communityUpdatedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="descriptionText" optional="YES" attributeType="String"/>
+        <attribute name="icon" optional="YES" attributeType="URI"/>
+        <attribute name="isHidden" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="isLocal" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="isNsfw" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="isPostingRestrictedToMods" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="isRemoved" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="title" attributeType="String"/>
+        <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="community" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Community" inverseName="communityInfo" inverseEntity="Community"/>
     </entity>
     <entity name="Feed" representedClassName="LemmyFeed" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
@@ -152,6 +179,7 @@
         <attribute name="urlEmbedDescription" optional="YES" attributeType="String"/>
         <attribute name="urlEmbedTitle" optional="YES" attributeType="String"/>
         <attribute name="voteStatusRawValue" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <relationship name="community" maxCount="1" deletionRule="Nullify" destinationEntity="Community" inverseName="postInfos" inverseEntity="Community"/>
         <relationship name="creator" maxCount="1" deletionRule="Nullify" destinationEntity="Person" inverseName="postInfos" inverseEntity="Person"/>
         <relationship name="post" maxCount="1" deletionRule="Nullify" destinationEntity="Post" inverseName="postInfo" inverseEntity="Post"/>
     </entity>

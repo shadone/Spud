@@ -65,6 +65,9 @@ import os.log
     /// Post author.
     @NSManaged public var creator: LemmyPerson
 
+    /// Community the post was published in.
+    @NSManaged public var community: LemmyCommunity
+
     @NSManaged public var post: LemmyPost
 }
 

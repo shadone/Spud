@@ -30,6 +30,7 @@ extension LemmyPost {
 
         assert(postInfo != nil, "should have been created by the set()")
         postInfo?.creator = LemmyPerson.upsert(model.creator, site: account.site, in: context)
+        postInfo?.community = LemmyCommunity.upsert(model.community, account: account, in: context)
     }
 
     private func getOrCreatePostInfo() -> LemmyPostInfo? {
