@@ -21,7 +21,7 @@ struct PersonFormatter {
         return String(format: "%.1fK", Double(value) / 1000)
     }
 
-    static func string(accountCreationDate date: Date) -> String {
+    static func string(personCreatedDate date: Date) -> String {
         date.relativeString
     }
 }

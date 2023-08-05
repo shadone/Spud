@@ -27,7 +27,10 @@ import os.log
     @NSManaged public var avatarUrl: URL?
 
     /// The account creation date.
-    @NSManaged public var accountCreationDate: Date
+    @NSManaged public var personCreatedDate: Date
+
+    /// The date person info was last updated by the person.
+    @NSManaged public var personUpdatedDate: Date?
 
     /// The federated actor_id.
     /// e.g. `https://discuss.tchncs.de/u/milan`

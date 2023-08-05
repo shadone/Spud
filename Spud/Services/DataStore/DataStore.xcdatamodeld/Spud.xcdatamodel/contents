@@ -130,7 +130,6 @@
         <relationship name="site" maxCount="1" deletionRule="Nullify" destinationEntity="Site" inverseName="persons" inverseEntity="Site"/>
     </entity>
     <entity name="PersonInfo" representedClassName="LemmyPersonInfo" syncable="YES">
-        <attribute name="accountCreationDate" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="actorId" attributeType="URI"/>
         <attribute name="avatarUrl" optional="YES" attributeType="URI"/>
         <attribute name="banExpires" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
@@ -147,6 +146,8 @@
         <attribute name="name" attributeType="String"/>
         <attribute name="numberOfComments" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfPosts" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="personCreatedDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="personUpdatedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="totalScoreForComments" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="totalScoreForPosts" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>

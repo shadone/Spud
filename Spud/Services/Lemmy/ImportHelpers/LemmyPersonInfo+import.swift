@@ -30,7 +30,8 @@ extension LemmyPersonInfo {
         name = model.name
         displayName = model.display_name
         avatarUrl = model.avatar
-        accountCreationDate = model.published
+        personCreatedDate = model.published
+        personUpdatedDate = model.updated
         actorId = model.actor_id
         bio = model.bio
         bannerUrl = model.banner

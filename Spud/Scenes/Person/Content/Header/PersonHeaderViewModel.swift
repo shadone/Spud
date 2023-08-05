@@ -35,9 +35,9 @@ class PersonHeaderViewModel {
     }
 
     var accountAge: AnyPublisher<String, Never> {
-        personInfo.publisher(for: \.accountCreationDate)
+        personInfo.publisher(for: \.personCreatedDate)
             .map {
-                PersonFormatter.string(accountCreationDate: $0)
+                PersonFormatter.string(personCreatedDate: $0)
             }
             .eraseToAnyPublisher()
     }
