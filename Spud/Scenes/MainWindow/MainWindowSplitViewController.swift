@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import SpudDataKit
 import UIKit
 
 class MainWindowSplitViewController: UISplitViewController {

@@ -8,6 +8,7 @@ import Combine
 import Foundation
 import os.log
 import LemmyKit
+import SpudDataKit
 
 protocol PostListViewModelInputs {
     func didSelectPost(_ post: LemmyPost?)

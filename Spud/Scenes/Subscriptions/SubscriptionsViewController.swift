@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import SpudDataKit
 import UIKit
 
 class SubscriptionsViewController: UIViewController {

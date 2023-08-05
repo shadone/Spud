@@ -7,6 +7,7 @@
 import Combine
 import Down
 import LemmyKit
+import SpudDataKit
 import UIKit
 
 class PostDetailHeaderViewModel {

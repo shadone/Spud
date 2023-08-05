@@ -6,6 +6,7 @@
 
 import Foundation
 import SafariServices
+import SpudDataKit
 import UIKit
 
 protocol AppServiceType: AnyObject {

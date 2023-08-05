@@ -26,11 +26,6 @@
 		92116E962A633FE400344251 /* PersonOrLoadingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92116E952A633FE400344251 /* PersonOrLoadingViewModel.swift */; };
 		92116E992A64463600344251 /* PersonLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92116E982A64463600344251 /* PersonLoadingViewController.swift */; };
 		9216FBCF2A795F4A00D67636 /* PreferencesService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9216FBCE2A795F4A00D67636 /* PreferencesService.swift */; };
-		9219433D2A7562390005474D /* Instance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9219433C2A7562390005474D /* Instance.swift */; };
-		9219433F2A7564650005474D /* NodeInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9219433E2A7564650005474D /* NodeInfo.swift */; };
-		921943462A75E83A0005474D /* NodeInfoSoftware.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921943452A75E83A0005474D /* NodeInfoSoftware.swift */; };
-		921943492A75ED7F0005474D /* SemVer in Frameworks */ = {isa = PBXBuildFile; productRef = 921943482A75ED7F0005474D /* SemVer */; };
-		922AEE092A40E50400AA7B22 /* ImageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE082A40E50400AA7B22 /* ImageService.swift */; };
 		922AEE0D2A40EE9000AA7B22 /* PostListThumbnailImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0C2A40EE9000AA7B22 /* PostListThumbnailImageView.swift */; };
 		922AEE102A40FBEB00AA7B22 /* SubscriptionsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0F2A40FBEB00AA7B22 /* SubscriptionsViewController.swift */; };
 		922AEE162A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE152A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift */; };
@@ -53,33 +48,21 @@
 		927343262A61B6250089556E /* PersonHeaderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343252A61B6250089556E /* PersonHeaderViewModel.swift */; };
 		927343282A61B9180089556E /* PersonHeaderCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343272A61B9180089556E /* PersonHeaderCell.swift */; };
 		9273432A2A61BE9D0089556E /* PersonFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343292A61BE9D0089556E /* PersonFormatter.swift */; };
-		9273432C2A61BF450089556E /* Date+relativeString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273432B2A61BF450089556E /* Date+relativeString.swift */; };
 		9273432E2A61BFF70089556E /* PersonHeaderStatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273432D2A61BFF70089556E /* PersonHeaderStatView.swift */; };
 		927343302A61C1FD0089556E /* HasVoid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273432F2A61C1FD0089556E /* HasVoid.swift */; };
 		927343332A61C6550089556E /* LinkLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343322A61C6550089556E /* LinkLabel.swift */; };
 		927343352A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343342A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift */; };
 		927343372A61C6960089556E /* TouchDownGestureRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343362A61C6960089556E /* TouchDownGestureRecognizer.swift */; };
 		927343392A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */; };
-		9273433B2A61DF050089556E /* URL+lemmy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273433A2A61DF050089556E /* URL+lemmy.swift */; };
 		9273433E2A61FAB70089556E /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9273433D2A61FAB70089556E /* LemmyKit */; };
 		927618182A730C25003D49D4 /* AppService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618172A730C25003D49D4 /* AppService.swift */; };
 		9276185E2A731AD5003D49D4 /* Down in Frameworks */ = {isa = PBXBuildFile; productRef = 9276185D2A731AD5003D49D4 /* Down */; };
-		927618622A74FA70003D49D4 /* URL+lenientString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618612A74FA70003D49D4 /* URL+lenientString.swift */; };
 		927618642A74FB9D003D49D4 /* URLLenientStringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618632A74FB9D003D49D4 /* URLLenientStringTests.swift */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
-		9281B2842A7D925000BA8E39 /* LemmyPostInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9281B2832A7D925000BA8E39 /* LemmyPostInfo.swift */; };
-		9281B2862A7D954100BA8E39 /* LemmyPostInfo+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9281B2852A7D954100BA8E39 /* LemmyPostInfo+import.swift */; };
 		9297E2F52A42042B00D13E4D /* PostDetailLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */; };
-		9297E2F72A4205F600D13E4D /* UIViewController+addChild.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */; };
 		9297E2FA2A420DA500D13E4D /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F92A420DA500D13E4D /* MainWindow.swift */; };
-		9297E2FC2A42453000D13E4D /* Publisher+assignWeak.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */; };
 		9297E2FF2A42494900D13E4D /* SwipeActionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2FE2A42494900D13E4D /* SwipeActionView.swift */; };
-		929D138A2A76FFBD00E7E5DB /* VoteStatus+Action.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D13892A76FFBD00E7E5DB /* VoteStatus+Action.swift */; };
-		929D138D2A77073A00E7E5DB /* AlertService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D138C2A77073A00E7E5DB /* AlertService.swift */; };
-		929D138F2A770E0C00E7E5DB /* AlertHandlerRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D138E2A770E0C00E7E5DB /* AlertHandlerRequest.swift */; };
-		929D13912A78664600E7E5DB /* ImageLoadingState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D13902A78664600E7E5DB /* ImageLoadingState.swift */; };
-		929D13932A78665800E7E5DB /* ImageLoadingError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D13922A78665800E7E5DB /* ImageLoadingError.swift */; };
 		92A7AE1C2A60832D00990539 /* PersonViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A7AE1B2A60832D00990539 /* PersonViewController.swift */; };
 		92A87F432A41EA200098C20C /* PostDetailOrEmptyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */; };
 		92A87F452A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */; };
@@ -87,52 +70,24 @@
 		92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C8FD2A3A40EB00672F64 /* AppDelegate.swift */; };
 		92B7C9002A3A40EB00672F64 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C8FF2A3A40EB00672F64 /* SceneDelegate.swift */; };
 		92B7C9022A3A40EB00672F64 /* PostListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9012A3A40EB00672F64 /* PostListViewController.swift */; };
-		92B7C9082A3A40EB00672F64 /* DataStore.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9062A3A40EB00672F64 /* DataStore.xcdatamodeld */; };
 		92B7C90A2A3A40F400672F64 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 92B7C9092A3A40F400672F64 /* Assets.xcassets */; };
 		92B7C90D2A3A40F400672F64 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 92B7C90B2A3A40F400672F64 /* LaunchScreen.storyboard */; };
 		92B7C9182A3A40F400672F64 /* SpudTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9172A3A40F400672F64 /* SpudTests.swift */; };
 		92B7C9222A3A40F400672F64 /* SpudUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9212A3A40F400672F64 /* SpudUITests.swift */; };
 		92B7C9242A3A40F400672F64 /* SpudUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9232A3A40F400672F64 /* SpudUITestsLaunchTests.swift */; };
 		92B7C9312A3A493C00672F64 /* PostListPostCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9302A3A493C00672F64 /* PostListPostCell.swift */; };
-		92B7C9392A3A59E600672F64 /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9382A3A59E600672F64 /* DataStore.swift */; };
 		92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */; };
 		92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93D2A3A5C3A00672F64 /* OSLog.swift */; };
-		92B7C9412A3A5DD800672F64 /* LemmyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9402A3A5DD800672F64 /* LemmyService.swift */; };
-		92B7C94B2A3A604300672F64 /* LemmyFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C94A2A3A604300672F64 /* LemmyFeed.swift */; };
-		92B7C94D2A3A658700672F64 /* LemmyPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C94C2A3A658700672F64 /* LemmyPage.swift */; };
-		92B7C94F2A3A65BA00672F64 /* LemmyPageElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C94E2A3A65BA00672F64 /* LemmyPageElement.swift */; };
-		92B7C9512A3A65E200672F64 /* LemmyPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9502A3A65E200672F64 /* LemmyPost.swift */; };
-		92B7C9532A3A667E00672F64 /* LemmyFeed+FeedType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9522A3A667E00672F64 /* LemmyFeed+FeedType.swift */; };
-		92B7C9562A3A738500672F64 /* LemmyFeed+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9552A3A738500672F64 /* LemmyFeed+import.swift */; };
-		92B7C9582A3A745B00672F64 /* LemmyPage+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9572A3A745B00672F64 /* LemmyPage+import.swift */; };
-		92B7C95A2A3A74BE00672F64 /* LemmyPost+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9592A3A74BE00672F64 /* LemmyPost+import.swift */; };
-		92B7C95E2A3B5A7800672F64 /* LemmyAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C95D2A3B5A7800672F64 /* LemmyAccount.swift */; };
-		92B7C9612A3B5E8C00672F64 /* AccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9602A3B5E8C00672F64 /* AccountService.swift */; };
 		92B7C9632A3B9EC700672F64 /* PostListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9622A3B9EC700672F64 /* PostListViewModel.swift */; };
-		92B7C9652A3BA64900672F64 /* ManagedContextScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */; };
 		92B7C9672A3D003B00672F64 /* PostListPostViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9662A3D003B00672F64 /* PostListPostViewModel.swift */; };
-		92B7C9692A3D101300672F64 /* Publisher+wrapInOptional.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */; };
 		92B7C96C2A3D158400672F64 /* PostDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C96B2A3D158400672F64 /* PostDetailViewController.swift */; };
 		92B7C96E2A3D15B100672F64 /* PostDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C96D2A3D15B100672F64 /* PostDetailViewModel.swift */; };
 		92B7C9712A3D173300672F64 /* PostDetailHeaderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9702A3D173300672F64 /* PostDetailHeaderViewModel.swift */; };
 		92B7C9732A3D1A3400672F64 /* PostDetailHeaderCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9722A3D1A3400672F64 /* PostDetailHeaderCell.swift */; };
-		92B7C9762A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9752A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift */; };
-		92B7C9782A3D241800672F64 /* Publisher+combineLatestSequence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9772A3D241800672F64 /* Publisher+combineLatestSequence.swift */; };
-		92B7C97A2A3D279100672F64 /* Publisher+ignoreNil.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9792A3D279100672F64 /* Publisher+ignoreNil.swift */; };
-		92B7C97C2A3D27BC00672F64 /* OptionalType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C97B2A3D27BC00672F64 /* OptionalType.swift */; };
-		92B7C97E2A3D27FA00672F64 /* Publisher+justfail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C97D2A3D27FA00672F64 /* Publisher+justfail.swift */; };
 		92B7C9812A3D2B7C00672F64 /* IconValueFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9802A3D2B7C00672F64 /* IconValueFormatter.swift */; };
-		92B7C9832A3D2C8800672F64 /* NSAttributedString+symbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9822A3D2C8800672F64 /* NSAttributedString+symbol.swift */; };
 		92B7C9852A3D2D8E00672F64 /* UpvotesFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9842A3D2D8E00672F64 /* UpvotesFormatter.swift */; };
 		92B7C9872A3D2DC100672F64 /* CommentsFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9862A3D2DC100672F64 /* CommentsFormatter.swift */; };
-		92B7C98B2A3D2F0100672F64 /* TimeInterval+roundedInt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C98A2A3D2F0100672F64 /* TimeInterval+roundedInt.swift */; };
-		92B7C98D2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C98C2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift */; };
-		92B7C98F2A3E72DD00672F64 /* LemmyComment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C98E2A3E72DD00672F64 /* LemmyComment.swift */; };
-		92B7C9912A3E749900672F64 /* LemmyCommentElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9902A3E749900672F64 /* LemmyCommentElement.swift */; };
-		92B7C9932A3F05F000672F64 /* LemmyPost+import+comments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9922A3F05F000672F64 /* LemmyPost+import+comments.swift */; };
 		92B7C9952A3F1E3100672F64 /* CommentHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9942A3F1E3100672F64 /* CommentHelperTests.swift */; };
-		92B7C9972A3F221D00672F64 /* LemmyComment+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9962A3F221D00672F64 /* LemmyComment+import.swift */; };
-		92B7C9992A3F2C7000672F64 /* LemmyCommentImportHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9982A3F2C7000672F64 /* LemmyCommentImportHelper.swift */; };
 		92B7C99C2A3F3B2100672F64 /* Person+fake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C99B2A3F3B2100672F64 /* Person+fake.swift */; };
 		92B7C99E2A3F3B3700672F64 /* Post+fake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C99D2A3F3B3700672F64 /* Post+fake.swift */; };
 		92B7C9A02A3F3B4A00672F64 /* Community+fake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C99F2A3F3B4A00672F64 /* Community+fake.swift */; };
@@ -141,51 +96,108 @@
 		92B7C9A72A3F45B600672F64 /* PostDetailCommentCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */; };
 		92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */; };
 		92BBE4A12A5BEEAD008C2F55 /* UITableViewCellBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */; };
-		92BBE4A32A5C03FF008C2F55 /* UIImage+fittingWidth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */; };
-		92BBE4A92A5C2D6D008C2F55 /* URL+safePath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A82A5C2D6D008C2F55 /* URL+safePath.swift */; };
-		92BBE4AB2A5C39D9008C2F55 /* String+endsWith.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4AA2A5C39D9008C2F55 /* String+endsWith.swift */; };
-		92C82A372A58643600B5B431 /* PostContentDetectorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C82A362A58643600B5B431 /* PostContentDetectorService.swift */; };
-		92C82A392A5955DD00B5B431 /* PostContentType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C82A382A5955DD00B5B431 /* PostContentType.swift */; };
 		92CC5D542A7DAE3F0019436A /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5D532A7DAE3F0019436A /* AppCoordinator.swift */; };
-		92CC5D562A7E6E0E0019436A /* LemmyCommunity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5D552A7E6E0E0019436A /* LemmyCommunity.swift */; };
-		92CC5D582A7E6F390019436A /* LemmyCommunityInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5D572A7E6F390019436A /* LemmyCommunityInfo.swift */; };
-		92CC5D5A2A7E73990019436A /* LemmyCommunity+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5D592A7E73990019436A /* LemmyCommunity+import.swift */; };
-		92CC5D5C2A7E74F60019436A /* LemmyCommunityInfo+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5D5B2A7E74F60019436A /* LemmyCommunityInfo+import.swift */; };
-		92CEAEAC2A4CD79500FAF4DB /* AccountServiceLoginError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */; };
-		92CEAEAE2A4CD7AC00FAF4DB /* LemmyCredential.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */; };
-		92CEAEB12A4D5B4800FAF4DB /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */; };
-		92CEAEB82A4EDC0800FAF4DB /* URL+safeHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */; };
-		92CEAEBA2A4F362A00FAF4DB /* Atomic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEB92A4F362A00FAF4DB /* Atomic.swift */; };
-		92CEAEBC2A51ABC700FAF4DB /* LemmyAccountInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEBB2A51ABC700FAF4DB /* LemmyAccountInfo.swift */; };
-		92CEAEBE2A51F14300FAF4DB /* LemmyAccountInfo+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEBD2A51F14300FAF4DB /* LemmyAccountInfo+import.swift */; };
-		92CEAEC02A51FA1C00FAF4DB /* LemmyPerson.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEBF2A51FA1C00FAF4DB /* LemmyPerson.swift */; };
-		92CEAEC22A51FBAA00FAF4DB /* LemmyPersonInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC12A51FBAA00FAF4DB /* LemmyPersonInfo.swift */; };
-		92CEAEC42A52010900FAF4DB /* LemmyPerson+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC32A52010900FAF4DB /* LemmyPerson+import.swift */; };
-		92CEAEC62A52023C00FAF4DB /* LemmyPersonInfo+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC52A52023C00FAF4DB /* LemmyPersonInfo+import.swift */; };
+		92CC5D652A7EBF5E0019436A /* SpudData.h in Headers */ = {isa = PBXBuildFile; fileRef = 92CC5D642A7EBF5E0019436A /* SpudData.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		92CC5D682A7EBF5E0019436A /* SpudDataKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D622A7EBF5E0019436A /* SpudDataKit.framework */; };
+		92CC5D692A7EBF5E0019436A /* SpudDataKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D622A7EBF5E0019436A /* SpudDataKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		92CC5D6D2A7EBF960019436A /* DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9382A3A59E600672F64 /* DataStore.swift */; };
+		92CC5D6E2A7EBF9B0019436A /* DataStore.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9062A3A40EB00672F64 /* DataStore.xcdatamodeld */; };
+		92CC5D6F2A7EBFA20019436A /* LemmyCommunityInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5D572A7E6F390019436A /* LemmyCommunityInfo.swift */; };
+		92CC5D702A7EBFA20019436A /* LemmyAccountInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEBB2A51ABC700FAF4DB /* LemmyAccountInfo.swift */; };
+		92CC5D712A7EBFA20019436A /* LemmySite.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E62A4648A300497C3B /* LemmySite.swift */; };
+		92CC5D722A7EBFA20019436A /* Instance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9219433C2A7562390005474D /* Instance.swift */; };
+		92CC5D732A7EBFA20019436A /* LemmyPostInfo+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D22A43AB3E00497C3B /* LemmyPostInfo+VoteStatus.swift */; };
+		92CC5D742A7EBFA20019436A /* LemmyFeed+FeedType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9522A3A667E00672F64 /* LemmyFeed+FeedType.swift */; };
+		92CC5D752A7EBFA20019436A /* LemmyPageElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C94E2A3A65BA00672F64 /* LemmyPageElement.swift */; };
+		92CC5D762A7EBFA20019436A /* LemmyPerson.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEBF2A51FA1C00FAF4DB /* LemmyPerson.swift */; };
+		92CC5D772A7EBFA20019436A /* LemmyFeed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C94A2A3A604300672F64 /* LemmyFeed.swift */; };
+		92CC5D782A7EBFA20019436A /* LemmyAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C95D2A3B5A7800672F64 /* LemmyAccount.swift */; };
+		92CC5D792A7EBFA20019436A /* LemmyComment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C98E2A3E72DD00672F64 /* LemmyComment.swift */; };
+		92CC5D7A2A7EBFA20019436A /* LemmyCommunity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5D552A7E6E0E0019436A /* LemmyCommunity.swift */; };
+		92CC5D7B2A7EBFA20019436A /* LemmyPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C94C2A3A658700672F64 /* LemmyPage.swift */; };
+		92CC5D7C2A7EBFA20019436A /* LemmyPost+localLemmyUiUrl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C98C2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift */; };
+		92CC5D7D2A7EBFA20019436A /* LemmyPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9502A3A65E200672F64 /* LemmyPost.swift */; };
+		92CC5D7E2A7EBFA20019436A /* LemmyPostInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9281B2832A7D925000BA8E39 /* LemmyPostInfo.swift */; };
+		92CC5D7F2A7EBFA20019436A /* LemmyCommentElement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9902A3E749900672F64 /* LemmyCommentElement.swift */; };
+		92CC5D802A7EBFA20019436A /* LemmySiteInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E82A4648AF00497C3B /* LemmySiteInfo.swift */; };
+		92CC5D812A7EBFA20019436A /* LemmyComment+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */; };
+		92CC5D822A7EBFA20019436A /* NodeInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9219433E2A7564650005474D /* NodeInfo.swift */; };
+		92CC5D832A7EBFA20019436A /* LemmyPersonInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC12A51FBAA00FAF4DB /* LemmyPersonInfo.swift */; };
+		92CC5D8C2A7EBFEA0019436A /* SpudUtilKit.h in Headers */ = {isa = PBXBuildFile; fileRef = 92CC5D8B2A7EBFEA0019436A /* SpudUtilKit.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		92CC5D8F2A7EBFEA0019436A /* SpudUtilKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */; };
+		92CC5D902A7EBFEA0019436A /* SpudUtilKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		92CC5D952A7EC1100019436A /* URL+safeHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */; };
+		92CC5D962A7EC1100019436A /* String+endsWith.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4AA2A5C39D9008C2F55 /* String+endsWith.swift */; };
+		92CC5D972A7EC1100019436A /* Date+relativeString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273432B2A61BF450089556E /* Date+relativeString.swift */; };
+		92CC5D982A7EC1100019436A /* NSAttributedString+symbol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9822A3D2C8800672F64 /* NSAttributedString+symbol.swift */; };
+		92CC5D992A7EC1100019436A /* URL+lemmy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273433A2A61DF050089556E /* URL+lemmy.swift */; };
+		92CC5D9A2A7EC1100019436A /* URL+safePath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A82A5C2D6D008C2F55 /* URL+safePath.swift */; };
+		92CC5D9B2A7EC1100019436A /* Sequence+NSAttributedString+joined.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9752A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift */; };
+		92CC5D9C2A7EC1100019436A /* UIImage+fittingWidth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */; };
+		92CC5D9D2A7EC1100019436A /* Publisher+justfail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C97D2A3D27FA00672F64 /* Publisher+justfail.swift */; };
+		92CC5D9E2A7EC1100019436A /* NSManagedObjectContext+saveIfNeeded.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */; };
+		92CC5D9F2A7EC1100019436A /* TimeInterval+roundedInt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C98A2A3D2F0100672F64 /* TimeInterval+roundedInt.swift */; };
+		92CC5DA02A7EC1100019436A /* Publisher+wrapInOptional.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */; };
+		92CC5DA12A7EC1100019436A /* Publisher+assignWeak.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */; };
+		92CC5DA22A7EC1100019436A /* Publisher+combineLatestSequence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9772A3D241800672F64 /* Publisher+combineLatestSequence.swift */; };
+		92CC5DA32A7EC1100019436A /* Publisher+ignoreNil.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9792A3D279100672F64 /* Publisher+ignoreNil.swift */; };
+		92CC5DA42A7EC1100019436A /* URL+normalizedInstanceUrlString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62F12A4775F400497C3B /* URL+normalizedInstanceUrlString.swift */; };
+		92CC5DA52A7EC1100019436A /* UIViewController+addChild.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */; };
+		92CC5DA62A7EC1100019436A /* URL+canonicalHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */; };
+		92CC5DA72A7EC11E0019436A /* SpudUtilKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */; };
+		92CC5DA82A7EC11E0019436A /* SpudUtilKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		92CC5DAD2A7EC1540019436A /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5DAC2A7EC1540019436A /* OSLog.swift */; };
+		92CC5DAE2A7EC17F0019436A /* OptionalType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C97B2A3D27BC00672F64 /* OptionalType.swift */; };
+		92CC5DAF2A7EC17F0019436A /* Atomic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEB92A4F362A00FAF4DB /* Atomic.swift */; };
+		92CC5DB02A7EC17F0019436A /* ManagedContextScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */; };
+		92CC5DB12A7EC1890019436A /* URL+lenientString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618612A74FA70003D49D4 /* URL+lenientString.swift */; };
+		92CC5DB32A7EC1B60019436A /* VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D02A43A93F00497C3B /* VoteStatus.swift */; };
+		92CC5DB42A7EC1B60019436A /* VoteStatus+Action.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D13892A76FFBD00E7E5DB /* VoteStatus+Action.swift */; };
+		92CC5DB62A7EC1CF0019436A /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5DB52A7EC1CF0019436A /* OSLog.swift */; };
+		92CC5DB72A7EC1F80019436A /* NodeInfoSoftware.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921943452A75E83A0005474D /* NodeInfoSoftware.swift */; };
+		92CC5DB92A7EC7880019436A /* SemVer in Frameworks */ = {isa = PBXBuildFile; productRef = 92CC5DB82A7EC7880019436A /* SemVer */; };
+		92CC5DBB2A7EC79F0019436A /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 92CC5DBA2A7EC79F0019436A /* LemmyKit */; };
+		92CC5DBC2A7EC7C50019436A /* SpudDataKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D622A7EBF5E0019436A /* SpudDataKit.framework */; };
+		92CC5DC02A7ED7210019436A /* SchedulerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62EB2A46EFF400497C3B /* SchedulerService.swift */; };
+		92CC5DC12A7ED7260019436A /* LemmyCredential.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */; };
+		92CC5DC22A7ED7260019436A /* AccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9602A3B5E8C00672F64 /* AccountService.swift */; };
+		92CC5DC32A7ED7260019436A /* AccountServiceLoginError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */; };
+		92CC5DC42A7ED7290019436A /* SiteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E42A46427300497C3B /* SiteService.swift */; };
+		92CC5DC52A7ED72E0019436A /* PostContentDetectorService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C82A362A58643600B5B431 /* PostContentDetectorService.swift */; };
+		92CC5DC62A7ED72E0019436A /* PostContentType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C82A382A5955DD00B5B431 /* PostContentType.swift */; };
+		92CC5DC72A7ED7320019436A /* LemmyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9402A3A5DD800672F64 /* LemmyService.swift */; };
+		92CC5DC82A7ED7380019436A /* LemmyPerson+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC32A52010900FAF4DB /* LemmyPerson+import.swift */; };
+		92CC5DC92A7ED7380019436A /* LemmyAccount+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62ED2A46F8F400497C3B /* LemmyAccount+import.swift */; };
+		92CC5DCA2A7ED7380019436A /* LemmyPersonInfo+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC52A52023C00FAF4DB /* LemmyPersonInfo+import.swift */; };
+		92CC5DCB2A7ED7380019436A /* LemmyAccountInfo+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEBD2A51F14300FAF4DB /* LemmyAccountInfo+import.swift */; };
+		92CC5DCC2A7ED7380019436A /* LemmyPage+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9572A3A745B00672F64 /* LemmyPage+import.swift */; };
+		92CC5DCD2A7ED7380019436A /* LemmyPost+import+comments.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9922A3F05F000672F64 /* LemmyPost+import+comments.swift */; };
+		92CC5DCE2A7ED7380019436A /* LemmyCommunityInfo+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5D5B2A7E74F60019436A /* LemmyCommunityInfo+import.swift */; };
+		92CC5DCF2A7ED7380019436A /* LemmySite+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62EF2A4700B600497C3B /* LemmySite+import.swift */; };
+		92CC5DD02A7ED7380019436A /* LemmyCommunity+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5D592A7E73990019436A /* LemmyCommunity+import.swift */; };
+		92CC5DD12A7ED7380019436A /* LemmyPost+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9592A3A74BE00672F64 /* LemmyPost+import.swift */; };
+		92CC5DD22A7ED7380019436A /* LemmyFeed+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9552A3A738500672F64 /* LemmyFeed+import.swift */; };
+		92CC5DD32A7ED7380019436A /* LemmyCommentImportHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9982A3F2C7000672F64 /* LemmyCommentImportHelper.swift */; };
+		92CC5DD42A7ED7380019436A /* LemmyComment+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9962A3F221D00672F64 /* LemmyComment+import.swift */; };
+		92CC5DD52A7ED7380019436A /* LemmyPostInfo+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9281B2852A7D954100BA8E39 /* LemmyPostInfo+import.swift */; };
+		92CC5DD72A7ED7940019436A /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 92CC5DD62A7ED7940019436A /* KeychainAccess */; };
+		92CC5DD82A7ED8B50019436A /* AlertService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D138C2A77073A00E7E5DB /* AlertService.swift */; };
+		92CC5DD92A7ED8B50019436A /* AlertHandlerRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D138E2A770E0C00E7E5DB /* AlertHandlerRequest.swift */; };
+		92CC5DDA2A7ED8E60019436A /* ImageLoadingState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D13902A78664600E7E5DB /* ImageLoadingState.swift */; };
+		92CC5DDB2A7ED8E60019436A /* ImageLoadingError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D13922A78665800E7E5DB /* ImageLoadingError.swift */; };
+		92CC5DDC2A7ED8E60019436A /* ImageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE082A40E50400AA7B22 /* ImageService.swift */; };
 		92CEAEC82A54422C00FAF4DB /* LinkPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC72A54422C00FAF4DB /* LinkPreviewView.swift */; };
-		92CEAECA2A54450700FAF4DB /* URL+canonicalHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */; };
-		92DD62D12A43A93F00497C3B /* VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D02A43A93F00497C3B /* VoteStatus.swift */; };
-		92DD62D32A43AB3E00497C3B /* LemmyPostInfo+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D22A43AB3E00497C3B /* LemmyPostInfo+VoteStatus.swift */; };
-		92DD62D52A43ABB300497C3B /* LemmyComment+VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */; };
 		92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D62A458F1100497C3B /* MainWindowTabBarController.swift */; };
 		92DD62D92A45919600497C3B /* MainWindowSplitViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D82A45919600497C3B /* MainWindowSplitViewController.swift */; };
 		92DD62DC2A45945A00497C3B /* AccountViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62DB2A45945A00497C3B /* AccountViewController.swift */; };
 		92DD62DF2A4594F900497C3B /* PreferencesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62DE2A4594F900497C3B /* PreferencesViewController.swift */; };
 		92DD62E22A45955600497C3B /* SearchViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E12A45955600497C3B /* SearchViewController.swift */; };
-		92DD62E52A46427300497C3B /* SiteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E42A46427300497C3B /* SiteService.swift */; };
-		92DD62E72A4648A300497C3B /* LemmySite.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E62A4648A300497C3B /* LemmySite.swift */; };
-		92DD62E92A4648AF00497C3B /* LemmySiteInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E82A4648AF00497C3B /* LemmySiteInfo.swift */; };
-		92DD62EC2A46EFF400497C3B /* SchedulerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62EB2A46EFF400497C3B /* SchedulerService.swift */; };
-		92DD62EE2A46F8F400497C3B /* LemmyAccount+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62ED2A46F8F400497C3B /* LemmyAccount+import.swift */; };
-		92DD62F02A4700B600497C3B /* LemmySite+import.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62EF2A4700B600497C3B /* LemmySite+import.swift */; };
-		92DD62F22A4775F400497C3B /* URL+normalizedInstanceUrlString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62F12A4775F400497C3B /* URL+normalizedInstanceUrlString.swift */; };
 		92DD62F52A477C4300497C3B /* AccountListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62F42A477C4300497C3B /* AccountListViewController.swift */; };
 		92DD62F72A477D3400497C3B /* AccountListAccountCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62F62A477D3400497C3B /* AccountListAccountCell.swift */; };
 		92DD62FC2A484EEF00497C3B /* SiteListViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62FB2A484EEF00497C3B /* SiteListViewController.swift */; };
 		92DD62FE2A484FFF00497C3B /* SiteListSiteCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62FD2A484FFF00497C3B /* SiteListSiteCell.swift */; };
 		92DD63002A48502600497C3B /* SiteListSiteViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62FF2A48502600497C3B /* SiteListSiteViewModel.swift */; };
 		92DD63022A48561E00497C3B /* SiteListIconImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63012A48561E00497C3B /* SiteListIconImageView.swift */; };
-		92DD63042A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */; };
 		92DD63062A48BEAD00497C3B /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63052A48BEAD00497C3B /* LoginViewController.swift */; };
 		92DD63092A48CC2700497C3B /* LoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63082A48CC2700497C3B /* LoginViewModel.swift */; };
 /* End PBXBuildFile section */
@@ -226,6 +238,34 @@
 			remoteGlobalIDString = 92B7C8F92A3A40EB00672F64;
 			remoteInfo = Spud;
 		};
+		92CC5D662A7EBF5E0019436A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 92B7C8F22A3A40EB00672F64 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92CC5D612A7EBF5E0019436A;
+			remoteInfo = SpudData;
+		};
+		92CC5D8D2A7EBFEA0019436A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 92B7C8F22A3A40EB00672F64 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92CC5D882A7EBFEA0019436A;
+			remoteInfo = SpudUtilKit;
+		};
+		92CC5DA92A7EC11E0019436A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 92B7C8F22A3A40EB00672F64 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92CC5D882A7EBFEA0019436A;
+			remoteInfo = SpudUtilKit;
+		};
+		92CC5DBD2A7EC7C50019436A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 92B7C8F22A3A40EB00672F64 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92CC5D612A7EBF5E0019436A;
+			remoteInfo = SpudDataKit;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -235,6 +275,8 @@
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
+				92CC5D692A7EBF5E0019436A /* SpudDataKit.framework in Embed Frameworks */,
+				92CC5D902A7EBFEA0019436A /* SpudUtilKit.framework in Embed Frameworks */,
 				920B457B2A7C482D00C6C2DC /* SpudWidgetData.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
@@ -260,6 +302,17 @@
 				920B45612A7C1DF500C6C2DC /* SpudWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92CC5DAB2A7EC11E0019436A /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				92CC5DA82A7EC11E0019436A /* SpudUtilKit.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -411,6 +464,12 @@
 		92CC5D572A7E6F390019436A /* LemmyCommunityInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyCommunityInfo.swift; sourceTree = "<group>"; };
 		92CC5D592A7E73990019436A /* LemmyCommunity+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyCommunity+import.swift"; sourceTree = "<group>"; };
 		92CC5D5B2A7E74F60019436A /* LemmyCommunityInfo+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyCommunityInfo+import.swift"; sourceTree = "<group>"; };
+		92CC5D622A7EBF5E0019436A /* SpudDataKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SpudDataKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		92CC5D642A7EBF5E0019436A /* SpudData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SpudData.h; sourceTree = "<group>"; };
+		92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SpudUtilKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		92CC5D8B2A7EBFEA0019436A /* SpudUtilKit.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SpudUtilKit.h; sourceTree = "<group>"; };
+		92CC5DAC2A7EC1540019436A /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
+		92CC5DB52A7EC1CF0019436A /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
 		92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountServiceLoginError.swift; sourceTree = "<group>"; };
 		92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyCredential.swift; sourceTree = "<group>"; };
 		92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+safeHost.swift"; sourceTree = "<group>"; };
@@ -472,9 +531,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				9276185E2A731AD5003D49D4 /* Down in Frameworks */,
-				92CEAEB12A4D5B4800FAF4DB /* KeychainAccess in Frameworks */,
 				9273433E2A61FAB70089556E /* LemmyKit in Frameworks */,
-				921943492A75ED7F0005474D /* SemVer in Frameworks */,
+				92CC5D682A7EBF5E0019436A /* SpudDataKit.framework in Frameworks */,
+				92CC5DBC2A7EC7C50019436A /* SpudDataKit.framework in Frameworks */,
+				92CC5D8F2A7EBFEA0019436A /* SpudUtilKit.framework in Frameworks */,
 				920B457A2A7C482D00C6C2DC /* SpudWidgetData.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -487,6 +547,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		92B7C91A2A3A40F400672F64 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92CC5D5F2A7EBF5E0019436A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				92CC5DD72A7ED7940019436A /* KeychainAccess in Frameworks */,
+				92CC5DBB2A7EC79F0019436A /* LemmyKit in Frameworks */,
+				92CC5DB92A7EC7880019436A /* SemVer in Frameworks */,
+				92CC5DA72A7EC11E0019436A /* SpudUtilKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92CC5D862A7EBFEA0019436A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -731,6 +809,8 @@
 				92B7C9202A3A40F400672F64 /* SpudUITests */,
 				920B45522A7C1DF400C6C2DC /* SpudWidget */,
 				920B45732A7C482D00C6C2DC /* SpudWidgetData */,
+				92CC5D632A7EBF5E0019436A /* SpudDataKit */,
+				92CC5D8A2A7EBFEA0019436A /* SpudUtilKit */,
 				92B7C8FB2A3A40EB00672F64 /* Products */,
 				92B7C9442A3A5E7100672F64 /* Frameworks */,
 			);
@@ -744,6 +824,8 @@
 				92B7C91D2A3A40F400672F64 /* SpudUITests.xctest */,
 				920B454F2A7C1DF400C6C2DC /* SpudWidgetExtension.appex */,
 				920B45722A7C482D00C6C2DC /* SpudWidgetData.framework */,
+				92CC5D622A7EBF5E0019436A /* SpudDataKit.framework */,
+				92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -833,17 +915,9 @@
 		92B7C9362A3A59A000672F64 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				92B7C95F2A3B5E7000672F64 /* Account */,
-				929D138B2A77070D00E7E5DB /* Alert */,
 				927618162A730C19003D49D4 /* App */,
 				926602B92A5F68AF005A1641 /* Appearance */,
-				92B7C9372A3A59AD00672F64 /* DataStore */,
-				922AEE072A40E4E600AA7B22 /* Image */,
-				92B7C93F2A3A5DC800672F64 /* Lemmy */,
-				92C82A352A58625F00B5B431 /* PostContentDetector */,
 				9216FBCD2A795F3C00D67636 /* Preferences */,
-				92DD62EA2A46EFE600497C3B /* Scheduler */,
-				92DD62E32A46426A00497C3B /* Site */,
 				9273432F2A61C1FD0089556E /* HasVoid.swift */,
 			);
 			path = Services;
@@ -862,19 +936,11 @@
 		92B7C93C2A3A5C1B00672F64 /* Utils */ = {
 			isa = PBXGroup;
 			children = (
-				92B7C9742A3D22C000672F64 /* Extensions */,
 				92B7C97F2A3D2B7200672F64 /* Formatters */,
 				9297E2FD2A42492E00D13E4D /* Views */,
-				92CEAEB92A4F362A00FAF4DB /* Atomic.swift */,
-				92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */,
-				921943452A75E83A0005474D /* NodeInfoSoftware.swift */,
-				92B7C97B2A3D27BC00672F64 /* OptionalType.swift */,
 				92B7C93D2A3A5C3A00672F64 /* OSLog.swift */,
 				927E1F3B2A5841B4002327EC /* UIViewPreview.swift */,
-				927618612A74FA70003D49D4 /* URL+lenientString.swift */,
 				926602C12A5F69B8005A1641 /* UserDefaultsBacked.swift */,
-				929D13892A76FFBD00E7E5DB /* VoteStatus+Action.swift */,
-				92DD62D02A43A93F00497C3B /* VoteStatus.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -977,31 +1043,6 @@
 			path = Header;
 			sourceTree = "<group>";
 		};
-		92B7C9742A3D22C000672F64 /* Extensions */ = {
-			isa = PBXGroup;
-			children = (
-				9273432B2A61BF450089556E /* Date+relativeString.swift */,
-				92B7C9822A3D2C8800672F64 /* NSAttributedString+symbol.swift */,
-				92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */,
-				9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */,
-				92B7C9772A3D241800672F64 /* Publisher+combineLatestSequence.swift */,
-				92B7C9792A3D279100672F64 /* Publisher+ignoreNil.swift */,
-				92B7C97D2A3D27FA00672F64 /* Publisher+justfail.swift */,
-				92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */,
-				92B7C9752A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift */,
-				92BBE4AA2A5C39D9008C2F55 /* String+endsWith.swift */,
-				92B7C98A2A3D2F0100672F64 /* TimeInterval+roundedInt.swift */,
-				92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */,
-				9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */,
-				92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */,
-				9273433A2A61DF050089556E /* URL+lemmy.swift */,
-				92DD62F12A4775F400497C3B /* URL+normalizedInstanceUrlString.swift */,
-				92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */,
-				92BBE4A82A5C2D6D008C2F55 /* URL+safePath.swift */,
-			);
-			path = Extensions;
-			sourceTree = "<group>";
-		};
 		92B7C97F2A3D2B7200672F64 /* Formatters */ = {
 			isa = PBXGroup;
 			children = (
@@ -1041,6 +1082,81 @@
 				92C82A382A5955DD00B5B431 /* PostContentType.swift */,
 			);
 			path = PostContentDetector;
+			sourceTree = "<group>";
+		};
+		92CC5D632A7EBF5E0019436A /* SpudDataKit */ = {
+			isa = PBXGroup;
+			children = (
+				92CC5DBF2A7ED6E90019436A /* Services */,
+				92CC5DB22A7EC1AD0019436A /* Utils */,
+				92CC5D642A7EBF5E0019436A /* SpudData.h */,
+			);
+			path = SpudDataKit;
+			sourceTree = "<group>";
+		};
+		92CC5D8A2A7EBFEA0019436A /* SpudUtilKit */ = {
+			isa = PBXGroup;
+			children = (
+				92CC5D942A7EC07D0019436A /* Extensions */,
+				92CEAEB92A4F362A00FAF4DB /* Atomic.swift */,
+				92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */,
+				92B7C97B2A3D27BC00672F64 /* OptionalType.swift */,
+				92CC5DAC2A7EC1540019436A /* OSLog.swift */,
+				92CC5D8B2A7EBFEA0019436A /* SpudUtilKit.h */,
+				927618612A74FA70003D49D4 /* URL+lenientString.swift */,
+			);
+			path = SpudUtilKit;
+			sourceTree = "<group>";
+		};
+		92CC5D942A7EC07D0019436A /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				9273432B2A61BF450089556E /* Date+relativeString.swift */,
+				92B7C9822A3D2C8800672F64 /* NSAttributedString+symbol.swift */,
+				92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */,
+				9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */,
+				92B7C9772A3D241800672F64 /* Publisher+combineLatestSequence.swift */,
+				92B7C9792A3D279100672F64 /* Publisher+ignoreNil.swift */,
+				92B7C97D2A3D27FA00672F64 /* Publisher+justfail.swift */,
+				92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */,
+				92B7C9752A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift */,
+				92BBE4AA2A5C39D9008C2F55 /* String+endsWith.swift */,
+				92B7C98A2A3D2F0100672F64 /* TimeInterval+roundedInt.swift */,
+				92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */,
+				9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */,
+				92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */,
+				9273433A2A61DF050089556E /* URL+lemmy.swift */,
+				92DD62F12A4775F400497C3B /* URL+normalizedInstanceUrlString.swift */,
+				92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */,
+				92BBE4A82A5C2D6D008C2F55 /* URL+safePath.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		92CC5DB22A7EC1AD0019436A /* Utils */ = {
+			isa = PBXGroup;
+			children = (
+				921943452A75E83A0005474D /* NodeInfoSoftware.swift */,
+				92CC5DB52A7EC1CF0019436A /* OSLog.swift */,
+				929D13892A76FFBD00E7E5DB /* VoteStatus+Action.swift */,
+				92DD62D02A43A93F00497C3B /* VoteStatus.swift */,
+			);
+			path = Utils;
+			sourceTree = "<group>";
+		};
+		92CC5DBF2A7ED6E90019436A /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				92B7C95F2A3B5E7000672F64 /* Account */,
+				929D138B2A77070D00E7E5DB /* Alert */,
+				92B7C9372A3A59AD00672F64 /* DataStore */,
+				922AEE072A40E4E600AA7B22 /* Image */,
+				92B7C93F2A3A5DC800672F64 /* Lemmy */,
+				92C82A352A58625F00B5B431 /* PostContentDetector */,
+				92DD62EA2A46EFE600497C3B /* Scheduler */,
+				92DD62E32A46426A00497C3B /* Site */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		92DD62DA2A45943900497C3B /* Account */ = {
@@ -1127,6 +1243,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		92CC5D5D2A7EBF5E0019436A /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				92CC5D652A7EBF5E0019436A /* SpudData.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92CC5D842A7EBFEA0019436A /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				92CC5D8C2A7EBFEA0019436A /* SpudUtilKit.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
@@ -1182,13 +1314,14 @@
 			dependencies = (
 				920B45602A7C1DF500C6C2DC /* PBXTargetDependency */,
 				920B45792A7C482D00C6C2DC /* PBXTargetDependency */,
+				92CC5D672A7EBF5E0019436A /* PBXTargetDependency */,
+				92CC5D8E2A7EBFEA0019436A /* PBXTargetDependency */,
+				92CC5DBE2A7EC7C50019436A /* PBXTargetDependency */,
 			);
 			name = Spud;
 			packageProductDependencies = (
-				92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */,
 				9273433D2A61FAB70089556E /* LemmyKit */,
 				9276185D2A731AD5003D49D4 /* Down */,
-				921943482A75ED7F0005474D /* SemVer */,
 			);
 			productName = Spud;
 			productReference = 92B7C8FA2A3A40EB00672F64 /* Spud.app */;
@@ -1230,6 +1363,49 @@
 			productReference = 92B7C91D2A3A40F400672F64 /* SpudUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		92CC5D612A7EBF5E0019436A /* SpudDataKit */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 92CC5D6C2A7EBF5E0019436A /* Build configuration list for PBXNativeTarget "SpudDataKit" */;
+			buildPhases = (
+				92CC5D5D2A7EBF5E0019436A /* Headers */,
+				92CC5D5E2A7EBF5E0019436A /* Sources */,
+				92CC5D5F2A7EBF5E0019436A /* Frameworks */,
+				92CC5D602A7EBF5E0019436A /* Resources */,
+				92CC5DAB2A7EC11E0019436A /* Embed Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				92CC5DAA2A7EC11E0019436A /* PBXTargetDependency */,
+			);
+			name = SpudDataKit;
+			packageProductDependencies = (
+				92CC5DB82A7EC7880019436A /* SemVer */,
+				92CC5DBA2A7EC79F0019436A /* LemmyKit */,
+				92CC5DD62A7ED7940019436A /* KeychainAccess */,
+			);
+			productName = SpudData;
+			productReference = 92CC5D622A7EBF5E0019436A /* SpudDataKit.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		92CC5D882A7EBFEA0019436A /* SpudUtilKit */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 92CC5D912A7EBFEA0019436A /* Build configuration list for PBXNativeTarget "SpudUtilKit" */;
+			buildPhases = (
+				92CC5D842A7EBFEA0019436A /* Headers */,
+				92CC5D852A7EBFEA0019436A /* Sources */,
+				92CC5D862A7EBFEA0019436A /* Frameworks */,
+				92CC5D872A7EBFEA0019436A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SpudUtilKit;
+			productName = SpudUtilKit;
+			productReference = 92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */;
+			productType = "com.apple.product-type.framework";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -1257,6 +1433,12 @@
 						CreatedOnToolsVersion = 13.2.1;
 						TestTargetID = 92B7C8F92A3A40EB00672F64;
 					};
+					92CC5D612A7EBF5E0019436A = {
+						CreatedOnToolsVersion = 14.3.1;
+					};
+					92CC5D882A7EBFEA0019436A = {
+						CreatedOnToolsVersion = 14.3.1;
+					};
 				};
 			};
 			buildConfigurationList = 92B7C8F52A3A40EB00672F64 /* Build configuration list for PBXProject "Spud" */;
@@ -1283,6 +1465,8 @@
 				92B7C91C2A3A40F400672F64 /* SpudUITests */,
 				920B454E2A7C1DF400C6C2DC /* SpudWidgetExtension */,
 				920B45712A7C482D00C6C2DC /* SpudWidgetData */,
+				92CC5D612A7EBF5E0019436A /* SpudDataKit */,
+				92CC5D882A7EBFEA0019436A /* SpudUtilKit */,
 			);
 		};
 /* End PBXProject section */
@@ -1326,6 +1510,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		92CC5D602A7EBF5E0019436A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92CC5D872A7EBFEA0019436A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -1363,63 +1561,16 @@
 				92DD62F72A477D3400497C3B /* AccountListAccountCell.swift in Sources */,
 				927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */,
 				92DD62F52A477C4300497C3B /* AccountListViewController.swift in Sources */,
-				92B7C9612A3B5E8C00672F64 /* AccountService.swift in Sources */,
-				92CEAEAC2A4CD79500FAF4DB /* AccountServiceLoginError.swift in Sources */,
 				92DD62DC2A45945A00497C3B /* AccountViewController.swift in Sources */,
-				929D138F2A770E0C00E7E5DB /* AlertHandlerRequest.swift in Sources */,
-				929D138D2A77073A00E7E5DB /* AlertService.swift in Sources */,
 				92CC5D542A7DAE3F0019436A /* AppCoordinator.swift in Sources */,
 				92B7C8FE2A3A40EB00672F64 /* AppDelegate.swift in Sources */,
 				926602BB2A5F68BF005A1641 /* AppearanceService.swift in Sources */,
 				927618182A730C25003D49D4 /* AppService.swift in Sources */,
-				92CEAEBA2A4F362A00FAF4DB /* Atomic.swift in Sources */,
 				92B7C9872A3D2DC100672F64 /* CommentsFormatter.swift in Sources */,
-				92B7C9392A3A59E600672F64 /* DataStore.swift in Sources */,
-				92B7C9082A3A40EB00672F64 /* DataStore.xcdatamodeld in Sources */,
-				9273432C2A61BF450089556E /* Date+relativeString.swift in Sources */,
 				92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */,
 				926602BD2A5F68DA005A1641 /* GeneralAppearance.swift in Sources */,
 				927343302A61C1FD0089556E /* HasVoid.swift in Sources */,
 				92B7C9812A3D2B7C00672F64 /* IconValueFormatter.swift in Sources */,
-				929D13932A78665800E7E5DB /* ImageLoadingError.swift in Sources */,
-				929D13912A78664600E7E5DB /* ImageLoadingState.swift in Sources */,
-				922AEE092A40E50400AA7B22 /* ImageService.swift in Sources */,
-				9219433D2A7562390005474D /* Instance.swift in Sources */,
-				92DD62EE2A46F8F400497C3B /* LemmyAccount+import.swift in Sources */,
-				92B7C95E2A3B5A7800672F64 /* LemmyAccount.swift in Sources */,
-				92CEAEBE2A51F14300FAF4DB /* LemmyAccountInfo+import.swift in Sources */,
-				92CEAEBC2A51ABC700FAF4DB /* LemmyAccountInfo.swift in Sources */,
-				92B7C9972A3F221D00672F64 /* LemmyComment+import.swift in Sources */,
-				92DD62D52A43ABB300497C3B /* LemmyComment+VoteStatus.swift in Sources */,
-				92B7C98F2A3E72DD00672F64 /* LemmyComment.swift in Sources */,
-				92B7C9912A3E749900672F64 /* LemmyCommentElement.swift in Sources */,
-				92B7C9992A3F2C7000672F64 /* LemmyCommentImportHelper.swift in Sources */,
-				92CC5D5A2A7E73990019436A /* LemmyCommunity+import.swift in Sources */,
-				92CC5D562A7E6E0E0019436A /* LemmyCommunity.swift in Sources */,
-				92CC5D5C2A7E74F60019436A /* LemmyCommunityInfo+import.swift in Sources */,
-				92CC5D582A7E6F390019436A /* LemmyCommunityInfo.swift in Sources */,
-				92CEAEAE2A4CD7AC00FAF4DB /* LemmyCredential.swift in Sources */,
-				92B7C9532A3A667E00672F64 /* LemmyFeed+FeedType.swift in Sources */,
-				92B7C9562A3A738500672F64 /* LemmyFeed+import.swift in Sources */,
-				92B7C94B2A3A604300672F64 /* LemmyFeed.swift in Sources */,
-				92B7C9582A3A745B00672F64 /* LemmyPage+import.swift in Sources */,
-				92B7C94D2A3A658700672F64 /* LemmyPage.swift in Sources */,
-				92B7C94F2A3A65BA00672F64 /* LemmyPageElement.swift in Sources */,
-				92CEAEC42A52010900FAF4DB /* LemmyPerson+import.swift in Sources */,
-				92CEAEC02A51FA1C00FAF4DB /* LemmyPerson.swift in Sources */,
-				92CEAEC62A52023C00FAF4DB /* LemmyPersonInfo+import.swift in Sources */,
-				92CEAEC22A51FBAA00FAF4DB /* LemmyPersonInfo.swift in Sources */,
-				92B7C9932A3F05F000672F64 /* LemmyPost+import+comments.swift in Sources */,
-				92B7C95A2A3A74BE00672F64 /* LemmyPost+import.swift in Sources */,
-				92B7C98D2A3D36D000672F64 /* LemmyPost+localLemmyUiUrl.swift in Sources */,
-				92B7C9512A3A65E200672F64 /* LemmyPost.swift in Sources */,
-				9281B2862A7D954100BA8E39 /* LemmyPostInfo+import.swift in Sources */,
-				92DD62D32A43AB3E00497C3B /* LemmyPostInfo+VoteStatus.swift in Sources */,
-				9281B2842A7D925000BA8E39 /* LemmyPostInfo.swift in Sources */,
-				92B7C9412A3A5DD800672F64 /* LemmyService.swift in Sources */,
-				92DD62F02A4700B600497C3B /* LemmySite+import.swift in Sources */,
-				92DD62E72A4648A300497C3B /* LemmySite.swift in Sources */,
-				92DD62E92A4648AF00497C3B /* LemmySiteInfo.swift in Sources */,
 				927343332A61C6550089556E /* LinkLabel.swift in Sources */,
 				92CEAEC82A54422C00FAF4DB /* LinkPreviewView.swift in Sources */,
 				92DD63062A48BEAD00497C3B /* LoginViewController.swift in Sources */,
@@ -1427,13 +1578,7 @@
 				9297E2FA2A420DA500D13E4D /* MainWindow.swift in Sources */,
 				92DD62D92A45919600497C3B /* MainWindowSplitViewController.swift in Sources */,
 				92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */,
-				92B7C9652A3BA64900672F64 /* ManagedContextScheduler.swift in Sources */,
-				9219433F2A7564650005474D /* NodeInfo.swift in Sources */,
-				921943462A75E83A0005474D /* NodeInfoSoftware.swift in Sources */,
-				92B7C9832A3D2C8800672F64 /* NSAttributedString+symbol.swift in Sources */,
-				92DD63042A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift in Sources */,
 				927343352A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift in Sources */,
-				92B7C97C2A3D27BC00672F64 /* OptionalType.swift in Sources */,
 				92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */,
 				9273432A2A61BE9D0089556E /* PersonFormatter.swift in Sources */,
 				927343282A61B9180089556E /* PersonHeaderCell.swift in Sources */,
@@ -1445,8 +1590,6 @@
 				92A7AE1C2A60832D00990539 /* PersonViewController.swift in Sources */,
 				927343232A61B30B0089556E /* PersonViewModel.swift in Sources */,
 				926602C52A5F69E0005A1641 /* PostCommentRibbonTheme.swift in Sources */,
-				92C82A372A58643600B5B431 /* PostContentDetectorService.swift in Sources */,
-				92C82A392A5955DD00B5B431 /* PostContentType.swift in Sources */,
 				926602C72A5F6A03005A1641 /* PostDetailAppearance.swift in Sources */,
 				92B7C9A72A3F45B600672F64 /* PostDetailCommentCell.swift in Sources */,
 				92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */,
@@ -1467,42 +1610,22 @@
 				92B7C9632A3B9EC700672F64 /* PostListViewModel.swift in Sources */,
 				9216FBCF2A795F4A00D67636 /* PreferencesService.swift in Sources */,
 				92DD62DF2A4594F900497C3B /* PreferencesViewController.swift in Sources */,
-				9297E2FC2A42453000D13E4D /* Publisher+assignWeak.swift in Sources */,
-				92B7C9782A3D241800672F64 /* Publisher+combineLatestSequence.swift in Sources */,
-				92B7C97A2A3D279100672F64 /* Publisher+ignoreNil.swift in Sources */,
-				92B7C97E2A3D27FA00672F64 /* Publisher+justfail.swift in Sources */,
-				92B7C9692A3D101300672F64 /* Publisher+wrapInOptional.swift in Sources */,
 				92B7C9002A3A40EB00672F64 /* SceneDelegate.swift in Sources */,
-				92DD62EC2A46EFF400497C3B /* SchedulerService.swift in Sources */,
 				92DD62E22A45955600497C3B /* SearchViewController.swift in Sources */,
-				92B7C9762A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift in Sources */,
 				92DD63022A48561E00497C3B /* SiteListIconImageView.swift in Sources */,
 				92DD62FE2A484FFF00497C3B /* SiteListSiteCell.swift in Sources */,
 				92DD63002A48502600497C3B /* SiteListSiteViewModel.swift in Sources */,
 				92DD62FC2A484EEF00497C3B /* SiteListViewController.swift in Sources */,
-				92DD62E52A46427300497C3B /* SiteService.swift in Sources */,
 				920B455E2A7C1DF500C6C2DC /* SpudWidget.intentdefinition in Sources */,
-				92BBE4AB2A5C39D9008C2F55 /* String+endsWith.swift in Sources */,
 				922AEE162A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift in Sources */,
 				922AEE102A40FBEB00AA7B22 /* SubscriptionsViewController.swift in Sources */,
 				9297E2FF2A42494900D13E4D /* SwipeActionView.swift in Sources */,
-				92B7C98B2A3D2F0100672F64 /* TimeInterval+roundedInt.swift in Sources */,
 				927343372A61C6960089556E /* TouchDownGestureRecognizer.swift in Sources */,
-				92BBE4A32A5C03FF008C2F55 /* UIImage+fittingWidth.swift in Sources */,
 				92BBE4A12A5BEEAD008C2F55 /* UITableViewCellBase.swift in Sources */,
 				927343392A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift in Sources */,
-				9297E2F72A4205F600D13E4D /* UIViewController+addChild.swift in Sources */,
 				927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */,
 				92B7C9852A3D2D8E00672F64 /* UpvotesFormatter.swift in Sources */,
-				92CEAECA2A54450700FAF4DB /* URL+canonicalHost.swift in Sources */,
-				9273433B2A61DF050089556E /* URL+lemmy.swift in Sources */,
-				927618622A74FA70003D49D4 /* URL+lenientString.swift in Sources */,
-				92DD62F22A4775F400497C3B /* URL+normalizedInstanceUrlString.swift in Sources */,
-				92CEAEB82A4EDC0800FAF4DB /* URL+safeHost.swift in Sources */,
-				92BBE4A92A5C2D6D008C2F55 /* URL+safePath.swift in Sources */,
 				926602C22A5F69B8005A1641 /* UserDefaultsBacked.swift in Sources */,
-				929D138A2A76FFBD00E7E5DB /* VoteStatus+Action.swift in Sources */,
-				92DD62D12A43A93F00497C3B /* VoteStatus.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1527,6 +1650,97 @@
 			files = (
 				92B7C9222A3A40F400672F64 /* SpudUITests.swift in Sources */,
 				92B7C9242A3A40F400672F64 /* SpudUITestsLaunchTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92CC5D5E2A7EBF5E0019436A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				92CC5DC22A7ED7260019436A /* AccountService.swift in Sources */,
+				92CC5DC32A7ED7260019436A /* AccountServiceLoginError.swift in Sources */,
+				92CC5DD92A7ED8B50019436A /* AlertHandlerRequest.swift in Sources */,
+				92CC5DD82A7ED8B50019436A /* AlertService.swift in Sources */,
+				92CC5D6D2A7EBF960019436A /* DataStore.swift in Sources */,
+				92CC5D6E2A7EBF9B0019436A /* DataStore.xcdatamodeld in Sources */,
+				92CC5DDB2A7ED8E60019436A /* ImageLoadingError.swift in Sources */,
+				92CC5DDA2A7ED8E60019436A /* ImageLoadingState.swift in Sources */,
+				92CC5DDC2A7ED8E60019436A /* ImageService.swift in Sources */,
+				92CC5D722A7EBFA20019436A /* Instance.swift in Sources */,
+				92CC5DC92A7ED7380019436A /* LemmyAccount+import.swift in Sources */,
+				92CC5D782A7EBFA20019436A /* LemmyAccount.swift in Sources */,
+				92CC5DCB2A7ED7380019436A /* LemmyAccountInfo+import.swift in Sources */,
+				92CC5D702A7EBFA20019436A /* LemmyAccountInfo.swift in Sources */,
+				92CC5DD42A7ED7380019436A /* LemmyComment+import.swift in Sources */,
+				92CC5D812A7EBFA20019436A /* LemmyComment+VoteStatus.swift in Sources */,
+				92CC5D792A7EBFA20019436A /* LemmyComment.swift in Sources */,
+				92CC5D7F2A7EBFA20019436A /* LemmyCommentElement.swift in Sources */,
+				92CC5DD32A7ED7380019436A /* LemmyCommentImportHelper.swift in Sources */,
+				92CC5DD02A7ED7380019436A /* LemmyCommunity+import.swift in Sources */,
+				92CC5D7A2A7EBFA20019436A /* LemmyCommunity.swift in Sources */,
+				92CC5DCE2A7ED7380019436A /* LemmyCommunityInfo+import.swift in Sources */,
+				92CC5D6F2A7EBFA20019436A /* LemmyCommunityInfo.swift in Sources */,
+				92CC5DC12A7ED7260019436A /* LemmyCredential.swift in Sources */,
+				92CC5D742A7EBFA20019436A /* LemmyFeed+FeedType.swift in Sources */,
+				92CC5DD22A7ED7380019436A /* LemmyFeed+import.swift in Sources */,
+				92CC5D772A7EBFA20019436A /* LemmyFeed.swift in Sources */,
+				92CC5DCC2A7ED7380019436A /* LemmyPage+import.swift in Sources */,
+				92CC5D7B2A7EBFA20019436A /* LemmyPage.swift in Sources */,
+				92CC5D752A7EBFA20019436A /* LemmyPageElement.swift in Sources */,
+				92CC5DC82A7ED7380019436A /* LemmyPerson+import.swift in Sources */,
+				92CC5D762A7EBFA20019436A /* LemmyPerson.swift in Sources */,
+				92CC5DCA2A7ED7380019436A /* LemmyPersonInfo+import.swift in Sources */,
+				92CC5D832A7EBFA20019436A /* LemmyPersonInfo.swift in Sources */,
+				92CC5DCD2A7ED7380019436A /* LemmyPost+import+comments.swift in Sources */,
+				92CC5DD12A7ED7380019436A /* LemmyPost+import.swift in Sources */,
+				92CC5D7C2A7EBFA20019436A /* LemmyPost+localLemmyUiUrl.swift in Sources */,
+				92CC5D7D2A7EBFA20019436A /* LemmyPost.swift in Sources */,
+				92CC5DD52A7ED7380019436A /* LemmyPostInfo+import.swift in Sources */,
+				92CC5D732A7EBFA20019436A /* LemmyPostInfo+VoteStatus.swift in Sources */,
+				92CC5D7E2A7EBFA20019436A /* LemmyPostInfo.swift in Sources */,
+				92CC5DC72A7ED7320019436A /* LemmyService.swift in Sources */,
+				92CC5DCF2A7ED7380019436A /* LemmySite+import.swift in Sources */,
+				92CC5D712A7EBFA20019436A /* LemmySite.swift in Sources */,
+				92CC5D802A7EBFA20019436A /* LemmySiteInfo.swift in Sources */,
+				92CC5D822A7EBFA20019436A /* NodeInfo.swift in Sources */,
+				92CC5DB72A7EC1F80019436A /* NodeInfoSoftware.swift in Sources */,
+				92CC5DB62A7EC1CF0019436A /* OSLog.swift in Sources */,
+				92CC5DC52A7ED72E0019436A /* PostContentDetectorService.swift in Sources */,
+				92CC5DC62A7ED72E0019436A /* PostContentType.swift in Sources */,
+				92CC5DC02A7ED7210019436A /* SchedulerService.swift in Sources */,
+				92CC5DC42A7ED7290019436A /* SiteService.swift in Sources */,
+				92CC5DB42A7EC1B60019436A /* VoteStatus+Action.swift in Sources */,
+				92CC5DB32A7EC1B60019436A /* VoteStatus.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92CC5D852A7EBFEA0019436A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				92CC5DAF2A7EC17F0019436A /* Atomic.swift in Sources */,
+				92CC5D972A7EC1100019436A /* Date+relativeString.swift in Sources */,
+				92CC5DB02A7EC17F0019436A /* ManagedContextScheduler.swift in Sources */,
+				92CC5D982A7EC1100019436A /* NSAttributedString+symbol.swift in Sources */,
+				92CC5D9E2A7EC1100019436A /* NSManagedObjectContext+saveIfNeeded.swift in Sources */,
+				92CC5DAE2A7EC17F0019436A /* OptionalType.swift in Sources */,
+				92CC5DAD2A7EC1540019436A /* OSLog.swift in Sources */,
+				92CC5DA12A7EC1100019436A /* Publisher+assignWeak.swift in Sources */,
+				92CC5DA22A7EC1100019436A /* Publisher+combineLatestSequence.swift in Sources */,
+				92CC5DA32A7EC1100019436A /* Publisher+ignoreNil.swift in Sources */,
+				92CC5D9D2A7EC1100019436A /* Publisher+justfail.swift in Sources */,
+				92CC5DA02A7EC1100019436A /* Publisher+wrapInOptional.swift in Sources */,
+				92CC5D9B2A7EC1100019436A /* Sequence+NSAttributedString+joined.swift in Sources */,
+				92CC5D962A7EC1100019436A /* String+endsWith.swift in Sources */,
+				92CC5D9F2A7EC1100019436A /* TimeInterval+roundedInt.swift in Sources */,
+				92CC5D9C2A7EC1100019436A /* UIImage+fittingWidth.swift in Sources */,
+				92CC5DA52A7EC1100019436A /* UIViewController+addChild.swift in Sources */,
+				92CC5DA62A7EC1100019436A /* URL+canonicalHost.swift in Sources */,
+				92CC5D992A7EC1100019436A /* URL+lemmy.swift in Sources */,
+				92CC5DB12A7EC1890019436A /* URL+lenientString.swift in Sources */,
+				92CC5DA42A7EC1100019436A /* URL+normalizedInstanceUrlString.swift in Sources */,
+				92CC5D952A7EC1100019436A /* URL+safeHost.swift in Sources */,
+				92CC5D9A2A7EC1100019436A /* URL+safePath.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1557,6 +1771,26 @@
 			isa = PBXTargetDependency;
 			target = 92B7C8F92A3A40EB00672F64 /* Spud */;
 			targetProxy = 92B7C91E2A3A40F400672F64 /* PBXContainerItemProxy */;
+		};
+		92CC5D672A7EBF5E0019436A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92CC5D612A7EBF5E0019436A /* SpudDataKit */;
+			targetProxy = 92CC5D662A7EBF5E0019436A /* PBXContainerItemProxy */;
+		};
+		92CC5D8E2A7EBFEA0019436A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92CC5D882A7EBFEA0019436A /* SpudUtilKit */;
+			targetProxy = 92CC5D8D2A7EBFEA0019436A /* PBXContainerItemProxy */;
+		};
+		92CC5DAA2A7EC11E0019436A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92CC5D882A7EBFEA0019436A /* SpudUtilKit */;
+			targetProxy = 92CC5DA92A7EC11E0019436A /* PBXContainerItemProxy */;
+		};
+		92CC5DBE2A7EC7C50019436A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92CC5D612A7EBF5E0019436A /* SpudDataKit */;
+			targetProxy = 92CC5DBD2A7EC7C50019436A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1966,6 +2200,146 @@
 			};
 			name = Release;
 		};
+		92CC5D6A2A7EBF5E0019436A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = J8B76VBZ57;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudDataKit;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		92CC5D6B2A7EBF5E0019436A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = J8B76VBZ57;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudDataKit;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		92CC5D922A7EBFEA0019436A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = J8B76VBZ57;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudUtilKit;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		92CC5D932A7EBFEA0019436A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = J8B76VBZ57;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudUtilKit;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -2023,6 +2397,24 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		92CC5D6C2A7EBF5E0019436A /* Build configuration list for PBXNativeTarget "SpudDataKit" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				92CC5D6A2A7EBF5E0019436A /* Debug */,
+				92CC5D6B2A7EBF5E0019436A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		92CC5D912A7EBFEA0019436A /* Build configuration list for PBXNativeTarget "SpudUtilKit" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				92CC5D922A7EBFEA0019436A /* Debug */,
+				92CC5D932A7EBFEA0019436A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -2061,11 +2453,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		921943482A75ED7F0005474D /* SemVer */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 921943472A75ED7F0005474D /* XCRemoteSwiftPackageReference "semver" */;
-			productName = SemVer;
-		};
 		9273433D2A61FAB70089556E /* LemmyKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */;
@@ -2076,7 +2463,17 @@
 			package = 9276185C2A731AD5003D49D4 /* XCRemoteSwiftPackageReference "Down" */;
 			productName = Down;
 		};
-		92CEAEB02A4D5B4800FAF4DB /* KeychainAccess */ = {
+		92CC5DB82A7EC7880019436A /* SemVer */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 921943472A75ED7F0005474D /* XCRemoteSwiftPackageReference "semver" */;
+			productName = SemVer;
+		};
+		92CC5DBA2A7EC79F0019436A /* LemmyKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */;
+			productName = LemmyKit;
+		};
+		92CC5DD62A7ED7940019436A /* KeychainAccess */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 92CEAEAF2A4D5B4800FAF4DB /* XCRemoteSwiftPackageReference "KeychainAccess" */;
 			productName = KeychainAccess;

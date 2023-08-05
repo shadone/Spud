@@ -6,6 +6,7 @@
 
 import CoreData
 import Foundation
+import SpudDataKit
 import UIKit
 import os.log
 

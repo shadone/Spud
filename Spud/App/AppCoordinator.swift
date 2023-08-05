@@ -7,6 +7,7 @@
 import Combine
 import CoreData
 import Foundation
+import SpudDataKit
 import SpudWidgetData
 import WidgetKit
 

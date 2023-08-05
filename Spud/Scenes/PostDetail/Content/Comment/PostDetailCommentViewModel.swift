@@ -7,6 +7,7 @@
 import Combine
 import CoreData
 import Down
+import SpudDataKit
 import UIKit
 
 class PostDetailCommentViewModel {

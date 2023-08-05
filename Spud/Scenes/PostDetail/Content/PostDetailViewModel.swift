@@ -6,6 +6,7 @@
 
 import Combine
 import CoreData
+import SpudDataKit
 import LemmyKit
 
 protocol PostDetailViewModelInputs {
