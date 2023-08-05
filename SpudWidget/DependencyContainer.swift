@@ -7,7 +7,7 @@
 import Foundation
 import SpudDataKit
 
-struct DependencyContainer:
+class DependencyContainer:
     HasAccountService,
     HasSiteService,
     HasImageService,
