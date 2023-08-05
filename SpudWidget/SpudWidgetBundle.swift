@@ -10,6 +10,6 @@ import SwiftUI
 @main
 struct SpudWidgetBundle: WidgetBundle {
     var body: some Widget {
-        SpudWidget()
+        TopPostsWidget()
     }
 }
