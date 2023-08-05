@@ -52,7 +52,7 @@ struct TopPostsWidget: Widget {
         IntentConfiguration(
             kind: kind,
             intent: ConfigurationIntent.self,
-            provider: TopPostsProvider()
+            provider: TopPostsProvider(dependencies: DependencyContainer.shared)
         ) { entry in
             TopPostsWidgetEntryView(entry: entry)
         }

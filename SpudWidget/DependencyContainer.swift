@@ -7,17 +7,24 @@
 import Foundation
 import SpudDataKit
 
-class DependencyContainer:
+class DependencyContainer: ObservableObject,
+    HasDataStore,
     HasAccountService,
     HasSiteService,
     HasImageService,
     HasAlertService
 {
+    static let shared = DependencyContainer()
+
+    // MARK: Public
+
     let dataStore: DataStoreType = DataStore()
     let accountService: AccountServiceType
     let siteService: SiteServiceType
     let imageService: ImageServiceType
     let alertService: AlertServiceType = AlertService()
+
+    // MARK: Functions
 
     init() {
         imageService = ImageService(alertService: alertService)

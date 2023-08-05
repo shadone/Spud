@@ -14,11 +14,18 @@ import os.log
 private let logger = Logger(.topPostsProvider)
 
 class TopPostsProvider: IntentTimelineProvider {
+    typealias Dependencies =
+        HasDataStore &
+        HasAccountService
+    private let dependencies: Dependencies
+
     typealias Entry = TopPostsEntry
 
-    let dependencies = DependencyContainer()
-
     // MARK: Functions
+
+    init(dependencies: Dependencies) {
+        self.dependencies = dependencies
+    }
 
     func placeholder(in context: Context) -> TopPostsEntry {
         TopPostsEntry(
