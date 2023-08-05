@@ -519,7 +519,9 @@ class LemmyService: LemmyServiceType {
 
                         post.set(from: response.post_view)
 
-                        // TODO: upsert from response.community_view
+                        assert(post.postInfo != nil)
+                        post.postInfo?.community.set(from: response.community_view)
+
                         // TODO: upsert from response.moderators
                         // TODO: upsert from response.cross_posts
 
