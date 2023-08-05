@@ -106,11 +106,21 @@ class Provider: IntentTimelineProvider {
                             instance: postInfo.post.account.site.instance.actorId
                         ).url
 
+                        let community: Community
+                        if let communityInfo = postInfo.community.communityInfo {
+                            community = Community(
+                                name: communityInfo.name,
+                                site: communityInfo.hostnameFromActorId
+                            )
+                        } else {
+                            community = Community(name: "-", site: "")
+                        }
+
                         return .init(
                             spudUrl: postUrl,
                             title: postInfo.title,
                             type: postType,
-                            community: .init(name: postInfo.communityName, site: "XXX"),
+                            community: community,
                             score: postInfo.score,
                             numberOfComments: postInfo.numberOfComments
                         )

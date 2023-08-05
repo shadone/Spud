@@ -78,3 +78,20 @@ extension LemmyCommunityInfo {
         updatedAt = createdAt
     }
 }
+
+public extension LemmyCommunityInfo {
+    /// Returns the home instance of the community.
+    var hostnameFromActorId: String {
+        // TODO: is this ok? should community's home site be determined Community.instance_id instead?
+
+        // TODO: shall we care about a port number?
+
+        actorId.safeHost
+    }
+
+    var hostnameFromActorIdPublisher: AnyPublisher<String, Never> {
+        publisher(for: \.actorId)
+            .map { $0.safeHost }
+            .eraseToAnyPublisher()
+    }
+}
