@@ -14,12 +14,38 @@ extension LemmyFeed {
             assertionFailure()
             return
         }
+
+        // Find activityIds that correspond to new unique posts, i.e. removing duplicates.
+        let newActivityIds = Set(
+            postViews.map(\.post.ap_id)
+        )
+        .subtracting(postActivityIds)
+
+        // Split all incoming postViews into those that are new and those that are duplicates.
+        var newPostViews: [PostView] = []
+        var existingPostViews: [PostView] = []
+        postViews.forEach { postView in
+            if newActivityIds.contains(postView.post.ap_id) {
+                newPostViews.append(postView)
+            } else {
+                existingPostViews.append(postView)
+            }
+        }
+
+        postActivityIds.formUnion(newActivityIds)
+
+        // Append page with new posts
         let page = LemmyPage(
-            postViews,
+            newPostViews,
             index: Int16(pages.count),
             account: account,
             in: context
         )
         addToPages(page)
+
+        // Update existing posts with latest PostView info that we just got.
+        existingPostViews.forEach { postView in
+            _ = LemmyPost.upsert(postView, account: account, in: context)
+        }
     }
 }

@@ -85,6 +85,7 @@
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="frontpageListingTypeRawValue" optional="YES" attributeType="String"/>
         <attribute name="id" attributeType="String"/>
+        <attribute name="postActivityIds" attributeType="Transformable" customClassName="Set&lt;URL&gt;"/>
         <attribute name="sortTypeRawValue" attributeType="String"/>
         <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="feeds" inverseEntity="Account"/>
         <relationship name="pages" toMany="YES" deletionRule="Cascade" destinationEntity="Page" inverseName="feed" inverseEntity="Page"/>

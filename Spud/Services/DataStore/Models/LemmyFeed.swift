@@ -19,6 +19,10 @@ import LemmyKit
     /// Feed identifier. Random UUID.
     @NSManaged public var id: String
 
+    /// List of activity identifiers (see ``LemmyKit/Post/ap_id``) of posts that are already present in the feed.
+    /// This is used to deduplicate the feed.
+    @NSManaged public var postActivityIds: Set<URL>
+
     // MARK: Frontpage
 
     /// See ``sortType``.
@@ -99,6 +103,8 @@ extension LemmyFeed {
             )
         }
 
+        postActivityIds = .init()
+
         self.account = account
     }
 
@@ -113,6 +119,8 @@ extension LemmyFeed {
         id = UUID().uuidString
         createdAt = Date()
 
+        postActivityIds = .init()
+
         frontpageListingType = listingType
         self.sortType = sortType
     }
@@ -126,6 +134,8 @@ extension LemmyFeed {
 
         id = UUID().uuidString
         createdAt = Date()
+
+        postActivityIds = .init()
 
         account = originalFeed.account
 
