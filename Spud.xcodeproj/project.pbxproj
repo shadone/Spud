@@ -22,7 +22,6 @@
 		922AEE0D2A40EE9000AA7B22 /* PostListThumbnailImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0C2A40EE9000AA7B22 /* PostListThumbnailImageView.swift */; };
 		922AEE102A40FBEB00AA7B22 /* SubscriptionsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE0F2A40FBEB00AA7B22 /* SubscriptionsViewController.swift */; };
 		922AEE162A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922AEE152A4107F600AA7B22 /* SubscriptionsSpecialCommunityCell.swift */; };
-		9236A4702A7C60EC00178F65 /* UIImage+scalePreservingAspectRatio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9236A46E2A7C608A00178F65 /* UIImage+scalePreservingAspectRatio.swift */; };
 		9236A4772A7C645C00178F65 /* CommentsFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9236A4732A7C643A00178F65 /* CommentsFormatter.swift */; };
 		9236A4782A7C645F00178F65 /* UpvotesFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9236A4752A7C644800178F65 /* UpvotesFormatter.swift */; };
 		926602BB2A5F68BF005A1641 /* AppearanceService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 926602BA2A5F68BF005A1641 /* AppearanceService.swift */; };
@@ -63,6 +62,7 @@
 		92A226E82A7EFDCF00C18FCD /* TopPostsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226E72A7EFDCF00C18FCD /* TopPostsProvider.swift */; };
 		92A226EB2A7EFED200C18FCD /* PostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226EA2A7EFED200C18FCD /* PostView.swift */; };
 		92A226ED2A7EFF1400C18FCD /* TopPostsEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226EC2A7EFF1400C18FCD /* TopPostsEntry.swift */; };
+		92A226EE2A7F000000C18FCD /* UIImage+scalePreservingAspectRatio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9236A46E2A7C608A00178F65 /* UIImage+scalePreservingAspectRatio.swift */; };
 		92A7AE1C2A60832D00990539 /* PersonViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A7AE1B2A60832D00990539 /* PersonViewController.swift */; };
 		92A87F432A41EA200098C20C /* PostDetailOrEmptyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */; };
 		92A87F452A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */; };
@@ -603,7 +603,6 @@
 				92A226E52A7EFD8C00C18FCD /* DependencyContainer.swift */,
 				920B455C2A7C1DF500C6C2DC /* Info.plist */,
 				920B45532A7C1DF400C6C2DC /* SpudWidgetBundle.swift */,
-				9236A46E2A7C608A00178F65 /* UIImage+scalePreservingAspectRatio.swift */,
 				9236A4752A7C644800178F65 /* UpvotesFormatter.swift */,
 			);
 			path = SpudWidget;
@@ -1161,6 +1160,7 @@
 				92BBE4AA2A5C39D9008C2F55 /* String+endsWith.swift */,
 				92B7C98A2A3D2F0100672F64 /* TimeInterval+roundedInt.swift */,
 				92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */,
+				9236A46E2A7C608A00178F65 /* UIImage+scalePreservingAspectRatio.swift */,
 				9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */,
 				92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */,
 				9273433A2A61DF050089556E /* URL+lemmy.swift */,
@@ -1602,7 +1602,6 @@
 				92A226E82A7EFDCF00C18FCD /* TopPostsProvider.swift in Sources */,
 				920B455D2A7C1DF500C6C2DC /* TopPostsWidget.intentdefinition in Sources */,
 				920B45582A7C1DF400C6C2DC /* TopPostsWidget.swift in Sources */,
-				9236A4702A7C60EC00178F65 /* UIImage+scalePreservingAspectRatio.swift in Sources */,
 				9236A4782A7C645F00178F65 /* UpvotesFormatter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1802,6 +1801,7 @@
 				92CC5D962A7EC1100019436A /* String+endsWith.swift in Sources */,
 				92CC5D9F2A7EC1100019436A /* TimeInterval+roundedInt.swift in Sources */,
 				92CC5D9C2A7EC1100019436A /* UIImage+fittingWidth.swift in Sources */,
+				92A226EE2A7F000000C18FCD /* UIImage+scalePreservingAspectRatio.swift in Sources */,
 				92CC5DA52A7EC1100019436A /* UIViewController+addChild.swift in Sources */,
 				92CC5DA62A7EC1100019436A /* URL+canonicalHost.swift in Sources */,
 				92CC5D992A7EC1100019436A /* URL+lemmy.swift in Sources */,
