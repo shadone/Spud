@@ -55,7 +55,7 @@ extension LemmySite {
 
         siteInfo.publicKey = model.site_view.site.public_key
 
-        siteInfo.infoPublishedDate = model.site_view.local_site.published
+        siteInfo.infoCreatedDate = model.site_view.local_site.published
         siteInfo.infoUpdatedDate = model.site_view.local_site.updated
 
         siteInfo.updatedAt = Date()

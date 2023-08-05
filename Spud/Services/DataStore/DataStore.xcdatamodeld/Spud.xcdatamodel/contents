@@ -199,7 +199,7 @@
         <attribute name="enableDownvotes" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="enableNsfw" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="iconUrl" optional="YES" attributeType="URI"/>
-        <attribute name="infoPublishedDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="infoCreatedDate" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="infoUpdatedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="legalInformation" optional="YES" attributeType="String"/>
         <attribute name="name" attributeType="String"/>

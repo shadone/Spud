@@ -45,7 +45,8 @@ import os.log
     @NSManaged public var publicKey: String
 
     /// The date this sites' info was published by the site admins.
-    @NSManaged public var infoPublishedDate: Date
+    @NSManaged public var infoCreatedDate: Date
+
     /// The date this sites' info was last updated by the site admins.
     @NSManaged public var infoUpdatedDate: Date?
 
