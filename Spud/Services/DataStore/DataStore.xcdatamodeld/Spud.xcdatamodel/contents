@@ -115,6 +115,7 @@
         <attribute name="isBanned" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="isBotAccount" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="isDeletedPerson" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="isLocal" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="matrixUserId" optional="YES" attributeType="String"/>
         <attribute name="name" attributeType="String"/>
         <attribute name="numberOfComments" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>

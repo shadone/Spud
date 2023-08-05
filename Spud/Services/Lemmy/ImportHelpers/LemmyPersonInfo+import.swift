@@ -34,6 +34,7 @@ extension LemmyPersonInfo {
         bannerUrl = model.banner
         isDeletedPerson = model.deleted
         matrixUserId = model.matrix_user_id
+        isLocal = model.local
         isAdmin = model.admin
         isBotAccount = model.bot_account
         isBanned = model.banned

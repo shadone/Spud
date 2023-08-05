@@ -45,6 +45,9 @@ import os.log
     /// A matrix id, usually given an @person:matrix.org
     @NSManaged public var matrixUserId: String?
 
+    /// Whether the person is local to this instance we fetch the info from.
+    @NSManaged public var isLocal: Bool
+
     /// Whether the person is an admin.
     @NSManaged public var isAdmin: Bool
 
