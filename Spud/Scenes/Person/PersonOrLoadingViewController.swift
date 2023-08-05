@@ -73,6 +73,10 @@ class PersonOrLoadingViewController: UIViewController {
                 self?.state = .load(person)
             }
             .store(in: &disposables)
+
+        viewModel.outputs.navigationTitle
+            .assign(to: \.title, on: navigationItem)
+            .store(in: &disposables)
     }
 
     private func stateChanged() {

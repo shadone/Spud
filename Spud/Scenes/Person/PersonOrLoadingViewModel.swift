@@ -16,6 +16,7 @@ protocol PersonOrLoadingViewModelOutputs {
     var account: LemmyAccount { get }
     var loadingPersonInfo: AnyPublisher<LemmyPerson, Never> { get }
     var loadedPersonInfo: AnyPublisher<LemmyPersonInfo, Never> { get }
+    var navigationTitle: AnyPublisher<String?, Never> { get }
 }
 
 protocol PersonOrLoadingViewModelType {
@@ -53,6 +54,18 @@ class PersonOrLoadingViewModel
             .ignoreNil()
             .eraseToAnyPublisher()
 
+        navigationTitle = loadedPersonInfo
+            .flatMap { personInfo in
+                personInfo.publisher(for: \.name)
+                    .combineLatest(personInfo.hostnameFromActorIdPublisher)
+                    .map { name, hostname in
+                        // TODO: shall we omit hostname for local users?
+                        "@\(name)@\(hostname)"
+                    }
+            }
+            .wrapInOptional()
+            .eraseToAnyPublisher()
+
         didFinishLoadingPersonInfoSubject
             .sink { [weak self] personInfo in
                 self?.currentlyDisplayedPersonInfo.send(personInfo)
@@ -70,6 +83,7 @@ class PersonOrLoadingViewModel
     let account: LemmyAccount
     let loadingPersonInfo: AnyPublisher<LemmyPerson, Never>
     let loadedPersonInfo: AnyPublisher<LemmyPersonInfo, Never>
+    let navigationTitle: AnyPublisher<String?, Never>
 
     // MARK: Inputs
 
