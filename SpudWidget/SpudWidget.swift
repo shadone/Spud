@@ -4,14 +4,50 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Combine
 import WidgetKit
 import SwiftUI
 import Intents
-import SpudWidgetData
+import SpudDataKit
 import UIKit
 
-struct Provider: IntentTimelineProvider {
+struct DependencyContainer:
+    HasAccountService,
+    HasSiteService,
+    HasImageService,
+    HasAlertService
+{
+    let dataStore: DataStoreType = DataStore()
+    let accountService: AccountServiceType
+    let siteService: SiteServiceType
+    let imageService: ImageServiceType
+    let alertService: AlertServiceType = AlertService()
+
+    init() {
+        imageService = ImageService(alertService: alertService)
+        siteService = SiteService(dataStore: dataStore)
+        accountService = AccountService(
+            siteService: siteService,
+            dataStore: dataStore
+        )
+
+        start()
+    }
+
+    private func start() {
+        dataStore.startService()
+        siteService.startService()
+    }
+}
+
+class Provider: IntentTimelineProvider {
     typealias Entry = SimpleEntry
+
+    let dependencies = DependencyContainer()
+
+    var disposables = Set<AnyCancellable>()
+
+    // MARK: Functions
 
     func placeholder(in context: Context) -> SimpleEntry {
         SimpleEntry(
@@ -31,7 +67,7 @@ struct Provider: IntentTimelineProvider {
         let entry = SimpleEntry(
             date: now,
             configuration: configuration,
-            topPosts: WidgetDataProvider.shared.read() ?? .placeholder,
+            topPosts: .placeholder, // TODO:
             images: [:]
         )
         completion(entry)
@@ -42,22 +78,58 @@ struct Provider: IntentTimelineProvider {
         in context: Context,
         completion: @escaping (Timeline<Entry>) -> ()
     ) {
-        let now = Date()
-
-        let topPosts = WidgetDataProvider.shared.read() ?? .placeholder
-
         Task {
+            let feed = await fetchFeed()
+
+            let postInfos = feed.pages
+                .sorted(by: { $0.index < $1.index })
+                .first?
+                .pageElements
+                .sorted(by: { $0.index < $1.index })
+                .map(\.post)
+                .compactMap(\.postInfo)
+                // The max number of posts widget of any size might need.
+                .prefix(6) ?? []
+
+            let topPosts = TopPosts(
+                posts: postInfos
+                    .map { postInfo -> Post in
+                        let postType: Post.PostType
+                        if let thumbnailUrl = postInfo.thumbnailUrl {
+                            postType = .image(thumbnailUrl)
+                        } else {
+                            postType = .text
+                        }
+
+                        let postUrl = URL.SpudInternalLink.post(
+                            postId: postInfo.post.postId,
+                            instance: postInfo.post.account.site.instance.actorId
+                        ).url
+
+                        return .init(
+                            spudUrl: postUrl,
+                            title: postInfo.title,
+                            type: postType,
+                            community: .init(name: postInfo.communityName, site: "XXX"),
+                            score: postInfo.score,
+                            numberOfComments: postInfo.numberOfComments
+                        )
+                    }
+            )
+
             let imageUrls = topPosts.posts
                 .compactMap { $0.type.imageUrl }
 
             let imagesByUrl = await withTaskGroup(of: (URL, UIImage?).self) { group in
                 for url in imageUrls {
                     group.addTask {
-                        await (url, fetchImage(url))
+                        await (url, self.fetchImage(url))
                     }
                 }
                 return await group.reduce(into: [:]) { $0[$1.0] = $1.1 }
             }
+
+            let now = Date()
 
             let entry = SimpleEntry(
                 date: now,
@@ -72,7 +144,30 @@ struct Provider: IntentTimelineProvider {
         }
     }
 
-    private func fetchImage(_ url: URL) async -> UIImage? {
+    @MainActor func fetchFeed() async -> LemmyFeed {
+        let account = dependencies.accountService.defaultAccount()
+        let lemmyService = dependencies.accountService
+            .lemmyService(for: account)
+
+        let feed = lemmyService
+            .createFeed(.frontpage(listingType: .all, sortType: .hot))
+
+        do {
+            try await lemmyService
+                .fetchFeed(feedId: feed.objectID, page: nil)
+                .async()
+        } catch {
+            print("### Failed to fetch feed: \(error)")
+        }
+
+        self.dependencies.dataStore
+            .mainContext
+            .refresh(feed, mergeChanges: true)
+
+        return feed
+    }
+
+    @MainActor private func fetchImage(_ url: URL) async -> UIImage? {
         guard let (data, _) = try? await URLSession.shared.data(from: url) else {
             return nil
         }

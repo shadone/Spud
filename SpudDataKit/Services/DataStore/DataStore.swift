@@ -32,6 +32,17 @@ public class DataStore: DataStoreType {
 
     var storeLoadingError: Error?
 
+    let sharedContainerURL: URL = {
+        let appGroupIdentifier = "group.info.ddenis.Spud.Data"
+        guard
+            let url = FileManager.default
+                .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)
+        else {
+            preconditionFailure("Expected a valid app group container")
+        }
+        return url
+    }()
+
     public var persistentContainer: NSPersistentContainer?
 
     public init() { }
@@ -45,10 +56,20 @@ public class DataStore: DataStoreType {
         let storeName = "DataStore"
         let storeFileName = "\(storeName).sqlite"
 
-        let container = NSPersistentContainer(name: storeName)
+        let bundle = Bundle(for: DataStore.self)
+        guard
+            let modelUrl = bundle.url(forResource: storeName, withExtension: "momd"),
+            let model = NSManagedObjectModel(contentsOf: modelUrl)
+        else {
+            fatalError("Failed to load mom")
+        }
 
-        let defaultDirectoryUrl = NSPersistentContainer.defaultDirectoryURL()
-        let storeUrl = defaultDirectoryUrl.appendingPathComponent(storeFileName)
+        let container = NSPersistentContainer(
+            name: storeName,
+            managedObjectModel: model
+        )
+
+        let storeUrl = sharedContainerURL.appendingPathComponent(storeFileName)
 
         let storeDescription = NSPersistentStoreDescription(url: storeUrl)
         storeDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)

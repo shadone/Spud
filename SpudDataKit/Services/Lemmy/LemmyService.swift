@@ -206,20 +206,18 @@ public class LemmyService: LemmyServiceType {
                     )
                     return self.api.getPosts(request)
                         .receive(on: self.backgroundScheduler)
-                        .handleEvents(receiveOutput: { response in
+                        .map { response in
                             logger.debug("""
                                 Fetch feed for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
                                 complete with \(response.posts.count, privacy: .public) posts
                                 """)
+
                             feed.append(contentsOf: response.posts)
-                        }, receiveCompletion: { completion in
-                            switch completion {
-                            case .failure:
-                                break
-                            case .finished:
-                                self.saveIfNeeded()
-                            }
-                        })
+
+                            self.saveIfNeeded()
+
+                            return ()
+                        }
                         .mapError { error in
                             logger.error("""
                                 Fetch feed for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
@@ -227,7 +225,6 @@ public class LemmyService: LemmyServiceType {
                                 """)
                             return .apiError(error)
                         }
-                        .map { _ in () }
                         .eraseToAnyPublisher()
                 }
             }
