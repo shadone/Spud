@@ -41,6 +41,8 @@ import os.log
     /// Whether this server allows open self-registration.
     @NSManaged public var isOpenRegistrationsAllowed: Bool
 
+    // MARK: Meta properties
+
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 

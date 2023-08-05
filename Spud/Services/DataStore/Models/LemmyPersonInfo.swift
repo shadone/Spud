@@ -75,6 +75,8 @@ import os.log
     /// Total upvote score for all comments for the person.
     @NSManaged public var totalScoreForComments: Int64
 
+    // MARK: Meta properties
+
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 

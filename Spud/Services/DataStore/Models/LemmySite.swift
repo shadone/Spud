@@ -16,6 +16,8 @@ import os.log
 
     // MARK: Properties
 
+    // MARK: Meta properties
+
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 

@@ -14,11 +14,13 @@ import Foundation
 
     // MARK: Properties
 
-    /// Timestamp when this CoreData object was created.
-    @NSManaged public var createdAt: Date
-
     /// Page number.
     @NSManaged public var index: Int16
+
+    // MARK: Meta properties
+
+    /// Timestamp when this CoreData object was created.
+    @NSManaged public var createdAt: Date
 
     // MARK: Relations
 

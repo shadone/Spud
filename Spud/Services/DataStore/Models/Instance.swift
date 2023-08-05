@@ -24,6 +24,8 @@ import os.log
     /// instances by comparing their actorId literally, without worrying about e.g. trailing slashes .
     @NSManaged public var actorId: String
 
+    // MARK: Meta properties
+
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 

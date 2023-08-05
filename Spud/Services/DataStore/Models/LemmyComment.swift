@@ -37,6 +37,8 @@ import LemmyKit
     /// The timestamp when the post was published.
     @NSManaged public var published: Date
 
+    // MARK: Meta properties
+
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 

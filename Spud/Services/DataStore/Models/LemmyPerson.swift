@@ -42,6 +42,8 @@ import os.log
     /// Person identifier. The identifier is local to this instance.
     @NSManaged public var personId: Int32
 
+    // MARK: Meta properties
+
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 

@@ -32,6 +32,8 @@ import os.log
     /// Only one account at a time can be default.
     @NSManaged public var isDefaultAccount: Bool
 
+    // MARK: Meta properties
+
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 

@@ -49,6 +49,8 @@ import os.log
     /// The date this sites' info was last updated by the site admins.
     @NSManaged public var infoUpdatedDate: Date?
 
+    // MARK: Meta properties
+
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 

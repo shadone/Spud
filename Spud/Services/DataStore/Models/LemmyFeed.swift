@@ -19,9 +19,6 @@ import LemmyKit
     /// Feed identifier. Random UUID.
     @NSManaged public var id: String
 
-    /// Timestamp when this CoreData object was created.
-    @NSManaged public var createdAt: Date
-
     // MARK: Frontpage
 
     /// See ``sortType``.
@@ -29,6 +26,11 @@ import LemmyKit
 
     /// See ``frontpageListingType``.
     @NSManaged public var frontpageListingTypeRawValue: String?
+
+    // MARK: Meta properties
+
+    /// Timestamp when this CoreData object was created.
+    @NSManaged public var createdAt: Date
 
     // MARK: Relations
 

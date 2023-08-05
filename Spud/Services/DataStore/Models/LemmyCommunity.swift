@@ -24,6 +24,8 @@ import os.log
     /// Community identifier. The identifier is local to this instance.
     @NSManaged public var communityId: CommunityId
 
+    // MARK: Meta properties
+
     /// Timestamp when this CoreData object was created.
     @NSManaged public var createdAt: Date
 
