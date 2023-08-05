@@ -5,8 +5,8 @@
 //
 
 import XCTest
-@testable import LemmyKit
-@testable import Spud
+import LemmyKit
+@testable import SpudDataKit
 
 class CommentHelperTests: XCTestCase {
     func testFindCommentsWithMissingChildren() throws {

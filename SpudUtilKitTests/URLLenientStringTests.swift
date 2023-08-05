@@ -6,9 +6,9 @@
 
 import Foundation
 import XCTest
-@testable import Spud
+@testable import SpudUtilKit
 
-class URLUnsafeStringTests: XCTestCase {
+class URLLenientStringTests: XCTestCase {
     func testKnownProblematicUrls() throws {
         XCTAssertEqual(
             URL(lenientString: "https://matrix.to/#/#lemmy-admin-support-topics:discuss.online")?.absoluteString,
