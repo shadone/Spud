@@ -144,19 +144,37 @@ class PostListViewController: UIViewController {
             title: "",
             options: .singleSelection,
             children: [
-                sortTypeActiveAction,
-                sortTypeHotAction,
-                sortTypeNewAction,
-                sortTypeOldAction,
-                sortTypeTopSixHourAction,
-                sortTypeTopTwelveHourAction,
-                sortTypeTopDayAction,
-                sortTypeTopWeekAction,
-                sortTypeTopMonthAction,
-                sortTypeTopYearAction,
-                sortTypeTopAllAction,
-                sortTypeMostCommentsAction,
-                sortTypeNewCommentsAction,
+                UIMenu(
+                    title: "",
+                    options: .displayInline,
+                    children: [
+                        sortTypeActiveAction,
+                        sortTypeHotAction,
+                        sortTypeNewAction,
+                        sortTypeOldAction,
+                    ]
+                ),
+                UIMenu(
+                    title: "",
+                    options: .displayInline,
+                    children: [
+                        sortTypeTopSixHourAction,
+                        sortTypeTopTwelveHourAction,
+                        sortTypeTopDayAction,
+                        sortTypeTopWeekAction,
+                        sortTypeTopMonthAction,
+                        sortTypeTopYearAction,
+                        sortTypeTopAllAction,
+                   ]
+                ),
+                UIMenu(
+                    title: "",
+                    options: .displayInline,
+                    children: [
+                        sortTypeMostCommentsAction,
+                        sortTypeNewCommentsAction,
+                   ]
+                ),
             ]
         )
 
