@@ -9,7 +9,7 @@ import Foundation
 public extension TopPosts {
     static let placeholder = TopPosts(posts: [
         .init(
-            spudUrl: URL(string: "spud://placeholder1")!,
+            spudUrl: URL(string: "spud://topPosts/placeholder1")!,
             title: "-",
             type: .text,
             community: .init(
@@ -20,7 +20,7 @@ public extension TopPosts {
             numberOfComments: 0
         ),
         .init(
-            spudUrl: URL(string: "spud://placeholder2")!,
+            spudUrl: URL(string: "spud://topPosts/placeholder2")!,
             title: "-",
             type: .text,
             community: .init(
@@ -31,7 +31,7 @@ public extension TopPosts {
             numberOfComments: 0
         ),
         .init(
-            spudUrl: URL(string: "spud://placeholder3")!,
+            spudUrl: URL(string: "spud://topPosts/placeholder3")!,
             title: "-",
             type: .text,
             community: .init(
