@@ -33,10 +33,10 @@ struct TopPostsWidgetEntryView: View {
                 }
 
             case .systemSmall, .systemExtraLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline:
-                fatalError("Unsupported widget family")
+                Text("Internal error: Unsupported widget family")
 
             @unknown default:
-                fatalError("Got unknown widget family \(family)")
+                Text("Internal error: Got unknown widget family \(String(describing: family))")
             }
         }
         .padding()
