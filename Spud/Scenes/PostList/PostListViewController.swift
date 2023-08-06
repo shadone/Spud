@@ -155,8 +155,8 @@ class PostListViewController: UIViewController {
                     ]
                 ),
                 UIMenu(
-                    title: "",
-                    options: .displayInline,
+                    title: "Top",
+                    options: .singleSelection,
                     children: [
                         sortTypeTopSixHourAction,
                         sortTypeTopTwelveHourAction,
