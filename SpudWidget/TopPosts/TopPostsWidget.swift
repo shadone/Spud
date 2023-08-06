@@ -57,7 +57,7 @@ struct TopPostsWidget: Widget {
             TopPostsWidgetEntryView(entry: entry)
         }
         .configurationDisplayName("Top Posts")
-        .description("This is an example widget.")
+        .description("Displays top posts from your feed.")
         .supportedFamilies([.systemMedium, .systemLarge])
     }
 }
