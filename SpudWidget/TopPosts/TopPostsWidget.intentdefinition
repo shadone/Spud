@@ -220,12 +220,24 @@
 			<string>tVvJ9c</string>
 			<key>INIntentEligibleForWidgets</key>
 			<true/>
-			<key>INIntentIneligibleForSuggestions</key>
-			<true/>
 			<key>INIntentLastParameterTag</key>
 			<integer>10</integer>
 			<key>INIntentName</key>
 			<string>TopPostsConfiguration</string>
+			<key>INIntentParameterCombinations</key>
+			<dict>
+				<key>feedType</key>
+				<dict>
+					<key>INIntentParameterCombinationIsPrimary</key>
+					<true/>
+					<key>INIntentParameterCombinationSupportsBackgroundExecution</key>
+					<false/>
+					<key>INIntentParameterCombinationTitle</key>
+					<string>View top posts</string>
+					<key>INIntentParameterCombinationTitleID</key>
+					<string>bKCmSk</string>
+				</dict>
+			</dict>
 			<key>INIntentParameters</key>
 			<array>
 				<dict>
