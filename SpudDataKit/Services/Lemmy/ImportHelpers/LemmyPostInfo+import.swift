@@ -37,9 +37,9 @@ extension LemmyPostInfo {
         title = model.name
         body = model.body
 
-        thumbnailUrl = model.thumbnail_url
+        thumbnailUrl = model.thumbnail_url?.url
 
-        url = model.url
+        url = model.url?.url
         urlEmbedTitle = model.embed_title
         urlEmbedDescription = model.embed_description
 

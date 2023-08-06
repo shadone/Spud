@@ -29,12 +29,12 @@ extension LemmyPersonInfo {
     func set(from model: Person) {
         name = model.name
         displayName = model.display_name
-        avatarUrl = model.avatar
+        avatarUrl = model.avatar?.url
         personCreatedDate = model.published
         personUpdatedDate = model.updated
         actorId = model.actor_id
         bio = model.bio
-        bannerUrl = model.banner
+        bannerUrl = model.banner?.url
         isDeletedPerson = model.deleted
         matrixUserId = model.matrix_user_id
         isLocal = model.local

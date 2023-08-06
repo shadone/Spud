@@ -31,8 +31,8 @@ extension LemmyCommunityInfo {
         isNsfw = model.nsfw
         actorId = model.actor_id
         isLocal = model.local
-        icon = model.icon
-        banner = model.banner
+        icon = model.icon?.url
+        banner = model.banner?.url
         isHidden = model.hidden
         isPostingRestrictedToMods = model.posting_restricted_to_mods
     }

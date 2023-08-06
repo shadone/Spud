@@ -38,8 +38,8 @@ extension LemmySite {
 
         siteInfo.version = model.version
 
-        siteInfo.bannerUrl = model.site_view.site.banner
-        siteInfo.iconUrl = model.site_view.site.icon
+        siteInfo.bannerUrl = model.site_view.site.banner?.url
+        siteInfo.iconUrl = model.site_view.site.icon?.url
         siteInfo.defaultPostListingType = model.site_view.local_site.default_post_listing_type
         siteInfo.enableDownvotes = model.site_view.local_site.enable_downvotes
         siteInfo.enableNsfw = model.site_view.local_site.enable_nsfw
