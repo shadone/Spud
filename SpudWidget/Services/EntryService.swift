@@ -47,23 +47,12 @@ class EntryService: EntryServiceType {
     ) -> TopPostsEntry {
         let snapshot = TopPosts.snapshot
 
-        // load images from local resources
-        let imageUrls = snapshot.posts
-            .compactMap { $0.type.imageUrl }
-
-        var imagesByUrl: [URL: UIImage] = [:]
-        imageUrls.forEach { url in
-            if let image = url.spudImageFromAsset {
-                imagesByUrl[url] = image
-            }
-        }
-
         let now = Date()
         let entry = TopPostsEntry(
             date: now,
             configuration: configuration,
             topPosts: snapshot,
-            images: imagesByUrl
+            images: snapshot.resolveImagesFromAssets
         )
 
         return entry

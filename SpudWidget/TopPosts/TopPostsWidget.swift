@@ -12,7 +12,18 @@ struct TopPostsWidgetEntryView: View {
 
     @Environment(\.widgetFamily) var family
 
-    @State var numberOfPosts = 3
+    var padding: EdgeInsets {
+        switch family {
+        case .systemSmall, .systemMedium, .systemLarge, .systemExtraLarge:
+            return .init(top: 16, leading: 16, bottom: 16, trailing: 16)
+
+        case .accessoryCircular, .accessoryInline, .accessoryRectangular:
+            return .init(top: 0, leading: 0, bottom: 0, trailing: 0)
+
+        @unknown default:
+            return .init()
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading) {
@@ -32,14 +43,31 @@ struct TopPostsWidgetEntryView: View {
                     }
                 }
 
-            case .systemSmall, .systemExtraLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline:
+            case .accessoryInline:
+                if let post = entry.topPosts.posts.first {
+                    PostAccessoryInlineView(post: post, images: entry.images)
+                        .widgetURL(post.spudUrl)
+                } else {
+                    Text("No data")
+                }
+
+            case .accessoryRectangular:
+                if let post = entry.topPosts.posts.first {
+                    PostAccessoryRectangularView(post: post)
+                        .widgetURL(post.spudUrl)
+                } else {
+                    Text("No data")
+                }
+
+
+            case .systemSmall, .systemExtraLarge, .accessoryCircular:
                 Text("Internal error: Unsupported widget family")
 
             @unknown default:
                 Text("Internal error: Got unknown widget family \(String(describing: family))")
             }
         }
-        .padding()
+        .padding(padding)
     }
 }
 
@@ -56,18 +84,25 @@ struct TopPostsWidget: Widget {
         }
         .configurationDisplayName("Top Posts")
         .description("Displays top posts from your feed.")
-        .supportedFamilies([.systemMedium, .systemLarge])
+        .supportedFamilies([
+            .systemMedium,
+            .systemLarge,
+            .accessoryInline,
+            .accessoryRectangular,
+        ])
     }
 }
 
 struct TopPostsWidget_Previews: PreviewProvider {
+    static var topPosts = TopPosts.snapshot
+
     static var previews: some View {
         TopPostsWidgetEntryView(
             entry: TopPostsEntry(
                 date: Date(),
                 configuration: TopPostsConfigurationIntent(),
-                topPosts: .fake,
-                images: [:]
+                topPosts: topPosts,
+                images: topPosts.resolveImagesFromAssets
             )
         )
         .previewContext(WidgetPreviewContext(family: .systemLarge))
