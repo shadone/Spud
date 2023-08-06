@@ -61,6 +61,7 @@ class PostListViewController: UIViewController {
     var isLoadingIndicatorHidden = true
 
     var sortTypeBarButtonItem: UIBarButtonItem!
+    var sortTypeMenuActionsBySortType: [SortType: UIAction] = [:]
     var sortTypeActiveAction: UIAction!
     var sortTypeHotAction: UIAction!
     var sortTypeNewAction: UIAction!
@@ -104,45 +105,31 @@ class PostListViewController: UIViewController {
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
-        sortTypeActiveAction = UIAction(title: "Active", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.active)
+        func makeAction(for sortType: SortType) -> UIAction {
+            let (title, image) = sortType.itemForMenu
+            let action = UIAction(
+                title: title,
+                image: image
+            ) { [weak self] _ in
+                self?.viewModel.inputs.didChangeSortType(sortType)
+            }
+            sortTypeMenuActionsBySortType[sortType] = action
+            return action
         }
-        sortTypeHotAction = UIAction(title: "Hot", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.hot)
-        }
-        sortTypeNewAction = UIAction(title: "New", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.new)
-        }
-        sortTypeOldAction = UIAction(title: "Old", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.old)
-        }
-        sortTypeTopSixHourAction = UIAction(title: "Top Six Hour", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.topSixHour)
-        }
-        sortTypeTopTwelveHourAction = UIAction(title: "Top Twelve Hour", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.topTwelveHour)
-        }
-        sortTypeTopDayAction = UIAction(title: "Top Day", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.topDay)
-        }
-        sortTypeTopWeekAction = UIAction(title: "Top Week", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.topWeek)
-        }
-        sortTypeTopMonthAction = UIAction(title: "Top Month", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.topMonth)
-        }
-        sortTypeTopYearAction = UIAction(title: "Top Year", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.topYear)
-        }
-        sortTypeTopAllAction = UIAction(title: "Top All", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.topAll)
-        }
-        sortTypeMostCommentsAction = UIAction(title: "Most Comments", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.mostComments)
-        }
-        sortTypeNewCommentsAction = UIAction(title: "New Comments", image: nil) { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(.newComments)
-        }
+
+        sortTypeActiveAction = makeAction(for: .active)
+        sortTypeHotAction = makeAction(for: .hot)
+        sortTypeNewAction = makeAction(for: .new)
+        sortTypeOldAction = makeAction(for: .old)
+        sortTypeTopSixHourAction = makeAction(for: .topSixHour)
+        sortTypeTopTwelveHourAction = makeAction(for: .topTwelveHour)
+        sortTypeTopDayAction = makeAction(for: .topDay)
+        sortTypeTopWeekAction = makeAction(for: .topWeek)
+        sortTypeTopMonthAction = makeAction(for: .topMonth)
+        sortTypeTopYearAction = makeAction(for: .topYear)
+        sortTypeTopAllAction = makeAction(for: .topAll)
+        sortTypeMostCommentsAction = makeAction(for: .mostComments)
+        sortTypeNewCommentsAction = makeAction(for: .newComments)
 
         sortTypeBarButtonItem = UIBarButtonItem(
             title: "Sort type",
@@ -174,6 +161,12 @@ class PostListViewController: UIViewController {
         )
 
         sortTypeBarButtonItem.menu = sortTypeMenu
+    }
+
+    private func sortTypeActionHandler(for sortType: SortType) -> UIActionHandler {
+        return { [weak self] _ in
+            self?.viewModel.inputs.didChangeSortType(sortType)
+        }
     }
 
     @available(*, unavailable)
@@ -210,34 +203,16 @@ class PostListViewController: UIViewController {
     }
 
     private func updateSelectedSortTypeMenu() {
-        switch viewModel.outputs.feed.value.sortType {
-        case .active:
-            sortTypeActiveAction.state = .on
-        case .hot:
-            sortTypeHotAction.state = .on
-        case .new:
-            sortTypeNewAction.state = .on
-        case .old:
-            sortTypeOldAction.state = .on
-        case .topSixHour:
-            sortTypeTopSixHourAction.state = .on
-        case .topTwelveHour:
-            sortTypeTopTwelveHourAction.state = .on
-        case .topDay:
-            sortTypeTopDayAction.state = .on
-        case .topWeek:
-            sortTypeTopWeekAction.state = .on
-        case .topMonth:
-            sortTypeTopMonthAction.state = .on
-        case .topYear:
-            sortTypeTopYearAction.state = .on
-        case .topAll:
-            sortTypeTopAllAction.state = .on
-        case .mostComments:
-            sortTypeMostCommentsAction.state = .on
-        case .newComments:
-            sortTypeNewCommentsAction.state = .on
+        sortTypeMenuActionsBySortType.forEach { (_, value) in
+            value.state = .off
         }
+
+        let sortType = viewModel.outputs.feed.value.sortType
+        guard let action = sortTypeMenuActionsBySortType[sortType] else {
+            assertionFailure()
+            return
+        }
+        action.state = .on
 
         // it seems that setting the state on an action for an existing UIMenu doesn't
         // update the ui. The menu wasn't picking up a new state, it seems like the UIMenu
