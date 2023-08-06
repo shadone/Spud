@@ -65,6 +65,7 @@
 		92A226EE2A7F000000C18FCD /* UIImage+scalePreservingAspectRatio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9236A46E2A7C608A00178F65 /* UIImage+scalePreservingAspectRatio.swift */; };
 		92A226F02A7F007900C18FCD /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226EF2A7F007900C18FCD /* OSLog.swift */; };
 		92A226F32A7F9CE400C18FCD /* EntryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226F22A7F9CE400C18FCD /* EntryService.swift */; };
+		92A226F52A7FA44F00C18FCD /* PostTextThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226F42A7FA44F00C18FCD /* PostTextThumbnailView.swift */; };
 		92A7AE1C2A60832D00990539 /* PersonViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A7AE1B2A60832D00990539 /* PersonViewController.swift */; };
 		92A87F432A41EA200098C20C /* PostDetailOrEmptyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */; };
 		92A87F452A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */; };
@@ -403,6 +404,7 @@
 		92A226EC2A7EFF1400C18FCD /* TopPostsEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopPostsEntry.swift; sourceTree = "<group>"; };
 		92A226EF2A7F007900C18FCD /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
 		92A226F22A7F9CE400C18FCD /* EntryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryService.swift; sourceTree = "<group>"; };
+		92A226F42A7FA44F00C18FCD /* PostTextThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTextThumbnailView.swift; sourceTree = "<group>"; };
 		92A7AE1B2A60832D00990539 /* PersonViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonViewController.swift; sourceTree = "<group>"; };
 		92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailOrEmptyViewController.swift; sourceTree = "<group>"; };
 		92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailOrEmptyViewModel.swift; sourceTree = "<group>"; };
@@ -803,6 +805,7 @@
 		92A226E92A7EFDD300C18FCD /* TopPosts */ = {
 			isa = PBXGroup;
 			children = (
+				92A226F42A7FA44F00C18FCD /* PostTextThumbnailView.swift */,
 				92A226EA2A7EFED200C18FCD /* PostView.swift */,
 				92A226EC2A7EFF1400C18FCD /* TopPostsEntry.swift */,
 				92A226E72A7EFDCF00C18FCD /* TopPostsProvider.swift */,
@@ -1609,6 +1612,7 @@
 				92A226F32A7F9CE400C18FCD /* EntryService.swift in Sources */,
 				92A226F02A7F007900C18FCD /* OSLog.swift in Sources */,
 				92CC5DE72A7EF0440019436A /* Post.swift in Sources */,
+				92A226F52A7FA44F00C18FCD /* PostTextThumbnailView.swift in Sources */,
 				92A226EB2A7EFED200C18FCD /* PostView.swift in Sources */,
 				920B45542A7C1DF400C6C2DC /* SpudWidgetBundle.swift in Sources */,
 				92CC5DE32A7EF0440019436A /* TopPosts+fake.swift in Sources */,

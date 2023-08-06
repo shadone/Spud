@@ -48,17 +48,7 @@ struct PostView: View {
 
             switch post.type {
             case .text:
-                ZStack {
-                    Rectangle()
-                        .fill(Color(white: 0.888))
-                        .frame(width: 40, height: 40)
-                        .cornerRadius(8)
-                    Image(systemName: "text.justifyleft")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .foregroundColor(Color(.lightGray))
-                        .frame(width: 24, height: 24)
-                }
+                PostTextThumbnailView()
 
             case let .image(thumbnailUrl):
                 if let image = images[thumbnailUrl] {
