@@ -6,6 +6,7 @@
 
 import Foundation
 import SpudDataKit
+import LemmyKit
 import UIKit
 import os.log
 
@@ -36,7 +37,7 @@ class EntryService: EntryServiceType {
     func startService() { }
 
     func topPosts(for configuration: TopPostsConfigurationIntent) async -> TopPostsEntry {
-        let feed = await fetchFeed()
+        let feed = await fetchFeed(for: configuration)
         let entry = await entry(from: feed, for: configuration)
         return entry
     }
@@ -111,13 +112,55 @@ class EntryService: EntryServiceType {
         )
     }
 
-    @MainActor private func fetchFeed() async -> LemmyFeed {
+    @MainActor private func fetchFeed(
+        for configuration: TopPostsConfigurationIntent
+    ) async -> LemmyFeed {
         let account = accountService.defaultAccount()
         let lemmyService = accountService
             .lemmyService(for: account)
 
+        let listingType: ListingType = {
+            switch configuration.feedType {
+            case .all:
+                return .all
+            case .local:
+                return .local
+            case .subscribed, .unknown:
+                return account.isSignedOutAccountType ? .all : .subscribed
+            }
+        }()
+
+        let sortType: SortType = {
+            switch configuration.sortType {
+            case .active:
+                return .active
+            case .hot, .unknown:
+                return .hot
+            case .new:
+                return .new
+            case .topSixHour:
+                return .topSixHour
+            case .topTwelveHour:
+                return .topTwelveHour
+            case .topDay:
+                return .topDay
+            case .topWeek:
+                return .topWeek
+            case .topMonth:
+                return .topMonth
+            case .topYear:
+                return .topYear
+            case .topAll:
+                return .topAll
+            case .mostComments:
+                return .mostComments
+            case .newComments:
+                return .newComments
+            }
+        }()
+
         let feed = lemmyService
-            .createFeed(.frontpage(listingType: .local, sortType: .new))
+            .createFeed(.frontpage(listingType: listingType, sortType: sortType))
 
         do {
             try await lemmyService
