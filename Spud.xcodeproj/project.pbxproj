@@ -61,6 +61,7 @@
 		9276185E2A731AD5003D49D4 /* Down in Frameworks */ = {isa = PBXBuildFile; productRef = 9276185D2A731AD5003D49D4 /* Down */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
+		928F19D92A80124100843D23 /* CommentAggregates+fake.swift in Sources */ = {isa = PBXBuildFile; fileRef = 928F19D82A80124100843D23 /* CommentAggregates+fake.swift */; };
 		9297E2F52A42042B00D13E4D /* PostDetailLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */; };
 		9297E2FA2A420DA500D13E4D /* MainWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F92A420DA500D13E4D /* MainWindow.swift */; };
 		9297E2FF2A42494900D13E4D /* SwipeActionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2FE2A42494900D13E4D /* SwipeActionView.swift */; };
@@ -435,6 +436,7 @@
 		927E1F3B2A5841B4002327EC /* UIViewPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIViewPreview.swift; sourceTree = "<group>"; };
 		9281B2832A7D925000BA8E39 /* LemmyPostInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyPostInfo.swift; sourceTree = "<group>"; };
 		9281B2852A7D954100BA8E39 /* LemmyPostInfo+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPostInfo+import.swift"; sourceTree = "<group>"; };
+		928F19D82A80124100843D23 /* CommentAggregates+fake.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentAggregates+fake.swift"; sourceTree = "<group>"; };
 		9297E2F42A42042B00D13E4D /* PostDetailLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailLoadingViewController.swift; sourceTree = "<group>"; };
 		9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIViewController+addChild.swift"; sourceTree = "<group>"; };
 		9297E2F92A420DA500D13E4D /* MainWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow.swift; sourceTree = "<group>"; };
@@ -1224,6 +1226,7 @@
 			isa = PBXGroup;
 			children = (
 				92B7C9A12A3F3B5900672F64 /* Comment+fake.swift */,
+				928F19D82A80124100843D23 /* CommentAggregates+fake.swift */,
 				92B7C9A32A3F3B6A00672F64 /* CommentView+fake.swift */,
 				92B7C99F2A3F3B4A00672F64 /* Community+fake.swift */,
 				92B7C99B2A3F3B2100672F64 /* Person+fake.swift */,
@@ -1812,6 +1815,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				92A226D22A7EF9F000C18FCD /* Comment+fake.swift in Sources */,
+				928F19D92A80124100843D23 /* CommentAggregates+fake.swift in Sources */,
 				92A226D02A7EF9CE00C18FCD /* CommentHelperTests.swift in Sources */,
 				92A226D12A7EF9F000C18FCD /* CommentView+fake.swift in Sources */,
 				92A226D32A7EF9F000C18FCD /* Community+fake.swift in Sources */,

@@ -5,7 +5,7 @@
 //
 
 import XCTest
-import LemmyKit
+@testable import LemmyKit
 @testable import SpudDataKit
 
 class CommentHelperTests: XCTestCase {
@@ -95,6 +95,128 @@ class CommentHelperTests: XCTestCase {
                 "0.4.5",
                 "0.7.8",
             ]
+        )
+    }
+
+    func testNoMissingChildren() {
+        // this is a silly test that replicates one of the oldest Lemmy posts.
+        // The app was crashing on parsing the comments, but in the end it was
+        // something odd in the build as clean build solved it. ¯\_(ツ)_/¯
+        let person = Person.fake
+        let community = Community.fake
+        let post = Post.fake(creator: person, community: community)
+
+        let comments: [CommentView] = [
+            CommentView(
+                comment: .init(
+                    id: 471445,
+                    creator_id: 21550,
+                    post_id: 57679,
+                    content: "XXX",
+                    removed: false,
+                    published: Date(timeIntervalSinceReferenceDate: 708499714.602),
+                    updated: nil,
+                    deleted: false,
+                    ap_id: URL(string: "https://sh.itjust.works/comment/171885")!,
+                    local: false,
+                    path: "0.471445",
+                    distinguished: false,
+                    language_id: 0
+                ),
+                creator: .fake,
+                post: .fake(creator: .fake, community: .fake),
+                community: .fake,
+                counts: .fake(commentId: 471445, childCount: 0),
+                creator_banned_from_community: false,
+                subscribed: .notSubscribed,
+                saved: false,
+                creator_blocked: false,
+                my_vote: nil
+            ),
+            CommentView(
+                comment: .init(
+                    id: 403426,
+                    creator_id: 90452,
+                    post_id: 57679,
+                    content: "XXX",
+                    removed: false,
+                    published: Date(timeIntervalSinceReferenceDate: 709441501.208),
+                    updated: nil,
+                    deleted: false,
+                    ap_id: URL(string: "https://vlemmy.net/comment/390987")!,
+                    local: false,
+                    path: "0.403426",
+                    distinguished: false,
+                    language_id: 0
+                ),
+                creator: .fake,
+                post: .fake(creator: .fake, community: .fake),
+                community: .fake,
+                counts: .fake(commentId: 403426, childCount: 0),
+                creator_banned_from_community: false,
+                subscribed: .notSubscribed,
+                saved: false,
+                creator_blocked: false,
+                my_vote: nil
+            ),
+            CommentView(
+                comment: .init(
+                    id: 907431,
+                    creator_id: 45966,
+                    post_id: 57679,
+                    content: "XXX",
+                    removed: false,
+                    published: Date(timeIntervalSinceReferenceDate: 708459690.855),
+                    updated: nil,
+                    deleted: false,
+                    ap_id: URL(string: "https://lemmy.world/comment/181062")!,
+                    local: false,
+                    path: "0.907431",
+                    distinguished: false,
+                    language_id: 0
+                ),
+                creator: .fake,
+                post: .fake(creator: .fake, community: .fake),
+                community: .fake,
+                counts: .fake(commentId: 907431, childCount: 0),
+                creator_banned_from_community: false,
+                subscribed: .notSubscribed,
+                saved: false,
+                creator_blocked: false,
+                my_vote: nil
+            ),
+            CommentView(
+                comment: .init(
+                    id: 991036,
+                    creator_id: 625723,
+                    post_id: 57679,
+                    content: "XXX",
+                    removed: false,
+                    published: Date(timeIntervalSinceReferenceDate: 710992247.549),
+                    updated: nil,
+                    deleted: false,
+                    ap_id: URL(string: "https://talk.kururin.tech/comment/107365")!,
+                    local: false,
+                    path: "0.991036",
+                    distinguished: false,
+                    language_id: 0
+                ),
+                creator: .fake,
+                post: .fake(creator: .fake, community: .fake),
+                community: .fake,
+                counts: .fake(commentId: 991036, childCount: 0),
+                creator_banned_from_community: false,
+                subscribed: .notSubscribed,
+                saved: false,
+                creator_blocked: false,
+                my_vote: nil
+            ),
+        ]
+
+        let result = LemmyCommentImportHelper.findCommentsWithMissingChildren(comments)
+        XCTAssertEqual(
+            result.map { $0.comment.path },
+            [ ]
         )
     }
 
