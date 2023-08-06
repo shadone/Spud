@@ -10,5 +10,6 @@ import os.log
 extension OSLog {
     private static var subsystem = Bundle(for: DependencyContainer.self).bundleIdentifier!
 
+    static let entryService = OSLog(subsystem: subsystem, category: "EntryService")
     static let topPostsProvider = OSLog(subsystem: subsystem, category: "TopPostsProvider")
 }

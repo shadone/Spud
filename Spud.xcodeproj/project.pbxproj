@@ -64,6 +64,7 @@
 		92A226ED2A7EFF1400C18FCD /* TopPostsEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226EC2A7EFF1400C18FCD /* TopPostsEntry.swift */; };
 		92A226EE2A7F000000C18FCD /* UIImage+scalePreservingAspectRatio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9236A46E2A7C608A00178F65 /* UIImage+scalePreservingAspectRatio.swift */; };
 		92A226F02A7F007900C18FCD /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226EF2A7F007900C18FCD /* OSLog.swift */; };
+		92A226F32A7F9CE400C18FCD /* EntryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226F22A7F9CE400C18FCD /* EntryService.swift */; };
 		92A7AE1C2A60832D00990539 /* PersonViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A7AE1B2A60832D00990539 /* PersonViewController.swift */; };
 		92A87F432A41EA200098C20C /* PostDetailOrEmptyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */; };
 		92A87F452A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */; };
@@ -401,6 +402,7 @@
 		92A226EA2A7EFED200C18FCD /* PostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostView.swift; sourceTree = "<group>"; };
 		92A226EC2A7EFF1400C18FCD /* TopPostsEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopPostsEntry.swift; sourceTree = "<group>"; };
 		92A226EF2A7F007900C18FCD /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
+		92A226F22A7F9CE400C18FCD /* EntryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryService.swift; sourceTree = "<group>"; };
 		92A7AE1B2A60832D00990539 /* PersonViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonViewController.swift; sourceTree = "<group>"; };
 		92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailOrEmptyViewController.swift; sourceTree = "<group>"; };
 		92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailOrEmptyViewModel.swift; sourceTree = "<group>"; };
@@ -599,6 +601,7 @@
 			isa = PBXGroup;
 			children = (
 				9236A4652A7C5AB700178F65 /* Model */,
+				92A226F12A7F9CD600C18FCD /* Services */,
 				92A226E92A7EFDD300C18FCD /* TopPosts */,
 				920B455A2A7C1DF500C6C2DC /* Assets.xcassets */,
 				9236A4732A7C643A00178F65 /* CommentsFormatter.swift */,
@@ -807,6 +810,14 @@
 				920B45572A7C1DF400C6C2DC /* TopPostsWidget.swift */,
 			);
 			path = TopPosts;
+			sourceTree = "<group>";
+		};
+		92A226F12A7F9CD600C18FCD /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				92A226F22A7F9CE400C18FCD /* EntryService.swift */,
+			);
+			path = Services;
 			sourceTree = "<group>";
 		};
 		92A7AE1A2A60832200990539 /* Person */ = {
@@ -1595,6 +1606,7 @@
 				9236A4772A7C645C00178F65 /* CommentsFormatter.swift in Sources */,
 				92CC5DE52A7EF0440019436A /* Community.swift in Sources */,
 				92A226E62A7EFD8C00C18FCD /* DependencyContainer.swift in Sources */,
+				92A226F32A7F9CE400C18FCD /* EntryService.swift in Sources */,
 				92A226F02A7F007900C18FCD /* OSLog.swift in Sources */,
 				92CC5DE72A7EF0440019436A /* Post.swift in Sources */,
 				92A226EB2A7EFED200C18FCD /* PostView.swift in Sources */,

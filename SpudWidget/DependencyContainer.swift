@@ -12,7 +12,8 @@ class DependencyContainer: ObservableObject,
     HasAccountService,
     HasSiteService,
     HasImageService,
-    HasAlertService
+    HasAlertService,
+    HasEntryService
 {
     static let shared = DependencyContainer()
 
@@ -23,6 +24,7 @@ class DependencyContainer: ObservableObject,
     let siteService: SiteServiceType
     let imageService: ImageServiceType
     let alertService: AlertServiceType = AlertService()
+    let entryService: EntryServiceType
 
     // MARK: Functions
 
@@ -33,6 +35,10 @@ class DependencyContainer: ObservableObject,
             siteService: siteService,
             dataStore: dataStore
         )
+        entryService = EntryService(
+            dataStore: dataStore,
+            accountService: accountService
+        )
 
         start()
     }
@@ -40,5 +46,6 @@ class DependencyContainer: ObservableObject,
     private func start() {
         dataStore.startService()
         siteService.startService()
+        entryService.startService()
     }
 }
