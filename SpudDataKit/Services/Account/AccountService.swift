@@ -303,7 +303,18 @@ public class AccountService: AccountServiceType {
 // MARK: Credential read/write
 
 extension AccountService {
-    private static let keychainCredentialService = "info.ddenis.Spud.Accounts"
+    private static let keychainCredentialService = "J8B76VBZ57.info.ddenis.Spud.shared"
+
+    /// The Keychain Shared Access Group where we store credentials.
+    /// This is used to allow WidgetExtension to access the credentials e.g. for fetching top posts from users' subscription.
+    private static let keychainSharedGroup = "group.info.ddenis.Spud.shared"
+
+    private var keychain: Keychain {
+        Keychain(
+            service: Self.keychainCredentialService,
+            accessGroup: Self.keychainSharedGroup
+        )
+    }
 
     private func writeCredential(_ credential: LemmyCredential, for account: LemmyAccount) {
         assert(!account.objectID.isTemporaryID)
@@ -314,7 +325,6 @@ extension AccountService {
             return
         }
 
-        let keychain = Keychain(service: Self.keychainCredentialService)
         do {
             try keychain.set(stringValue, key: key)
             logger.debug("Saved credential into keychain")
@@ -328,7 +338,6 @@ extension AccountService {
         guard !account.isSignedOutAccountType else { return nil }
 
         do {
-            let keychain = Keychain(service: Self.keychainCredentialService)
             let key = account.objectID.uriRepresentation().absoluteString
             guard let stringValue = try keychain.get(key) else {
                 logger.debug("Did not find credential in keychain")

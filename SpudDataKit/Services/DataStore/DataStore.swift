@@ -33,7 +33,7 @@ public class DataStore: DataStoreType {
     var storeLoadingError: Error?
 
     let sharedContainerURL: URL = {
-        let appGroupIdentifier = "group.info.ddenis.Spud.Data"
+        let appGroupIdentifier = "group.info.ddenis.Spud.shared"
         guard
             let url = FileManager.default
                 .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)

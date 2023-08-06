@@ -4,7 +4,11 @@
 <dict>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.info.ddenis.Spud.Data</string>
+		<string>group.info.ddenis.Spud.shared</string>
+	</array>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)info.ddenis.Spud.shared</string>
 	</array>
 </dict>
 </plist>
