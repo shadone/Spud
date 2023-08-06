@@ -213,6 +213,8 @@ class EntryService: EntryServiceType {
     }
 
     @MainActor private func fetchImage(_ url: URL) async -> UIImage? {
+        // TODO: look into fetching images using background request
+        // https://developer.apple.com/documentation/widgetkit/making-network-requests-in-a-widget-extension
         guard let (data, _) = try? await URLSession.shared.data(from: url) else {
             return nil
         }

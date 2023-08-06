@@ -46,8 +46,6 @@ struct TopPostsWidgetEntryView: View {
 struct TopPostsWidget: Widget {
     let kind: String = "TopPostsWidget"
 
-    // TODO: look into fetching images using background request
-    // https://developer.apple.com/documentation/widgetkit/making-network-requests-in-a-widget-extension
     var body: some WidgetConfiguration {
         IntentConfiguration(
             kind: kind,
