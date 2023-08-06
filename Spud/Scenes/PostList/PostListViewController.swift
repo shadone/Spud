@@ -325,7 +325,7 @@ class PostListViewController: UIViewController {
     }
 
     private func donateIntent() {
-        let intent = TopPostsConfigurationIntent()
+        let intent = ViewTopPostsIntent()
 
         let feed = viewModel.outputs.feed.value
 

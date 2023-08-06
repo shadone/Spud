@@ -11,7 +11,7 @@ import WidgetKit
 
 struct TopPostsEntry: TimelineEntry {
     let date: Date
-    let configuration: TopPostsConfigurationIntent
+    let configuration: ViewTopPostsIntent
 
     let topPosts: TopPosts
     let images: [URL: UIImage]

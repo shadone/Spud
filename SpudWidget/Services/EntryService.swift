@@ -16,11 +16,11 @@ protocol EntryServiceType: AnyObject {
     func startService()
 
     func topPostsSnapshot(
-        for configuration: TopPostsConfigurationIntent
+        for configuration: ViewTopPostsIntent
     ) -> TopPostsEntry
 
     func topPosts(
-        for configuration: TopPostsConfigurationIntent
+        for configuration: ViewTopPostsIntent
     ) async -> TopPostsEntry
 }
 
@@ -43,7 +43,7 @@ class EntryService: EntryServiceType {
     func startService() { }
 
     func topPostsSnapshot(
-        for configuration: TopPostsConfigurationIntent
+        for configuration: ViewTopPostsIntent
     ) -> TopPostsEntry {
         let snapshot = TopPosts.snapshot
 
@@ -59,7 +59,7 @@ class EntryService: EntryServiceType {
     }
 
     func topPosts(
-        for configuration: TopPostsConfigurationIntent
+        for configuration: ViewTopPostsIntent
     ) async -> TopPostsEntry {
         let feed = await fetchFeed(for: configuration)
         let entry = await entry(from: feed, for: configuration)
@@ -68,7 +68,7 @@ class EntryService: EntryServiceType {
 
     @MainActor private func entry(
         from feed: LemmyFeed,
-        for configuration: TopPostsConfigurationIntent
+        for configuration: ViewTopPostsIntent
     ) async -> TopPostsEntry {
         let postInfos = feed.pages
             .sorted(by: { $0.index < $1.index })
@@ -137,7 +137,7 @@ class EntryService: EntryServiceType {
     }
 
     @MainActor private func fetchFeed(
-        for configuration: TopPostsConfigurationIntent
+        for configuration: ViewTopPostsIntent
     ) async -> LemmyFeed {
         let account = accountService.defaultAccount()
         let lemmyService = accountService

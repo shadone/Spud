@@ -223,7 +223,7 @@
 			<key>INIntentLastParameterTag</key>
 			<integer>10</integer>
 			<key>INIntentName</key>
-			<string>TopPostsConfiguration</string>
+			<string>ViewTopPosts</string>
 			<key>INIntentParameterCombinations</key>
 			<dict>
 				<key>feedType</key>
@@ -386,7 +386,7 @@
 				</array>
 			</dict>
 			<key>INIntentTitle</key>
-			<string>Top Posts Configuration</string>
+			<string>View Top Posts</string>
 			<key>INIntentTitleID</key>
 			<string>gpCwrM</string>
 			<key>INIntentType</key>
