@@ -6,6 +6,20 @@
 	objectVersion = 55;
 	objects = {
 
+/* Begin PBXAggregateTarget section */
+		92A227172A7FB24600C18FCD /* SwiftGen: SpudUIKit */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 92A227182A7FB24600C18FCD /* Build configuration list for PBXAggregateTarget "SwiftGen: SpudUIKit" */;
+			buildPhases = (
+				92A2271B2A7FB25200C18FCD /* ShellScript */,
+			);
+			dependencies = (
+			);
+			name = "SwiftGen: SpudUIKit";
+			productName = "SwiftGen: SpudUIKit";
+		};
+/* End PBXAggregateTarget section */
+
 /* Begin PBXBuildFile section */
 		920B45502A7C1DF400C6C2DC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 929CDBBC2A7C1CE300AE6B30 /* WidgetKit.framework */; };
 		920B45512A7C1DF400C6C2DC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 929CDBBE2A7C1CE300AE6B30 /* SwiftUI.framework */; };
@@ -66,6 +80,18 @@
 		92A226F02A7F007900C18FCD /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226EF2A7F007900C18FCD /* OSLog.swift */; };
 		92A226F32A7F9CE400C18FCD /* EntryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226F22A7F9CE400C18FCD /* EntryService.swift */; };
 		92A226F52A7FA44F00C18FCD /* PostTextThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226F42A7FA44F00C18FCD /* PostTextThumbnailView.swift */; };
+		92A226FE2A7FA59E00C18FCD /* SpudUIKit.h in Headers */ = {isa = PBXBuildFile; fileRef = 92A226FD2A7FA59E00C18FCD /* SpudUIKit.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		92A227012A7FA59E00C18FCD /* SpudUIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92A226FB2A7FA59E00C18FCD /* SpudUIKit.framework */; };
+		92A227022A7FA59E00C18FCD /* SpudUIKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 92A226FB2A7FA59E00C18FCD /* SpudUIKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		92A227072A7FA62600C18FCD /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 92A227062A7FA62600C18FCD /* Assets.xcassets */; };
+		92A227092A7FA6F000C18FCD /* ImagePost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A227082A7FA6F000C18FCD /* ImagePost.swift */; };
+		92A2270D2A7FA9F600C18FCD /* Assets+Generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A2270C2A7FA9F600C18FCD /* Assets+Generated.swift */; };
+		92A2270F2A7FAD3A00C18FCD /* SymbolImageResource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A2270E2A7FAD3A00C18FCD /* SymbolImageResource.swift */; };
+		92A227112A7FAE9D00C18FCD /* ColorResource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A227102A7FAE9D00C18FCD /* ColorResource.swift */; };
+		92A227142A7FAFAF00C18FCD /* Design.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A227132A7FAFAF00C18FCD /* Design.swift */; };
+		92A227162A7FAFD900C18FCD /* TextPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A227152A7FAFD900C18FCD /* TextPost.swift */; };
+		92A2271E2A7FB56C00C18FCD /* SpudUIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92A226FB2A7FA59E00C18FCD /* SpudUIKit.framework */; };
+		92A2271F2A7FB56C00C18FCD /* SpudUIKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 92A226FB2A7FA59E00C18FCD /* SpudUIKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		92A7AE1C2A60832D00990539 /* PersonViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A7AE1B2A60832D00990539 /* PersonViewController.swift */; };
 		92A87F432A41EA200098C20C /* PostDetailOrEmptyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */; };
 		92A87F452A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */; };
@@ -229,6 +255,27 @@
 			remoteGlobalIDString = 92CC5D882A7EBFEA0019436A;
 			remoteInfo = SpudUtilKit;
 		};
+		92A226FF2A7FA59E00C18FCD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 92B7C8F22A3A40EB00672F64 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92A226FA2A7FA59E00C18FCD;
+			remoteInfo = SpudUIKit;
+		};
+		92A2271C2A7FB2BF00C18FCD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 92B7C8F22A3A40EB00672F64 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92A227172A7FB24600C18FCD;
+			remoteInfo = "SwiftGen: SpudUIKit";
+		};
+		92A227202A7FB56C00C18FCD /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 92B7C8F22A3A40EB00672F64 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92A226FA2A7FA59E00C18FCD;
+			remoteInfo = SpudUIKit;
+		};
 		92B7C9142A3A40F400672F64 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 92B7C8F22A3A40EB00672F64 /* Project object */;
@@ -288,6 +335,7 @@
 			dstSubfolderSpec = 10;
 			files = (
 				92CC5D692A7EBF5E0019436A /* SpudDataKit.framework in Embed Frameworks */,
+				92A227022A7FA59E00C18FCD /* SpudUIKit.framework in Embed Frameworks */,
 				92CC5D902A7EBFEA0019436A /* SpudUtilKit.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
@@ -300,6 +348,7 @@
 			dstSubfolderSpec = 10;
 			files = (
 				92CC5DDE2A7EDE6B0019436A /* SpudDataKit.framework in Embed Frameworks */,
+				92A2271F2A7FB56C00C18FCD /* SpudUIKit.framework in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -405,6 +454,16 @@
 		92A226EF2A7F007900C18FCD /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
 		92A226F22A7F9CE400C18FCD /* EntryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryService.swift; sourceTree = "<group>"; };
 		92A226F42A7FA44F00C18FCD /* PostTextThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTextThumbnailView.swift; sourceTree = "<group>"; };
+		92A226FB2A7FA59E00C18FCD /* SpudUIKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SpudUIKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		92A226FD2A7FA59E00C18FCD /* SpudUIKit.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SpudUIKit.h; sourceTree = "<group>"; };
+		92A227062A7FA62600C18FCD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		92A227082A7FA6F000C18FCD /* ImagePost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePost.swift; sourceTree = "<group>"; };
+		92A2270C2A7FA9F600C18FCD /* Assets+Generated.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Assets+Generated.swift"; sourceTree = "<group>"; };
+		92A2270E2A7FAD3A00C18FCD /* SymbolImageResource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolImageResource.swift; sourceTree = "<group>"; };
+		92A227102A7FAE9D00C18FCD /* ColorResource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorResource.swift; sourceTree = "<group>"; };
+		92A227132A7FAFAF00C18FCD /* Design.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Design.swift; sourceTree = "<group>"; };
+		92A227152A7FAFD900C18FCD /* TextPost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextPost.swift; sourceTree = "<group>"; };
+		92A227222A7FB65400C18FCD /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		92A7AE1B2A60832D00990539 /* PersonViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonViewController.swift; sourceTree = "<group>"; };
 		92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailOrEmptyViewController.swift; sourceTree = "<group>"; };
 		92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailOrEmptyViewModel.swift; sourceTree = "<group>"; };
@@ -531,6 +590,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				92CC5DDD2A7EDE6B0019436A /* SpudDataKit.framework in Frameworks */,
+				92A2271E2A7FB56C00C18FCD /* SpudUIKit.framework in Frameworks */,
 				920B45512A7C1DF400C6C2DC /* SwiftUI.framework in Frameworks */,
 				920B45502A7C1DF400C6C2DC /* WidgetKit.framework in Frameworks */,
 			);
@@ -552,6 +612,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		92A226F82A7FA59E00C18FCD /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		92B7C8F72A3A40EB00672F64 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -560,6 +627,7 @@
 				9273433E2A61FAB70089556E /* LemmyKit in Frameworks */,
 				92CC5D682A7EBF5E0019436A /* SpudDataKit.framework in Frameworks */,
 				92CC5DBC2A7EC7C50019436A /* SpudDataKit.framework in Frameworks */,
+				92A227012A7FA59E00C18FCD /* SpudUIKit.framework in Frameworks */,
 				92CC5D8F2A7EBFEA0019436A /* SpudUtilKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -823,6 +891,37 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
+		92A226FC2A7FA59E00C18FCD /* SpudUIKit */ = {
+			isa = PBXGroup;
+			children = (
+				92A227122A7FAFA900C18FCD /* Design */,
+				92A2270A2A7FA9CB00C18FCD /* Resources */,
+				92A227102A7FAE9D00C18FCD /* ColorResource.swift */,
+				92A226FD2A7FA59E00C18FCD /* SpudUIKit.h */,
+				92A2270E2A7FAD3A00C18FCD /* SymbolImageResource.swift */,
+			);
+			path = SpudUIKit;
+			sourceTree = "<group>";
+		};
+		92A2270A2A7FA9CB00C18FCD /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				92A2270C2A7FA9F600C18FCD /* Assets+Generated.swift */,
+				92A227062A7FA62600C18FCD /* Assets.xcassets */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		92A227122A7FAFA900C18FCD /* Design */ = {
+			isa = PBXGroup;
+			children = (
+				92A227132A7FAFAF00C18FCD /* Design.swift */,
+				92A227082A7FA6F000C18FCD /* ImagePost.swift */,
+				92A227152A7FAFD900C18FCD /* TextPost.swift */,
+			);
+			path = Design;
+			sourceTree = "<group>";
+		};
 		92A7AE1A2A60832200990539 /* Person */ = {
 			isa = PBXGroup;
 			children = (
@@ -856,6 +955,7 @@
 		92B7C8F12A3A40EB00672F64 = {
 			isa = PBXGroup;
 			children = (
+				92A227222A7FB65400C18FCD /* README.md */,
 				920B458A2A7C51EB00C6C2DC /* SpudWidgetExtension.entitlements */,
 				921943432A75BEC20005474D /* Packages */,
 				92B7C8FC2A3A40EB00672F64 /* Spud */,
@@ -866,6 +966,7 @@
 				92A226C72A7EF9A900C18FCD /* SpudDataKitTests */,
 				92CC5D8A2A7EBFEA0019436A /* SpudUtilKit */,
 				92A226DB2A7EFA1400C18FCD /* SpudUtilKitTests */,
+				92A226FC2A7FA59E00C18FCD /* SpudUIKit */,
 				92B7C8FB2A3A40EB00672F64 /* Products */,
 				92B7C9442A3A5E7100672F64 /* Frameworks */,
 			);
@@ -882,6 +983,7 @@
 				92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */,
 				92A226C62A7EF9A900C18FCD /* SpudDataKitTests.xctest */,
 				92A226DA2A7EFA1400C18FCD /* SpudUtilKitTests.xctest */,
+				92A226FB2A7FA59E00C18FCD /* SpudUIKit.framework */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1290,6 +1392,14 @@
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
+		92A226F62A7FA59E00C18FCD /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				92A226FE2A7FA59E00C18FCD /* SpudUIKit.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		92CC5D5D2A7EBF5E0019436A /* Headers */ = {
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
@@ -1322,6 +1432,7 @@
 			);
 			dependencies = (
 				92CC5DE02A7EDE6C0019436A /* PBXTargetDependency */,
+				92A227212A7FB56C00C18FCD /* PBXTargetDependency */,
 			);
 			name = SpudWidgetExtension;
 			productName = SpudWidgetsExtension;
@@ -1364,6 +1475,25 @@
 			productReference = 92A226DA2A7EFA1400C18FCD /* SpudUtilKitTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		92A226FA2A7FA59E00C18FCD /* SpudUIKit */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 92A227052A7FA59E00C18FCD /* Build configuration list for PBXNativeTarget "SpudUIKit" */;
+			buildPhases = (
+				92A226F62A7FA59E00C18FCD /* Headers */,
+				92A226F72A7FA59E00C18FCD /* Sources */,
+				92A226F82A7FA59E00C18FCD /* Frameworks */,
+				92A226F92A7FA59E00C18FCD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				92A2271D2A7FB2BF00C18FCD /* PBXTargetDependency */,
+			);
+			name = SpudUIKit;
+			productName = SpudUIKit;
+			productReference = 92A226FB2A7FA59E00C18FCD /* SpudUIKit.framework */;
+			productType = "com.apple.product-type.framework";
+		};
 		92B7C8F92A3A40EB00672F64 /* Spud */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 92B7C9272A3A40F400672F64 /* Build configuration list for PBXNativeTarget "Spud" */;
@@ -1381,6 +1511,7 @@
 				92CC5D672A7EBF5E0019436A /* PBXTargetDependency */,
 				92CC5D8E2A7EBFEA0019436A /* PBXTargetDependency */,
 				92CC5DBE2A7EC7C50019436A /* PBXTargetDependency */,
+				92A227002A7FA59E00C18FCD /* PBXTargetDependency */,
 			);
 			name = Spud;
 			packageProductDependencies = (
@@ -1489,6 +1620,13 @@
 					92A226D92A7EFA1400C18FCD = {
 						CreatedOnToolsVersion = 14.3.1;
 					};
+					92A226FA2A7FA59E00C18FCD = {
+						CreatedOnToolsVersion = 14.3.1;
+						LastSwiftMigration = 1430;
+					};
+					92A227172A7FB24600C18FCD = {
+						CreatedOnToolsVersion = 14.3.1;
+					};
 					92B7C8F92A3A40EB00672F64 = {
 						CreatedOnToolsVersion = 13.2.1;
 					};
@@ -1531,10 +1669,12 @@
 				92B7C9122A3A40F400672F64 /* SpudTests */,
 				92B7C91C2A3A40F400672F64 /* SpudUITests */,
 				920B454E2A7C1DF400C6C2DC /* SpudWidgetExtension */,
+				92A226FA2A7FA59E00C18FCD /* SpudUIKit */,
 				92CC5D612A7EBF5E0019436A /* SpudDataKit */,
 				92A226C52A7EF9A900C18FCD /* SpudDataKitTests */,
 				92CC5D882A7EBFEA0019436A /* SpudUtilKit */,
 				92A226D92A7EFA1400C18FCD /* SpudUtilKitTests */,
+				92A227172A7FB24600C18FCD /* SwiftGen: SpudUIKit */,
 			);
 		};
 /* End PBXProject section */
@@ -1559,6 +1699,14 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92A226F92A7FA59E00C18FCD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				92A227072A7FA62600C18FCD /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1600,6 +1748,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		92A2271B2A7FB25200C18FCD /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"$(SRCROOT)/SpudUIKit/Resources/Assets.xcassets",
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/SpudUIKit/Resources/Assets+Generated.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if which swiftgen >/dev/null; then\n  swiftgen -c $SRCROOT/SpudUIKit/swiftgen.yml\nelse\n  echo \"warning: SwiftGen not installed, see README.md\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		920B454B2A7C1DF400C6C2DC /* Sources */ = {
@@ -1644,6 +1814,19 @@
 			buildActionMask = 2147483647;
 			files = (
 				92A226E42A7EFA2300C18FCD /* URLLenientStringTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92A226F72A7FA59E00C18FCD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				92A2270D2A7FA9F600C18FCD /* Assets+Generated.swift in Sources */,
+				92A227112A7FAE9D00C18FCD /* ColorResource.swift in Sources */,
+				92A227142A7FAFAF00C18FCD /* Design.swift in Sources */,
+				92A227092A7FA6F000C18FCD /* ImagePost.swift in Sources */,
+				92A2270F2A7FAD3A00C18FCD /* SymbolImageResource.swift in Sources */,
+				92A227162A7FAFD900C18FCD /* TextPost.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1850,6 +2033,21 @@
 			target = 92CC5D882A7EBFEA0019436A /* SpudUtilKit */;
 			targetProxy = 92A226DF2A7EFA1400C18FCD /* PBXContainerItemProxy */;
 		};
+		92A227002A7FA59E00C18FCD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92A226FA2A7FA59E00C18FCD /* SpudUIKit */;
+			targetProxy = 92A226FF2A7FA59E00C18FCD /* PBXContainerItemProxy */;
+		};
+		92A2271D2A7FB2BF00C18FCD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92A227172A7FB24600C18FCD /* SwiftGen: SpudUIKit */;
+			targetProxy = 92A2271C2A7FB2BF00C18FCD /* PBXContainerItemProxy */;
+		};
+		92A227212A7FB56C00C18FCD /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92A226FA2A7FA59E00C18FCD /* SpudUIKit */;
+			targetProxy = 92A227202A7FB56C00C18FCD /* PBXContainerItemProxy */;
+		};
 		92B7C9152A3A40F400672F64 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 92B7C8F92A3A40EB00672F64 /* Spud */;
@@ -2027,6 +2225,95 @@
 			};
 			name = Release;
 		};
+		92A227032A7FA59E00C18FCD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = J8B76VBZ57;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudUIKit;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		92A227042A7FA59E00C18FCD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = J8B76VBZ57;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				ENABLE_MODULE_VERIFIER = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
+				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
+				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudUIKit;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		92A227192A7FB24600C18FCD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		92A2271A2A7FB24600C18FCD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		92B7C9252A3A40F400672F64 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -2152,6 +2439,7 @@
 				CODE_SIGN_ENTITLEMENTS = Spud/Spud.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = README.md;
 				DEVELOPMENT_TEAM = J8B76VBZ57;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Spud/Resources/Info.plist;
@@ -2182,6 +2470,7 @@
 				CODE_SIGN_ENTITLEMENTS = Spud/Spud.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = README.md;
 				DEVELOPMENT_TEAM = J8B76VBZ57;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Spud/Resources/Info.plist;
@@ -2445,6 +2734,24 @@
 			buildConfigurations = (
 				92A226E22A7EFA1400C18FCD /* Debug */,
 				92A226E32A7EFA1400C18FCD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		92A227052A7FA59E00C18FCD /* Build configuration list for PBXNativeTarget "SpudUIKit" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				92A227032A7FA59E00C18FCD /* Debug */,
+				92A227042A7FA59E00C18FCD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		92A227182A7FB24600C18FCD /* Build configuration list for PBXAggregateTarget "SwiftGen: SpudUIKit" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				92A227192A7FB24600C18FCD /* Debug */,
+				92A2271A2A7FB24600C18FCD /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

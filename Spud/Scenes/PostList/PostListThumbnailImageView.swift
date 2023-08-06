@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import SpudUIKit
 import UIKit
 
 class PostListThumbnailImageView: UIView {
@@ -77,7 +78,7 @@ class PostListThumbnailImageView: UIView {
     lazy var textPlaceholderView: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
-        view.backgroundColor = UIColor(white: 0.888, alpha: 1)
+        view.backgroundColor = Design.TextPost.Thumbnail.background.color
         return view
     }()
 
@@ -85,15 +86,15 @@ class PostListThumbnailImageView: UIView {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.contentMode = .scaleAspectFit
-        imageView.image = UIImage(systemName: "text.justifyleft")!
-        imageView.tintColor = .lightGray
+        imageView.image = Design.TextPost.Thumbnail.icon.image
+        imageView.tintColor = Design.TextPost.Thumbnail.iconTint.color
         return imageView
     }()
 
     lazy var brokenView: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
-        view.backgroundColor = UIColor(white: 0.888, alpha: 1)
+        view.backgroundColor = Design.ImagePost.BrokenThumbnail.background.color
         return view
     }()
 
@@ -101,8 +102,8 @@ class PostListThumbnailImageView: UIView {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.contentMode = .scaleAspectFit
-        imageView.image = UIImage(systemName: "questionmark.square.dashed")!
-        imageView.tintColor = .lightGray
+        imageView.image = Design.ImagePost.BrokenThumbnail.icon.image
+        imageView.tintColor = Design.ImagePost.BrokenThumbnail.iconTint.color
         return imageView
     }()
 

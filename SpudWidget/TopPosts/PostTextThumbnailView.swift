@@ -5,36 +5,23 @@
 //
 
 import Foundation
+import SpudUIKit
 import SwiftUI
 import WidgetKit
 
 struct PostTextThumbnailView: View {
     @Environment(\.colorScheme) var colorScheme
 
-    var backgroundColor: Color {
-        switch colorScheme {
-        case .light:
-            return Color(white: 0.888)
-
-        case .dark:
-            return Color(white: 0.222)
-
-        @unknown default:
-            assertionFailure("Got unknown color scheme '\(colorScheme)'")
-            return .gray
-        }
-    }
-
     var body: some View {
         ZStack {
             Rectangle()
-                .fill(backgroundColor)
+                .fill(Design.TextPost.Thumbnail.background.swiftUIColor)
                 .frame(width: 40, height: 40)
                 .cornerRadius(8)
-            Image(systemName: "text.justifyleft")
+            Design.TextPost.Thumbnail.icon.swiftUIImage
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .foregroundColor(Color(.lightGray))
+                .foregroundColor(Design.TextPost.Thumbnail.iconTint.swiftUIColor)
                 .frame(width: 24, height: 24)
         }
     }

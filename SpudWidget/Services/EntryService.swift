@@ -117,7 +117,7 @@ class EntryService: EntryServiceType {
             .lemmyService(for: account)
 
         let feed = lemmyService
-            .createFeed(.frontpage(listingType: .all, sortType: .hot))
+            .createFeed(.frontpage(listingType: .local, sortType: .new))
 
         do {
             try await lemmyService
