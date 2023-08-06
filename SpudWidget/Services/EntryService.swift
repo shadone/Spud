@@ -15,7 +15,13 @@ private let logger = Logger(.entryService)
 protocol EntryServiceType: AnyObject {
     func startService()
 
-    func topPosts(for configuration: TopPostsConfigurationIntent) async -> TopPostsEntry
+    func topPostsSnapshot(
+        for configuration: TopPostsConfigurationIntent
+    ) -> TopPostsEntry
+
+    func topPosts(
+        for configuration: TopPostsConfigurationIntent
+    ) async -> TopPostsEntry
 }
 
 protocol HasEntryService {
@@ -36,7 +42,36 @@ class EntryService: EntryServiceType {
 
     func startService() { }
 
-    func topPosts(for configuration: TopPostsConfigurationIntent) async -> TopPostsEntry {
+    func topPostsSnapshot(
+        for configuration: TopPostsConfigurationIntent
+    ) -> TopPostsEntry {
+        let snapshot = TopPosts.snapshot
+
+        // load images from local resources
+        let imageUrls = snapshot.posts
+            .compactMap { $0.type.imageUrl }
+
+        var imagesByUrl: [URL: UIImage] = [:]
+        imageUrls.forEach { url in
+            if let image = url.spudImageFromAsset {
+                imagesByUrl[url] = image
+            }
+        }
+
+        let now = Date()
+        let entry = TopPostsEntry(
+            date: now,
+            configuration: configuration,
+            topPosts: snapshot,
+            images: imagesByUrl
+        )
+
+        return entry
+    }
+
+    func topPosts(
+        for configuration: TopPostsConfigurationIntent
+    ) async -> TopPostsEntry {
         let feed = await fetchFeed(for: configuration)
         let entry = await entry(from: feed, for: configuration)
         return entry
@@ -59,7 +94,7 @@ class EntryService: EntryServiceType {
         let topPosts = TopPosts(
             posts: postInfos
                 .map { postInfo -> Post in
-                    let postType: Post.PostType
+                    let postType: PostType
                     if let thumbnailUrl = postInfo.thumbnailUrl {
                         postType = .image(thumbnailUrl)
                     } else {

@@ -38,15 +38,13 @@ class TopPostsProvider: IntentTimelineProvider {
         in context: Context,
         completion: @escaping (TopPostsEntry) -> ()
     ) {
-        logger.debug("Snapshot requested")
+        if context.isPreview {
+            logger.debug("Snapshot requested for preview")
+        } else {
+            logger.debug("Snapshot requested")
+        }
 
-        let now = Date()
-        let entry = TopPostsEntry(
-            date: now,
-            configuration: configuration,
-            topPosts: .placeholder, // TODO:
-            images: [:]
-        )
+        let entry = dependencies.entryService.topPostsSnapshot(for: configuration)
 
         logger.debug("Snapshot delivered")
         completion(entry)

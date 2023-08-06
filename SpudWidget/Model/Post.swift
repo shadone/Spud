@@ -7,18 +7,6 @@
 import Foundation
 
 public struct Post: Codable, Identifiable {
-    public enum PostType: Codable {
-        case text
-        case image(URL)
-
-        public var imageUrl: URL? {
-            if case let .image(url) = self {
-                return url
-            }
-            return nil
-        }
-    }
-
     public var id: String { spudUrl.absoluteString }
 
     public let spudUrl: URL
@@ -31,7 +19,7 @@ public struct Post: Codable, Identifiable {
     public init(
         spudUrl: URL,
         title: String,
-        type: Post.PostType,
+        type: PostType,
         community: Community,
         score: Int64,
         numberOfComments: Int64
