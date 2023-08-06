@@ -27,14 +27,14 @@ class TopPostsProvider: IntentTimelineProvider {
     func placeholder(in context: Context) -> TopPostsEntry {
         TopPostsEntry(
             date: Date(),
-            configuration: ConfigurationIntent(),
+            configuration: TopPostsConfigurationIntent(),
             topPosts: .placeholder,
             images: [:]
         )
     }
 
     func getSnapshot(
-        for configuration: ConfigurationIntent,
+        for configuration: TopPostsConfigurationIntent,
         in context: Context,
         completion: @escaping (TopPostsEntry) -> ()
     ) {
@@ -53,7 +53,7 @@ class TopPostsProvider: IntentTimelineProvider {
     }
 
     func getTimeline(
-        for configuration: ConfigurationIntent,
+        for configuration: TopPostsConfigurationIntent,
         in context: Context,
         completion: @escaping (Timeline<Entry>) -> ()
     ) {

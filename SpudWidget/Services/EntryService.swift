@@ -14,7 +14,7 @@ private let logger = Logger(.entryService)
 protocol EntryServiceType: AnyObject {
     func startService()
 
-    func topPosts(for configuration: ConfigurationIntent) async -> TopPostsEntry
+    func topPosts(for configuration: TopPostsConfigurationIntent) async -> TopPostsEntry
 }
 
 protocol HasEntryService {
@@ -35,7 +35,7 @@ class EntryService: EntryServiceType {
 
     func startService() { }
 
-    func topPosts(for configuration: ConfigurationIntent) async -> TopPostsEntry {
+    func topPosts(for configuration: TopPostsConfigurationIntent) async -> TopPostsEntry {
         let feed = await fetchFeed()
         let entry = await entry(from: feed, for: configuration)
         return entry
@@ -43,7 +43,7 @@ class EntryService: EntryServiceType {
 
     @MainActor private func entry(
         from feed: LemmyFeed,
-        for configuration: ConfigurationIntent
+        for configuration: TopPostsConfigurationIntent
     ) async -> TopPostsEntry {
         let postInfos = feed.pages
             .sorted(by: { $0.index < $1.index })

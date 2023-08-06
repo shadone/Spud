@@ -51,7 +51,7 @@ struct TopPostsWidget: Widget {
     var body: some WidgetConfiguration {
         IntentConfiguration(
             kind: kind,
-            intent: ConfigurationIntent.self,
+            intent: TopPostsConfigurationIntent.self,
             provider: TopPostsProvider(dependencies: DependencyContainer.shared)
         ) { entry in
             TopPostsWidgetEntryView(entry: entry)
@@ -67,7 +67,7 @@ struct TopPostsWidget_Previews: PreviewProvider {
         TopPostsWidgetEntryView(
             entry: TopPostsEntry(
                 date: Date(),
-                configuration: ConfigurationIntent(),
+                configuration: TopPostsConfigurationIntent(),
                 topPosts: .fake,
                 images: [:]
             )
