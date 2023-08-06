@@ -13,16 +13,16 @@ extension SortType {
     var itemForMenu: (title: String, image: UIImage?) {
         switch self {
         case .active:
-            return (title: "Active", image: nil)
+            return (title: "Active", image: UIImage(systemName: "paperplane")!)
 
         case .hot:
-            return (title: "Hot", image: nil)
+            return (title: "Hot", image: UIImage(systemName: "flame.fill")!)
 
         case .new:
-            return (title: "New", image: nil)
+            return (title: "New", image: UIImage(systemName: "cursorarrow.motionlines.click")!)
 
         case .old:
-            return (title: "Old", image: nil)
+            return (title: "Old", image: UIImage(systemName: "text.line.last.and.arrowtriangle.forward")!)
 
         case .topSixHour:
             return (title: "Top Six Hour", image: nil)
@@ -46,10 +46,10 @@ extension SortType {
             return (title: "Top All", image: nil)
 
         case .mostComments:
-            return (title: "Most Comments", image: nil)
+            return (title: "Most Comments", image: UIImage(systemName: "text.bubble")!)
 
         case .newComments:
-            return (title: "New Comments", image: nil)
+            return (title: "New Comments", image: UIImage(systemName: "exclamationmark.bubble")!)
         }
     }
 }
