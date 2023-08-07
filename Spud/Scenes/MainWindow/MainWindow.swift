@@ -18,7 +18,7 @@ class MainWindow: UIWindow {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var accountService: AccountServiceType { dependencies.own.accountService }
+    private var accountService: AccountServiceType { dependencies.own.accountService }
 
     // MARK: Private
 
@@ -37,6 +37,7 @@ class MainWindow: UIWindow {
         .eraseToAnyPublisher()
 
     private let tabBarController: MainWindowTabBarController
+    private var splitViewController: MainWindowSplitViewController?
 
     private var disposables = Set<AnyCancellable>()
 
@@ -87,6 +88,7 @@ class MainWindow: UIWindow {
             account: account,
             dependencies: dependencies.nested
         )
+        self.splitViewController = splitViewController
         splitViewController.delegate = self
 
         // Tab: Setup the account view controller
@@ -109,6 +111,13 @@ class MainWindow: UIWindow {
             ],
             animated: false
         )
+    }
+
+    func display(post vc: PostDetailOrEmptyViewController) {
+        // Switch to the post content tab
+        tabBarController.selectedIndex = 0
+
+        splitViewController?.display(post: vc)
     }
 }
 

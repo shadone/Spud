@@ -11,7 +11,7 @@ import os.log
 private let logger = Logger(.app)
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
-    var window: UIWindow?
+    var window: MainWindow?
 
     func scene(
         _ scene: UIScene,
@@ -88,7 +88,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
                 dependencies: AppCoordinator.shared.dependencies
             )
             postDetailVC.startLoadingPost(postId: postId)
-            window?.rootViewController?.present(postDetailVC, animated: true)
+
+            window?.display(post: postDetailVC)
 
         case .person:
             // TODO: open PersonVC

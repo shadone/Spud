@@ -18,7 +18,12 @@ class MainWindowSplitViewController: UISplitViewController {
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var accountService: AccountServiceType { dependencies.own.accountService }
+    private var accountService: AccountServiceType { dependencies.own.accountService }
+
+    // MARK: Public
+
+    let postListNavigationController = UINavigationController()
+    let postsNavigationController = UINavigationController()
 
     // MARK: Functions
 
@@ -41,19 +46,18 @@ class MainWindowSplitViewController: UISplitViewController {
             feed: feed,
             dependencies: self.dependencies.nested
         )
-        let primaryNavigationController = UINavigationController()
-        primaryNavigationController.setViewControllers([subscriptionsVC, postListVC], animated: false)
+        postListNavigationController.setViewControllers([subscriptionsVC, postListVC], animated: false)
 
         // Setup the post detail (the secondary part of split view controller)
         let postDetailVC = PostDetailOrEmptyViewController(
             account: account,
             dependencies: self.dependencies.nested
         )
-        let secondaryNavigationController = UINavigationController(rootViewController: postDetailVC)
+        postsNavigationController.setViewControllers([postDetailVC], animated: false)
 
-        setViewController(primaryNavigationController, for: .primary)
-        setViewController(secondaryNavigationController, for: .secondary)
-        setViewController(primaryNavigationController, for: .compact)
+        setViewController(postListNavigationController, for: .primary)
+        setViewController(postsNavigationController, for: .secondary)
+        setViewController(postListNavigationController, for: .compact)
         preferredDisplayMode = .oneBesideSecondary
         preferredSplitBehavior = .tile
 
@@ -64,5 +68,9 @@ class MainWindowSplitViewController: UISplitViewController {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    func display(post vc: PostDetailOrEmptyViewController) {
+        postListNavigationController.pushViewController(vc, animated: true)
     }
 }
