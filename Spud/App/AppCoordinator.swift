@@ -8,7 +8,9 @@ import Combine
 import CoreData
 import Foundation
 import SpudDataKit
-import WidgetKit
+import os.log
+
+private let logger = Logger(.app)
 
 class AppCoordinator {
     static var shared: AppCoordinator {
@@ -39,5 +41,28 @@ class AppCoordinator {
 
     func start() {
         dependencies.start()
+    }
+
+    func open(_ url: URL, in window: MainWindow) {
+        switch url.spud {
+        case let .post(postId, instance):
+            // FIXME: for now assume the post's instance is the same as the default account.
+            _ = instance
+            let account = AppCoordinator.shared.dependencies.accountService.defaultAccount()
+            let postDetailVC = PostDetailOrEmptyViewController(
+                account: account,
+                dependencies: AppCoordinator.shared.dependencies
+            )
+            postDetailVC.startLoadingPost(postId: postId)
+
+            window.display(post: postDetailVC)
+
+        case .person:
+            // TODO: open PersonVC
+            break
+
+        case .none:
+            logger.error("Received open url request for url that we can't handle: \(url.absoluteString, privacy: .public)")
+        }
     }
 }

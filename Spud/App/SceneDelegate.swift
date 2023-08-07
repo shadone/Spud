@@ -30,6 +30,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         )
         self.window = window
 
+        if let url = connectionOptions.urlContexts.first?.url {
+            AppCoordinator.shared.open(url, in: window)
+        }
+
         window.makeKeyAndVisible()
     }
 
@@ -78,25 +82,11 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         guard let url = URLContexts.first?.url else { return }
 
-        switch url.spud {
-        case let .post(postId, instance):
-            // FIXME: for now assume the post's instance is the same as the default account.
-            _ = instance
-            let account = AppCoordinator.shared.dependencies.accountService.defaultAccount()
-            let postDetailVC = PostDetailOrEmptyViewController(
-                account: account,
-                dependencies: AppCoordinator.shared.dependencies
-            )
-            postDetailVC.startLoadingPost(postId: postId)
-
-            window?.display(post: postDetailVC)
-
-        case .person:
-            // TODO: open PersonVC
-            break
-
-        case .none:
-            logger.error("Received open url request for url that we can't handle: \(url.absoluteString, privacy: .public)")
+        guard let window else {
+            assertionFailure("Huh, no window?")
+            return
         }
+
+        AppCoordinator.shared.open(url, in: window)
     }
 }
