@@ -107,7 +107,8 @@ class PostDetailCommentViewModel {
             .combineLatest(appearance.commentRibbonThemePublisher)
             .map { indentationLevel, theme in
                 let colors = theme.colors
-                return colors[Int(indentationLevel - 1) % colors.count]
+                let index = max(0, Int(indentationLevel - 1) % colors.count)
+                return colors[index]
             }
             .eraseToAnyPublisher()
     }
