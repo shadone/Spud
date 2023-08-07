@@ -5,13 +5,12 @@
 //
 
 import Foundation
+import CoreData
 import SpudDataKit
 
 class DependencyContainer: ObservableObject,
     HasDataStore,
     HasAccountService,
-    HasSiteService,
-    HasImageService,
     HasAlertService,
     HasEntryService
 {
@@ -21,18 +20,14 @@ class DependencyContainer: ObservableObject,
 
     let dataStore: DataStoreType = DataStore()
     let accountService: AccountServiceType
-    let siteService: SiteServiceType
-    let imageService: ImageServiceType
     let alertService: AlertServiceType = AlertService()
     let entryService: EntryServiceType
 
     // MARK: Functions
 
     init() {
-        imageService = ImageService(alertService: alertService)
-        siteService = SiteService(dataStore: dataStore)
         accountService = AccountService(
-            siteService: siteService,
+            siteService: EmptySiteService(),
             dataStore: dataStore
         )
         entryService = EntryService(
@@ -45,7 +40,16 @@ class DependencyContainer: ObservableObject,
 
     private func start() {
         dataStore.startService()
-        siteService.startService()
         entryService.startService()
     }
+}
+
+private class EmptySiteService: SiteServiceType {
+    func startService() { }
+
+    func allSites(in context: NSManagedObjectContext) -> [LemmySite] {
+        fatalError()
+    }
+
+    func populateSiteListWithSuggestedInstancesIfNeeded() { }
 }
