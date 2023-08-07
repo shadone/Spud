@@ -82,7 +82,7 @@ extension LemmyAccountInfo {
     }
 }
 
-extension LemmyAccountInfo {
+public extension LemmyAccountInfo {
     /// The default sort type for the user.
     var defaultSortType: SortType {
         get {

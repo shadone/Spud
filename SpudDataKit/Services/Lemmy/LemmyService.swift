@@ -24,6 +24,9 @@ public enum LemmyServiceError: Error {
 }
 
 public protocol LemmyServiceType {
+    /// Creates feed with default parameters for the account.
+    func createFeed() -> LemmyFeed
+
     func createFeed(_ type: LemmyFeed.FeedType) -> LemmyFeed
 
     func createFeed(duplicateOf feed: LemmyFeed) -> LemmyFeed
@@ -145,6 +148,30 @@ public class LemmyService: LemmyServiceType {
         backgroundContext.performAndWait {
             backgroundContext.saveIfNeeded()
         }
+    }
+
+    public func createFeed() -> LemmyFeed {
+        assert(Thread.current.isMainThread)
+
+        let accountInMainContext = dataStore.mainContext
+            .object(with: accountObjectId) as! LemmyAccount
+
+        lazy var siteListingType = accountInMainContext.site.siteInfo?.defaultPostListingType
+        let userListingType = accountInMainContext.accountInfo?.defaultListingType
+        let listingType = userListingType ?? siteListingType ?? .all
+
+        let userSortType = accountInMainContext.accountInfo?.defaultSortType
+        let sortType = userSortType ?? .hot
+
+        let newFeed = LemmyFeed(
+            .frontpage(listingType: listingType, sortType: sortType),
+            account: accountInMainContext,
+            in: dataStore.mainContext
+        )
+
+        dataStore.saveIfNeeded()
+
+        return newFeed
     }
 
     public func createFeed(_ type: LemmyFeed.FeedType) -> LemmyFeed {

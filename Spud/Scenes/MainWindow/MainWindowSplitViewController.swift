@@ -40,7 +40,7 @@ class MainWindowSplitViewController: UISplitViewController {
 
         let feed = accountService
             .lemmyService(for: account)
-            .createFeed(.frontpage(listingType: .all, sortType: .active))
+            .createFeed()
 
         let postListVC = PostListViewController(
             feed: feed,

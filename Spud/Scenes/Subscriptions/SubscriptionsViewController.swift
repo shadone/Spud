@@ -92,23 +92,25 @@ extension SubscriptionsViewController: UITableViewDelegate {
         let lemmyService = accountService.lemmyService(for: account)
         let feed: LemmyFeed
 
+        let sortType = account.accountInfo?.defaultSortType ?? .hot
+
         switch SpecialCommunity(from: indexPath) {
         case .subscribed:
             feed = lemmyService.createFeed(.frontpage(
                 listingType: .subscribed,
-                sortType: .active
+                sortType: sortType
             ))
 
         case .local:
             feed = lemmyService.createFeed(.frontpage(
                 listingType: .local,
-                sortType: .active
+                sortType: sortType
             ))
 
         case .all:
             feed = lemmyService.createFeed(.frontpage(
                 listingType: .all,
-                sortType: .active
+                sortType: sortType
             ))
         }
 
