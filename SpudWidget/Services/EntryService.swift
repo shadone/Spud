@@ -160,12 +160,30 @@ class EntryService: EntryServiceType {
     @MainActor private func fetchImage(_ url: URL) async -> UIImage? {
         // TODO: look into fetching images using background request
         // https://developer.apple.com/documentation/widgetkit/making-network-requests-in-a-widget-extension
+
+        logger.debug("Fetching image \(url, privacy: .public)")
+
         guard let (data, _) = try? await URLSession.shared.data(from: url) else {
             return nil
         }
-        return UIImage(data: data)?
+
+        guard let image = UIImage(data: data) else {
+            return nil
+        }
+
+        let width = Int(image.size.width)
+        let height = Int(image.size.height)
+        logger.debug("Got image \(width, privacy: .public)x\(height, privacy: .public) \(data.count, privacy: .public) bytes")
+
+        if max(image.size.width, image.size.height) > 500 {
+            logger.debug("Scaling down image")
             // We have to scale down the images as large images cannot be serialized by WidgetKit:
             // "Widget archival failed due to image being too large [3] - (4000, 3000)."
-            .scalePreservingAspectRatio(targetSize: .init(width: 40, height: 40))
+            return image
+                .scalePreservingAspectRatio(targetSize: .init(width: 40, height: 40))
+        }
+
+        logger.debug("Returning image as is")
+        return image
     }
 }
