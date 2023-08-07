@@ -163,17 +163,24 @@ class EntryService: EntryServiceType {
 
         logger.debug("Fetching image \(url, privacy: .public)")
 
-        guard let (data, _) = try? await URLSession.shared.data(from: url) else {
+        var data: Data?
+        data = (try? await URLSession.shared.data(from: url))?.0
+
+        guard data != nil else {
             return nil
         }
 
-        guard let image = UIImage(data: data) else {
+        guard let image = UIImage(data: data!) else {
             return nil
         }
 
+        let sizeInBytes = data!.count
         let width = Int(image.size.width)
         let height = Int(image.size.height)
-        logger.debug("Got image \(width, privacy: .public)x\(height, privacy: .public) \(data.count, privacy: .public) bytes")
+        logger.debug("Got image \(width, privacy: .public)x\(height, privacy: .public) \(sizeInBytes, privacy: .public) bytes")
+
+        // release raw network response from memory
+        data = nil
 
         if max(image.size.width, image.size.height) > 500 {
             logger.debug("Scaling down image")
