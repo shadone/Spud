@@ -58,64 +58,18 @@ class EntryService: EntryServiceType {
         return entry
     }
 
-    func topPosts(
+    @MainActor func topPosts(
         for configuration: ViewTopPostsIntent
     ) async -> TopPostsEntry {
-        let feed = await fetchFeed(for: configuration)
-        let entry = await entry(from: feed, for: configuration)
+        let topPosts = TopPosts(from: (await fetchFeed(for: configuration)))
+        let entry = await entry(from: topPosts, for: configuration)
         return entry
     }
 
     @MainActor private func entry(
-        from feed: LemmyFeed,
+        from topPosts: TopPosts,
         for configuration: ViewTopPostsIntent
     ) async -> TopPostsEntry {
-        let postInfos = feed.pages
-            .sorted(by: { $0.index < $1.index })
-            .first?
-            .pageElements
-            .sorted(by: { $0.index < $1.index })
-            .map(\.post)
-            .compactMap(\.postInfo)
-            // The max number of posts widget of any size might need.
-            .prefix(6) ?? []
-
-        let topPosts = TopPosts(
-            posts: postInfos
-                .map { postInfo -> Post in
-                    let postType: PostType
-                    if let thumbnailUrl = postInfo.thumbnailUrl {
-                        postType = .image(thumbnailUrl)
-                    } else {
-                        postType = .text
-                    }
-
-                    let postUrl = URL.SpudInternalLink.post(
-                        postId: postInfo.post.postId,
-                        instance: postInfo.post.account.site.instance.actorId
-                    ).url
-
-                    let community: Community
-                    if let communityInfo = postInfo.community.communityInfo {
-                        community = Community(
-                            name: communityInfo.name,
-                            site: communityInfo.hostnameFromActorId
-                        )
-                    } else {
-                        community = Community(name: "-", site: "")
-                    }
-
-                    return .init(
-                        spudUrl: postUrl,
-                        title: postInfo.title,
-                        type: postType,
-                        community: community,
-                        score: postInfo.score,
-                        numberOfComments: postInfo.numberOfComments
-                    )
-                }
-        )
-
         let imageUrls = topPosts.posts
             .compactMap { $0.type.imageUrl }
 
@@ -127,6 +81,8 @@ class EntryService: EntryServiceType {
             }
             return await group.reduce(into: [:]) { $0[$1.0] = $1.1 }
         }
+
+        logger.debug("Done, returning entry")
 
         return TopPostsEntry(
             date: Date(),
