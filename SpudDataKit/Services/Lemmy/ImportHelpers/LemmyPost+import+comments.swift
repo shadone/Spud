@@ -22,6 +22,9 @@ extension LemmyPost {
             return
         }
 
+        // TODO: should we update the Post itself with latest (partial) data
+        //       from comments[0].post which is Post, not PostView.
+
         updatedAt = Date()
 
         // delete existing comment elements for the post

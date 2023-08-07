@@ -66,10 +66,18 @@ class PostDetailViewController: UIViewController {
         tableView.delegate = self
         tableView.dataSource = self
 
+        tableView.refreshControl = refreshControl
+
         tableView.register(PostDetailHeaderCell.self, forCellReuseIdentifier: PostDetailHeaderCell.reuseIdentifier)
         tableView.register(PostDetailCommentCell.self, forCellReuseIdentifier: PostDetailCommentCell.reuseIdentifier)
 
         return tableView
+    }()
+
+    lazy var refreshControl: UIRefreshControl = {
+        let refreshControl = UIRefreshControl()
+        refreshControl.addTarget(self, action: #selector(reloadData), for: .valueChanged)
+        return refreshControl
     }()
 
     // MARK: - Private
@@ -171,6 +179,23 @@ class PostDetailViewController: UIViewController {
     }
 
     private func bindViewModel() {
+    }
+
+    @objc private func reloadData() {
+        accountService
+            .lemmyService(for: postInfo.post.account)
+            .fetchComments(
+                postId: postInfo.post.objectID,
+                sortType: viewModel.outputs.commentSortType.value
+            )
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.refreshControl.endRefreshing()
+                    self?.alertService.errorHandler(for: .fetchComments)(completion)
+                },
+                receiveValue: { _ in }
+            )
+            .store(in: &disposables)
     }
 
     @objc private func openInBrowser() {
