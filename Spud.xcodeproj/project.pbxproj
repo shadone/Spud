@@ -101,7 +101,7 @@
 		92A227092A7FA6F000C18FCD /* ImagePost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A227082A7FA6F000C18FCD /* ImagePost.swift */; };
 		92A2270D2A7FA9F600C18FCD /* Assets+Generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A2270C2A7FA9F600C18FCD /* Assets+Generated.swift */; };
 		92A2270F2A7FAD3A00C18FCD /* SymbolImageResource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A2270E2A7FAD3A00C18FCD /* SymbolImageResource.swift */; };
-		92A227112A7FAE9D00C18FCD /* ColorResource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A227102A7FAE9D00C18FCD /* ColorResource.swift */; };
+		92A227112A7FAE9D00C18FCD /* DesignColorResource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A227102A7FAE9D00C18FCD /* DesignColorResource.swift */; };
 		92A227142A7FAFAF00C18FCD /* Design.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A227132A7FAFAF00C18FCD /* Design.swift */; };
 		92A227162A7FAFD900C18FCD /* TextPost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A227152A7FAFD900C18FCD /* TextPost.swift */; };
 		92A2271E2A7FB56C00C18FCD /* SpudUIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92A226FB2A7FA59E00C18FCD /* SpudUIKit.framework */; };
@@ -488,7 +488,7 @@
 		92A227082A7FA6F000C18FCD /* ImagePost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePost.swift; sourceTree = "<group>"; };
 		92A2270C2A7FA9F600C18FCD /* Assets+Generated.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = "Assets+Generated.swift"; sourceTree = "<group>"; };
 		92A2270E2A7FAD3A00C18FCD /* SymbolImageResource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SymbolImageResource.swift; sourceTree = "<group>"; };
-		92A227102A7FAE9D00C18FCD /* ColorResource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorResource.swift; sourceTree = "<group>"; };
+		92A227102A7FAE9D00C18FCD /* DesignColorResource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignColorResource.swift; sourceTree = "<group>"; };
 		92A227132A7FAFAF00C18FCD /* Design.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Design.swift; sourceTree = "<group>"; };
 		92A227152A7FAFD900C18FCD /* TextPost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextPost.swift; sourceTree = "<group>"; };
 		92A227222A7FB65400C18FCD /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
@@ -951,7 +951,7 @@
 			children = (
 				92A227122A7FAFA900C18FCD /* Design */,
 				92A2270A2A7FA9CB00C18FCD /* Resources */,
-				92A227102A7FAE9D00C18FCD /* ColorResource.swift */,
+				92A227102A7FAE9D00C18FCD /* DesignColorResource.swift */,
 				92A226FD2A7FA59E00C18FCD /* SpudUIKit.h */,
 				92A2270E2A7FAD3A00C18FCD /* SymbolImageResource.swift */,
 			);
@@ -1895,8 +1895,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				92A2270D2A7FA9F600C18FCD /* Assets+Generated.swift in Sources */,
-				92A227112A7FAE9D00C18FCD /* ColorResource.swift in Sources */,
 				92A227142A7FAFAF00C18FCD /* Design.swift in Sources */,
+				92A227112A7FAE9D00C18FCD /* DesignColorResource.swift in Sources */,
 				92A227092A7FA6F000C18FCD /* ImagePost.swift in Sources */,
 				92A2270F2A7FAD3A00C18FCD /* SymbolImageResource.swift in Sources */,
 				92A227162A7FAFD900C18FCD /* TextPost.swift in Sources */,

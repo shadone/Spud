@@ -8,7 +8,7 @@ import Foundation
 import SwiftUI
 import UIKit
 
-public struct ColorResource {
+public struct DesignColorResource {
     let asset: ColorAsset
 
     public var color: UIColor { asset.color }
@@ -16,7 +16,7 @@ public struct ColorResource {
 }
 
 extension ColorAsset {
-    var resource: ColorResource {
+    var resource: DesignColorResource {
         .init(asset: self)
     }
 }
