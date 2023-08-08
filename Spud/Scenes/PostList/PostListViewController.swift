@@ -279,30 +279,10 @@ class PostListViewController: UIViewController {
     }
 
     private func postSelected(_ post: LemmyPost) {
-        guard let splitViewController else {
+        guard let window = view.window as? MainWindow else {
             fatalError()
         }
-
-        guard let postInfo = post.postInfo else {
-            fatalError("We have post list with posts containing no info?")
-        }
-
-        let postDetailVC = PostDetailViewController(
-            postInfo: postInfo,
-            dependencies: dependencies.nested
-        )
-
-        if splitViewController.isCollapsed {
-            guard let navigationController else {
-                fatalError()
-            }
-            navigationController.pushViewController(postDetailVC, animated: true)
-        } else {
-            // we make a new navigation controller here to make UISplitVC replace the
-            // detail screen instead of pushing a new PostDetail VC onto the stack.
-            let navigationController = UINavigationController(rootViewController: postDetailVC)
-            splitViewController.showDetailViewController(navigationController, sender: self)
-        }
+        window.display(post: post)
     }
 
     private func vote(_ post: LemmyPost, _ action: VoteStatus.Action) {

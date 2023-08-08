@@ -113,11 +113,45 @@ class MainWindow: UIWindow {
         )
     }
 
+    /// Pushes the given view controller as a detail view.
+    private func pushDetail(viewController: UIViewController) {
+        guard let splitViewController else {
+            fatalError()
+        }
+
+        if splitViewController.isCollapsed {
+            let navigationController = splitViewController.postListNavigationController
+            navigationController.pushViewController(viewController, animated: true)
+        } else {
+            // we make a new navigation controller here to make UISplitVC replace the
+            // detail screen instead of pushing a new PostDetail VC onto the stack.
+            let navigationController = UINavigationController(rootViewController: viewController)
+            splitViewController.showDetailViewController(navigationController, sender: self)
+        }
+    }
+
     func display(post vc: PostDetailOrEmptyViewController) {
         // Switch to the post content tab
         tabBarController.selectedIndex = 0
 
-        splitViewController?.display(post: vc)
+        pushDetail(viewController: vc)
+    }
+
+    func display(post: LemmyPost) {
+        guard let splitViewController else {
+            fatalError()
+        }
+
+        guard let postInfo = post.postInfo else {
+            fatalError("We have post list with posts containing no info?")
+        }
+
+        let postDetailVC = PostDetailViewController(
+            postInfo: postInfo,
+            dependencies: dependencies.nested
+        )
+
+        pushDetail(viewController: postDetailVC)
     }
 }
 
