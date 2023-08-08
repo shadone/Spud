@@ -28,6 +28,15 @@
       }
     },
     {
+      "identity" : "sbtuitesttunnel",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Subito-it/SBTUITestTunnel",
+      "state" : {
+        "branch" : "master",
+        "revision" : "a1d7e2fce724d09793c7a52ba12c3a98eee89071"
+      }
+    },
+    {
       "identity" : "semver",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sersoft-gmbh/semver",

@@ -5,28 +5,71 @@
 //
 
 import XCTest
+import SBTUITestTunnelClient
 
 class SpudUITests: XCTestCase {
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
         // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
 
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
+        app = SBTUITunneledApplication()
+        let launchOptions = [
+            SBTUITunneledApplicationLaunchOptionResetFilesystem,
+            SBTUITunneledApplicationLaunchOptionDisableUITextFieldAutocomplete,
+            AppLaunchArgument.staticImageService.rawValue,
+        ]
+        app.launchTunnel(withOptions: launchOptions) {
+            self.app.monitorRequests(matching: SBTRequestMatch(url: ".*"))
+
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(url: ".*"),
+                response: SBTStubResponse(response: "", returnCode: 500)
+            )
+
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: "https://.*/pictrs/image/.*",
+                    method: "GET"
+                ),
+                response: SBTStubResponse(
+                    response: [
+                        "image": "tv-pattern",
+                    ],
+                    contentType: "application/vnd.info.ddenis.spud.image+json"
+                )
+            )
+
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: "discuss.tchncs.de/api/v3/post/list",
+                    query: ["&type_=All", "&sort=Hot", "&page=1"],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "post-list-all-hot.json")
+            )
+        }
     }
 
     override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+        let allRequestUrls = app.monitoredRequestsFlushAll().map { request in
+            let httpMethod = request.request!.httpMethod!
+            let url = request.request!.url!.absoluteString
+            let requestTime = request.requestTime
+            return " - \(httpMethod) \(url) [\(requestTime)ms]"
+        }
+        .joined(separator: "\n")
+
+        print("### Network requests intercepted during the test:\n\(allRequestUrls)")
     }
 
     func testExample() throws {
-        // UI tests must launch the application that they test.
-        let app = XCUIApplication()
-        app.launch()
+        let firstCell = app.cell(containing: "Fuck SUVs in particular")
+        let firstCellSubtitle = firstCell.staticTexts["subtitle"].label
+        XCTAssertTrue(firstCellSubtitle.contains("fuckcars"))
 
-        // Use recording to get started writing UI tests.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        let secondCell = app.cell(containing: "Glad to see Lemmy users appreciating diversity")
+        let secondCellSubtitle = secondCell.staticTexts["subtitle"].label
+        XCTAssertTrue(secondCellSubtitle.contains("lemmyshitpost"))
     }
 
     func testLaunchPerformance() throws {

@@ -17,7 +17,7 @@ class AppCoordinator {
         AppDelegate.shared.coordinator
     }
 
-    let dependencies = DependencyContainer()
+    let dependencies: DependencyContainer
 
     // MARK: Private
 
@@ -38,6 +38,12 @@ class AppCoordinator {
         .eraseToAnyPublisher()
 
     // MARK: Functions
+
+    init() {
+        let arguments = ProcessInfo.processInfo.arguments
+            .compactMap { AppLaunchArgument(rawValue: $0) }
+        dependencies = DependencyContainer(arguments: arguments)
+    }
 
     func start() {
         dependencies.start()

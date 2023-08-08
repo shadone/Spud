@@ -33,8 +33,13 @@ struct DependencyContainer:
 
     // MARK: Functions
 
-    init() {
-        imageService = ImageService(alertService: alertService)
+    init(arguments: [AppLaunchArgument]) {
+        if arguments.contains(.staticImageService) {
+            imageService = StaticImageService()
+        } else {
+            imageService = ImageService(alertService: alertService)
+        }
+
         siteService = SiteService(dataStore: dataStore)
         accountService = AccountService(
             siteService: siteService,
