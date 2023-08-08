@@ -52,4 +52,8 @@ private class EmptySiteService: SiteServiceType {
     }
 
     func populateSiteListWithSuggestedInstancesIfNeeded() { }
+
+    func site(for instance: String, in context: NSManagedObjectContext) -> LemmySite {
+        fatalError()
+    }
 }

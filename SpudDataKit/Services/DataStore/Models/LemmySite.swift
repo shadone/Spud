@@ -40,6 +40,7 @@ public extension LemmySite {
         self.init(entity: LemmySite.entity(), insertInto: context)
 
         self.instance = instance
+
         createdAt = Date()
     }
 }

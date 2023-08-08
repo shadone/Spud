@@ -52,16 +52,11 @@ class AppCoordinator {
     func open(_ url: URL, in window: MainWindow) {
         switch url.spud {
         case let .post(postId, instance):
-            // FIXME: for now assume the post's instance is the same as the default account.
-            _ = instance
-            let account = AppCoordinator.shared.dependencies.accountService.defaultAccount()
-            let postDetailVC = PostDetailOrEmptyViewController(
-                account: account,
-                dependencies: AppCoordinator.shared.dependencies
-            )
-            postDetailVC.startLoadingPost(postId: postId)
+            let mainContext = dependencies.dataStore.mainContext
+            let site = dependencies.siteService.site(for: instance, in: mainContext)
+            let account = dependencies.accountService.account(at: site, in: mainContext)
 
-            window.display(post: postDetailVC)
+            window.display(postId: postId, using: account)
 
         case .person:
             // TODO: open PersonVC

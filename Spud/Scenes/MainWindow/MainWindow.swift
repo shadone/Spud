@@ -130,18 +130,20 @@ class MainWindow: UIWindow {
         }
     }
 
-    func display(post vc: PostDetailOrEmptyViewController) {
+    func display(postId: Int32, using account: LemmyAccount) {
         // Switch to the post content tab
         tabBarController.selectedIndex = 0
 
-        pushDetail(viewController: vc)
+        let postDetailVC = PostDetailOrEmptyViewController(
+            account: account,
+            dependencies: AppCoordinator.shared.dependencies
+        )
+        postDetailVC.startLoadingPost(postId: postId)
+
+        pushDetail(viewController: postDetailVC)
     }
 
     func display(post: LemmyPost) {
-        guard let splitViewController else {
-            fatalError()
-        }
-
         guard let postInfo = post.postInfo else {
             fatalError("We have post list with posts containing no info?")
         }

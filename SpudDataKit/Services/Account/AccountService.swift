@@ -22,6 +22,16 @@ public protocol AccountServiceType: AnyObject {
         in context: NSManagedObjectContext
     ) -> LemmyAccount
 
+    /// Looks up a most suitable account for thr the given Lemmy instance.
+    ///
+    /// - Note: This is meant to be used only for real user actions, not for service accounts.
+    ///
+    /// - Returns: A detault account if it is on the same site, if exists. Otherwise returns a signed out account.
+    func account(
+        at site: LemmySite,
+        in context: NSManagedObjectContext
+    ) -> LemmyAccount
+
     /// Returns all signed out accounts. The returned accounts are fetched in the specified context.
     func allSignedOut(in context: NSManagedObjectContext) -> [LemmyAccount]
 
@@ -297,6 +307,50 @@ public class AccountService: AccountServiceType {
                 return account
             }
             .eraseToAnyPublisher()
+    }
+
+    public func account(
+        at site: LemmySite,
+        in context: NSManagedObjectContext
+    ) -> LemmyAccount {
+        assert(Thread.current.isMainThread)
+
+        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "site == %@",
+            site
+        )
+
+        let accounts: [LemmyAccount]
+        do {
+            accounts = try context.fetch(request)
+        } catch {
+            logger.error("Failed to fetch accounts for site: \(error.localizedDescription, privacy: .public)")
+            fatalError("Failed to fetch accounts for site: \(error.localizedDescription)")
+        }
+
+        if let defaultAccount = accounts.first(where: { $0.isDefaultAccount }) {
+            return defaultAccount
+        }
+
+        if let signedOutAccount = accounts.first(where: { $0.isSignedOutAccountType }) {
+            // Return the first signed out account. It might be a service account.
+            return signedOutAccount
+        }
+
+        // TODO: check if there a signed in account for that site
+        // It might be interesting to return both new signed out account and the existing
+        // account. This way we could show UI like "here is the data from the source
+        // but fyi you have an account there".
+
+        func createAccountForSignedOut() -> LemmyAccount {
+            let account = LemmyAccount(signedOutAt: site, in: context)
+            account.isServiceAccount = false
+            context.saveIfNeeded()
+            return account
+        }
+
+        return createAccountForSignedOut()
     }
 }
 

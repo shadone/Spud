@@ -20,6 +20,12 @@ public protocol SiteServiceType: AnyObject {
 
     /// Populate the Core Data storage with a list of popular Lemmy instances that user can log in to.
     func populateSiteListWithSuggestedInstancesIfNeeded()
+
+    /// Returns a Lemmy site for the given instance hostname.
+    func site(
+        for instance: String,
+        in context: NSManagedObjectContext
+    ) -> LemmySite
 }
 
 public protocol HasSiteService {
@@ -175,5 +181,69 @@ public class SiteService: SiteServiceType {
         }
 
         dataStore.saveIfNeeded()
+    }
+
+    public func site(
+        for instance: String,
+        in context: NSManagedObjectContext
+    ) -> LemmySite {
+        assert(Thread.current.isMainThread)
+
+        // TODO: extract into a ActorId struct and take URL.normalizedInstanceUrlString into it.
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = instance
+        guard let instanceActorId = components.url?.absoluteString else {
+            // good enough to crash for now, but fix me later.
+            // The "instance" parameter comes from the user so it may be invalid.
+            // Create an ActorId struct that parses and validates instance names
+            // and use it instead of passing instance as a string.
+            fatalError("Failed to parse hostname '\(instance)'")
+        }
+
+        let existingInstance: Instance? = {
+            let request: NSFetchRequest<Instance> = Instance.fetchRequest()
+            request.fetchLimit = 1
+            request.predicate = NSPredicate(
+                format: "actorId == %@",
+                instanceActorId
+            )
+            do {
+                let instances = try context.fetch(request)
+                if instances.count > 1 {
+                    logger.error("""
+                        Expected zero or one but found \(instances.count, privacy: .public) \
+                        instances for \(instance, privacy: .public)!
+                        """)
+                    assertionFailure()
+                }
+                return instances.first
+            } catch {
+                logger.error("""
+                    Failed to fetch instance for \(instance, privacy: .public): \
+                    \(error.localizedDescription, privacy: .public)
+                    """)
+                assertionFailure()
+                return nil
+            }
+        }()
+
+        if let instance = existingInstance {
+            if let site = instance.site {
+                return site
+            }
+
+            // TODO: check if it's a Lemmy instance via instance.nodeInfo?.softwareName
+
+            let site = LemmySite(instance: instance, in: context)
+            return site
+        }
+
+        let instance = Instance(actorId: instanceActorId, in: context)
+        let site = LemmySite(instance: instance, in: context)
+
+        context.saveIfNeeded()
+
+        return site
     }
 }
