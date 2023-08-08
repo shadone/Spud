@@ -101,16 +101,10 @@ class PostDetailLoadingViewController: UIViewController {
 
         loadingIndicator.startAnimating()
 
-        // TODO: find a better way to get LemmyPost object if exists or create new otherwise.
-        // e.g. something like
-        // dataStore.getOrCreate(postId: postId)
-        let context = dataStore.mainContext
-        let request = LemmyPost.fetchRequest(postId: postId, account: account)
-        let results = try! context.fetch(request)
-        let post = results.first!
+        let lemmyService = accountService.lemmyService(for: account)
+        let post = lemmyService.getOrCreate(postId: postId)
 
-        accountService
-            .lemmyService(for: account)
+        lemmyService
             .fetchPostInfo(postId: post.objectID)
             .sink(
                 receiveCompletion: alertService.errorHandler(for: .fetchPostInfo),

@@ -62,6 +62,8 @@ public protocol LemmyServiceType {
     func fetchPostInfo(
         postId: NSManagedObjectID
     ) -> AnyPublisher<LemmyPostInfo, LemmyServiceError>
+
+    func getOrCreate(postId: PostId) -> LemmyPost
 }
 
 public extension LemmyServiceType {
@@ -572,5 +574,36 @@ public class LemmyService: LemmyServiceType {
             }
             .receive(on: RunLoop.main)
             .eraseToAnyPublisher()
+    }
+
+    public func getOrCreate(postId: PostId) -> LemmyPost {
+        assert(Thread.current.isMainThread)
+
+        let mainContext = dataStore.mainContext
+        let accountInMainContext = mainContext
+            .object(with: accountObjectId) as! LemmyAccount
+
+        let request = LemmyPost.fetchRequest(postId: postId, account: accountInMainContext)
+        do {
+            let results = try mainContext.fetch(request)
+            if results.count == 0 {
+                let newPost = LemmyPost(
+                    postId: postId,
+                    account: accountInMainContext,
+                    in: mainContext
+                )
+                dataStore.saveIfNeeded()
+                return newPost
+            } else if results.count == 1 {
+                let existingPost = results[0]
+                return existingPost
+            } else {
+                assertionFailure("Found \(results.count) posts with id '\(postId)'")
+                return results[0]
+            }
+        } catch {
+            logger.fault("Failed to fetch a post: \(error, privacy: .public)")
+            fatalError("Failed to fetch a post: \(error)")
+        }
     }
 }
