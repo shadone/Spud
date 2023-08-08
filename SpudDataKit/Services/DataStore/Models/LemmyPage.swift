@@ -25,5 +25,8 @@ import Foundation
     // MARK: Relations
 
     @NSManaged public var pageElements: Set<LemmyPageElement>
+
+    // MARK: Reverse relationships
+
     @NSManaged public var feed: LemmyFeed?
 }

@@ -68,13 +68,23 @@ import os.log
     /// Community the post was published in.
     @NSManaged public var community: LemmyCommunity
 
+    // MARK: Reverse relationships
+
     @NSManaged public var post: LemmyPost
 }
 
 extension LemmyPostInfo {
-    convenience init(in context: NSManagedObjectContext) {
+    convenience init(
+        creator: LemmyPerson,
+        community: LemmyCommunity,
+        in context: NSManagedObjectContext
+    ) {
         self.init(context: context)
+
         createdAt = Date()
         updatedAt = createdAt
+
+        self.creator = creator
+        self.community = community
     }
 }

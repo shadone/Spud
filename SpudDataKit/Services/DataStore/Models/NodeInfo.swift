@@ -51,6 +51,8 @@ import os.log
 
     // MARK: Relations
 
+    // MARK: Reverse relationships
+
     @NSManaged public var instance: Instance
 }
 

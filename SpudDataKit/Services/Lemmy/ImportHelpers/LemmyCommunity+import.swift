@@ -19,33 +19,27 @@ extension LemmyCommunity {
     ) {
         self.init(context: context)
 
+        // 1. Set relationships
+        self.account = account
+
+        // 2. Set own properties
         communityId = model.id
 
+        // 3. Inflate object from a model
         set(from: model)
 
+        // 4. Set meta properties
         createdAt = Date()
         updatedAt = createdAt
-
-        self.account = account
     }
 
-    private func getOrCreateCommunityInfo() -> LemmyCommunityInfo? {
-        func createCommunityInfo() -> LemmyCommunityInfo? {
-            guard let context = managedObjectContext else {
-                assertionFailure()
-                return nil
-            }
+    private func createCommunityInfo(
+        in context: NSManagedObjectContext
+    ) -> LemmyCommunityInfo {
+        let communityInfo = LemmyCommunityInfo(in: context)
 
-            let communityInfo = LemmyCommunityInfo(in: context)
-            communityInfo.community = self
+        communityInfo.community = self
 
-            return communityInfo
-        }
-
-        guard let communityInfo else {
-            communityInfo = createCommunityInfo()
-            return communityInfo
-        }
         return communityInfo
     }
 
@@ -54,18 +48,28 @@ extension LemmyCommunity {
     /// This is generally called when updating community from a list of posts that only has partial data - i.e. ``Community`` but not
     /// full ``CommunityView``.
     func set(from model: Community) {
+        guard let context = managedObjectContext else {
+            assertionFailure()
+            return
+        }
+
         assert(communityId == model.id)
 
-        let communityInfo = getOrCreateCommunityInfo()
-        communityInfo?.set(from: model)
+        let communityInfo = communityInfo ?? createCommunityInfo(in: context)
+        communityInfo.set(from: model)
     }
 
     /// Updates community info from the full ``CommunityView`` object.
     func set(from model: CommunityView) {
+        guard let context = managedObjectContext else {
+            assertionFailure()
+            return
+        }
+
         assert(communityId == model.community.id)
 
-        let communityInfo = getOrCreateCommunityInfo()
-        communityInfo?.set(from: model)
+        let communityInfo = communityInfo ?? createCommunityInfo(in: context)
+        communityInfo.set(from: model)
 
         updatedAt = Date()
     }

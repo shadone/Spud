@@ -41,6 +41,8 @@ import LemmyKit
     @NSManaged public var pages: Set<LemmyPage>
     @NSManaged public var account: LemmyAccount
 
+    // MARK: Reverse relationships
+
     // MARK: Functions
 
     public func addToPages(_ page: LemmyPage) {

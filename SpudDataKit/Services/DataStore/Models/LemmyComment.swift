@@ -47,11 +47,14 @@ import LemmyKit
 
     // MARK: Relations
 
-    @NSManaged public var commentElements: Set<LemmyCommentElement>
     @NSManaged public var post: LemmyPost
 
     /// The author of the comment.
     @NSManaged public var creator: LemmyPerson
+
+    // MARK: Reverse relationships
+
+    @NSManaged public var commentElements: Set<LemmyCommentElement>
 }
 
 extension LemmyComment {

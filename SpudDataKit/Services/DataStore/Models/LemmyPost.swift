@@ -48,18 +48,26 @@ import os.log
     /// Additional info about the post.
     @NSManaged public var postInfo: LemmyPostInfo?
 
+    // MARK: Reverse relationships
+
     @NSManaged public var pageElements: Set<LemmyPageElement>
     @NSManaged public var commentElements: Set<LemmyCommentElement>
 }
 
 extension LemmyPost {
-    convenience init(postId: PostId, in context: NSManagedObjectContext) {
+    convenience init(
+        postId: PostId,
+        account: LemmyAccount,
+        in context: NSManagedObjectContext
+    ) {
         self.init(context: context)
 
         self.postId = postId
 
         self.createdAt = Date()
         self.updatedAt = createdAt
+
+        self.account = account
     }
 }
 

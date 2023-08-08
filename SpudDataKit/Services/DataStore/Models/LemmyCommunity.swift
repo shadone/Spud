@@ -45,6 +45,8 @@ import os.log
     /// The extended info about the community.
     @NSManaged public var communityInfo: LemmyCommunityInfo?
 
+    // MARK: Reverse relationships
+
     @NSManaged public var postInfos: Set<LemmyPostInfo>
 }
 

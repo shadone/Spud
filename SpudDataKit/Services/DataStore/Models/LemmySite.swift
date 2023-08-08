@@ -23,10 +23,12 @@ import os.log
 
     // MARK: Relations
 
-    @NSManaged public var instance: Instance
-
-    @NSManaged public var accounts: Set<LemmyAccount>
     @NSManaged public var siteInfo: LemmySiteInfo?
+
+    // MARK: Reverse relationships
+
+    @NSManaged public var instance: Instance
+    @NSManaged public var accounts: Set<LemmyAccount>
     @NSManaged public var persons: Set<LemmyPerson>
 }
 

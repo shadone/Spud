@@ -20,5 +20,8 @@ import Foundation
     // MARK: Relations
 
     @NSManaged public var post: LemmyPost
+
+    // MARK: Reverse relationships
+
     @NSManaged public var page: LemmyPage
 }

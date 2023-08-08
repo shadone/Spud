@@ -19,60 +19,66 @@ extension LemmyPerson {
     ) {
         self.init(context: context)
 
+        // 1. Set relationships
+        self.site = site
+
+        // 2. Set own properties
         personId = model.id
 
+        // 3. Inflate object from a model
         set(from: model)
 
+        // 4. Set meta properties
         createdAt = Date()
         updatedAt = createdAt
-
-        self.site = site
     }
 
-    private func getOrCreatePersonInfo() -> LemmyPersonInfo? {
-        func createPersonInfo() -> LemmyPersonInfo? {
-            guard let context = managedObjectContext else {
-                assertionFailure()
-                return nil
-            }
+    private func createPersonInfo(
+        in context: NSManagedObjectContext
+    ) -> LemmyPersonInfo {
+        let personInfo = LemmyPersonInfo(in: context)
 
-            let personInfo = LemmyPersonInfo(in: context)
-            personInfo.person = self
+        personInfo.person = self
 
-            return personInfo
-        }
-
-        guard let personInfo else {
-            personInfo = createPersonInfo()
-            return personInfo
-        }
         return personInfo
     }
 
     func set(from model: LocalUserView) {
-        assert(personId == model.local_user.person_id)
-        //self.personId = model.local_user.person_id
+        guard let context = managedObjectContext else {
+            assertionFailure()
+            return
+        }
 
-        let personInfo = getOrCreatePersonInfo()
-        personInfo?.set(from: model)
+        assert(personId == model.local_user.person_id)
+
+        let personInfo = personInfo ?? createPersonInfo(in: context)
+        personInfo.set(from: model)
     }
 
-    func set(from model: Person) {
+    private func set(from model: Person) {
+        guard let context = managedObjectContext else {
+            assertionFailure()
+            return
+        }
+
         assert(personId == model.id)
 
-        let personInfo = getOrCreatePersonInfo()
-        personInfo?.set(from: model)
+        let personInfo = personInfo ?? createPersonInfo(in: context)
+        personInfo.set(from: model)
 
         updatedAt = Date()
     }
 
     func set(from model: PersonView) {
+        guard let context = managedObjectContext else {
+            assertionFailure()
+            return
+        }
+
         assert(personId == model.person.id)
 
-        set(from: model.person)
-
-        let personInfo = getOrCreatePersonInfo()
-        personInfo?.set(from: model)
+        let personInfo = personInfo ?? createPersonInfo(in: context)
+        personInfo.set(from: model)
 
         updatedAt = Date()
     }

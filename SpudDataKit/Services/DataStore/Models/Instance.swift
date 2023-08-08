@@ -34,6 +34,8 @@ import os.log
 
     @NSManaged public var nodeInfo: NodeInfo?
     @NSManaged public var site: LemmySite?
+
+    // MARK: Reverse relationships
 }
 
 extension Instance {

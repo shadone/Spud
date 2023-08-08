@@ -63,13 +63,16 @@ import os.log
 
     // MARK: Relations
 
-    @NSManaged public var account: LemmyAccount
     @NSManaged public var person: LemmyPerson
+
+    // MARK: Reverse relationships
+
+    @NSManaged public var account: LemmyAccount
 }
 
 extension LemmyAccountInfo {
     convenience init(
-        personId: Int32,
+        personId: Int32, // TODO: should be LemmyPerson, whoever calls me should be using .upsert()
         in context: NSManagedObjectContext
     ) {
         self.init(context: context)

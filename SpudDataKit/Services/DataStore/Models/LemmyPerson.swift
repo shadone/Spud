@@ -67,6 +67,9 @@ import os.log
     @NSManaged public var personInfo: LemmyPersonInfo?
 
     @NSManaged public var accountInfo: LemmyAccountInfo?
+
+    // MARK: Reverse relationships
+
     @NSManaged public var postInfos: Set<LemmyPostInfo>
     @NSManaged public var comments: Set<LemmyComment>
 }

@@ -19,46 +19,62 @@ extension LemmyPost {
     ) {
         self.init(context: context)
 
-        postId = model.post.id
-
-        set(from: model)
-
-        createdAt = Date()
-        updatedAt = createdAt
-
+        // 1. Set relationships
         self.account = account
 
-        assert(postInfo != nil, "should have been created by the set()")
-        postInfo?.creator = LemmyPerson.upsert(model.creator, site: account.site, in: context)
-        postInfo?.community = LemmyCommunity.upsert(model.community, account: account, in: context)
+        // 2. Set own properties
+        postId = model.post.id
+
+        // 3. Inflate object from a model
+        set(from: model)
+
+        // 4. Set meta properties
+        createdAt = Date()
+        updatedAt = createdAt
     }
 
-    private func getOrCreatePostInfo() -> LemmyPostInfo? {
-        func createPostInfo() -> LemmyPostInfo? {
-            guard let context = managedObjectContext else {
-                assertionFailure()
-                return nil
-            }
+    private func createPostInfo(
+        creator: Person,
+        community: Community,
+        in context: NSManagedObjectContext
+    ) -> LemmyPostInfo {
+        let creator = LemmyPerson.upsert(
+            creator,
+            site: account.site,
+            in: context
+        )
 
-            let postInfo = LemmyPostInfo(in: context)
-            postInfo.post = self
+        let community = LemmyCommunity.upsert(
+            community,
+            account: account,
+            in: context
+        )
 
-            return postInfo
-        }
+        let postInfo = LemmyPostInfo(
+            creator: creator,
+            community: community,
+            in: context
+        )
 
-        guard let postInfo else {
-            postInfo = createPostInfo()
-            return postInfo
-        }
+        postInfo.post = self
+
         return postInfo
     }
 
     func set(from model: PostView) {
+        guard let context = managedObjectContext else {
+            assertionFailure()
+            return
+        }
+
         assert(postId == model.post.id)
 
-        let postInfo = getOrCreatePostInfo()
-        assert(postInfo != nil)
-        postInfo?.set(from: model)
+        let postInfo = postInfo ?? createPostInfo(
+            creator: model.creator,
+            community: model.community,
+            in: context
+        )
+        postInfo.set(from: model)
 
         updatedAt = Date()
     }
