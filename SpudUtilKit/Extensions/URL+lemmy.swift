@@ -33,7 +33,7 @@ public extension URL {
                 else {
                     fatalError("Failed to url encode '\(self)'")
                 }
-                return URL(string: "spud://internal/person?personId=\(personId)&instance=\(encodedInstance)")!
+                return URL(string: "info.ddenis.spud://internal/person?personId=\(personId)&instance=\(encodedInstance)")!
 
             case let .post(postId, instance):
                 guard
@@ -42,7 +42,7 @@ public extension URL {
                 else {
                     fatalError("Failed to url encode '\(self)'")
                 }
-                return URL(string: "spud://internal/post?postId=\(postId)&instance=\(encodedInstance)")!
+                return URL(string: "info.ddenis.spud://internal/post?postId=\(postId)&instance=\(encodedInstance)")!
             }
         }
     }
@@ -50,7 +50,7 @@ public extension URL {
     var spud: SpudInternalLink? {
         guard
             let components = URLComponents(url: self, resolvingAgainstBaseURL: false),
-            components.scheme == "spud",
+            components.scheme == "info.ddenis.spud",
             components.host == "internal"
         else {
             return nil

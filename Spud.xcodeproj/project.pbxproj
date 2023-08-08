@@ -134,6 +134,16 @@
 		92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */; };
 		92BBE4A12A5BEEAD008C2F55 /* UITableViewCellBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */; };
 		92C0B32D2A829BDB004EF9E6 /* XCUIApplication+cellContainingLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C0B32C2A829BDB004EF9E6 /* XCUIApplication+cellContainingLabel.swift */; };
+		92C0B3352A829F43004EF9E6 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C0B3342A829F43004EF9E6 /* SafariWebExtensionHandler.swift */; };
+		92C0B3382A829F43004EF9E6 /* _locales in Resources */ = {isa = PBXBuildFile; fileRef = 92C0B3372A829F43004EF9E6 /* _locales */; };
+		92C0B33A2A829F43004EF9E6 /* images in Resources */ = {isa = PBXBuildFile; fileRef = 92C0B3392A829F43004EF9E6 /* images */; };
+		92C0B33C2A829F43004EF9E6 /* manifest.json in Resources */ = {isa = PBXBuildFile; fileRef = 92C0B33B2A829F43004EF9E6 /* manifest.json */; };
+		92C0B33E2A829F43004EF9E6 /* background.js in Resources */ = {isa = PBXBuildFile; fileRef = 92C0B33D2A829F43004EF9E6 /* background.js */; };
+		92C0B3402A829F43004EF9E6 /* content.js in Resources */ = {isa = PBXBuildFile; fileRef = 92C0B33F2A829F43004EF9E6 /* content.js */; };
+		92C0B3422A829F43004EF9E6 /* popup.html in Resources */ = {isa = PBXBuildFile; fileRef = 92C0B3412A829F43004EF9E6 /* popup.html */; };
+		92C0B3442A829F43004EF9E6 /* popup.css in Resources */ = {isa = PBXBuildFile; fileRef = 92C0B3432A829F43004EF9E6 /* popup.css */; };
+		92C0B3462A829F43004EF9E6 /* popup.js in Resources */ = {isa = PBXBuildFile; fileRef = 92C0B3452A829F43004EF9E6 /* popup.js */; };
+		92C0B34A2A829F43004EF9E6 /* OpenInAppExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 92C0B3322A829F43004EF9E6 /* OpenInAppExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		92CC5D542A7DAE3F0019436A /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5D532A7DAE3F0019436A /* AppCoordinator.swift */; };
 		92CC5D652A7EBF5E0019436A /* SpudData.h in Headers */ = {isa = PBXBuildFile; fileRef = 92CC5D642A7EBF5E0019436A /* SpudData.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		92CC5D682A7EBF5E0019436A /* SpudDataKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D622A7EBF5E0019436A /* SpudDataKit.framework */; };
@@ -306,6 +316,13 @@
 			remoteGlobalIDString = 92B7C8F92A3A40EB00672F64;
 			remoteInfo = Spud;
 		};
+		92C0B3482A829F43004EF9E6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 92B7C8F22A3A40EB00672F64 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92C0B3312A829F43004EF9E6;
+			remoteInfo = OpenInAppExtension;
+		};
 		92CC5D662A7EBF5E0019436A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 92B7C8F22A3A40EB00672F64 /* Project object */;
@@ -375,6 +392,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
+				92C0B34A2A829F43004EF9E6 /* OpenInAppExtension.appex in Embed Foundation Extensions */,
 				920B45612A7C1DF500C6C2DC /* SpudWidgetExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
@@ -561,6 +579,17 @@
 		92BBE4A82A5C2D6D008C2F55 /* URL+safePath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+safePath.swift"; sourceTree = "<group>"; };
 		92BBE4AA2A5C39D9008C2F55 /* String+endsWith.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+endsWith.swift"; sourceTree = "<group>"; };
 		92C0B32C2A829BDB004EF9E6 /* XCUIApplication+cellContainingLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "XCUIApplication+cellContainingLabel.swift"; sourceTree = "<group>"; };
+		92C0B3322A829F43004EF9E6 /* OpenInAppExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = OpenInAppExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		92C0B3342A829F43004EF9E6 /* SafariWebExtensionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariWebExtensionHandler.swift; sourceTree = "<group>"; };
+		92C0B3372A829F43004EF9E6 /* _locales */ = {isa = PBXFileReference; lastKnownFileType = folder; path = _locales; sourceTree = "<group>"; };
+		92C0B3392A829F43004EF9E6 /* images */ = {isa = PBXFileReference; lastKnownFileType = folder; path = images; sourceTree = "<group>"; };
+		92C0B33B2A829F43004EF9E6 /* manifest.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = manifest.json; sourceTree = "<group>"; };
+		92C0B33D2A829F43004EF9E6 /* background.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = background.js; sourceTree = "<group>"; };
+		92C0B33F2A829F43004EF9E6 /* content.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = content.js; sourceTree = "<group>"; };
+		92C0B3412A829F43004EF9E6 /* popup.html */ = {isa = PBXFileReference; lastKnownFileType = text.html; path = popup.html; sourceTree = "<group>"; };
+		92C0B3432A829F43004EF9E6 /* popup.css */ = {isa = PBXFileReference; lastKnownFileType = text.css; path = popup.css; sourceTree = "<group>"; };
+		92C0B3452A829F43004EF9E6 /* popup.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = popup.js; sourceTree = "<group>"; };
+		92C0B3472A829F43004EF9E6 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		92C82A362A58643600B5B431 /* PostContentDetectorService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostContentDetectorService.swift; sourceTree = "<group>"; };
 		92C82A382A5955DD00B5B431 /* PostContentType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostContentType.swift; sourceTree = "<group>"; };
 		92CC5D532A7DAE3F0019436A /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
@@ -674,6 +703,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				92DC45362A8191AA003498C1 /* SBTUITestTunnelClient in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92C0B32F2A829F43004EF9E6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1022,6 +1058,7 @@
 				92CC5D8A2A7EBFEA0019436A /* SpudUtilKit */,
 				92A226DB2A7EFA1400C18FCD /* SpudUtilKitTests */,
 				92A226FC2A7FA59E00C18FCD /* SpudUIKit */,
+				92C0B3332A829F43004EF9E6 /* OpenInAppExtension */,
 				92B7C8FB2A3A40EB00672F64 /* Products */,
 				92B7C9442A3A5E7100672F64 /* Frameworks */,
 			);
@@ -1039,6 +1076,7 @@
 				92A226C62A7EF9A900C18FCD /* SpudDataKitTests.xctest */,
 				92A226DA2A7EFA1400C18FCD /* SpudUtilKitTests.xctest */,
 				92A226FB2A7FA59E00C18FCD /* SpudUIKit.framework */,
+				92C0B3322A829F43004EF9E6 /* OpenInAppExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1288,6 +1326,31 @@
 				92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */,
 			);
 			path = Comment;
+			sourceTree = "<group>";
+		};
+		92C0B3332A829F43004EF9E6 /* OpenInAppExtension */ = {
+			isa = PBXGroup;
+			children = (
+				92C0B3362A829F43004EF9E6 /* Resources */,
+				92C0B3472A829F43004EF9E6 /* Info.plist */,
+				92C0B3342A829F43004EF9E6 /* SafariWebExtensionHandler.swift */,
+			);
+			path = OpenInAppExtension;
+			sourceTree = "<group>";
+		};
+		92C0B3362A829F43004EF9E6 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				92C0B3372A829F43004EF9E6 /* _locales */,
+				92C0B3392A829F43004EF9E6 /* images */,
+				92C0B33D2A829F43004EF9E6 /* background.js */,
+				92C0B33F2A829F43004EF9E6 /* content.js */,
+				92C0B33B2A829F43004EF9E6 /* manifest.json */,
+				92C0B3432A829F43004EF9E6 /* popup.css */,
+				92C0B3412A829F43004EF9E6 /* popup.html */,
+				92C0B3452A829F43004EF9E6 /* popup.js */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		92C82A352A58625F00B5B431 /* PostContentDetector */ = {
@@ -1572,6 +1635,7 @@
 				92CC5D8E2A7EBFEA0019436A /* PBXTargetDependency */,
 				92CC5DBE2A7EC7C50019436A /* PBXTargetDependency */,
 				92A227002A7FA59E00C18FCD /* PBXTargetDependency */,
+				92C0B3492A829F43004EF9E6 /* PBXTargetDependency */,
 			);
 			name = Spud;
 			packageProductDependencies = (
@@ -1621,6 +1685,23 @@
 			productName = SpudUITests;
 			productReference = 92B7C91D2A3A40F400672F64 /* SpudUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		92C0B3312A829F43004EF9E6 /* OpenInAppExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 92C0B34D2A829F43004EF9E6 /* Build configuration list for PBXNativeTarget "OpenInAppExtension" */;
+			buildPhases = (
+				92C0B32E2A829F43004EF9E6 /* Sources */,
+				92C0B32F2A829F43004EF9E6 /* Frameworks */,
+				92C0B3302A829F43004EF9E6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OpenInAppExtension;
+			productName = OpenInAppExtension;
+			productReference = 92C0B3322A829F43004EF9E6 /* OpenInAppExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 		92CC5D612A7EBF5E0019436A /* SpudDataKit */ = {
 			isa = PBXNativeTarget;
@@ -1672,7 +1753,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 1430;
+				LastSwiftUpdateCheck = 1500;
 				LastUpgradeCheck = 1320;
 				TargetAttributes = {
 					920B454E2A7C1DF400C6C2DC = {
@@ -1701,6 +1782,9 @@
 					92B7C91C2A3A40F400672F64 = {
 						CreatedOnToolsVersion = 13.2.1;
 						TestTargetID = 92B7C8F92A3A40EB00672F64;
+					};
+					92C0B3312A829F43004EF9E6 = {
+						CreatedOnToolsVersion = 15.0;
 					};
 					92CC5D612A7EBF5E0019436A = {
 						CreatedOnToolsVersion = 14.3.1;
@@ -1740,6 +1824,7 @@
 				92CC5D882A7EBFEA0019436A /* SpudUtilKit */,
 				92A226D92A7EFA1400C18FCD /* SpudUtilKitTests */,
 				92A227172A7FB24600C18FCD /* SwiftGen: SpudUIKit */,
+				92C0B3312A829F43004EF9E6 /* OpenInAppExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -1796,6 +1881,21 @@
 			buildActionMask = 2147483647;
 			files = (
 				9233A1382A81A61700F1F795 /* post-list-all-hot.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		92C0B3302A829F43004EF9E6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				92C0B3382A829F43004EF9E6 /* _locales in Resources */,
+				92C0B33E2A829F43004EF9E6 /* background.js in Resources */,
+				92C0B3402A829F43004EF9E6 /* content.js in Resources */,
+				92C0B33A2A829F43004EF9E6 /* images in Resources */,
+				92C0B33C2A829F43004EF9E6 /* manifest.json in Resources */,
+				92C0B3442A829F43004EF9E6 /* popup.css in Resources */,
+				92C0B3422A829F43004EF9E6 /* popup.html in Resources */,
+				92C0B3462A829F43004EF9E6 /* popup.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1999,6 +2099,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		92C0B32E2A829F43004EF9E6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				92C0B3352A829F43004EF9E6 /* SafariWebExtensionHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		92CC5D5E2A7EBF5E0019436A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -2136,6 +2244,11 @@
 			isa = PBXTargetDependency;
 			target = 92B7C8F92A3A40EB00672F64 /* Spud */;
 			targetProxy = 92B7C91E2A3A40F400672F64 /* PBXContainerItemProxy */;
+		};
+		92C0B3492A829F43004EF9E6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92C0B3312A829F43004EF9E6 /* OpenInAppExtension */;
+			targetProxy = 92C0B3482A829F43004EF9E6 /* PBXContainerItemProxy */;
 		};
 		92CC5D672A7EBF5E0019436A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -2647,6 +2760,77 @@
 			};
 			name = Release;
 		};
+		92C0B34B2A829F43004EF9E6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = J8B76VBZ57;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OpenInAppExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = OpenInAppExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.Spud.OpenInAppExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		92C0B34C2A829F43004EF9E6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = J8B76VBZ57;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = OpenInAppExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = OpenInAppExtension;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.Spud.OpenInAppExtension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		92CC5D6A2A7EBF5E0019436A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -2869,6 +3053,15 @@
 			buildConfigurations = (
 				92B7C92E2A3A40F400672F64 /* Debug */,
 				92B7C92F2A3A40F400672F64 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		92C0B34D2A829F43004EF9E6 /* Build configuration list for PBXNativeTarget "OpenInAppExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				92C0B34B2A829F43004EF9E6 /* Debug */,
+				92C0B34C2A829F43004EF9E6 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -1,0 +1,10 @@
+{
+    "extension_name": {
+        "message": "Open in Spud",
+        "description": "The display name for the extension."
+    },
+    "extension_description": {
+        "message": "Open Lemmy links in Spud app.\nThis extension does not collect any data about the visited websites, all Lemmy link processing occurs on device.",
+        "description": "Description of what the extension does."
+    }
+}

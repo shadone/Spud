@@ -17,7 +17,7 @@ extension URL {
     ///
     /// For example,
     /// ```swift
-    /// let url = URL(string: "spud://image-from-asset/foobar")
+    /// let url = URL(string: "info.ddenis.spud://image-from-asset/foobar")
     ///
     /// // these two images are equivalent
     /// let imageViaUrl = url.spudImageFromAsset
@@ -25,7 +25,7 @@ extension URL {
     /// ```
     var spudImageFromAsset: UIImage? {
         guard
-            scheme == "spud",
+            scheme == "info.ddenis.spud",
             safeHost == "image-from-assets"
         else {
             assertionFailure("Invalid url format for asset link: '\(absoluteString)'")
