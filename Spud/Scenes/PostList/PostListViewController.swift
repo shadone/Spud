@@ -350,6 +350,8 @@ class PostListViewController: UIViewController {
             intent.sortType = .newComments
         }
 
+        logger.debug("Donating intent \(intent, privacy: .public)")
+
         let interaction = INInteraction(intent: intent, response: nil)
         interaction.donate { error in
             if let error {
