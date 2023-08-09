@@ -5,6 +5,9 @@
 //
 
 import Foundation
+import os.log
+
+private let logger = Logger(.utils)
 
 public extension URL {
     enum SpudInternalLink {
@@ -65,7 +68,7 @@ public extension URL {
                     .first(where: { $0.name == "instance" })?.value,
                 let instance = InstanceActorId(from: instanceString)
             else {
-                assertionFailure()
+                logger.warning("Invalid internal link: \(absoluteString, privacy: .public)")
                 return nil
             }
 
@@ -79,14 +82,14 @@ public extension URL {
                     .first(where: { $0.name == "instance" })?.value,
                 let instance = InstanceActorId(from: instanceString)
             else {
-                assertionFailure()
+                logger.warning("Invalid internal link: \(absoluteString, privacy: .public)")
                 return nil
             }
 
             return .post(postId: postId, instance: instance)
         }
 
-        assertionFailure("Unhandled url: \(absoluteString)")
+        logger.warning("Invalid internal link: \(absoluteString, privacy: .public)")
         return nil
     }
 }
