@@ -12,11 +12,11 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         let request = context.inputItems.first as? NSExtensionItem
 
         let profile: UUID?
-        if #available(iOS 17.0, macOS 14.0, *) {
-            profile = request?.userInfo?[SFExtensionProfileKey] as? UUID
-        } else {
+        // if #available(iOS 17.0, macOS 14.0, *) {
+        //     profile = request?.userInfo?[SFExtensionProfileKey] as? UUID
+        // } else {
             profile = request?.userInfo?["profile"] as? UUID
-        }
+        //}
 
         let message: Any?
         if #available(iOS 17.0, macOS 14.0, *) {
