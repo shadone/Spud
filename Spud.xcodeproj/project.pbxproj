@@ -245,6 +245,8 @@
 		92D6BAA22A842EC9005ECCC2 /* InstanceActorId.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D6BAA12A842EC9005ECCC2 /* InstanceActorId.swift */; };
 		92D6BAA42A84323B005ECCC2 /* InstanceActorIdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D6BAA32A84323B005ECCC2 /* InstanceActorIdTests.swift */; };
 		92D6BAA62A84505B005ECCC2 /* URLSpudTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D6BAA52A84505B005ECCC2 /* URLSpudTests.swift */; };
+		92D6BAA82A8456C4005ECCC2 /* IntentFeedType+convert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D6BAA72A8456C4005ECCC2 /* IntentFeedType+convert.swift */; };
+		92D6BAAA2A8458A9005ECCC2 /* IntentSortType+convert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D6BAA92A8458A9005ECCC2 /* IntentSortType+convert.swift */; };
 		92DC45362A8191AA003498C1 /* SBTUITestTunnelClient in Frameworks */ = {isa = PBXBuildFile; productRef = 92DC45352A8191AA003498C1 /* SBTUITestTunnelClient */; };
 		92DC45382A8191AA003498C1 /* SBTUITestTunnelServer in Frameworks */ = {isa = PBXBuildFile; productRef = 92DC45372A8191AA003498C1 /* SBTUITestTunnelServer */; };
 		92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D62A458F1100497C3B /* MainWindowTabBarController.swift */; };
@@ -622,6 +624,8 @@
 		92D6BAA12A842EC9005ECCC2 /* InstanceActorId.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstanceActorId.swift; sourceTree = "<group>"; };
 		92D6BAA32A84323B005ECCC2 /* InstanceActorIdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstanceActorIdTests.swift; sourceTree = "<group>"; };
 		92D6BAA52A84505B005ECCC2 /* URLSpudTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLSpudTests.swift; sourceTree = "<group>"; };
+		92D6BAA72A8456C4005ECCC2 /* IntentFeedType+convert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "IntentFeedType+convert.swift"; sourceTree = "<group>"; };
+		92D6BAA92A8458A9005ECCC2 /* IntentSortType+convert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "IntentSortType+convert.swift"; sourceTree = "<group>"; };
 		92DD62D02A43A93F00497C3B /* VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoteStatus.swift; sourceTree = "<group>"; };
 		92DD62D22A43AB3E00497C3B /* LemmyPostInfo+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPostInfo+VoteStatus.swift"; sourceTree = "<group>"; };
 		92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyComment+VoteStatus.swift"; sourceTree = "<group>"; };
@@ -779,6 +783,8 @@
 		9215FDFE2A7FEE6E008B49AB /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				92D6BAA72A8456C4005ECCC2 /* IntentFeedType+convert.swift */,
+				92D6BAA92A8458A9005ECCC2 /* IntentSortType+convert.swift */,
 				9215FDFF2A7FEE85008B49AB /* SortType+itemForMenu.swift */,
 			);
 			path = Extensions;
@@ -2032,6 +2038,8 @@
 				926602BD2A5F68DA005A1641 /* GeneralAppearance.swift in Sources */,
 				927343302A61C1FD0089556E /* HasVoid.swift in Sources */,
 				92B7C9812A3D2B7C00672F64 /* IconValueFormatter.swift in Sources */,
+				92D6BAA82A8456C4005ECCC2 /* IntentFeedType+convert.swift in Sources */,
+				92D6BAAA2A8458A9005ECCC2 /* IntentSortType+convert.swift in Sources */,
 				927343332A61C6550089556E /* LinkLabel.swift in Sources */,
 				92CEAEC82A54422C00FAF4DB /* LinkPreviewView.swift in Sources */,
 				92DD63062A48BEAD00497C3B /* LoginViewController.swift in Sources */,

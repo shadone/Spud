@@ -309,46 +309,8 @@ class PostListViewController: UIViewController {
 
         let feed = viewModel.outputs.feed.value
 
-        switch feed.feedType {
-        case let .frontpage(listingType, _):
-            switch listingType {
-            case .all:
-                intent.feedType = .all
-            case .local:
-                intent.feedType = .local
-            case .subscribed:
-                intent.feedType = .subscribed
-            }
-        }
-
-        switch feed.sortType {
-        case .active:
-            intent.sortType = .active
-        case .hot:
-            intent.sortType = .hot
-        case .new:
-            intent.sortType = .new
-        case .old:
-            break
-        case .topSixHour:
-            intent.sortType = .topSixHour
-        case .topTwelveHour:
-            intent.sortType = .topTwelveHour
-        case .topDay:
-            intent.sortType = .topDay
-        case .topWeek:
-            intent.sortType = .topWeek
-        case .topMonth:
-            intent.sortType = .topMonth
-        case .topYear:
-            intent.sortType = .topYear
-        case .topAll:
-            intent.sortType = .topAll
-        case .mostComments:
-            intent.sortType = .mostComments
-        case .newComments:
-            intent.sortType = .newComments
-        }
+        intent.feedType = .init(from: feed.feedType)
+        intent.sortType = .init(from: feed.sortType)
 
         logger.debug("Donating intent \(intent, privacy: .public)")
 
