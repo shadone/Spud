@@ -8,6 +8,7 @@ import CoreData
 import Foundation
 import os.log
 import LemmyKit
+import SpudUtilKit
 
 extension LemmySite {
     func upsert(
@@ -18,9 +19,11 @@ extension LemmySite {
             return
         }
 
-        let actorId = model.site_view.site.actor_id
-        assert(instance.actorId == actorId.normalizedInstanceUrlString,
-               "\(instance.actorId) != \(actorId)")
+        let actorIdValue = model.site_view.site.actor_id
+        let actorId = InstanceActorId(from: actorIdValue)
+        assert(actorId != nil, "failed to parse actor id '\(actorIdValue)'")
+        assert(instance.actorId == actorId,
+               "\(instance.actorId) != \(String(describing: actorId))")
 
         func createSiteInfo() -> LemmySiteInfo {
             let siteInfo = LemmySiteInfo(context: context)

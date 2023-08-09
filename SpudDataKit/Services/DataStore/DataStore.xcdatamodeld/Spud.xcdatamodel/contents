@@ -91,7 +91,7 @@
         <relationship name="pages" toMany="YES" deletionRule="Cascade" destinationEntity="Page" inverseName="feed" inverseEntity="Page"/>
     </entity>
     <entity name="Instance" representedClassName="Instance" syncable="YES">
-        <attribute name="actorId" attributeType="String"/>
+        <attribute name="actorIdRawValue" attributeType="String"/>
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="nodeInfo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="NodeInfo" inverseName="instance" inverseEntity="NodeInfo"/>
         <relationship name="site" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Site" inverseName="instance" inverseEntity="Site"/>

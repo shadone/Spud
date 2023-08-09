@@ -242,6 +242,8 @@
 		92CC5DE62A7EF0440019436A /* TopPosts+placeholder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9236A46C2A7C5AEA00178F65 /* TopPosts+placeholder.swift */; };
 		92CC5DE72A7EF0440019436A /* Post.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9236A4682A7C5AC900178F65 /* Post.swift */; };
 		92CEAEC82A54422C00FAF4DB /* LinkPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC72A54422C00FAF4DB /* LinkPreviewView.swift */; };
+		92D6BAA22A842EC9005ECCC2 /* InstanceActorId.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D6BAA12A842EC9005ECCC2 /* InstanceActorId.swift */; };
+		92D6BAA42A84323B005ECCC2 /* InstanceActorIdTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92D6BAA32A84323B005ECCC2 /* InstanceActorIdTests.swift */; };
 		92DC45362A8191AA003498C1 /* SBTUITestTunnelClient in Frameworks */ = {isa = PBXBuildFile; productRef = 92DC45352A8191AA003498C1 /* SBTUITestTunnelClient */; };
 		92DC45382A8191AA003498C1 /* SBTUITestTunnelServer in Frameworks */ = {isa = PBXBuildFile; productRef = 92DC45372A8191AA003498C1 /* SBTUITestTunnelServer */; };
 		92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D62A458F1100497C3B /* MainWindowTabBarController.swift */; };
@@ -616,6 +618,8 @@
 		92CEAEC52A52023C00FAF4DB /* LemmyPersonInfo+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPersonInfo+import.swift"; sourceTree = "<group>"; };
 		92CEAEC72A54422C00FAF4DB /* LinkPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkPreviewView.swift; sourceTree = "<group>"; };
 		92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+canonicalHost.swift"; sourceTree = "<group>"; };
+		92D6BAA12A842EC9005ECCC2 /* InstanceActorId.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstanceActorId.swift; sourceTree = "<group>"; };
+		92D6BAA32A84323B005ECCC2 /* InstanceActorIdTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InstanceActorIdTests.swift; sourceTree = "<group>"; };
 		92DD62D02A43A93F00497C3B /* VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoteStatus.swift; sourceTree = "<group>"; };
 		92DD62D22A43AB3E00497C3B /* LemmyPostInfo+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyPostInfo+VoteStatus.swift"; sourceTree = "<group>"; };
 		92DD62D42A43ABB300497C3B /* LemmyComment+VoteStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyComment+VoteStatus.swift"; sourceTree = "<group>"; };
@@ -954,6 +958,7 @@
 		92A226DB2A7EFA1400C18FCD /* SpudUtilKitTests */ = {
 			isa = PBXGroup;
 			children = (
+				92D6BAA32A84323B005ECCC2 /* InstanceActorIdTests.swift */,
 				927618632A74FB9D003D49D4 /* URLLenientStringTests.swift */,
 			);
 			path = SpudUtilKitTests;
@@ -1390,6 +1395,7 @@
 			isa = PBXGroup;
 			children = (
 				9273432B2A61BF450089556E /* Date+relativeString.swift */,
+				92D6BAA12A842EC9005ECCC2 /* InstanceActorId.swift */,
 				92B7C9822A3D2C8800672F64 /* NSAttributedString+symbol.swift */,
 				92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */,
 				9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */,
@@ -1986,6 +1992,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				92D6BAA42A84323B005ECCC2 /* InstanceActorIdTests.swift in Sources */,
 				92A226E42A7EFA2300C18FCD /* URLLenientStringTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -2176,6 +2183,7 @@
 			files = (
 				92CC5DAF2A7EC17F0019436A /* Atomic.swift in Sources */,
 				92CC5D972A7EC1100019436A /* Date+relativeString.swift in Sources */,
+				92D6BAA22A842EC9005ECCC2 /* InstanceActorId.swift in Sources */,
 				92CC5DB02A7EC17F0019436A /* ManagedContextScheduler.swift in Sources */,
 				92CC5D982A7EC1100019436A /* NSAttributedString+symbol.swift in Sources */,
 				92CC5D9E2A7EC1100019436A /* NSManagedObjectContext+saveIfNeeded.swift in Sources */,

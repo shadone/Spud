@@ -105,7 +105,8 @@ class AccountListAccountViewModel {
     private var instanceHostname: AnyPublisher<String, Never> {
         instance
             .flatMap { instance in
-                instance.instanceHostnamePublisher
+                instance.actorIdPublisher
+                    .map(\.host)
             }
             .eraseToAnyPublisher()
     }

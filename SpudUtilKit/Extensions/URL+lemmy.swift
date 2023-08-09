@@ -11,24 +11,24 @@ public extension URL {
         /// Identifies a Person at a given Instance.
         ///
         /// - Parameter personId: person identifier local to the specified instance.
-        /// - Parameter instance: Instance actorId. e.g. "https://lemmy.world", see ``URL/normalizedInstanceUrlString``.
+        /// - Parameter instance: Instance actorId. e.g. "https://lemmy.world".
         ///
         /// - Note: the instance specifies the Lemmy instance the personId is valid for. I.e. it is **not** the persons home site.
-        case person(personId: Int32, instance: String)
+        case person(personId: Int32, instance: InstanceActorId)
 
         /// Identifies a Post at a given Instance.
         ///
         /// - Parameter postId: post identifier local to the specified instance.
-        /// - Parameter instance: Instance actorId. e.g. "https://lemmy.world", see ``URL/normalizedInstanceUrlString``.
+        /// - Parameter instance: Instance actorId. e.g. "https://lemmy.world".
         ///
         /// - Note: the instance specifies the Lemmy instance the personId is valid for. I.e. it is **not** the persons home site.
-        case post(postId: Int32, instance: String)
+        case post(postId: Int32, instance: InstanceActorId)
 
         public var url: URL {
             switch self {
             case let .person(personId, instance):
                 guard
-                    let encodedInstance = instance
+                    let encodedInstance = instance.actorId
                         .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
                 else {
                     fatalError("Failed to url encode '\(self)'")
@@ -37,7 +37,7 @@ public extension URL {
 
             case let .post(postId, instance):
                 guard
-                    let encodedInstance = instance
+                    let encodedInstance = instance.actorId
                         .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
                 else {
                     fatalError("Failed to url encode '\(self)'")
@@ -61,8 +61,9 @@ public extension URL {
                 let personIdString = components.queryItems?
                     .first(where: { $0.name == "personId" })?.value,
                 let personId = Int32(personIdString),
-                let instance = components.queryItems?
-                    .first(where: { $0.name == "instance" })?.value
+                let instanceString = components.queryItems?
+                    .first(where: { $0.name == "instance" })?.value,
+                let instance = InstanceActorId(from: instanceString)
             else {
                 assertionFailure()
                 return nil
@@ -74,8 +75,9 @@ public extension URL {
                 let postIdString = components.queryItems?
                     .first(where: { $0.name == "postId" })?.value,
                 let postId = Int32(postIdString),
-                let instance = components.queryItems?
-                    .first(where: { $0.name == "instance" })?.value
+                let instanceString = components.queryItems?
+                    .first(where: { $0.name == "instance" })?.value,
+                let instance = InstanceActorId(from: instanceString)
             else {
                 assertionFailure()
                 return nil

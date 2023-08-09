@@ -23,7 +23,7 @@ import os.log
     ///
     /// - Note: This is intentionally stored as a string to ensure consistent normalization form so we can compare
     /// instances by comparing their actorId literally, without worrying about e.g. trailing slashes .
-    @NSManaged public var actorId: String
+    @NSManaged public var actorIdRawValue: String
 
     // MARK: Meta properties
 
@@ -40,7 +40,7 @@ import os.log
 
 extension Instance {
     convenience init(
-        actorId: String,
+        actorId: InstanceActorId,
         in context: NSManagedObjectContext
     ) {
         self.init(entity: Instance.entity(), insertInto: context)
@@ -51,18 +51,28 @@ extension Instance {
 }
 
 public extension Instance {
-    var instanceHostnamePublisher: AnyPublisher<String, Never> {
-        publisher(for: \.actorId)
-            .map { URL(string: $0)!.safeHost }
+    var actorId: InstanceActorId {
+        get {
+            guard let actorId = InstanceActorId(from: actorIdRawValue) else {
+                assertionFailure("Failed to parse actorId '\(actorIdRawValue)'")
+                return .invalid
+            }
+            return actorId
+        }
+        set {
+            actorIdRawValue = newValue.actorId
+        }
+    }
+
+    var actorIdPublisher: AnyPublisher<InstanceActorId, Never> {
+        publisher(for: \.actorIdRawValue)
+            .map { InstanceActorId(from: $0) ?? .invalid }
             .eraseToAnyPublisher()
     }
+}
 
-        /// A helper for extracting the hostname part of the instance url
-    var instanceHostname: String {
-        URL(string: actorId)!.safeHost
-    }
-
+public extension Instance {
     var identifierForLogging: String {
-        instanceHostname
+        actorId.host
     }
 }

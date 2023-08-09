@@ -17,7 +17,7 @@ public extension URL {
         }
 
         guard let hostString else {
-            assertionFailure("Failed to get hostname from url '\(absoluteString)'")
+            //assertionFailure("Failed to get hostname from url '\(absoluteString)'")
             return absoluteString
         }
 

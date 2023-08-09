@@ -9,6 +9,7 @@ import Combine
 import Foundation
 import os.log
 import LemmyKit
+import SpudUtilKit
 
 private let logger = Logger(.siteService)
 
@@ -23,7 +24,7 @@ public protocol SiteServiceType: AnyObject {
 
     /// Returns a Lemmy site for the given instance hostname.
     func site(
-        for instance: String,
+        for instance: InstanceActorId,
         in context: NSManagedObjectContext
     ) -> LemmySite
 }
@@ -50,14 +51,19 @@ public class SiteService: SiteServiceType {
     }
 
     private func seedInitialSitesIfNeeded() {
-        let suggestedInstancesActorIds: [String] = [
+        let suggestedInstancesActorIds: [InstanceActorId] = [
             "https://discuss.tchncs.de",
-        ]
+        ].map { stringValue in
+            guard let instanceActorId = InstanceActorId(from: stringValue) else {
+                fatalError("Failed to parse static hard coded string '\(stringValue)'")
+            }
+            return instanceActorId
+        }
 
         let request: NSFetchRequest<Instance> = Instance.fetchRequest()
         request.predicate = NSPredicate(
-            format: "actorId IN %@",
-            suggestedInstancesActorIds
+            format: "actorIdRawValue IN %@",
+            suggestedInstancesActorIds.map(\.actorId)
         )
 
         let existingInstances: [Instance]
@@ -104,7 +110,7 @@ public class SiteService: SiteServiceType {
     }
 
     public func populateSiteListWithSuggestedInstancesIfNeeded() {
-        let suggestedNormalizedInstancesUrls: [String] = [
+        let suggestedInstances: [InstanceActorId] = [
             "https://lemmy.world",
             "https://sopuli.xyz",
             "https://reddthat.com",
@@ -142,13 +148,17 @@ public class SiteService: SiteServiceType {
             "https://lemmy.eus",
             "https://lm.korako.me",
         ]
-            .map { URL(string: $0)! }
-            .map { $0.normalizedInstanceUrlString! }
+            .map { stringValue in
+                guard let instanceActorId = InstanceActorId(from: stringValue) else {
+                    fatalError("Failed to parse static hard coded string '\(stringValue)'")
+                }
+                return instanceActorId
+            }
 
         let request: NSFetchRequest<Instance> = Instance.fetchRequest()
         request.predicate = NSPredicate(
-            format: "actorId IN %@",
-            suggestedNormalizedInstancesUrls
+            format: "actorIdRawValue IN %@",
+            suggestedInstances.map(\.actorId)
         )
 
         let existingInstances: [Instance]
@@ -163,14 +173,14 @@ public class SiteService: SiteServiceType {
         let existingNormalizedInstanceUrls = existingInstances
             .map { $0.actorId }
 
-        let instancesUrlsToAdd = suggestedNormalizedInstancesUrls
+        let instancesToAdd = suggestedInstances
             .filter {
                 !existingNormalizedInstanceUrls.contains($0)
             }
 
-        instancesUrlsToAdd.forEach { normalizedInstanceUrl in
+        instancesToAdd.forEach { instanceActorId in
             let instance = Instance(
-                actorId: normalizedInstanceUrl,
+                actorId: instanceActorId,
                 in: dataStore.mainContext
             )
 
@@ -184,29 +194,17 @@ public class SiteService: SiteServiceType {
     }
 
     public func site(
-        for instance: String,
+        for instance: InstanceActorId,
         in context: NSManagedObjectContext
     ) -> LemmySite {
         assert(Thread.current.isMainThread)
-
-        // TODO: extract into a ActorId struct and take URL.normalizedInstanceUrlString into it.
-        var components = URLComponents()
-        components.scheme = "https"
-        components.host = instance
-        guard let instanceActorId = components.url?.absoluteString else {
-            // good enough to crash for now, but fix me later.
-            // The "instance" parameter comes from the user so it may be invalid.
-            // Create an ActorId struct that parses and validates instance names
-            // and use it instead of passing instance as a string.
-            fatalError("Failed to parse hostname '\(instance)'")
-        }
 
         let existingInstance: Instance? = {
             let request: NSFetchRequest<Instance> = Instance.fetchRequest()
             request.fetchLimit = 1
             request.predicate = NSPredicate(
-                format: "actorId == %@",
-                instanceActorId
+                format: "actorIdRawValue == %@",
+                instance.actorId
             )
             do {
                 let instances = try context.fetch(request)
@@ -239,7 +237,7 @@ public class SiteService: SiteServiceType {
             return site
         }
 
-        let instance = Instance(actorId: instanceActorId, in: context)
+        let instance = Instance(actorId: instance, in: context)
         let site = LemmySite(instance: instance, in: context)
 
         context.saveIfNeeded()

@@ -46,15 +46,6 @@ public extension LemmySite {
 }
 
 public extension LemmySite {
-    var instanceHostnamePublisher: AnyPublisher<String, Never> {
-        instance.instanceHostnamePublisher
-    }
-
-        /// A helper for extracting the hostname part of the instance url
-    var instanceHostname: String {
-        instance.instanceHostname
-    }
-
     var identifierForLogging: String {
         instance.identifierForLogging
     }

@@ -8,6 +8,7 @@ import Combine
 import CoreData
 import Foundation
 import LemmyKit
+import SpudUtilKit
 import os.log
 
 /// Describes a person, e.g. post or comment author.
@@ -27,12 +28,12 @@ import os.log
     /// - Note: the instance specifies the Lemmy instance the personId is valid for. I.e. it is **not** the persons home site.
     @nonobjc public class func fetchRequest(
         personId: PersonId,
-        instanceUrl: String
+        instance: InstanceActorId
     ) -> NSFetchRequest<LemmyPerson> {
         let request = NSFetchRequest<LemmyPerson>(entityName: "Person")
         request.predicate = NSPredicate(
-            format: "personId == %d && site.instance.actorId == %@",
-            personId, instanceUrl
+            format: "personId == %d && site.instance.actorIdRawValue == %@",
+            personId, instance.actorId
         )
         return request
     }

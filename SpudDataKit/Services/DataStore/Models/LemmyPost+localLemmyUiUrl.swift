@@ -11,7 +11,7 @@ public extension LemmyPost {
     /// - Note: This assumes the instance runs standard install of Lemmy-UI which is not entirely correct.
     var localLemmyUiUrl: URL {
         // TODO: check if Lemmy in the intance.nodeInfo?.softwareName
-        let url = URL(string: account.site.instance.actorId)!
+        let url = URL(string: account.site.instance.actorId.actorId)!
 
         if #available(iOS 16.0, *) {
             return url.appending(path: "post/\(postId)")

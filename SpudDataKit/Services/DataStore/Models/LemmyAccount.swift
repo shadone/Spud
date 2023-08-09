@@ -59,7 +59,7 @@ extension LemmyAccount {
     ) {
         self.init(entity: LemmyAccount.entity(), insertInto: context)
 
-        self.id = "<anon>@\(site.instanceHostname)"
+        self.id = "<anon>@\(site.instance.actorId.hostWithPort)"
         self.site = site
         self.isSignedOutAccountType = true
         self.isServiceAccount = false
@@ -76,7 +76,7 @@ extension LemmyAccount {
     ) {
         self.init(entity: LemmyAccount.entity(), insertInto: context)
 
-        self.id = "\(userId)@\(site.instanceHostname)"
+        self.id = "\(userId)@\(site.instance.actorId.hostWithPort)"
         self.site = site
         self.isSignedOutAccountType = false
         self.isServiceAccount = false

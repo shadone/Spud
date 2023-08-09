@@ -7,6 +7,7 @@
 import Foundation
 import CoreData
 import SpudDataKit
+import SpudUtilKit
 
 class DependencyContainer: ObservableObject,
     HasDataStore,
@@ -44,6 +45,7 @@ class DependencyContainer: ObservableObject,
     }
 }
 
+// TODO: remove me when AccountService no longer depends on SiteService
 private class EmptySiteService: SiteServiceType {
     func startService() { }
 
@@ -53,7 +55,7 @@ private class EmptySiteService: SiteServiceType {
 
     func populateSiteListWithSuggestedInstancesIfNeeded() { }
 
-    func site(for instance: String, in context: NSManagedObjectContext) -> LemmySite {
+    func site(for instance: InstanceActorId, in context: NSManagedObjectContext) -> LemmySite {
         fatalError()
     }
 }

@@ -224,8 +224,8 @@ public class AccountService: AccountServiceType {
     }
 
     private func api(for site: LemmySite) -> LemmyApi {
-        guard let instanceUrl = URL(string: site.instance.actorId) else {
-            fatalError("Failed to create URL from normalized instance url '\(site.instance.actorId)'")
+        guard let instanceUrl = site.instance.actorId.url else {
+            fatalError("Failed to create URL from instance actor id '\(site.instance.actorId)'")
         }
         return LemmyApi(instanceUrl: instanceUrl)
     }

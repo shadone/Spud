@@ -208,7 +208,10 @@ class PostDetailViewController: UIViewController {
         switch url.spud {
         case let .person(personId, instance):
             let context = dataStore.mainContext
-            let request = LemmyPerson.fetchRequest(personId: personId, instanceUrl: instance)
+            let request = LemmyPerson.fetchRequest(
+                personId: personId,
+                instance: instance
+            )
             let results = try! context.fetch(request)
             let person = results.first!
             let vc = PersonOrLoadingViewController(

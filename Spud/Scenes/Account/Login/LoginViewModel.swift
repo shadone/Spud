@@ -93,7 +93,10 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
             }
             .eraseToAnyPublisher()
 
-        instanceName = site.instanceHostnamePublisher
+        instanceName = site.publisher(for: \.instance)
+            .flatMap { $0.actorIdPublisher }
+            .map(\.host)
+            .eraseToAnyPublisher()
 
         username = .init("")
         password = .init("")
