@@ -137,15 +137,31 @@ public class SchedulerService: SchedulerServiceType {
 
     /// For signed in accounts periodically re-fetch user info e.g. list of subscribed communities.
     private func fetchSiteInfoAndMyUserInfoForSignedInIfNeeded() {
+        let allSignedInAccounts = accountService
+            .allAccounts(includeSignedOutAccount: false, in: mainContext)
+
+        let accountsToFetchInitialInfo = allSignedInAccounts
+            .filter { $0.accountInfo == nil }
+
         // Fetch initial site info (which includes `MyUserInfo`) for new accounts
         // that we never fetched it before.
-        accountService
-            .allAccounts(includeSignedOutAccount: false, in: mainContext)
-            .filter { $0.accountInfo == nil }
+        accountsToFetchInitialInfo
             .forEach { [weak self] account in
                 self?.fetchSiteInfo(for: account)
             }
 
-        // TODO: also periodically re-fetch e.g. check if the data is older than X days and fetch.
+        // Re-fetch info periodically. Check if the data is older than 1 day and fetch.
+        let oneDay: TimeInterval = 24 * 60 * 60
+        let accountsToUpdateInfo = allSignedInAccounts
+            .filter { $0.accountInfo != nil }
+            .filter { account in
+                let now = Date()
+                let age = now.timeIntervalSince(account.updatedAt)
+                return age > oneDay
+            }
+        accountsToUpdateInfo
+            .forEach { [weak self] account in
+                self?.fetchSiteInfo(for: account)
+            }
     }
 }
