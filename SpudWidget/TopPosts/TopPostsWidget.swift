@@ -69,6 +69,7 @@ struct TopPostsWidgetEntryView: View {
             }
         }
         .padding(padding)
+        .widgetBackground(Color(.systemBackground))
     }
 }
 
@@ -125,3 +126,9 @@ struct TopPostsWidget_Previews: PreviewProvider {
         .previewContext(WidgetPreviewContext(family: .systemLarge))
     }
 }
+
+//#Preview(as: WidgetFamily.systemSmall) {
+//    TopPostsWidget()
+//} timeline: {
+//    TopPostsEntry(date: Date(), topPosts: TopPosts.snapshot, images: TopPosts.snapshot.resolveImagesFromAssets)
+//}
