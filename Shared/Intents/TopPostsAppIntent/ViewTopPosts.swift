@@ -19,11 +19,11 @@ struct ViewTopPostsAppIntent:
     static var title: LocalizedStringResource = "View Top Posts"
     static var description = IntentDescription("")
 
-    @Parameter(title: "Category", default: .subscribed)
-    var feedType: IntentFeedTypeAppEnum?
+    @Parameter(title: "Category", default: .subscribed, requestValueDialog: "Which feed do you want?")
+    var feedType: IntentFeedTypeAppEnum
 
-    @Parameter(title: "Sort", default: .hot)
-    var sortType: IntentSortTypeAppEnum?
+    @Parameter(title: "Sort", default: .hot, requestValueDialog: "How do you want to sort the feed?")
+    var sortType: IntentSortTypeAppEnum
 
     static var parameterSummary: some ParameterSummary {
         Summary()

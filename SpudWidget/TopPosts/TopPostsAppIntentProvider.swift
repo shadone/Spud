@@ -58,10 +58,8 @@ class TopPostsAppIntentProvider: AppIntentTimelineProvider {
     ) async -> Timeline<TopPostsEntry> {
         logger.debug("Timeline requested")
 
-        let listingType = configuration.feedType
-            .map { ListingType(from: $0) } ?? .subscribed
-        let sortType = configuration.sortType
-            .map { SortType(from: $0) } ?? .hot
+        let listingType = ListingType(from: configuration.feedType)
+        let sortType = SortType(from: configuration.sortType)
 
         let entry = await dependencies.entryService
             .topPosts(listingType: listingType, sortType: sortType)
