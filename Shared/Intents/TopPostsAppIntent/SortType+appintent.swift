@@ -5,22 +5,18 @@
 //
 
 import Foundation
-import Intents
-import SpudDataKit
 import LemmyKit
 
-extension IntentSortType {
-    init(from sortType: SortType) {
-        switch sortType {
+@available(iOS 16.0, *)
+extension SortType {
+    init(from value: IntentSortTypeAppEnum) {
+        switch value {
         case .active:
             self = .active
         case .hot:
             self = .hot
         case .new:
             self = .new
-        case .old:
-            // we are not exposing Old sort to the widget configuration
-            self = .unknown
         case .topSixHour:
             self = .topSixHour
         case .topTwelveHour:

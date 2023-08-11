@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import LemmyKit
 import UIKit
 import WidgetKit
 import os.log
@@ -27,7 +28,6 @@ class TopPostsProvider: IntentTimelineProvider {
     func placeholder(in context: Context) -> TopPostsEntry {
         TopPostsEntry(
             date: Date(),
-            configuration: ViewTopPostsIntent(),
             topPosts: .placeholder,
             images: [:]
         )
@@ -44,7 +44,7 @@ class TopPostsProvider: IntentTimelineProvider {
             logger.debug("Snapshot requested")
         }
 
-        let entry = dependencies.entryService.topPostsSnapshot(for: configuration)
+        let entry = dependencies.entryService.topPostsSnapshot()
 
         logger.debug("Snapshot delivered")
         completion(entry)
@@ -57,8 +57,12 @@ class TopPostsProvider: IntentTimelineProvider {
     ) {
         logger.debug("Timeline requested")
 
+        let listingType = ListingType(from: configuration.feedType) ?? .subscribed
+        let sortType = SortType(from: configuration.sortType) ?? .hot
+
         Task {
-            let entry = await dependencies.entryService.topPosts(for: configuration)
+            let entry = await dependencies.entryService
+                .topPosts(listingType: listingType, sortType: sortType)
 
             let now = Date()
             let inOneHour = now.addingTimeInterval(60 * 60)

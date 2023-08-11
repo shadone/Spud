@@ -24,3 +24,21 @@ extension IntentFeedType {
         }
     }
 }
+
+extension ListingType {
+    init?(from intentFeedType: IntentFeedType) {
+        switch intentFeedType {
+        case .unknown:
+            return nil
+
+        case .all:
+            self = .all
+
+        case .local:
+            self = .local
+
+        case .subscribed:
+            self = .subscribed
+        }
+    }
+}

@@ -15,12 +15,11 @@ private let logger = Logger(.entryService)
 protocol EntryServiceType: AnyObject {
     func startService()
 
-    func topPostsSnapshot(
-        for configuration: ViewTopPostsIntent
-    ) -> TopPostsEntry
+    func topPostsSnapshot() -> TopPostsEntry
 
     func topPosts(
-        for configuration: ViewTopPostsIntent
+        listingType: ListingType,
+        sortType: SortType
     ) async -> TopPostsEntry
 }
 
@@ -42,15 +41,12 @@ class EntryService: EntryServiceType {
 
     func startService() { }
 
-    func topPostsSnapshot(
-        for configuration: ViewTopPostsIntent
-    ) -> TopPostsEntry {
+    func topPostsSnapshot() -> TopPostsEntry {
         let snapshot = TopPosts.snapshot
 
         let now = Date()
         let entry = TopPostsEntry(
             date: now,
-            configuration: configuration,
             topPosts: snapshot,
             images: snapshot.resolveImagesFromAssets
         )
@@ -59,16 +55,19 @@ class EntryService: EntryServiceType {
     }
 
     @MainActor func topPosts(
-        for configuration: ViewTopPostsIntent
+        listingType: ListingType,
+        sortType: SortType
     ) async -> TopPostsEntry {
-        let topPosts = TopPosts(from: (await fetchFeed(for: configuration)))
-        let entry = await entry(from: topPosts, for: configuration)
+        let feed = await fetchFeed(listingType: listingType, sortType: sortType)
+
+        let topPosts = TopPosts(from: feed)
+        let entry = await entry(from: topPosts)
+
         return entry
     }
 
     @MainActor private func entry(
-        from topPosts: TopPosts,
-        for configuration: ViewTopPostsIntent
+        from topPosts: TopPosts
     ) async -> TopPostsEntry {
         let imageUrls = topPosts.posts
             .compactMap { $0.type.imageUrl }
@@ -86,56 +85,25 @@ class EntryService: EntryServiceType {
 
         return TopPostsEntry(
             date: Date(),
-            configuration: configuration,
             topPosts: topPosts,
             images: imagesByUrl
         )
     }
 
     @MainActor private func fetchFeed(
-        for configuration: ViewTopPostsIntent
+        listingType: ListingType,
+        sortType: SortType
     ) async -> LemmyFeed {
         let account = accountService.defaultAccount()
         let lemmyService = accountService
             .lemmyService(for: account)
 
         let listingType: ListingType = {
-            switch configuration.feedType {
-            case .all:
-                return .all
-            case .local:
-                return .local
-            case .subscribed, .unknown:
+            switch listingType {
+            case .subscribed:
                 return account.isSignedOutAccountType ? .all : .subscribed
-            }
-        }()
-
-        let sortType: SortType = {
-            switch configuration.sortType {
-            case .active:
-                return .active
-            case .hot, .unknown:
-                return .hot
-            case .new:
-                return .new
-            case .topSixHour:
-                return .topSixHour
-            case .topTwelveHour:
-                return .topTwelveHour
-            case .topDay:
-                return .topDay
-            case .topWeek:
-                return .topWeek
-            case .topMonth:
-                return .topMonth
-            case .topYear:
-                return .topYear
-            case .topAll:
-                return .topAll
-            case .mostComments:
-                return .mostComments
-            case .newComments:
-                return .newComments
+            case .all, .local:
+                return listingType
             }
         }()
 

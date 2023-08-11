@@ -8,7 +8,8 @@ import WidgetKit
 import SwiftUI
 
 struct TopPostsWidgetEntryView: View {
-    var entry: TopPostsProvider.Entry
+    var topPosts: TopPosts
+    var images: [URL: UIImage]
 
     @Environment(\.widgetFamily) var family
 
@@ -29,30 +30,30 @@ struct TopPostsWidgetEntryView: View {
         VStack(alignment: .leading) {
             switch family {
             case .systemMedium:
-                ForEach(entry.topPosts.posts.prefix(3)) { post in
+                ForEach(topPosts.posts.prefix(3)) { post in
                     Link(destination: post.spudUrl) {
-                        PostView(post: post, images: entry.images)
+                        PostView(post: post, images: images)
                     }
                 }
 
             case .systemLarge:
                 Text("Top posts")
-                ForEach(entry.topPosts.posts.prefix(6)) { post in
+                ForEach(topPosts.posts.prefix(6)) { post in
                     Link(destination: post.spudUrl) {
-                        PostView(post: post, images: entry.images)
+                        PostView(post: post, images: images)
                     }
                 }
 
             case .accessoryInline:
-                if let post = entry.topPosts.posts.first {
-                    PostAccessoryInlineView(post: post, images: entry.images)
+                if let post = topPosts.posts.first {
+                    PostAccessoryInlineView(post: post, images: images)
                         .widgetURL(post.spudUrl)
                 } else {
                     Text("No data")
                 }
 
             case .accessoryRectangular:
-                if let post = entry.topPosts.posts.first {
+                if let post = topPosts.posts.first {
                     PostAccessoryRectangularView(post: post)
                         .widgetURL(post.spudUrl)
                 } else {
@@ -74,22 +75,42 @@ struct TopPostsWidgetEntryView: View {
 struct TopPostsWidget: Widget {
     let kind: String = "TopPostsWidget"
 
-    var body: some WidgetConfiguration {
-        IntentConfiguration(
-            kind: kind,
-            intent: ViewTopPostsIntent.self,
-            provider: TopPostsProvider(dependencies: DependencyContainer.shared)
-        ) { entry in
-            TopPostsWidgetEntryView(entry: entry)
+    func makeWidgetConfiguration() -> some WidgetConfiguration {
+        if #available(iOS 17.0, macOS 14.0, watchOS 10.0, *) {
+            return AppIntentConfiguration(
+                kind: kind,
+                intent: ViewTopPostsAppIntent.self,
+                provider: TopPostsAppIntentProvider(dependencies: DependencyContainer.shared)
+            ) { entry in
+                TopPostsWidgetEntryView(
+                    topPosts: entry.topPosts,
+                    images: entry.images
+                )
+            }
+        } else {
+            return IntentConfiguration(
+                kind: kind,
+                intent: ViewTopPostsIntent.self,
+                provider: TopPostsProvider(dependencies: DependencyContainer.shared)
+            ) { entry in
+                TopPostsWidgetEntryView(
+                    topPosts: entry.topPosts,
+                    images: entry.images
+                )
+            }
         }
-        .configurationDisplayName("Top Posts")
-        .description("Displays top posts from your feed.")
-        .supportedFamilies([
-            .systemMedium,
-            .systemLarge,
-            .accessoryInline,
-            .accessoryRectangular,
-        ])
+    }
+
+    var body: some WidgetConfiguration {
+        makeWidgetConfiguration()
+            .configurationDisplayName("Top Posts")
+            .description("Displays top posts from your feed.")
+            .supportedFamilies([
+                .systemMedium,
+                .systemLarge,
+                .accessoryInline,
+                .accessoryRectangular,
+            ])
     }
 }
 
@@ -98,12 +119,8 @@ struct TopPostsWidget_Previews: PreviewProvider {
 
     static var previews: some View {
         TopPostsWidgetEntryView(
-            entry: TopPostsEntry(
-                date: Date(),
-                configuration: ViewTopPostsIntent(),
-                topPosts: topPosts,
-                images: topPosts.resolveImagesFromAssets
-            )
+            topPosts: topPosts,
+            images: topPosts.resolveImagesFromAssets
         )
         .previewContext(WidgetPreviewContext(family: .systemLarge))
     }
