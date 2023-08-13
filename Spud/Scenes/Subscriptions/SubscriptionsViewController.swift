@@ -4,52 +4,27 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Combine
 import SpudDataKit
+import SwiftUI
 import UIKit
 
 class SubscriptionsViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService
     typealias NestedDependencies =
+        SubscriptionsViewModel.Dependencies &
         PostListViewController.Dependencies
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var accountService: AccountServiceType { dependencies.own.accountService }
 
-    // MARK: UI Properties
-
-    lazy var tableView: UITableView = {
-        let tableView = UITableView(frame: .zero, style: .plain)
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        tableView.rowHeight = UITableView.automaticDimension
-
-        tableView.delegate = self
-        tableView.dataSource = self
-
-        tableView.register(SubscriptionsSpecialCommunityCell.self, forCellReuseIdentifier: SubscriptionsSpecialCommunityCell.reuseIdentifier)
-
-        return tableView
-    }()
-
     // MARK: Private
 
-    enum SpecialCommunity: Int {
-        case subscribed
-        case local
-        case all
+    private var disposables = Set<AnyCancellable>()
 
-        init(from indexPath: IndexPath) {
-            assert(indexPath.section == 0)
-            switch indexPath.row {
-            case 0: self = .subscribed
-            case 1: self = .local
-            case 2: self = .all
-            default: fatalError()
-            }
-        }
-    }
-
+    private let viewModel: SubscriptionsViewModel
     private let account: LemmyAccount
 
     // MARK: Functions
@@ -59,9 +34,15 @@ class SubscriptionsViewController: UIViewController {
 
         self.account = account
 
+        self.viewModel = SubscriptionsViewModel(
+            account: account,
+            dependencies: self.dependencies.nested
+        )
+
         super.init(nibName: nil, bundle: nil)
 
         setup()
+        bindViewModel()
     }
 
     @available(*, unavailable)
@@ -70,92 +51,23 @@ class SubscriptionsViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = .white
+        view.backgroundColor = .systemBackground
 
-        view.addSubview(tableView)
-
-        NSLayoutConstraint.activate([
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.topAnchor.constraint(equalTo: view.topAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
+        let contentVC = UIHostingController(rootView: SubscriptionsView(viewModel: self.viewModel))
+        add(child: contentVC)
+        addSubviewWithEdgeConstraints(child: contentVC)
     }
-}
 
-// MARK: - UITableView Delegate
+    private func bindViewModel() {
+        viewModel.outputs.feedRequested
+            .sink { [weak self] feed in
+                self?.display(feed: feed)
+            }
+            .store(in: &disposables)
+    }
 
-extension SubscriptionsViewController: UITableViewDelegate {
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        tableView.deselectRow(at: indexPath, animated: true)
-
-        let lemmyService = accountService.lemmyService(for: account)
-        let feed: LemmyFeed
-
-        let sortType = account.accountInfo?.defaultSortType ?? .hot
-
-        switch SpecialCommunity(from: indexPath) {
-        case .subscribed:
-            feed = lemmyService.createFeed(.frontpage(
-                listingType: .subscribed,
-                sortType: sortType
-            ))
-
-        case .local:
-            feed = lemmyService.createFeed(.frontpage(
-                listingType: .local,
-                sortType: sortType
-            ))
-
-        case .all:
-            feed = lemmyService.createFeed(.frontpage(
-                listingType: .all,
-                sortType: sortType
-            ))
-        }
-
+    private func display(feed: LemmyFeed) {
         let postListVC = PostListViewController(feed: feed, dependencies: dependencies.nested)
         navigationController?.pushViewController(postListVC, animated: true)
-    }
-}
-
-// MARK: - UITableView DataSource
-
-extension SubscriptionsViewController: UITableViewDataSource {
-    func numberOfSections(in tableView: UITableView) -> Int {
-        1
-    }
-
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return 3
-    }
-
-    func tableView(
-        _ tableView: UITableView,
-        cellForRowAt indexPath: IndexPath
-    ) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(
-            withIdentifier: SubscriptionsSpecialCommunityCell.reuseIdentifier,
-            for: indexPath
-        ) as! SubscriptionsSpecialCommunityCell
-
-        switch SpecialCommunity(from: indexPath) {
-        case .subscribed:
-            cell.icon = UIImage(systemName: "newspaper")!
-            cell.titleText = "Subscribed"
-            cell.subtitleText = "Posts from your subscriptions"
-
-        case .local:
-            cell.icon = UIImage(systemName: "house")!
-            cell.titleText = "Local"
-            cell.subtitleText = "Posts from your home instance"
-
-        case .all:
-            cell.icon = UIImage(systemName: "rectangle.stack")!
-            cell.titleText = "All"
-            cell.subtitleText = "Posts from all federated instances"
-        }
-
-        return cell
     }
 }

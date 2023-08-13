@@ -27,7 +27,11 @@ public protocol LemmyServiceType {
     /// Creates feed with default parameters for the account.
     func createFeed() -> LemmyFeed
 
-    func createFeed(_ type: LemmyFeed.FeedType) -> LemmyFeed
+    /// Creates feed for the given ``listingType`` with default sort type parameters for the account.
+    func createFeed(listingType: ListingType) -> LemmyFeed
+
+    /// Creates feed with the explicitly given feed parameters.
+    func createFeed(_ type: FeedType) -> LemmyFeed
 
     func createFeed(duplicateOf feed: LemmyFeed) -> LemmyFeed
 
@@ -103,6 +107,11 @@ public class LemmyService: LemmyServiceType {
         backgroundContext.object(with: accountObjectId) as! LemmyAccount
     }
 
+    /// Returns account object in **main context**.
+    private var accountInMainContext: LemmyAccount {
+        dataStore.mainContext.object(with: accountObjectId) as! LemmyAccount
+    }
+
     // MARK: Functions
 
     init(
@@ -152,18 +161,24 @@ public class LemmyService: LemmyServiceType {
         }
     }
 
+    private func defaultListingType(for account: LemmyAccount) -> ListingType {
+        lazy var siteListingType = accountInMainContext.site.siteInfo?.defaultPostListingType
+        let userListingType = accountInMainContext.accountInfo?.defaultListingType
+        return userListingType ?? siteListingType ?? .all
+    }
+
+    private func defaultSortType(for account: LemmyAccount) -> SortType {
+        let userSortType = accountInMainContext.accountInfo?.defaultSortType
+        return userSortType ?? .hot
+    }
+
     public func createFeed() -> LemmyFeed {
         assert(Thread.current.isMainThread)
 
-        let accountInMainContext = dataStore.mainContext
-            .object(with: accountObjectId) as! LemmyAccount
+        let accountInMainContext = self.accountInMainContext
 
-        lazy var siteListingType = accountInMainContext.site.siteInfo?.defaultPostListingType
-        let userListingType = accountInMainContext.accountInfo?.defaultListingType
-        let listingType = userListingType ?? siteListingType ?? .all
-
-        let userSortType = accountInMainContext.accountInfo?.defaultSortType
-        let sortType = userSortType ?? .hot
+        let listingType = defaultListingType(for: accountInMainContext)
+        let sortType = defaultSortType(for: accountInMainContext)
 
         let newFeed = LemmyFeed(
             .frontpage(listingType: listingType, sortType: sortType),
@@ -176,7 +191,25 @@ public class LemmyService: LemmyServiceType {
         return newFeed
     }
 
-    public func createFeed(_ type: LemmyFeed.FeedType) -> LemmyFeed {
+    public func createFeed(listingType: ListingType) -> LemmyFeed {
+        assert(Thread.current.isMainThread)
+
+        let accountInMainContext = self.accountInMainContext
+
+        let sortType = defaultSortType(for: accountInMainContext)
+
+        let newFeed = LemmyFeed(
+            .frontpage(listingType: listingType, sortType: sortType),
+            account: accountInMainContext,
+            in: dataStore.mainContext
+        )
+
+        dataStore.saveIfNeeded()
+
+        return newFeed
+    }
+
+    public func createFeed(_ type: FeedType) -> LemmyFeed {
         assert(Thread.current.isMainThread)
 
         let accountInMainContext = dataStore.mainContext

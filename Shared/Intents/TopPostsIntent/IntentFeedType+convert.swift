@@ -10,7 +10,7 @@ import SpudDataKit
 import LemmyKit
 
 extension IntentFeedType {
-    init(from feedType: LemmyFeed.FeedType) {
+    init(from feedType: FeedType) {
         switch feedType {
         case let .frontpage(listingType, _):
             switch listingType {
