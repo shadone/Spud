@@ -13,6 +13,17 @@ struct TopPostsWidgetEntryView: View {
 
     @Environment(\.widgetFamily) var family
 
+    var shouldAddBackground: Bool {
+        switch family {
+        case .accessoryCircular, .accessoryInline, .accessoryRectangular:
+            return false
+        case .systemSmall, .systemMedium, .systemLarge, .systemExtraLarge:
+            return true
+        @unknown default:
+            return true
+        }
+    }
+
     var padding: EdgeInsets {
         switch family {
         case .systemSmall, .systemMedium, .systemLarge, .systemExtraLarge:
@@ -69,7 +80,9 @@ struct TopPostsWidgetEntryView: View {
             }
         }
         .padding(padding)
-        .widgetBackground(Color(.systemBackground))
+        .if(shouldAddBackground) { view in
+            view.widgetBackground(Color(.systemBackground))
+        }
     }
 }
 
