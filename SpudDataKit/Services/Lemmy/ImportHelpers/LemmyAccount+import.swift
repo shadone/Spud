@@ -38,5 +38,10 @@ extension LemmyAccount {
         self.accountInfo = accountInfo
 
         accountInfo.set(from: model.local_user_view)
+        // TODO: handle model.follows: [CommunityFollowerView]
+        // TODO: handle model.moderates: [CommunityModeratorView]
+        // TODO: handle model.community_blocks: [CommunityBlockView]
+        // TODO: handle model.person_blocks: [PersonBlockView]
+        // TODO: handle model.discussion_languages: [LanguageId]
     }
 }

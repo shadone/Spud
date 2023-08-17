@@ -43,10 +43,10 @@ import os.log
     // MARK: Relations
 
     @NSManaged public var site: LemmySite
+    @NSManaged public var accountInfo: LemmyAccountInfo?
 
     // MARK: Reverse relationships
 
-    @NSManaged public var accountInfo: LemmyAccountInfo?
     @NSManaged public var feeds: Set<LemmyFeed>
     @NSManaged public var posts: Set<LemmyPost>
     @NSManaged public var communities: Set<LemmyCommunity>
