@@ -104,10 +104,6 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
     }
 
     func didPrepareFetchController(numberOfFetchedComments: Int) {
-        // if we already have comments lets use that and not trigger a new fetch from server.
-        // TODO: reload from server if comments were fetched too long time ago
-        guard numberOfFetchedComments == 0 else { return }
-
         accountService
             .lemmyService(for: postInfo.post.account)
             .fetchComments(postId: postObjectId, sortType: commentSortType.value)
