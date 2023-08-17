@@ -30,7 +30,8 @@ protocol PostDetailViewModelType {
 class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, PostDetailViewModelOutputs {
     typealias OwnDependencies =
         HasAccountService &
-        HasAlertService
+        HasAlertService &
+        HasPreferencesService
     typealias NestedDependencies =
         PostDetailHeaderViewModel.Dependencies
     typealias Dependencies = OwnDependencies & NestedDependencies
@@ -61,7 +62,8 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
             dependencies: dependencies
         )
 
-        commentSortType = CurrentValueSubject(.hot)
+        let preferencesService = dependencies.preferencesService
+        commentSortType = CurrentValueSubject(preferencesService.defaultCommentSortType)
     }
 
     // MARK: Type

@@ -305,7 +305,8 @@ public class LemmyService: LemmyServiceType {
             .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("""
                     Fetch comments for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
-                    post=\(post.postId, privacy: .public)
+                    post=\(post.postId, privacy: .public) \
+                    sortType=\(sortType.rawValue, privacy: .public)
                     """)
                 let request = GetComments.Request(
                     sort: sortType,
