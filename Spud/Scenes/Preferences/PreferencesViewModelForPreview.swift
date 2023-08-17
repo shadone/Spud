@@ -23,6 +23,7 @@ class PreferencesViewModelForPreview:
     func updateDefaultPostSort(_ sortType: SortType) { }
     func updateOpenExternalLink(_ value: Preferences.OpenExternalLink) { }
     func updateOpenExternalLinkInSafariVCReaderMode(_ value: Bool) { }
+    func updateDefaultCommentSort(_ commentSortType: LemmyKit.CommentSortType) { }
 
     // MARK: Outputs
 
@@ -36,6 +37,9 @@ class PreferencesViewModelForPreview:
     var allPostSortTypes: [SortType] = SortType.allCases
     var defaultPostSortType: CurrentValueSubject<SortType, Never> = .init(.hot)
     var defaultPostSortTypeRequested: AnyPublisher<SortType, Never> = .completed
+
+    var allCommentSortTypes: [CommentSortType] = CommentSortType.allCases
+    var defaultCommentSortType: CurrentValueSubject<CommentSortType, Never> = .init(.hot)
 
     var openExternalLink: CurrentValueSubject<Preferences.OpenExternalLink, Never> =
         .init(.safariViewController)

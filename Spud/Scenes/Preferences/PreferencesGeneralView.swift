@@ -19,7 +19,14 @@ struct PreferencesGeneralView<ViewModel>: View
         } set: { newValue in
             viewModel.inputs.updateDefaultPostSort(newValue)
         }
+    }
 
+    var defaultCommentSortType: Binding<CommentSortType> {
+        .init {
+            viewModel.outputs.defaultCommentSortType.value
+        } set: { newValue in
+            viewModel.inputs.updateDefaultCommentSort(newValue)
+        }
     }
 
     var openExternalLinks: Binding<Preferences.OpenExternalLink> {
@@ -61,6 +68,18 @@ struct PreferencesGeneralView<ViewModel>: View
                 }
             } header: {
                 Text("Posts")
+            }
+
+            Section {
+                Picker("Default Sort", selection: defaultCommentSortType) {
+                    ForEach(viewModel.outputs.allCommentSortTypes) { commentSortType in
+                        let item = commentSortType.itemForMenu
+                            Text(item.title)
+                                .tag(commentSortType)
+                    }
+                }
+            } header: {
+                Text("Comments")
             }
 
             Section {

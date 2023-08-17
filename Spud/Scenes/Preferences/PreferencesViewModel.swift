@@ -16,6 +16,8 @@ protocol PreferencesViewModelInputs {
 
     func updateDefaultPostSort(_ sortType: SortType)
 
+    func updateDefaultCommentSort(_ commentSortType: CommentSortType)
+
     func updateOpenExternalLink(_ value: Preferences.OpenExternalLink)
 
     func updateOpenExternalLinkInSafariVCReaderMode(_ value: Bool)
@@ -39,6 +41,14 @@ protocol PreferencesViewModelOutputs {
 
     /// The user chose a different sort type.
     var defaultPostSortTypeRequested: AnyPublisher<SortType, Never> { get }
+
+    // MARK: Default Comment Sort Type
+
+    /// Returns all Comment sort types that user can choose from.
+    var allCommentSortTypes: [CommentSortType] { get }
+
+    /// The default sort type for comments that the user has chosen.
+    var defaultCommentSortType: CurrentValueSubject<CommentSortType, Never> { get }
 
     // MARK: Open External Link
 
@@ -94,9 +104,21 @@ class PreferencesViewModel:
 
         let preferencesService = dependencies.preferencesService
 
+        // TODO: omit sort types that User's instance cannot handle
+        // (e.g. old Lemmy instance not supporting topSixHour sort)
+        allCommentSortTypes = CommentSortType.allCases
+
+        defaultCommentSortType = .init(preferencesService.defaultCommentSortType)
+
         openExternalLink = .init(preferencesService.openExternalLinks)
 
         openExternalLinkInSafariVCReaderMode = .init(preferencesService.openExternalLinksInSafariVCReaderMode)
+
+        preferencesService.defaultCommentSortTypePublisher
+            .sink { [weak self] value in
+                self?.defaultCommentSortType.send(value)
+            }
+            .store(in: &disposables)
 
         preferencesService.openExternalLinksPublisher
             .assign(to: \.value, on: openExternalLink)
@@ -117,11 +139,17 @@ class PreferencesViewModel:
     // MARK: Outputs
 
     let account: CurrentValueSubject<LemmyAccount, Never>
+
     let externalLinkForTesting: URL
     let externalLinkRequested: AnyPublisher<URL, Never>
+
     let allPostSortTypes: [SortType]
     let defaultPostSortType: CurrentValueSubject<SortType, Never>
     let defaultPostSortTypeRequested: AnyPublisher<SortType, Never>
+
+    let allCommentSortTypes: [CommentSortType]
+    let defaultCommentSortType: CurrentValueSubject<CommentSortType, Never>
+
     let openExternalLink: CurrentValueSubject<Preferences.OpenExternalLink, Never>
     let openExternalLinkInSafariVCReaderMode: CurrentValueSubject<Bool, Never>
 
@@ -139,6 +167,12 @@ class PreferencesViewModel:
         defaultPostSortType.send(value)
 
         updateDefaultPostSortSubject.send(value)
+        objectWillChange.send()
+    }
+
+    let updateDefaultCommentSortSubject: PassthroughSubject<CommentSortType, Never> = .init()
+    func updateDefaultCommentSort(_ value: CommentSortType) {
+        preferencesService.defaultCommentSortType = value
         objectWillChange.send()
     }
 

@@ -6,11 +6,15 @@
 
 import Combine
 import Foundation
+import LemmyKit
 
 /// The namespace for types used by ``PreferencesService``.
 enum Preferences {}
 
 protocol PreferencesServiceType: AnyObject {
+    var defaultCommentSortType: CommentSortType { get set }
+    var defaultCommentSortTypePublisher: AnyPublisher<CommentSortType, Never> { get }
+
     /// Describes how to open external links from posts and comments.
     var openExternalLinks: Preferences.OpenExternalLink { get set }
     var openExternalLinksPublisher: AnyPublisher<Preferences.OpenExternalLink, Never> { get }
@@ -29,6 +33,13 @@ protocol HasPreferencesService {
 
 class PreferencesService: PreferencesServiceType {
     // MARK: Public
+
+    @UserDefaultsBacked(key: "defaultCommentSortType")
+    var defaultCommentSortType: CommentSortType = .hot
+
+    var defaultCommentSortTypePublisher: AnyPublisher<CommentSortType, Never> {
+        $defaultCommentSortType
+    }
 
     @UserDefaultsBacked(key: "openExternalLinks")
     var openExternalLinks: Preferences.OpenExternalLink = .safariViewController
