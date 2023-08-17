@@ -107,10 +107,10 @@ class PostListViewController: UIViewController {
         ])
 
         func makeAction(for sortType: SortType) -> UIAction {
-            let (title, image) = sortType.itemForMenu
+            let menuItem = sortType.itemForMenu
             let action = UIAction(
-                title: title,
-                image: image
+                title: menuItem.title,
+                image: menuItem.image
             ) { [weak self] _ in
                 self?.viewModel.inputs.didChangeSortType(sortType)
             }

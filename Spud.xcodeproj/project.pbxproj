@@ -60,6 +60,12 @@
 		9254A34B2A86DFBC009EB4B5 /* SortType+appintent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9254A34A2A86DFBC009EB4B5 /* SortType+appintent.swift */; };
 		9254A34C2A86DFBC009EB4B5 /* SortType+appintent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9254A34A2A86DFBC009EB4B5 /* SortType+appintent.swift */; };
 		9254A3502A86E2E2009EB4B5 /* TopPostsAppIntentProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9254A34D2A86E223009EB4B5 /* TopPostsAppIntentProvider.swift */; };
+		925B46642A8EA307008410EA /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B46632A8EA307008410EA /* PreferencesView.swift */; };
+		925B46672A8EB8FB008410EA /* OpenExternalLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B46662A8EB8FB008410EA /* OpenExternalLink.swift */; };
+		925B46692A8EC118008410EA /* PreferencesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B46682A8EC118008410EA /* PreferencesViewModel.swift */; };
+		925B466B2A8EC8B9008410EA /* PreferencesPostMarkingAndHidingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B466A2A8EC8B9008410EA /* PreferencesPostMarkingAndHidingView.swift */; };
+		925B466D2A8EC8CF008410EA /* PreferencesGeneralView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B466C2A8EC8CF008410EA /* PreferencesGeneralView.swift */; };
+		925B466F2A8EC97E008410EA /* PreferencesViewModelForPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B466E2A8EC97E008410EA /* PreferencesViewModelForPreview.swift */; };
 		92603C382A8037AF0005960F /* TopPosts+snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92603C372A8037AF0005960F /* TopPosts+snapshot.swift */; };
 		92603C3A2A803CCF0005960F /* PostType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92603C392A803CCF0005960F /* PostType.swift */; };
 		92603C3D2A80472B0005960F /* URL+spudImageFromAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92603C3C2A80472B0005960F /* URL+spudImageFromAsset.swift */; };
@@ -477,6 +483,13 @@
 		9254A3472A86DF5A009EB4B5 /* ListingType+appintent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ListingType+appintent.swift"; sourceTree = "<group>"; };
 		9254A34A2A86DFBC009EB4B5 /* SortType+appintent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SortType+appintent.swift"; sourceTree = "<group>"; };
 		9254A34D2A86E223009EB4B5 /* TopPostsAppIntentProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopPostsAppIntentProvider.swift; sourceTree = "<group>"; };
+		925B46632A8EA307008410EA /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
+		925B46652A8EAFB4008410EA /* LemmyKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = LemmyKit; path = ../LemmyKit; sourceTree = "<group>"; };
+		925B46662A8EB8FB008410EA /* OpenExternalLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenExternalLink.swift; sourceTree = "<group>"; };
+		925B46682A8EC118008410EA /* PreferencesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesViewModel.swift; sourceTree = "<group>"; };
+		925B466A2A8EC8B9008410EA /* PreferencesPostMarkingAndHidingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesPostMarkingAndHidingView.swift; sourceTree = "<group>"; };
+		925B466C2A8EC8CF008410EA /* PreferencesGeneralView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesGeneralView.swift; sourceTree = "<group>"; };
+		925B466E2A8EC97E008410EA /* PreferencesViewModelForPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesViewModelForPreview.swift; sourceTree = "<group>"; };
 		92603C372A8037AF0005960F /* TopPosts+snapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TopPosts+snapshot.swift"; sourceTree = "<group>"; };
 		92603C392A803CCF0005960F /* PostType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostType.swift; sourceTree = "<group>"; };
 		92603C3C2A80472B0005960F /* URL+spudImageFromAsset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+spudImageFromAsset.swift"; sourceTree = "<group>"; };
@@ -822,6 +835,7 @@
 		9216FBCD2A795F3C00D67636 /* Preferences */ = {
 			isa = PBXGroup;
 			children = (
+				925B46662A8EB8FB008410EA /* OpenExternalLink.swift */,
 				9216FBCE2A795F4A00D67636 /* PreferencesService.swift */,
 			);
 			path = Preferences;
@@ -831,6 +845,7 @@
 			isa = PBXGroup;
 			children = (
 				921943442A75BEC20005474D /* DiasporaNodeInfo */,
+				925B46652A8EAFB4008410EA /* LemmyKit */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -1550,7 +1565,12 @@
 		92DD62DD2A4594ED00497C3B /* Preferences */ = {
 			isa = PBXGroup;
 			children = (
+				925B466C2A8EC8CF008410EA /* PreferencesGeneralView.swift */,
+				925B466A2A8EC8B9008410EA /* PreferencesPostMarkingAndHidingView.swift */,
+				925B46632A8EA307008410EA /* PreferencesView.swift */,
 				92DD62DE2A4594F900497C3B /* PreferencesViewController.swift */,
+				925B46682A8EC118008410EA /* PreferencesViewModel.swift */,
+				925B466E2A8EC97E008410EA /* PreferencesViewModelForPreview.swift */,
 			);
 			path = Preferences;
 			sourceTree = "<group>";
@@ -2144,6 +2164,7 @@
 				92DD62D92A45919600497C3B /* MainWindowSplitViewController.swift in Sources */,
 				92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */,
 				927343352A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift in Sources */,
+				925B46672A8EB8FB008410EA /* OpenExternalLink.swift in Sources */,
 				92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */,
 				9273432A2A61BE9D0089556E /* PersonFormatter.swift in Sources */,
 				927343282A61B9180089556E /* PersonHeaderCell.swift in Sources */,
@@ -2173,8 +2194,13 @@
 				922AEE0D2A40EE9000AA7B22 /* PostListThumbnailImageView.swift in Sources */,
 				92B7C9022A3A40EB00672F64 /* PostListViewController.swift in Sources */,
 				92B7C9632A3B9EC700672F64 /* PostListViewModel.swift in Sources */,
+				925B466D2A8EC8CF008410EA /* PreferencesGeneralView.swift in Sources */,
+				925B466B2A8EC8B9008410EA /* PreferencesPostMarkingAndHidingView.swift in Sources */,
 				9216FBCF2A795F4A00D67636 /* PreferencesService.swift in Sources */,
+				925B46642A8EA307008410EA /* PreferencesView.swift in Sources */,
 				92DD62DF2A4594F900497C3B /* PreferencesViewController.swift in Sources */,
+				925B46692A8EC118008410EA /* PreferencesViewModel.swift in Sources */,
+				925B466F2A8EC97E008410EA /* PreferencesViewModelForPreview.swift in Sources */,
 				92B7C9002A3A40EB00672F64 /* SceneDelegate.swift in Sources */,
 				92DD62E22A45955600497C3B /* SearchViewController.swift in Sources */,
 				92DD63022A48561E00497C3B /* SiteListIconImageView.swift in Sources */,

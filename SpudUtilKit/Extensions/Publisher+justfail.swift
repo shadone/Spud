@@ -20,6 +20,10 @@ public extension AnyPublisher {
         Fail(error: error).eraseToAnyPublisher()
     }
 
+    static var completed: Self {
+        empty(completeImmediately: true)
+    }
+
     static func empty(completeImmediately: Bool) -> Self {
         Empty(completeImmediately: completeImmediately, outputType: Output.self, failureType: Failure.self)
             .eraseToAnyPublisher()

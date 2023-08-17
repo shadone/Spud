@@ -13,7 +13,7 @@ protocol AppServiceType: AnyObject {
     /// Opens the post itself in a browser.
     func openInBrowser(post: LemmyPost, on viewController: UIViewController) async
 
-    /// Opens an external link in a browser.
+    /// Opens the given external link according to user preferences (e.g. opens in In-App Safari or external browser).
     func open(url: URL, on viewController: UIViewController) async
 }
 

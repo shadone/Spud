@@ -9,47 +9,60 @@ import LemmyKit
 import UIKit
 
 extension SortType {
+    struct MenuItem {
+        let title: String
+
+        let imageSystemName: String?
+
+        var image: UIImage? {
+            guard let imageSystemName else {
+                return nil
+            }
+            return UIImage(systemName: imageSystemName)!
+        }
+    }
+
     /// Returns the info about the sort type that will be displayed in a context menu where user can choose the desired sort type.
-    var itemForMenu: (title: String, image: UIImage?) {
+    var itemForMenu: MenuItem {
         switch self {
         case .active:
-            return (title: "Active", image: UIImage(systemName: "paperplane")!)
+            return .init(title: "Active", imageSystemName: "paperplane")
 
         case .hot:
-            return (title: "Hot", image: UIImage(systemName: "flame.fill")!)
+            return .init(title: "Hot", imageSystemName: "flame.fill")
 
         case .new:
-            return (title: "New", image: UIImage(systemName: "cursorarrow.motionlines.click")!)
+            return .init(title: "New", imageSystemName: "cursorarrow.motionlines.click")
 
         case .old:
-            return (title: "Old", image: UIImage(systemName: "text.line.last.and.arrowtriangle.forward")!)
+            return .init(title: "Old", imageSystemName: "text.line.last.and.arrowtriangle.forward")
 
         case .topSixHour:
-            return (title: "Top Six Hour", image: nil)
+            return .init(title: "Top Six Hour", imageSystemName: nil)
 
         case .topTwelveHour:
-            return (title: "Top Twelve Hour", image: nil)
+            return .init(title: "Top Twelve Hour", imageSystemName: nil)
 
         case .topDay:
-            return (title: "Top Day", image: nil)
+            return .init(title: "Top Day", imageSystemName: nil)
 
         case .topWeek:
-            return (title: "Top Week", image: nil)
+            return .init(title: "Top Week", imageSystemName: nil)
 
         case .topMonth:
-            return (title: "Top Month", image: nil)
+            return .init(title: "Top Month", imageSystemName: nil)
 
         case .topYear:
-            return (title: "Top Year", image: nil)
+            return .init(title: "Top Year", imageSystemName: nil)
 
         case .topAll:
-            return (title: "Top All", image: nil)
+            return .init(title: "Top All", imageSystemName: nil)
 
         case .mostComments:
-            return (title: "Most Comments", image: UIImage(systemName: "text.bubble")!)
+            return .init(title: "Most Comments", imageSystemName: "text.bubble")
 
         case .newComments:
-            return (title: "New Comments", image: UIImage(systemName: "exclamationmark.bubble")!)
+            return .init(title: "New Comments", imageSystemName: "exclamationmark.bubble")
         }
     }
 }

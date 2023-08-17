@@ -4,29 +4,45 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Combine
 import Foundation
+import LemmyKit
+import SwiftUI
+import SpudDataKit
 import UIKit
 
 class PreferencesViewController: UIViewController {
+    typealias OwnDependencies =
+        HasPreferencesService &
+        HasAppService &
+        HasAccountService
+    typealias NestedDependencies =
+        PreferencesViewModel.Dependencies
+    typealias Dependencies = OwnDependencies & NestedDependencies
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
+
+    var appService: AppServiceType { dependencies.own.appService }
+    var accountService: AccountServiceType { dependencies.own.accountService }
+
     // MARK: - Private
 
-    lazy var label: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.backgroundColor = .clear
-        label.textAlignment = .center
-        label.font = UIFont.systemFont(ofSize: UIFont.systemFontSize + 15, weight: .light)
-        label.textColor = UIColor.tertiaryLabel
-        label.numberOfLines = 0
-        label.text = "Preferences\nnot implemented"
-        return label
-    }()
+    private let viewModel: PreferencesViewModel
+
+    private var disposables = Set<AnyCancellable>()
 
     // MARK: - Functions
 
-    init() {
+    init(account: LemmyAccount, dependencies: Dependencies) {
+        self.dependencies = (own: dependencies, nested: dependencies)
+
+        viewModel = PreferencesViewModel(
+            account: account,
+            dependencies: self.dependencies.nested
+        )
         super.init(nibName: nil, bundle: nil)
+
         setup()
+        bindViewModel()
     }
 
     @available(*, unavailable)
@@ -35,19 +51,40 @@ class PreferencesViewController: UIViewController {
     }
 
     private func setup() {
+        view.backgroundColor = .systemBackground
+
         tabBarItem.title = "Preferences"
         tabBarItem.image = UIImage(systemName: "gear")!
 
-        view.backgroundColor = .white
+        navigationItem.title = "Preferences"
 
-        view.addSubview(label)
+        let contentVC = UIHostingController(rootView: PreferencesView(
+            viewModel: self.viewModel
+        ))
+        add(child: contentVC)
+        addSubviewWithEdgeConstraints(child: contentVC)
+    }
 
-        NSLayoutConstraint.activate([
-            label.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            label.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            label.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            label.topAnchor.constraint(greaterThanOrEqualTo: view.topAnchor),
-            label.bottomAnchor.constraint(lessThanOrEqualTo: view.bottomAnchor),
-        ])
+    private func bindViewModel() {
+        viewModel.outputs.externalLinkRequested
+            .sink { [weak self] url in
+                guard let self else { return }
+                Task {
+                    await self.appService.open(url: url, on: self)
+                }
+            }
+            .store(in: &disposables)
+
+        viewModel.outputs.defaultPostSortTypeRequested
+            .sink { [weak self] sortType in
+                self?.updateDefaultPostSortType(sortType)
+            }
+            .store(in: &disposables)
+    }
+
+    private func updateDefaultPostSortType(_ sortType: SortType) {
+        // TODO: update user preferences using /user/save_user_settings api call
+        // accountService.lemmyService(for: viewModel.outputs.account.value)
+        //     .updateAccountInfo()
     }
 }

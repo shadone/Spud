@@ -14,7 +14,8 @@ class MainWindow: UIWindow {
         HasAccountService
     typealias NestedDependencies =
         MainWindowSplitViewController.Dependencies &
-        AccountViewController.Dependencies
+        AccountViewController.Dependencies &
+        PreferencesViewController.Dependencies
     typealias Dependencies = OwnDependencies & NestedDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
@@ -99,7 +100,10 @@ class MainWindow: UIWindow {
         let searchViewController = SearchViewController()
 
         // Tab: Setup the preferences view controller
-        let preferencesViewController = PreferencesViewController()
+        let preferencesViewController = PreferencesViewController(
+            account: account,
+            dependencies: dependencies.nested
+        )
 
         // Setup the tab bar controller
         tabBarController.setViewControllers(
