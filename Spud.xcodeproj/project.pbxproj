@@ -289,6 +289,7 @@
 		92DD63062A48BEAD00497C3B /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63052A48BEAD00497C3B /* LoginViewController.swift */; };
 		92DD63092A48CC2700497C3B /* LoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63082A48CC2700497C3B /* LoginViewModel.swift */; };
 		92F5712A2A8EFBB800A06ABD /* UIFont+scaledFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */; };
+		92F5712C2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -696,6 +697,7 @@
 		92DD63052A48BEAD00497C3B /* LoginViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewController.swift; sourceTree = "<group>"; };
 		92DD63082A48CC2700497C3B /* LoginViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewModel.swift; sourceTree = "<group>"; };
 		92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIFont+scaledFont.swift"; sourceTree = "<group>"; };
+		92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudLaunchPerformance.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1220,6 +1222,7 @@
 			isa = PBXGroup;
 			children = (
 				9233A1372A81A61700F1F795 /* post-list-all-hot.json */,
+				92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */,
 				92B7C9212A3A40F400672F64 /* SpudUITests.swift */,
 				92B7C9232A3A40F400672F64 /* SpudUITestsLaunchTests.swift */,
 				92C0B32C2A829BDB004EF9E6 /* XCUIApplication+cellContainingLabel.swift */,
@@ -2243,6 +2246,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9233A1472A82536D00F1F795 /* AppLaunchArgument.swift in Sources */,
+				92F5712C2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift in Sources */,
 				92B7C9222A3A40F400672F64 /* SpudUITests.swift in Sources */,
 				92B7C9242A3A40F400672F64 /* SpudUITestsLaunchTests.swift in Sources */,
 				92C0B32D2A829BDB004EF9E6 /* XCUIApplication+cellContainingLabel.swift in Sources */,
