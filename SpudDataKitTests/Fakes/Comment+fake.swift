@@ -5,7 +5,7 @@
 //
 
 import Foundation
-@testable import LemmyKit
+import LemmyKit
 
 extension Comment {
     static func fake(id: Int32, post: Post, creator: Person, parent: CommentPath) -> Comment {

@@ -5,7 +5,7 @@
 //
 
 import Foundation
-@testable import LemmyKit
+import LemmyKit
 
 extension Person {
     static var fake: Person = .init(

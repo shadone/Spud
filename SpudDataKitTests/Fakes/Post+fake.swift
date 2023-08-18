@@ -5,7 +5,7 @@
 //
 
 import Foundation
-@testable import LemmyKit
+import LemmyKit
 
 extension Post {
     static func fake(creator: Person, community: Community) -> Post {

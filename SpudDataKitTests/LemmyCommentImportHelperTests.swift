@@ -5,7 +5,7 @@
 //
 
 import XCTest
-@testable import LemmyKit
+import LemmyKit
 @testable import SpudDataKit
 
 class CommentHelperTests: XCTestCase {

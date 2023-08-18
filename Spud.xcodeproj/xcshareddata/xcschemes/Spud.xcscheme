@@ -48,6 +48,26 @@
                ReferencedContainer = "container:Spud.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "92A226C52A7EF9A900C18FCD"
+               BuildableName = "SpudDataKitTests.xctest"
+               BlueprintName = "SpudDataKitTests"
+               ReferencedContainer = "container:Spud.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "92A226D92A7EFA1400C18FCD"
+               BuildableName = "SpudUtilKitTests.xctest"
+               BlueprintName = "SpudUtilKitTests"
+               ReferencedContainer = "container:Spud.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

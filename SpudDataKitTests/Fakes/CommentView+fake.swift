@@ -5,7 +5,7 @@
 //
 
 import Foundation
-@testable import LemmyKit
+import LemmyKit
 
 extension CommentView {
     static func fake(
