@@ -97,7 +97,7 @@ struct SubscriptionsCommunityView: View {
 }
 
 struct SubscriptionsView<ViewModel>: View
-    where ViewModel: ObservableObject & SubscriptionsViewModelType
+    where ViewModel: SubscriptionsViewModelType
 {
     @StateObject var viewModel: ViewModel
 

@@ -9,7 +9,7 @@ import LemmyKit
 import SwiftUI
 
 struct PreferencesGeneralView<ViewModel>: View
-    where ViewModel: ObservableObject & PreferencesViewModelType
+    where ViewModel: PreferencesViewModelType
 {
     @StateObject var viewModel: ViewModel
 

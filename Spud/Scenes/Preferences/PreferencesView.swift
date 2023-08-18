@@ -11,7 +11,7 @@ import SpudDataKit
 import SwiftUI
 
 struct PreferencesView<ViewModel>: View
-    where ViewModel: ObservableObject & PreferencesViewModelType
+    where ViewModel: PreferencesViewModelType
 {
     @StateObject var viewModel: ViewModel
 
