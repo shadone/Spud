@@ -45,6 +45,14 @@ struct PreferencesGeneralView<ViewModel>: View
         }
     }
 
+    var openExternalLinkAsUniversalLinkInApp: Binding<Bool> {
+        .init {
+            viewModel.outputs.openExternalLinkAsUniversalLinkInApp.value
+        } set: { newValue in
+            viewModel.inputs.updateOpenExternalLinkAsUniversalLinkInApp(newValue)
+        }
+    }
+
     var body: some View {
         Form {
             Section {
@@ -83,34 +91,51 @@ struct PreferencesGeneralView<ViewModel>: View
             }
 
             Section {
-                Picker("Open External Links in", selection: openExternalLinks) {
-                    ForEach(Preferences.OpenExternalLink.allCases) { link in
-                        let item = link.itemForMenu
-                        Label(item.title, systemImage: "")
-                            .tag(link)
+                VStack(alignment: .leading) {
+                    Picker("Open External Links in", selection: openExternalLinks) {
+                        ForEach(Preferences.OpenExternalLink.allCases) { link in
+                            let item = link.itemForMenu
+                            Label(item.title, systemImage: "")
+                                .tag(link)
+                        }
+                    }
+
+                    switch openExternalLinks.wrappedValue {
+                    case .safariViewController:
+                        Text("When tapped on an external link it will be opened in an in-app Safari.")
+                            .foregroundStyle(.secondary)
+                            .font(.footnote)
+                    case .browser:
+                        Text("When tapped on an external link it will be opened in the default browser.")
+                            .foregroundStyle(.secondary)
+                            .font(.footnote)
                     }
                 }
 
                 Toggle("Use Reader Mode", isOn: openExternalLinkInSafariVCReaderMode)
+
+                VStack(alignment: .leading) {
+                    Toggle("Open in Apps", isOn: openExternalLinkAsUniversalLinkInApp)
+                    Text("If an app is installed that can open handle the link (aka \"universal link\" or \"deep link\"), open in app instead of browser.")
+                        .foregroundStyle(.secondary)
+                        .font(.footnote)
+                }
             } header: {
                 Text("Links")
             } footer: {
                 VStack(alignment: .leading) {
-                    switch openExternalLinks.wrappedValue {
-                    case .safariViewController:
-                        Text("When tapped on an external link it will be opened in an in-app Safari.")
-                    case .browser:
-                        Text("When tapped on an external link it will be opened in the default browser.")
+                    Text("Testing area:")
+                    HStack(spacing: 4) {
+                        Text("    - Normal link: [example.com](https://example.com)")
                     }
-
-                    HStack {
-                        Text("Test here:")
-                        Button(viewModel.outputs.externalLinkForTesting.absoluteString) {
-                            viewModel.inputs.testExternalLink()
-                        }
-                        .font(.footnote)
+                    HStack(spacing: 4) {
+                        Text("    - Universal link (assuming Youtube app is installed): [youtube.com/foobar](https://youtu.be/dQw4w9WgXcQ)")
                     }
                 }
+                .environment(\.openURL, OpenURLAction(handler: { url in
+                    viewModel.inputs.testExternalLink(url)
+                    return .handled
+                }))
             }
         }
         .navigationTitle("General")

@@ -12,7 +12,7 @@ import SwiftUI
 
 protocol PreferencesViewModelInputs {
     /// Opens external link as per current user configuration.
-    func testExternalLink()
+    func testExternalLink(_ url: URL)
 
     func updateDefaultPostSort(_ sortType: SortType)
 
@@ -21,6 +21,8 @@ protocol PreferencesViewModelInputs {
     func updateOpenExternalLink(_ value: Preferences.OpenExternalLink)
 
     func updateOpenExternalLinkInSafariVCReaderMode(_ value: Bool)
+
+    func updateOpenExternalLinkAsUniversalLinkInApp(_ value: Bool)
 }
 
 protocol PreferencesViewModelOutputs {
@@ -28,7 +30,6 @@ protocol PreferencesViewModelOutputs {
 
     // MARK: Testing opening external link
 
-    var externalLinkForTesting: URL { get }
     var externalLinkRequested: AnyPublisher<URL, Never> { get }
 
     // MARK: Default Post Sort Type
@@ -54,6 +55,7 @@ protocol PreferencesViewModelOutputs {
 
     var openExternalLink: CurrentValueSubject<Preferences.OpenExternalLink, Never> { get }
     var openExternalLinkInSafariVCReaderMode: CurrentValueSubject<Bool, Never> { get }
+    var openExternalLinkAsUniversalLinkInApp: CurrentValueSubject<Bool, Never> { get }
 }
 
 protocol PreferencesViewModelType: ObservableObject {
@@ -91,7 +93,6 @@ class PreferencesViewModel:
 
         self.account = CurrentValueSubject<LemmyAccount, Never>(account)
 
-        externalLinkForTesting = URL(string: "https://example.com")!
         externalLinkRequested = testExternalLinkSubject.eraseToAnyPublisher()
 
         // TODO: omit sort types that User's instance cannot handle
@@ -113,6 +114,8 @@ class PreferencesViewModel:
         openExternalLink = .init(preferencesService.openExternalLinks)
 
         openExternalLinkInSafariVCReaderMode = .init(preferencesService.openExternalLinksInSafariVCReaderMode)
+
+        openExternalLinkAsUniversalLinkInApp = .init(preferencesService.openUniversalLinkInApp)
 
         preferencesService.defaultCommentSortTypePublisher
             .sink { [weak self] value in
@@ -140,7 +143,6 @@ class PreferencesViewModel:
 
     let account: CurrentValueSubject<LemmyAccount, Never>
 
-    let externalLinkForTesting: URL
     let externalLinkRequested: AnyPublisher<URL, Never>
 
     let allPostSortTypes: [SortType]
@@ -152,13 +154,13 @@ class PreferencesViewModel:
 
     let openExternalLink: CurrentValueSubject<Preferences.OpenExternalLink, Never>
     let openExternalLinkInSafariVCReaderMode: CurrentValueSubject<Bool, Never>
+    let openExternalLinkAsUniversalLinkInApp: CurrentValueSubject<Bool, Never>
 
     // MARK: Inputs
 
     let testExternalLinkSubject: PassthroughSubject<URL, Never> = .init()
-    func testExternalLink() {
-        testExternalLinkSubject.send(externalLinkForTesting)
-        objectWillChange.send()
+    func testExternalLink(_ url: URL) {
+        testExternalLinkSubject.send(url)
     }
 
     let updateDefaultPostSortSubject: PassthroughSubject<SortType, Never> = .init()
@@ -183,6 +185,11 @@ class PreferencesViewModel:
 
     func updateOpenExternalLinkInSafariVCReaderMode(_ value: Bool) {
         preferencesService.openExternalLinksInSafariVCReaderMode = value
+        objectWillChange.send()
+    }
+
+    func updateOpenExternalLinkAsUniversalLinkInApp(_ value: Bool) {
+        preferencesService.openUniversalLinkInApp = value
         objectWillChange.send()
     }
 }

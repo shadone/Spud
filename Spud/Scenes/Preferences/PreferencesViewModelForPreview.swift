@@ -19,11 +19,13 @@ class PreferencesViewModelForPreview:
 
     // MARK: Inputs
 
-    func testExternalLink() { }
+    func testExternalLink(_ url: URL) { }
+    func testUniversalLink() { }
     func updateDefaultPostSort(_ sortType: SortType) { }
     func updateOpenExternalLink(_ value: Preferences.OpenExternalLink) { }
     func updateOpenExternalLinkInSafariVCReaderMode(_ value: Bool) { }
     func updateDefaultCommentSort(_ commentSortType: LemmyKit.CommentSortType) { }
+    func updateOpenExternalLinkAsUniversalLinkInApp(_ value: Bool) { }
 
     // MARK: Outputs
 
@@ -31,7 +33,6 @@ class PreferencesViewModelForPreview:
         LemmyAccount()
     )
 
-    var externalLinkForTesting = URL(string: "https://example.com")!
     var externalLinkRequested: AnyPublisher<URL, Never> = .completed
 
     var allPostSortTypes: [SortType] = SortType.allCases
@@ -44,4 +45,5 @@ class PreferencesViewModelForPreview:
     var openExternalLink: CurrentValueSubject<Preferences.OpenExternalLink, Never> =
         .init(.safariViewController)
     var openExternalLinkInSafariVCReaderMode: CurrentValueSubject<Bool, Never> = .init(true)
+    var openExternalLinkAsUniversalLinkInApp: CurrentValueSubject<Bool, Never> = .init(true)
 }
