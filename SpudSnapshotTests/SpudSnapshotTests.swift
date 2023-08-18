@@ -5,9 +5,9 @@
 //
 
 import Down
-import XCTest
-import UIKit
 import SnapshotTesting
+import UIKit
+import XCTest
 @testable import Spud
 
 final class SpudSnapshotTests: XCTestCase {
