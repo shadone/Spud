@@ -6,6 +6,7 @@
 
 import Combine
 import Foundation
+import SpudUtilKit
 
 protocol PostListAppearanceType: AnyObject {
 //    var previewImageSizePublisher: AnyPublisher<PostListPreviewImageSize, Never> { get }

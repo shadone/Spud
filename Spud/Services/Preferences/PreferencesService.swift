@@ -7,6 +7,7 @@
 import Combine
 import Foundation
 import LemmyKit
+import SpudUtilKit
 
 /// The namespace for types used by ``PreferencesService``.
 enum Preferences { }

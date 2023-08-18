@@ -7,6 +7,7 @@
 import Combine
 import Down
 import Foundation
+import SpudUtilKit
 import UIKit
 
 protocol PostDetailAppearanceType: AnyObject {
