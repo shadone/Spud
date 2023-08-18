@@ -1,43 +1,50 @@
 {
-  "object": {
-    "pins": [
-      {
-        "package": "Down",
-        "repositoryURL": "https://github.com/johnxnguyen/Down",
-        "state": {
-          "branch": "master",
-          "revision": "e754ab1c80920dd51a8e08290c912ac1c2ac8b58",
-          "version": null
-        }
-      },
-      {
-        "package": "KeychainAccess",
-        "repositoryURL": "https://github.com/kishikawakatsumi/KeychainAccess",
-        "state": {
-          "branch": null,
-          "revision": "84e546727d66f1adc5439debad16270d0fdd04e7",
-          "version": "4.2.2"
-        }
-      },
-      {
-        "package": "SBTUITestTunnel",
-        "repositoryURL": "https://github.com/Subito-it/SBTUITestTunnel",
-        "state": {
-          "branch": "master",
-          "revision": "a1d7e2fce724d09793c7a52ba12c3a98eee89071",
-          "version": null
-        }
-      },
-      {
-        "package": "semver",
-        "repositoryURL": "https://github.com/sersoft-gmbh/semver",
-        "state": {
-          "branch": null,
-          "revision": "405806381f52ea32fe4406adf066ed58ee0b9d25",
-          "version": "3.6.0"
-        }
+  "pins" : [
+    {
+      "identity" : "down",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/johnxnguyen/Down",
+      "state" : {
+        "branch" : "master",
+        "revision" : "e754ab1c80920dd51a8e08290c912ac1c2ac8b58"
       }
-    ]
-  },
-  "version": 1
+    },
+    {
+      "identity" : "keychainaccess",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/kishikawakatsumi/KeychainAccess",
+      "state" : {
+        "revision" : "84e546727d66f1adc5439debad16270d0fdd04e7",
+        "version" : "4.2.2"
+      }
+    },
+    {
+      "identity" : "lemmykit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/shadone/LemmyKit",
+      "state" : {
+        "branch" : "main",
+        "revision" : "9bbdf585aff9309899edd667df5cf0cf50627ba8"
+      }
+    },
+    {
+      "identity" : "sbtuitesttunnel",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Subito-it/SBTUITestTunnel",
+      "state" : {
+        "branch" : "master",
+        "revision" : "a1d7e2fce724d09793c7a52ba12c3a98eee89071"
+      }
+    },
+    {
+      "identity" : "semver",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/sersoft-gmbh/semver",
+      "state" : {
+        "revision" : "405806381f52ea32fe4406adf066ed58ee0b9d25",
+        "version" : "3.6.0"
+      }
+    }
+  ],
+  "version" : 2
 }

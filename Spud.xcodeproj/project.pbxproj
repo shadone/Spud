@@ -486,7 +486,6 @@
 		9254A34A2A86DFBC009EB4B5 /* SortType+appintent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SortType+appintent.swift"; sourceTree = "<group>"; };
 		9254A34D2A86E223009EB4B5 /* TopPostsAppIntentProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopPostsAppIntentProvider.swift; sourceTree = "<group>"; };
 		925B46632A8EA307008410EA /* PreferencesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesView.swift; sourceTree = "<group>"; };
-		925B46652A8EAFB4008410EA /* LemmyKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = LemmyKit; path = ../LemmyKit; sourceTree = "<group>"; };
 		925B46662A8EB8FB008410EA /* OpenExternalLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenExternalLink.swift; sourceTree = "<group>"; };
 		925B46682A8EC118008410EA /* PreferencesViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesViewModel.swift; sourceTree = "<group>"; };
 		925B466A2A8EC8B9008410EA /* PreferencesPostMarkingAndHidingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesPostMarkingAndHidingView.swift; sourceTree = "<group>"; };
@@ -851,7 +850,6 @@
 			isa = PBXGroup;
 			children = (
 				921943442A75BEC20005474D /* DiasporaNodeInfo */,
-				925B46652A8EAFB4008410EA /* LemmyKit */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
