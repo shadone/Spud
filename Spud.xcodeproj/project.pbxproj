@@ -67,6 +67,10 @@
 		925B466D2A8EC8CF008410EA /* PreferencesGeneralView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B466C2A8EC8CF008410EA /* PreferencesGeneralView.swift */; };
 		925B466F2A8EC97E008410EA /* PreferencesViewModelForPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B466E2A8EC97E008410EA /* PreferencesViewModelForPreview.swift */; };
 		925B46712A8EE0A9008410EA /* CommentSortType+itemForMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B46702A8EE0A9008410EA /* CommentSortType+itemForMenu.swift */; };
+		925B76CC2A8FFF0A00BD065A /* SpudSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B76CB2A8FFF0A00BD065A /* SpudSnapshotTests.swift */; };
+		925B76D42A90046200BD065A /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 925B76D32A90046200BD065A /* SnapshotTesting */; };
+		925B76D62A90069C00BD065A /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 925B76D52A90069C00BD065A /* LemmyKit */; };
+		925B76D82A9008CE00BD065A /* MarkdownViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B76D72A9008CE00BD065A /* MarkdownViewController.swift */; };
 		92603C382A8037AF0005960F /* TopPosts+snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92603C372A8037AF0005960F /* TopPosts+snapshot.swift */; };
 		92603C3A2A803CCF0005960F /* PostType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92603C392A803CCF0005960F /* PostType.swift */; };
 		92603C3D2A80472B0005960F /* URL+spudImageFromAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92603C3C2A80472B0005960F /* URL+spudImageFromAsset.swift */; };
@@ -300,6 +304,13 @@
 			remoteGlobalIDString = 920B454E2A7C1DF400C6C2DC;
 			remoteInfo = SpudWidgetsExtension;
 		};
+		925B76CD2A8FFF0A00BD065A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 92B7C8F22A3A40EB00672F64 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 92B7C8F92A3A40EB00672F64;
+			remoteInfo = Spud;
+		};
 		92A226CB2A7EF9A900C18FCD /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 92B7C8F22A3A40EB00672F64 /* Project object */;
@@ -493,6 +504,11 @@
 		925B466C2A8EC8CF008410EA /* PreferencesGeneralView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesGeneralView.swift; sourceTree = "<group>"; };
 		925B466E2A8EC97E008410EA /* PreferencesViewModelForPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesViewModelForPreview.swift; sourceTree = "<group>"; };
 		925B46702A8EE0A9008410EA /* CommentSortType+itemForMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentSortType+itemForMenu.swift"; sourceTree = "<group>"; };
+		925B76C92A8FFF0A00BD065A /* SpudSnapshotTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SpudSnapshotTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		925B76CB2A8FFF0A00BD065A /* SpudSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudSnapshotTests.swift; sourceTree = "<group>"; };
+		925B76D72A9008CE00BD065A /* MarkdownViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownViewController.swift; sourceTree = "<group>"; };
+		925B76D92A900D8F00BD065A /* Spud.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Spud.xctestplan; sourceTree = "<group>"; };
+		925B76DA2A900DBE00BD065A /* SpudSnapshots.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = SpudSnapshots.xctestplan; sourceTree = "<group>"; };
 		92603C372A8037AF0005960F /* TopPosts+snapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TopPosts+snapshot.swift"; sourceTree = "<group>"; };
 		92603C392A803CCF0005960F /* PostType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostType.swift; sourceTree = "<group>"; };
 		92603C3C2A80472B0005960F /* URL+spudImageFromAsset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+spudImageFromAsset.swift"; sourceTree = "<group>"; };
@@ -713,10 +729,19 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		925B76C62A8FFF0A00BD065A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				925B76D42A90046200BD065A /* SnapshotTesting in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		92A226C32A7EF9A900C18FCD /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				925B76D62A90069C00BD065A /* LemmyKit in Frameworks */,
 				92A226CA2A7EF9A900C18FCD /* SpudDataKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -942,6 +967,15 @@
 			path = TopPostsAppIntent;
 			sourceTree = "<group>";
 		};
+		925B76CA2A8FFF0A00BD065A /* SpudSnapshotTests */ = {
+			isa = PBXGroup;
+			children = (
+				925B76D72A9008CE00BD065A /* MarkdownViewController.swift */,
+				925B76CB2A8FFF0A00BD065A /* SpudSnapshotTests.swift */,
+			);
+			path = SpudSnapshotTests;
+			sourceTree = "<group>";
+		};
 		92603C3B2A8047070005960F /* Utils */ = {
 			isa = PBXGroup;
 			children = (
@@ -1161,12 +1195,15 @@
 			isa = PBXGroup;
 			children = (
 				92A227222A7FB65400C18FCD /* README.md */,
+				925B76D92A900D8F00BD065A /* Spud.xctestplan */,
+				925B76DA2A900DBE00BD065A /* SpudSnapshots.xctestplan */,
 				920B458A2A7C51EB00C6C2DC /* SpudWidgetExtension.entitlements */,
 				921943432A75BEC20005474D /* Packages */,
 				9254A3412A86D6F3009EB4B5 /* Shared */,
 				92B7C8FC2A3A40EB00672F64 /* Spud */,
 				92B7C9162A3A40F400672F64 /* SpudTests */,
 				92B7C9202A3A40F400672F64 /* SpudUITests */,
+				925B76CA2A8FFF0A00BD065A /* SpudSnapshotTests */,
 				920B45522A7C1DF400C6C2DC /* SpudWidget */,
 				92CC5D632A7EBF5E0019436A /* SpudDataKit */,
 				92A226C72A7EF9A900C18FCD /* SpudDataKitTests */,
@@ -1192,6 +1229,7 @@
 				92A226DA2A7EFA1400C18FCD /* SpudUtilKitTests.xctest */,
 				92A226FB2A7FA59E00C18FCD /* SpudUIKit.framework */,
 				92C0B3322A829F43004EF9E6 /* OpenInAppExtension.appex */,
+				925B76C92A8FFF0A00BD065A /* SpudSnapshotTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -1689,6 +1727,27 @@
 			productReference = 920B454F2A7C1DF400C6C2DC /* SpudWidgetExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		925B76C82A8FFF0A00BD065A /* SpudSnapshotTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 925B76D12A8FFF0A00BD065A /* Build configuration list for PBXNativeTarget "SpudSnapshotTests" */;
+			buildPhases = (
+				925B76C52A8FFF0A00BD065A /* Sources */,
+				925B76C62A8FFF0A00BD065A /* Frameworks */,
+				925B76C72A8FFF0A00BD065A /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				925B76CE2A8FFF0A00BD065A /* PBXTargetDependency */,
+			);
+			name = SpudSnapshotTests;
+			packageProductDependencies = (
+				925B76D32A90046200BD065A /* SnapshotTesting */,
+			);
+			productName = SpudSnapshotTests;
+			productReference = 925B76C92A8FFF0A00BD065A /* SpudSnapshotTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		92A226C52A7EF9A900C18FCD /* SpudDataKitTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 92A226CF2A7EF9A900C18FCD /* Build configuration list for PBXNativeTarget "SpudDataKitTests" */;
@@ -1704,6 +1763,7 @@
 			);
 			name = SpudDataKitTests;
 			packageProductDependencies = (
+				925B76D52A90069C00BD065A /* LemmyKit */,
 			);
 			productName = SpudDataKitTests;
 			productReference = 92A226C62A7EF9A900C18FCD /* SpudDataKitTests.xctest */;
@@ -1888,6 +1948,10 @@
 					920B454E2A7C1DF400C6C2DC = {
 						CreatedOnToolsVersion = 14.3.1;
 					};
+					925B76C82A8FFF0A00BD065A = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = 92B7C8F92A3A40EB00672F64;
+					};
 					92A226C52A7EF9A900C18FCD = {
 						CreatedOnToolsVersion = 14.3.1;
 					};
@@ -1938,6 +2002,7 @@
 				9276185C2A731AD5003D49D4 /* XCRemoteSwiftPackageReference "Down" */,
 				921943472A75ED7F0005474D /* XCRemoteSwiftPackageReference "semver" */,
 				92DC45342A8191AA003498C1 /* XCRemoteSwiftPackageReference "SBTUITestTunnel" */,
+				925B76D22A90046200BD065A /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
 			);
 			productRefGroup = 92B7C8FB2A3A40EB00672F64 /* Products */;
 			projectDirPath = "";
@@ -1946,6 +2011,7 @@
 				92B7C8F92A3A40EB00672F64 /* Spud */,
 				92B7C9122A3A40F400672F64 /* SpudTests */,
 				92B7C91C2A3A40F400672F64 /* SpudUITests */,
+				925B76C82A8FFF0A00BD065A /* SpudSnapshotTests */,
 				920B454E2A7C1DF400C6C2DC /* SpudWidgetExtension */,
 				92A226FA2A7FA59E00C18FCD /* SpudUIKit */,
 				92CC5D612A7EBF5E0019436A /* SpudDataKit */,
@@ -1964,6 +2030,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				920B455B2A7C1DF500C6C2DC /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		925B76C72A8FFF0A00BD065A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2102,6 +2175,15 @@
 				9236A4782A7C645F00178F65 /* UpvotesFormatter.swift in Sources */,
 				92603C3D2A80472B0005960F /* URL+spudImageFromAsset.swift in Sources */,
 				9254A33C2A86D6DB009EB4B5 /* ViewTopPosts.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		925B76C52A8FFF0A00BD065A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				925B76D82A9008CE00BD065A /* MarkdownViewController.swift in Sources */,
+				925B76CC2A8FFF0A00BD065A /* SpudSnapshotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2371,6 +2453,11 @@
 			target = 920B454E2A7C1DF400C6C2DC /* SpudWidgetExtension */;
 			targetProxy = 920B455F2A7C1DF500C6C2DC /* PBXContainerItemProxy */;
 		};
+		925B76CE2A8FFF0A00BD065A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 92B7C8F92A3A40EB00672F64 /* Spud */;
+			targetProxy = 925B76CD2A8FFF0A00BD065A /* PBXContainerItemProxy */;
+		};
 		92A226CC2A7EF9A900C18FCD /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 92CC5D612A7EBF5E0019436A /* SpudDataKit */;
@@ -2507,6 +2594,53 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		925B76CF2A8FFF0A00BD065A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudSnapshotTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Spud.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Spud";
+			};
+			name = Debug;
+		};
+		925B76D02A8FFF0A00BD065A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudSnapshotTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Spud.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Spud";
 			};
 			name = Release;
 		};
@@ -3146,6 +3280,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		925B76D12A8FFF0A00BD065A /* Build configuration list for PBXNativeTarget "SpudSnapshotTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				925B76CF2A8FFF0A00BD065A /* Debug */,
+				925B76D02A8FFF0A00BD065A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		92A226CF2A7EF9A900C18FCD /* Build configuration list for PBXNativeTarget "SpudDataKitTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -3256,6 +3399,14 @@
 				minimumVersion = 3.0.0;
 			};
 		};
+		925B76D22A90046200BD065A /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-snapshot-testing";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.11.1;
+			};
+		};
 		9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/shadone/LemmyKit";
@@ -3291,6 +3442,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		925B76D32A90046200BD065A /* SnapshotTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 925B76D22A90046200BD065A /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
+			productName = SnapshotTesting;
+		};
+		925B76D52A90069C00BD065A /* LemmyKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */;
+			productName = LemmyKit;
+		};
 		9273433D2A61FAB70089556E /* LemmyKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */;

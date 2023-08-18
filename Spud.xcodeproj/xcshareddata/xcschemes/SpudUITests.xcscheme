@@ -23,6 +23,17 @@
                ReferencedContainer = "container:Spud.xcodeproj">
             </BuildableReference>
          </TestableReference>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "925B76C82A8FFF0A00BD065A"
+               BuildableName = "SpudSnapshotTests.xctest"
+               BlueprintName = "SpudSnapshotTests"
+               ReferencedContainer = "container:Spud.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction
@@ -52,15 +63,6 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <MacroExpansion>
-         <BuildableReference
-            BuildableIdentifier = "primary"
-            BlueprintIdentifier = "92B7C8F92A3A40EB00672F64"
-            BuildableName = "Spud.app"
-            BlueprintName = "Spud"
-            ReferencedContainer = "container:Spud.xcodeproj">
-         </BuildableReference>
-      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

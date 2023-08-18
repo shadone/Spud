@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "46A5A75F-3255-43DB-9584-89922A1BCA2F",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "testTimeoutsEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:Spud.xcodeproj",
+        "identifier" : "925B76C82A8FFF0A00BD065A",
+        "name" : "SpudSnapshotTests"
+      }
+    }
+  ],
+  "version" : 1
+}
