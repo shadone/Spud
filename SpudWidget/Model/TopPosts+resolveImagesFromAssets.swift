@@ -12,7 +12,7 @@ extension TopPosts {
     /// - Note: only useful for previews during development/debugging.
     var resolveImagesFromAssets: [URL: UIImage] {
         let imageUrls = posts
-            .compactMap { $0.type.imageUrl }
+            .compactMap(\.type.imageUrl)
 
         var imagesByUrl: [URL: UIImage] = [:]
         imageUrls.forEach { url in

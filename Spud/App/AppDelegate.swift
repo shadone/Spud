@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import UIKit
 import CoreData
+import UIKit
 
 #if DEBUG
 import SBTUITestTunnelServer
@@ -24,9 +24,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         coordinator.start()
-#if DEBUG
+        #if DEBUG
         SBTUITestTunnelServer.takeOff()
-#endif
+        #endif
         return true
     }
 
@@ -39,7 +39,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     ) -> UISceneConfiguration {
         // Called when a new scene session is being created.
         // Use this method to select a configuration to create the new scene with.
-        return UISceneConfiguration(
+        UISceneConfiguration(
             name: "Default Configuration",
             sessionRole: connectingSceneSession.role
         )

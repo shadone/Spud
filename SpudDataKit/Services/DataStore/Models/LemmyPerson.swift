@@ -8,15 +8,17 @@ import Combine
 import CoreData
 import Foundation
 import LemmyKit
-import SpudUtilKit
 import os.log
+import SpudUtilKit
 
 /// Describes a person, e.g. post or comment author.
 ///
 /// This is a "header" used as a placeholder that views can watch for changes, the actual person data is
 /// stored in ``LemmyPersonInfo``.
-@objc(LemmyPerson) public final class LemmyPerson: NSManagedObject {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmyPerson> {
+@objc(LemmyPerson)
+public final class LemmyPerson: NSManagedObject {
+    @nonobjc
+    public class func fetchRequest() -> NSFetchRequest<LemmyPerson> {
         NSFetchRequest<LemmyPerson>(entityName: "Person")
     }
 
@@ -26,7 +28,8 @@ import os.log
     /// - Parameter instanceUrl: Instance actorId. e.g. "https://lemmy.world", see ``URL/normalizedInstanceUrlString``.
     ///
     /// - Note: the instance specifies the Lemmy instance the personId is valid for. I.e. it is **not** the persons home site.
-    @nonobjc public class func fetchRequest(
+    @nonobjc
+    public class func fetchRequest(
         personId: PersonId,
         instance: InstanceActorId
     ) -> NSFetchRequest<LemmyPerson> {
@@ -81,8 +84,8 @@ extension LemmyPerson {
 
         self.personId = personId
 
-        self.createdAt = Date()
-        self.updatedAt = createdAt
+        createdAt = Date()
+        updatedAt = createdAt
     }
 }
 

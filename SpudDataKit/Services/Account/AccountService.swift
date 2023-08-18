@@ -4,12 +4,12 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import CoreData
 import Combine
+import CoreData
 import Foundation
-import os.log
-import LemmyKit
 import KeychainAccess
+import LemmyKit
+import os.log
 import SpudUtilKit
 
 private let logger = Logger(.accountService)

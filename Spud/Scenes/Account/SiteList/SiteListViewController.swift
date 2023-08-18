@@ -6,9 +6,9 @@
 
 import CoreData
 import Foundation
+import os.log
 import SpudDataKit
 import UIKit
-import os.log
 
 private let logger = Logger(.app)
 
@@ -19,7 +19,7 @@ class SiteListViewController: UIViewController {
     typealias NestedDependencies =
         LoginViewController.Dependencies &
         SiteListSiteViewModel.Dependencies
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var dataStore: DataStoreType { dependencies.own.dataStore }
@@ -131,7 +131,8 @@ class SiteListViewController: UIViewController {
         siteService.populateSiteListWithSuggestedInstancesIfNeeded()
     }
 
-    @objc private func cancelTapped() {
+    @objc
+    private func cancelTapped() {
         dismiss(animated: true)
     }
 }

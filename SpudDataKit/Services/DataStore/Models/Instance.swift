@@ -7,11 +7,13 @@
 import Combine
 import CoreData
 import Foundation
-import SpudUtilKit
 import os.log
+import SpudUtilKit
 
-@objc(Instance) public final class Instance: NSManagedObject {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<Instance> {
+@objc(Instance)
+public final class Instance: NSManagedObject {
+    @nonobjc
+    public class func fetchRequest() -> NSFetchRequest<Instance> {
         NSFetchRequest<Instance>(entityName: "Instance")
     }
 

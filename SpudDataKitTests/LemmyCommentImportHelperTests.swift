@@ -90,7 +90,7 @@ class CommentHelperTests: XCTestCase {
 
         let result = LemmyCommentImportHelper.findCommentsWithMissingChildren(comments)
         XCTAssertEqual(
-            result.map { $0.comment.path },
+            result.map(\.comment.path),
             [
                 "0.4.5",
                 "0.7.8",
@@ -109,12 +109,12 @@ class CommentHelperTests: XCTestCase {
         let comments: [CommentView] = [
             CommentView(
                 comment: .init(
-                    id: 471445,
+                    id: 471_445,
                     creator_id: 21550,
                     post_id: 57679,
                     content: "XXX",
                     removed: false,
-                    published: Date(timeIntervalSinceReferenceDate: 708499714.602),
+                    published: Date(timeIntervalSinceReferenceDate: 708_499_714.602),
                     updated: nil,
                     deleted: false,
                     ap_id: URL(string: "https://sh.itjust.works/comment/171885")!,
@@ -126,7 +126,7 @@ class CommentHelperTests: XCTestCase {
                 creator: .fake,
                 post: .fake(creator: .fake, community: .fake),
                 community: .fake,
-                counts: .fake(commentId: 471445, childCount: 0),
+                counts: .fake(commentId: 471_445, childCount: 0),
                 creator_banned_from_community: false,
                 subscribed: .notSubscribed,
                 saved: false,
@@ -135,12 +135,12 @@ class CommentHelperTests: XCTestCase {
             ),
             CommentView(
                 comment: .init(
-                    id: 403426,
+                    id: 403_426,
                     creator_id: 90452,
                     post_id: 57679,
                     content: "XXX",
                     removed: false,
-                    published: Date(timeIntervalSinceReferenceDate: 709441501.208),
+                    published: Date(timeIntervalSinceReferenceDate: 709_441_501.208),
                     updated: nil,
                     deleted: false,
                     ap_id: URL(string: "https://vlemmy.net/comment/390987")!,
@@ -152,7 +152,7 @@ class CommentHelperTests: XCTestCase {
                 creator: .fake,
                 post: .fake(creator: .fake, community: .fake),
                 community: .fake,
-                counts: .fake(commentId: 403426, childCount: 0),
+                counts: .fake(commentId: 403_426, childCount: 0),
                 creator_banned_from_community: false,
                 subscribed: .notSubscribed,
                 saved: false,
@@ -161,12 +161,12 @@ class CommentHelperTests: XCTestCase {
             ),
             CommentView(
                 comment: .init(
-                    id: 907431,
+                    id: 907_431,
                     creator_id: 45966,
                     post_id: 57679,
                     content: "XXX",
                     removed: false,
-                    published: Date(timeIntervalSinceReferenceDate: 708459690.855),
+                    published: Date(timeIntervalSinceReferenceDate: 708_459_690.855),
                     updated: nil,
                     deleted: false,
                     ap_id: URL(string: "https://lemmy.world/comment/181062")!,
@@ -178,7 +178,7 @@ class CommentHelperTests: XCTestCase {
                 creator: .fake,
                 post: .fake(creator: .fake, community: .fake),
                 community: .fake,
-                counts: .fake(commentId: 907431, childCount: 0),
+                counts: .fake(commentId: 907_431, childCount: 0),
                 creator_banned_from_community: false,
                 subscribed: .notSubscribed,
                 saved: false,
@@ -187,12 +187,12 @@ class CommentHelperTests: XCTestCase {
             ),
             CommentView(
                 comment: .init(
-                    id: 991036,
-                    creator_id: 625723,
+                    id: 991_036,
+                    creator_id: 625_723,
                     post_id: 57679,
                     content: "XXX",
                     removed: false,
-                    published: Date(timeIntervalSinceReferenceDate: 710992247.549),
+                    published: Date(timeIntervalSinceReferenceDate: 710_992_247.549),
                     updated: nil,
                     deleted: false,
                     ap_id: URL(string: "https://talk.kururin.tech/comment/107365")!,
@@ -204,7 +204,7 @@ class CommentHelperTests: XCTestCase {
                 creator: .fake,
                 post: .fake(creator: .fake, community: .fake),
                 community: .fake,
-                counts: .fake(commentId: 991036, childCount: 0),
+                counts: .fake(commentId: 991_036, childCount: 0),
                 creator_banned_from_community: false,
                 subscribed: .notSubscribed,
                 saved: false,
@@ -215,8 +215,8 @@ class CommentHelperTests: XCTestCase {
 
         let result = LemmyCommentImportHelper.findCommentsWithMissingChildren(comments)
         XCTAssertEqual(
-            result.map { $0.comment.path },
-            [ ]
+            result.map(\.comment.path),
+            []
         )
     }
 
@@ -319,7 +319,7 @@ class CommentHelperTests: XCTestCase {
         ]
 
         let sortedComments = LemmyCommentImportHelper.sort(comments: comments)
-        let sortedCommentIds = sortedComments.map { $0.comment.id }
+        let sortedCommentIds = sortedComments.map(\.comment.id)
         XCTAssertEqual(
             sortedCommentIds,
             [123, 789, 555, 222, 456, 129, 245, 987, 249]

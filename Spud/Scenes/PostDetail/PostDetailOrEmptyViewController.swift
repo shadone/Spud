@@ -15,7 +15,7 @@ class PostDetailOrEmptyViewController: UIViewController {
     typealias NestedDependencies =
         PostDetailViewController.Dependencies &
         PostDetailLoadingViewController.Dependencies
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: - Public

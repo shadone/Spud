@@ -6,8 +6,8 @@
 
 import Combine
 import CoreData
-import SpudDataKit
 import LemmyKit
+import SpudDataKit
 
 protocol PostDetailViewModelInputs {
 //    func voteOnPost(_ action: VoteStatus.Action)
@@ -34,7 +34,7 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
         HasPreferencesService
     typealias NestedDependencies =
         PostDetailHeaderViewModel.Dependencies
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var accountService: AccountServiceType { dependencies.own.accountService }

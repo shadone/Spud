@@ -7,8 +7,8 @@
 import Combine
 import CoreData
 import Foundation
-import SpudDataKit
 import os.log
+import SpudDataKit
 
 private let logger = Logger(.app)
 

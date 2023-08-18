@@ -6,8 +6,8 @@
 
 import CoreData
 import Foundation
-import os.log
 import LemmyKit
+import os.log
 
 extension LemmyPersonInfo {
     func set(from model: LocalUserView) {

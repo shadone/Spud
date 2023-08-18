@@ -12,11 +12,11 @@ import UIKit
 
 class LoginViewController: UIViewController {
     typealias OwnDependencies =
-        HasDataStore &
-        HasAccountService
+        HasAccountService &
+        HasDataStore
     typealias NestedDependencies =
         LoginViewModel.Dependencies
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var dataStore: DataStoreType { dependencies.own.dataStore }
@@ -298,15 +298,17 @@ class LoginViewController: UIViewController {
         usernameChangedObserver = NotificationCenter.default.addObserver(
             forName: UITextField.textDidChangeNotification,
             object: usernameTextField,
-            queue: .main) { [weak self] _ in
-                self?.usernameChanged()
-            }
+            queue: .main
+        ) { [weak self] _ in
+            self?.usernameChanged()
+        }
         passwordChangedObserver = NotificationCenter.default.addObserver(
             forName: UITextField.textDidChangeNotification,
             object: passwordTextField,
-            queue: .main) { [weak self] _ in
-                self?.passwordChanged()
-            }
+            queue: .main
+        ) { [weak self] _ in
+            self?.passwordChanged()
+        }
     }
 
     private func bindViewModel() {
@@ -325,7 +327,7 @@ class LoginViewController: UIViewController {
             .store(in: &disposables)
 
         viewModel.outputs.loggedIn
-            .sink { [weak self] account in
+            .sink { [weak self] _ in
                 self?.dismissAfterLogin()
             }
             .store(in: &disposables)
@@ -335,11 +337,13 @@ class LoginViewController: UIViewController {
         dismiss(animated: true)
     }
 
-    @objc private func cancelTapped() {
+    @objc
+    private func cancelTapped() {
         dismiss(animated: true)
     }
 
-    @objc private func continueWithSignedOutAccount() {
+    @objc
+    private func continueWithSignedOutAccount() {
         let account = accountService.accountForSignedOut(
             at: viewModel.outputs.site.value,
             isServiceAccount: false,
@@ -359,7 +363,8 @@ class LoginViewController: UIViewController {
         viewModel.inputs.passwordChanged(passwordTextField.text ?? "")
     }
 
-    @objc private func login() {
+    @objc
+    private func login() {
         viewModel.inputs.login()
     }
 }

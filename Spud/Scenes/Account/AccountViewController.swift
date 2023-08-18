@@ -12,7 +12,7 @@ class AccountViewController: UIViewController {
         HasVoid
     typealias NestedDependencies =
         AccountListViewController.Dependencies
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: - UI Properties
@@ -69,7 +69,8 @@ class AccountViewController: UIViewController {
         ])
     }
 
-    @objc private func accountsTapped() {
+    @objc
+    private func accountsTapped() {
         let accountListViewController = AccountListViewController(
             dependencies: dependencies.nested
         )

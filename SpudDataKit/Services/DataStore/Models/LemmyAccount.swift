@@ -9,8 +9,10 @@ import CoreData
 import Foundation
 import os.log
 
-@objc(LemmyAccount) public final class LemmyAccount: NSManagedObject {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmyAccount> {
+@objc(LemmyAccount)
+public final class LemmyAccount: NSManagedObject {
+    @nonobjc
+    public class func fetchRequest() -> NSFetchRequest<LemmyAccount> {
         NSFetchRequest<LemmyAccount>(entityName: "Account")
     }
 
@@ -59,11 +61,11 @@ extension LemmyAccount {
     ) {
         self.init(entity: LemmyAccount.entity(), insertInto: context)
 
-        self.id = "<anon>@\(site.instance.actorId.hostWithPort)"
+        id = "<anon>@\(site.instance.actorId.hostWithPort)"
         self.site = site
-        self.isSignedOutAccountType = true
-        self.isServiceAccount = false
-        self.isDefaultAccount = false
+        isSignedOutAccountType = true
+        isServiceAccount = false
+        isDefaultAccount = false
 
         createdAt = Date()
         updatedAt = createdAt
@@ -76,11 +78,11 @@ extension LemmyAccount {
     ) {
         self.init(entity: LemmyAccount.entity(), insertInto: context)
 
-        self.id = "\(userId)@\(site.instance.actorId.hostWithPort)"
+        id = "\(userId)@\(site.instance.actorId.hostWithPort)"
         self.site = site
-        self.isSignedOutAccountType = false
-        self.isServiceAccount = false
-        self.isDefaultAccount = false
+        isSignedOutAccountType = false
+        isServiceAccount = false
+        isDefaultAccount = false
 
         createdAt = Date()
         updatedAt = createdAt

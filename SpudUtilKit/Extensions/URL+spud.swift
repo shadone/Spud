@@ -32,7 +32,7 @@ public extension URL {
             case let .person(personId, instance):
                 guard
                     let encodedInstance = instance.actorId
-                        .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
                 else {
                     fatalError("Failed to url encode '\(self)'")
                 }
@@ -41,7 +41,7 @@ public extension URL {
             case let .post(postId, instance):
                 guard
                     let encodedInstance = instance.actorId
-                        .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
                 else {
                     fatalError("Failed to url encode '\(self)'")
                 }
@@ -62,10 +62,10 @@ public extension URL {
         if components.path == "/person" {
             guard
                 let personIdString = components.queryItems?
-                    .first(where: { $0.name == "personId" })?.value,
+                .first(where: { $0.name == "personId" })?.value,
                 let personId = Int32(personIdString),
                 let instanceString = components.queryItems?
-                    .first(where: { $0.name == "instance" })?.value,
+                .first(where: { $0.name == "instance" })?.value,
                 let instance = InstanceActorId(from: instanceString)
             else {
                 logger.warning("Invalid internal link: \(absoluteString, privacy: .public)")
@@ -76,10 +76,10 @@ public extension URL {
         } else if components.path == "/post" {
             guard
                 let postIdString = components.queryItems?
-                    .first(where: { $0.name == "postId" })?.value,
+                .first(where: { $0.name == "postId" })?.value,
                 let postId = Int32(postIdString),
                 let instanceString = components.queryItems?
-                    .first(where: { $0.name == "instance" })?.value,
+                .first(where: { $0.name == "instance" })?.value,
                 let instance = InstanceActorId(from: instanceString)
             else {
                 logger.warning("Invalid internal link: \(absoluteString, privacy: .public)")

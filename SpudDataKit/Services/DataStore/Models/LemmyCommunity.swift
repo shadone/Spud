@@ -14,8 +14,10 @@ import os.log
 ///
 /// This is a "header" used as a placeholder that views can watch for changes, the actual person data is
 /// stored in ``LemmyCommunityInfo``.
-@objc(LemmyCommunity) public final class LemmyCommunity: NSManagedObject {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmyCommunity> {
+@objc(LemmyCommunity)
+public final class LemmyCommunity: NSManagedObject {
+    @nonobjc
+    public class func fetchRequest() -> NSFetchRequest<LemmyCommunity> {
         NSFetchRequest<LemmyCommunity>(entityName: "Community")
     }
 
@@ -56,8 +58,8 @@ extension LemmyCommunity {
 
         self.communityId = communityId
 
-        self.createdAt = Date()
-        self.updatedAt = createdAt
+        createdAt = Date()
+        updatedAt = createdAt
     }
 }
 

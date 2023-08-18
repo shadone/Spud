@@ -6,7 +6,8 @@
 
 import Foundation
 
-@propertyWrapper public struct Atomic<Value> {
+@propertyWrapper
+public struct Atomic<Value> {
     private let lock = NSLock()
 
     private var value: Value
@@ -25,6 +26,6 @@ import Foundation
     }
 
     public init(wrappedValue: Value) {
-        self.value = wrappedValue
+        value = wrappedValue
     }
 }

@@ -69,11 +69,11 @@ class PreferencesViewModel:
     PreferencesViewModelOutputs
 {
     typealias OwnDependencies =
-        HasPreferencesService &
-        HasAccountService
+        HasAccountService &
+        HasPreferencesService
     typealias NestedDependencies =
         HasVoid
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var preferencesService: PreferencesServiceType { dependencies.own.preferencesService }

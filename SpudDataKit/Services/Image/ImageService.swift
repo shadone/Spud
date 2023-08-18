@@ -69,7 +69,7 @@ public class ImageService: ImageServiceType {
             .mapError { urlError -> ImageLoadingError in
                 .network(urlError)
             }
-            .flatMap { [weak self] (data, urlResponse) -> AnyPublisher<UIImage, ImageLoadingError> in
+            .flatMap { [weak self] data, urlResponse -> AnyPublisher<UIImage, ImageLoadingError> in
                 guard let httpUrlResponse = urlResponse as? HTTPURLResponse else {
                     fatalError("Huh")
                 }

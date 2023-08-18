@@ -17,6 +17,7 @@ private extension ListingType {
         let title: String
         let subtitle: String
     }
+
     var itemForSubscriptions: ItemForSubscriptions {
         switch self {
         case .subscribed:
@@ -142,9 +143,11 @@ extension SubscriptionsView_Preview {
         var outputs: SubscriptionsViewModelOutputs { self }
 
         // MARK: Inputs
+
         func loadFeed(listingType: ListingType) { }
 
         // MARK: Outputs
+
         var account: CurrentValueSubject<LemmyAccount, Never> = .init(
             LemmyAccount()
         )

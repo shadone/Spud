@@ -15,7 +15,7 @@ class SubscriptionsViewController: UIViewController {
     typealias NestedDependencies =
         SubscriptionsViewModel.Dependencies &
         PostListViewController.Dependencies
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var accountService: AccountServiceType { dependencies.own.accountService }
@@ -34,7 +34,7 @@ class SubscriptionsViewController: UIViewController {
 
         self.account = account
 
-        self.viewModel = SubscriptionsViewModel(
+        viewModel = SubscriptionsViewModel(
             account: account,
             dependencies: self.dependencies.nested
         )

@@ -10,8 +10,10 @@ import Foundation
 import LemmyKit
 import os.log
 
-@objc(LemmySiteInfo) public final class LemmySiteInfo: NSManagedObject {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmySiteInfo> {
+@objc(LemmySiteInfo)
+public final class LemmySiteInfo: NSManagedObject {
+    @nonobjc
+    public class func fetchRequest() -> NSFetchRequest<LemmySiteInfo> {
         NSFetchRequest<LemmySiteInfo>(entityName: "SiteInfo")
     }
 

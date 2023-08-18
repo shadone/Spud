@@ -4,13 +4,12 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Foundation
-import CoreData
 import Combine
+import CoreData
+import Foundation
 import SpudDataKit
 
-protocol PersonViewModelInputs {
-}
+protocol PersonViewModelInputs { }
 
 protocol PersonViewModelOutputs {
     var personInfo: LemmyPersonInfo { get }
@@ -27,7 +26,7 @@ class PersonViewModel: PersonViewModelType, PersonViewModelInputs, PersonViewMod
         PersonHeaderViewModel.Dependencies
     typealias NestedDependencies =
         HasVoid
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     // MARK: Private

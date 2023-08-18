@@ -6,18 +6,18 @@
 
 import Combine
 import LemmyKit
+import os.log
 import SpudDataKit
 import UIKit
-import os.log
 
 class PostDetailLoadingViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
-        HasDataStore &
-        HasAlertService
+        HasAlertService &
+        HasDataStore
     typealias NestedDependencies =
         HasVoid
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     private var accountService: AccountServiceType { dependencies.own.accountService }

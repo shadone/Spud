@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
 import SBTUITestTunnelClient
+import XCTest
 
 class SpudUITests: XCTestCase {
     override func setUpWithError() throws {

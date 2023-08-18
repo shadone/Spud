@@ -18,7 +18,7 @@ extension CommentAggregates {
             score: 1,
             upvotes: 1,
             downvotes: 0,
-            published: Date(timeIntervalSince1970: 1685938028),
+            published: Date(timeIntervalSince1970: 1_685_938_028),
             child_count: childCount,
             hot_rank: 0
         )

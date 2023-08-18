@@ -16,7 +16,7 @@ class MainWindow: UIWindow {
         MainWindowSplitViewController.Dependencies &
         AccountViewController.Dependencies &
         PreferencesViewController.Dependencies
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     private var accountService: AccountServiceType { dependencies.own.accountService }

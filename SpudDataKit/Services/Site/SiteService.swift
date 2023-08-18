@@ -4,11 +4,11 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import CoreData
 import Combine
+import CoreData
 import Foundation
-import os.log
 import LemmyKit
+import os.log
 import SpudUtilKit
 
 private let logger = Logger(.siteService)
@@ -76,7 +76,7 @@ public class SiteService: SiteServiceType {
         }
 
         let existingInstanceActorIds = existingInstances
-            .map { $0.actorId }
+            .map(\.actorId)
 
         let instancesActorIdsToAdd = suggestedInstancesActorIds
             .filter {
@@ -148,12 +148,12 @@ public class SiteService: SiteServiceType {
             "https://lemmy.eus",
             "https://lm.korako.me",
         ]
-            .map { stringValue in
-                guard let instanceActorId = InstanceActorId(from: stringValue) else {
-                    fatalError("Failed to parse static hard coded string '\(stringValue)'")
-                }
-                return instanceActorId
+        .map { stringValue in
+            guard let instanceActorId = InstanceActorId(from: stringValue) else {
+                fatalError("Failed to parse static hard coded string '\(stringValue)'")
             }
+            return instanceActorId
+        }
 
         let request: NSFetchRequest<Instance> = Instance.fetchRequest()
         request.predicate = NSPredicate(
@@ -171,7 +171,7 @@ public class SiteService: SiteServiceType {
         }
 
         let existingNormalizedInstanceUrls = existingInstances
-            .map { $0.actorId }
+            .map(\.actorId)
 
         let instancesToAdd = suggestedInstances
             .filter {

@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 struct TopPostsWidgetEntryView: View {
     var topPosts: TopPosts
@@ -70,7 +70,6 @@ struct TopPostsWidgetEntryView: View {
                 } else {
                     Text("No data")
                 }
-
 
             case .systemSmall, .systemExtraLarge, .accessoryCircular:
                 Text("Internal error: Unsupported widget family")
@@ -140,8 +139,8 @@ struct TopPostsWidget_Previews: PreviewProvider {
     }
 }
 
-//#Preview(as: WidgetFamily.systemSmall) {
+// #Preview(as: WidgetFamily.systemSmall) {
 //    TopPostsWidget()
-//} timeline: {
+// } timeline: {
 //    TopPostsEntry(date: Date(), topPosts: TopPosts.snapshot, images: TopPosts.snapshot.resolveImagesFromAssets)
-//}
+// }

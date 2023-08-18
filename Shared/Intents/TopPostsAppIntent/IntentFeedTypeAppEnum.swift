@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Foundation
 import AppIntents
+import Foundation
 
 @available(iOS 16.0, macOS 13.0, watchOS 9.0, tvOS 16.0, *)
 enum IntentFeedTypeAppEnum: String, AppEnum {
@@ -17,7 +17,6 @@ enum IntentFeedTypeAppEnum: String, AppEnum {
     static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
         .all: "All",
         .local: "Local",
-        .subscribed: "Subscribed"
+        .subscribed: "Subscribed",
     ]
 }
-

@@ -9,12 +9,15 @@ import CoreData
 import Foundation
 import LemmyKit
 
-@objc(LemmyCommentElement) public final class LemmyCommentElement: NSManagedObject {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmyCommentElement> {
+@objc(LemmyCommentElement)
+public final class LemmyCommentElement: NSManagedObject {
+    @nonobjc
+    public class func fetchRequest() -> NSFetchRequest<LemmyCommentElement> {
         NSFetchRequest<LemmyCommentElement>(entityName: "CommentElement")
     }
 
-    @nonobjc public class func fetchForDeletion(
+    @nonobjc
+    public class func fetchForDeletion(
         postObjectId: NSManagedObjectID,
         sortType: CommentSortType
     ) -> NSFetchRequest<LemmyCommentElement> {

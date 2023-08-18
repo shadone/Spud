@@ -158,7 +158,8 @@ class LinkPreviewView: UIButton {
         thumbnailImageView.image = image
     }
 
-    @objc private func tapHandler() {
+    @objc
+    private func tapHandler() {
         guard let url else { return }
         tapped?(url)
     }

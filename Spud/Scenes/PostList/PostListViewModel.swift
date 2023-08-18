@@ -6,8 +6,8 @@
 
 import Combine
 import Foundation
-import os.log
 import LemmyKit
+import os.log
 import SpudDataKit
 
 protocol PostListViewModelInputs {
@@ -43,7 +43,7 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
     typealias NestedDependencies =
         PostListPostViewModel.Dependencies &
         PostDetailViewController.Dependencies
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var accountService: AccountServiceType { dependencies.own.accountService }

@@ -33,7 +33,7 @@ class SubscriptionsViewModel:
         HasAccountService
     typealias NestedDependencies =
         HasVoid
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var accountService: AccountServiceType { dependencies.own.accountService }

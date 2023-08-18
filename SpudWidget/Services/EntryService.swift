@@ -5,10 +5,10 @@
 //
 
 import Foundation
-import SpudDataKit
 import LemmyKit
-import UIKit
 import os.log
+import SpudDataKit
+import UIKit
 
 private let logger = Logger(.entryService)
 
@@ -54,7 +54,8 @@ class EntryService: EntryServiceType {
         return entry
     }
 
-    @MainActor func topPosts(
+    @MainActor
+    func topPosts(
         listingType: ListingType,
         sortType: SortType
     ) async -> TopPostsEntry {
@@ -66,11 +67,12 @@ class EntryService: EntryServiceType {
         return entry
     }
 
-    @MainActor private func entry(
+    @MainActor
+    private func entry(
         from topPosts: TopPosts
     ) async -> TopPostsEntry {
         let imageUrls = topPosts.posts
-            .compactMap { $0.type.imageUrl }
+            .compactMap(\.type.imageUrl)
 
         let imagesByUrl = await withTaskGroup(of: (URL, UIImage?).self) { group in
             for url in imageUrls {
@@ -90,7 +92,8 @@ class EntryService: EntryServiceType {
         )
     }
 
-    @MainActor private func fetchFeed(
+    @MainActor
+    private func fetchFeed(
         listingType: ListingType,
         sortType: SortType
     ) async -> LemmyFeed {
@@ -125,14 +128,15 @@ class EntryService: EntryServiceType {
         return feed
     }
 
-    @MainActor private func fetchImage(_ url: URL) async -> UIImage? {
+    @MainActor
+    private func fetchImage(_ url: URL) async -> UIImage? {
         // TODO: look into fetching images using background request
         // https://developer.apple.com/documentation/widgetkit/making-network-requests-in-a-widget-extension
 
         logger.debug("Fetching image \(url, privacy: .public)")
 
         var data: Data?
-        data = (try? await URLSession.shared.data(from: url))?.0
+        data = await (try? URLSession.shared.data(from: url))?.0
 
         guard data != nil else {
             return nil

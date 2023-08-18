@@ -21,6 +21,6 @@ public struct SymbolImageResource {
     }
 
     public var swiftUIImage: SwiftUI.Image {
-      SwiftUI.Image(systemName: systemName)
+        SwiftUI.Image(systemName: systemName)
     }
 }

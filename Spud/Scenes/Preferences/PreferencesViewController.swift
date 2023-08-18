@@ -7,18 +7,18 @@
 import Combine
 import Foundation
 import LemmyKit
-import SwiftUI
 import SpudDataKit
+import SwiftUI
 import UIKit
 
 class PreferencesViewController: UIViewController {
     typealias OwnDependencies =
-        HasPreferencesService &
+        HasAccountService &
         HasAppService &
-        HasAccountService
+        HasPreferencesService
     typealias NestedDependencies =
         PreferencesViewModel.Dependencies
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var appService: AppServiceType { dependencies.own.appService }

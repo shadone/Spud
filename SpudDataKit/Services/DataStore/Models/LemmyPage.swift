@@ -7,8 +7,10 @@
 import CoreData
 import Foundation
 
-@objc(LemmyPage) public final class LemmyPage: NSManagedObject {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmyPage> {
+@objc(LemmyPage)
+public final class LemmyPage: NSManagedObject {
+    @nonobjc
+    public class func fetchRequest() -> NSFetchRequest<LemmyPage> {
         NSFetchRequest<LemmyPage>(entityName: "Page")
     }
 

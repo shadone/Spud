@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 @main
 struct SpudWidgetBundle: WidgetBundle {

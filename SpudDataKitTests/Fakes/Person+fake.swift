@@ -14,7 +14,7 @@ extension Person {
         display_name: "One",
         avatar: nil,
         banned: false,
-        published: Date(timeIntervalSince1970: 1683349689),
+        published: Date(timeIntervalSince1970: 1_683_349_689),
         updated: nil,
         actor_id: URL(string: "https://example.com/u/one")!,
         bio: nil,

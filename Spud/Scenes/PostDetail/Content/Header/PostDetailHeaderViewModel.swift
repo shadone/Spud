@@ -12,12 +12,12 @@ import UIKit
 
 class PostDetailHeaderViewModel {
     typealias OwnDependencies =
-        HasImageService &
         HasAppearanceService &
+        HasImageService &
         HasPostContentDetectorService
     typealias NestedDependencies =
         HasVoid
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var imageService: ImageServiceType { dependencies.own.imageService }
@@ -71,7 +71,7 @@ class PostDetailHeaderViewModel {
             .combineLatest(secondaryAttributes)
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()
-        let communityName = self.communityName
+        let communityName = communityName
             .combineLatest(secondaryHighlightedAttributes)
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()
@@ -79,7 +79,7 @@ class PostDetailHeaderViewModel {
             .combineLatest(secondaryAttributes)
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()
-        let creator = self.creator
+        let creator = creator
             .combineLatest(secondaryHighlightedAttributes)
             .map { tuple -> NSAttributedString in
                 let creator = tuple.0

@@ -4,9 +4,9 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import os.log
 import SpudDataKit
 import UIKit
-import os.log
 
 private let logger = Logger(.app)
 

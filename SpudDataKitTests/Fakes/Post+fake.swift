@@ -18,7 +18,7 @@ extension Post {
             community_id: community.id,
             removed: false,
             locked: false,
-            published: Date(timeIntervalSince1970: 1685577784),
+            published: Date(timeIntervalSince1970: 1_685_577_784),
             updated: nil,
             deleted: false,
             nsfw: false,

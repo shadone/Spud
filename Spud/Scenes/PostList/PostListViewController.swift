@@ -6,24 +6,24 @@
 
 import Combine
 import CoreData
+import Intents
+import LemmyKit
+import os.log
 import SpudDataKit
 import UIKit
-import LemmyKit
-import Intents
-import os.log
 
 private let logger = Logger(.app)
 
 class PostListViewController: UIViewController {
     typealias OwnDependencies =
-        HasDataStore &
         HasAccountService &
         HasAlertService &
-        HasAppearanceService
+        HasAppearanceService &
+        HasDataStore
     typealias NestedDependencies =
         PostListPostViewModel.Dependencies &
         PostDetailViewController.Dependencies
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var dataStore: DataStoreType { dependencies.own.dataStore }
@@ -166,7 +166,7 @@ class PostListViewController: UIViewController {
                         sortTypeTopMonthAction,
                         sortTypeTopYearAction,
                         sortTypeTopAllAction,
-                   ]
+                    ]
                 ),
                 UIMenu(
                     title: "",
@@ -174,7 +174,7 @@ class PostListViewController: UIViewController {
                     children: [
                         sortTypeMostCommentsAction,
                         sortTypeNewCommentsAction,
-                   ]
+                    ]
                 ),
             ]
         )
@@ -183,7 +183,7 @@ class PostListViewController: UIViewController {
     }
 
     private func sortTypeActionHandler(for sortType: SortType) -> UIActionHandler {
-        return { [weak self] _ in
+        { [weak self] _ in
             self?.viewModel.inputs.didChangeSortType(sortType)
         }
     }
@@ -223,7 +223,7 @@ class PostListViewController: UIViewController {
     }
 
     private func updateSelectedSortTypeMenu() {
-        sortTypeMenuActionsBySortType.forEach { (_, value) in
+        sortTypeMenuActionsBySortType.forEach { _, value in
             value.state = .off
         }
 
@@ -300,7 +300,7 @@ class PostListViewController: UIViewController {
     }
 
     private func vote(postAtIndex index: Int, _ action: VoteStatus.Action) {
-        let post = self.post(at: index)
+        let post = post(at: index)
         vote(post, action)
     }
 
@@ -405,18 +405,18 @@ extension PostListViewController: UITableViewDelegate {
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
             previewProvider: nil,
-            actionProvider: { suggestedActions in
+            actionProvider: { _ in
                 let upvoteAction = UIAction(
                     title: NSLocalizedString("Upvote", comment: ""),
                     image: generalAppearance.upvoteIcon
-                ) { [weak self] action in
+                ) { [weak self] _ in
                     self?.vote(postAtIndex: indexPath.row, .upvote)
                 }
 
                 let downvoteAction = UIAction(
                     title: NSLocalizedString("Downvote", comment: ""),
                     image: generalAppearance.downvoteIcon
-                ) { [weak self] action in
+                ) { [weak self] _ in
                     self?.vote(postAtIndex: indexPath.row, .downvote)
                 }
 

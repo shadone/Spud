@@ -6,8 +6,8 @@
 
 import CoreData
 import Foundation
-import os.log
 import LemmyKit
+import os.log
 
 private let logger = Logger(.lemmyService)
 

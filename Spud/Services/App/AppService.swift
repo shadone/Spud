@@ -35,7 +35,8 @@ class AppService: AppServiceType {
         viewController.present(safariVC, animated: true)
     }
 
-    @MainActor func open(url: URL, on viewController: UIViewController) async {
+    @MainActor
+    func open(url: URL, on viewController: UIViewController) async {
         assert(url.spud == nil)
 
         func openInSafariViewController() {

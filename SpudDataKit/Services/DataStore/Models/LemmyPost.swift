@@ -10,12 +10,15 @@ import Foundation
 import LemmyKit
 import os.log
 
-@objc(LemmyPost) public final class LemmyPost: NSManagedObject {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmyPost> {
+@objc(LemmyPost)
+public final class LemmyPost: NSManagedObject {
+    @nonobjc
+    public class func fetchRequest() -> NSFetchRequest<LemmyPost> {
         NSFetchRequest<LemmyPost>(entityName: "Post")
     }
 
-    @nonobjc public class func fetchRequest(
+    @nonobjc
+    public class func fetchRequest(
         postId: PostId,
         account: LemmyAccount
     ) -> NSFetchRequest<LemmyPost> {
@@ -64,8 +67,8 @@ extension LemmyPost {
 
         self.postId = postId
 
-        self.createdAt = Date()
-        self.updatedAt = createdAt
+        createdAt = Date()
+        updatedAt = createdAt
 
         self.account = account
     }

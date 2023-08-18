@@ -7,5 +7,4 @@
 import Foundation
 
 /// A dummy dependency for cases when no dependencies are needed.
-protocol HasVoid {
-}
+protocol HasVoid { }

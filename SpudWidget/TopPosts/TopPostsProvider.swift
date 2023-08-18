@@ -6,9 +6,9 @@
 
 import Foundation
 import LemmyKit
+import os.log
 import UIKit
 import WidgetKit
-import os.log
 
 private let logger = Logger(.topPostsProvider)
 
@@ -36,7 +36,7 @@ class TopPostsProvider: IntentTimelineProvider {
     func getSnapshot(
         for configuration: ViewTopPostsIntent,
         in context: Context,
-        completion: @escaping (TopPostsEntry) -> ()
+        completion: @escaping (TopPostsEntry) -> Void
     ) {
         if context.isPreview {
             logger.debug("Snapshot requested for preview")
@@ -53,7 +53,7 @@ class TopPostsProvider: IntentTimelineProvider {
     func getTimeline(
         for configuration: ViewTopPostsIntent,
         in context: Context,
-        completion: @escaping (Timeline<Entry>) -> ()
+        completion: @escaping (Timeline<Entry>) -> Void
     ) {
         logger.debug("Timeline requested")
 

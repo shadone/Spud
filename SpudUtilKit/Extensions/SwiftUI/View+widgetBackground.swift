@@ -5,8 +5,8 @@
 //
 
 import Foundation
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 public extension View {
     func widgetBackground(_ color: Color) -> some View {

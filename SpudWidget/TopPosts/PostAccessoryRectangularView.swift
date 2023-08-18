@@ -34,7 +34,6 @@ struct PostAccessoryRectangularView: View {
                         .foregroundColor(.secondary)
                         .font(.system(size: 12))
                         .lineLimit(1)
-
                 }
             }
         }

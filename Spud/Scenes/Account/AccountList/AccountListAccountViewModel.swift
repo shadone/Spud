@@ -58,7 +58,7 @@ class AccountListAccountViewModel {
     var defaultAccountAccessoryType: AnyPublisher<UITableViewCell.AccessoryType, Never> {
         account.publisher(for: \.isDefaultAccount)
             .map { isDefaultAccount in
-                return isDefaultAccount ? .checkmark : .none
+                isDefaultAccount ? .checkmark : .none
             }
             .eraseToAnyPublisher()
     }

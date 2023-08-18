@@ -27,20 +27,17 @@ struct PreferencesView<ViewModel>: View
                         Label("General", systemImage: "gear")
                     }
 
-                    NavigationLink {
-                    } label: {
+                    NavigationLink { } label: {
                         Label("Appearance", systemImage: "paintpalette")
                     }
 
-                    NavigationLink {
-                    } label: {
+                    NavigationLink { } label: {
                         Label("Accounts", systemImage: "person")
                     }
                 }
 
                 Section {
-                    NavigationLink {
-                    } label: {
+                    NavigationLink { } label: {
                         Label("About", systemImage: "a")
                     }
                 }

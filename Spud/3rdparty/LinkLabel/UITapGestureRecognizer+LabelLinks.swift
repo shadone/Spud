@@ -11,21 +11,21 @@ import UIKit.UIGestureRecognizerSubclass
 
 extension UILabel {
     func indexOfCharacter(at point: CGPoint) -> Int? {
-        if self.attributedText == nil {
+        if attributedText == nil {
             return nil
         }
 
         let layoutManager = NSLayoutManager()
         let textContainer = NSTextContainer()
-        let textStorage = NSTextStorage(attributedString: self.attributedText!)
+        let textStorage = NSTextStorage(attributedString: attributedText!)
 
         layoutManager.addTextContainer(textContainer)
         textStorage.addLayoutManager(layoutManager)
 
         textContainer.lineFragmentPadding = 0
-        textContainer.lineBreakMode = self.lineBreakMode
-        textContainer.maximumNumberOfLines = self.numberOfLines
-        textContainer.size = self.bounds.size
+        textContainer.lineBreakMode = lineBreakMode
+        textContainer.maximumNumberOfLines = numberOfLines
+        textContainer.size = bounds.size
 
         let textBoundingBox = layoutManager.usedRect(for: textContainer)
 
@@ -34,15 +34,18 @@ extension UILabel {
         }
 
         let textContainerOffset = CGPoint(
-            x: (self.bounds.size.width - textBoundingBox.size.width) * 0.5 - textBoundingBox.origin.x,
-            y: (self.bounds.size.height - textBoundingBox.size.height) * 0.5 - textBoundingBox.origin.y)
+            x: (bounds.size.width - textBoundingBox.size.width) * 0.5 - textBoundingBox.origin.x,
+            y: (bounds.size.height - textBoundingBox.size.height) * 0.5 - textBoundingBox.origin.y
+        )
         let locationOfTouchInTextContainer = CGPoint(
             x: point.x - textContainerOffset.x,
-            y: point.y - textContainerOffset.y)
+            y: point.y - textContainerOffset.y
+        )
         let indexOfCharacter = layoutManager.characterIndex(
             for: locationOfTouchInTextContainer,
             in: textContainer,
-            fractionOfDistanceBetweenInsertionPoints: nil)
+            fractionOfDistanceBetweenInsertionPoints: nil
+        )
 
         return indexOfCharacter
     }

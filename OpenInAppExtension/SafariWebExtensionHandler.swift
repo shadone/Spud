@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import SafariServices
 import os.log
+import SafariServices
 
 class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
     func beginRequest(with context: NSExtensionContext) {
@@ -15,8 +15,8 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         // if #available(iOS 17.0, macOS 14.0, *) {
         //     profile = request?.userInfo?[SFExtensionProfileKey] as? UUID
         // } else {
-            profile = request?.userInfo?["profile"] as? UUID
-        //}
+        profile = request?.userInfo?["profile"] as? UUID
+        // }
 
         let message: Any?
         if #available(iOS 17.0, macOS 14.0, *) {
@@ -28,9 +28,8 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         os_log(.default, "Received message from browser.runtime.sendNativeMessage: %@ (profile: %@)", String(describing: message), profile?.uuidString ?? "none")
 
         let response = NSExtensionItem()
-        response.userInfo = [ SFExtensionMessageKey: [ "echo": message ] ]
+        response.userInfo = [SFExtensionMessageKey: ["echo": message]]
 
-        context.completeRequest(returningItems: [ response ], completionHandler: nil)
+        context.completeRequest(returningItems: [response], completionHandler: nil)
     }
-
 }

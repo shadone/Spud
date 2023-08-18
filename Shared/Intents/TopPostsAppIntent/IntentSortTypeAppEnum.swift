@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Foundation
 import AppIntents
+import Foundation
 
 @available(iOS 16.0, macOS 13.0, watchOS 9.0, tvOS 16.0, *)
 enum IntentSortTypeAppEnum: String, AppEnum {
@@ -35,7 +35,6 @@ enum IntentSortTypeAppEnum: String, AppEnum {
         .topYear: "Top Year",
         .topAll: "Top All",
         .mostComments: "Most Comments",
-        .newComments: "New Comments"
+        .newComments: "New Comments",
     ]
 }
-

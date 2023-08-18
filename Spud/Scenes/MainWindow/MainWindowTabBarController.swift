@@ -7,5 +7,4 @@
 import Foundation
 import UIKit
 
-class MainWindowTabBarController: UITabBarController {
-}
+class MainWindowTabBarController: UITabBarController { }

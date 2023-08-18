@@ -21,11 +21,11 @@ extension LemmyComment {
 
         set(from: model)
 
-        self.createdAt = Date()
-        self.updatedAt = createdAt
+        createdAt = Date()
+        updatedAt = createdAt
 
         self.post = post
-        self.creator = LemmyPerson.upsert(model.creator, site: post.account.site, in: context)
+        creator = LemmyPerson.upsert(model.creator, site: post.account.site, in: context)
     }
 
     func set(from model: CommentView) {
@@ -60,8 +60,7 @@ extension LemmyComment {
         _ model: CommentView,
         post: LemmyPost,
         in context: NSManagedObjectContext
-    ) -> LemmyComment?
-    {
+    ) -> LemmyComment? {
         let request = LemmyComment.fetchRequest() as NSFetchRequest<LemmyComment>
         request.predicate = NSPredicate(
             format: "localCommentId == %d AND post == %@",

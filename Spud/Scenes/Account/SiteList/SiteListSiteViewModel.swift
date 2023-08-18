@@ -13,7 +13,7 @@ class SiteListSiteViewModel {
         HasImageService
     typealias NestedDependencies =
         HasVoid
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var imageService: ImageServiceType { dependencies.own.imageService }

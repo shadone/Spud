@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Foundation
 import Combine
+import Foundation
 
 protocol PostListAppearanceType: AnyObject {
 //    var previewImageSizePublisher: AnyPublisher<PostListPreviewImageSize, Never> { get }

@@ -82,8 +82,8 @@ struct PreferencesGeneralView<ViewModel>: View
                 Picker("Default Sort", selection: defaultCommentSortType) {
                     ForEach(viewModel.outputs.allCommentSortTypes) { commentSortType in
                         let item = commentSortType.itemForMenu
-                            Text(item.title)
-                                .tag(commentSortType)
+                        Text(item.title)
+                            .tag(commentSortType)
                     }
                 }
             } header: {

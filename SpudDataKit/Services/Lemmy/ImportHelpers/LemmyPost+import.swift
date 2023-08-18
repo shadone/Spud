@@ -6,8 +6,8 @@
 
 import CoreData
 import Foundation
-import os.log
 import LemmyKit
+import os.log
 
 private let logger = Logger(.lemmyService)
 
@@ -91,7 +91,7 @@ extension LemmyPost {
         )
         do {
             let results = try context.fetch(request)
-            if results.count == 0 {
+            if results.isEmpty {
                 return LemmyPost(model, account: account, in: context)
             } else if results.count == 1 {
                 let post = results[0]

@@ -57,7 +57,7 @@ struct IconValueFormatter {
         numberOfComments: Int64,
         attributes: [NSAttributedString.Key: Any]
     ) -> NSAttributedString {
-        return Self.attributedString(
+        attributedString(
             UIImage(systemName: "text.bubble")!,
             CommentsFormatter.string(from: numberOfComments),
             attributes: attributes
@@ -68,7 +68,7 @@ struct IconValueFormatter {
         relativeDate timestamp: Date,
         attributes: [NSAttributedString.Key: Any]
     ) -> NSAttributedString {
-        return Self.attributedString(
+        attributedString(
             UIImage(systemName: "clock")!,
             "\(timestamp.relativeString)",
             attributes: attributes

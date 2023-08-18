@@ -9,7 +9,7 @@ import Foundation
 import LemmyKit
 
 /// The namespace for types used by ``PreferencesService``.
-enum Preferences {}
+enum Preferences { }
 
 protocol PreferencesServiceType: AnyObject {
     var defaultCommentSortType: CommentSortType { get set }

@@ -6,8 +6,8 @@
 
 import Foundation
 import Intents
-import SpudDataKit
 import LemmyKit
+import SpudDataKit
 
 extension IntentFeedType {
     init(from feedType: FeedType) {

@@ -34,7 +34,7 @@ public struct ManagedContextScheduler<SchedulerTimeType, SchedulerOptions>: Sche
     public func schedule(after _: SchedulerTimeType, interval _: SchedulerTimeType.Stride, tolerance _: SchedulerTimeType.Stride, options _: SchedulerOptions?, _ action: @escaping () -> Void) -> Cancellable {
         assertionFailure("future scheduling is not implemented")
         action()
-        return AnyCancellable {}
+        return AnyCancellable { }
     }
 
     public func schedule(after _: SchedulerTimeType, tolerance _: SchedulerTimeType.Stride, options _: SchedulerOptions?, _ action: @escaping () -> Void) {

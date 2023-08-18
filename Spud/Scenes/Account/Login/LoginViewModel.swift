@@ -31,12 +31,12 @@ protocol LoginViewModelType {
 
 class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOutputs {
     typealias OwnDependencies =
-        HasImageService &
         HasAccountService &
-        HasAlertService
+        HasAlertService &
+        HasImageService
     typealias NestedDependencies =
         HasVoid
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var accountService: AccountServiceType { dependencies.own.accountService }
@@ -94,7 +94,7 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
             .eraseToAnyPublisher()
 
         instanceName = site.publisher(for: \.instance)
-            .flatMap { $0.actorIdPublisher }
+            .flatMap(\.actorIdPublisher)
             .map(\.host)
             .eraseToAnyPublisher()
 

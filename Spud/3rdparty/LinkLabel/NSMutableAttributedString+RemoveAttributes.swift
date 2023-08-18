@@ -10,12 +10,12 @@ import Foundation
 
 extension NSMutableAttributedString {
     func removeAttributes() {
-        let range = NSMakeRange(0, self.length)
-        self.removeAttributes(range: range)
+        let range = NSMakeRange(0, length)
+        removeAttributes(range: range)
     }
 
     func removeAttributes(range: NSRange) {
-        self.enumerateAttributes(in: range, options: []) { (attributes, range, _) in
+        enumerateAttributes(in: range, options: []) { attributes, range, _ in
             for attribute in attributes {
                 self.removeAttribute(attribute.key, range: range)
             }

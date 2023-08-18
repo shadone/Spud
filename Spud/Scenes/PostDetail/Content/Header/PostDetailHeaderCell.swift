@@ -33,7 +33,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
         NSLayoutConstraint.activate([
             postImageContainer.widthAnchor.constraint(equalTo: stackView.widthAnchor),
             postContentVerticalStackView.widthAnchor.constraint(
-                equalTo: stackView.widthAnchor, constant: -16 * 2),
+                equalTo: stackView.widthAnchor, constant: -16 * 2
+            ),
         ])
 
         return stackView

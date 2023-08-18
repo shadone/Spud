@@ -25,10 +25,10 @@ protocol PersonOrLoadingViewModelType {
     var outputs: PersonOrLoadingViewModelOutputs { get }
 }
 
-class PersonOrLoadingViewModel
-    : PersonOrLoadingViewModelType,
-      PersonOrLoadingViewModelInputs,
-      PersonOrLoadingViewModelOutputs
+class PersonOrLoadingViewModel:
+    PersonOrLoadingViewModelType,
+    PersonOrLoadingViewModelInputs,
+    PersonOrLoadingViewModelOutputs
 {
     private let person: LemmyPerson
     private let currentlyDisplayedPersonInfo: CurrentValueSubject<LemmyPersonInfo?, Never>

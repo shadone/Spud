@@ -7,11 +7,13 @@
 import Combine
 import CoreData
 import Foundation
-import SemVer
 import os.log
+import SemVer
 
-@objc(NodeInfo) public final class NodeInfo: NSManagedObject {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<NodeInfo> {
+@objc(NodeInfo)
+public final class NodeInfo: NSManagedObject {
+    @nonobjc
+    public class func fetchRequest() -> NSFetchRequest<NodeInfo> {
         NSFetchRequest<NodeInfo>(entityName: "NodeInfo")
     }
 

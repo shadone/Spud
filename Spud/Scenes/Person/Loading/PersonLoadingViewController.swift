@@ -6,9 +6,9 @@
 
 import Combine
 import LemmyKit
+import os.log
 import SpudDataKit
 import UIKit
-import os.log
 
 class PersonLoadingViewController: UIViewController {
     typealias OwnDependencies =
@@ -16,7 +16,7 @@ class PersonLoadingViewController: UIViewController {
         HasAlertService
     typealias NestedDependencies =
         HasVoid
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var accountService: AccountServiceType { dependencies.own.accountService }

@@ -6,25 +6,25 @@
 
 import Combine
 import CoreData
+import os.log
 import SpudDataKit
 import UIKit
-import os.log
 
 private let logger = Logger(.app)
 
 class PostDetailViewController: UIViewController {
     typealias OwnDependencies =
-        HasDataStore &
-        HasAppearanceService &
-        HasAppService &
         HasAccountService &
-        HasAlertService
+        HasAlertService &
+        HasAppService &
+        HasAppearanceService &
+        HasDataStore
     typealias NestedDependencies =
         PostDetailViewModel.Dependencies &
         PostDetailHeaderViewModel.Dependencies &
         PostDetailCommentViewModel.Dependencies &
         PersonOrLoadingViewController.Dependencies
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var dataStore: DataStoreType { dependencies.own.dataStore }
@@ -178,10 +178,10 @@ class PostDetailViewController: UIViewController {
         viewModel.inputs.didPrepareFetchController(numberOfFetchedComments: numberOfComments)
     }
 
-    private func bindViewModel() {
-    }
+    private func bindViewModel() { }
 
-    @objc private func reloadData() {
+    @objc
+    private func reloadData() {
         accountService
             .lemmyService(for: postInfo.post.account)
             .fetchComments(
@@ -198,7 +198,8 @@ class PostDetailViewController: UIViewController {
             .store(in: &disposables)
     }
 
-    @objc private func openInBrowser() {
+    @objc
+    private func openInBrowser() {
         Task {
             await appService.openInBrowser(post: postInfo.post, on: self)
         }
@@ -305,18 +306,18 @@ extension PostDetailViewController: UITableViewDelegate {
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
             previewProvider: nil,
-            actionProvider: { suggestedActions in
+            actionProvider: { _ in
                 let upvoteAction = UIAction(
                     title: NSLocalizedString("Upvote", comment: ""),
                     image: generalAppearance.upvoteIcon
-                ) { [weak self] action in
+                ) { [weak self] _ in
                     self?.vote(commentAtIndex: indexPath.row, .upvote)
                 }
 
                 let downvoteAction = UIAction(
                     title: NSLocalizedString("Downvote", comment: ""),
                     image: generalAppearance.downvoteIcon
-                ) { [weak self] action in
+                ) { [weak self] _ in
                     self?.vote(commentAtIndex: indexPath.row, .downvote)
                 }
 

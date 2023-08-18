@@ -14,7 +14,7 @@ extension Community {
         title: "World",
         description: "Hello world community",
         removed: false,
-        published: Date(timeIntervalSince1970: 1680667628),
+        published: Date(timeIntervalSince1970: 1_680_667_628),
         updated: nil,
         deleted: false,
         nsfw: false,

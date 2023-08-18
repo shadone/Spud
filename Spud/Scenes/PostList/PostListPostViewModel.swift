@@ -10,12 +10,12 @@ import UIKit
 
 class PostListPostViewModel {
     typealias OwnDependencies =
-        HasImageService &
         HasAppearanceService &
+        HasImageService &
         HasPostContentDetectorService
     typealias NestedDependencies =
         HasVoid
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var imageService: ImageServiceType { dependencies.own.imageService }
@@ -34,7 +34,7 @@ class PostListPostViewModel {
     }
 
     var subtitle: AnyPublisher<NSAttributedString, Never> {
-        let communityName = self.communityName
+        let communityName = communityName
             .combineLatest(communityNameAttributes)
             .map { NSAttributedString(string: $0, attributes: $1) }
             .eraseToAnyPublisher()

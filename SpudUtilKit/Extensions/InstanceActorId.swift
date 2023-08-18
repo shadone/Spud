@@ -87,6 +87,7 @@ public struct InstanceActorId: Equatable, CustomStringConvertible {
 
         // TODO: use iOS 16 regex api
         let regex = #"([\w.-]+)(:(\d+))?"#
+        // swiftformat:disable:next redundantStaticSelf
         let matches = Self.allMatches(regex: regex, in: stringValue)
         guard matches.count == 3 else {
             return nil
@@ -114,7 +115,7 @@ public struct InstanceActorId: Equatable, CustomStringConvertible {
         )
 
         let finalResult = results.map { match in
-            return (0..<match.numberOfRanges).map { range -> String in
+            (0..<match.numberOfRanges).map { range -> String in
                 let rangeBounds = match.range(at: range)
                 guard let range = Range(rangeBounds, in: input) else {
                     return ""

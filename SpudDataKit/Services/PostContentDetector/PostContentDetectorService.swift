@@ -78,7 +78,7 @@ public class PostContentDetectorService: PostContentDetectorServiceType {
         var request = URLRequest(url: url)
         request.httpMethod = "HEAD"
         return session.dataTaskPublisher(for: request)
-            .flatMap { (data: Data, response: URLResponse) -> AnyPublisher<PostContentType, URLError> in
+            .flatMap { (_: Data, response: URLResponse) -> AnyPublisher<PostContentType, URLError> in
                 guard let httpUrlResponse = response as? HTTPURLResponse else {
                     fatalError("Not HTTP?")
                 }
@@ -99,7 +99,7 @@ public class PostContentDetectorService: PostContentDetectorServiceType {
                     // fallback to retry the same request but this time as a GET request.
                     let request = URLRequest(url: url)
                     return session.dataTaskPublisher(for: request)
-                        .flatMap { (data: Data, response: URLResponse) -> AnyPublisher<PostContentType, URLError> in
+                        .flatMap { (_: Data, response: URLResponse) -> AnyPublisher<PostContentType, URLError> in
                             guard let httpUrlResponse = response as? HTTPURLResponse else {
                                 fatalError("Not HTTP?")
                             }

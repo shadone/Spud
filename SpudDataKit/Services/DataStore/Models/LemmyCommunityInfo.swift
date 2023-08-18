@@ -10,8 +10,10 @@ import Foundation
 import LemmyKit
 import os.log
 
-@objc(LemmyCommunityInfo) public final class LemmyCommunityInfo: NSManagedObject {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmyCommunityInfo> {
+@objc(LemmyCommunityInfo)
+public final class LemmyCommunityInfo: NSManagedObject {
+    @nonobjc
+    public class func fetchRequest() -> NSFetchRequest<LemmyCommunityInfo> {
         NSFetchRequest<LemmyCommunityInfo>(entityName: "CommunityInfo")
     }
 
@@ -91,7 +93,7 @@ public extension LemmyCommunityInfo {
 
     var hostnameFromActorIdPublisher: AnyPublisher<String, Never> {
         publisher(for: \.actorId)
-            .map { $0.safeHost }
+            .map(\.safeHost)
             .eraseToAnyPublisher()
     }
 }

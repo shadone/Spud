@@ -9,8 +9,10 @@ import CoreData
 import Foundation
 import os.log
 
-@objc(LemmySite) public final class LemmySite: NSManagedObject {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmySite> {
+@objc(LemmySite)
+public final class LemmySite: NSManagedObject {
+    @nonobjc
+    public class func fetchRequest() -> NSFetchRequest<LemmySite> {
         NSFetchRequest<LemmySite>(entityName: "Site")
     }
 

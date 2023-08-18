@@ -6,8 +6,8 @@
 
 import Foundation
 import Intents
-import SpudDataKit
 import LemmyKit
+import SpudDataKit
 
 extension IntentSortType {
     init(from sortType: SortType) {

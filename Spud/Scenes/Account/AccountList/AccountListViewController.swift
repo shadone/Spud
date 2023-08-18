@@ -6,19 +6,19 @@
 
 import CoreData
 import Foundation
+import os.log
 import SpudDataKit
 import UIKit
-import os.log
 
 private let logger = Logger(.app)
 
 class AccountListViewController: UIViewController {
     typealias OwnDependencies =
-        HasDataStore &
-        HasAccountService
+        HasAccountService &
+        HasDataStore
     typealias NestedDependencies =
         SiteListViewController.Dependencies
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var dataStore: DataStoreType { dependencies.own.dataStore }
@@ -143,11 +143,13 @@ class AccountListViewController: UIViewController {
         updateBarButtonItems()
     }
 
-    @objc private func cancelTapped() {
+    @objc
+    private func cancelTapped() {
         dismiss(animated: true)
     }
 
-    @objc private func addAccountTapped() {
+    @objc
+    private func addAccountTapped() {
         setEditing(false, animated: true)
 
         let siteListViewController = SiteListViewController(

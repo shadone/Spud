@@ -6,8 +6,8 @@
 
 import CoreData
 import Foundation
-import os.log
 import LemmyKit
+import os.log
 
 extension LemmyAccount {
     func upsert(
@@ -15,7 +15,7 @@ extension LemmyAccount {
     ) {
         assert(
             (isSignedOutAccountType && model == nil) ||
-            (!isSignedOutAccountType && model != nil)
+                (!isSignedOutAccountType && model != nil)
         )
         guard let model else { return }
 
@@ -34,7 +34,7 @@ extension LemmyAccount {
             return accountInfo
         }
 
-        let accountInfo = self.accountInfo ?? createAccountInfo()
+        let accountInfo = accountInfo ?? createAccountInfo()
         self.accountInfo = accountInfo
 
         accountInfo.set(from: model.local_user_view)

@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Foundation
 import Combine
+import Foundation
 import SpudDataKit
 import UIKit
 

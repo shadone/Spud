@@ -6,8 +6,8 @@
 
 import Combine
 import Foundation
-import SwiftUI
 import os.log
+import SwiftUI
 
 private let logger = Logger(.app)
 
@@ -25,7 +25,8 @@ extension Optional: AnyOptional {
     var isNil: Bool { self == nil }
 }
 
-@propertyWrapper struct UserDefaultsBacked<Value: Codable> {
+@propertyWrapper
+struct UserDefaultsBacked<Value: Codable> {
     private let key: String
     private let defaultValue: Value
     private let storage: UserDefaults

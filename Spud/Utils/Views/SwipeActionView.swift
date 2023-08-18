@@ -34,6 +34,7 @@ class SwipeActionView: UIView {
         case trailingPrimary
         case trailingSecondary
     }
+
     var trigger: ((ActionTrigger) -> Void)?
 
     // MARK: UI Properties
@@ -155,7 +156,7 @@ class SwipeActionView: UIView {
             leadingSwipeActionTrailingConstraint,
 
             trailingSwipeActionImageView.centerYAnchor.constraint(equalTo: trailingSwipeActionView.centerYAnchor),
-            trailingSwipeActionLeadingConstraint
+            trailingSwipeActionLeadingConstraint,
         ])
 
         configurationUpdated()
@@ -188,7 +189,8 @@ class SwipeActionView: UIView {
         }
     }
 
-    @objc private func panHandler(_ gestureRecognizer: UIPanGestureRecognizer) {
+    @objc
+    private func panHandler(_ gestureRecognizer: UIPanGestureRecognizer) {
         let offsetX = gestureRecognizer.translation(in: self).x
         let swipeDistance = abs(offsetX)
 

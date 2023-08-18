@@ -7,8 +7,8 @@
 import Combine
 import CoreData
 import Foundation
-import os.log
 import LemmyKit
+import os.log
 import SpudUtilKit
 
 private let logger = Logger(.lemmyService)
@@ -98,9 +98,7 @@ public class LemmyService: LemmyServiceType {
         return backgroundContext
     }()
 
-    private lazy var backgroundScheduler: ManagedContextSchedulerOf<DispatchQueue> = {
-        DispatchQueue.managedContentScheduler(backgroundContext)
-    }()
+    private lazy var backgroundScheduler: ManagedContextSchedulerOf<DispatchQueue> = DispatchQueue.managedContentScheduler(backgroundContext)
 
     /// Returns account object in **background context**.
     private var account: LemmyAccount {
@@ -120,8 +118,8 @@ public class LemmyService: LemmyServiceType {
         dataStore: DataStoreType,
         api: LemmyApi
     ) {
-        self.accountObjectId = account.objectID
-        self.accountIdentifierForLogging = account.identifierForLogging
+        accountObjectId = account.objectID
+        accountIdentifierForLogging = account.identifierForLogging
 
         self.credential = credential
         self.dataStore = dataStore
@@ -175,7 +173,7 @@ public class LemmyService: LemmyServiceType {
     public func createFeed() -> LemmyFeed {
         assert(Thread.current.isMainThread)
 
-        let accountInMainContext = self.accountInMainContext
+        let accountInMainContext = accountInMainContext
 
         let listingType = defaultListingType(for: accountInMainContext)
         let sortType = defaultSortType(for: accountInMainContext)
@@ -194,7 +192,7 @@ public class LemmyService: LemmyServiceType {
     public func createFeed(listingType: ListingType) -> LemmyFeed {
         assert(Thread.current.isMainThread)
 
-        let accountInMainContext = self.accountInMainContext
+        let accountInMainContext = accountInMainContext
 
         let sortType = defaultSortType(for: accountInMainContext)
 
@@ -405,7 +403,7 @@ public class LemmyService: LemmyServiceType {
                         assert(person.personInfo != nil)
                         return person.personInfo!
                     }
-                    .handleEvents(receiveOutput: { response in
+                    .handleEvents(receiveOutput: { _ in
                     }, receiveCompletion: { completion in
                         switch completion {
                         case .failure:
@@ -588,7 +586,7 @@ public class LemmyService: LemmyServiceType {
 
                         return post.postInfo!
                     }
-                    .handleEvents(receiveOutput: { response in
+                    .handleEvents(receiveOutput: { _ in
                     }, receiveCompletion: { completion in
                         switch completion {
                         case .failure:
@@ -599,9 +597,9 @@ public class LemmyService: LemmyServiceType {
                     })
                     .mapError { error in
                         logger.error("""
-                    Fetch post \(post.postId, privacy: .public) \
-                    failed: \(String(describing: error), privacy: .public)
-                    """)
+                            Fetch post \(post.postId, privacy: .public) \
+                            failed: \(String(describing: error), privacy: .public)
+                            """)
                         return .apiError(error)
                     }
                     .eraseToAnyPublisher()
@@ -620,7 +618,7 @@ public class LemmyService: LemmyServiceType {
         let request = LemmyPost.fetchRequest(postId: postId, account: accountInMainContext)
         do {
             let results = try mainContext.fetch(request)
-            if results.count == 0 {
+            if results.isEmpty {
                 let newPost = LemmyPost(
                     postId: postId,
                     account: accountInMainContext,

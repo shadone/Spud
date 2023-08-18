@@ -9,8 +9,10 @@ import CoreData
 import Foundation
 import LemmyKit
 
-@objc(LemmyComment) public final class LemmyComment: NSManagedObject {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<LemmyComment> {
+@objc(LemmyComment)
+public final class LemmyComment: NSManagedObject {
+    @nonobjc
+    public class func fetchRequest() -> NSFetchRequest<LemmyComment> {
         NSFetchRequest<LemmyComment>(entityName: "Comment")
     }
 

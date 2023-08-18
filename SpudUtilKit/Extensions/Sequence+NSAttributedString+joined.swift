@@ -6,8 +6,8 @@
 
 import Foundation
 
-public protocol NSAttributedStringProtocol {}
-extension NSAttributedString: NSAttributedStringProtocol {}
+public protocol NSAttributedStringProtocol { }
+extension NSAttributedString: NSAttributedStringProtocol { }
 
 public extension Sequence where Element: NSAttributedStringProtocol {
     func joined() -> NSMutableAttributedString {
@@ -18,7 +18,7 @@ public extension Sequence where Element: NSAttributedStringProtocol {
     }
 }
 
-public extension Sequence where Element == NSAttributedStringProtocol? {
+public extension Sequence<NSAttributedStringProtocol?> {
     func joined() -> NSMutableAttributedString {
         compactMap { $0 }
             .reduce(into: NSMutableAttributedString()) { result, element in

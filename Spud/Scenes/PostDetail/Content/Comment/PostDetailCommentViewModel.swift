@@ -15,7 +15,7 @@ class PostDetailCommentViewModel {
         HasAppearanceService
     typealias NestedDependencies =
         HasVoid
-    typealias Dependencies = OwnDependencies & NestedDependencies
+    typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
     var appearanceService: AppearanceServiceType { dependencies.own.appearanceService }
@@ -86,7 +86,7 @@ class PostDetailCommentViewModel {
     private let indentationRibbonStandardWidth: CGFloat = 2
 
     var indentationRibbonWidth: AnyPublisher<CGFloat, Never> {
-        return commentElement.publisher(for: \.depth)
+        commentElement.publisher(for: \.depth)
             .map { indentationLevel in
                 indentationLevel == 1 ? 0 : self.indentationRibbonStandardWidth
             }

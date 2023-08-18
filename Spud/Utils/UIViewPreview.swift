@@ -17,7 +17,7 @@ struct UIViewPreview<View: UIView>: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> UIView {
-        return view
+        view
     }
 
     func updateUIView(_ view: UIView, context: Context) {
