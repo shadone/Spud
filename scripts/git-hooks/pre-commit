@@ -5,3 +5,7 @@ if [ -n "$(git diff --name-only --cached | grep 'project.pbxproj')" ]; then
   perl scripts/sort-Xcode-project-file.pl Spud.xcodeproj/project.pbxproj
   git add Spud.xcodeproj/project.pbxproj
 fi
+
+swiftformat --lint .
+
+exit 0
