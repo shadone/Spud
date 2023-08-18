@@ -7,13 +7,12 @@
 import Combine
 import Foundation
 import os.log
-import SpudUtilKit
 import SwiftUI
 
-private let logger = Logger(.app)
+private let logger = Logger(.utils)
 
 @propertyWrapper
-struct UserDefaultsBacked<Value: Codable> {
+public struct UserDefaultsBacked<Value: Codable> {
     private let key: String
     private let defaultValue: Value
     private let storage: UserDefaults
@@ -21,7 +20,7 @@ struct UserDefaultsBacked<Value: Codable> {
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    var wrappedValue: Value {
+    public var wrappedValue: Value {
         get {
             valuePublisher.value
         }
@@ -30,11 +29,11 @@ struct UserDefaultsBacked<Value: Codable> {
         }
     }
 
-    var projectedValue: AnyPublisher<Value, Never> {
+    public var projectedValue: AnyPublisher<Value, Never> {
         valuePublisher.eraseToAnyPublisher()
     }
 
-    init(
+    public init(
         wrappedValue defaultValue: Value,
         key: String,
         storage: UserDefaults = .standard
@@ -94,7 +93,7 @@ struct UserDefaultsBacked<Value: Codable> {
     }
 }
 
-extension UserDefaultsBacked where Value: ExpressibleByNilLiteral {
+public extension UserDefaultsBacked where Value: ExpressibleByNilLiteral {
     init(key: String, storage: UserDefaults = .standard) {
         self.init(wrappedValue: nil, key: key, storage: storage)
     }
