@@ -1703,6 +1703,8 @@
 				92A226CC2A7EF9A900C18FCD /* PBXTargetDependency */,
 			);
 			name = SpudDataKitTests;
+			packageProductDependencies = (
+			);
 			productName = SpudDataKitTests;
 			productReference = 92A226C62A7EF9A900C18FCD /* SpudDataKitTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
