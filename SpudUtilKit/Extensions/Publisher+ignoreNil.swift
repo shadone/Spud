@@ -9,7 +9,7 @@ import Foundation
 
 // By Ryoichi Izumita
 // https://medium.com/@r.izumita/implementing-ignorenil-method-inside-publisher-of-combine-1622a8453b
-public extension Publisher where Output: OptionalType {
+public extension Publisher where Output: AnyOptional {
     func ignoreNil() -> AnyPublisher<Output.Wrapped, Failure> {
         flatMap { output -> AnyPublisher<Output.Wrapped, Failure> in
             guard

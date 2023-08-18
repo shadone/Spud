@@ -225,7 +225,7 @@
 		92CC5DA72A7EC11E0019436A /* SpudUtilKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */; };
 		92CC5DA82A7EC11E0019436A /* SpudUtilKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		92CC5DAD2A7EC1540019436A /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5DAC2A7EC1540019436A /* OSLog.swift */; };
-		92CC5DAE2A7EC17F0019436A /* OptionalType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C97B2A3D27BC00672F64 /* OptionalType.swift */; };
+		92CC5DAE2A7EC17F0019436A /* AnyOptional.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C97B2A3D27BC00672F64 /* AnyOptional.swift */; };
 		92CC5DAF2A7EC17F0019436A /* Atomic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEB92A4F362A00FAF4DB /* Atomic.swift */; };
 		92CC5DB02A7EC17F0019436A /* ManagedContextScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */; };
 		92CC5DB12A7EC1890019436A /* URL+lenientString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618612A74FA70003D49D4 /* URL+lenientString.swift */; };
@@ -620,7 +620,7 @@
 		92B7C9752A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Sequence+NSAttributedString+joined.swift"; sourceTree = "<group>"; };
 		92B7C9772A3D241800672F64 /* Publisher+combineLatestSequence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Publisher+combineLatestSequence.swift"; sourceTree = "<group>"; };
 		92B7C9792A3D279100672F64 /* Publisher+ignoreNil.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Publisher+ignoreNil.swift"; sourceTree = "<group>"; };
-		92B7C97B2A3D27BC00672F64 /* OptionalType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptionalType.swift; sourceTree = "<group>"; };
+		92B7C97B2A3D27BC00672F64 /* AnyOptional.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnyOptional.swift; sourceTree = "<group>"; };
 		92B7C97D2A3D27FA00672F64 /* Publisher+justfail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Publisher+justfail.swift"; sourceTree = "<group>"; };
 		92B7C9802A3D2B7C00672F64 /* IconValueFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconValueFormatter.swift; sourceTree = "<group>"; };
 		92B7C9822A3D2C8800672F64 /* NSAttributedString+symbol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSAttributedString+symbol.swift"; sourceTree = "<group>"; };
@@ -1530,9 +1530,9 @@
 			isa = PBXGroup;
 			children = (
 				92CC5D942A7EC07D0019436A /* Extensions */,
+				92B7C97B2A3D27BC00672F64 /* AnyOptional.swift */,
 				92CEAEB92A4F362A00FAF4DB /* Atomic.swift */,
 				92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */,
-				92B7C97B2A3D27BC00672F64 /* OptionalType.swift */,
 				92CC5DAC2A7EC1540019436A /* OSLog.swift */,
 				92CC5D8B2A7EBFEA0019436A /* SpudUtilKit.h */,
 				927618612A74FA70003D49D4 /* URL+lenientString.swift */,
@@ -2413,6 +2413,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				92CC5DAE2A7EC17F0019436A /* AnyOptional.swift in Sources */,
 				92CC5DAF2A7EC17F0019436A /* Atomic.swift in Sources */,
 				9224DA0E2A86F00300ADC091 /* Bool+iOS17.swift in Sources */,
 				92CC5D972A7EC1100019436A /* Date+relativeString.swift in Sources */,
@@ -2420,7 +2421,6 @@
 				92CC5DB02A7EC17F0019436A /* ManagedContextScheduler.swift in Sources */,
 				92CC5D982A7EC1100019436A /* NSAttributedString+symbol.swift in Sources */,
 				92CC5D9E2A7EC1100019436A /* NSManagedObjectContext+saveIfNeeded.swift in Sources */,
-				92CC5DAE2A7EC17F0019436A /* OptionalType.swift in Sources */,
 				92CC5DAD2A7EC1540019436A /* OSLog.swift in Sources */,
 				92CC5DA12A7EC1100019436A /* Publisher+assignWeak.swift in Sources */,
 				92CC5DE22A7EEF8D0019436A /* Publisher+async.swift in Sources */,

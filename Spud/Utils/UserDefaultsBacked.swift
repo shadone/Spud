@@ -7,23 +7,10 @@
 import Combine
 import Foundation
 import os.log
+import SpudUtilKit
 import SwiftUI
 
 private let logger = Logger(.app)
-
-// https://www.swiftbysundell.com/articles/property-wrappers-in-swift/
-
-// Since our property wrapper's Value type isn't optional, but
-// can still contain nil values, we'll have to introduce this
-// protocol to enable us to cast any assigned value into a type
-// that we can compare against nil:
-private protocol AnyOptional {
-    var isNil: Bool { get }
-}
-
-extension Optional: AnyOptional {
-    var isNil: Bool { self == nil }
-}
 
 @propertyWrapper
 struct UserDefaultsBacked<Value: Codable> {
@@ -86,7 +73,7 @@ struct UserDefaultsBacked<Value: Codable> {
     }
 
     private func set(_ newValue: Value) {
-        if let optional = newValue as? AnyOptional, optional.isNil {
+        if let optional = newValue as? (any AnyOptional), optional.isNil {
             storage.removeObject(forKey: key)
         } else {
             do {
