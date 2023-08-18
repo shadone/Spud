@@ -134,7 +134,11 @@ class PostListPostViewModel {
         appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
-                    .font: UIFont.systemFont(ofSize: UIFont.systemFontSize + textSizeAdjustment, weight: .medium),
+                    .font: UIFont.scaledSystemFont(
+                        style: .title2,
+                        relativeSize: textSizeAdjustment,
+                        weight: .medium
+                    ),
                     .foregroundColor: UIColor.label,
                 ]
             }
@@ -145,7 +149,11 @@ class PostListPostViewModel {
         appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
-                    .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .regular),
+                    .font: UIFont.scaledSystemFont(
+                        style: .body,
+                        relativeSize: -1 + textSizeAdjustment,
+                        weight: .regular
+                    ),
                     .foregroundColor: UIColor.label,
                 ]
             }
@@ -156,7 +164,11 @@ class PostListPostViewModel {
         appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
-                    .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .regular),
+                    .font: UIFont.scaledSystemFont(
+                        style: .body,
+                        relativeSize: -1 + textSizeAdjustment,
+                        weight: .regular
+                    ),
                     .foregroundColor: UIColor.secondaryLabel,
                 ]
             }

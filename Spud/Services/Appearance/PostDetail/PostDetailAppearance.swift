@@ -22,15 +22,47 @@ protocol PostDetailAppearanceType: AnyObject {
 class PostDetailAppearance: PostDetailAppearanceType {
     static func bodyStylerConfiguration(for textSizeAdjustment: CGFloat) -> DownStylerConfiguration {
         let fonts = StaticFontCollection(
-            heading1: .systemFont(ofSize: UIFont.systemFontSize + 11 + textSizeAdjustment),
-            heading2: .systemFont(ofSize: UIFont.systemFontSize + 7 + textSizeAdjustment),
-            heading3: .systemFont(ofSize: UIFont.systemFontSize + 3 + textSizeAdjustment),
-            heading4: .systemFont(ofSize: UIFont.systemFontSize + 3 + textSizeAdjustment),
-            heading5: .systemFont(ofSize: UIFont.systemFontSize + 3 + textSizeAdjustment),
-            heading6: .systemFont(ofSize: UIFont.systemFontSize + 3 + textSizeAdjustment),
-            body: .systemFont(ofSize: UIFont.systemFontSize + textSizeAdjustment),
-            code: UIFont(name: "menlo", size: UIFont.systemFontSize + textSizeAdjustment) ?? .systemFont(ofSize: UIFont.systemFontSize + textSizeAdjustment),
-            listItemPrefix: .monospacedDigitSystemFont(ofSize: UIFont.systemFontSize, weight: .regular)
+            heading1: .scaledSystemFont(
+                style: .title1,
+                relativeSize: 11 + textSizeAdjustment,
+                weight: .regular
+            ),
+            heading2: .scaledSystemFont(
+                style: .title1,
+                relativeSize: 7 + textSizeAdjustment,
+                weight: .regular
+            ),
+            heading3: .scaledSystemFont(
+                style: .title2,
+                relativeSize: 3 + textSizeAdjustment,
+                weight: .regular
+            ),
+            heading4: .scaledSystemFont(
+                style: .title2,
+                relativeSize: 3 + textSizeAdjustment,
+                weight: .regular
+            ),
+            heading5: .scaledSystemFont(
+                style: .title3,
+                relativeSize: 3 + textSizeAdjustment,
+                weight: .regular
+            ),
+            heading6: .scaledSystemFont(
+                style: .title3,
+                relativeSize: 3 + textSizeAdjustment,
+                weight: .regular
+            ),
+            body: .scaledSystemFont(
+                style: .body,
+                relativeSize: textSizeAdjustment,
+                weight: .regular
+            ),
+            code: .scaledFont(
+                fontName: "menlo",
+                style: .body,
+                relativeSize: textSizeAdjustment
+            ),
+            listItemPrefix: .scaledMonospaceDigitSystemFont(style: .body, relativeSize: 0)
         )
 
         let colors = StaticColorCollection(

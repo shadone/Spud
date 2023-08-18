@@ -189,7 +189,11 @@ class PostDetailHeaderViewModel {
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
                     .foregroundColor: UIColor.label,
-                    .font: UIFont.systemFont(ofSize: UIFont.systemFontSize + 5 + textSizeAdjustment, weight: .medium),
+                    .font: UIFont.scaledSystemFont(
+                        style: .title2,
+                        relativeSize: 5 + textSizeAdjustment,
+                        weight: .medium
+                    ),
                 ]
             }
             .eraseToAnyPublisher()
@@ -199,7 +203,11 @@ class PostDetailHeaderViewModel {
         appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
-                    .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .regular),
+                    .font: UIFont.scaledSystemFont(
+                        style: .body,
+                        relativeSize: -1 + textSizeAdjustment,
+                        weight: .regular
+                    ),
                     .foregroundColor: UIColor.secondaryLabel,
                 ]
             }
@@ -210,7 +218,11 @@ class PostDetailHeaderViewModel {
         appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
-                    .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .medium),
+                    .font: UIFont.scaledSystemFont(
+                        style: .body,
+                        relativeSize: -1 + textSizeAdjustment,
+                        weight: .medium
+                    ),
                     .foregroundColor: UIColor.secondaryLabel,
                 ]
             }

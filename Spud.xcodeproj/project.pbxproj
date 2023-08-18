@@ -288,6 +288,7 @@
 		92DD63022A48561E00497C3B /* SiteListIconImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63012A48561E00497C3B /* SiteListIconImageView.swift */; };
 		92DD63062A48BEAD00497C3B /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63052A48BEAD00497C3B /* LoginViewController.swift */; };
 		92DD63092A48CC2700497C3B /* LoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63082A48CC2700497C3B /* LoginViewModel.swift */; };
+		92F5712A2A8EFBB800A06ABD /* UIFont+scaledFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -695,6 +696,7 @@
 		92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NSManagedObjectContext+saveIfNeeded.swift"; sourceTree = "<group>"; };
 		92DD63052A48BEAD00497C3B /* LoginViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewController.swift; sourceTree = "<group>"; };
 		92DD63082A48CC2700497C3B /* LoginViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewModel.swift; sourceTree = "<group>"; };
+		92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIFont+scaledFont.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -831,6 +833,7 @@
 			children = (
 				925B46702A8EE0A9008410EA /* CommentSortType+itemForMenu.swift */,
 				9215FDFF2A7FEE85008B49AB /* SortType+itemForMenu.swift */,
+				92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */,
 			);
 			path = Extensions;
 			sourceTree = "<group>";
@@ -2219,6 +2222,7 @@
 				9297E2FF2A42494900D13E4D /* SwipeActionView.swift in Sources */,
 				920B455E2A7C1DF500C6C2DC /* TopPostsWidget.intentdefinition in Sources */,
 				927343372A61C6960089556E /* TouchDownGestureRecognizer.swift in Sources */,
+				92F5712A2A8EFBB800A06ABD /* UIFont+scaledFont.swift in Sources */,
 				92BBE4A12A5BEEAD008C2F55 /* UITableViewCellBase.swift in Sources */,
 				927343392A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift in Sources */,
 				927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */,

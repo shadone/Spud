@@ -187,7 +187,11 @@ class PostDetailCommentViewModel {
         appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
-                    .font: UIFont.systemFont(ofSize: UIFont.systemFontSize + textSizeAdjustment, weight: .medium),
+                    .font: UIFont.scaledSystemFont(
+                        style: .body,
+                        relativeSize: textSizeAdjustment,
+                        weight: .medium
+                    ),
                 ]
             }
             .eraseToAnyPublisher()
@@ -197,7 +201,11 @@ class PostDetailCommentViewModel {
         appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
-                    .font: UIFont.systemFont(ofSize: UIFont.systemFontSize + textSizeAdjustment, weight: .regular),
+                    .font: UIFont.scaledSystemFont(
+                        style: .body,
+                        relativeSize: textSizeAdjustment,
+                        weight: .regular
+                    ),
                     .foregroundColor: UIColor.label,
                 ]
             }
@@ -208,7 +216,11 @@ class PostDetailCommentViewModel {
         appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
-                    .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .regular),
+                    .font: UIFont.scaledSystemFont(
+                        style: .body,
+                        relativeSize: -1 + textSizeAdjustment,
+                        weight: .regular
+                    ),
                     .foregroundColor: UIColor.secondaryLabel,
                 ]
             }
@@ -219,7 +231,11 @@ class PostDetailCommentViewModel {
         appearance.textSizeAdjustmentPublisher
             .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
                 [
-                    .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 1 + textSizeAdjustment, weight: .regular),
+                    .font: UIFont.scaledSystemFont(
+                        style: .body,
+                        relativeSize: -1 + textSizeAdjustment,
+                        weight: .regular
+                    ),
                     .foregroundColor: UIColor.link,
                 ]
             }
