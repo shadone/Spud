@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
 import LemmyKit
+import XCTest
 @testable import SpudDataKit
 
 class CommentHelperTests: XCTestCase {
