@@ -102,10 +102,6 @@ class CommentHelperTests: XCTestCase {
         // this is a silly test that replicates one of the oldest Lemmy posts.
         // The app was crashing on parsing the comments, but in the end it was
         // something odd in the build as clean build solved it. ¯\_(ツ)_/¯
-        let person = Person.fake
-        let community = Community.fake
-        let post = Post.fake(creator: person, community: community)
-
         let comments: [CommentView] = [
             CommentView(
                 comment: .init(
