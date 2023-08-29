@@ -5,25 +5,43 @@
 //
 
 import Combine
-import CoreData
-import Foundation
+import LemmyKit
 import SpudDataKit
+import UIKit
 
 protocol PersonViewModelInputs { }
 
 protocol PersonViewModelOutputs {
-    var personInfo: LemmyPersonInfo { get }
-    var headerViewModel: PersonHeaderViewModel { get }
+    /// Username (aka nickname aka short users' name). e.g. "helloworld"
+    var name: AnyPublisher<String, Never> { get }
+
+    /// The name of the instance the user belongs to.
+    var homeInstance: AnyPublisher<String, Never> { get }
+
+    /// A display name for the user. e.g. "Hello World!"
+    var displayName: AnyPublisher<String?, Never> { get }
+
+    var postKarma: AnyPublisher<String, Never> { get }
+    var numberOfPosts: AnyPublisher<String, Never> { get }
+
+    var commentKarma: AnyPublisher<String, Never> { get }
+    var numberOfComments: AnyPublisher<String, Never> { get }
+
+    var accountAge: AnyPublisher<String, Never> { get }
 }
 
-protocol PersonViewModelType {
+protocol PersonViewModelType: ObservableObject {
     var inputs: PersonViewModelInputs { get }
     var outputs: PersonViewModelOutputs { get }
 }
 
-class PersonViewModel: PersonViewModelType, PersonViewModelInputs, PersonViewModelOutputs {
+class PersonViewModel:
+    PersonViewModelType,
+    PersonViewModelInputs,
+    PersonViewModelOutputs
+{
     typealias OwnDependencies =
-        PersonHeaderViewModel.Dependencies
+        HasVoid
     typealias NestedDependencies =
         HasVoid
     typealias Dependencies = NestedDependencies & OwnDependencies
@@ -31,6 +49,7 @@ class PersonViewModel: PersonViewModelType, PersonViewModelInputs, PersonViewMod
 
     // MARK: Private
 
+    private let personInfo: LemmyPersonInfo
     private var disposables = Set<AnyCancellable>()
 
     // MARK: Functions
@@ -39,13 +58,44 @@ class PersonViewModel: PersonViewModelType, PersonViewModelInputs, PersonViewMod
         personInfo: LemmyPersonInfo,
         dependencies: Dependencies
     ) {
-        self.dependencies = (own: dependencies, nested: dependencies)
         self.personInfo = personInfo
+        self.dependencies = (own: dependencies, nested: dependencies)
 
-        headerViewModel = PersonHeaderViewModel(
-            personInfo: personInfo,
-            dependencies: self.dependencies.nested
-        )
+        name = personInfo.publisher(for: \.name)
+            .eraseToAnyPublisher()
+
+        homeInstance = personInfo.hostnameFromActorIdPublisher
+            .map { "@\($0)" }
+            .eraseToAnyPublisher()
+
+        displayName = personInfo.publisher(for: \.displayName)
+            .eraseToAnyPublisher()
+
+        postKarma = personInfo.publisher(for: \.totalScoreForPosts)
+            .map {
+                PersonFormatter.string(totalScoreForPosts: $0)
+            }
+            .eraseToAnyPublisher()
+
+        numberOfPosts = personInfo.publisher(for: \.numberOfPosts)
+            .map { CommentsFormatter.string(from: $0) }
+            .eraseToAnyPublisher()
+
+        commentKarma = personInfo.publisher(for: \.totalScoreForComments)
+            .map {
+                PersonFormatter.string(totalScoreForComment: $0)
+            }
+            .eraseToAnyPublisher()
+
+        numberOfComments = personInfo.publisher(for: \.numberOfComments)
+            .map { CommentsFormatter.string(from: $0) }
+            .eraseToAnyPublisher()
+
+        accountAge = personInfo.publisher(for: \.personCreatedDate)
+            .map {
+                PersonFormatter.string(personCreatedDate: $0)
+            }
+            .eraseToAnyPublisher()
     }
 
     // MARK: Type
@@ -55,8 +105,14 @@ class PersonViewModel: PersonViewModelType, PersonViewModelInputs, PersonViewMod
 
     // MARK: Outputs
 
-    let personInfo: LemmyPersonInfo
-    let headerViewModel: PersonHeaderViewModel
+    let name: AnyPublisher<String, Never>
+    let homeInstance: AnyPublisher<String, Never>
+    let displayName: AnyPublisher<String?, Never>
+    let postKarma: AnyPublisher<String, Never>
+    let numberOfPosts: AnyPublisher<String, Never>
+    let commentKarma: AnyPublisher<String, Never>
+    let numberOfComments: AnyPublisher<String, Never>
+    let accountAge: AnyPublisher<String, Never>
 
     // MARK: Inputs
 }
