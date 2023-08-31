@@ -536,17 +536,7 @@ extension PostListViewController: NSFetchedResultsControllerDelegate {
             tableView.deleteRows(at: [indexPath], with: .fade)
 
         case .update:
-            // TODO: why are we doing this? we use combine to monitor for changes already...
-            guard let indexPath else { fatalError() }
-            guard let cell = tableView.cellForRow(at: indexPath) else { return }
-            guard let cell = cell as? PostListPostCell else { fatalError() }
-
-            let postInfo = postInfo(at: indexPath.row)
-            let viewModel = PostListPostViewModel(
-                postInfo: postInfo,
-                dependencies: dependencies.nested
-            )
-            cell.configure(with: viewModel)
+            break
 
         case .move:
             assertionFailure()
