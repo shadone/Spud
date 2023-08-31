@@ -106,6 +106,8 @@ public class DataStore: DataStoreType {
         // container.viewContext.shouldDeleteInaccessibleFaults = true
         container.viewContext.automaticallyMergesChangesFromParent = true
 
+        container.viewContext.name = "main"
+
         persistentContainer = container
     }
 
@@ -127,7 +129,9 @@ public class DataStore: DataStoreType {
         guard let persistentContainer else {
             fatalError("Uninitialized persistent store")
         }
-        return persistentContainer.newBackgroundContext()
+        let context = persistentContainer.newBackgroundContext()
+        context.name = "background"
+        return context
     }
 
     public func saveIfNeeded() {
