@@ -104,13 +104,19 @@ class PostDetailLoadingViewController: UIViewController {
         let lemmyService = accountService.lemmyService(for: account)
         let post = lemmyService.getOrCreate(postId: postId)
 
+        post.publisher(for: \.postInfo)
+            .ignoreNil()
+            .first()
+            .sink { [weak self] postInfo in
+                self?.didFinishLoading?(postInfo)
+            }
+            .store(in: &disposables)
+
         lemmyService
             .fetchPostInfo(postId: post.objectID)
             .sink(
                 receiveCompletion: alertService.errorHandler(for: .fetchPostInfo),
-                receiveValue: { [weak self] postInfo in
-                    self?.didFinishLoading?(postInfo)
-                }
+                receiveValue: { _ in }
             )
             .store(in: &disposables)
     }
