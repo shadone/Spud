@@ -17,6 +17,7 @@ public enum AlertHandlerRequest: String, CustomStringConvertible {
     case fetchPostInfo
     case login
     case fetchImage
+    case markAsRead
 
     public var description: String {
         rawValue

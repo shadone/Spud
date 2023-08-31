@@ -68,6 +68,10 @@ public protocol LemmyServiceType {
     ) -> AnyPublisher<LemmyPostInfo, LemmyServiceError>
 
     func getOrCreate(postId: PostId) -> LemmyPost
+
+    func markAsRead(
+        postId: NSManagedObjectID
+    ) -> AnyPublisher<Void, LemmyServiceError>
 }
 
 public extension LemmyServiceType {
@@ -637,5 +641,51 @@ public class LemmyService: LemmyServiceType {
             logger.fault("Failed to fetch a post: \(error, privacy: .public)")
             fatalError("Failed to fetch a post: \(error)")
         }
+    }
+
+    public func markAsRead(
+        postId: NSManagedObjectID
+    ) -> AnyPublisher<Void, LemmyServiceError> {
+        assert(Thread.current.isMainThread)
+
+        return object(with: postId, type: LemmyPost.self)
+            .setFailureType(to: LemmyServiceError.self)
+            .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
+                logger.debug("Marking post as read \(post.postId, privacy: .public)")
+
+                guard let credential = self.credential else {
+                    return .fail(with: .missingCredential)
+                }
+
+                let request = MarkPostAsRead.Request(
+                    post_id: post.postId,
+                    read: true,
+                    auth: credential.jwt
+                )
+                return self.api.markPostAsRead(request)
+                    .receive(on: self.backgroundScheduler)
+                    .handleEvents(receiveOutput: { response in
+                        logger.debug("Mark post as read \(post.postId, privacy: .public) complete")
+                        post.set(from: response.post_view)
+                    }, receiveCompletion: { completion in
+                        switch completion {
+                        case .failure:
+                            break
+                        case .finished:
+                            self.saveIfNeeded()
+                        }
+                    })
+                    .map { _ in () }
+                    .mapError { error in
+                        logger.error("""
+                            Mark post as read \(post.postId, privacy: .public) \
+                            failed: \(String(describing: error), privacy: .public)
+                            """)
+                        return .apiError(error)
+                    }
+                    .eraseToAnyPublisher()
+            }
+            .receive(on: RunLoop.main)
+            .eraseToAnyPublisher()
     }
 }
