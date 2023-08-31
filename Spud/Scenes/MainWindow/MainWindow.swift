@@ -152,7 +152,7 @@ class MainWindow: UIWindow {
             fatalError("We have post list with posts containing no info?")
         }
 
-        let postDetailVC = PostDetailViewController(
+        let postDetailVC = PostDetailOrEmptyViewController(
             postInfo: postInfo,
             dependencies: dependencies.nested
         )
