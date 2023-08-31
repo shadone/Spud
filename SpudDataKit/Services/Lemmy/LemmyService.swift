@@ -99,6 +99,7 @@ public class LemmyService: LemmyServiceType {
     private lazy var backgroundContext: NSManagedObjectContext = {
         let backgroundContext = dataStore.newBackgroundContext()
         backgroundContext.mergePolicy = NSMergePolicy.mergeByPropertyStoreTrump
+        backgroundContext.name = "background[\(accountIdentifierForLogging)]"
         return backgroundContext
     }()
 
