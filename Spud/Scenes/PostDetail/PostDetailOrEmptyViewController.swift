@@ -20,7 +20,9 @@ class PostDetailOrEmptyViewController: UIViewController {
 
     // MARK: - Public
 
-    private(set) var contentViewController: PostDetailViewController?
+    var contentViewController: PostDetailViewController? {
+        currentViewController as? PostDetailViewController
+    }
 
     var postInfoPublisher: AnyPublisher<LemmyPostInfo?, Never> {
         viewModel.outputs.currentPostInfo
@@ -48,14 +50,14 @@ class PostDetailOrEmptyViewController: UIViewController {
         case load(postId: PostId)
     }
 
-    private var state: State = .empty {
+    private var state: State {
         didSet {
             stateChanged()
         }
     }
 
     private let account: LemmyAccount
-    private var loadingViewController: PostDetailLoadingViewController?
+    private var currentViewController: UIViewController?
     private var disposables = Set<AnyCancellable>()
 
     // MARK: - Functions
@@ -64,13 +66,13 @@ class PostDetailOrEmptyViewController: UIViewController {
         self.dependencies = (own: dependencies, nested: dependencies)
         account = postInfo.post.account
 
+        state = .post(postInfo)
         viewModel = PostDetailOrEmptyViewModel(postInfo)
 
         super.init(nibName: nil, bundle: nil)
 
         bindViewModel()
 
-        state = .post(postInfo)
         stateChanged()
     }
 
@@ -78,6 +80,7 @@ class PostDetailOrEmptyViewController: UIViewController {
         self.dependencies = (own: dependencies, nested: dependencies)
         self.account = account
 
+        state = .empty
         viewModel = PostDetailOrEmptyViewModel(nil)
 
         super.init(nibName: nil, bundle: nil)
@@ -119,34 +122,24 @@ class PostDetailOrEmptyViewController: UIViewController {
     }
 
     private func stateChanged() {
+        remove(child: currentViewController)
+        currentViewController = nil
+
+        let newViewController: UIViewController
         switch state {
         case .empty:
-            remove(child: contentViewController)
-            remove(child: loadingViewController)
             let emptyViewController = PostDetailEmptyViewController()
-            add(child: emptyViewController)
-            addSubviewWithEdgeConstraints(child: emptyViewController)
-
-            contentViewController = nil
-            loadingViewController = nil
+            newViewController = emptyViewController
 
         case let .post(postInfo):
-            if let contentViewController {
-                contentViewController.setPostInfo(postInfo)
-            } else {
-                contentViewController = PostDetailViewController(
-                    postInfo: postInfo,
-                    dependencies: dependencies.nested
-                )
+            let contentViewController = PostDetailViewController(
+                postInfo: postInfo,
+                dependencies: dependencies.nested
+            )
+            newViewController = contentViewController
 
-                remove(child: loadingViewController)
-                add(child: contentViewController)
-                // FIXME: this is hacky, make custom ChildVC base class for handling navitems
-                navigationItem.rightBarButtonItem = contentViewController!.navigationItem.rightBarButtonItem
-                addSubviewWithEdgeConstraints(child: contentViewController)
-
-                loadingViewController = nil
-            }
+            // FIXME: this is hacky, make custom ChildVC base class for handling navitems
+            navigationItem.rightBarButtonItem = contentViewController.navigationItem.rightBarButtonItem
 
         case let .load(postId):
             let loadingViewController = PostDetailLoadingViewController(
@@ -154,18 +147,15 @@ class PostDetailOrEmptyViewController: UIViewController {
                 account: account,
                 dependencies: dependencies.nested
             )
-            self.loadingViewController = loadingViewController
+            newViewController = loadingViewController
 
             loadingViewController.didFinishLoading = { [weak self] postInfo in
                 self?.viewModel.inputs.didFinishLoadingPostInfo(postInfo)
                 self?.state = .post(postInfo)
             }
-
-            remove(child: contentViewController)
-            add(child: loadingViewController)
-            addSubviewWithEdgeConstraints(child: loadingViewController)
-
-            contentViewController = nil
         }
+
+        add(child: newViewController)
+        addSubviewWithEdgeConstraints(child: newViewController)
     }
 }
