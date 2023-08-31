@@ -44,7 +44,7 @@ class PostDetailOrEmptyViewModel: PostDetailOrEmptyViewModelType, PostDetailOrEm
     init(_ initialPostInfo: LemmyPostInfo?) {
         currentlyDisplayedPostInfo = CurrentValueSubject<LemmyPostInfo?, Never>(initialPostInfo)
 
-        postInfoLoaded = currentlyDisplayedPostInfo
+        postInfoLoaded = didFinishLoadingPostInfoSubject
             .ignoreNil()
             .eraseToAnyPublisher()
 
