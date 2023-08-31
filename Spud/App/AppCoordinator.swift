@@ -9,6 +9,7 @@ import CoreData
 import Foundation
 import os.log
 import SpudDataKit
+import UIKit
 
 private let logger = Logger(.app)
 
@@ -43,10 +44,21 @@ class AppCoordinator {
         let arguments = ProcessInfo.processInfo.arguments
             .compactMap { AppLaunchArgument(rawValue: $0) }
         dependencies = DependencyContainer(arguments: arguments)
+
+        configureAppeareance()
     }
 
     func start() {
         dependencies.start()
+    }
+
+    private func configureAppeareance() {
+        let navigationBarAppearance = UINavigationBarAppearance()
+        navigationBarAppearance.configureWithDefaultBackground()
+
+        UINavigationBar.appearance().standardAppearance = navigationBarAppearance
+        UINavigationBar.appearance().compactAppearance = navigationBarAppearance
+        UINavigationBar.appearance().scrollEdgeAppearance = navigationBarAppearance
     }
 
     func open(_ url: URL, in window: MainWindow) {
