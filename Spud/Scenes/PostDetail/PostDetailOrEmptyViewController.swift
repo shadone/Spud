@@ -141,6 +141,8 @@ class PostDetailOrEmptyViewController: UIViewController {
 
                 remove(child: loadingViewController)
                 add(child: contentViewController)
+                // FIXME: this is hacky, make custom ChildVC base class for handling navitems
+                navigationItem.rightBarButtonItem = contentViewController!.navigationItem.rightBarButtonItem
                 addSubviewWithEdgeConstraints(child: contentViewController)
 
                 loadingViewController = nil
