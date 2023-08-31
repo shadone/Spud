@@ -151,7 +151,6 @@ class PostDetailOrEmptyViewController: UIViewController {
 
             loadingViewController.didFinishLoading = { [weak self] postInfo in
                 self?.viewModel.inputs.didFinishLoadingPostInfo(postInfo)
-                self?.state = .post(postInfo)
             }
         }
 
