@@ -5,6 +5,7 @@
 //
 
 import Combine
+import SafariServices
 import SpudDataKit
 import UIKit
 
@@ -14,6 +15,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
     // MARK: Public
 
     var linkTapped: ((URL) -> Void)?
+    var linkTappedFromPreview: ((SFSafariViewController) -> Void)?
+    var appService: AppServiceType?
 
     // MARK: UI Properties
 
@@ -196,6 +199,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
             postImageContainerHeightConstraint,
         ])
 
+        let contextMenuIteraction = UIContextMenuInteraction(delegate: self)
+        linkPreviewView.addInteraction(contextMenuIteraction)
+
         prepareForReuse()
     }
 
@@ -209,6 +215,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
         disposables.removeAll()
         linkTapped = nil
+        linkTappedFromPreview = nil
 
         linkPreviewView.isHidden = true
         linkPreviewView.prepareForReuse()
@@ -322,6 +329,42 @@ class PostDetailHeaderCell: UITableViewCellBase {
             // Tell UITableView we want to change our cell height.
             tableView?.beginUpdates()
             tableView?.endUpdates()
+        }
+    }
+}
+
+extension PostDetailHeaderCell: UIContextMenuInteractionDelegate {
+    func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        configurationForMenuAtLocation location: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard
+            let url = linkPreviewView.url,
+            let appService
+        else { return nil }
+
+        return UIContextMenuConfiguration(
+            identifier: nil,
+            previewProvider: {
+                appService.safariViewControllerForPreview(url: url)
+            },
+            actionProvider: nil
+        )
+    }
+
+    func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        willPerformPreviewActionForMenuWith configuration: UIContextMenuConfiguration,
+        animator: UIContextMenuInteractionCommitAnimating
+    ) {
+        guard
+            let safariVC = animator.previewViewController as? SFSafariViewController
+        else {
+            assertionFailure()
+            return
+        }
+        animator.addCompletion { [weak self] in
+            self?.linkTappedFromPreview?(safariVC)
         }
     }
 }

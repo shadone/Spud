@@ -7,6 +7,7 @@
 import Combine
 import CoreData
 import os.log
+import SafariServices
 import SpudDataKit
 import UIKit
 
@@ -233,6 +234,10 @@ class PostDetailViewController: UIViewController {
         }
     }
 
+    private func linkTappedFromPreview(_ safariVC: SFSafariViewController) {
+        present(safariVC, animated: true)
+    }
+
     private func vote(_ commentElement: LemmyCommentElement, _ action: VoteStatus.Action) {
         guard let comment = commentElement.comment else {
             assertionFailure("Vote on more element?")
@@ -361,11 +366,15 @@ extension PostDetailViewController: UITableViewDataSource {
             ) as! PostDetailHeaderCell
 
             cell.tableView = tableView
+            cell.appService = appService
 
             cell.isBeingConfigured = true
             cell.configure(with: viewModel.outputs.headerViewModel)
             cell.linkTapped = { [weak self] url in
                 self?.linkTapped(url)
+            }
+            cell.linkTappedFromPreview = { [weak self] safariVC in
+                self?.linkTappedFromPreview(safariVC)
             }
             cell.isBeingConfigured = false
 

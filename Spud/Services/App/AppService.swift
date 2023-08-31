@@ -15,6 +15,9 @@ protocol AppServiceType: AnyObject {
 
     /// Opens the given external link according to user preferences (e.g. opens in In-App Safari or external browser).
     func open(url: URL, on viewController: UIViewController) async
+
+    /// Returns the SFSafariViewController configured as per user preferences. This is meant to be used in context menu link previews.
+    func safariViewControllerForPreview(url: URL) -> SFSafariViewController
 }
 
 protocol HasAppService {
@@ -35,18 +38,16 @@ class AppService: AppServiceType {
         viewController.present(safariVC, animated: true)
     }
 
+    func safariViewControllerForPreview(url: URL) -> SFSafariViewController {
+        createSafariViewController(url: url)
+    }
+
     @MainActor
     func open(url: URL, on viewController: UIViewController) async {
         assert(url.spud == nil)
 
         func openInSafariViewController() {
-            let configuration = SFSafariViewController.Configuration()
-
-            if preferencesService.openExternalLinksInSafariVCReaderMode {
-                configuration.entersReaderIfAvailable = true
-            }
-
-            let safariVC = SFSafariViewController(url: url, configuration: configuration)
+            let safariVC = createSafariViewController(url: url)
             viewController.present(safariVC, animated: true)
         }
 
@@ -64,5 +65,15 @@ class AppService: AppServiceType {
         case .browser:
             await UIApplication.shared.open(url)
         }
+    }
+
+    private func createSafariViewController(url: URL) -> SFSafariViewController {
+        let configuration = SFSafariViewController.Configuration()
+
+        if preferencesService.openExternalLinksInSafariVCReaderMode {
+            configuration.entersReaderIfAvailable = true
+        }
+
+        return SFSafariViewController(url: url, configuration: configuration)
     }
 }
