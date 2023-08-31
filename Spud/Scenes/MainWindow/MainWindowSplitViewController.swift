@@ -23,7 +23,7 @@ class MainWindowSplitViewController: UISplitViewController {
     // MARK: Public
 
     let postListNavigationController = UINavigationController()
-    let postsNavigationController = UINavigationController()
+    let postDetailNavigationController = UINavigationController()
 
     // MARK: Functions
 
@@ -53,10 +53,10 @@ class MainWindowSplitViewController: UISplitViewController {
             account: account,
             dependencies: self.dependencies.nested
         )
-        postsNavigationController.setViewControllers([postDetailVC], animated: false)
+        postDetailNavigationController.setViewControllers([postDetailVC], animated: false)
 
         setViewController(postListNavigationController, for: .primary)
-        setViewController(postsNavigationController, for: .secondary)
+        setViewController(postDetailNavigationController, for: .secondary)
         setViewController(postListNavigationController, for: .compact)
         preferredDisplayMode = .oneBesideSecondary
         preferredSplitBehavior = .tile
