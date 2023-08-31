@@ -65,7 +65,7 @@ public protocol LemmyServiceType {
 
     func fetchPostInfo(
         postId: NSManagedObjectID
-    ) -> AnyPublisher<LemmyPostInfo, LemmyServiceError>
+    ) -> AnyPublisher<Void, LemmyServiceError>
 
     func getOrCreate(postId: PostId) -> LemmyPost
 
@@ -565,12 +565,12 @@ public class LemmyService: LemmyServiceType {
 
     public func fetchPostInfo(
         postId: NSManagedObjectID
-    ) -> AnyPublisher<LemmyPostInfo, LemmyServiceError> {
+    ) -> AnyPublisher<Void, LemmyServiceError> {
         assert(Thread.current.isMainThread)
 
         return object(with: postId, type: LemmyPost.self)
             .setFailureType(to: LemmyServiceError.self)
-            .flatMap { post -> AnyPublisher<LemmyPostInfo, LemmyServiceError> in
+            .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("Fetch post \(post.postId, privacy: .public)")
                 let request = GetPost.Request(
                     id: post.postId,
@@ -578,7 +578,7 @@ public class LemmyService: LemmyServiceType {
                 )
                 return self.api.getPost(request)
                     .receive(on: self.backgroundScheduler)
-                    .map { response -> LemmyPostInfo in
+                    .handleEvents(receiveOutput: { response in
                         logger.debug("Fetch post \(post.postId, privacy: .public) complete")
 
                         post.set(from: response.post_view)
@@ -588,10 +588,6 @@ public class LemmyService: LemmyServiceType {
 
                         // TODO: upsert from response.moderators
                         // TODO: upsert from response.cross_posts
-
-                        return post.postInfo!
-                    }
-                    .handleEvents(receiveOutput: { _ in
                     }, receiveCompletion: { completion in
                         switch completion {
                         case .failure:
@@ -600,6 +596,7 @@ public class LemmyService: LemmyServiceType {
                             self.saveIfNeeded()
                         }
                     })
+                    .map { _ in () }
                     .mapError { error in
                         logger.error("""
                             Fetch post \(post.postId, privacy: .public) \
