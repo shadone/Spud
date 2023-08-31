@@ -88,6 +88,9 @@ class PostDetailViewController: UIViewController {
 
     private var commentsFRC: NSFetchedResultsController<LemmyCommentElement>?
 
+    /// Tracks if viewWillAppear has been called before.
+    private var isFirstAppearance: Bool = true
+
     // MARK: Functions
 
     init(postInfo: LemmyPostInfo, dependencies: Dependencies) {
@@ -139,7 +142,15 @@ class PostDetailViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 
-        execFRC()
+        if isFirstAppearance {
+            execFRC()
+        }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+
+        isFirstAppearance = false
     }
 
     private func setupFRC() {
