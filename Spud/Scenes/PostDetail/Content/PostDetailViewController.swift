@@ -150,6 +150,17 @@ class PostDetailViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
 
+        if isFirstAppearance {
+            accountService
+                .lemmyService(for: postInfo.post.account)
+                .markAsRead(postId: postInfo.post.objectID)
+                .sink(
+                    receiveCompletion: alertService.errorHandler(for: .markAsRead),
+                    receiveValue: { _ in }
+                )
+                .store(in: &disposables)
+        }
+
         isFirstAppearance = false
     }
 
