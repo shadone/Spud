@@ -162,6 +162,8 @@
 		92B7C9872A3D2DC100672F64 /* CommentsFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9862A3D2DC100672F64 /* CommentsFormatter.swift */; };
 		92B7C9A72A3F45B600672F64 /* PostDetailCommentCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */; };
 		92B7C9A92A3F486100672F64 /* PostDetailCommentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */; };
+		92BA92BA2AA26D06005E7D75 /* post-detail-1549703.json in Resources */ = {isa = PBXBuildFile; fileRef = 92BA92B92AA26D06005E7D75 /* post-detail-1549703.json */; };
+		92BA92BC2AA27BCA005E7D75 /* comment-list-1549703-Hot.json in Resources */ = {isa = PBXBuildFile; fileRef = 92BA92BB2AA27BCA005E7D75 /* comment-list-1549703-Hot.json */; };
 		92BBE4A12A5BEEAD008C2F55 /* UITableViewCellBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */; };
 		92C0B32D2A829BDB004EF9E6 /* XCUIApplication+cellContainingLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C0B32C2A829BDB004EF9E6 /* XCUIApplication+cellContainingLabel.swift */; };
 		92C0B3352A829F43004EF9E6 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C0B3342A829F43004EF9E6 /* SafariWebExtensionHandler.swift */; };
@@ -640,6 +642,8 @@
 		92B7C9A32A3F3B6A00672F64 /* CommentView+fake.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentView+fake.swift"; sourceTree = "<group>"; };
 		92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentCell.swift; sourceTree = "<group>"; };
 		92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentViewModel.swift; sourceTree = "<group>"; };
+		92BA92B92AA26D06005E7D75 /* post-detail-1549703.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "post-detail-1549703.json"; sourceTree = "<group>"; };
+		92BA92BB2AA27BCA005E7D75 /* comment-list-1549703-Hot.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "comment-list-1549703-Hot.json"; sourceTree = "<group>"; };
 		92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITableViewCellBase.swift; sourceTree = "<group>"; };
 		92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+fittingWidth.swift"; sourceTree = "<group>"; };
 		92BBE4A82A5C2D6D008C2F55 /* URL+safePath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+safePath.swift"; sourceTree = "<group>"; };
@@ -1249,6 +1253,8 @@
 		92B7C9202A3A40F400672F64 /* SpudUITests */ = {
 			isa = PBXGroup;
 			children = (
+				92BA92BB2AA27BCA005E7D75 /* comment-list-1549703-Hot.json */,
+				92BA92B92AA26D06005E7D75 /* post-detail-1549703.json */,
 				9233A1372A81A61700F1F795 /* post-list-all-hot.json */,
 				92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */,
 				92B7C9212A3A40F400672F64 /* SpudUITests.swift */,
@@ -2071,6 +2077,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				92BA92BC2AA27BCA005E7D75 /* comment-list-1549703-Hot.json in Resources */,
+				92BA92BA2AA26D06005E7D75 /* post-detail-1549703.json in Resources */,
 				9233A1382A81A61700F1F795 /* post-list-all-hot.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

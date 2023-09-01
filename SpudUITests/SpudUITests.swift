@@ -47,6 +47,24 @@ class SpudUITests: XCTestCase {
                 ),
                 response: SBTStubResponse(fileNamed: "post-list-all-hot.json")
             )
+
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: "discuss.tchncs.de/api/v3/post",
+                    query: ["&id=1549703"],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "post-detail-1549703.json")
+            )
+
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: "discuss.tchncs.de/api/v3/comment/list",
+                    query: ["&post_id=1549703", "&max_depth=8", "&sort=Hot"],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "comment-list-1549703-Hot.json")
+            )
         }
     }
 
@@ -70,5 +88,21 @@ class SpudUITests: XCTestCase {
         let secondCell = app.cell(containing: "Quisque eget tortor eu enim scelerisque aliquam")
         let secondCellSubtitle = secondCell.staticTexts["subtitle"].label
         XCTAssertTrue(secondCellSubtitle.contains("consequat"))
+    }
+
+    func testPostDetail() throws {
+        let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
+        firstCell.tap()
+
+        let detailHeaderCell = app.cells["postDetailHeader"]
+
+        let title = detailHeaderCell.staticTexts["title"].label
+        XCTAssertTrue(title.contains("Nunc scelerisque tortor eget ligula pretium tempor"))
+
+        let attribution = detailHeaderCell.buttons["attribution"].label
+        XCTAssertTrue(attribution.contains("in tincidunt by finibus"))
+
+        let firstComment = app.cell(containing: "Nunc sagittis nulla tempor, luctus lectus a, molestie nisl")
+        XCTAssertTrue(firstComment.exists)
     }
 }
