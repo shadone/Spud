@@ -63,6 +63,24 @@ public final class LemmyPerson: NSManagedObject {
     /// Person identifier. The identifier is local to this instance.
     @NSManaged public var personId: Int32
 
+    /// Username (aka nickname aka short users' name). e.g. "helloworld"
+    ///
+    /// - Note: Intentionally optional. This is meant as a cached partial data.
+    /// The source of truth is stored in ``personInfo`` when full person detail data is fetched.
+    @NSManaged public var name: String?
+
+    /// A display name for the user. e.g. "Hello World!"
+    ///
+    /// - Note: Intentionally optional. This is meant as a cached partial data.
+    /// The source of truth is stored in ``personInfo`` when full person detail data is fetched.
+    @NSManaged public var displayName: String?
+
+    /// A URL for an avatar.
+    ///
+    /// - Note: Intentionally optional. This is meant as a cached partial data.
+    /// The source of truth is stored in ``personInfo`` when full person detail data is fetched.
+    @NSManaged public var avatarUrl: URL?
+
     // MARK: Meta properties
 
     /// Timestamp when this CoreData object was created.
