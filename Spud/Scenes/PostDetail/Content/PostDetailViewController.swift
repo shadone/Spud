@@ -231,15 +231,9 @@ class PostDetailViewController: UIViewController {
     private func linkTapped(_ url: URL) {
         switch url.spud {
         case let .person(personId, instance):
-            let context = dataStore.mainContext
-            let request = LemmyPerson.fetchRequest(
-                personId: personId,
-                instance: instance
-            )
-            let results = try! context.fetch(request)
-            let person = results.first!
             let vc = PersonOrLoadingViewController(
-                person: person,
+                personId: personId,
+                instance: instance,
                 account: postInfo.post.account,
                 dependencies: dependencies.nested
             )

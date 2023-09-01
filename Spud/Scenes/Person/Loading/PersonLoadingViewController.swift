@@ -8,6 +8,7 @@ import Combine
 import LemmyKit
 import os.log
 import SpudDataKit
+import SpudUtilKit
 import UIKit
 
 class PersonLoadingViewController: UIViewController {
@@ -75,6 +76,8 @@ class PersonLoadingViewController: UIViewController {
         self.person = person
         self.account = account
 
+        assert(person.personInfo == nil, "Loading screen should only be shown when we have no data")
+
         super.init(nibName: nil, bundle: nil)
 
         setup()
@@ -104,15 +107,20 @@ class PersonLoadingViewController: UIViewController {
 
         loadingIndicator.startAnimating()
 
-        // TODO: start loading person details
+        person.publisher(for: \.personInfo)
+            .ignoreNil()
+            .first()
+            .sink { [weak self] personInfo in
+                self?.didFinishLoading?(personInfo)
+            }
+            .store(in: &disposables)
+
         accountService
             .lemmyService(for: account)
             .fetchPersonInfo(personId: person.objectID)
             .sink(
                 receiveCompletion: alertService.errorHandler(for: .fetchPersonInfo),
-                receiveValue: { [weak self] personInfo in
-                    self?.didFinishLoading?(personInfo)
-                }
+                receiveValue: { _ in }
             )
             .store(in: &disposables)
     }

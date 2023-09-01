@@ -102,7 +102,7 @@ class PostDetailOrEmptyViewController: UIViewController {
             }
             .store(in: &disposables)
 
-        viewModel.outputs.loadPostById
+        viewModel.outputs.loadingPostInfo
             .sink { [weak self] postId in
                 self?.state = .load(postId: postId)
             }

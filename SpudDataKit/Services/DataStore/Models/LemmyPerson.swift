@@ -22,10 +22,10 @@ public final class LemmyPerson: NSManagedObject {
         NSFetchRequest<LemmyPerson>(entityName: "Person")
     }
 
-    /// Identifies a Person at a given Instance.
+    /// Creates a request for fetching a Person by id at a given Instance.
     ///
     /// - Parameter personId: PersonId identifier local to the specified instance.
-    /// - Parameter instanceUrl: Instance actorId. e.g. "https://lemmy.world", see ``URL/normalizedInstanceUrlString``.
+    /// - Parameter instance: Instance actorId. e.g. "https://lemmy.world", see ``InstanceActorId``.
     ///
     /// - Note: the instance specifies the Lemmy instance the personId is valid for. I.e. it is **not** the persons home site.
     @nonobjc
@@ -37,6 +37,23 @@ public final class LemmyPerson: NSManagedObject {
         request.predicate = NSPredicate(
             format: "personId == %d && site.instance.actorIdRawValue == %@",
             personId, instance.actorId
+        )
+        return request
+    }
+
+    /// Creates a request for fetching a Person by id at a given instance (identified by site).
+    ///
+    /// - Parameter personId: PersonId identifier local to the specified instance.
+    /// - Parameter site: Instance the `personId` is valid on, **not** the persons home site.
+    @nonobjc
+    public class func fetchRequest(
+        personId: PersonId,
+        site: LemmySite
+    ) -> NSFetchRequest<LemmyPerson> {
+        let request = NSFetchRequest<LemmyPerson>(entityName: "Person")
+        request.predicate = NSPredicate(
+            format: "personId == %d && site == %@",
+            personId, site
         )
         return request
     }
@@ -79,10 +96,15 @@ public final class LemmyPerson: NSManagedObject {
 }
 
 extension LemmyPerson {
-    convenience init(personId: Int32, in context: NSManagedObjectContext) {
+    convenience init(
+        personId: Int32,
+        site: LemmySite,
+        in context: NSManagedObjectContext
+    ) {
         self.init(context: context)
 
         self.personId = personId
+        self.site = site
 
         createdAt = Date()
         updatedAt = createdAt

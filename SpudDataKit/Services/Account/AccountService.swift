@@ -22,7 +22,7 @@ public protocol AccountServiceType: AnyObject {
         in context: NSManagedObjectContext
     ) -> LemmyAccount
 
-    /// Looks up a most suitable account for thr the given Lemmy instance.
+    /// Looks up a most suitable account for the the given Lemmy instance.
     ///
     /// - Note: This is meant to be used only for real user actions, not for service accounts.
     ///
