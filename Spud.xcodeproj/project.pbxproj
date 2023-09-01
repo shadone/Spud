@@ -219,7 +219,6 @@
 		92CC5DA12A7EC1100019436A /* Publisher+assignWeak.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */; };
 		92CC5DA22A7EC1100019436A /* Publisher+combineLatestSequence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9772A3D241800672F64 /* Publisher+combineLatestSequence.swift */; };
 		92CC5DA32A7EC1100019436A /* Publisher+ignoreNil.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9792A3D279100672F64 /* Publisher+ignoreNil.swift */; };
-		92CC5DA42A7EC1100019436A /* URL+normalizedInstanceUrlString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62F12A4775F400497C3B /* URL+normalizedInstanceUrlString.swift */; };
 		92CC5DA52A7EC1100019436A /* UIViewController+addChild.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */; };
 		92CC5DA62A7EC1100019436A /* URL+canonicalHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */; };
 		92CC5DA72A7EC11E0019436A /* SpudUtilKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */; };
@@ -702,7 +701,6 @@
 		92DD62EB2A46EFF400497C3B /* SchedulerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchedulerService.swift; sourceTree = "<group>"; };
 		92DD62ED2A46F8F400497C3B /* LemmyAccount+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmyAccount+import.swift"; sourceTree = "<group>"; };
 		92DD62EF2A4700B600497C3B /* LemmySite+import.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LemmySite+import.swift"; sourceTree = "<group>"; };
-		92DD62F12A4775F400497C3B /* URL+normalizedInstanceUrlString.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+normalizedInstanceUrlString.swift"; sourceTree = "<group>"; };
 		92DD62F42A477C4300497C3B /* AccountListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListViewController.swift; sourceTree = "<group>"; };
 		92DD62F62A477D3400497C3B /* AccountListAccountCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListAccountCell.swift; sourceTree = "<group>"; };
 		92DD62FB2A484EEF00497C3B /* SiteListViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteListViewController.swift; sourceTree = "<group>"; };
@@ -1553,7 +1551,6 @@
 				9236A46E2A7C608A00178F65 /* UIImage+scalePreservingAspectRatio.swift */,
 				9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */,
 				92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */,
-				92DD62F12A4775F400497C3B /* URL+normalizedInstanceUrlString.swift */,
 				92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */,
 				92BBE4A82A5C2D6D008C2F55 /* URL+safePath.swift */,
 				9273433A2A61DF050089556E /* URL+spud.swift */,
@@ -2427,7 +2424,6 @@
 				92CC5DA52A7EC1100019436A /* UIViewController+addChild.swift in Sources */,
 				92CC5DA62A7EC1100019436A /* URL+canonicalHost.swift in Sources */,
 				92CC5DB12A7EC1890019436A /* URL+lenientString.swift in Sources */,
-				92CC5DA42A7EC1100019436A /* URL+normalizedInstanceUrlString.swift in Sources */,
 				92CC5D952A7EC1100019436A /* URL+safeHost.swift in Sources */,
 				92CC5D9A2A7EC1100019436A /* URL+safePath.swift in Sources */,
 				92CC5D992A7EC1100019436A /* URL+spud.swift in Sources */,
