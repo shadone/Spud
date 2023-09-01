@@ -51,7 +51,7 @@ public protocol LemmyServiceType {
 
     func fetchPersonInfo(
         personId: NSManagedObjectID
-    ) -> AnyPublisher<LemmyPersonInfo, LemmyServiceError>
+    ) -> AnyPublisher<Void, LemmyServiceError>
 
     func vote(
         postId: NSManagedObjectID,
@@ -68,6 +68,8 @@ public protocol LemmyServiceType {
     ) -> AnyPublisher<Void, LemmyServiceError>
 
     func getOrCreate(postId: PostId) -> LemmyPost
+
+    func getOrCreate(personId: PersonId) -> LemmyPerson
 
     func markAsRead(
         postId: NSManagedObjectID
@@ -387,12 +389,12 @@ public class LemmyService: LemmyServiceType {
 
     public func fetchPersonInfo(
         personId: NSManagedObjectID
-    ) -> AnyPublisher<LemmyPersonInfo, LemmyServiceError> {
+    ) -> AnyPublisher<Void, LemmyServiceError> {
         assert(Thread.current.isMainThread)
 
         return object(with: personId, type: LemmyPerson.self)
             .setFailureType(to: LemmyServiceError.self)
-            .flatMap { person -> AnyPublisher<LemmyPersonInfo, LemmyServiceError> in
+            .flatMap { person -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("Fetch person info for \(person.identifierForLogging, privacy: .public)")
                 let request = GetPersonDetails.Request(
                     person_id: person.personId,
@@ -400,15 +402,15 @@ public class LemmyService: LemmyServiceType {
                 )
                 return self.api.getPersonDetails(request)
                     .receive(on: self.backgroundScheduler)
-                    .map { response -> LemmyPersonInfo in
+                    .handleEvents(receiveOutput: { response in
                         logger.debug("Fetch person info for \(person.identifierForLogging, privacy: .public) complete")
 
                         person.set(from: response.person_view)
-
                         assert(person.personInfo != nil)
-                        return person.personInfo!
-                    }
-                    .handleEvents(receiveOutput: { _ in
+
+                        // TODO: upsert from response.posts
+                        // TODO: upsert from response.comments
+                        // TODO: upsert from response.moderates
                     }, receiveCompletion: { completion in
                         switch completion {
                         case .failure:
@@ -417,6 +419,7 @@ public class LemmyService: LemmyServiceType {
                             self.saveIfNeeded()
                         }
                     })
+                    .map { _ in () }
                     .mapError { error in
                         logger.error("""
                             Fetch person info for \(person.identifierForLogging, privacy: .public) \
@@ -638,6 +641,41 @@ public class LemmyService: LemmyServiceType {
         } catch {
             logger.fault("Failed to fetch a post: \(error, privacy: .public)")
             fatalError("Failed to fetch a post: \(error)")
+        }
+    }
+
+    public func getOrCreate(personId: PersonId) -> LemmyPerson {
+        assert(Thread.current.isMainThread)
+
+        let mainContext = dataStore.mainContext
+        let accountInMainContext = mainContext
+            .object(with: accountObjectId) as! LemmyAccount
+
+        let request = LemmyPerson.fetchRequest(
+            personId: personId,
+            site: accountInMainContext.site
+        )
+
+        do {
+            let results = try mainContext.fetch(request)
+            if results.isEmpty {
+                let newPerson = LemmyPerson(
+                    personId: personId,
+                    site: accountInMainContext.site,
+                    in: mainContext
+                )
+                dataStore.saveIfNeeded()
+                return newPerson
+            } else if results.count == 1 {
+                let existingPerson = results[0]
+                return existingPerson
+            } else {
+                assertionFailure("Found \(results.count) persons with id '\(personId)'")
+                return results[0]
+            }
+        } catch {
+            logger.fault("Failed to fetch a person: \(error, privacy: .public)")
+            fatalError("Failed to fetch a person: \(error)")
         }
     }
 

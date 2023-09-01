@@ -7,11 +7,14 @@
 import Combine
 import LemmyKit
 import SpudDataKit
+import SpudUtilKit
 import UIKit
 
 class PersonOrLoadingViewController: UIViewController {
     typealias OwnDependencies =
-        HasVoid
+        HasAccountService &
+        HasDataStore &
+        HasSiteService
     typealias NestedDependencies =
         PersonViewController.Dependencies &
         PersonLoadingViewController.Dependencies
@@ -20,14 +23,16 @@ class PersonOrLoadingViewController: UIViewController {
 
     // MARK: - Public
 
-    private(set) var contentViewController: PersonViewController?
+    var contentViewController: PersonViewController? {
+        currentViewController as? PersonViewController
+    }
 
     // MARK: - Private
 
     private let viewModel: PersonOrLoadingViewModelType
 
     private enum State {
-        case personInfo(LemmyPersonInfo)
+        case person(LemmyPersonInfo)
         case load(LemmyPerson)
     }
 
@@ -37,24 +42,46 @@ class PersonOrLoadingViewController: UIViewController {
         }
     }
 
-    private var loadingViewController: PersonLoadingViewController?
+    private let account: LemmyAccount
+    private var currentViewController: UIViewController?
     private var disposables = Set<AnyCancellable>()
 
     // MARK: - Functions
 
     init(
-        person: LemmyPerson,
+        personId: PersonId,
+        instance: InstanceActorId,
         account: LemmyAccount,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
+        self.account = account
 
-        state = .load(person)
-        viewModel = PersonOrLoadingViewModel(person: person, account: account)
+        let dataStore = self.dependencies.own.dataStore
+        let siteService = self.dependencies.own.siteService
+        let accountService = self.dependencies.own.accountService
+
+        let context = dataStore.mainContext
+        let site = siteService.site(for: instance, in: context)
+
+        let personHomeAccount = accountService.account(at: site, in: context)
+        let person = accountService
+            .lemmyService(for: personHomeAccount)
+            .getOrCreate(personId: personId)
+
+        if let personInfo = person.personInfo {
+            state = .person(personInfo)
+        } else {
+            state = .load(person)
+        }
+
+        viewModel = PersonOrLoadingViewModel(person.personInfo)
 
         super.init(nibName: nil, bundle: nil)
 
         bindViewModel()
+
+        stateChanged()
     }
 
     @available(*, unavailable)
@@ -63,9 +90,9 @@ class PersonOrLoadingViewController: UIViewController {
     }
 
     private func bindViewModel() {
-        viewModel.outputs.loadedPersonInfo
+        viewModel.outputs.personInfoLoaded
             .sink { [weak self] personInfo in
-                self?.state = .personInfo(personInfo)
+                self?.state = .person(personInfo)
             }
             .store(in: &disposables)
 
@@ -81,38 +108,32 @@ class PersonOrLoadingViewController: UIViewController {
     }
 
     private func stateChanged() {
+        remove(child: currentViewController)
+        currentViewController = nil
+
+        let newViewController: UIViewController
         switch state {
-        case let .personInfo(personInfo):
-            assert(contentViewController == nil, "content should only be loaded once")
-            contentViewController = PersonViewController(
+        case let .person(personInfo):
+            let contentViewController = PersonViewController(
                 personInfo: personInfo,
                 dependencies: dependencies.nested
             )
-
-            remove(child: loadingViewController)
-            add(child: contentViewController)
-            addSubviewWithEdgeConstraints(child: contentViewController)
-
-            loadingViewController = nil
+            newViewController = contentViewController
 
         case let .load(person):
             let loadingViewController = PersonLoadingViewController(
                 person: person,
-                account: viewModel.outputs.account,
+                account: account,
                 dependencies: dependencies.nested
             )
-            self.loadingViewController = loadingViewController
+            newViewController = loadingViewController
 
-            viewModel.inputs.startLoadingPersonInfo()
             loadingViewController.didFinishLoading = { [weak self] personInfo in
                 self?.viewModel.inputs.didFinishLoadingPersonInfo(personInfo)
             }
-
-            remove(child: contentViewController)
-            add(child: loadingViewController)
-            addSubviewWithEdgeConstraints(child: loadingViewController)
-
-            contentViewController = nil
         }
+
+        add(child: newViewController)
+        addSubviewWithEdgeConstraints(child: newViewController)
     }
 }

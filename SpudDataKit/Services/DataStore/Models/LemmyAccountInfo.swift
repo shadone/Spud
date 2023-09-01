@@ -74,12 +74,12 @@ public final class LemmyAccountInfo: NSManagedObject {
 
 extension LemmyAccountInfo {
     convenience init(
-        personId: Int32, // TODO: should be LemmyPerson, whoever calls me should be using .upsert()
+        person: LemmyPerson,
         in context: NSManagedObjectContext
     ) {
         self.init(context: context)
 
-        person = LemmyPerson(personId: personId, in: context)
+        self.person = person
         person.accountInfo = self
 
         createdAt = Date()

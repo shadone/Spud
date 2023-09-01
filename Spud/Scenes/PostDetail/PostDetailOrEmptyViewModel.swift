@@ -26,7 +26,7 @@ protocol PostDetailOrEmptyViewModelInputs {
 
 protocol PostDetailOrEmptyViewModelOutputs {
     var currentPostInfo: AnyPublisher<LemmyPostInfo?, Never> { get }
-    var loadPostById: AnyPublisher<PostId, Never> { get }
+    var loadingPostInfo: AnyPublisher<PostId, Never> { get }
     var postInfoLoaded: AnyPublisher<LemmyPostInfo, Never> { get }
     var viewState: AnyPublisher<PostDetailOrEmpty.ViewState, Never> { get }
 }
@@ -36,7 +36,11 @@ protocol PostDetailOrEmptyViewModelType {
     var outputs: PostDetailOrEmptyViewModelOutputs { get }
 }
 
-class PostDetailOrEmptyViewModel: PostDetailOrEmptyViewModelType, PostDetailOrEmptyViewModelInputs, PostDetailOrEmptyViewModelOutputs {
+class PostDetailOrEmptyViewModel:
+    PostDetailOrEmptyViewModelType,
+    PostDetailOrEmptyViewModelInputs,
+    PostDetailOrEmptyViewModelOutputs
+{
     private let currentlyDisplayedPostInfo: CurrentValueSubject<LemmyPostInfo?, Never>
     private let viewStateSubject: CurrentValueSubject<PostDetailOrEmpty.ViewState, Never>
     private var disposables = Set<AnyCancellable>()
@@ -55,8 +59,7 @@ class PostDetailOrEmptyViewModel: PostDetailOrEmptyViewModelType, PostDetailOrEm
         viewState = viewStateSubject
             .eraseToAnyPublisher()
 
-        loadPostById = startLoadingPostSubject
-            .ignoreNil()
+        loadingPostInfo = startLoadingPostSubject
             .eraseToAnyPublisher()
 
         didFinishLoadingPostInfoSubject
@@ -87,13 +90,13 @@ class PostDetailOrEmptyViewModel: PostDetailOrEmptyViewModelType, PostDetailOrEm
     // MARK: Outputs
 
     let currentPostInfo: AnyPublisher<LemmyPostInfo?, Never>
-    let loadPostById: AnyPublisher<PostId, Never>
+    let loadingPostInfo: AnyPublisher<PostId, Never>
     let postInfoLoaded: AnyPublisher<LemmyPostInfo, Never>
     let viewState: AnyPublisher<PostDetailOrEmpty.ViewState, Never>
 
     // MARK: Inputs
 
-    private let startLoadingPostSubject = PassthroughSubject<PostId?, Never>()
+    private let startLoadingPostSubject = PassthroughSubject<PostId, Never>()
     func startLoadingPost(postId: PostId) {
         startLoadingPostSubject.send(postId)
     }

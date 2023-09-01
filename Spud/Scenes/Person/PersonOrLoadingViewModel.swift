@@ -9,14 +9,14 @@ import SpudDataKit
 import UIKit
 
 protocol PersonOrLoadingViewModelInputs {
-    func startLoadingPersonInfo()
+    func startLoadingPersonInfo(_ person: LemmyPerson)
     func didFinishLoadingPersonInfo(_ personInfo: LemmyPersonInfo)
 }
 
 protocol PersonOrLoadingViewModelOutputs {
-    var account: LemmyAccount { get }
+    var currentPersonInfo: AnyPublisher<LemmyPersonInfo?, Never> { get }
     var loadingPersonInfo: AnyPublisher<LemmyPerson, Never> { get }
-    var loadedPersonInfo: AnyPublisher<LemmyPersonInfo, Never> { get }
+    var personInfoLoaded: AnyPublisher<LemmyPersonInfo, Never> { get }
     var navigationTitle: AnyPublisher<String?, Never> { get }
 }
 
@@ -30,32 +30,23 @@ class PersonOrLoadingViewModel:
     PersonOrLoadingViewModelInputs,
     PersonOrLoadingViewModelOutputs
 {
-    private let person: LemmyPerson
     private let currentlyDisplayedPersonInfo: CurrentValueSubject<LemmyPersonInfo?, Never>
     private var disposables = Set<AnyCancellable>()
 
-    init(person: LemmyPerson, account: LemmyAccount) {
-        self.person = person
-        self.account = account
+    init(_ initialPersonInfo: LemmyPersonInfo?) {
+        currentlyDisplayedPersonInfo = .init(initialPersonInfo)
 
-        let personInfo: LemmyPersonInfo? = nil // person.personInfo
-        currentlyDisplayedPersonInfo = CurrentValueSubject<LemmyPersonInfo?, Never>(personInfo)
-
-        let initialLoadingPersonInfo: AnyPublisher<LemmyPerson, Never>
-        if personInfo == nil {
-            initialLoadingPersonInfo = .just(person)
-        } else {
-            initialLoadingPersonInfo = .empty(completeImmediately: true)
-        }
-        loadingPersonInfo = initialLoadingPersonInfo
-            .append(startLoadingPersonInfoSubject)
-            .eraseToAnyPublisher()
-
-        loadedPersonInfo = currentlyDisplayedPersonInfo
+        personInfoLoaded = didFinishLoadingPersonInfoSubject
             .ignoreNil()
             .eraseToAnyPublisher()
 
-        navigationTitle = loadedPersonInfo
+        currentPersonInfo = currentlyDisplayedPersonInfo
+            .eraseToAnyPublisher()
+
+        loadingPersonInfo = startLoadingPersonInfoSubject
+            .eraseToAnyPublisher()
+
+        navigationTitle = personInfoLoaded
             .flatMap { personInfo in
                 personInfo.publisher(for: \.name)
                     .combineLatest(personInfo.hostnameFromActorIdPublisher)
@@ -81,15 +72,15 @@ class PersonOrLoadingViewModel:
 
     // MARK: Outputs
 
-    let account: LemmyAccount
+    let currentPersonInfo: AnyPublisher<LemmyPersonInfo?, Never>
     let loadingPersonInfo: AnyPublisher<LemmyPerson, Never>
-    let loadedPersonInfo: AnyPublisher<LemmyPersonInfo, Never>
+    let personInfoLoaded: AnyPublisher<LemmyPersonInfo, Never>
     let navigationTitle: AnyPublisher<String?, Never>
 
     // MARK: Inputs
 
     private let startLoadingPersonInfoSubject = PassthroughSubject<LemmyPerson, Never>()
-    func startLoadingPersonInfo() {
+    func startLoadingPersonInfo(_ person: LemmyPerson) {
         startLoadingPersonInfoSubject.send(person)
     }
 
