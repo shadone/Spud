@@ -16,6 +16,8 @@ protocol SubscriptionsViewModelInputs {
 protocol SubscriptionsViewModelOutputs {
     var account: CurrentValueSubject<LemmyAccount, Never> { get }
 
+    var isSignedIn: AnyPublisher<Bool, Never> { get }
+
     var feedRequested: AnyPublisher<LemmyFeed, Never> { get }
 }
 
@@ -52,6 +54,10 @@ class SubscriptionsViewModel:
 
         self.account = CurrentValueSubject<LemmyAccount, Never>(account)
 
+        isSignedIn = self.account
+            .map { !$0.isSignedOutAccountType }
+            .eraseToAnyPublisher()
+
         feedRequested = loadFeedSubject
             .map { listingType in
                 dependencies.accountService
@@ -69,6 +75,7 @@ class SubscriptionsViewModel:
     // MARK: Outputs
 
     let account: CurrentValueSubject<LemmyAccount, Never>
+    let isSignedIn: AnyPublisher<Bool, Never>
     let feedRequested: AnyPublisher<LemmyFeed, Never>
 
     // MARK: Inputs
