@@ -66,6 +66,15 @@ class SpudUITests: XCTestCase {
                 ),
                 response: SBTStubResponse(fileNamed: "comment-list-1549703-Hot.json")
             )
+
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: "discuss.tchncs.de/api/v3/user",
+                    query: ["&person_id=31989"],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "user-31989.json")
+            )
         }
     }
 
@@ -105,5 +114,33 @@ class SpudUITests: XCTestCase {
 
         let firstComment = app.cell(containing: "Nunc sagittis nulla tempor, luctus lectus a, molestie nisl")
         XCTAssertTrue(firstComment.exists)
+    }
+
+    func test_PostDetail_TapOnPostCreator() throws {
+        let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
+        firstCell.tap()
+
+        let detailHeaderCell = app.cells["postDetailHeader"]
+
+        let attribution = detailHeaderCell.buttons["attribution"]
+        XCTAssertTrue(attribution.label.contains("in tincidunt by finibus"))
+
+        attribution.coordinate(withNormalizedOffset: .zero)
+            .withOffset(.init(dx: 100, dy: 10))
+            .tap()
+
+        // expect the loading screen
+        XCTAssertTrue(app.staticTexts["loading"].exists)
+
+        // let the loading screen to disappear
+        XCTAssertTrue(app.staticTexts["Nunc Finibus Augue"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["finibus"].exists)
+
+        let collectionViewsQuery = app.collectionViews
+        XCTAssertTrue(collectionViewsQuery.staticTexts["2.1K"].exists)
+        XCTAssertTrue(collectionViewsQuery.staticTexts["16.3K"].exists)
+        XCTAssertTrue(collectionViewsQuery.staticTexts["3mo"].exists)
+        XCTAssertTrue(collectionViewsQuery.buttons["Posts, 86"].exists)
+        XCTAssertTrue(collectionViewsQuery.buttons["Comments, 203"].exists)
     }
 }
