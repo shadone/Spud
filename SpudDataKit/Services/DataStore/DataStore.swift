@@ -12,10 +12,15 @@ private let logger = Logger(.dataStore)
 
 public protocol DataStoreType: AnyObject {
     var mainContext: NSManagedObjectContext { get }
-    var persistentContainer: NSPersistentContainer? { get }
+
     func startService()
     func newBackgroundContext() -> NSManagedObjectContext
     func saveIfNeeded()
+
+    /// Deletes the persistent container from disk as if the app starts fresh.
+    ///
+    /// - Note: For tests only!
+    func destroyPersistentStore()
 }
 
 public protocol HasDataStore {
@@ -24,10 +29,7 @@ public protocol HasDataStore {
 
 public class DataStore: DataStoreType {
     public var mainContext: NSManagedObjectContext {
-        guard let persistentContainer else {
-            fatalError("Uninitialized persistent store")
-        }
-        return persistentContainer.viewContext
+        persistentContainer.viewContext
     }
 
     var storeLoadingError: Error?
@@ -43,16 +45,11 @@ public class DataStore: DataStoreType {
         return url
     }()
 
-    public var persistentContainer: NSPersistentContainer?
+    public lazy var persistentContainer: NSPersistentContainer = createPersistentContainer()
 
     public init() { }
 
-    public func startService() {
-        guard persistentContainer == nil else {
-            assertionFailure()
-            return
-        }
-
+    private func createPersistentContainer() -> NSPersistentContainer {
         let storeName = "DataStore"
         let storeFileName = "\(storeName).sqlite"
 
@@ -77,15 +74,22 @@ public class DataStore: DataStoreType {
 
         container.persistentStoreDescriptions = [storeDescription]
 
-        container.loadPersistentStores(completionHandler: { _, error in
+        return container
+    }
+
+    public func startService() {
+        persistentContainer.loadPersistentStores(completionHandler: { _, error in
             self.storeLoadingError = error as NSError?
         })
 
         if let storeLoadingError {
             logger.error("Destroying existing store due to persistent store load failure: \(String(describing: storeLoadingError), privacy: .public)")
-            destroyPersistentStore(container)
+            destroyPersistentStore()
 
-            container.loadPersistentStores(completionHandler: { _, error in
+            // TODO: we should pause the app while persistent container is loading.
+            // e.g. show a blocking loading screen.
+
+            persistentContainer.loadPersistentStores(completionHandler: { _, error in
                 if let error = error as NSError? {
                     /*
                      Typical reasons for an error here include:
@@ -101,23 +105,21 @@ public class DataStore: DataStoreType {
             })
         }
 
-        container.viewContext.mergePolicy = NSMergePolicy.mergeByPropertyStoreTrump
-        // container.viewContext.undoManager = nil
-        // container.viewContext.shouldDeleteInaccessibleFaults = true
-        container.viewContext.automaticallyMergesChangesFromParent = true
+        persistentContainer.viewContext.mergePolicy = NSMergePolicy.mergeByPropertyStoreTrump
+        // persistentContainer.viewContext.undoManager = nil
+        // persistentContainer.viewContext.shouldDeleteInaccessibleFaults = true
+        persistentContainer.viewContext.automaticallyMergesChangesFromParent = true
 
-        container.viewContext.name = "main"
-
-        persistentContainer = container
+        persistentContainer.viewContext.name = "main"
     }
 
-    private func destroyPersistentStore(_ container: NSPersistentContainer) {
-        guard let url = container.persistentStoreDescriptions.first?.url else {
+    public func destroyPersistentStore() {
+        guard let url = persistentContainer.persistentStoreDescriptions.first?.url else {
             fatalError("No store descriptions found")
         }
 
         do {
-            try container.persistentStoreCoordinator
+            try persistentContainer.persistentStoreCoordinator
                 .destroyPersistentStore(at: url, ofType: NSSQLiteStoreType, options: nil)
         } catch {
             logger.fault("Failed to destroy persistent store: \(String(describing: error), privacy: .public)")
@@ -126,9 +128,6 @@ public class DataStore: DataStoreType {
     }
 
     public func newBackgroundContext() -> NSManagedObjectContext {
-        guard let persistentContainer else {
-            fatalError("Uninitialized persistent store")
-        }
         let context = persistentContainer.newBackgroundContext()
         context.name = "background"
         return context
