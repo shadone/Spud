@@ -102,12 +102,16 @@ struct SubscriptionsView<ViewModel>: View
 {
     @StateObject var viewModel: ViewModel
 
+    @State var isSignedIn: Bool = false
+
     var body: some View {
         List {
-            SubscriptionsListingView(listingType: .subscribed)
-                .onTapGesture {
-                    viewModel.inputs.loadFeed(listingType: .subscribed)
-                }
+            if isSignedIn {
+                SubscriptionsListingView(listingType: .subscribed)
+                    .onTapGesture {
+                        viewModel.inputs.loadFeed(listingType: .subscribed)
+                    }
+            }
             SubscriptionsListingView(listingType: .local)
                 .onTapGesture {
                     viewModel.inputs.loadFeed(listingType: .local)
@@ -124,6 +128,9 @@ struct SubscriptionsView<ViewModel>: View
             }
         }
         .listStyle(.sidebar)
+        .onReceive(viewModel.outputs.isSignedIn) { value in
+            isSignedIn = value
+        }
     }
 }
 
@@ -151,6 +158,8 @@ extension SubscriptionsView_Preview {
         var account: CurrentValueSubject<LemmyAccount, Never> = .init(
             LemmyAccount()
         )
+
+        var isSignedIn: AnyPublisher<Bool, Never> = .just(true)
 
         var feedRequested: AnyPublisher<LemmyFeed, Never> = .empty(completeImmediately: false)
     }
