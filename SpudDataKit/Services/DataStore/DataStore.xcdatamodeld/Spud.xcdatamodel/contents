@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="21754" systemVersion="22F82" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22221.1" systemVersion="22F82" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
     <entity name="Account" representedClassName="LemmyAccount" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" attributeType="String"/>
@@ -121,7 +121,10 @@
         <relationship name="post" maxCount="1" deletionRule="Nullify" destinationEntity="Post" inverseName="pageElements" inverseEntity="Post"/>
     </entity>
     <entity name="Person" representedClassName="LemmyPerson" syncable="YES">
+        <attribute name="avatarUrl" optional="YES" attributeType="URI"/>
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="displayName" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="personId" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="accountInfo" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="AccountInfo" inverseName="person" inverseEntity="AccountInfo"/>

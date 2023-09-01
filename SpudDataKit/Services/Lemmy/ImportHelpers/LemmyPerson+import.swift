@@ -51,6 +51,12 @@ extension LemmyPerson {
 
         assert(personId == model.local_user.person_id)
 
+        // Update the cached data.
+        name = model.person.name
+        displayName = model.person.display_name
+        avatarUrl = model.person.avatar?.url
+
+        // Upsert the PersonInfo
         let personInfo = personInfo ?? createPersonInfo(in: context)
         personInfo.set(from: model)
     }
@@ -63,8 +69,13 @@ extension LemmyPerson {
 
         assert(personId == model.id)
 
-        let personInfo = personInfo ?? createPersonInfo(in: context)
-        personInfo.set(from: model)
+        // Update the cached data.
+        name = model.name
+        displayName = model.display_name
+        avatarUrl = model.avatar?.url
+
+        // Do not create personInfo here since we only have partial data
+        // i.e. aggregate data is not available.
 
         updatedAt = Date()
     }
@@ -77,6 +88,12 @@ extension LemmyPerson {
 
         assert(personId == model.person.id)
 
+        // Update the cached data.
+        name = model.person.name
+        displayName = model.person.display_name
+        avatarUrl = model.person.avatar?.url
+
+        // Upsert the PersonInfo
         let personInfo = personInfo ?? createPersonInfo(in: context)
         personInfo.set(from: model)
 
@@ -104,7 +121,6 @@ extension LemmyPerson {
                 // E.g. when fetching posts we find the creator in Person and update with
                 // whatever info the Post contains, but it isn't everything.
                 person.set(from: model)
-                person.updatedAt = Date()
                 return person
             } else {
                 assertionFailure("Found \(results.count) persons with id '\(model.id)'")

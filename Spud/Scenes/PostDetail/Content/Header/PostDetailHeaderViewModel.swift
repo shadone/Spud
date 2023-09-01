@@ -90,10 +90,10 @@ class PostDetailHeaderViewModel {
                     instance: creator.site.instance.actorId
                 ).url
 
-                assert(creator.personInfo != nil)
-                let name = creator.personInfo?.name ?? ""
+                let name = creator.personInfo?.name ?? creator.name
+                assert(name != nil)
 
-                return NSAttributedString(string: name, attributes: attributes)
+                return NSAttributedString(string: name ?? "", attributes: attributes)
             }
             .eraseToAnyPublisher()
 
