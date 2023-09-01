@@ -56,6 +56,7 @@ class PersonLoadingViewController: UIViewController {
         label.font = UIFont.systemFont(ofSize: UIFont.systemFontSize + 15, weight: .light)
         label.textColor = UIColor.tertiaryLabel
         label.text = "Loading…"
+        label.accessibilityIdentifier = "loading"
         return label
     }()
 
