@@ -8,4 +8,5 @@ import Foundation
 
 enum AppLaunchArgument: String {
     case staticImageService = "SPUDStaticImageService"
+    case deleteCoreDataStorage = "SPUDDeleteCoreDataStorage"
 }

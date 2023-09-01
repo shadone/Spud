@@ -40,6 +40,10 @@ struct DependencyContainer:
             imageService = ImageService(alertService: alertService)
         }
 
+        if arguments.contains(.deleteCoreDataStorage) {
+            dataStore.destroyPersistentStore()
+        }
+
         siteService = SiteService(dataStore: dataStore)
         accountService = AccountService(
             siteService: siteService,

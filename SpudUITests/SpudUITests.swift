@@ -17,6 +17,7 @@ class SpudUITests: XCTestCase {
             SBTUITunneledApplicationLaunchOptionResetFilesystem,
             SBTUITunneledApplicationLaunchOptionDisableUITextFieldAutocomplete,
             AppLaunchArgument.staticImageService.rawValue,
+            AppLaunchArgument.deleteCoreDataStorage.rawValue,
         ]
         app.launchTunnel(withOptions: launchOptions) {
             self.app.monitorRequests(matching: SBTRequestMatch(url: ".*"))
