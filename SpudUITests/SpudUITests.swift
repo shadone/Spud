@@ -63,12 +63,12 @@ class SpudUITests: XCTestCase {
     }
 
     func testExample() throws {
-        let firstCell = app.cell(containing: "Fuck SUVs in particular")
+        let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
         let firstCellSubtitle = firstCell.staticTexts["subtitle"].label
-        XCTAssertTrue(firstCellSubtitle.contains("fuckcars"))
+        XCTAssertTrue(firstCellSubtitle.contains("tincidunt"))
 
-        let secondCell = app.cell(containing: "Glad to see Lemmy users appreciating diversity")
+        let secondCell = app.cell(containing: "Quisque eget tortor eu enim scelerisque aliquam")
         let secondCellSubtitle = secondCell.staticTexts["subtitle"].label
-        XCTAssertTrue(secondCellSubtitle.contains("lemmyshitpost"))
+        XCTAssertTrue(secondCellSubtitle.contains("consequat"))
     }
 }
