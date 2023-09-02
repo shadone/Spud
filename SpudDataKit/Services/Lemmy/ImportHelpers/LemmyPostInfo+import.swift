@@ -30,6 +30,8 @@ extension LemmyPostInfo {
             }
         }()
 
+        isRead = model.read
+
         updatedAt = Date()
     }
 

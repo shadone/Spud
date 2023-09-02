@@ -132,14 +132,15 @@ class PostListPostViewModel {
 
     private var titleAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
         appearance.textSizeAdjustmentPublisher
-            .map { textSizeAdjustment -> [NSAttributedString.Key: Any] in
+            .combineLatest(isRead)
+            .map { textSizeAdjustment, isRead -> [NSAttributedString.Key: Any] in
                 [
                     .font: UIFont.scaledSystemFont(
                         style: .title2,
                         relativeSize: textSizeAdjustment,
                         weight: .medium
                     ),
-                    .foregroundColor: UIColor.label,
+                    .foregroundColor: isRead ? UIColor.secondaryLabel : UIColor.label,
                 ]
             }
             .eraseToAnyPublisher()
@@ -194,6 +195,11 @@ class PostListPostViewModel {
             .map { communityInfo in
                 communityInfo?.name ?? ""
             }
+            .eraseToAnyPublisher()
+    }
+
+    private var isRead: AnyPublisher<Bool, Never> {
+        postInfo.publisher(for: \.isRead)
             .eraseToAnyPublisher()
     }
 
