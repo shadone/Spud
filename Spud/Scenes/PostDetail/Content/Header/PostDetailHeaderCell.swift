@@ -8,6 +8,7 @@ import Combine
 import OSLog
 import SafariServices
 import SpudDataKit
+import SpudUIKit
 import UIKit
 
 private let logger = Logger(.app)
@@ -20,6 +21,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
     var linkTapped: ((URL) -> Void)?
     var linkTappedFromPreview: ((SFSafariViewController) -> Void)?
     var appService: AppServiceType?
+
+    var upvoteTapped: (() -> Void)?
+    var downvoteTapped: (() -> Void)?
 
     // MARK: UI Properties
 
@@ -34,12 +38,16 @@ class PostDetailHeaderCell: UITableViewCellBase {
         [
             postImageContainer,
             postContentVerticalStackView,
+            buttonBarStackView,
         ].forEach(stackView.addArrangedSubview)
 
         NSLayoutConstraint.activate([
             postImageContainer.widthAnchor.constraint(equalTo: stackView.widthAnchor),
+            buttonBarStackView.widthAnchor.constraint(
+                equalTo: stackView.widthAnchor, constant: -8 * 2
+            ),
             postContentVerticalStackView.widthAnchor.constraint(
-                equalTo: stackView.widthAnchor, constant: -16 * 2
+                equalTo: stackView.widthAnchor, constant: -8 * 2
             ),
         ])
 
@@ -160,6 +168,74 @@ class PostDetailHeaderCell: UITableViewCellBase {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.numberOfLines = 1
         return label
+    }()
+
+    lazy var buttonBarStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .horizontal
+        stackView.distribution = .fill
+
+        let spacer = UIView()
+        spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+
+        [
+            upvoteBarButton,
+            downvoteBarButton,
+            spacer,
+        ].forEach(stackView.addArrangedSubview)
+
+        return stackView
+    }()
+
+    lazy var upvoteBarButton: UIButton = {
+        var configuration = UIButton.Configuration.plain()
+        configuration.image = Design.Post.upvoteButton.image
+        configuration.contentInsets = .init(top: 8, leading: 8, bottom: 8, trailing: 8)
+        configuration.baseBackgroundColor = .clear
+        configuration.automaticallyUpdateForSelection = false
+
+        let button = UIButton(configuration: configuration)
+
+        button.addTarget(self, action: #selector(upvoteButtonTapped), for: .touchUpInside)
+
+        button.configurationUpdateHandler = { button in
+            guard var newConfiguration = button.configuration else {
+                assertionFailure()
+                return
+            }
+
+            if button.isSelected {
+                newConfiguration.imageColorTransformer = .init { _ in .systemRed }
+                newConfiguration.baseBackgroundColor = .systemRed
+            }
+
+            button.configuration = newConfiguration
+        }
+
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: 40),
+            button.heightAnchor.constraint(equalToConstant: 40),
+        ])
+
+        return button
+    }()
+
+    lazy var downvoteBarButton: UIButton = {
+        var configuration = UIButton.Configuration.plain()
+        configuration.image = Design.Post.downvoteButton.image
+        configuration.contentInsets = .init(top: 8, leading: 8, bottom: 8, trailing: 8)
+
+        let button = UIButton(configuration: configuration)
+
+        button.addTarget(self, action: #selector(downvoteButtonTapped), for: .touchUpInside)
+
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: 40),
+            button.heightAnchor.constraint(equalToConstant: 40),
+        ])
+
+        return button
     }()
 
     // MARK: Private
@@ -284,6 +360,18 @@ class PostDetailHeaderCell: UITableViewCellBase {
                 }
             }
             .store(in: &disposables)
+
+        viewModel.isUpvoted
+            .sink { isUpvoted in
+                self.upvoteBarButton.isSelected = isUpvoted
+            }
+            .store(in: &disposables)
+
+        viewModel.isDownvoted
+            .sink { isUpvoted in
+                self.downvoteBarButton.isSelected = isUpvoted
+            }
+            .store(in: &disposables)
     }
 
     private func configureLinkPreview(_ tuple: (URL, ImageLoadingState)?) {
@@ -335,6 +423,16 @@ class PostDetailHeaderCell: UITableViewCellBase {
             tableView?.beginUpdates()
             tableView?.endUpdates()
         }
+    }
+
+    @objc
+    private func upvoteButtonTapped() {
+        upvoteTapped?()
+    }
+
+    @objc
+    private func downvoteButtonTapped() {
+        downvoteTapped?()
     }
 }
 
