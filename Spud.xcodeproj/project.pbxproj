@@ -165,6 +165,7 @@
 		92BA92BA2AA26D06005E7D75 /* post-detail-1549703.json in Resources */ = {isa = PBXBuildFile; fileRef = 92BA92B92AA26D06005E7D75 /* post-detail-1549703.json */; };
 		92BA92BC2AA27BCA005E7D75 /* comment-list-1549703-Hot.json in Resources */ = {isa = PBXBuildFile; fileRef = 92BA92BB2AA27BCA005E7D75 /* comment-list-1549703-Hot.json */; };
 		92BA92BE2AA280E8005E7D75 /* user-31989.json in Resources */ = {isa = PBXBuildFile; fileRef = 92BA92BD2AA280E8005E7D75 /* user-31989.json */; };
+		92BA92C02AA34416005E7D75 /* Logger+assert.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BA92BF2AA34416005E7D75 /* Logger+assert.swift */; };
 		92BBE4A12A5BEEAD008C2F55 /* UITableViewCellBase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */; };
 		92C0B32D2A829BDB004EF9E6 /* XCUIApplication+cellContainingLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C0B32C2A829BDB004EF9E6 /* XCUIApplication+cellContainingLabel.swift */; };
 		92C0B3352A829F43004EF9E6 /* SafariWebExtensionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92C0B3342A829F43004EF9E6 /* SafariWebExtensionHandler.swift */; };
@@ -646,6 +647,7 @@
 		92BA92B92AA26D06005E7D75 /* post-detail-1549703.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "post-detail-1549703.json"; sourceTree = "<group>"; };
 		92BA92BB2AA27BCA005E7D75 /* comment-list-1549703-Hot.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "comment-list-1549703-Hot.json"; sourceTree = "<group>"; };
 		92BA92BD2AA280E8005E7D75 /* user-31989.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "user-31989.json"; sourceTree = "<group>"; };
+		92BA92BF2AA34416005E7D75 /* Logger+assert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Logger+assert.swift"; sourceTree = "<group>"; };
 		92BBE4A02A5BEEAD008C2F55 /* UITableViewCellBase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UITableViewCellBase.swift; sourceTree = "<group>"; };
 		92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIImage+fittingWidth.swift"; sourceTree = "<group>"; };
 		92BBE4A82A5C2D6D008C2F55 /* URL+safePath.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+safePath.swift"; sourceTree = "<group>"; };
@@ -1545,6 +1547,7 @@
 				9224DA0A2A86EFAC00ADC091 /* SwiftUI */,
 				9273432B2A61BF450089556E /* Date+relativeString.swift */,
 				92D6BAA12A842EC9005ECCC2 /* InstanceActorId.swift */,
+				92BA92BF2AA34416005E7D75 /* Logger+assert.swift */,
 				92B7C9822A3D2C8800672F64 /* NSAttributedString+symbol.swift */,
 				92DD63032A488ACC00497C3B /* NSManagedObjectContext+saveIfNeeded.swift */,
 				9297E2FB2A42453000D13E4D /* Publisher+assignWeak.swift */,
@@ -2418,6 +2421,7 @@
 				9224DA0E2A86F00300ADC091 /* Bool+iOS17.swift in Sources */,
 				92CC5D972A7EC1100019436A /* Date+relativeString.swift in Sources */,
 				92D6BAA22A842EC9005ECCC2 /* InstanceActorId.swift in Sources */,
+				92BA92C02AA34416005E7D75 /* Logger+assert.swift in Sources */,
 				92CC5DB02A7EC17F0019436A /* ManagedContextScheduler.swift in Sources */,
 				92CC5D982A7EC1100019436A /* NSAttributedString+symbol.swift in Sources */,
 				92CC5D9E2A7EC1100019436A /* NSManagedObjectContext+saveIfNeeded.swift in Sources */,
