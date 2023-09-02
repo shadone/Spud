@@ -10,12 +10,14 @@ import LemmyKit
 import os.log
 import SpudUtilKit
 
+private let logger = Logger(.dataStore)
+
 extension LemmySite {
     func upsert(
         siteInfo model: SiteResponse
     ) {
         guard let context = managedObjectContext else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
 

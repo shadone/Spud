@@ -98,20 +98,16 @@ public class AccountService: AccountServiceType {
             )
             do {
                 let accounts = try context.fetch(request)
-                if accounts.count > 1 {
-                    logger.error("""
-                        Expected zero or one but found \(accounts.count, privacy: .public) \
-                        signed out accounts for \(site.identifierForLogging, privacy: .public)!
-                        """)
-                    assertionFailure()
-                }
+                logger.assert(accounts.count <= 1, """
+                    Expected zero or one but found \(accounts.count) \
+                    signed out accounts for \(site.identifierForLogging)!
+                    """)
                 return accounts.first
             } catch {
-                logger.error("""
-                    Failed to fetch account for \(site.identifierForLogging, privacy: .public): \
-                    \(error.localizedDescription, privacy: .public)
+                logger.assertionFailure("""
+                    Failed to fetch account for \(site.identifierForLogging): \
+                    \(error.localizedDescription)
                     """)
-                assertionFailure()
                 return nil
             }
         }()
@@ -136,8 +132,7 @@ public class AccountService: AccountServiceType {
         do {
             return try context.fetch(request)
         } catch {
-            logger.error("Failed to fetch all signed out accounts: \(error.localizedDescription, privacy: .public)")
-            assertionFailure()
+            logger.assertionFailure("Failed to fetch all signed out accounts: \(error.localizedDescription)")
             return []
         }
     }
@@ -157,8 +152,7 @@ public class AccountService: AccountServiceType {
         do {
             return try context.fetch(request)
         } catch {
-            logger.error("Failed to fetch all accounts: \(error.localizedDescription, privacy: .public)")
-            assertionFailure()
+            logger.assertionFailure("Failed to fetch all accounts: \(error.localizedDescription)")
             return []
         }
     }
@@ -375,7 +369,7 @@ extension AccountService {
         let key = account.objectID.uriRepresentation().absoluteString
 
         guard let stringValue = credential.toString() else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
 
@@ -399,7 +393,7 @@ extension AccountService {
             }
 
             guard let credential = LemmyCredential.fromString(stringValue) else {
-                assertionFailure()
+                logger.assertionFailure()
                 return nil
             }
 
@@ -407,8 +401,7 @@ extension AccountService {
 
             return credential
         } catch {
-            logger.error("Failed to get credential from keychain: \(error.localizedDescription, privacy: .public)")
-            assertionFailure(error.localizedDescription)
+            logger.assertionFailure("Failed to get credential from keychain: \(error.localizedDescription)")
             return nil
         }
     }

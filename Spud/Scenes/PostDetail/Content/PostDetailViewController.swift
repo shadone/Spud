@@ -241,7 +241,7 @@ class PostDetailViewController: UIViewController {
 
         case .post:
             // TODO: push a new post detail
-            assertionFailure("unimplemented")
+            logger.assertionFailure("unimplemented")
 
         case .none:
             Task {
@@ -256,7 +256,7 @@ class PostDetailViewController: UIViewController {
 
     private func vote(_ commentElement: LemmyCommentElement, _ action: VoteStatus.Action) {
         guard let comment = commentElement.comment else {
-            assertionFailure("Vote on more element?")
+            logger.assertionFailure("Vote on more element?")
             return
         }
 
@@ -491,10 +491,10 @@ extension PostDetailViewController: NSFetchedResultsControllerDelegate {
             break
 
         case .move:
-            assertionFailure()
+            logger.assertionFailure()
 
         @unknown default:
-            assertionFailure()
+            logger.assertionFailure()
         }
     }
 }

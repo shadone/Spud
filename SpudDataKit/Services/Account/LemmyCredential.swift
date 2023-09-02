@@ -30,7 +30,7 @@ extension LemmyCredential {
 
     static func fromString(_ stringValue: String) -> LemmyCredential? {
         guard let data = stringValue.data(using: .utf8) else {
-            assertionFailure()
+            logger.assertionFailure()
             return nil
         }
         do {

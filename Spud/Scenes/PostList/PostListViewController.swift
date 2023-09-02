@@ -229,7 +229,7 @@ class PostListViewController: UIViewController {
 
         let sortType = viewModel.outputs.feed.value.sortType
         guard let action = sortTypeMenuActionsBySortType[sortType] else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
         action.state = .on
@@ -539,10 +539,10 @@ extension PostListViewController: NSFetchedResultsControllerDelegate {
             break
 
         case .move:
-            assertionFailure()
+            logger.assertionFailure()
 
         @unknown default:
-            assertionFailure()
+            logger.assertionFailure()
         }
     }
 }

@@ -443,7 +443,7 @@ public class LemmyService: LemmyServiceType {
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
                 guard let postInfo = post.postInfo else {
-                    assertionFailure()
+                    logger.assertionFailure()
                     return .fail(with: .internalInconsistency(description: "missing post info"))
                 }
 

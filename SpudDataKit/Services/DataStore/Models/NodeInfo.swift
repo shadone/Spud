@@ -10,6 +10,8 @@ import Foundation
 import os.log
 import SemVer
 
+private let logger = Logger(.dataStore)
+
 @objc(NodeInfo)
 public final class NodeInfo: NSManagedObject {
     @nonobjc
@@ -63,7 +65,7 @@ extension NodeInfo {
     var softwareName: NodeInfoSoftware {
         get {
             guard let software = NodeInfoSoftware(rawValue: softwareNameRawValue) else {
-                assertionFailure("Got unknown NodeInfoSoftware: '\(softwareNameRawValue)'")
+                logger.assertionFailure("Got unknown NodeInfoSoftware: '\(softwareNameRawValue)'")
                 return .lemmy
             }
             return software
@@ -77,7 +79,7 @@ extension NodeInfo {
     var softwareVersion: Version {
         get {
             guard let version = Version(softwareVersionRawValue) else {
-                assertionFailure("Got software version that cannot be parsed as semver: '\(softwareVersionRawValue)'")
+                logger.assertionFailure("Got software version that cannot be parsed as semver: '\(softwareVersionRawValue)'")
                 return .init(major: 0)
             }
             return version

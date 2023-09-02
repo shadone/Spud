@@ -7,11 +7,14 @@
 import CoreData
 import Foundation
 import LemmyKit
+import OSLog
+
+private let logger = Logger(.dataStore)
 
 extension LemmyFeed {
     func append(contentsOf postViews: [PostView]) {
         guard let context = managedObjectContext else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
 

@@ -14,7 +14,7 @@ private let logger = Logger(.lemmyService)
 extension LemmyPost {
     func upsert(comments: [CommentView], for sortType: CommentSortType) {
         guard let context = managedObjectContext else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
 
@@ -33,11 +33,10 @@ extension LemmyPost {
             let elements = try context.fetch(request)
             elements.forEach { context.delete($0) }
         } catch {
-            logger.error("""
-                Failed to fetch comment elements (for post \(self.postId, privacy: .public) \
-                for deletion: \(error.localizedDescription, privacy: .public)
+            logger.assertionFailure("""
+                Failed to fetch comment elements (for post \(postId) \
+                for deletion: \(error.localizedDescription)
                 """)
-            assertionFailure()
         }
 
         let commentsWithMissingChildren = LemmyCommentImportHelper

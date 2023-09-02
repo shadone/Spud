@@ -22,4 +22,16 @@ public extension Logger {
             #endif
         }
     }
+
+    func assertionFailure(
+        _ message: @autoclosure @escaping () -> String = String(),
+        file: StaticString = #fileID,
+        line: UInt = #line
+    ) {
+        let message = message()
+        warning("Assertion failure at \(file, privacy: .public):\(line, privacy: .public): \(message, privacy: .public)")
+        #if DEBUG
+        Swift.assertionFailure(message, file: file, line: line)
+        #endif
+    }
 }

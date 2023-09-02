@@ -63,7 +63,7 @@ extension LemmyPost {
 
     func set(from model: PostView) {
         guard let context = managedObjectContext else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
 
@@ -100,8 +100,7 @@ extension LemmyPost {
                 return post
             }
         } catch {
-            logger.error("Failed to fetch posts for upserting: \(String(describing: error), privacy: .public)")
-            assertionFailure()
+            logger.assertionFailure("Failed to fetch posts for upserting: \(String(describing: error))")
             return LemmyPost(model, account: account, in: context)
         }
     }

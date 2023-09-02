@@ -9,6 +9,8 @@ import Foundation
 import LemmyKit
 import os.log
 
+private let logger = Logger(.dataStore)
+
 extension LemmyPostInfo {
     func set(from model: PostView) {
         set(from: model.post)
@@ -23,7 +25,7 @@ extension LemmyPostInfo {
             case 0, nil:
                 return .neutral
             default:
-                assertionFailure("Received unexpected my_vote value '\(String(describing: model.my_vote))' for post id \(model.post.id)")
+                logger.assertionFailure("Received unexpected my_vote value '\(String(describing: model.my_vote))' for post id \(model.post.id)")
                 return .neutral
             }
         }()

@@ -6,6 +6,9 @@
 
 import Foundation
 import LemmyKit
+import OSLog
+
+private let logger = Logger(.dataStore)
 
 public extension LemmyFeed {
     /// The type of the feed.
@@ -19,7 +22,7 @@ public extension LemmyFeed {
                 sortType: sortType
             )
         else {
-            assertionFailure("Bad feed with id '\(id)'")
+            logger.assertionFailure("Bad feed with id '\(id)'")
             return .frontpage(listingType: .local, sortType: .active)
         }
         return value

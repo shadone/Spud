@@ -7,8 +7,11 @@
 import Combine
 import CoreData
 import Down
+import OSLog
 import SpudDataKit
 import UIKit
+
+private let logger = Logger(.app)
 
 class PostDetailCommentViewModel {
     typealias OwnDependencies =
@@ -55,7 +58,7 @@ class PostDetailCommentViewModel {
                     let attributedString = try? Down(markdownString: text)
                     .toAttributedString(styler: DownStyler(configuration: stylerConfiguration))
                 else {
-                    assertionFailure()
+                    logger.assertionFailure()
                     return NSAttributedString(string: text)
                 }
 

@@ -8,7 +8,9 @@ import Combine
 import CoreData
 import Foundation
 import LemmyKit
-import os.log
+import OSLog
+
+private let logger = Logger(.dataStore)
 
 @objc(LemmySiteInfo)
 public final class LemmySiteInfo: NSManagedObject {
@@ -72,7 +74,7 @@ extension LemmySiteInfo {
     var defaultPostListingType: ListingType {
         get {
             guard let value = ListingType(rawValue: defaultPostListingTypeRawValue) else {
-                assertionFailure()
+                logger.assertionFailure("Failed to parse listing type '\(defaultPostListingTypeRawValue)'")
                 return .all
             }
 
