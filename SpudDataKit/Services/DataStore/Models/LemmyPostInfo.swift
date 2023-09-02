@@ -51,6 +51,9 @@ public final class LemmyPostInfo: NSManagedObject {
     /// See ``voteStatus``
     @NSManaged public var voteStatusRawValue: NSNumber?
 
+    /// Whether the post is marked as already read.
+    @NSManaged public var isRead: Bool
+
     /// The timestamp when the post was published.
     @NSManaged public var published: Date
 
