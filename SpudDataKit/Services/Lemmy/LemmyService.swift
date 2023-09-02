@@ -132,7 +132,7 @@ public class LemmyService: LemmyServiceType {
         self.dataStore = dataStore
         self.api = api
 
-        logger.info("Creating new service for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
+        logger.info("Creating new service for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
     }
 
     private func object<CoreDataObject>(
@@ -260,7 +260,8 @@ public class LemmyService: LemmyServiceType {
                 switch feed.feedType {
                 case let .frontpage(listingType, sortType):
                     logger.debug("""
-                        Fetch feed for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                        Fetch feed for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                        feedId=\(feed.id, privacy: .public) \
                         listingType=\(listingType.rawValue, privacy: .public) \
                         sortType=\(sortType.rawValue, privacy: .public) \
                         page=\(pageNumber.map { "\($0)" } ?? "nil", privacy: .public)
@@ -275,8 +276,9 @@ public class LemmyService: LemmyServiceType {
                         .receive(on: self.backgroundScheduler)
                         .map { response in
                             logger.debug("""
-                                Fetch feed for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-                                complete with \(response.posts.count, privacy: .public) posts
+                                Fetch feed complete with \(response.posts.count, privacy: .public) posts. \
+                                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                                feedId=\(feed.id, privacy: .public)
                                 """)
 
                             feed.append(contentsOf: response.posts)
@@ -287,8 +289,10 @@ public class LemmyService: LemmyServiceType {
                         }
                         .mapError { error in
                             logger.error("""
-                                Fetch feed for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-                                failed: \(String(describing: error), privacy: .public)
+                                Fetch feed failed. \
+                                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                                feedId=\(feed.id) \
+                                \(String(describing: error), privacy: .public)
                                 """)
                             return .apiError(error)
                         }
@@ -309,8 +313,8 @@ public class LemmyService: LemmyServiceType {
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("""
-                    Fetch comments for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
-                    post=\(post.postId, privacy: .public) \
+                    Fetch comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                    post=\(post.identifierForLogging, privacy: .public) \
                     sortType=\(sortType.rawValue, privacy: .public)
                     """)
                 let request = GetComments.Request(
@@ -323,7 +327,7 @@ public class LemmyService: LemmyServiceType {
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
                         logger.debug("""
-                            Fetch comments for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                            Fetch comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
                             complete with \(response.comments.count, privacy: .public) comments
                             """)
                         post.upsert(comments: response.comments, for: sortType)
@@ -337,8 +341,8 @@ public class LemmyService: LemmyServiceType {
                     })
                     .mapError { error in
                         logger.error("""
-                            Fetch comments for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-                            failed: \(String(describing: error), privacy: .public)
+                            Fetch comments failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                            \(String(describing: error), privacy: .public)
                             """)
                         return .apiError(error)
                     }
@@ -355,14 +359,14 @@ public class LemmyService: LemmyServiceType {
         return object(with: accountObjectId, type: LemmyAccount.self)
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { account -> AnyPublisher<Void, LemmyServiceError> in
-                logger.debug("Fetch site for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
+                logger.debug("Fetch site for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
                 let request = GetSite.Request(
                     auth: self.credential?.jwt
                 )
                 return self.api.getSite(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        logger.debug("Fetch site for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) complete")
+                        logger.debug("Fetch site complete. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
                         account.upsert(myUserInfo: response.my_user)
                         account.site.upsert(siteInfo: response)
                     }, receiveCompletion: { completion in
@@ -375,8 +379,8 @@ public class LemmyService: LemmyServiceType {
                     })
                     .mapError { error in
                         logger.error("""
-                            Fetch site for \(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-                            failed: \(String(describing: error), privacy: .public)
+                            Fetch site failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                            \(String(describing: error), privacy: .public)
                             """)
                         return .apiError(error)
                     }
@@ -395,7 +399,7 @@ public class LemmyService: LemmyServiceType {
         return object(with: personId, type: LemmyPerson.self)
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { person -> AnyPublisher<Void, LemmyServiceError> in
-                logger.debug("Fetch person info for \(person.identifierForLogging, privacy: .public)")
+                logger.debug("Fetch person info for person=\(person.identifierForLogging, privacy: .public)")
                 let request = GetPersonDetails.Request(
                     person_id: person.personId,
                     auth: self.credential?.jwt
@@ -403,7 +407,7 @@ public class LemmyService: LemmyServiceType {
                 return self.api.getPersonDetails(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        logger.debug("Fetch person info for \(person.identifierForLogging, privacy: .public) complete")
+                        logger.debug("Fetch person info complete. person=\(person.identifierForLogging, privacy: .public)")
 
                         person.set(from: response.person_view)
                         assert(person.personInfo != nil)
@@ -422,8 +426,8 @@ public class LemmyService: LemmyServiceType {
                     .map { _ in () }
                     .mapError { error in
                         logger.error("""
-                            Fetch person info for \(person.identifierForLogging, privacy: .public) \
-                            failed: \(String(describing: error), privacy: .public)
+                            Fetch person info failed. person=\(person.identifierForLogging, privacy: .public). \
+                            \(String(describing: error), privacy: .public)
                             """)
                         return .apiError(error)
                     }
@@ -452,7 +456,7 @@ public class LemmyService: LemmyServiceType {
                 logger.debug("""
                     Vote '\(action, privacy: .public)' \
                     (effective '\(effectiveAction, privacy: .public)') \
-                    for \(post.identifierForLogging, privacy: .public)
+                    for post=\(post.identifierForLogging, privacy: .public)
                     """)
 
                 let previousNumberOfUpvotes = postInfo.numberOfUpvotes
@@ -516,7 +520,7 @@ public class LemmyService: LemmyServiceType {
                 logger.debug("""
                     Vote '\(action, privacy: .public)' \
                     (effective '\(effectiveAction, privacy: .public)') \
-                    for \(comment.identifierForLogging, privacy: .public)
+                    for comment=\(comment.identifierForLogging, privacy: .public)
                     """)
 
                 let previousNumberOfUpvotes = comment.numberOfUpvotes
@@ -574,7 +578,7 @@ public class LemmyService: LemmyServiceType {
         return object(with: postId, type: LemmyPost.self)
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
-                logger.debug("Fetch post \(post.postId, privacy: .public)")
+                logger.debug("Fetch post. post=\(post.identifierForLogging, privacy: .public)")
                 let request = GetPost.Request(
                     id: post.postId,
                     auth: self.credential?.jwt
@@ -582,7 +586,7 @@ public class LemmyService: LemmyServiceType {
                 return self.api.getPost(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        logger.debug("Fetch post \(post.postId, privacy: .public) complete")
+                        logger.debug("Fetch post complete. post=\(post.identifierForLogging, privacy: .public)")
 
                         post.set(from: response.post_view)
 
@@ -602,8 +606,8 @@ public class LemmyService: LemmyServiceType {
                     .map { _ in () }
                     .mapError { error in
                         logger.error("""
-                            Fetch post \(post.postId, privacy: .public) \
-                            failed: \(String(describing: error), privacy: .public)
+                            Fetch post failed. post=\(post.identifierForLogging, privacy: .public). \
+                            \(String(describing: error), privacy: .public)
                             """)
                         return .apiError(error)
                     }
@@ -683,7 +687,7 @@ public class LemmyService: LemmyServiceType {
         return object(with: postId, type: LemmyPost.self)
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
-                logger.debug("Marking post as read \(post.postId, privacy: .public)")
+                logger.debug("Marking post as read. post=\(post.identifierForLogging, privacy: .public)")
 
                 guard let credential = self.credential else {
                     return .fail(with: .missingCredential)
@@ -697,7 +701,7 @@ public class LemmyService: LemmyServiceType {
                 return self.api.markPostAsRead(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        logger.debug("Mark post as read \(post.postId, privacy: .public) complete")
+                        logger.debug("Mark post as read complete. post=\(post.identifierForLogging, privacy: .public)")
                         post.set(from: response.post_view)
                     }, receiveCompletion: { completion in
                         switch completion {
@@ -710,8 +714,8 @@ public class LemmyService: LemmyServiceType {
                     .map { _ in () }
                     .mapError { error in
                         logger.error("""
-                            Mark post as read \(post.postId, privacy: .public) \
-                            failed: \(String(describing: error), privacy: .public)
+                            Mark post as read failed. post=\(post.identifierForLogging, privacy: .public). \
+                            \(String(describing: error), privacy: .public)
                             """)
                         return .apiError(error)
                     }
