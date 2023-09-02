@@ -18,8 +18,15 @@ public final class LemmyFeed: NSManagedObject {
 
     // MARK: Properties
 
-    /// Feed identifier. Random UUID.
+    /// Feed identifier.
+    ///
+    /// There is no special meaning to this identifier, it is only meant to uniquely identify this feed.
     @NSManaged public var id: String
+
+    /// Used to identify where the feed was created from for debugging purposes.
+    ///
+    /// E.g. describes if the feed was made in a widget.
+    @NSManaged public var identifierForDebugging: String?
 
     /// List of activity identifiers (see ``LemmyKit/Post/ap_id``) of posts that are already present in the feed.
     /// This is used to deduplicate the feed.

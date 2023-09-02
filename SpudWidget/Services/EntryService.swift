@@ -112,6 +112,7 @@ class EntryService: EntryServiceType {
 
         let feed = lemmyService
             .createFeed(.frontpage(listingType: listingType, sortType: sortType))
+        feed.identifierForDebugging = "widget"
 
         do {
             try await lemmyService
