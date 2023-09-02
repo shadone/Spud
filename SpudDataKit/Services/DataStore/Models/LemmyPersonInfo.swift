@@ -8,7 +8,7 @@ import Combine
 import CoreData
 import Foundation
 import LemmyKit
-import os.log
+import OSLog
 
 @objc(LemmyPersonInfo)
 public final class LemmyPersonInfo: NSManagedObject {

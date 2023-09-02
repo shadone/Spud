@@ -6,7 +6,7 @@
 
 import Combine
 import LemmyKit
-import os.log
+import OSLog
 import SpudDataKit
 import UIKit
 

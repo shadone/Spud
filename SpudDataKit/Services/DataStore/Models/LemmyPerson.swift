@@ -8,7 +8,7 @@ import Combine
 import CoreData
 import Foundation
 import LemmyKit
-import os.log
+import OSLog
 import SpudUtilKit
 
 /// Describes a person, e.g. post or comment author.

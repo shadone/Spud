@@ -7,7 +7,7 @@
 import Combine
 import CoreData
 import Foundation
-import os.log
+import OSLog
 import SemVer
 
 private let logger = Logger(.dataStore)

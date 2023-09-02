@@ -6,7 +6,7 @@
 
 import Combine
 import CoreData
-import os.log
+import OSLog
 import SafariServices
 import SpudDataKit
 import UIKit

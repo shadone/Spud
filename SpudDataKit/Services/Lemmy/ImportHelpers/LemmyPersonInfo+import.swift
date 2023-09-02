@@ -7,7 +7,7 @@
 import CoreData
 import Foundation
 import LemmyKit
-import os.log
+import OSLog
 
 extension LemmyPersonInfo {
     func set(from model: LocalUserView) {

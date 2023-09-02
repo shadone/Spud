@@ -5,7 +5,7 @@
 //
 
 import Foundation
-import os.log
+import OSLog
 
 private let logger = Logger(.utils)
 

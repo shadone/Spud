@@ -6,7 +6,7 @@
 
 import Foundation
 import LemmyKit
-import os.log
+import OSLog
 import UIKit
 import WidgetKit
 

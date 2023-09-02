@@ -7,7 +7,7 @@
 import CoreData
 import Foundation
 import LemmyKit
-import os.log
+import OSLog
 
 extension LemmyCommunityInfo {
     /// Updates community info from the given full ``CommunityView`` object.
