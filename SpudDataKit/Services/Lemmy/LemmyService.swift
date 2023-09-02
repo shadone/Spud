@@ -631,12 +631,10 @@ public class LemmyService: LemmyServiceType {
                 )
                 dataStore.saveIfNeeded()
                 return newPost
-            } else if results.count == 1 {
+            } else {
+                logger.assert(results.count == 1, "Found \(results.count) posts with id '\(postId)'")
                 let existingPost = results[0]
                 return existingPost
-            } else {
-                assertionFailure("Found \(results.count) posts with id '\(postId)'")
-                return results[0]
             }
         } catch {
             logger.fault("Failed to fetch a post: \(error, privacy: .public)")
@@ -666,12 +664,10 @@ public class LemmyService: LemmyServiceType {
                 )
                 dataStore.saveIfNeeded()
                 return newPerson
-            } else if results.count == 1 {
+            } else {
+                logger.assert(results.count == 1, "Found \(results.count) persons with id '\(personId)'")
                 let existingPerson = results[0]
                 return existingPerson
-            } else {
-                assertionFailure("Found \(results.count) persons with id '\(personId)'")
-                return results[0]
             }
         } catch {
             logger.fault("Failed to fetch a person: \(error, privacy: .public)")

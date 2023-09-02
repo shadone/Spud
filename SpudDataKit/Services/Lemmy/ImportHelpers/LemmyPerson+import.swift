@@ -114,7 +114,8 @@ extension LemmyPerson {
             let results = try context.fetch(request)
             if results.isEmpty {
                 return LemmyPerson(model, site: site, in: context)
-            } else if results.count == 1 {
+            } else {
+                logger.assert(results.count == 1, "Found \(results.count) persons with id '\(model.id)'")
                 let person = results[0]
                 // TODO: is it ok to set here and touch updatedAt since we do partial update.
                 // The aggregates data is not available at this point.
@@ -122,9 +123,6 @@ extension LemmyPerson {
                 // whatever info the Post contains, but it isn't everything.
                 person.set(from: model)
                 return person
-            } else {
-                assertionFailure("Found \(results.count) persons with id '\(model.id)'")
-                return results[0]
             }
         } catch {
             logger.error("""

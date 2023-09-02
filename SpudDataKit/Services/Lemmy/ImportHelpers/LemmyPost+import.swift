@@ -93,13 +93,11 @@ extension LemmyPost {
             let results = try context.fetch(request)
             if results.isEmpty {
                 return LemmyPost(model, account: account, in: context)
-            } else if results.count == 1 {
+            } else {
+                logger.assert(results.count == 1, "Found \(results.count) posts with id '\(model.post.id)'")
                 let post = results[0]
                 post.set(from: model)
                 return post
-            } else {
-                assertionFailure("Found \(results.count) posts with id '\(model.post.id)'")
-                return results[0]
             }
         } catch {
             logger.error("Failed to fetch posts for upserting: \(String(describing: error), privacy: .public)")
