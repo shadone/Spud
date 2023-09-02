@@ -8,7 +8,7 @@ import Combine
 import CoreData
 import Foundation
 import LemmyKit
-import os.log
+import OSLog
 
 /// Describes a Community on a given instances that is fetched with a given account.
 ///

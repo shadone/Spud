@@ -5,7 +5,7 @@
 //
 
 import Foundation
-import os.log
+import OSLog
 
 public extension URL {
     /// Returns human readable hostname excluding standard prefixes like "www.".

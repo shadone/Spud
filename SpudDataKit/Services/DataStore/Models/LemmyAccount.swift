@@ -7,7 +7,7 @@
 import Combine
 import CoreData
 import Foundation
-import os.log
+import OSLog
 
 @objc(LemmyAccount)
 public final class LemmyAccount: NSManagedObject {

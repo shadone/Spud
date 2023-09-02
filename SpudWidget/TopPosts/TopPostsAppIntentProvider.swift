@@ -6,7 +6,7 @@
 
 import Foundation
 import LemmyKit
-import os.log
+import OSLog
 import WidgetKit
 
 private let logger = Logger(.topPostsProvider)

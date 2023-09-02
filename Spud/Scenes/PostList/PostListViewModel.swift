@@ -7,7 +7,7 @@
 import Combine
 import Foundation
 import LemmyKit
-import os.log
+import OSLog
 import SpudDataKit
 
 protocol PostListViewModelInputs {

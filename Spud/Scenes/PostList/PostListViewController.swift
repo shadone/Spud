@@ -8,7 +8,7 @@ import Combine
 import CoreData
 import Intents
 import LemmyKit
-import os.log
+import OSLog
 import SpudDataKit
 import UIKit
 

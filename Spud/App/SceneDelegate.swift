@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import os.log
+import OSLog
 import SpudDataKit
 import UIKit
 

@@ -7,7 +7,7 @@
 import CoreData
 import Foundation
 import LemmyKit
-import os.log
+import OSLog
 
 private let logger = Logger(.dataStore)
 

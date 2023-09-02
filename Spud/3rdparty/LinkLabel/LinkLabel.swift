@@ -6,7 +6,7 @@
 //  Copyright (c) 2015 Project Dent. All rights reserved.
 //
 
-import os.log
+import OSLog
 import UIKit
 
 private let logger = Logger(.app)

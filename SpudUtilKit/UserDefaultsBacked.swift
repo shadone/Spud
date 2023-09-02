@@ -6,7 +6,7 @@
 
 import Combine
 import Foundation
-import os.log
+import OSLog
 import SwiftUI
 
 private let logger = Logger(.utils)
