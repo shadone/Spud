@@ -88,13 +88,11 @@ extension LemmyCommunity {
             let results = try context.fetch(request)
             if results.isEmpty {
                 return LemmyCommunity(model, account: account, in: context)
-            } else if results.count == 1 {
+            } else {
+                logger.assert(results.count == 1, "Found \(results.count) communities with id '\(model.id)'")
                 let community = results[0]
                 community.set(from: model)
                 return community
-            } else {
-                assertionFailure("Found \(results.count) communities with id '\(model.id)'")
-                return results[0]
             }
         } catch {
             logger.error("""

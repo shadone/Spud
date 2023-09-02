@@ -7,8 +7,8 @@
 import Foundation
 import OSLog
 
-extension Logger {
-    public func assert(
+public extension Logger {
+    func assert(
         _ condition: @autoclosure () -> Bool,
         _ message: @autoclosure @escaping () -> String,
         file: StaticString = #fileID,
