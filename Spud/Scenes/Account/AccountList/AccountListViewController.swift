@@ -244,10 +244,10 @@ extension AccountListViewController: NSFetchedResultsControllerDelegate {
             break
 
         case .move:
-            assertionFailure()
+            logger.assertionFailure()
 
         @unknown default:
-            assertionFailure()
+            logger.assertionFailure()
         }
     }
 }

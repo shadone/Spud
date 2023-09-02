@@ -83,7 +83,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let url = URLContexts.first?.url else { return }
 
         guard let window else {
-            assertionFailure("Huh, no window?")
+            logger.assertionFailure("Huh, no window?")
             return
         }
 

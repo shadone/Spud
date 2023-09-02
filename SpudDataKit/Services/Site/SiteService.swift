@@ -70,8 +70,7 @@ public class SiteService: SiteServiceType {
         do {
             existingInstances = try dataStore.mainContext.fetch(request)
         } catch {
-            logger.error("Failed to fetch instances: \(error.localizedDescription, privacy: .public)")
-            assertionFailure()
+            logger.assertionFailure("Failed to fetch instances: \(error.localizedDescription)")
             return
         }
 
@@ -103,8 +102,7 @@ public class SiteService: SiteServiceType {
         do {
             return try context.fetch(request)
         } catch {
-            logger.error("Failed to fetch all sites: \(error.localizedDescription, privacy: .public)")
-            assertionFailure()
+            logger.assertionFailure("Failed to fetch all sites: \(error.localizedDescription)")
             return []
         }
     }
@@ -165,8 +163,7 @@ public class SiteService: SiteServiceType {
         do {
             existingInstances = try dataStore.mainContext.fetch(request)
         } catch {
-            logger.error("Failed to fetch instances: \(error.localizedDescription, privacy: .public)")
-            assertionFailure()
+            logger.assertionFailure("Failed to fetch instances: \(error.localizedDescription)")
             return
         }
 
@@ -208,20 +205,16 @@ public class SiteService: SiteServiceType {
             )
             do {
                 let instances = try context.fetch(request)
-                if instances.count > 1 {
-                    logger.error("""
-                        Expected zero or one but found \(instances.count, privacy: .public) \
-                        instances for \(instance, privacy: .public)!
-                        """)
-                    assertionFailure()
-                }
+                logger.assert(instances.count <= 1, """
+                    Expected zero or one but found \(instances.count) \
+                    instances for \(instance)!
+                    """)
                 return instances.first
             } catch {
-                logger.error("""
-                    Failed to fetch instance for \(instance, privacy: .public): \
-                    \(error.localizedDescription, privacy: .public)
+                logger.assertionFailure("""
+                    Failed to fetch instance for \(instance): \
+                    \(error.localizedDescription)
                     """)
-                assertionFailure()
                 return nil
             }
         }()

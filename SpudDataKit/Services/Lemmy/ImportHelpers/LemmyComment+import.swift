@@ -46,7 +46,7 @@ extension LemmyComment {
             case 0, nil:
                 return .neutral
             default:
-                assertionFailure("Received unexpected my_vote value '\(String(describing: model.my_vote))' for post id \(model.post.id)")
+                logger.assertionFailure("Received unexpected my_vote value '\(String(describing: model.my_vote))' for post id \(model.post.id)")
                 return .neutral
             }
         }()

@@ -9,6 +9,8 @@ import Foundation
 import LemmyKit
 import os.log
 
+private let logger = Logger(.dataStore)
+
 extension LemmyAccount {
     func upsert(
         myUserInfo model: MyUserInfo?
@@ -20,7 +22,7 @@ extension LemmyAccount {
         guard let model else { return }
 
         guard let context = managedObjectContext else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
 

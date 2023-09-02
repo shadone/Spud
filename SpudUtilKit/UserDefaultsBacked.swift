@@ -78,7 +78,7 @@ public struct UserDefaultsBacked<Value: Codable> {
             do {
                 let data = try encoder.encode(newValue)
                 guard let jsonString = String(data: data, encoding: .utf8) else {
-                    assertionFailure()
+                    logger.assertionFailure()
                     return
                 }
                 storage.setValue(jsonString, forKey: key)

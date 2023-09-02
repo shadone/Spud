@@ -5,9 +5,12 @@
 //
 
 import Combine
+import OSLog
 import SafariServices
 import SpudDataKit
 import UIKit
+
+private let logger = Logger(.app)
 
 class PostDetailHeaderCell: UITableViewCellBase {
     static let reuseIdentifier = "PostDetailHeaderCell"
@@ -362,7 +365,7 @@ extension PostDetailHeaderCell: UIContextMenuInteractionDelegate {
         guard
             let safariVC = animator.previewViewController as? SFSafariViewController
         else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
         animator.addCompletion { [weak self] in

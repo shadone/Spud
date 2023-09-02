@@ -10,6 +10,8 @@ import Foundation
 import os.log
 import SpudUtilKit
 
+private let logger = Logger(.dataStore)
+
 @objc(Instance)
 public final class Instance: NSManagedObject {
     @nonobjc
@@ -56,7 +58,7 @@ public extension Instance {
     var actorId: InstanceActorId {
         get {
             guard let actorId = InstanceActorId(from: actorIdRawValue) else {
-                assertionFailure("Failed to parse actorId '\(actorIdRawValue)'")
+                logger.assertionFailure("Failed to parse actorId '\(actorIdRawValue)'")
                 return .invalid
             }
             return actorId

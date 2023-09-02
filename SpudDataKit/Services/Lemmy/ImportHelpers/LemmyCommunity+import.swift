@@ -49,7 +49,7 @@ extension LemmyCommunity {
     /// full ``CommunityView``.
     func set(from model: Community) {
         guard let context = managedObjectContext else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
 
@@ -62,7 +62,7 @@ extension LemmyCommunity {
     /// Updates community info from the full ``CommunityView`` object.
     func set(from model: CommunityView) {
         guard let context = managedObjectContext else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
 
@@ -95,11 +95,10 @@ extension LemmyCommunity {
                 return community
             }
         } catch {
-            logger.error("""
+            logger.assertionFailure("""
                 Failed to fetch community for upserting: \
-                \(String(describing: error), privacy: .public)
+                \(String(describing: error))
                 """)
-            assertionFailure()
             return LemmyCommunity(model, account: account, in: context)
         }
     }

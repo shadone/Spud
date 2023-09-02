@@ -8,6 +8,9 @@ import Combine
 import CoreData
 import Foundation
 import LemmyKit
+import OSLog
+
+private let logger = Logger(.dataStore)
 
 @objc(LemmyFeed)
 public final class LemmyFeed: NSManagedObject {
@@ -70,7 +73,7 @@ public extension LemmyFeed {
     var sortType: SortType {
         get {
             guard let value = SortType(rawValue: sortTypeRawValue) else {
-                assertionFailure()
+                logger.assertionFailure("Failed to parse sort type '\(sortTypeRawValue)'")
                 return .active
             }
 
@@ -89,7 +92,7 @@ public extension LemmyFeed {
             }
 
             guard let value = ListingType(rawValue: rawValue) else {
-                assertionFailure()
+                logger.assertionFailure("Failed to parse listing type '\(rawValue)'")
                 return .local
             }
 

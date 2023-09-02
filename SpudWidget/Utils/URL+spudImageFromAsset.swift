@@ -5,8 +5,11 @@
 //
 
 import Foundation
+import OSLog
 import SpudUtilKit
 import UIKit
+
+private let logger = Logger(.default)
 
 extension URL {
     /// Returns an image from url that contains image name from Asset Catalog.
@@ -28,7 +31,7 @@ extension URL {
             scheme == "info.ddenis.spud",
             safeHost == "image-from-assets"
         else {
-            assertionFailure("Invalid url format for asset link: '\(absoluteString)'")
+            logger.assertionFailure("Invalid url format for asset link: '\(absoluteString)'")
             return nil
         }
 

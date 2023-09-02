@@ -4,7 +4,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import OSLog
 import UIKit
+
+private let logger = Logger(.app)
 
 class SwipeActionView: UIView {
     // MARK: Public
@@ -299,7 +302,7 @@ class SwipeActionView: UIView {
             break
 
         @unknown default:
-            assertionFailure()
+            logger.assertionFailure()
         }
     }
 }

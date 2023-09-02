@@ -45,7 +45,7 @@ extension LemmyPerson {
 
     func set(from model: LocalUserView) {
         guard let context = managedObjectContext else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
 
@@ -63,7 +63,7 @@ extension LemmyPerson {
 
     private func set(from model: Person) {
         guard let context = managedObjectContext else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
 
@@ -82,7 +82,7 @@ extension LemmyPerson {
 
     func set(from model: PersonView) {
         guard let context = managedObjectContext else {
-            assertionFailure()
+            logger.assertionFailure()
             return
         }
 
@@ -125,11 +125,10 @@ extension LemmyPerson {
                 return person
             }
         } catch {
-            logger.error("""
+            logger.assertionFailure("""
                 Failed to fetch persons for upserting: \
-                \(String(describing: error), privacy: .public)
+                \(String(describing: error))
                 """)
-            assertionFailure()
             return LemmyPerson(model, site: site, in: context)
         }
     }

@@ -112,7 +112,7 @@ class LinkLabel: UILabel {
                                 link = .string(stringValue)
                             }
                         } else {
-                            assertionFailure("Got link that is neither URL or a String: \(type(of: value)): \(value)")
+                            logger.assertionFailure("Got link that is neither URL or a String: \(type(of: value)): \(value)")
                             return
                         }
 
@@ -251,7 +251,7 @@ class LinkLabel: UILabel {
             break
 
         @unknown default:
-            assertionFailure()
+            logger.assertionFailure()
         }
     }
 

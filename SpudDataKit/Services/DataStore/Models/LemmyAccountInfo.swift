@@ -10,6 +10,8 @@ import Foundation
 import LemmyKit
 import os.log
 
+private let logger = Logger(.dataStore)
+
 @objc(LemmyAccountInfo)
 public final class LemmyAccountInfo: NSManagedObject {
     @nonobjc
@@ -92,7 +94,7 @@ public extension LemmyAccountInfo {
     var defaultSortType: SortType {
         get {
             guard let value = SortType(rawValue: defaultSortTypeRawValue) else {
-                assertionFailure()
+                logger.assertionFailure("Failed to parse sort type '\(defaultSortTypeRawValue)'")
                 return .active
             }
 
@@ -107,7 +109,7 @@ public extension LemmyAccountInfo {
     var defaultListingType: ListingType {
         get {
             guard let value = ListingType(rawValue: defaultListingTypeRawValue) else {
-                assertionFailure()
+                logger.assertionFailure("Failed to parse listing type '\(defaultListingTypeRawValue)'")
                 return .subscribed
             }
 

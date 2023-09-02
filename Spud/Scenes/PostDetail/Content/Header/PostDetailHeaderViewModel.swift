@@ -7,8 +7,11 @@
 import Combine
 import Down
 import LemmyKit
+import OSLog
 import SpudDataKit
 import UIKit
+
+private let logger = Logger(.app)
 
 class PostDetailHeaderViewModel {
     typealias OwnDependencies =
@@ -145,7 +148,7 @@ class PostDetailHeaderViewModel {
                     let attributedString = try? Down(markdownString: text)
                     .toAttributedString(styler: DownStyler(configuration: stylerConfiguration))
                 else {
-                    assertionFailure()
+                    logger.assertionFailure()
                     return NSAttributedString(string: text)
                 }
 

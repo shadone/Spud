@@ -237,10 +237,10 @@ extension SiteListViewController: NSFetchedResultsControllerDelegate {
             cell.configure(with: viewModel)
 
         case .move:
-            assertionFailure()
+            logger.assertionFailure()
 
         @unknown default:
-            assertionFailure()
+            logger.assertionFailure()
         }
     }
 }

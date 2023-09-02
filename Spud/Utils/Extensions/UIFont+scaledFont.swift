@@ -5,7 +5,10 @@
 //
 
 import Foundation
+import OSLog
 import UIKit
+
+private let logger = Logger(.app)
 
 extension UIFont {
     static func scaledFont(
@@ -18,7 +21,7 @@ extension UIFont {
             guard
                 let font = UIFont(name: fontName, size: size)
             else {
-                assertionFailure("Failed to find font '\(fontName)'")
+                logger.assertionFailure("Failed to find font '\(fontName)'")
                 return .systemFont(ofSize: size)
             }
             return font
