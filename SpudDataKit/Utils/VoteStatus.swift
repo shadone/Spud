@@ -14,14 +14,14 @@ public enum VoteStatus {
     /// Not voted.
     case neutral
 
-    var isUp: Bool {
+    public var isUp: Bool {
         if case .up = self {
             return true
         }
         return false
     }
 
-    var isDown: Bool {
+    public var isDown: Bool {
         if case .down = self {
             return true
         }

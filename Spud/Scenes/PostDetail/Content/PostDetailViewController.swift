@@ -254,6 +254,20 @@ class PostDetailViewController: UIViewController {
         present(safariVC, animated: true)
     }
 
+    private func voteOnPost(_ action: VoteStatus.Action) {
+        accountService
+            .lemmyService(for: postInfo.post.account)
+            .vote(postId: postInfo.post.objectID, vote: action)
+            .sink(
+                receiveCompletion: alertService.errorHandler(for: .vote),
+                receiveValue: { _ in }
+            )
+            .store(in: &disposables)
+
+        // Trigger haptic feedback
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
     private func vote(_ commentElement: LemmyCommentElement, _ action: VoteStatus.Action) {
         guard let comment = commentElement.comment else {
             logger.assertionFailure("Vote on more element?")
@@ -391,6 +405,12 @@ extension PostDetailViewController: UITableViewDataSource {
             }
             cell.linkTappedFromPreview = { [weak self] safariVC in
                 self?.linkTappedFromPreview(safariVC)
+            }
+            cell.upvoteTapped = { [weak self] in
+                self?.voteOnPost(.upvote)
+            }
+            cell.downvoteTapped = { [weak self] in
+                self?.voteOnPost(.downvote)
             }
             cell.isBeingConfigured = false
 

@@ -185,6 +185,18 @@ class PostDetailHeaderViewModel {
             .eraseToAnyPublisher()
     }
 
+    var isUpvoted: AnyPublisher<Bool, Never> {
+        postInfo.voteStatusPublisher
+            .map(\.isUp)
+            .eraseToAnyPublisher()
+    }
+
+    var isDownvoted: AnyPublisher<Bool, Never> {
+        postInfo.voteStatusPublisher
+            .map(\.isDown)
+            .eraseToAnyPublisher()
+    }
+
     // MARK: Private
 
     private var titleAttributes: AnyPublisher<[NSAttributedString.Key: Any], Never> {
