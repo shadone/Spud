@@ -10,7 +10,7 @@ import UIKit
 import XCTest
 @testable import Spud
 
-final class SpudSnapshotTests: XCTestCase {
+final class MarkdownSnapshotTests: XCTestCase {
     let vc = MarkdownViewController()
 
     func styler(textSizeAdjustment: CGFloat = 0) -> Styler {
