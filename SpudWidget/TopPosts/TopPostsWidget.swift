@@ -26,7 +26,10 @@ struct TopPostsWidgetEntryView: View {
 
     var padding: EdgeInsets {
         switch family {
-        case .systemSmall, .systemMedium, .systemLarge, .systemExtraLarge:
+        case .systemSmall:
+            return .init(top: 0, leading: 0, bottom: 0, trailing: 0)
+
+        case .systemMedium, .systemLarge, .systemExtraLarge:
             return .init(top: 16, leading: 16, bottom: 16, trailing: 16)
 
         case .accessoryCircular, .accessoryInline, .accessoryRectangular:
@@ -71,7 +74,14 @@ struct TopPostsWidgetEntryView: View {
                     Text("No data")
                 }
 
-            case .systemSmall, .systemExtraLarge, .accessoryCircular:
+            case .systemSmall:
+                ForEach(topPosts.posts.prefix(3)) { post in
+                    Link(destination: post.spudUrl) {
+                        PostViewSmall(post: post, images: images)
+                    }
+                }
+
+            case .systemExtraLarge, .accessoryCircular:
                 Text("Internal error: Unsupported widget family")
 
             @unknown default:
@@ -119,6 +129,7 @@ struct TopPostsWidget: Widget {
             .configurationDisplayName("Top Posts")
             .description("Displays top posts from your feed.")
             .supportedFamilies([
+                .systemSmall,
                 .systemMedium,
                 .systemLarge,
                 .accessoryInline,
