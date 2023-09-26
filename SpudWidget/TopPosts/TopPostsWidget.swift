@@ -16,6 +16,11 @@ struct TopPostsWidgetEntryView: View {
     var shouldAddBackground: Bool {
         switch family {
         case .accessoryCircular, .accessoryInline, .accessoryRectangular:
+            if #available(iOS 17.0, macOS 14.0, watchOS 10.0, *) {
+                // It is mandatory to have content background in iOS 17 or else
+                // a warning is displayed in place of the widget.
+                return true
+            }
             return false
         case .systemSmall, .systemMedium, .systemLarge, .systemExtraLarge:
             return true
