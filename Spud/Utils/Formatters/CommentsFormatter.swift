@@ -6,7 +6,7 @@
 
 import Foundation
 
-struct CommentsFormatter {
+enum CommentsFormatter {
     static func string(from numberOfComments: Int64) -> String {
         if numberOfComments < 1000 {
             return String(numberOfComments)

@@ -6,7 +6,7 @@
 
 import Foundation
 
-struct PersonFormatter {
+enum PersonFormatter {
     static func string(totalScoreForComment value: Int64) -> String {
         if value < 1000 {
             return String(value)
