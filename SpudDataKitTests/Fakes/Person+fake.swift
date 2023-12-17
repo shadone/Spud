@@ -22,7 +22,6 @@ extension Person {
         banner: nil,
         deleted: false,
         matrix_user_id: nil,
-        admin: false,
         bot_account: false,
         ban_expires: nil,
         instance_id: 1
