@@ -13,14 +13,12 @@ extension CommentAggregates {
         childCount: Int32
     ) -> CommentAggregates {
         .init(
-            id: 1,
             comment_id: commentId,
             score: 1,
             upvotes: 1,
             downvotes: 0,
             published: Date(timeIntervalSince1970: 1_685_938_028),
-            child_count: childCount,
-            hot_rank: 0
+            child_count: childCount
         )
     }
 }
