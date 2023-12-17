@@ -362,14 +362,14 @@ class PostDetailHeaderCell: UITableViewCellBase {
             .store(in: &disposables)
 
         viewModel.isUpvoted
-            .sink { isUpvoted in
-                self.upvoteBarButton.isSelected = isUpvoted
+            .sink { [weak self] isUpvoted in
+                self?.upvoteBarButton.isSelected = isUpvoted
             }
             .store(in: &disposables)
 
         viewModel.isDownvoted
-            .sink { isUpvoted in
-                self.downvoteBarButton.isSelected = isUpvoted
+            .sink { [weak self] isUpvoted in
+                self?.downvoteBarButton.isSelected = isUpvoted
             }
             .store(in: &disposables)
     }
