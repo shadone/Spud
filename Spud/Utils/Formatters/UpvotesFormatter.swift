@@ -6,7 +6,7 @@
 
 import Foundation
 
-struct UpvotesFormatter {
+enum UpvotesFormatter {
     static func string(from numberOfUpvotes: Int64) -> String {
         if numberOfUpvotes < 1000 {
             return String(numberOfUpvotes)

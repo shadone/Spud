@@ -7,7 +7,7 @@
 import Foundation
 import LemmyKit
 
-struct LemmyCommentImportHelper {
+enum LemmyCommentImportHelper {
     /// Find incomplete comment trees.
     ///
     /// We want to find which comment tree we do not have full data on.

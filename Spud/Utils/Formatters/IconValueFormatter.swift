@@ -7,7 +7,7 @@
 import SpudDataKit
 import UIKit
 
-struct IconValueFormatter {
+enum IconValueFormatter {
     static func attributedString(
         _ image: UIImage,
         _ value: String,
