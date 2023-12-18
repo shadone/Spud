@@ -57,10 +57,8 @@ struct PersonView<ViewModel>: View
     @State var homeInstance: String = ""
     @State var displayName: String?
 
-    @State var postKarma: String = ""
     @State var numberOfPosts: String = ""
 
-    @State var commentKarma: String = ""
     @State var numberOfComments: String = ""
 
     @State var accountAge: String = ""
@@ -98,42 +96,6 @@ struct PersonView<ViewModel>: View
 
             Section {
                 HStack(spacing: 16) {
-                    VStack(alignment: .center) {
-                        Text(commentKarma)
-                            .font(.title3)
-                            .fontWeight(.medium)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(Color(uiColor: UIColor.label))
-                            .frame(maxWidth: .infinity)
-                        Text("Comment\nKarma")
-                            .font(.body)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                    }
-
-                    Rectangle()
-                        .frame(width: 1, height: 32)
-                        .foregroundStyle(.tertiary)
-
-                    VStack(alignment: .center) {
-                        Text(postKarma)
-                            .font(.title3)
-                            .fontWeight(.medium)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(Color(uiColor: UIColor.label))
-                            .frame(maxWidth: .infinity)
-                        Text("Post\nKarma")
-                            .font(.body)
-                            .multilineTextAlignment(.center)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity)
-                    }
-
-                    Rectangle()
-                        .frame(width: 1, height: 32)
-                        .foregroundStyle(.tertiary)
-
                     VStack(alignment: .center) {
                         Text(accountAge)
                             .font(.title3)
@@ -173,9 +135,7 @@ struct PersonView<ViewModel>: View
         .onReceive(viewModel.outputs.name) { name = $0 }
         .onReceive(viewModel.outputs.homeInstance) { homeInstance = $0 }
         .onReceive(viewModel.outputs.displayName) { displayName = $0 }
-        .onReceive(viewModel.outputs.postKarma) { postKarma = $0 }
         .onReceive(viewModel.outputs.numberOfPosts) { numberOfPosts = $0 }
-        .onReceive(viewModel.outputs.commentKarma) { commentKarma = $0 }
         .onReceive(viewModel.outputs.numberOfComments) { numberOfComments = $0 }
         .onReceive(viewModel.outputs.accountAge) { accountAge = $0 }
     }

@@ -19,6 +19,9 @@ extension ListingType {
 
         case .subscribed:
             self = .subscribed
+
+        case .moderatorView:
+            self = .moderatorView
         }
     }
 }

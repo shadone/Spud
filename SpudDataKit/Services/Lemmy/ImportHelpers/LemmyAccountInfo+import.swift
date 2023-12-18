@@ -27,7 +27,6 @@ extension LemmyAccountInfo {
         showReadPosts = model.show_read_posts
         emailVerified = model.email_verified
         acceptedApplication = model.accepted_application
-        totp2faUrl = model.totp_2fa_url?.url
 
         updatedAt = Date()
     }

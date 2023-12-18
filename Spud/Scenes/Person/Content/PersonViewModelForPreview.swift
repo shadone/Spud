@@ -26,11 +26,7 @@ class PersonViewModelForPreview:
 
     var displayName: AnyPublisher<String?, Never> = .just("Hello World")
 
-    var postKarma: AnyPublisher<String, Never> = .just("774")
-
     var numberOfPosts: AnyPublisher<String, Never> = .just("123")
-
-    var commentKarma: AnyPublisher<String, Never> = .just("1.7K")
 
     var numberOfComments: AnyPublisher<String, Never> = .just("1234")
 

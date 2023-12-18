@@ -54,9 +54,6 @@ public final class LemmyAccountInfo: NSManagedObject {
     /// Whether their registration application has been accepted.
     @NSManaged public var acceptedApplication: Bool
 
-    /// A URL to add their 2-factor auth.
-    @NSManaged public var totp2faUrl: URL?
-
     // MARK: Meta properties
 
     /// Timestamp when this CoreData object was created.

@@ -22,6 +22,8 @@ extension CommentView {
             community: community,
             counts: .fake(commentId: comment.id, childCount: childCount),
             creator_banned_from_community: false,
+            creator_is_moderator: false,
+            creator_is_admin: false,
             subscribed: .notSubscribed,
             saved: false,
             creator_blocked: false,

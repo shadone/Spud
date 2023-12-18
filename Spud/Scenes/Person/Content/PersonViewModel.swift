@@ -21,10 +21,8 @@ protocol PersonViewModelOutputs {
     /// A display name for the user. e.g. "Hello World!"
     var displayName: AnyPublisher<String?, Never> { get }
 
-    var postKarma: AnyPublisher<String, Never> { get }
     var numberOfPosts: AnyPublisher<String, Never> { get }
 
-    var commentKarma: AnyPublisher<String, Never> { get }
     var numberOfComments: AnyPublisher<String, Never> { get }
 
     var accountAge: AnyPublisher<String, Never> { get }
@@ -71,20 +69,8 @@ class PersonViewModel:
         displayName = personInfo.publisher(for: \.displayName)
             .eraseToAnyPublisher()
 
-        postKarma = personInfo.publisher(for: \.totalScoreForPosts)
-            .map {
-                PersonFormatter.string(totalScoreForPosts: $0)
-            }
-            .eraseToAnyPublisher()
-
         numberOfPosts = personInfo.publisher(for: \.numberOfPosts)
             .map { CommentsFormatter.string(from: $0) }
-            .eraseToAnyPublisher()
-
-        commentKarma = personInfo.publisher(for: \.totalScoreForComments)
-            .map {
-                PersonFormatter.string(totalScoreForComment: $0)
-            }
             .eraseToAnyPublisher()
 
         numberOfComments = personInfo.publisher(for: \.numberOfComments)
@@ -108,9 +94,7 @@ class PersonViewModel:
     let name: AnyPublisher<String, Never>
     let homeInstance: AnyPublisher<String, Never>
     let displayName: AnyPublisher<String?, Never>
-    let postKarma: AnyPublisher<String, Never>
     let numberOfPosts: AnyPublisher<String, Never>
-    let commentKarma: AnyPublisher<String, Never>
     let numberOfComments: AnyPublisher<String, Never>
     let accountAge: AnyPublisher<String, Never>
 

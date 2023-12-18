@@ -13,6 +13,11 @@ extension LemmyPersonInfo {
     func set(from model: LocalUserView) {
         set(from: model.person)
         set(from: model.counts)
+        // "is_admin" is only exposed in PersonView
+        // so we can know if another person is an admin,
+        // but we cannot know if the current user is an admin.
+        // ¯\_(ツ)_/¯
+        isAdmin = false
 
         updatedAt = Date()
     }
@@ -20,6 +25,7 @@ extension LemmyPersonInfo {
     func set(from model: PersonView) {
         set(from: model.person)
         set(from: model.counts)
+        isAdmin = model.is_admin
 
         updatedAt = Date()
     }
@@ -47,8 +53,6 @@ extension LemmyPersonInfo {
     /// - Note: we do **not** touch ``updatedAt`` property here as it is only a partial update.
     private func set(from model: PersonAggregates) {
         numberOfPosts = model.post_count
-        totalScoreForPosts = model.post_score
         numberOfComments = model.comment_count
-        totalScoreForComments = model.comment_score
     }
 }
