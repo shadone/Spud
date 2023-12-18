@@ -26,7 +26,6 @@
         <attribute name="showNsfw" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="showReadPosts" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="showScores" attributeType="Boolean" usesScalarValueType="YES"/>
-        <attribute name="totp2faUrl" optional="YES" attributeType="URI"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="accountInfo" inverseEntity="Account"/>
         <relationship name="person" maxCount="1" deletionRule="Nullify" destinationEntity="Person" inverseName="accountInfo" inverseEntity="Person"/>
@@ -142,6 +141,7 @@
         <attribute name="bio" optional="YES" attributeType="String"/>
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="displayName" optional="YES" attributeType="String"/>
+        <attribute name="isAdmin" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="isBanned" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="isBotAccount" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="isDeletedPerson" attributeType="Boolean" usesScalarValueType="YES"/>
@@ -152,8 +152,6 @@
         <attribute name="numberOfPosts" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="personCreatedDate" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="personUpdatedDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
-        <attribute name="totalScoreForComments" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="totalScoreForPosts" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="person" maxCount="1" deletionRule="Nullify" destinationEntity="Person" inverseName="personInfo" inverseEntity="Person"/>
     </entity>

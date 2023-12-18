@@ -105,6 +105,8 @@ class EntryService: EntryServiceType {
             switch listingType {
             case .subscribed:
                 return account.isSignedOutAccountType ? .all : .subscribed
+            case .moderatorView:
+                return account.isSignedOutAccountType ? .all : .moderatorView
             case .all, .local:
                 return listingType
             }

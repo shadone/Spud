@@ -695,14 +695,16 @@ public class LemmyService: LemmyServiceType {
 
                 let request = MarkPostAsRead.Request(
                     post_id: post.postId,
+                    post_ids: nil,
                     read: true,
                     auth: credential.jwt
                 )
                 return self.api.markPostAsRead(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
-                        logger.debug("Mark post as read complete. post=\(post.identifierForLogging, privacy: .public)")
-                        post.set(from: response.post_view)
+                        logger.debug("Mark post as read complete. post=\(post.identifierForLogging, privacy: .public); success=\(response.success)")
+                        assert(post.postInfo != nil)
+                        post.postInfo?.isRead = response.success
                     }, receiveCompletion: { completion in
                         switch completion {
                         case .failure:

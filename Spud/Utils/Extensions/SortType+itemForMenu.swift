@@ -52,6 +52,15 @@ extension SortType {
         case .topMonth:
             return .init(title: "Top Month", imageSystemName: nil)
 
+        case .topThreeMonths:
+            return .init(title: "Top Three Months", imageSystemName: nil)
+
+        case .topSixMonths:
+            return .init(title: "Top Six Months", imageSystemName: nil)
+
+        case .topNineMonths:
+            return .init(title: "Top Nine Months", imageSystemName: nil)
+
         case .topYear:
             return .init(title: "Top Year", imageSystemName: nil)
 
@@ -63,6 +72,12 @@ extension SortType {
 
         case .newComments:
             return .init(title: "New Comments", imageSystemName: "exclamationmark.bubble")
+
+        case .controversial:
+            return .init(title: "Controversial", imageSystemName: "person.fill.questionmark")
+
+        case .scaled:
+            return .init(title: "Scaled", imageSystemName: "scalemass")
         }
     }
 }

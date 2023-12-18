@@ -53,6 +53,9 @@ public final class LemmyPersonInfo: NSManagedObject {
     /// Whether the person is local to this instance we fetch the info from.
     @NSManaged public var isLocal: Bool
 
+    /// Whether the person is an admin.
+    @NSManaged public var isAdmin: Bool
+
     /// Whether the person is a bot account.
     @NSManaged public var isBotAccount: Bool
 
@@ -65,14 +68,8 @@ public final class LemmyPersonInfo: NSManagedObject {
     /// Number of posts made by the person.
     @NSManaged public var numberOfPosts: Int64
 
-    /// Total upvote score for all posts for the person.
-    @NSManaged public var totalScoreForPosts: Int64
-
     /// Number of comments made by the person.
     @NSManaged public var numberOfComments: Int64
-
-    /// Total upvote score for all comments for the person.
-    @NSManaged public var totalScoreForComments: Int64
 
     // MARK: Meta properties
 

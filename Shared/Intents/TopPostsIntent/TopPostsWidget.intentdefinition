@@ -145,6 +145,56 @@
 					<key>INEnumValueName</key>
 					<string>newComments</string>
 				</dict>
+				<dict>
+					<key>INEnumValueDisplayName</key>
+					<string>Top 3 Months</string>
+					<key>INEnumValueDisplayNameID</key>
+					<string>cVomwR</string>
+					<key>INEnumValueIndex</key>
+					<integer>13</integer>
+					<key>INEnumValueName</key>
+					<string>topThreeMonths</string>
+				</dict>
+				<dict>
+					<key>INEnumValueDisplayName</key>
+					<string>Top 6 Months</string>
+					<key>INEnumValueDisplayNameID</key>
+					<string>0A8nh2</string>
+					<key>INEnumValueIndex</key>
+					<integer>14</integer>
+					<key>INEnumValueName</key>
+					<string>topSixMonths</string>
+				</dict>
+				<dict>
+					<key>INEnumValueDisplayName</key>
+					<string>Controversial</string>
+					<key>INEnumValueDisplayNameID</key>
+					<string>QbWkab</string>
+					<key>INEnumValueIndex</key>
+					<integer>15</integer>
+					<key>INEnumValueName</key>
+					<string>controversial</string>
+				</dict>
+				<dict>
+					<key>INEnumValueDisplayName</key>
+					<string>Scaled</string>
+					<key>INEnumValueDisplayNameID</key>
+					<string>Of1XtI</string>
+					<key>INEnumValueIndex</key>
+					<integer>16</integer>
+					<key>INEnumValueName</key>
+					<string>scaled</string>
+				</dict>
+				<dict>
+					<key>INEnumValueDisplayName</key>
+					<string>Top 9 Months</string>
+					<key>INEnumValueDisplayNameID</key>
+					<string>thIxdv</string>
+					<key>INEnumValueIndex</key>
+					<integer>17</integer>
+					<key>INEnumValueName</key>
+					<string>topNineMonths</string>
+				</dict>
 			</array>
 		</dict>
 		<dict>
@@ -198,6 +248,16 @@
 					<key>INEnumValueName</key>
 					<string>subscribed</string>
 				</dict>
+				<dict>
+					<key>INEnumValueDisplayName</key>
+					<string>Moderator view</string>
+					<key>INEnumValueDisplayNameID</key>
+					<string>49Kpnc</string>
+					<key>INEnumValueIndex</key>
+					<integer>4</integer>
+					<key>INEnumValueName</key>
+					<string>moderatorView</string>
+				</dict>
 			</array>
 		</dict>
 	</array>
@@ -206,11 +266,11 @@
 	<key>INIntentDefinitionNamespace</key>
 	<string>88xZPY</string>
 	<key>INIntentDefinitionSystemVersion</key>
-	<string>22F82</string>
+	<string>23C64</string>
 	<key>INIntentDefinitionToolsBuildVersion</key>
-	<string>14E300c</string>
+	<string>15C65</string>
 	<key>INIntentDefinitionToolsVersion</key>
-	<string>14.3.1</string>
+	<string>15.1</string>
 	<key>INIntents</key>
 	<array>
 		<dict>

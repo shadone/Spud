@@ -264,10 +264,8 @@ public class AccountService: AccountServiceType {
                 switch apiError {
                 case let .serverError(error):
                     switch error {
-                    case .value(.couldnt_find_that_username_or_email):
-                        return .invalidUsernameOrEmail
-                    case .value(.password_incorrect):
-                        return .invalidPassword
+                    case .incorrect_login:
+                        return .invalidLogin
                     default:
                         return .apiError(apiError)
                     }

@@ -39,6 +39,16 @@ extension IntentSortType {
             self = .mostComments
         case .newComments:
             self = .newComments
+        case .topThreeMonths:
+            self = .topThreeMonths
+        case .topSixMonths:
+            self = .topSixMonths
+        case .topNineMonths:
+            self = .topNineMonths
+        case .controversial:
+            self = .controversial
+        case .scaled:
+            self = .scaled
         }
     }
 }
@@ -72,6 +82,16 @@ extension SortType {
             self = .mostComments
         case .newComments:
             self = .newComments
+        case .topThreeMonths:
+            self = .topThreeMonths
+        case .topSixMonths:
+            self = .topSixMonths
+        case .controversial:
+            self = .controversial
+        case .scaled:
+            self = .scaled
+        case .topNineMonths:
+            self = .topNineMonths
         }
     }
 }

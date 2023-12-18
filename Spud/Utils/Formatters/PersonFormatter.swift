@@ -7,20 +7,6 @@
 import Foundation
 
 enum PersonFormatter {
-    static func string(totalScoreForComment value: Int64) -> String {
-        if value < 1000 {
-            return String(value)
-        }
-        return String(format: "%.1fK", Double(value) / 1000)
-    }
-
-    static func string(totalScoreForPosts value: Int64) -> String {
-        if value < 1000 {
-            return String(value)
-        }
-        return String(format: "%.1fK", Double(value) / 1000)
-    }
-
     static func string(personCreatedDate date: Date) -> String {
         date.relativeString
     }

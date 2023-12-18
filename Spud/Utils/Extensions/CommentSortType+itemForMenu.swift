@@ -27,6 +27,9 @@ extension CommentSortType {
 
         case .old:
             return .init(title: "Old")
+
+        case .controversial:
+            return .init(title: "Controversial")
         }
     }
 }

@@ -72,10 +72,15 @@ class PostListViewController: UIViewController {
     var sortTypeTopDayAction: UIAction!
     var sortTypeTopWeekAction: UIAction!
     var sortTypeTopMonthAction: UIAction!
+    var sortTypeTopThreeMonthAction: UIAction!
+    var sortTypeTopSixMonthAction: UIAction!
+    var sortTypeTopNineMonthAction: UIAction!
     var sortTypeTopYearAction: UIAction!
     var sortTypeTopAllAction: UIAction!
     var sortTypeMostCommentsAction: UIAction!
     var sortTypeNewCommentsAction: UIAction!
+    var sortTypeControversialAction: UIAction!
+    var sortTypeScaledAction: UIAction!
 
     // MARK: Functions
 
@@ -127,10 +132,15 @@ class PostListViewController: UIViewController {
         sortTypeTopDayAction = makeAction(for: .topDay)
         sortTypeTopWeekAction = makeAction(for: .topWeek)
         sortTypeTopMonthAction = makeAction(for: .topMonth)
+        sortTypeTopThreeMonthAction = makeAction(for: .topThreeMonths)
+        sortTypeTopSixMonthAction = makeAction(for: .topSixMonths)
+        sortTypeTopNineMonthAction = makeAction(for: .topNineMonths)
         sortTypeTopYearAction = makeAction(for: .topYear)
         sortTypeTopAllAction = makeAction(for: .topAll)
         sortTypeMostCommentsAction = makeAction(for: .mostComments)
         sortTypeNewCommentsAction = makeAction(for: .newComments)
+        sortTypeControversialAction = makeAction(for: .controversial)
+        sortTypeScaledAction = makeAction(for: .scaled)
 
         sortTypeBarButtonItem = UIBarButtonItem(
             title: "Sort type",
@@ -153,6 +163,8 @@ class PostListViewController: UIViewController {
                         sortTypeHotAction,
                         sortTypeNewAction,
                         sortTypeOldAction,
+                        sortTypeControversialAction,
+                        sortTypeScaledAction,
                     ]
                 ),
                 UIMenu(
@@ -164,6 +176,9 @@ class PostListViewController: UIViewController {
                         sortTypeTopDayAction,
                         sortTypeTopWeekAction,
                         sortTypeTopMonthAction,
+                        sortTypeTopThreeMonthAction,
+                        sortTypeTopSixMonthAction,
+                        sortTypeTopNineMonthAction,
                         sortTypeTopYearAction,
                         sortTypeTopAllAction,
                     ]

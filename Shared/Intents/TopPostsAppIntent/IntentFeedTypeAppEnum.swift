@@ -12,11 +12,13 @@ enum IntentFeedTypeAppEnum: String, AppEnum {
     case all
     case local
     case subscribed
+    case moderatorView
 
     static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Category")
     static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
         .all: "All",
         .local: "Local",
         .subscribed: "Subscribed",
+        .moderatorView: "Moderator view",
     ]
 }

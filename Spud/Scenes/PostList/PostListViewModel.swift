@@ -75,6 +75,8 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
                         return "Local"
                     case .subscribed:
                         return "Subscribed"
+                    case .moderatorView:
+                        return "Moderator view"
                     }
                 }
             }

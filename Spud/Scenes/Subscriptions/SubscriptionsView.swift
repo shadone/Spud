@@ -41,6 +41,13 @@ private extension ListingType {
                 title: "All",
                 subtitle: "Posts from all federated instances"
             )
+        case .moderatorView:
+            return .init(
+                iconName: "crown",
+                iconTint: .purple,
+                title: "Moderator view",
+                subtitle: "Content that you can moderate"
+            )
         }
     }
 }

@@ -8,11 +8,8 @@ import Foundation
 import LemmyKit
 
 public enum AccountServiceLoginError: Error {
-    /// The specified username or email was not accepted by the Lemmy server.
-    case invalidUsernameOrEmail
-
-    /// The specified password was not accepted by the Lemmy server.
-    case invalidPassword
+    /// The specified username/email or password was not accepted by the Lemmy server.
+    case invalidLogin
 
     case totp2faRequired
 
