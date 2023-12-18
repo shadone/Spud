@@ -14,9 +14,6 @@ import SpudUtilKit
 private let logger = Logger(.lemmyService)
 
 public enum LemmyServiceError: Error {
-    /// The request request authentication but the current LemmyService is signed out kind.
-    case missingCredential
-
     case internalInconsistency(description: String)
 
     /// A low level API error has occurred.
@@ -90,7 +87,6 @@ public class LemmyService: LemmyServiceType {
 
     // MARK: Private
 
-    private let credential: LemmyCredential?
     private let dataStore: DataStoreType
     private let api: LemmyApi
 
@@ -121,14 +117,12 @@ public class LemmyService: LemmyServiceType {
 
     init(
         account: LemmyAccount,
-        credential: LemmyCredential?,
         dataStore: DataStoreType,
         api: LemmyApi
     ) {
         accountObjectId = account.objectID
         accountIdentifierForLogging = account.identifierForLogging
 
-        self.credential = credential
         self.dataStore = dataStore
         self.api = api
 
@@ -269,8 +263,7 @@ public class LemmyService: LemmyServiceType {
                     let request = GetPosts.Request(
                         type_: listingType,
                         sort: sortType,
-                        page: pageNumber,
-                        auth: self.credential?.jwt
+                        page: pageNumber
                     )
                     return self.api.getPosts(request)
                         .receive(on: self.backgroundScheduler)
@@ -320,8 +313,7 @@ public class LemmyService: LemmyServiceType {
                 let request = GetComments.Request(
                     sort: sortType,
                     max_depth: 8,
-                    post_id: post.postId,
-                    auth: self.credential?.jwt
+                    post_id: post.postId
                 )
                 return self.api.getComments(request)
                     .receive(on: self.backgroundScheduler)
@@ -360,9 +352,7 @@ public class LemmyService: LemmyServiceType {
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { account -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("Fetch site for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
-                let request = GetSite.Request(
-                    auth: self.credential?.jwt
-                )
+                let request = GetSite.Request()
                 return self.api.getSite(request)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
@@ -401,8 +391,7 @@ public class LemmyService: LemmyServiceType {
             .flatMap { person -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("Fetch person info for person=\(person.identifierForLogging, privacy: .public)")
                 let request = GetPersonDetails.Request(
-                    person_id: person.personId,
-                    auth: self.credential?.jwt
+                    person_id: person.personId
                 )
                 return self.api.getPersonDetails(request)
                     .receive(on: self.backgroundScheduler)
@@ -475,14 +464,9 @@ public class LemmyService: LemmyServiceType {
                     postInfo.voteStatus = .neutral
                 }
 
-                guard let credential = self.credential else {
-                    return .fail(with: .missingCredential)
-                }
-
                 let request = CreatePostLike.Request(
                     post_id: post.postId,
-                    score: effectiveAction,
-                    auth: credential.jwt
+                    score: effectiveAction
                 )
                 return self.api.createPostLike(request)
                     .receive(on: self.backgroundScheduler)
@@ -539,14 +523,9 @@ public class LemmyService: LemmyServiceType {
                     comment.voteStatus = .neutral
                 }
 
-                guard let credential = self.credential else {
-                    return .fail(with: .missingCredential)
-                }
-
                 let request = CreateCommentLike.Request(
                     comment_id: comment.localCommentId,
-                    score: effectiveAction,
-                    auth: credential.jwt
+                    score: effectiveAction
                 )
                 return self.api.createCommentLike(request)
                     .receive(on: self.backgroundScheduler)
@@ -580,8 +559,7 @@ public class LemmyService: LemmyServiceType {
             .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("Fetch post. post=\(post.identifierForLogging, privacy: .public)")
                 let request = GetPost.Request(
-                    id: post.postId,
-                    auth: self.credential?.jwt
+                    id: post.postId
                 )
                 return self.api.getPost(request)
                     .receive(on: self.backgroundScheduler)
@@ -689,15 +667,10 @@ public class LemmyService: LemmyServiceType {
             .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("Marking post as read. post=\(post.identifierForLogging, privacy: .public)")
 
-                guard let credential = self.credential else {
-                    return .fail(with: .missingCredential)
-                }
-
                 let request = MarkPostAsRead.Request(
                     post_id: post.postId,
                     post_ids: nil,
-                    read: true,
-                    auth: credential.jwt
+                    read: true
                 )
                 return self.api.markPostAsRead(request)
                     .receive(on: self.backgroundScheduler)

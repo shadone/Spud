@@ -217,11 +217,11 @@ public class AccountService: AccountServiceType {
         dataStore.saveIfNeeded()
     }
 
-    private func api(for site: LemmySite) -> LemmyApi {
+    private func api(for site: LemmySite, credential: LemmyCredential?) -> LemmyApi {
         guard let instanceUrl = site.instance.actorId.url else {
             fatalError("Failed to create URL from instance actor id '\(site.instance.actorId)'")
         }
-        return LemmyApi(instanceUrl: instanceUrl)
+        return LemmyApi(instanceUrl: instanceUrl, credential: credential)
     }
 
     public func lemmyService(for account: LemmyAccount) -> LemmyServiceType {
@@ -234,17 +234,13 @@ public class AccountService: AccountServiceType {
             return lemmyService
         }
 
-        let api = api(for: account.site)
+        let credential = readCredential(for: account)
+        let api = api(for: account.site, credential: credential)
 
         logger.debug("Creating new LemmyService for \(account.identifierForLogging, privacy: .public)")
 
-        // TODO: it would make for better architecture if auth / credential was part of LemmyApi
-        // i.e. pass jwt to the `LemmyApi(auth: credential.jwt)` and let it add it to requests.
-        let credential = readCredential(for: account)
-
         let lemmyService = LemmyService(
             account: account,
-            credential: credential,
             dataStore: dataStore,
             api: api
         )
@@ -258,7 +254,8 @@ public class AccountService: AccountServiceType {
         username: String,
         password: String
     ) -> AnyPublisher<LemmyAccount, AccountServiceLoginError> {
-        let api = api(for: site)
+        // Creating temporary authenticated LemmyApi object for making login request.
+        let api = api(for: site, credential: nil)
         return api.login(.init(username_or_email: username, password: password))
             .mapError { apiError -> AccountServiceLoginError in
                 switch apiError {
@@ -366,10 +363,7 @@ extension AccountService {
         assert(!account.objectID.isTemporaryID)
         let key = account.objectID.uriRepresentation().absoluteString
 
-        guard let stringValue = credential.toString() else {
-            logger.assertionFailure()
-            return
-        }
+        let stringValue = credential.toString()
 
         do {
             try keychain.set(stringValue, key: key)
@@ -390,8 +384,11 @@ extension AccountService {
                 return nil
             }
 
-            guard let credential = LemmyCredential.fromString(stringValue) else {
-                logger.assertionFailure()
+            let credential: LemmyCredential
+            do {
+                credential = try LemmyCredential.fromString(stringValue)
+            } catch {
+                logger.error("Failed to parse credential '\(stringValue, privacy: .sensitive)': \(error.localizedDescription, privacy: .public)")
                 return nil
             }
 

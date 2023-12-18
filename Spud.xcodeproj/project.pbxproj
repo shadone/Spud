@@ -241,7 +241,6 @@
 		92CC5DBB2A7EC79F0019436A /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 92CC5DBA2A7EC79F0019436A /* LemmyKit */; };
 		92CC5DBC2A7EC7C50019436A /* SpudDataKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D622A7EBF5E0019436A /* SpudDataKit.framework */; };
 		92CC5DC02A7ED7210019436A /* SchedulerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62EB2A46EFF400497C3B /* SchedulerService.swift */; };
-		92CC5DC12A7ED7260019436A /* LemmyCredential.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */; };
 		92CC5DC22A7ED7260019436A /* AccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9602A3B5E8C00672F64 /* AccountService.swift */; };
 		92CC5DC32A7ED7260019436A /* AccountServiceLoginError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */; };
 		92CC5DC42A7ED7290019436A /* SiteService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62E42A46427300497C3B /* SiteService.swift */; };
@@ -681,7 +680,6 @@
 		92CC5DB52A7EC1CF0019436A /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
 		92CC5DE12A7EEF8D0019436A /* Publisher+async.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Publisher+async.swift"; sourceTree = "<group>"; };
 		92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountServiceLoginError.swift; sourceTree = "<group>"; };
-		92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyCredential.swift; sourceTree = "<group>"; };
 		92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+safeHost.swift"; sourceTree = "<group>"; };
 		92CEAEB92A4F362A00FAF4DB /* Atomic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Atomic.swift; sourceTree = "<group>"; };
 		92CEAEBB2A51ABC700FAF4DB /* LemmyAccountInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyAccountInfo.swift; sourceTree = "<group>"; };
@@ -1426,7 +1424,6 @@
 			children = (
 				92B7C9602A3B5E8C00672F64 /* AccountService.swift */,
 				92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */,
-				92CEAEAD2A4CD7AC00FAF4DB /* LemmyCredential.swift */,
 			);
 			path = Account;
 			sourceTree = "<group>";
@@ -2381,7 +2378,6 @@
 				92CC5D7A2A7EBFA20019436A /* LemmyCommunity.swift in Sources */,
 				92CC5DCE2A7ED7380019436A /* LemmyCommunityInfo+import.swift in Sources */,
 				92CC5D6F2A7EBFA20019436A /* LemmyCommunityInfo.swift in Sources */,
-				92CC5DC12A7ED7260019436A /* LemmyCredential.swift in Sources */,
 				92CC5D742A7EBFA20019436A /* LemmyFeed+FeedType.swift in Sources */,
 				92CC5DD22A7ED7380019436A /* LemmyFeed+import.swift in Sources */,
 				92CC5D772A7EBFA20019436A /* LemmyFeed.swift in Sources */,
