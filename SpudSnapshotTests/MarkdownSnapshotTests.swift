@@ -19,14 +19,12 @@ final class MarkdownSnapshotTests: XCTestCase {
     }
 
     private func markdown(_ string: String, styler: Styler) -> NSAttributedString {
-        let attributedString = try? Down(markdownString: string)
+        Down(markdownString: string)
             .toAttributedString(styler: styler)
-        XCTAssertNotNil(attributedString)
-        return attributedString!
     }
 
     func testSimple() throws {
-        let text = "hello **bold** and *italic* world"
+        let text = "hello **bold** and *italic* world and [this](https://example.com) link"
         vc.attributedText = markdown(text, styler: styler())
         assertSnapshot(matching: vc, as: .image(traits: .init(userInterfaceStyle: .light)))
     }
