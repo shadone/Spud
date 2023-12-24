@@ -3,10 +3,10 @@
     {
       "identity" : "down",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/johnxnguyen/Down",
+      "location" : "https://github.com/shadone/Down",
       "state" : {
-        "branch" : "master",
-        "revision" : "e754ab1c80920dd51a8e08290c912ac1c2ac8b58"
+        "branch" : "main",
+        "revision" : "fc2b73e163bf71748f237e53106939687f419dbc"
       }
     },
     {
@@ -43,6 +43,24 @@
       "state" : {
         "revision" : "405806381f52ea32fe4406adf066ed58ee0b9d25",
         "version" : "3.6.0"
+      }
+    },
+    {
+      "identity" : "swift-cmark",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-cmark.git",
+      "state" : {
+        "branch" : "gfm",
+        "revision" : "3bc2f3e25df0cecc5dc269f7ccae65d0f386f06a"
+      }
+    },
+    {
+      "identity" : "swift-markdown",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-markdown.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "c211079c200ce2c5f68160bf75ded005b1c945f1"
       }
     },
     {

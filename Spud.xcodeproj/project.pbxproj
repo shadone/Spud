@@ -60,6 +60,8 @@
 		9254A34B2A86DFBC009EB4B5 /* SortType+appintent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9254A34A2A86DFBC009EB4B5 /* SortType+appintent.swift */; };
 		9254A34C2A86DFBC009EB4B5 /* SortType+appintent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9254A34A2A86DFBC009EB4B5 /* SortType+appintent.swift */; };
 		9254A3502A86E2E2009EB4B5 /* TopPostsAppIntentProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9254A34D2A86E223009EB4B5 /* TopPostsAppIntentProvider.swift */; };
+		925AF5E52B38F336001AE338 /* Down in Frameworks */ = {isa = PBXBuildFile; productRef = 925AF5E42B38F336001AE338 /* Down */; };
+		925AF5E72B38F4B5001AE338 /* Down in Frameworks */ = {isa = PBXBuildFile; productRef = 925AF5E62B38F4B5001AE338 /* Down */; };
 		925B46642A8EA307008410EA /* PreferencesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B46632A8EA307008410EA /* PreferencesView.swift */; };
 		925B46672A8EB8FB008410EA /* OpenExternalLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B46662A8EB8FB008410EA /* OpenExternalLink.swift */; };
 		925B46692A8EC118008410EA /* PreferencesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B46682A8EC118008410EA /* PreferencesViewModel.swift */; };
@@ -95,7 +97,6 @@
 		927343392A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */; };
 		9273433E2A61FAB70089556E /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9273433D2A61FAB70089556E /* LemmyKit */; };
 		927618182A730C25003D49D4 /* AppService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618172A730C25003D49D4 /* AppService.swift */; };
-		9276185E2A731AD5003D49D4 /* Down in Frameworks */ = {isa = PBXBuildFile; productRef = 9276185D2A731AD5003D49D4 /* Down */; };
 		927C187E2A86E48A00F47B0D /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 927C187D2A86E48A00F47B0D /* LemmyKit */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
@@ -739,6 +740,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				925AF5E72B38F4B5001AE338 /* Down in Frameworks */,
 				925B76D42A90046200BD065A /* SnapshotTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -771,7 +773,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9276185E2A731AD5003D49D4 /* Down in Frameworks */,
+				925AF5E52B38F336001AE338 /* Down in Frameworks */,
 				9273433E2A61FAB70089556E /* LemmyKit in Frameworks */,
 				92DC45382A8191AA003498C1 /* SBTUITestTunnelServer in Frameworks */,
 				92CC5D682A7EBF5E0019436A /* SpudDataKit.framework in Frameworks */,
@@ -1744,6 +1746,7 @@
 			name = SpudSnapshotTests;
 			packageProductDependencies = (
 				925B76D32A90046200BD065A /* SnapshotTesting */,
+				925AF5E62B38F4B5001AE338 /* Down */,
 			);
 			productName = SpudSnapshotTests;
 			productReference = 925B76C92A8FFF0A00BD065A /* SpudSnapshotTests.xctest */;
@@ -1830,8 +1833,8 @@
 			name = Spud;
 			packageProductDependencies = (
 				9273433D2A61FAB70089556E /* LemmyKit */,
-				9276185D2A731AD5003D49D4 /* Down */,
 				92DC45372A8191AA003498C1 /* SBTUITestTunnelServer */,
+				925AF5E42B38F336001AE338 /* Down */,
 			);
 			productName = Spud;
 			productReference = 92B7C8FA2A3A40EB00672F64 /* Spud.app */;
@@ -2000,10 +2003,10 @@
 			packageReferences = (
 				92CEAEAF2A4D5B4800FAF4DB /* XCRemoteSwiftPackageReference "KeychainAccess" */,
 				9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */,
-				9276185C2A731AD5003D49D4 /* XCRemoteSwiftPackageReference "Down" */,
 				921943472A75ED7F0005474D /* XCRemoteSwiftPackageReference "semver" */,
 				92DC45342A8191AA003498C1 /* XCRemoteSwiftPackageReference "SBTUITestTunnel" */,
 				925B76D22A90046200BD065A /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
+				925AF5E32B38F315001AE338 /* XCRemoteSwiftPackageReference "Down" */,
 			);
 			productRefGroup = 92B7C8FB2A3A40EB00672F64 /* Products */;
 			projectDirPath = "";
@@ -3403,6 +3406,14 @@
 				minimumVersion = 3.0.0;
 			};
 		};
+		925AF5E32B38F315001AE338 /* XCRemoteSwiftPackageReference "Down" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/shadone/Down";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
 		925B76D22A90046200BD065A /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/pointfreeco/swift-snapshot-testing";
@@ -3416,14 +3427,6 @@
 			repositoryURL = "https://github.com/shadone/LemmyKit";
 			requirement = {
 				branch = main;
-				kind = branch;
-			};
-		};
-		9276185C2A731AD5003D49D4 /* XCRemoteSwiftPackageReference "Down" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/johnxnguyen/Down";
-			requirement = {
-				branch = master;
 				kind = branch;
 			};
 		};
@@ -3446,6 +3449,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		925AF5E42B38F336001AE338 /* Down */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 925AF5E32B38F315001AE338 /* XCRemoteSwiftPackageReference "Down" */;
+			productName = Down;
+		};
+		925AF5E62B38F4B5001AE338 /* Down */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 925AF5E32B38F315001AE338 /* XCRemoteSwiftPackageReference "Down" */;
+			productName = Down;
+		};
 		925B76D32A90046200BD065A /* SnapshotTesting */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 925B76D22A90046200BD065A /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
@@ -3460,11 +3473,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */;
 			productName = LemmyKit;
-		};
-		9276185D2A731AD5003D49D4 /* Down */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9276185C2A731AD5003D49D4 /* XCRemoteSwiftPackageReference "Down" */;
-			productName = Down;
 		};
 		927C187D2A86E48A00F47B0D /* LemmyKit */ = {
 			isa = XCSwiftPackageProductDependency;

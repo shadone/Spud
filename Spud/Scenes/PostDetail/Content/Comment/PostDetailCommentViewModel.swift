@@ -54,15 +54,8 @@ class PostDetailCommentViewModel {
             .publisher(for: \.body)
             .combineLatest(appearance.bodyStylerConfiguration)
             .map { text, stylerConfiguration in
-                guard
-                    let attributedString = try? Down(markdownString: text)
+                Down(markdownString: text)
                     .toAttributedString(styler: DownStyler(configuration: stylerConfiguration))
-                else {
-                    logger.assertionFailure()
-                    return NSAttributedString(string: text)
-                }
-
-                return attributedString
             }
             .eraseToAnyPublisher()
     }
