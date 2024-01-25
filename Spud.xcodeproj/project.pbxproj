@@ -472,6 +472,7 @@
 		92116E952A633FE400344251 /* PersonOrLoadingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonOrLoadingViewModel.swift; sourceTree = "<group>"; };
 		92116E982A64463600344251 /* PersonLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonLoadingViewController.swift; sourceTree = "<group>"; };
 		9215FDFF2A7FEE85008B49AB /* SortType+itemForMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SortType+itemForMenu.swift"; sourceTree = "<group>"; };
+		9216BE6C2B6319D500AA7EB9 /* Mintfile */ = {isa = PBXFileReference; lastKnownFileType = text; path = Mintfile; sourceTree = "<group>"; };
 		9216FBCE2A795F4A00D67636 /* PreferencesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesService.swift; sourceTree = "<group>"; };
 		9219433C2A7562390005474D /* Instance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Instance.swift; sourceTree = "<group>"; };
 		9219433E2A7564650005474D /* NodeInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeInfo.swift; sourceTree = "<group>"; };
@@ -1196,6 +1197,7 @@
 			isa = PBXGroup;
 			children = (
 				92A227222A7FB65400C18FCD /* README.md */,
+				9216BE6C2B6319D500AA7EB9 /* Mintfile */,
 				925B76D92A900D8F00BD065A /* Spud.xctestplan */,
 				925B76DA2A900DBE00BD065A /* SpudSnapshots.xctestplan */,
 				920B458A2A7C51EB00C6C2DC /* SpudWidgetExtension.entitlements */,
@@ -2143,7 +2145,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if which swiftgen >/dev/null; then\n  swiftgen -c $SRCROOT/SpudUIKit/swiftgen.yml\nelse\n  echo \"warning: SwiftGen not installed, see README.md\"\nfi\n";
+			shellScript = "export PATH=\"$PATH:/opt/homebrew/bin\"\n\nif which mint >/dev/null; then\n    mint run swiftgen -c $SRCROOT/SpudUIKit/swiftgen.yml\nelse\n    echo \"warning: Mint not installed, see README.md\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -2933,7 +2935,7 @@
 				CODE_SIGN_ENTITLEMENTS = Spud/Spud.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = README.md;
+				DEVELOPMENT_ASSET_PATHS = "README.md Mintfile";
 				DEVELOPMENT_TEAM = J8B76VBZ57;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Spud/Resources/Info.plist;
@@ -2964,7 +2966,7 @@
 				CODE_SIGN_ENTITLEMENTS = Spud/Spud.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_ASSET_PATHS = README.md;
+				DEVELOPMENT_ASSET_PATHS = "README.md Mintfile";
 				DEVELOPMENT_TEAM = J8B76VBZ57;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Spud/Resources/Info.plist;

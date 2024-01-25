@@ -6,6 +6,6 @@ if [ -n "$(git diff --name-only --cached | grep 'project.pbxproj')" ]; then
   git add Spud.xcodeproj/project.pbxproj
 fi
 
-swiftformat --lint .
+mint run swiftformat --lint .
 
 exit 0
