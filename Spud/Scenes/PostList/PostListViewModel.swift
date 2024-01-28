@@ -93,10 +93,10 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
         accountService
             .lemmyService(for: account)
             .fetchFeed(feedId: feed.value.objectID, page: nextPageNumber)
-            // Explicitly specify RunLoop.main is required to ensure early delivery.
+            // Explicitly specify DispatchQueue.main is required to ensure early delivery.
             // Without it the completion is not triggered while scroll view is
             // scrolling, instead the completion is delayed until scrolling finishes.
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { [weak self] completion in
                 self?.alertService.errorHandler(for: .fetchPostList)(completion)
                 self?.isFetchingNextPage.send(false)
