@@ -91,7 +91,7 @@ public class ImageService: ImageServiceType {
 
                 return .just(image)
             }
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
     }
 }
