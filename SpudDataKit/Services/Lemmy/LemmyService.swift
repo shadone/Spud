@@ -292,7 +292,7 @@ public class LemmyService: LemmyServiceType {
                         .eraseToAnyPublisher()
                 }
             }
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
     }
 
@@ -341,7 +341,7 @@ public class LemmyService: LemmyServiceType {
                     .map { _ in () }
                     .eraseToAnyPublisher()
             }
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
     }
 
@@ -377,7 +377,7 @@ public class LemmyService: LemmyServiceType {
                     .map { _ in () }
                     .eraseToAnyPublisher()
             }
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
     }
 
@@ -422,7 +422,7 @@ public class LemmyService: LemmyServiceType {
                     }
                     .eraseToAnyPublisher()
             }
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
     }
 
@@ -486,7 +486,7 @@ public class LemmyService: LemmyServiceType {
                     .mapError { .apiError($0) }
                     .eraseToAnyPublisher()
             }
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
     }
 
@@ -545,7 +545,7 @@ public class LemmyService: LemmyServiceType {
                     .mapError { .apiError($0) }
                     .eraseToAnyPublisher()
             }
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
     }
 
@@ -591,7 +591,7 @@ public class LemmyService: LemmyServiceType {
                     }
                     .eraseToAnyPublisher()
             }
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
     }
 
@@ -696,7 +696,7 @@ public class LemmyService: LemmyServiceType {
                     }
                     .eraseToAnyPublisher()
             }
-            .receive(on: RunLoop.main)
+            .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
     }
 }
