@@ -69,8 +69,10 @@ struct SubscriptionsListingView: View {
                     .foregroundStyle(Color(.secondaryLabel))
                     .font(.footnote)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
+        .contentShape(Rectangle())
     }
 }
 
