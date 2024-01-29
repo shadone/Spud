@@ -143,13 +143,7 @@ struct SubscriptionsView<ViewModel>: View
     }
 }
 
-struct SubscriptionsView_Preview: PreviewProvider {
-    static var previews: some View {
-        SubscriptionsView(viewModel: ViewModel())
-    }
-}
-
-extension SubscriptionsView_Preview {
+#Preview {
     class ViewModel:
         SubscriptionsViewModelType,
         SubscriptionsViewModelInputs,
@@ -172,4 +166,6 @@ extension SubscriptionsView_Preview {
 
         var feedRequested: AnyPublisher<LemmyFeed, Never> = .empty(completeImmediately: false)
     }
+
+    return SubscriptionsView(viewModel: ViewModel())
 }

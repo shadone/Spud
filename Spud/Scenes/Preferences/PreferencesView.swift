@@ -46,10 +46,8 @@ struct PreferencesView<ViewModel>: View
     }
 }
 
-struct PreferencesView_Preview: PreviewProvider {
-    static var previews: some View {
-        PreferencesView(
-            viewModel: PreferencesViewModelForPreview()
-        )
-    }
+#Preview {
+    PreferencesView(
+        viewModel: PreferencesViewModelForPreview()
+    )
 }

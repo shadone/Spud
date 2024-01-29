@@ -141,8 +141,6 @@ struct PersonView<ViewModel>: View
     }
 }
 
-struct PersonView_Preview: PreviewProvider {
-    static var previews: some View {
-        PersonView(viewModel: PersonViewModelForPreview())
-    }
+#Preview {
+    PersonView(viewModel: PersonViewModelForPreview())
 }

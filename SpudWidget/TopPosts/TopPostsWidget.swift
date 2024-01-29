@@ -143,6 +143,40 @@ struct TopPostsWidget: Widget {
     }
 }
 
+@available(iOS 17, *)
+#Preview("large", as: WidgetFamily.systemLarge) {
+    TopPostsWidget()
+} timeline: {
+    TopPostsEntry(
+        date: Date(),
+        topPosts: TopPosts.snapshot,
+        images: TopPosts.snapshot.resolveImagesFromAssets
+    )
+}
+
+@available(iOS 17, *)
+#Preview("medium", as: WidgetFamily.systemMedium) {
+    TopPostsWidget()
+} timeline: {
+    TopPostsEntry(
+        date: Date(),
+        topPosts: TopPosts.snapshot,
+        images: TopPosts.snapshot.resolveImagesFromAssets
+    )
+}
+
+@available(iOS 17, *)
+#Preview("small", as: WidgetFamily.systemSmall) {
+    TopPostsWidget()
+} timeline: {
+    TopPostsEntry(
+        date: Date(),
+        topPosts: TopPosts.snapshot,
+        images: TopPosts.snapshot.resolveImagesFromAssets
+    )
+}
+
+// Old school preview that could be useful for testing on iOS 16
 struct TopPostsWidget_Previews: PreviewProvider {
     static var topPosts = TopPosts.snapshot
 
@@ -151,12 +185,7 @@ struct TopPostsWidget_Previews: PreviewProvider {
             topPosts: topPosts,
             images: topPosts.resolveImagesFromAssets
         )
+        .previewDisplayName("old preview for iOS 16")
         .previewContext(WidgetPreviewContext(family: .systemLarge))
     }
 }
-
-// #Preview(as: WidgetFamily.systemSmall) {
-//    TopPostsWidget()
-// } timeline: {
-//    TopPostsEntry(date: Date(), topPosts: TopPosts.snapshot, images: TopPosts.snapshot.resolveImagesFromAssets)
-// }

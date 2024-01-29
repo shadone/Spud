@@ -64,10 +64,8 @@ struct PreferencesPostMarkingAndHidingView: View {
     }
 }
 
-struct PreferencesPostMarkingAndHidingView_Preview: PreviewProvider {
-    static var previews: some View {
-        NavigationView {
-            PreferencesPostMarkingAndHidingView()
-        }
+#Preview {
+    NavigationView {
+        PreferencesPostMarkingAndHidingView()
     }
 }

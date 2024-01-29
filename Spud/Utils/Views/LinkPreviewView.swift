@@ -165,35 +165,18 @@ class LinkPreviewView: UIButton {
     }
 }
 
-#if DEBUG
-import SwiftUI
-
-struct ContentView: View {
-    var body: some View {
-        List {
-            UIViewPreview {
-                let linkPreview = LinkPreviewView()
-                linkPreview.url = URL(string: "https://example.com/")!
-                linkPreview.thumbnailImage = UIImage(systemName: "clear.fill")!
-                return linkPreview
-            }
-            .frame(minHeight: 64)
-
-            UIViewPreview {
-                let linkPreview = LinkPreviewView()
-                linkPreview.url = URL(string: "https://example.com/very-long/path-that-does-not-fit-on-screen/yes-really-long")!
-                linkPreview.thumbnailImage = UIImage(systemName: "clear.fill")!
-                return linkPreview
-            }
-            .frame(minHeight: 64)
-        }
-        .listStyle(.plain)
-    }
+@available(iOS 17, *)
+#Preview {
+    let linkPreview = LinkPreviewView()
+    linkPreview.url = URL(string: "https://example.com/")!
+    linkPreview.thumbnailImage = UIImage(systemName: "clear.fill")!
+    return linkPreview
 }
 
-struct ContentView_Previews: PreviewProvider {
-    static var previews: some View {
-        ContentView()
-    }
+@available(iOS 17, *)
+#Preview("very long link") {
+    let linkPreview = LinkPreviewView()
+    linkPreview.url = URL(string: "https://example.com/very-long/path-that-does-not-fit-on-screen/yes-really-long")!
+    linkPreview.thumbnailImage = UIImage(systemName: "clear.fill")!
+    return linkPreview
 }
-#endif
