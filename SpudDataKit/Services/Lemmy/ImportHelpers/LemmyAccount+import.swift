@@ -46,7 +46,13 @@ extension LemmyAccount {
         self.accountInfo = accountInfo
 
         accountInfo.set(from: model.local_user_view)
-        // TODO: handle model.follows: [CommunityFollowerView]
+
+        let follows = model.follows.reduce(into: Set()) { partialResult, communityFollowerView in
+            let community = LemmyCommunity.upsert(communityFollowerView.community, account: self, in: context)
+            partialResult.insert(community)
+        }
+        accountInfo.followCommunities = follows
+
         // TODO: handle model.moderates: [CommunityModeratorView]
         // TODO: handle model.community_blocks: [CommunityBlockView]
         // TODO: handle model.person_blocks: [PersonBlockView]

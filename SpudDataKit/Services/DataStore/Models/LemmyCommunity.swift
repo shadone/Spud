@@ -50,6 +50,7 @@ public final class LemmyCommunity: NSManagedObject {
     // MARK: Reverse relationships
 
     @NSManaged public var postInfos: Set<LemmyPostInfo>
+    @NSManaged public var followByAccounts: Set<LemmyAccountInfo>
 }
 
 extension LemmyCommunity {

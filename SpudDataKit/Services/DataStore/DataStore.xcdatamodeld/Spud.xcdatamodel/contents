@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22522" systemVersion="23C64" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22522" systemVersion="23C71" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
     <entity name="Account" representedClassName="LemmyAccount" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" attributeType="String"/>
@@ -28,6 +28,7 @@
         <attribute name="showScores" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="accountInfo" inverseEntity="Account"/>
+        <relationship name="followCommunities" toMany="YES" deletionRule="Nullify" destinationEntity="Community" inverseName="followByAccounts" inverseEntity="Community"/>
         <relationship name="person" maxCount="1" deletionRule="Nullify" destinationEntity="Person" inverseName="accountInfo" inverseEntity="Person"/>
     </entity>
     <entity name="Comment" representedClassName="LemmyComment" syncable="YES">
@@ -60,6 +61,7 @@
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <relationship name="account" maxCount="1" deletionRule="Nullify" destinationEntity="Account" inverseName="communities" inverseEntity="Account"/>
         <relationship name="communityInfo" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="CommunityInfo" inverseName="community" inverseEntity="CommunityInfo"/>
+        <relationship name="followByAccounts" toMany="YES" deletionRule="Nullify" destinationEntity="AccountInfo" inverseName="followCommunities" inverseEntity="AccountInfo"/>
         <relationship name="postInfos" toMany="YES" deletionRule="Cascade" destinationEntity="PostInfo" inverseName="community" inverseEntity="PostInfo"/>
     </entity>
     <entity name="CommunityInfo" representedClassName="LemmyCommunityInfo" syncable="YES">
