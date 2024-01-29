@@ -65,6 +65,7 @@ public final class LemmyAccountInfo: NSManagedObject {
     // MARK: Relations
 
     @NSManaged public var person: LemmyPerson
+    @NSManaged public var followCommunities: Set<LemmyCommunity>
 
     // MARK: Reverse relationships
 
