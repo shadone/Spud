@@ -142,12 +142,10 @@ struct PreferencesGeneralView<ViewModel>: View
     }
 }
 
-struct PreferencesGeneralView_Preview: PreviewProvider {
-    static var previews: some View {
-        NavigationView {
-            PreferencesGeneralView(
-                viewModel: PreferencesViewModelForPreview()
-            )
-        }
+#Preview {
+    NavigationView {
+        PreferencesGeneralView(
+            viewModel: PreferencesViewModelForPreview()
+        )
     }
 }

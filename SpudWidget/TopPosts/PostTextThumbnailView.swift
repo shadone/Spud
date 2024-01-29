@@ -30,6 +30,7 @@ struct PostTextThumbnailView: View {
 struct PostTextThumbnailView_Previews: PreviewProvider {
     static var previews: some View {
         PostTextThumbnailView()
+            .widgetBackground(Color(.systemBackground))
             .previewContext(WidgetPreviewContext(family: .systemSmall))
     }
 }
