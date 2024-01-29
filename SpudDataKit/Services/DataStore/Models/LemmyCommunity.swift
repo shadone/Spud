@@ -69,3 +69,7 @@ extension LemmyCommunity {
         "[\(communityId)]@\(account.site.identifierForLogging)"
     }
 }
+
+extension LemmyCommunity: Identifiable {
+    public var id: NSManagedObjectID { objectID }
+}

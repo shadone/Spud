@@ -112,6 +112,7 @@ struct SubscriptionsView<ViewModel>: View
     @StateObject var viewModel: ViewModel
 
     @State var isSignedIn: Bool = false
+    @State var followCommunities: [LemmyCommunity] = []
 
     var body: some View {
         List {
@@ -130,15 +131,22 @@ struct SubscriptionsView<ViewModel>: View
                     viewModel.inputs.loadFeed(listingType: .all)
                 }
 
-            if false {
+            if !followCommunities.isEmpty {
                 Section("Subscribed communities") {
-                    SubscriptionsCommunityView(community: "hello")
+                    ForEach(followCommunities) { community in
+                        if let communityInfo = community.communityInfo {
+                            SubscriptionsCommunityView(community: communityInfo.name)
+                        }
+                    }
                 }
             }
         }
         .listStyle(.sidebar)
         .onReceive(viewModel.outputs.isSignedIn) { value in
             isSignedIn = value
+        }
+        .onReceive(viewModel.outputs.followCommunities) { value in
+            followCommunities = value
         }
     }
 }
@@ -165,6 +173,8 @@ struct SubscriptionsView<ViewModel>: View
         var isSignedIn: AnyPublisher<Bool, Never> = .just(true)
 
         var feedRequested: AnyPublisher<LemmyFeed, Never> = .empty(completeImmediately: false)
+
+        var followCommunities: AnyPublisher<[LemmyCommunity], Never> = .just([])
     }
 
     return SubscriptionsView(viewModel: ViewModel())
