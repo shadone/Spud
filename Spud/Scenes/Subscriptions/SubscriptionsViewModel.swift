@@ -19,6 +19,7 @@ protocol SubscriptionsViewModelOutputs {
     var isSignedIn: AnyPublisher<Bool, Never> { get }
 
     var feedRequested: AnyPublisher<LemmyFeed, Never> { get }
+    var followCommunities: AnyPublisher<[LemmyCommunity], Never> { get }
 }
 
 protocol SubscriptionsViewModelType: ObservableObject {
@@ -65,6 +66,26 @@ class SubscriptionsViewModel:
                     .createFeed(listingType: listingType)
             }
             .eraseToAnyPublisher()
+
+        followCommunities = self.account
+            .flatMap { account -> AnyPublisher<LemmyAccountInfo?, Never> in
+                account.publisher(for: \.accountInfo)
+                    .eraseToAnyPublisher()
+            }
+            .ignoreNil()
+            .flatMap { accountInfo in
+                accountInfo.publisher(for: \.followCommunities)
+                    .eraseToAnyPublisher()
+            }
+            .map {
+                Array($0)
+                    .sorted { lhs, rhs in
+                        let left = lhs.communityInfo?.name ?? ""
+                        let right = rhs.communityInfo?.name ?? ""
+                        return left.caseInsensitiveCompare(right) == .orderedAscending
+                    }
+            }
+            .eraseToAnyPublisher()
     }
 
     // MARK: Type
@@ -77,6 +98,7 @@ class SubscriptionsViewModel:
     let account: CurrentValueSubject<LemmyAccount, Never>
     let isSignedIn: AnyPublisher<Bool, Never>
     let feedRequested: AnyPublisher<LemmyFeed, Never>
+    let followCommunities: AnyPublisher<[LemmyCommunity], Never>
 
     // MARK: Inputs
 
