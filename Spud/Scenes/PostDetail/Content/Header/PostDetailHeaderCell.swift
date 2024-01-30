@@ -374,14 +374,13 @@ class PostDetailHeaderCell: UITableViewCellBase {
             .store(in: &disposables)
     }
 
-    private func configureLinkPreview(_ tuple: (URL, ImageLoadingState)?) {
-        guard
-            let url = tuple?.0,
-            let thumbnailType = tuple?.1
-        else {
+    private func configureLinkPreview(_ tuple: (URL, ImageLoadingState?)?) {
+        guard let tuple else {
             linkPreviewView.isHidden = true
             return
         }
+
+        let (url, thumbnailType) = tuple
 
         linkPreviewView.url = url
         linkPreviewView.isHidden = false
@@ -396,6 +395,10 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
         case .failure:
             // TODO: display broken image icon
+            break
+
+        case .none:
+            // The link does not have a thumbnail.
             break
         }
 

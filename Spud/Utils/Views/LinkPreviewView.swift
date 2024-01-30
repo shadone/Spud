@@ -37,6 +37,16 @@ class LinkPreviewView: UIButton {
         return imageView
     }()
 
+    lazy var thumbnailPlaceholderImageView: UIImageView = {
+        let imageView = UIImageView()
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        imageView.image = UIImage(systemName: "safari")!
+        imageView.tintColor = .secondaryLabel
+        return imageView
+    }()
+
     lazy var linkLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -89,6 +99,7 @@ class LinkPreviewView: UIButton {
         layer.borderWidth = 1
         layer.masksToBounds = true
 
+        addSubview(thumbnailPlaceholderImageView)
         addSubview(stackView)
 
         NSLayoutConstraint.activate([
@@ -96,6 +107,11 @@ class LinkPreviewView: UIButton {
             stackView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
             stackView.topAnchor.constraint(equalTo: topAnchor),
             stackView.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+            thumbnailPlaceholderImageView.centerXAnchor.constraint(equalTo: thumbnailImageView.centerXAnchor),
+            thumbnailPlaceholderImageView.centerYAnchor.constraint(equalTo: thumbnailImageView.centerYAnchor),
+            thumbnailPlaceholderImageView.widthAnchor.constraint(equalToConstant: 24),
+            thumbnailPlaceholderImageView.heightAnchor.constraint(equalToConstant: 24),
         ])
 
         addTarget(self, action: #selector(tapHandler), for: .touchUpInside)

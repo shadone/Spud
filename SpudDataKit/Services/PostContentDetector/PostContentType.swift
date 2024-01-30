@@ -77,6 +77,8 @@ public enum PostContentType: Equatable, CustomDebugStringConvertible {
 
     /// The post contains a link to an external service (and optionally body etc).
     ///
+    /// `thumbnail_url` might be absent.
+    ///
     /// ```json
     /// {
     ///   "url": "https://www.vice.com/en/article/qjvjmq/you-cant-look-at-porn-on-any-reddit-third-party-app-now",
