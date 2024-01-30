@@ -9,6 +9,7 @@ import CoreData
 import Foundation
 import LemmyKit
 import OSLog
+import SpudUtilKit
 
 @objc(LemmyPersonInfo)
 public final class LemmyPersonInfo: NSManagedObject {
@@ -96,17 +97,17 @@ extension LemmyPersonInfo {
 
 public extension LemmyPersonInfo {
     /// Returns the home instance of the person.
-    var hostnameFromActorId: String {
+    ///
+    /// E.g. `https://lemmit.online/`
+    var instanceActorId: InstanceActorId {
         // TODO: is this ok? should person's home site be determined Person.instance_id instead?
-
-        // TODO: shall we care about a port number?
-
-        actorId.safeHost
+        InstanceActorId(from: actorId) ?? .invalid
     }
 
-    var hostnameFromActorIdPublisher: AnyPublisher<String, Never> {
+    /// See ``instanceActorId``
+    var instanceActorIdPublisher: AnyPublisher<InstanceActorId, Never> {
         publisher(for: \.actorId)
-            .map(\.safeHost)
+            .map { InstanceActorId(from: $0) ?? .invalid }
             .eraseToAnyPublisher()
     }
 }

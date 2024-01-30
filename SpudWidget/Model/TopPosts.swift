@@ -46,7 +46,7 @@ extension TopPosts {
                     if let communityInfo = postInfo.community.communityInfo {
                         community = Community(
                             name: communityInfo.name,
-                            site: communityInfo.hostnameFromActorId
+                            site: communityInfo.instanceActorId.host
                         )
                     } else {
                         community = Community(name: "-", site: "")

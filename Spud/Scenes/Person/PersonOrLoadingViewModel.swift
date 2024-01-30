@@ -49,10 +49,10 @@ class PersonOrLoadingViewModel:
         navigationTitle = personInfoLoaded
             .flatMap { personInfo in
                 personInfo.publisher(for: \.name)
-                    .combineLatest(personInfo.hostnameFromActorIdPublisher)
-                    .map { name, hostname in
+                    .combineLatest(personInfo.instanceActorIdPublisher)
+                    .map { name, instance in
                         // TODO: shall we omit hostname for local users?
-                        "@\(name)@\(hostname)"
+                        "@\(name)@\(instance.host)"
                     }
             }
             .wrapInOptional()
