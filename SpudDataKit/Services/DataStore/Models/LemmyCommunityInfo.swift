@@ -83,7 +83,7 @@ extension LemmyCommunityInfo {
 }
 
 public extension LemmyCommunityInfo {
-    /// Returns the actor id for the community's home instance.
+    /// Returns the home instance of the community.
     ///
     /// E.g. `https://lemmit.online/`
     var instanceActorId: InstanceActorId {
@@ -91,18 +91,10 @@ public extension LemmyCommunityInfo {
         InstanceActorId(from: actorId) ?? .invalid
     }
 
-    /// Returns the home instance of the community.
-    var hostnameFromActorId: String {
-        // TODO: is this ok? should community's home site be determined Community.instance_id instead?
-
-        // TODO: shall we care about a port number?
-
-        actorId.safeHost
-    }
-
-    var hostnameFromActorIdPublisher: AnyPublisher<String, Never> {
+    /// See ``instanceActorId``
+    var instanceActorIdPublisher: AnyPublisher<InstanceActorId, Never> {
         publisher(for: \.actorId)
-            .map(\.safeHost)
+            .map { InstanceActorId(from: $0) ?? .invalid }
             .eraseToAnyPublisher()
     }
 }

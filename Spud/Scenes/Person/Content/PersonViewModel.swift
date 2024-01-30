@@ -62,8 +62,8 @@ class PersonViewModel:
         name = personInfo.publisher(for: \.name)
             .eraseToAnyPublisher()
 
-        homeInstance = personInfo.hostnameFromActorIdPublisher
-            .map { "@\($0)" }
+        homeInstance = personInfo.instanceActorIdPublisher
+            .map { "@\($0.host)" }
             .eraseToAnyPublisher()
 
         displayName = personInfo.publisher(for: \.displayName)
