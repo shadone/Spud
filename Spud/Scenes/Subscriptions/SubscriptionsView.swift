@@ -102,7 +102,9 @@ struct SubscriptionsCommunityView: View {
             SubscriptionsCommunityIconView(communityName: community)
             Text(community)
                 .foregroundStyle(Color(.label))
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .contentShape(Rectangle())
     }
 }
 
