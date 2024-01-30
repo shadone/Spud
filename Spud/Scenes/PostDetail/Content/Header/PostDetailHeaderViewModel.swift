@@ -150,27 +150,33 @@ class PostDetailHeaderViewModel {
             .eraseToAnyPublisher()
     }
 
-    var linkPreviewThumbnail: AnyPublisher<(URL, ImageLoadingState)?, Never> {
+    var linkPreviewThumbnail: AnyPublisher<(URL, ImageLoadingState?)?, Never> {
         postContentType
             .combineLatest(
                 postInfo.publisher(for: \.thumbnailUrl),
                 postInfo.publisher(for: \.url)
             )
-            .flatMap { tuple -> AnyPublisher<(URL, ImageLoadingState)?, Never> in
+            .flatMap { tuple -> AnyPublisher<(URL, ImageLoadingState?)?, Never> in
                 let postContentType = tuple.0
                 let thumbnailUrl = tuple.1
                 let url = tuple.2
 
-                guard let thumbnailUrl, let url else {
-                    return .just(nil)
-                }
-
                 switch postContentType {
                 case .externalLink:
+                    guard let url else {
+                        logger.assertionFailure("external link post without the link")
+                        return .just(nil)
+                    }
+
+                    guard let thumbnailUrl else {
+                        return .just((url, nil))
+                    }
+
                     return self.imageService
                         .fetch(thumbnailUrl)
                         .map { (url, $0) }
                         .eraseToAnyPublisher()
+
                 case .image, .textOrEmpty:
                     return .just(nil)
                 }
