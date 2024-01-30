@@ -9,6 +9,7 @@ import CoreData
 import Foundation
 import LemmyKit
 import OSLog
+import SpudUtilKit
 
 private let logger = Logger(.dataStore)
 
@@ -35,13 +36,21 @@ public final class LemmyFeed: NSManagedObject {
     /// This is used to deduplicate the feed.
     @NSManaged public var postActivityIds: Set<URL>
 
-    // MARK: Frontpage
-
     /// See ``sortType``.
     @NSManaged public var sortTypeRawValue: String
 
+    // MARK: Frontpage
+
     /// See ``frontpageListingType``.
     @NSManaged public var frontpageListingTypeRawValue: String?
+
+    // MARK: Community
+
+    /// The name of the community this feed represents.
+    @NSManaged public var communityName: String?
+
+    /// See ``communityInstanceActorId``
+    @NSManaged public var communityInstanceActorIdRawValue: String?
 
     // MARK: Meta properties
 
@@ -69,7 +78,8 @@ public final class LemmyFeed: NSManagedObject {
 }
 
 public extension LemmyFeed {
-    /// Sort order for the feed.
+    /// Sort order for the feed. Applies to either ``frontpageListingType`` or ``communityName`` depending
+    /// on which one is set.
     var sortType: SortType {
         get {
             guard let value = SortType(rawValue: sortTypeRawValue) else {
@@ -102,6 +112,30 @@ public extension LemmyFeed {
             frontpageListingTypeRawValue = newValue?.rawValue
         }
     }
+
+    /// The instance the ``communityName`` belongs to.
+    var communityInstanceActorId: InstanceActorId? {
+        get {
+            guard let rawValue = communityInstanceActorIdRawValue else {
+                return nil
+            }
+
+            guard let url = URL(string: rawValue) else {
+                logger.assertionFailure("Failed to parse url '\(rawValue)'")
+                return nil
+            }
+
+            guard let value = InstanceActorId(from: url) else {
+                logger.assertionFailure("Faield to parse instance actor id '\(rawValue)'")
+                return nil
+            }
+
+            return value
+        }
+        set {
+            communityInstanceActorIdRawValue = newValue?.actorId
+        }
+    }
 }
 
 extension LemmyFeed {
@@ -114,6 +148,14 @@ extension LemmyFeed {
         case let .frontpage(listingType, sortType):
             self.init(
                 listingType: listingType,
+                sortType: sortType,
+                in: context
+            )
+
+        case let .community(communityName, instance, sortType):
+            self.init(
+                communityName: communityName,
+                instanceActorId: instance,
                 sortType: sortType,
                 in: context
             )
@@ -142,6 +184,24 @@ extension LemmyFeed {
     }
 
     convenience init(
+        communityName: String,
+        instanceActorId: InstanceActorId,
+        sortType: SortType,
+        in context: NSManagedObjectContext
+    ) {
+        self.init(entity: LemmyFeed.entity(), insertInto: context)
+
+        id = UUID().uuidString
+        createdAt = Date()
+
+        postActivityIds = .init()
+
+        self.communityName = communityName
+        communityInstanceActorId = instanceActorId
+        self.sortType = sortType
+    }
+
+    convenience init(
         duplicateOf originalFeed: LemmyFeed,
         sortType: SortType?,
         in context: NSManagedObjectContext
@@ -157,5 +217,8 @@ extension LemmyFeed {
 
         frontpageListingTypeRawValue = originalFeed.frontpageListingTypeRawValue
         sortTypeRawValue = sortType?.rawValue ?? originalFeed.sortTypeRawValue
+
+        communityName = originalFeed.communityName
+        communityInstanceActorIdRawValue = originalFeed.communityInstanceActorIdRawValue
     }
 }

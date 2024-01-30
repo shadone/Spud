@@ -119,16 +119,16 @@ struct SubscriptionsView<ViewModel>: View
             if isSignedIn {
                 SubscriptionsListingView(listingType: .subscribed)
                     .onTapGesture {
-                        viewModel.inputs.loadFeed(listingType: .subscribed)
+                        viewModel.inputs.loadFeed(.listing(.subscribed))
                     }
             }
             SubscriptionsListingView(listingType: .local)
                 .onTapGesture {
-                    viewModel.inputs.loadFeed(listingType: .local)
+                    viewModel.inputs.loadFeed(.listing(.local))
                 }
             SubscriptionsListingView(listingType: .all)
                 .onTapGesture {
-                    viewModel.inputs.loadFeed(listingType: .all)
+                    viewModel.inputs.loadFeed(.listing(.all))
                 }
 
             if !followCommunities.isEmpty {
@@ -136,6 +136,9 @@ struct SubscriptionsView<ViewModel>: View
                     ForEach(followCommunities) { community in
                         if let communityInfo = community.communityInfo {
                             SubscriptionsCommunityView(community: communityInfo.name)
+                                .onTapGesture {
+                                    viewModel.inputs.loadFeed(.community(communityInfo))
+                                }
                         }
                     }
                 }
@@ -162,7 +165,7 @@ struct SubscriptionsView<ViewModel>: View
 
         // MARK: Inputs
 
-        func loadFeed(listingType: ListingType) { }
+        func loadFeed(_ value: SubscriptionsViewItemType) { }
 
         // MARK: Outputs
 

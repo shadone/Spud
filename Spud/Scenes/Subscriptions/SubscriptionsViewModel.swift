@@ -10,7 +10,7 @@ import LemmyKit
 import SpudDataKit
 
 protocol SubscriptionsViewModelInputs {
-    func loadFeed(listingType: ListingType)
+    func loadFeed(_ value: SubscriptionsViewItemType)
 }
 
 protocol SubscriptionsViewModelOutputs {
@@ -60,10 +60,22 @@ class SubscriptionsViewModel:
             .eraseToAnyPublisher()
 
         feedRequested = loadFeedSubject
-            .map { listingType in
-                dependencies.accountService
-                    .lemmyService(for: account)
-                    .createFeed(listingType: listingType)
+            .map { itemType in
+                switch itemType {
+                case let .listing(listingType):
+                    dependencies.accountService
+                        .lemmyService(for: account)
+                        .createFeed(listingType: listingType)
+
+                case let .community(communityInfo):
+                    dependencies.accountService
+                        .lemmyService(for: account)
+                        .createFeed(.community(
+                            communityName: communityInfo.name,
+                            instance: communityInfo.instanceActorId,
+                            sortType: .active
+                        ))
+                }
             }
             .eraseToAnyPublisher()
 
@@ -102,8 +114,8 @@ class SubscriptionsViewModel:
 
     // MARK: Inputs
 
-    var loadFeedSubject: PassthroughSubject<ListingType, Never> = .init()
-    func loadFeed(listingType: ListingType) {
-        loadFeedSubject.send(listingType)
+    var loadFeedSubject: PassthroughSubject<SubscriptionsViewItemType, Never> = .init()
+    func loadFeed(_ value: SubscriptionsViewItemType) {
+        loadFeedSubject.send(value)
     }
 }
