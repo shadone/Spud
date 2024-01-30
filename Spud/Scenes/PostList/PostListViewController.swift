@@ -324,7 +324,11 @@ class PostListViewController: UIViewController {
 
         let feed = viewModel.outputs.feed.value
 
-        intent.feedType = .init(from: feed.feedType)
+        guard let feedType = IntentFeedType(from: feed.feedType) else {
+            return
+        }
+
+        intent.feedType = feedType
         intent.sortType = .init(from: feed.sortType)
 
         logger.debug("Donating intent \(intent, privacy: .public)")

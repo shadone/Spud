@@ -83,6 +83,8 @@
         <relationship name="community" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Community" inverseName="communityInfo" inverseEntity="Community"/>
     </entity>
     <entity name="Feed" representedClassName="LemmyFeed" syncable="YES">
+        <attribute name="communityInstanceActorIdRawValue" optional="YES" attributeType="String"/>
+        <attribute name="communityName" optional="YES" attributeType="String"/>
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="frontpageListingTypeRawValue" optional="YES" attributeType="String"/>
         <attribute name="id" attributeType="String"/>

@@ -10,7 +10,7 @@ import LemmyKit
 import SpudDataKit
 
 extension IntentFeedType {
-    init(from feedType: FeedType) {
+    init?(from feedType: FeedType) {
         switch feedType {
         case let .frontpage(listingType, _):
             switch listingType {
@@ -23,6 +23,10 @@ extension IntentFeedType {
             case .moderatorView:
                 self = .moderatorView
             }
+
+        case .community:
+            // TODO: implement browsing community intent
+            return nil
         }
     }
 }

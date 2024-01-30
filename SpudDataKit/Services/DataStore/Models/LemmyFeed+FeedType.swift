@@ -18,8 +18,10 @@ public extension LemmyFeed {
     var feedType: FeedType {
         guard
             let value = FeedType(
+                sortType: sortType,
                 frontpageListingType: frontpageListingType,
-                sortType: sortType
+                communityName: communityName,
+                communityInstanceActorId: communityInstanceActorId
             )
         else {
             logger.assertionFailure("Bad feed with id '\(id)'")

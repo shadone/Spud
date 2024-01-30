@@ -9,6 +9,7 @@ import CoreData
 import Foundation
 import LemmyKit
 import OSLog
+import SpudUtilKit
 
 @objc(LemmyCommunityInfo)
 public final class LemmyCommunityInfo: NSManagedObject {
@@ -82,6 +83,14 @@ extension LemmyCommunityInfo {
 }
 
 public extension LemmyCommunityInfo {
+    /// Returns the actor id for the community's home instance.
+    ///
+    /// E.g. `https://lemmit.online/`
+    var instanceActorId: InstanceActorId {
+        // TODO: is this ok? should community's home site be determined Community.instance_id instead?
+        InstanceActorId(from: actorId) ?? .invalid
+    }
+
     /// Returns the home instance of the community.
     var hostnameFromActorId: String {
         // TODO: is this ok? should community's home site be determined Community.instance_id instead?

@@ -251,6 +251,8 @@ public class LemmyService: LemmyServiceType {
         return object(with: feedId, type: LemmyFeed.self)
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { feed -> AnyPublisher<Void, LemmyServiceError> in
+                let request: GetPosts.Request
+
                 switch feed.feedType {
                 case let .frontpage(listingType, sortType):
                     logger.debug("""
@@ -260,37 +262,51 @@ public class LemmyService: LemmyServiceType {
                         sortType=\(sortType.rawValue, privacy: .public) \
                         page=\(pageNumber.map { "\($0)" } ?? "nil", privacy: .public)
                         """)
-                    let request = GetPosts.Request(
+                    request = GetPosts.Request(
                         type_: listingType,
                         sort: sortType,
                         page: pageNumber
                     )
-                    return self.api.getPosts(request)
-                        .receive(on: self.backgroundScheduler)
-                        .map { response in
-                            logger.debug("""
-                                Fetch feed complete with \(response.posts.count, privacy: .public) posts. \
-                                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-                                feedId=\(feed.id, privacy: .public)
-                                """)
 
-                            feed.append(contentsOf: response.posts)
-
-                            self.saveIfNeeded()
-
-                            return ()
-                        }
-                        .mapError { error in
-                            logger.error("""
-                                Fetch feed failed. \
-                                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
-                                feedId=\(feed.id) \
-                                \(String(describing: error), privacy: .public)
-                                """)
-                            return .apiError(error)
-                        }
-                        .eraseToAnyPublisher()
+                case let .community(communityName, instance, sortType):
+                    logger.debug("""
+                        Fetch feed for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                        feedId=\(feed.id, privacy: .public) \
+                        communityName=\(communityName, privacy: .public) \
+                        instance=\(instance.debugDescription, privacy: .public) \
+                        sortType=\(sortType.rawValue, privacy: .public) \
+                        page=\(pageNumber.map { "\($0)" } ?? "nil", privacy: .public)
+                        """)
+                    request = GetPosts.Request(
+                        sort: sortType,
+                        community_name: "\(communityName)@\(instance.hostWithPort)"
+                    )
                 }
+                return self.api.getPosts(request)
+                    .receive(on: self.backgroundScheduler)
+                    .map { response in
+                        logger.debug("""
+                            Fetch feed complete with \(response.posts.count, privacy: .public) posts. \
+                            account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                            feedId=\(feed.id, privacy: .public)
+                            """)
+
+                        feed.append(contentsOf: response.posts)
+
+                        self.saveIfNeeded()
+
+                        return ()
+                    }
+                    .mapError { error in
+                        logger.error("""
+                            Fetch feed failed. \
+                            account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                            feedId=\(feed.id) \
+                            \(String(describing: error), privacy: .public)
+                            """)
+                        return .apiError(error)
+                    }
+                    .eraseToAnyPublisher()
             }
             .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()

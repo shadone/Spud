@@ -78,6 +78,9 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
                     case .moderatorView:
                         return "Moderator view"
                     }
+
+                case let .community(communityName, instance, _):
+                    return "\(communityName)@\(instance.hostWithPort)"
                 }
             }
             .eraseToAnyPublisher()
