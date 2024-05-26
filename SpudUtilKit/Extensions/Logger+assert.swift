@@ -10,7 +10,7 @@ import OSLog
 public extension Logger {
     func assert(
         _ condition: @autoclosure () -> Bool,
-        _ message: @autoclosure @escaping () -> String,
+        _ message: @autoclosure () -> String,
         file: StaticString = #fileID,
         line: UInt = #line
     ) {
@@ -24,7 +24,7 @@ public extension Logger {
     }
 
     func assertionFailure(
-        _ message: @autoclosure @escaping () -> String = String(),
+        _ message: @autoclosure () -> String = String(),
         file: StaticString = #fileID,
         line: UInt = #line
     ) {
