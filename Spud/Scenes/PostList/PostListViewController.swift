@@ -21,8 +21,8 @@ class PostListViewController: UIViewController {
         HasAppearanceService &
         HasDataStore
     typealias NestedDependencies =
-        PostListPostViewModel.Dependencies &
-        PostDetailViewController.Dependencies
+        PostDetailViewController.Dependencies &
+        PostListPostViewModel.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
@@ -238,7 +238,7 @@ class PostListViewController: UIViewController {
     }
 
     private func updateSelectedSortTypeMenu() {
-        sortTypeMenuActionsBySortType.forEach { _, value in
+        for (_, value) in sortTypeMenuActionsBySortType {
             value.state = .off
         }
 

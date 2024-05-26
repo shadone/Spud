@@ -27,7 +27,7 @@ extension LemmyFeed {
         // Split all incoming postViews into those that are new and those that are duplicates.
         var newPostViews: [PostView] = []
         var existingPostViews: [PostView] = []
-        postViews.forEach { postView in
+        for postView in postViews {
             if newActivityIds.contains(postView.post.ap_id) {
                 newPostViews.append(postView)
             } else {
@@ -47,7 +47,7 @@ extension LemmyFeed {
         addToPages(page)
 
         // Update existing posts with latest PostView info that we just got.
-        existingPostViews.forEach { postView in
+        for postView in existingPostViews {
             _ = LemmyPost.upsert(postView, account: account, in: context)
         }
     }

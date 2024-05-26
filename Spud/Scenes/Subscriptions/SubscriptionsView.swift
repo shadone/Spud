@@ -113,7 +113,7 @@ struct SubscriptionsView<ViewModel>: View
 {
     @StateObject var viewModel: ViewModel
 
-    @State var isSignedIn: Bool = false
+    @State var isSignedIn = false
     @State var followCommunities: [LemmyCommunity] = []
 
     var body: some View {

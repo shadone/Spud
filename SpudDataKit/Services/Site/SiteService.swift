@@ -82,7 +82,7 @@ public class SiteService: SiteServiceType {
                 !existingInstanceActorIds.contains($0)
             }
 
-        instancesActorIdsToAdd.forEach { actorId in
+        for actorId in instancesActorIdsToAdd {
             let instance = Instance(
                 actorId: actorId,
                 in: dataStore.mainContext
@@ -175,7 +175,7 @@ public class SiteService: SiteServiceType {
                 !existingNormalizedInstanceUrls.contains($0)
             }
 
-        instancesToAdd.forEach { instanceActorId in
+        for instanceActorId in instancesToAdd {
             let instance = Instance(
                 actorId: instanceActorId,
                 in: dataStore.mainContext

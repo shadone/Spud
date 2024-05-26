@@ -99,7 +99,7 @@ enum LemmyCommentImportHelper {
         // TODO: we could optimize for memory here and store index into `comments` instead.
         var commentViewById: [CommentId: CommentView] = [:]
         let root = CommentNode(id: 0)
-        comments.forEach { commentView in
+        for commentView in comments {
             let commentId = commentView.comment.id
             let node = CommentNode(id: commentId)
 
@@ -109,7 +109,7 @@ enum LemmyCommentImportHelper {
             let path = CommentPath(path: commentView.comment.path)
             guard let parentCommentId = path.parent else {
                 root.children.append(node)
-                return
+                continue
             }
 
             let parentNode = commentNodeById[parentCommentId] ?? CommentNode(id: parentCommentId)
@@ -122,11 +122,11 @@ enum LemmyCommentImportHelper {
         func visit(_ commentNode: CommentNode) {
             let commentView = commentViewById[commentNode.id]!
             orderedComments.append(commentView)
-            commentNode.children.forEach {
-                visit($0)
+            for child in commentNode.children {
+                visit(child)
             }
         }
-        root.children.forEach { commentNode in
+        for commentNode in root.children {
             visit(commentNode)
         }
 

@@ -49,7 +49,7 @@ extension LemmyPost {
 
         var elementIndex: Int64 = 0
 
-        orderedComments.forEach { commentView in
+        for commentView in orderedComments {
             let commentPath = CommentPath(path: commentView.comment.path)
 
             if let newComment = LemmyComment.upsert(commentView, post: self, in: context) {
