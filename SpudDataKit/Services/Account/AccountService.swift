@@ -207,10 +207,9 @@ public class AccountService: AccountServiceType {
 
         logger.info("Setting default account \(accountToMakeDefault.identifierForLogging, privacy: .public)")
 
-        allAccounts(includeSignedOutAccount: true, in: dataStore.mainContext)
-            .forEach {
-                $0.isDefaultAccount = false
-            }
+        for account in allAccounts(includeSignedOutAccount: true, in: dataStore.mainContext) {
+            account.isDefaultAccount = false
+        }
 
         accountToMakeDefault.isDefaultAccount = true
 

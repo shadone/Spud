@@ -41,8 +41,8 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
         HasAccountService &
         HasAlertService
     typealias NestedDependencies =
-        PostListPostViewModel.Dependencies &
-        PostDetailViewController.Dependencies
+        PostDetailViewController.Dependencies &
+        PostListPostViewModel.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 

@@ -79,7 +79,7 @@ class LinkLabel: UILabel {
     /// Text attributes displayed when a link has been highlighted
     var highlightedLinkTextAttributes: [NSAttributedString.Key: AnyObject] {
         didSet {
-            self.setupAttributes()
+            setupAttributes()
         }
     }
 
@@ -98,7 +98,7 @@ class LinkLabel: UILabel {
             var linkAttributes: [LinkAttribute] = []
 
             newValue.enumerateAttributes(in: range, options: [], using: { attributes, range, _ in
-                attributes.forEach { key, value in
+                for (key, value) in attributes {
                     switch key {
                     case .link:
                         let link: LinkAttribute.Link
@@ -113,7 +113,7 @@ class LinkLabel: UILabel {
                             }
                         } else {
                             logger.assertionFailure("Got link that is neither URL or a String: \(type(of: value)): \(value)")
-                            return
+                            continue
                         }
 
                         let linkAttribute = LinkAttribute(
@@ -156,8 +156,8 @@ class LinkLabel: UILabel {
 
     private var highlightedLinkAttribute: LinkAttribute? {
         didSet {
-            if self.highlightedLinkAttribute !== oldValue {
-                self.setupAttributes()
+            if highlightedLinkAttribute !== oldValue {
+                setupAttributes()
             }
         }
     }

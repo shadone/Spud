@@ -16,8 +16,8 @@ class PersonOrLoadingViewController: UIViewController {
         HasDataStore &
         HasSiteService
     typealias NestedDependencies =
-        PersonViewController.Dependencies &
-        PersonLoadingViewController.Dependencies
+        PersonLoadingViewController.Dependencies &
+        PersonViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 

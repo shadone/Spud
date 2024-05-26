@@ -13,8 +13,8 @@ class MainWindow: UIWindow {
     typealias OwnDependencies =
         HasAccountService
     typealias NestedDependencies =
-        MainWindowSplitViewController.Dependencies &
         AccountViewController.Dependencies &
+        MainWindowSplitViewController.Dependencies &
         PreferencesViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
