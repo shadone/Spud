@@ -6,7 +6,7 @@
       "location" : "https://github.com/shadone/Down",
       "state" : {
         "branch" : "main",
-        "revision" : "fc2b73e163bf71748f237e53106939687f419dbc"
+        "revision" : "364ea4f0f97c9f1c0e676db0e6ed49f3d5788e08"
       }
     },
     {
@@ -33,7 +33,7 @@
       "location" : "https://github.com/Subito-it/SBTUITestTunnel",
       "state" : {
         "branch" : "master",
-        "revision" : "a1d7e2fce724d09793c7a52ba12c3a98eee89071"
+        "revision" : "2409cb81f3c8716e52df5876e348d5e326e600a3"
       }
     },
     {
@@ -41,8 +41,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/sersoft-gmbh/semver",
       "state" : {
-        "revision" : "405806381f52ea32fe4406adf066ed58ee0b9d25",
-        "version" : "3.6.0"
+        "revision" : "561b74ae27cd554ffd9ce065285ddcd8fb13c774",
+        "version" : "3.8.0"
+      }
+    },
+    {
+      "identity" : "swift-argument-parser",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-argument-parser",
+      "state" : {
+        "revision" : "0fbc8848e389af3bb55c182bc19ca9d5dc2f255b",
+        "version" : "1.4.0"
       }
     },
     {
@@ -51,7 +60,7 @@
       "location" : "https://github.com/apple/swift-cmark.git",
       "state" : {
         "branch" : "gfm",
-        "revision" : "3bc2f3e25df0cecc5dc269f7ccae65d0f386f06a"
+        "revision" : "2c47322cb32cbed555f13bf5cbfaa488cc30a785"
       }
     },
     {
@@ -60,7 +69,7 @@
       "location" : "https://github.com/apple/swift-markdown.git",
       "state" : {
         "branch" : "main",
-        "revision" : "c211079c200ce2c5f68160bf75ded005b1c945f1"
+        "revision" : "365bf2d61d5fbca5cbd3b359b203ef6a69d9381f"
       }
     },
     {
@@ -68,8 +77,17 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-snapshot-testing",
       "state" : {
-        "revision" : "dc46eeb3928a75390651fac6c1ef7f93ad59a73b",
-        "version" : "1.11.1"
+        "revision" : "625ccca8570773dd84a34ee51a81aa2bc5a4f97a",
+        "version" : "1.16.0"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/apple/swift-syntax",
+      "state" : {
+        "revision" : "303e5c5c36d6a558407d364878df131c3546fad8",
+        "version" : "510.0.2"
       }
     }
   ],
