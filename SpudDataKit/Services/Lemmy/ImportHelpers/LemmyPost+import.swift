@@ -13,7 +13,7 @@ private let logger = Logger(.lemmyService)
 
 extension LemmyPost {
     convenience init(
-        _ model: PostView,
+        _ model: Components.Schemas.PostView,
         account: LemmyAccount,
         in context: NSManagedObjectContext
     ) {
@@ -34,8 +34,8 @@ extension LemmyPost {
     }
 
     private func createPostInfo(
-        creator: Person,
-        community: Community,
+        creator: Components.Schemas.Person,
+        community: Components.Schemas.Community,
         in context: NSManagedObjectContext
     ) -> LemmyPostInfo {
         let creator = LemmyPerson.upsert(
@@ -61,7 +61,7 @@ extension LemmyPost {
         return postInfo
     }
 
-    func set(from model: PostView) {
+    func set(from model: Components.Schemas.PostView) {
         guard let context = managedObjectContext else {
             logger.assertionFailure()
             return
@@ -80,7 +80,7 @@ extension LemmyPost {
     }
 
     static func upsert(
-        _ model: PostView,
+        _ model: Components.Schemas.PostView,
         account: LemmyAccount,
         in context: NSManagedObjectContext
     ) -> LemmyPost {

@@ -36,7 +36,7 @@ class PostDetailOrEmptyViewController: UIViewController {
         viewModel.inputs.displayEmpty()
     }
 
-    func startLoadingPost(postId: PostId) {
+    func startLoadingPost(postId: Components.Schemas.PostID) {
         viewModel.inputs.startLoadingPost(postId: postId)
     }
 
@@ -47,7 +47,7 @@ class PostDetailOrEmptyViewController: UIViewController {
     private enum State {
         case empty
         case post(LemmyPostInfo)
-        case load(postId: PostId)
+        case load(postId: Components.Schemas.PostID)
     }
 
     private var state: State {

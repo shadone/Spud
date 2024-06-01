@@ -19,7 +19,7 @@ public final class LemmyCommentElement: NSManagedObject {
     @nonobjc
     public class func fetchForDeletion(
         postObjectId: NSManagedObjectID,
-        sortType: CommentSortType
+        sortType: Components.Schemas.CommentSortType
     ) -> NSFetchRequest<LemmyCommentElement> {
         let request = NSFetchRequest<LemmyCommentElement>(entityName: "CommentElement")
         request.predicate = NSPredicate(
@@ -55,9 +55,9 @@ public final class LemmyCommentElement: NSManagedObject {
 
 public extension LemmyCommentElement {
     /// Comment sort order.
-    var sortType: CommentSortType {
+    var sortType: Components.Schemas.CommentSortType {
         get {
-            CommentSortType(rawValue: sortTypeRawValue) ?? .hot
+            Components.Schemas.CommentSortType(rawValue: sortTypeRawValue) ?? .Hot
         }
         set {
             sortTypeRawValue = newValue.rawValue

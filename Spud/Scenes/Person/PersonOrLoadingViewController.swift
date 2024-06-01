@@ -49,7 +49,7 @@ class PersonOrLoadingViewController: UIViewController {
     // MARK: - Functions
 
     init(
-        personId: PersonId,
+        personId: Components.Schemas.PersonID,
         instance: InstanceActorId,
         account: LemmyAccount,
         dependencies: Dependencies

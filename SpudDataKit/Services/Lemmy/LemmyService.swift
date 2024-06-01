@@ -25,14 +25,17 @@ public protocol LemmyServiceType {
     func createFeed() -> LemmyFeed
 
     /// Creates feed for the given ``listingType`` with default sort type parameters for the account.
-    func createFeed(listingType: ListingType) -> LemmyFeed
+    func createFeed(listingType: Components.Schemas.ListingType) -> LemmyFeed
 
     /// Creates feed with the explicitly given feed parameters.
     func createFeed(_ type: FeedType) -> LemmyFeed
 
     func createFeed(duplicateOf feed: LemmyFeed) -> LemmyFeed
 
-    func createFeed(duplicateOf feed: LemmyFeed, sortType: SortType?) -> LemmyFeed
+    func createFeed(
+        duplicateOf feed: LemmyFeed,
+        sortType: Components.Schemas.SortType?
+    ) -> LemmyFeed
 
     func fetchFeed(
         feedId: NSManagedObjectID,
@@ -41,7 +44,7 @@ public protocol LemmyServiceType {
 
     func fetchComments(
         postId: NSManagedObjectID,
-        sortType: CommentSortType
+        sortType: Components.Schemas.CommentSortType
     ) -> AnyPublisher<Void, LemmyServiceError>
 
     func fetchSiteInfo() -> AnyPublisher<Void, LemmyServiceError>
@@ -64,9 +67,9 @@ public protocol LemmyServiceType {
         postId: NSManagedObjectID
     ) -> AnyPublisher<Void, LemmyServiceError>
 
-    func getOrCreate(postId: PostId) -> LemmyPost
+    func getOrCreate(postId: Components.Schemas.PostID) -> LemmyPost
 
-    func getOrCreate(personId: PersonId) -> LemmyPerson
+    func getOrCreate(personId: Components.Schemas.PersonID) -> LemmyPerson
 
     func markAsRead(
         postId: NSManagedObjectID
@@ -160,15 +163,19 @@ public class LemmyService: LemmyServiceType {
         }
     }
 
-    private func defaultListingType(for account: LemmyAccount) -> ListingType {
+    private func defaultListingType(
+        for account: LemmyAccount
+    ) -> Components.Schemas.ListingType {
         lazy var siteListingType = accountInMainContext.site.siteInfo?.defaultPostListingType
         let userListingType = accountInMainContext.accountInfo?.defaultListingType
-        return userListingType ?? siteListingType ?? .all
+        return userListingType ?? siteListingType ?? .All
     }
 
-    private func defaultSortType(for account: LemmyAccount) -> SortType {
+    private func defaultSortType(
+        for account: LemmyAccount
+    ) -> Components.Schemas.SortType {
         let userSortType = accountInMainContext.accountInfo?.defaultSortType
-        return userSortType ?? .hot
+        return userSortType ?? .Hot
     }
 
     public func createFeed() -> LemmyFeed {
@@ -190,7 +197,9 @@ public class LemmyService: LemmyServiceType {
         return newFeed
     }
 
-    public func createFeed(listingType: ListingType) -> LemmyFeed {
+    public func createFeed(
+        listingType: Components.Schemas.ListingType
+    ) -> LemmyFeed {
         assert(Thread.current.isMainThread)
 
         let accountInMainContext = accountInMainContext
@@ -227,7 +236,7 @@ public class LemmyService: LemmyServiceType {
 
     public func createFeed(
         duplicateOf feed: LemmyFeed,
-        sortType: SortType?
+        sortType: Components.Schemas.SortType?
     ) -> LemmyFeed {
         assert(Thread.current.isMainThread)
 
@@ -251,7 +260,7 @@ public class LemmyService: LemmyServiceType {
         return object(with: feedId, type: LemmyFeed.self)
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { feed -> AnyPublisher<Void, LemmyServiceError> in
-                let request: GetPosts.Request
+                let publisher: AnyPublisher<Components.Schemas.GetPostsResponse, LemmyApiError>
 
                 switch feed.feedType {
                 case let .frontpage(listingType, sortType):
@@ -262,8 +271,8 @@ public class LemmyService: LemmyServiceType {
                         sortType=\(sortType.rawValue, privacy: .public) \
                         page=\(pageNumber.map { "\($0)" } ?? "nil", privacy: .public)
                         """)
-                    request = GetPosts.Request(
-                        type_: listingType,
+                    publisher = self.api.getPosts(
+                        type: listingType,
                         sort: sortType,
                         page: pageNumber
                     )
@@ -277,12 +286,12 @@ public class LemmyService: LemmyServiceType {
                         sortType=\(sortType.rawValue, privacy: .public) \
                         page=\(pageNumber.map { "\($0)" } ?? "nil", privacy: .public)
                         """)
-                    request = GetPosts.Request(
-                        sort: sortType,
-                        community_name: "\(communityName)@\(instance.hostWithPort)"
+                    publisher = self.api.getPosts(
+                        community: .name("\(communityName)@\(instance.hostWithPort)"),
+                        sort: sortType
                     )
                 }
-                return self.api.getPosts(request)
+                return publisher
                     .receive(on: self.backgroundScheduler)
                     .map { response in
                         logger.debug("""
@@ -314,7 +323,7 @@ public class LemmyService: LemmyServiceType {
 
     public func fetchComments(
         postId: NSManagedObjectID,
-        sortType: CommentSortType
+        sortType: Components.Schemas.CommentSortType
     ) -> AnyPublisher<Void, LemmyServiceError> {
         assert(Thread.current.isMainThread)
 
@@ -326,36 +335,35 @@ public class LemmyService: LemmyServiceType {
                     post=\(post.identifierForLogging, privacy: .public) \
                     sortType=\(sortType.rawValue, privacy: .public)
                     """)
-                let request = GetComments.Request(
+                return self.api.getComments(
+                    postID: post.postId,
                     sort: sortType,
-                    max_depth: 8,
-                    post_id: post.postId
+                    maxDepth: 8
                 )
-                return self.api.getComments(request)
-                    .receive(on: self.backgroundScheduler)
-                    .handleEvents(receiveOutput: { response in
-                        logger.debug("""
-                            Fetch comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-                            complete with \(response.comments.count, privacy: .public) comments
-                            """)
-                        post.upsert(comments: response.comments, for: sortType)
-                    }, receiveCompletion: { completion in
-                        switch completion {
-                        case .failure:
-                            break
-                        case .finished:
-                            self.saveIfNeeded()
-                        }
-                    })
-                    .mapError { error in
-                        logger.error("""
-                            Fetch comments failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
-                            \(String(describing: error), privacy: .public)
-                            """)
-                        return .apiError(error)
+                .receive(on: self.backgroundScheduler)
+                .handleEvents(receiveOutput: { response in
+                    logger.debug("""
+                        Fetch comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                        complete with \(response.comments.count, privacy: .public) comments
+                        """)
+                    post.upsert(comments: response.comments, for: sortType)
+                }, receiveCompletion: { completion in
+                    switch completion {
+                    case .failure:
+                        break
+                    case .finished:
+                        self.saveIfNeeded()
                     }
-                    .map { _ in () }
-                    .eraseToAnyPublisher()
+                })
+                .mapError { error in
+                    logger.error("""
+                        Fetch comments failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                        \(String(describing: error), privacy: .public)
+                        """)
+                    return .apiError(error)
+                }
+                .map { _ in () }
+                .eraseToAnyPublisher()
             }
             .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
@@ -368,8 +376,7 @@ public class LemmyService: LemmyServiceType {
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { account -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("Fetch site for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
-                let request = GetSite.Request()
-                return self.api.getSite(request)
+                return self.api.getSite()
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
                         logger.debug("Fetch site complete. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
@@ -406,10 +413,7 @@ public class LemmyService: LemmyServiceType {
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { person -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("Fetch person info for person=\(person.identifierForLogging, privacy: .public)")
-                let request = GetPersonDetails.Request(
-                    person_id: person.personId
-                )
-                return self.api.getPersonDetails(request)
+                return self.api.getPersonDetails(personId: person.personId)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
                         logger.debug("Fetch person info complete. person=\(person.identifierForLogging, privacy: .public)")
@@ -472,19 +476,15 @@ public class LemmyService: LemmyServiceType {
 
                 // Set the vote status to the new value without waiting for confirmation from the server.
                 switch effectiveAction {
-                case .upvote:
+                case .liked:
                     postInfo.voteStatus = .up
-                case .downvote:
+                case .disliked:
                     postInfo.voteStatus = .down
-                case .unvote:
+                case .neutral:
                     postInfo.voteStatus = .neutral
                 }
 
-                let request = CreatePostLike.Request(
-                    post_id: post.postId,
-                    score: effectiveAction
-                )
-                return self.api.createPostLike(request)
+                return self.api.likePost(post.postId, status: effectiveAction)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
                         post.set(from: response.post_view)
@@ -531,19 +531,15 @@ public class LemmyService: LemmyServiceType {
 
                 // Set the vote status to the new value without waiting for confirmation from the server.
                 switch effectiveAction {
-                case .upvote:
+                case .liked:
                     comment.voteStatus = .up
-                case .downvote:
+                case .disliked:
                     comment.voteStatus = .down
-                case .unvote:
+                case .neutral:
                     comment.voteStatus = .neutral
                 }
 
-                let request = CreateCommentLike.Request(
-                    comment_id: comment.localCommentId,
-                    score: effectiveAction
-                )
-                return self.api.createCommentLike(request)
+                return self.api.likeComment(comment.localCommentId, status: effectiveAction)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
                         comment.set(from: response.comment_view)
@@ -574,10 +570,7 @@ public class LemmyService: LemmyServiceType {
             .setFailureType(to: LemmyServiceError.self)
             .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("Fetch post. post=\(post.identifierForLogging, privacy: .public)")
-                let request = GetPost.Request(
-                    id: post.postId
-                )
-                return self.api.getPost(request)
+                return self.api.getPost(id: post.postId)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
                         logger.debug("Fetch post complete. post=\(post.identifierForLogging, privacy: .public)")
@@ -611,7 +604,7 @@ public class LemmyService: LemmyServiceType {
             .eraseToAnyPublisher()
     }
 
-    public func getOrCreate(postId: PostId) -> LemmyPost {
+    public func getOrCreate(postId: Components.Schemas.PostID) -> LemmyPost {
         assert(Thread.current.isMainThread)
 
         let mainContext = dataStore.mainContext
@@ -640,7 +633,7 @@ public class LemmyService: LemmyServiceType {
         }
     }
 
-    public func getOrCreate(personId: PersonId) -> LemmyPerson {
+    public func getOrCreate(personId: Components.Schemas.PersonID) -> LemmyPerson {
         assert(Thread.current.isMainThread)
 
         let mainContext = dataStore.mainContext
@@ -683,12 +676,7 @@ public class LemmyService: LemmyServiceType {
             .flatMap { post -> AnyPublisher<Void, LemmyServiceError> in
                 logger.debug("Marking post as read. post=\(post.identifierForLogging, privacy: .public)")
 
-                let request = MarkPostAsRead.Request(
-                    post_id: post.postId,
-                    post_ids: nil,
-                    read: true
-                )
-                return self.api.markPostAsRead(request)
+                return self.api.markPostAsRead(postIds: [post.postId], read: true)
                     .receive(on: self.backgroundScheduler)
                     .handleEvents(receiveOutput: { response in
                         logger.debug("Mark post as read complete. post=\(post.identifierForLogging, privacy: .public); success=\(response.success)")

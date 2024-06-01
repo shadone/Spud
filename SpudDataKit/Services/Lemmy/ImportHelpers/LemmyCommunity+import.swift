@@ -13,7 +13,7 @@ private let logger = Logger(.lemmyService)
 
 extension LemmyCommunity {
     convenience init(
-        _ model: Community,
+        _ model: Components.Schemas.Community,
         account: LemmyAccount,
         in context: NSManagedObjectContext
     ) {
@@ -47,7 +47,7 @@ extension LemmyCommunity {
     ///
     /// This is generally called when updating community from a list of posts that only has partial data - i.e. ``Community`` but not
     /// full ``CommunityView``.
-    func set(from model: Community) {
+    func set(from model: Components.Schemas.Community) {
         guard let context = managedObjectContext else {
             logger.assertionFailure()
             return
@@ -60,7 +60,7 @@ extension LemmyCommunity {
     }
 
     /// Updates community info from the full ``CommunityView`` object.
-    func set(from model: CommunityView) {
+    func set(from model: Components.Schemas.CommunityView) {
         guard let context = managedObjectContext else {
             logger.assertionFailure()
             return
@@ -75,7 +75,7 @@ extension LemmyCommunity {
     }
 
     static func upsert(
-        _ model: Community,
+        _ model: Components.Schemas.Community,
         account: LemmyAccount,
         in context: NSManagedObjectContext
     ) -> LemmyCommunity {

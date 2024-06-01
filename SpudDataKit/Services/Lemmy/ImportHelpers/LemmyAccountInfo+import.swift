@@ -10,12 +10,12 @@ import LemmyKit
 import OSLog
 
 extension LemmyAccountInfo {
-    func set(from model: LocalUserView) {
+    func set(from model: Components.Schemas.LocalUserView) {
         set(from: model.local_user)
         person.set(from: model)
     }
 
-    private func set(from model: LocalUser) {
+    private func set(from model: Components.Schemas.LocalUser) {
         localAccountId = model.id
         email = model.email
         showNsfw = model.show_nsfw

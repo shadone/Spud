@@ -71,11 +71,13 @@ public final class LemmySiteInfo: NSManagedObject {
 
 extension LemmySiteInfo {
     /// Which listing type should be opened by default.
-    var defaultPostListingType: ListingType {
+    var defaultPostListingType: Components.Schemas.ListingType {
         get {
-            guard let value = ListingType(rawValue: defaultPostListingTypeRawValue) else {
+            guard
+                let value = Components.Schemas.ListingType(rawValue: defaultPostListingTypeRawValue)
+            else {
                 logger.assertionFailure("Failed to parse listing type '\(defaultPostListingTypeRawValue)'")
-                return .all
+                return .All
             }
 
             return value

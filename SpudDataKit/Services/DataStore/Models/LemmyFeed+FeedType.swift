@@ -25,7 +25,7 @@ public extension LemmyFeed {
             )
         else {
             logger.assertionFailure("Bad feed with id '\(id)'")
-            return .frontpage(listingType: .local, sortType: .active)
+            return .frontpage(listingType: .Local, sortType: .Active)
         }
         return value
     }

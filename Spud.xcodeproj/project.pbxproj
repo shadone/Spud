@@ -99,6 +99,8 @@
 		927343392A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */; };
 		9273433E2A61FAB70089556E /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9273433D2A61FAB70089556E /* LemmyKit */; };
 		927618182A730C25003D49D4 /* AppService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618172A730C25003D49D4 /* AppService.swift */; };
+		927782162C0B9A1B0010068F /* SortType+Identifiable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927782152C0B9A1B0010068F /* SortType+Identifiable.swift */; };
+		927782182C0B9AD90010068F /* CommentSortType+Identifiable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927782172C0B9AD90010068F /* CommentSortType+Identifiable.swift */; };
 		927C187E2A86E48A00F47B0D /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 927C187D2A86E48A00F47B0D /* LemmyKit */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
@@ -546,6 +548,8 @@
 		927618602A74F765003D49D4 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		927618612A74FA70003D49D4 /* URL+lenientString.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+lenientString.swift"; sourceTree = "<group>"; };
 		927618632A74FB9D003D49D4 /* URLLenientStringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLLenientStringTests.swift; sourceTree = "<group>"; };
+		927782152C0B9A1B0010068F /* SortType+Identifiable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SortType+Identifiable.swift"; sourceTree = "<group>"; };
+		927782172C0B9AD90010068F /* CommentSortType+Identifiable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentSortType+Identifiable.swift"; sourceTree = "<group>"; };
 		927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListAccountViewModel.swift; sourceTree = "<group>"; };
 		927E1F3B2A5841B4002327EC /* UIViewPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIViewPreview.swift; sourceTree = "<group>"; };
 		9281B2832A7D925000BA8E39 /* LemmyPostInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyPostInfo.swift; sourceTree = "<group>"; };
@@ -651,6 +655,7 @@
 		92B7C9A32A3F3B6A00672F64 /* CommentView+fake.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentView+fake.swift"; sourceTree = "<group>"; };
 		92B7C9A62A3F45B600672F64 /* PostDetailCommentCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentCell.swift; sourceTree = "<group>"; };
 		92B7C9A82A3F486100672F64 /* PostDetailCommentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailCommentViewModel.swift; sourceTree = "<group>"; };
+		92B7F0712C038276001C9744 /* LemmyKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = LemmyKit; path = ../LemmyKit; sourceTree = "<group>"; };
 		92BA92B92AA26D06005E7D75 /* post-detail-1549703.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "post-detail-1549703.json"; sourceTree = "<group>"; };
 		92BA92BB2AA27BCA005E7D75 /* comment-list-1549703-Hot.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "comment-list-1549703-Hot.json"; sourceTree = "<group>"; };
 		92BA92BD2AA280E8005E7D75 /* user-31989.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "user-31989.json"; sourceTree = "<group>"; };
@@ -871,7 +876,9 @@
 		9215FDFE2A7FEE6E008B49AB /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				927782172C0B9AD90010068F /* CommentSortType+Identifiable.swift */,
 				925B46702A8EE0A9008410EA /* CommentSortType+itemForMenu.swift */,
+				927782152C0B9A1B0010068F /* SortType+Identifiable.swift */,
 				9215FDFF2A7FEE85008B49AB /* SortType+itemForMenu.swift */,
 				92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */,
 			);
@@ -1214,6 +1221,7 @@
 				925B76D92A900D8F00BD065A /* Spud.xctestplan */,
 				925B76DA2A900DBE00BD065A /* SpudSnapshots.xctestplan */,
 				920B458A2A7C51EB00C6C2DC /* SpudWidgetExtension.entitlements */,
+				92B7F0712C038276001C9744 /* LemmyKit */,
 				921943432A75BEC20005474D /* Packages */,
 				9254A3412A86D6F3009EB4B5 /* Shared */,
 				92B7C8FC2A3A40EB00672F64 /* Spud */,
@@ -2263,6 +2271,7 @@
 				9233A1462A82528600F1F795 /* AppLaunchArgument.swift in Sources */,
 				927618182A730C25003D49D4 /* AppService.swift in Sources */,
 				92B7C9872A3D2DC100672F64 /* CommentsFormatter.swift in Sources */,
+				927782182C0B9AD90010068F /* CommentSortType+Identifiable.swift in Sources */,
 				925B46712A8EE0A9008410EA /* CommentSortType+itemForMenu.swift in Sources */,
 				92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */,
 				926602BD2A5F68DA005A1641 /* GeneralAppearance.swift in Sources */,
@@ -2325,6 +2334,7 @@
 				92DD63002A48502600497C3B /* SiteListSiteViewModel.swift in Sources */,
 				92DD62FC2A484EEF00497C3B /* SiteListViewController.swift in Sources */,
 				9254A34B2A86DFBC009EB4B5 /* SortType+appintent.swift in Sources */,
+				927782162C0B9A1B0010068F /* SortType+Identifiable.swift in Sources */,
 				9215FE002A7FEE85008B49AB /* SortType+itemForMenu.swift in Sources */,
 				92B2C31E2A88C6D30038C416 /* SubscriptionsView.swift in Sources */,
 				922AEE102A40FBEB00AA7B22 /* SubscriptionsViewController.swift in Sources */,

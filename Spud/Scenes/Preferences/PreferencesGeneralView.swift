@@ -13,7 +13,7 @@ struct PreferencesGeneralView<ViewModel>: View
 {
     @StateObject var viewModel: ViewModel
 
-    var defaultPostSortType: Binding<SortType> {
+    var defaultPostSortType: Binding<Components.Schemas.SortType> {
         .init {
             viewModel.outputs.defaultPostSortType.value
         } set: { newValue in
@@ -21,7 +21,7 @@ struct PreferencesGeneralView<ViewModel>: View
         }
     }
 
-    var defaultCommentSortType: Binding<CommentSortType> {
+    var defaultCommentSortType: Binding<Components.Schemas.CommentSortType> {
         .init {
             viewModel.outputs.defaultCommentSortType.value
         } set: { newValue in
