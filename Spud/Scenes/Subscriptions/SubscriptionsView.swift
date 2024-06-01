@@ -10,7 +10,7 @@ import LemmyKit
 import SpudDataKit
 import SwiftUI
 
-private extension ListingType {
+private extension Components.Schemas.ListingType {
     struct ItemForSubscriptions {
         let iconName: String
         let iconTint: Color
@@ -20,28 +20,28 @@ private extension ListingType {
 
     var itemForSubscriptions: ItemForSubscriptions {
         switch self {
-        case .subscribed:
+        case .Subscribed:
             return .init(
                 iconName: "newspaper",
                 iconTint: .red,
                 title: "Subscribed",
                 subtitle: "Posts from your subscriptions"
             )
-        case .local:
+        case .Local:
             return .init(
                 iconName: "house",
                 iconTint: .blue,
                 title: "Local",
                 subtitle: "Posts from your home instance"
             )
-        case .all:
+        case .All:
             return .init(
                 iconName: "rectangle.stack",
                 iconTint: .green,
                 title: "All",
                 subtitle: "Posts from all federated instances"
             )
-        case .moderatorView:
+        case .ModeratorView:
             return .init(
                 iconName: "crown",
                 iconTint: .purple,
@@ -53,7 +53,7 @@ private extension ListingType {
 }
 
 struct SubscriptionsListingView: View {
-    @State var listingType: ListingType
+    @State var listingType: Components.Schemas.ListingType
 
     var body: some View {
         HStack(spacing: 16) {
@@ -119,18 +119,18 @@ struct SubscriptionsView<ViewModel>: View
     var body: some View {
         List {
             if isSignedIn {
-                SubscriptionsListingView(listingType: .subscribed)
+                SubscriptionsListingView(listingType: .Subscribed)
                     .onTapGesture {
-                        viewModel.inputs.loadFeed(.listing(.subscribed))
+                        viewModel.inputs.loadFeed(.listing(.Subscribed))
                     }
             }
-            SubscriptionsListingView(listingType: .local)
+            SubscriptionsListingView(listingType: .Local)
                 .onTapGesture {
-                    viewModel.inputs.loadFeed(.listing(.local))
+                    viewModel.inputs.loadFeed(.listing(.Local))
                 }
-            SubscriptionsListingView(listingType: .all)
+            SubscriptionsListingView(listingType: .All)
                 .onTapGesture {
-                    viewModel.inputs.loadFeed(.listing(.all))
+                    viewModel.inputs.loadFeed(.listing(.All))
                 }
 
             if !followCommunities.isEmpty {

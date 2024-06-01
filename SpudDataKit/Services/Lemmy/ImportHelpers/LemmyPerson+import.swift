@@ -13,7 +13,7 @@ private let logger = Logger(.lemmyService)
 
 extension LemmyPerson {
     convenience init(
-        _ model: Person,
+        _ model: Components.Schemas.Person,
         site: LemmySite,
         in context: NSManagedObjectContext
     ) {
@@ -43,7 +43,7 @@ extension LemmyPerson {
         return personInfo
     }
 
-    func set(from model: LocalUserView) {
+    func set(from model: Components.Schemas.LocalUserView) {
         guard let context = managedObjectContext else {
             logger.assertionFailure()
             return
@@ -54,14 +54,14 @@ extension LemmyPerson {
         // Update the cached data.
         name = model.person.name
         displayName = model.person.display_name
-        avatarUrl = model.person.avatar?.url
+        avatarUrl = model.person.avatar.map(LenientUrl.init)?.url
 
         // Upsert the PersonInfo
         let personInfo = personInfo ?? createPersonInfo(in: context)
         personInfo.set(from: model)
     }
 
-    private func set(from model: Person) {
+    private func set(from model: Components.Schemas.Person) {
         guard let context = managedObjectContext else {
             logger.assertionFailure()
             return
@@ -72,7 +72,7 @@ extension LemmyPerson {
         // Update the cached data.
         name = model.name
         displayName = model.display_name
-        avatarUrl = model.avatar?.url
+        avatarUrl = model.avatar.map(LenientUrl.init)?.url
 
         // Do not create personInfo here since we only have partial data
         // i.e. aggregate data is not available.
@@ -80,7 +80,7 @@ extension LemmyPerson {
         updatedAt = Date()
     }
 
-    func set(from model: PersonView) {
+    func set(from model: Components.Schemas.PersonView) {
         guard let context = managedObjectContext else {
             logger.assertionFailure()
             return
@@ -91,7 +91,7 @@ extension LemmyPerson {
         // Update the cached data.
         name = model.person.name
         displayName = model.person.display_name
-        avatarUrl = model.person.avatar?.url
+        avatarUrl = model.person.avatar.map(LenientUrl.init)?.url
 
         // Upsert the PersonInfo
         let personInfo = personInfo ?? createPersonInfo(in: context)
@@ -101,7 +101,7 @@ extension LemmyPerson {
     }
 
     static func upsert(
-        _ model: Person,
+        _ model: Components.Schemas.Person,
         site: LemmySite,
         in context: NSManagedObjectContext
     ) -> LemmyPerson {

@@ -8,7 +8,7 @@ import Foundation
 import LemmyKit
 import UIKit
 
-extension SortType {
+extension Components.Schemas.SortType {
     struct MenuItem {
         let title: String
 
@@ -25,58 +25,58 @@ extension SortType {
     /// Returns the info about the sort type that will be displayed in a context menu where user can choose the desired sort type.
     var itemForMenu: MenuItem {
         switch self {
-        case .active:
+        case .Active:
             return .init(title: "Active", imageSystemName: "paperplane")
 
-        case .hot:
+        case .Hot:
             return .init(title: "Hot", imageSystemName: "flame.fill")
 
-        case .new:
+        case .New:
             return .init(title: "New", imageSystemName: "cursorarrow.motionlines.click")
 
-        case .old:
+        case .Old:
             return .init(title: "Old", imageSystemName: "text.line.last.and.arrowtriangle.forward")
 
-        case .topSixHour:
+        case .TopSixHour:
             return .init(title: "Top Six Hour", imageSystemName: nil)
 
-        case .topTwelveHour:
+        case .TopTwelveHour:
             return .init(title: "Top Twelve Hour", imageSystemName: nil)
 
-        case .topDay:
+        case .TopDay:
             return .init(title: "Top Day", imageSystemName: nil)
 
-        case .topWeek:
+        case .TopWeek:
             return .init(title: "Top Week", imageSystemName: nil)
 
-        case .topMonth:
+        case .TopMonth:
             return .init(title: "Top Month", imageSystemName: nil)
 
-        case .topThreeMonths:
+        case .TopThreeMonths:
             return .init(title: "Top Three Months", imageSystemName: nil)
 
-        case .topSixMonths:
+        case .TopSixMonths:
             return .init(title: "Top Six Months", imageSystemName: nil)
 
-        case .topNineMonths:
+        case .TopNineMonths:
             return .init(title: "Top Nine Months", imageSystemName: nil)
 
-        case .topYear:
+        case .TopYear:
             return .init(title: "Top Year", imageSystemName: nil)
 
-        case .topAll:
+        case .TopAll:
             return .init(title: "Top All", imageSystemName: nil)
 
-        case .mostComments:
+        case .MostComments:
             return .init(title: "Most Comments", imageSystemName: "text.bubble")
 
-        case .newComments:
+        case .NewComments:
             return .init(title: "New Comments", imageSystemName: "exclamationmark.bubble")
 
-        case .controversial:
+        case .Controversial:
             return .init(title: "Controversial", imageSystemName: "person.fill.questionmark")
 
-        case .scaled:
+        case .Scaled:
             return .init(title: "Scaled", imageSystemName: "scalemass")
         }
     }

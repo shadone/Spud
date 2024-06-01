@@ -57,8 +57,8 @@ class TopPostsProvider: IntentTimelineProvider {
     ) {
         logger.debug("Timeline requested")
 
-        let listingType = ListingType(from: configuration.feedType) ?? .subscribed
-        let sortType = SortType(from: configuration.sortType) ?? .hot
+        let listingType = Components.Schemas.ListingType(from: configuration.feedType) ?? .Subscribed
+        let sortType = Components.Schemas.SortType(from: configuration.sortType) ?? .Hot
 
         Task {
             let entry = await dependencies.entryService

@@ -8,33 +8,33 @@ import Foundation
 import LemmyKit
 
 @available(iOS 16.0, *)
-extension SortType {
+extension Components.Schemas.SortType {
     init(from value: IntentSortTypeAppEnum) {
         switch value {
         case .active:
-            self = .active
+            self = .Active
         case .hot:
-            self = .hot
+            self = .Hot
         case .new:
-            self = .new
+            self = .New
         case .topSixHour:
-            self = .topSixHour
+            self = .TopSixHour
         case .topTwelveHour:
-            self = .topTwelveHour
+            self = .TopTwelveHour
         case .topDay:
-            self = .topDay
+            self = .TopDay
         case .topWeek:
-            self = .topWeek
+            self = .TopWeek
         case .topMonth:
-            self = .topMonth
+            self = .TopMonth
         case .topYear:
-            self = .topYear
+            self = .TopYear
         case .topAll:
-            self = .topAll
+            self = .TopAll
         case .mostComments:
-            self = .mostComments
+            self = .MostComments
         case .newComments:
-            self = .newComments
+            self = .NewComments
         }
     }
 }

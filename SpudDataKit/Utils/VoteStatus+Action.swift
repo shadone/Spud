@@ -24,15 +24,15 @@ public extension VoteStatus {
     ///
     /// E.g. if the post is already upvoted and the user pressed upvote button,
     /// the effective action is to remote the vote aka "unvote".
-    func effectiveAction(for action: Action) -> ScoreAction {
+    func effectiveAction(for action: Action) -> LikeStatus {
         switch (self, action) {
         case (.up, .upvote),
              (.down, .downvote):
-            return .unvote
+            return .neutral
         case (_, .upvote):
-            return .upvote
+            return .liked
         case (_, .downvote):
-            return .downvote
+            return .disliked
         }
     }
 

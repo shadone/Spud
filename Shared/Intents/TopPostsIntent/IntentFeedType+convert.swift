@@ -14,13 +14,13 @@ extension IntentFeedType {
         switch feedType {
         case let .frontpage(listingType, _):
             switch listingType {
-            case .all:
+            case .All:
                 self = .all
-            case .local:
+            case .Local:
                 self = .local
-            case .subscribed:
+            case .Subscribed:
                 self = .subscribed
-            case .moderatorView:
+            case .ModeratorView:
                 self = .moderatorView
             }
 
@@ -31,23 +31,23 @@ extension IntentFeedType {
     }
 }
 
-extension ListingType {
+extension Components.Schemas.ListingType {
     init?(from intentFeedType: IntentFeedType) {
         switch intentFeedType {
         case .unknown:
             return nil
 
         case .all:
-            self = .all
+            self = .All
 
         case .local:
-            self = .local
+            self = .Local
 
         case .subscribed:
-            self = .subscribed
+            self = .Subscribed
 
         case .moderatorView:
-            self = .moderatorView
+            self = .ModeratorView
         }
     }
 }

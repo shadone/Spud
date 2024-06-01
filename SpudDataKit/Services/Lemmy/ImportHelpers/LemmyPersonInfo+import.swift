@@ -10,7 +10,7 @@ import LemmyKit
 import OSLog
 
 extension LemmyPersonInfo {
-    func set(from model: LocalUserView) {
+    func set(from model: Components.Schemas.LocalUserView) {
         set(from: model.person)
         set(from: model.counts)
         // "is_admin" is only exposed in PersonView
@@ -22,7 +22,7 @@ extension LemmyPersonInfo {
         updatedAt = Date()
     }
 
-    func set(from model: PersonView) {
+    func set(from model: Components.Schemas.PersonView) {
         set(from: model.person)
         set(from: model.counts)
         isAdmin = model.is_admin
@@ -32,15 +32,15 @@ extension LemmyPersonInfo {
 
     /// Partial update of the ``LemmyPersonInfo``.
     /// - Note: we do **not** touch ``updatedAt`` property here as it is only a partial update.
-    func set(from model: Person) {
+    func set(from model: Components.Schemas.Person) {
         name = model.name
         displayName = model.display_name
-        avatarUrl = model.avatar?.url
+        avatarUrl = model.avatar.map(LenientUrl.init)?.url
         personCreatedDate = model.published
         personUpdatedDate = model.updated
-        actorId = model.actor_id
+        actorId = URL(string: model.actor_id)!
         bio = model.bio
-        bannerUrl = model.banner?.url
+        bannerUrl = model.banner.map(LenientUrl.init)?.url
         isDeletedPerson = model.deleted
         matrixUserId = model.matrix_user_id
         isLocal = model.local
@@ -51,7 +51,7 @@ extension LemmyPersonInfo {
 
     /// Partial update of the ``LemmyPersonInfo``.
     /// - Note: we do **not** touch ``updatedAt`` property here as it is only a partial update.
-    private func set(from model: PersonAggregates) {
+    private func set(from model: Components.Schemas.PersonAggregates) {
         numberOfPosts = model.post_count
         numberOfComments = model.comment_count
     }

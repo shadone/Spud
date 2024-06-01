@@ -73,7 +73,7 @@ class SubscriptionsViewModel:
                         .createFeed(.community(
                             communityName: communityInfo.name,
                             instance: communityInfo.instanceActorId,
-                            sortType: .active
+                            sortType: .Active
                         ))
                 }
             }

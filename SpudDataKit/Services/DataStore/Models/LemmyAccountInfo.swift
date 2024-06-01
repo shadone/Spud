@@ -89,11 +89,11 @@ extension LemmyAccountInfo {
 
 public extension LemmyAccountInfo {
     /// The default sort type for the user.
-    var defaultSortType: SortType {
+    var defaultSortType: Components.Schemas.SortType {
         get {
-            guard let value = SortType(rawValue: defaultSortTypeRawValue) else {
+            guard let value = Components.Schemas.SortType(rawValue: defaultSortTypeRawValue) else {
                 logger.assertionFailure("Failed to parse sort type '\(defaultSortTypeRawValue)'")
-                return .active
+                return .Active
             }
 
             return value
@@ -104,11 +104,11 @@ public extension LemmyAccountInfo {
     }
 
     /// The default listing type.
-    var defaultListingType: ListingType {
+    var defaultListingType: Components.Schemas.ListingType {
         get {
-            guard let value = ListingType(rawValue: defaultListingTypeRawValue) else {
+            guard let value = Components.Schemas.ListingType(rawValue: defaultListingTypeRawValue) else {
                 logger.assertionFailure("Failed to parse listing type '\(defaultListingTypeRawValue)'")
-                return .subscribed
+                return .Subscribed
             }
 
             return value

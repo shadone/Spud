@@ -18,8 +18,8 @@ protocol EntryServiceType: AnyObject {
     func topPostsSnapshot() -> TopPostsEntry
 
     func topPosts(
-        listingType: ListingType,
-        sortType: SortType
+        listingType: Components.Schemas.ListingType,
+        sortType: Components.Schemas.SortType
     ) async -> TopPostsEntry
 }
 
@@ -56,8 +56,8 @@ class EntryService: EntryServiceType {
 
     @MainActor
     func topPosts(
-        listingType: ListingType,
-        sortType: SortType
+        listingType: Components.Schemas.ListingType,
+        sortType: Components.Schemas.SortType
     ) async -> TopPostsEntry {
         let feed = await fetchFeed(listingType: listingType, sortType: sortType)
 
@@ -94,20 +94,20 @@ class EntryService: EntryServiceType {
 
     @MainActor
     private func fetchFeed(
-        listingType: ListingType,
-        sortType: SortType
+        listingType: Components.Schemas.ListingType,
+        sortType: Components.Schemas.SortType
     ) async -> LemmyFeed {
         let account = accountService.defaultAccount()
         let lemmyService = accountService
             .lemmyService(for: account)
 
-        let listingType: ListingType = {
+        let listingType: Components.Schemas.ListingType = {
             switch listingType {
-            case .subscribed:
-                return account.isSignedOutAccountType ? .all : .subscribed
-            case .moderatorView:
-                return account.isSignedOutAccountType ? .all : .moderatorView
-            case .all, .local:
+            case .Subscribed:
+                return account.isSignedOutAccountType ? .All : .Subscribed
+            case .ModeratorView:
+                return account.isSignedOutAccountType ? .All : .ModeratorView
+            case .All, .Local:
                 return listingType
             }
         }()

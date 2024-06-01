@@ -30,7 +30,7 @@ public final class LemmyPerson: NSManagedObject {
     /// - Note: the instance specifies the Lemmy instance the personId is valid for. I.e. it is **not** the persons home site.
     @nonobjc
     public class func fetchRequest(
-        personId: PersonId,
+        personId: Components.Schemas.PersonID,
         instance: InstanceActorId
     ) -> NSFetchRequest<LemmyPerson> {
         let request = NSFetchRequest<LemmyPerson>(entityName: "Person")
@@ -47,7 +47,7 @@ public final class LemmyPerson: NSManagedObject {
     /// - Parameter site: Instance the `personId` is valid on, **not** the persons home site.
     @nonobjc
     public class func fetchRequest(
-        personId: PersonId,
+        personId: Components.Schemas.PersonID,
         site: LemmySite
     ) -> NSFetchRequest<LemmyPerson> {
         let request = NSFetchRequest<LemmyPerson>(entityName: "Person")

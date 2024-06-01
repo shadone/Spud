@@ -12,7 +12,10 @@ import OSLog
 private let logger = Logger(.lemmyService)
 
 extension LemmyPost {
-    func upsert(comments: [CommentView], for sortType: CommentSortType) {
+    func upsert(
+        comments: [Components.Schemas.CommentView],
+        for sortType: Components.Schemas.CommentSortType
+    ) {
         guard let context = managedObjectContext else {
             logger.assertionFailure()
             return

@@ -9,12 +9,20 @@ import LemmyKit
 import SpudUtilKit
 
 public enum FeedType: Equatable {
-    case frontpage(listingType: ListingType, sortType: SortType)
-    case community(communityName: String, instance: InstanceActorId, sortType: SortType)
+    case frontpage(
+        listingType: Components.Schemas.ListingType,
+        sortType: Components.Schemas.SortType
+    )
+
+    case community(
+        communityName: String,
+        instance: InstanceActorId,
+        sortType: Components.Schemas.SortType
+    )
 
     init?(
-        sortType: SortType?,
-        frontpageListingType: ListingType?,
+        sortType: Components.Schemas.SortType?,
+        frontpageListingType: Components.Schemas.ListingType?,
         communityName: String?,
         communityInstanceActorId: InstanceActorId?
     ) {

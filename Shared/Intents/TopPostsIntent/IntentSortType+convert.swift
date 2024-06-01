@@ -10,88 +10,88 @@ import LemmyKit
 import SpudDataKit
 
 extension IntentSortType {
-    init(from sortType: SortType) {
+    init(from sortType: Components.Schemas.SortType) {
         switch sortType {
-        case .active:
+        case .Active:
             self = .active
-        case .hot:
+        case .Hot:
             self = .hot
-        case .new:
+        case .New:
             self = .new
-        case .old:
+        case .Old:
             // we are not exposing Old sort to the widget configuration
             self = .unknown
-        case .topSixHour:
+        case .TopSixHour:
             self = .topSixHour
-        case .topTwelveHour:
+        case .TopTwelveHour:
             self = .topTwelveHour
-        case .topDay:
+        case .TopDay:
             self = .topDay
-        case .topWeek:
+        case .TopWeek:
             self = .topWeek
-        case .topMonth:
+        case .TopMonth:
             self = .topMonth
-        case .topYear:
+        case .TopYear:
             self = .topYear
-        case .topAll:
+        case .TopAll:
             self = .topAll
-        case .mostComments:
+        case .MostComments:
             self = .mostComments
-        case .newComments:
+        case .NewComments:
             self = .newComments
-        case .topThreeMonths:
+        case .TopThreeMonths:
             self = .topThreeMonths
-        case .topSixMonths:
+        case .TopSixMonths:
             self = .topSixMonths
-        case .topNineMonths:
+        case .TopNineMonths:
             self = .topNineMonths
-        case .controversial:
+        case .Controversial:
             self = .controversial
-        case .scaled:
+        case .Scaled:
             self = .scaled
         }
     }
 }
 
-extension SortType {
+extension Components.Schemas.SortType {
     init?(from intentSortType: IntentSortType) {
         switch intentSortType {
         case .unknown:
             return nil
         case .active:
-            self = .active
+            self = .Active
         case .hot:
-            self = .hot
+            self = .Hot
         case .new:
-            self = .new
+            self = .New
         case .topSixHour:
-            self = .topSixHour
+            self = .TopSixHour
         case .topTwelveHour:
-            self = .topTwelveHour
+            self = .TopTwelveHour
         case .topDay:
-            self = .topDay
+            self = .TopDay
         case .topWeek:
-            self = .topWeek
+            self = .TopWeek
         case .topMonth:
-            self = .topMonth
+            self = .TopMonth
         case .topYear:
-            self = .topYear
+            self = .TopYear
         case .topAll:
-            self = .topAll
+            self = .TopAll
         case .mostComments:
-            self = .mostComments
+            self = .MostComments
         case .newComments:
-            self = .newComments
+            self = .NewComments
         case .topThreeMonths:
-            self = .topThreeMonths
+            self = .TopThreeMonths
         case .topSixMonths:
-            self = .topSixMonths
+            self = .TopSixMonths
         case .controversial:
-            self = .controversial
+            self = .Controversial
         case .scaled:
-            self = .scaled
+            self = .Scaled
         case .topNineMonths:
-            self = .topNineMonths
+            self = .TopNineMonths
         }
     }
 }

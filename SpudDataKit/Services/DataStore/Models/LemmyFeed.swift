@@ -80,11 +80,11 @@ public final class LemmyFeed: NSManagedObject {
 public extension LemmyFeed {
     /// Sort order for the feed. Applies to either ``frontpageListingType`` or ``communityName`` depending
     /// on which one is set.
-    var sortType: SortType {
+    var sortType: Components.Schemas.SortType {
         get {
-            guard let value = SortType(rawValue: sortTypeRawValue) else {
+            guard let value = Components.Schemas.SortType(rawValue: sortTypeRawValue) else {
                 logger.assertionFailure("Failed to parse sort type '\(sortTypeRawValue)'")
-                return .active
+                return .Active
             }
 
             return value
@@ -95,15 +95,15 @@ public extension LemmyFeed {
     }
 
     /// The type of frontpage listing for the feed.
-    var frontpageListingType: ListingType? {
+    var frontpageListingType: Components.Schemas.ListingType? {
         get {
             guard let rawValue = frontpageListingTypeRawValue else {
                 return nil
             }
 
-            guard let value = ListingType(rawValue: rawValue) else {
+            guard let value = Components.Schemas.ListingType(rawValue: rawValue) else {
                 logger.assertionFailure("Failed to parse listing type '\(rawValue)'")
-                return .local
+                return .Local
             }
 
             return value
@@ -168,8 +168,8 @@ extension LemmyFeed {
 
     /// Creates a new frontpage feed for a given category and sort order.
     convenience init(
-        listingType: ListingType,
-        sortType: SortType,
+        listingType: Components.Schemas.ListingType,
+        sortType: Components.Schemas.SortType,
         in context: NSManagedObjectContext
     ) {
         self.init(entity: LemmyFeed.entity(), insertInto: context)
@@ -186,7 +186,7 @@ extension LemmyFeed {
     convenience init(
         communityName: String,
         instanceActorId: InstanceActorId,
-        sortType: SortType,
+        sortType: Components.Schemas.SortType,
         in context: NSManagedObjectContext
     ) {
         self.init(entity: LemmyFeed.entity(), insertInto: context)
@@ -203,7 +203,7 @@ extension LemmyFeed {
 
     convenience init(
         duplicateOf originalFeed: LemmyFeed,
-        sortType: SortType?,
+        sortType: Components.Schemas.SortType?,
         in context: NSManagedObjectContext
     ) {
         self.init(context: context)
