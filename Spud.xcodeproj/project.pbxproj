@@ -100,6 +100,9 @@
 		927782162C0B9A1B0010068F /* SortType+Identifiable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927782152C0B9A1B0010068F /* SortType+Identifiable.swift */; };
 		927782182C0B9AD90010068F /* CommentSortType+Identifiable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927782172C0B9AD90010068F /* CommentSortType+Identifiable.swift */; };
 		9277821B2C0BA2FD0010068F /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9277821A2C0BA2FD0010068F /* LemmyKit */; };
+		927839C62C0C6E6800521C69 /* ListingType+DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927839C52C0C6E6800521C69 /* ListingType+DataStore.swift */; };
+		927839C82C0C703D00521C69 /* SortType+DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927839C72C0C703D00521C69 /* SortType+DataStore.swift */; };
+		927839CA2C0C70A700521C69 /* CommentSortType+DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927839C92C0C70A700521C69 /* CommentSortType+DataStore.swift */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
 		928D686C2A9E94B200EBD10E /* PersonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 928D686B2A9E94B200EBD10E /* PersonView.swift */; };
@@ -546,6 +549,9 @@
 		927618632A74FB9D003D49D4 /* URLLenientStringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLLenientStringTests.swift; sourceTree = "<group>"; };
 		927782152C0B9A1B0010068F /* SortType+Identifiable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SortType+Identifiable.swift"; sourceTree = "<group>"; };
 		927782172C0B9AD90010068F /* CommentSortType+Identifiable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentSortType+Identifiable.swift"; sourceTree = "<group>"; };
+		927839C52C0C6E6800521C69 /* ListingType+DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ListingType+DataStore.swift"; sourceTree = "<group>"; };
+		927839C72C0C703D00521C69 /* SortType+DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SortType+DataStore.swift"; sourceTree = "<group>"; };
+		927839C92C0C70A700521C69 /* CommentSortType+DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentSortType+DataStore.swift"; sourceTree = "<group>"; };
 		927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListAccountViewModel.swift; sourceTree = "<group>"; };
 		927E1F3B2A5841B4002327EC /* UIViewPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIViewPreview.swift; sourceTree = "<group>"; };
 		9281B2832A7D925000BA8E39 /* LemmyPostInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyPostInfo.swift; sourceTree = "<group>"; };
@@ -1580,9 +1586,12 @@
 		92CC5DB22A7EC1AD0019436A /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				927839C92C0C70A700521C69 /* CommentSortType+DataStore.swift */,
 				92B2C3212A88EE270038C416 /* FeedType.swift */,
+				927839C52C0C6E6800521C69 /* ListingType+DataStore.swift */,
 				921943452A75E83A0005474D /* NodeInfoSoftware.swift */,
 				92CC5DB52A7EC1CF0019436A /* OSLog.swift */,
+				927839C72C0C703D00521C69 /* SortType+DataStore.swift */,
 				929D13892A76FFBD00E7E5DB /* VoteStatus+Action.swift */,
 				92DD62D02A43A93F00497C3B /* VoteStatus.swift */,
 			);
@@ -2367,6 +2376,7 @@
 				92CC5DC32A7ED7260019436A /* AccountServiceLoginError.swift in Sources */,
 				92CC5DD92A7ED8B50019436A /* AlertHandlerRequest.swift in Sources */,
 				92CC5DD82A7ED8B50019436A /* AlertService.swift in Sources */,
+				927839CA2C0C70A700521C69 /* CommentSortType+DataStore.swift in Sources */,
 				92CC5D6D2A7EBF960019436A /* DataStore.swift in Sources */,
 				92CC5D6E2A7EBF9B0019436A /* DataStore.xcdatamodeld in Sources */,
 				92B2C3222A88EE270038C416 /* FeedType.swift in Sources */,
@@ -2409,6 +2419,7 @@
 				92CC5DCF2A7ED7380019436A /* LemmySite+import.swift in Sources */,
 				92CC5D712A7EBFA20019436A /* LemmySite.swift in Sources */,
 				92CC5D802A7EBFA20019436A /* LemmySiteInfo.swift in Sources */,
+				927839C62C0C6E6800521C69 /* ListingType+DataStore.swift in Sources */,
 				92CC5D822A7EBFA20019436A /* NodeInfo.swift in Sources */,
 				92CC5DB72A7EC1F80019436A /* NodeInfoSoftware.swift in Sources */,
 				92CC5DB62A7EC1CF0019436A /* OSLog.swift in Sources */,
@@ -2416,6 +2427,7 @@
 				92CC5DC62A7ED72E0019436A /* PostContentType.swift in Sources */,
 				92CC5DC02A7ED7210019436A /* SchedulerService.swift in Sources */,
 				92CC5DC42A7ED7290019436A /* SiteService.swift in Sources */,
+				927839C82C0C703D00521C69 /* SortType+DataStore.swift in Sources */,
 				9233A1422A82508000F1F795 /* StaticImageService.swift in Sources */,
 				92CC5DB42A7EC1B60019436A /* VoteStatus+Action.swift in Sources */,
 				92CC5DB32A7EC1B60019436A /* VoteStatus.swift in Sources */,

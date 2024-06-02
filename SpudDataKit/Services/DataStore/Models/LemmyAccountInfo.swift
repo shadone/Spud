@@ -91,22 +91,21 @@ public extension LemmyAccountInfo {
     /// The default sort type for the user.
     var defaultSortType: Components.Schemas.SortType {
         get {
-            guard let value = Components.Schemas.SortType(rawValue: defaultSortTypeRawValue) else {
+            guard let value = Components.Schemas.SortType(fromDataStore: defaultSortTypeRawValue) else {
                 logger.assertionFailure("Failed to parse sort type '\(defaultSortTypeRawValue)'")
                 return .Active
             }
-
             return value
         }
         set {
-            defaultSortTypeRawValue = newValue.rawValue
+            defaultSortTypeRawValue = newValue.dataStoreRawValue
         }
     }
 
     /// The default listing type.
     var defaultListingType: Components.Schemas.ListingType {
         get {
-            guard let value = Components.Schemas.ListingType(rawValue: defaultListingTypeRawValue) else {
+            guard let value = Components.Schemas.ListingType(fromDataStore: defaultListingTypeRawValue) else {
                 logger.assertionFailure("Failed to parse listing type '\(defaultListingTypeRawValue)'")
                 return .Subscribed
             }
@@ -114,7 +113,7 @@ public extension LemmyAccountInfo {
             return value
         }
         set {
-            defaultListingTypeRawValue = newValue.rawValue
+            defaultListingTypeRawValue = newValue.dataStoreRawValue
         }
     }
 }

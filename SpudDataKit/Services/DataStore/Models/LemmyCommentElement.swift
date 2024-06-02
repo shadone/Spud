@@ -8,6 +8,10 @@ import Combine
 import CoreData
 import Foundation
 import LemmyKit
+import OSLog
+import SpudUtilKit
+
+private let logger = Logger(.dataStore)
 
 @objc(LemmyCommentElement)
 public final class LemmyCommentElement: NSManagedObject {
@@ -57,10 +61,14 @@ public extension LemmyCommentElement {
     /// Comment sort order.
     var sortType: Components.Schemas.CommentSortType {
         get {
-            Components.Schemas.CommentSortType(rawValue: sortTypeRawValue) ?? .Hot
+            guard let value = Components.Schemas.CommentSortType(fromDataStore: sortTypeRawValue) else {
+                logger.assertionFailure("Failed to parse comment sort type '\(sortTypeRawValue)'")
+                return .Hot
+            }
+            return value
         }
         set {
-            sortTypeRawValue = newValue.rawValue
+            sortTypeRawValue = newValue.dataStoreRawValue
         }
     }
 

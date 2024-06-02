@@ -74,7 +74,7 @@ extension LemmySiteInfo {
     var defaultPostListingType: Components.Schemas.ListingType {
         get {
             guard
-                let value = Components.Schemas.ListingType(rawValue: defaultPostListingTypeRawValue)
+                let value = Components.Schemas.ListingType(fromDataStore: defaultPostListingTypeRawValue)
             else {
                 logger.assertionFailure("Failed to parse listing type '\(defaultPostListingTypeRawValue)'")
                 return .All
@@ -83,7 +83,7 @@ extension LemmySiteInfo {
             return value
         }
         set {
-            defaultPostListingTypeRawValue = newValue.rawValue
+            defaultPostListingTypeRawValue = newValue.dataStoreRawValue
         }
     }
 }
