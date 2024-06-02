@@ -56,6 +56,11 @@ protocol PreferencesViewModelOutputs {
     var openExternalLink: CurrentValueSubject<Preferences.OpenExternalLink, Never> { get }
     var openExternalLinkInSafariVCReaderMode: CurrentValueSubject<Bool, Never> { get }
     var openExternalLinkAsUniversalLinkInApp: CurrentValueSubject<Bool, Never> { get }
+
+    // MARK: Storage info
+
+    var storageSize: CurrentValueSubject<String, Never> { get }
+    var storageFileUrl: CurrentValueSubject<URL, Never> { get }
 }
 
 protocol PreferencesViewModelType: ObservableObject {
@@ -70,6 +75,7 @@ class PreferencesViewModel:
 {
     typealias OwnDependencies =
         HasAccountService &
+        HasDataStore &
         HasPreferencesService
     typealias NestedDependencies =
         HasVoid
@@ -117,6 +123,13 @@ class PreferencesViewModel:
 
         openExternalLinkAsUniversalLinkInApp = .init(preferencesService.openUniversalLinkInApp)
 
+        storageSize = .init(ByteCountFormatter.string(
+            fromByteCount: Int64(dependencies.dataStore.sizeInBytes),
+            countStyle: .file
+        ))
+
+        storageFileUrl = .init(dependencies.dataStore.storeUrl)
+
         preferencesService.defaultCommentSortTypePublisher
             .sink { [weak self] value in
                 self?.defaultCommentSortType.send(value)
@@ -155,6 +168,9 @@ class PreferencesViewModel:
     let openExternalLink: CurrentValueSubject<Preferences.OpenExternalLink, Never>
     let openExternalLinkInSafariVCReaderMode: CurrentValueSubject<Bool, Never>
     let openExternalLinkAsUniversalLinkInApp: CurrentValueSubject<Bool, Never>
+
+    let storageSize: CurrentValueSubject<String, Never>
+    let storageFileUrl: CurrentValueSubject<URL, Never>
 
     // MARK: Inputs
 
