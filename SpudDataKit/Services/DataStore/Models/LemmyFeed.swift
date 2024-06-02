@@ -82,15 +82,14 @@ public extension LemmyFeed {
     /// on which one is set.
     var sortType: Components.Schemas.SortType {
         get {
-            guard let value = Components.Schemas.SortType(rawValue: sortTypeRawValue) else {
+            guard let value = Components.Schemas.SortType(fromDataStore: sortTypeRawValue) else {
                 logger.assertionFailure("Failed to parse sort type '\(sortTypeRawValue)'")
                 return .Active
             }
-
             return value
         }
         set {
-            sortTypeRawValue = newValue.rawValue
+            sortTypeRawValue = newValue.dataStoreRawValue
         }
     }
 
@@ -101,7 +100,7 @@ public extension LemmyFeed {
                 return nil
             }
 
-            guard let value = Components.Schemas.ListingType(rawValue: rawValue) else {
+            guard let value = Components.Schemas.ListingType(fromDataStore: rawValue) else {
                 logger.assertionFailure("Failed to parse listing type '\(rawValue)'")
                 return .Local
             }
@@ -109,7 +108,7 @@ public extension LemmyFeed {
             return value
         }
         set {
-            frontpageListingTypeRawValue = newValue?.rawValue
+            frontpageListingTypeRawValue = newValue?.dataStoreRawValue
         }
     }
 
