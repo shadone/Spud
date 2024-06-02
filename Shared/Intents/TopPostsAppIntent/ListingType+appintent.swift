@@ -8,20 +8,20 @@ import Foundation
 import LemmyKit
 
 @available(iOS 16.0, *)
-extension ListingType {
+extension Components.Schemas.ListingType {
     init(from value: IntentFeedTypeAppEnum) {
         switch value {
         case .all:
-            self = .all
+            self = .All
 
         case .local:
-            self = .local
+            self = .Local
 
         case .subscribed:
-            self = .subscribed
+            self = .Subscribed
 
         case .moderatorView:
-            self = .moderatorView
+            self = .ModeratorView
         }
     }
 }

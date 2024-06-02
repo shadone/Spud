@@ -15,7 +15,7 @@ extension TopPosts {
             .compactMap(\.type.imageUrl)
 
         var imagesByUrl: [URL: UIImage] = [:]
-        imageUrls.forEach { url in
+        for url in imageUrls {
             if let image = url.spudImageFromAsset {
                 imagesByUrl[url] = image
             }

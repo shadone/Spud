@@ -8,7 +8,7 @@ import Foundation
 import LemmyKit
 import UIKit
 
-extension CommentSortType {
+extension Components.Schemas.CommentSortType {
     struct MenuItem {
         let title: String
     }
@@ -16,19 +16,19 @@ extension CommentSortType {
     /// Returns the info about the sort type that will be displayed in the UI where user can choose the desired sort type.
     var itemForMenu: MenuItem {
         switch self {
-        case .hot:
+        case .Hot:
             return .init(title: "Hot")
 
-        case .top:
+        case .Top:
             return .init(title: "Top")
 
-        case .new:
+        case .New:
             return .init(title: "New")
 
-        case .old:
+        case .Old:
             return .init(title: "Old")
 
-        case .controversial:
+        case .Controversial:
             return .init(title: "Controversial")
         }
     }

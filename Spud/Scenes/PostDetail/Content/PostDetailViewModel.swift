@@ -12,14 +12,14 @@ import SpudDataKit
 protocol PostDetailViewModelInputs {
 //    func voteOnPost(_ action: VoteStatus.Action)
 //    func voteOnComment(_ comment: RedditComment, _ action: VoteStatus.Action)
-    func didChangeCommentSortType(_ sortType: CommentSortType)
+    func didChangeCommentSortType(_ sortType: Components.Schemas.CommentSortType)
     func didPrepareFetchController(numberOfFetchedComments: Int)
 }
 
 protocol PostDetailViewModelOutputs {
     var postInfo: LemmyPostInfo { get }
     var headerViewModel: PostDetailHeaderViewModel { get }
-    var commentSortType: CurrentValueSubject<CommentSortType, Never> { get }
+    var commentSortType: CurrentValueSubject<Components.Schemas.CommentSortType, Never> { get }
 }
 
 protocol PostDetailViewModelType {
@@ -75,7 +75,7 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
 
     let postInfo: LemmyPostInfo
     let headerViewModel: PostDetailHeaderViewModel
-    let commentSortType: CurrentValueSubject<CommentSortType, Never>
+    let commentSortType: CurrentValueSubject<Components.Schemas.CommentSortType, Never>
 
     // MARK: Inputs
 
@@ -99,7 +99,7 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
 //            .store(in: &disposables)
 //    }
 
-    func didChangeCommentSortType(_ sortType: CommentSortType) {
+    func didChangeCommentSortType(_ sortType: Components.Schemas.CommentSortType) {
         commentSortType.send(sortType)
     }
 

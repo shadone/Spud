@@ -19,7 +19,7 @@ public final class LemmyPost: NSManagedObject {
 
     @nonobjc
     public class func fetchRequest(
-        postId: PostId,
+        postId: Components.Schemas.PostID,
         account: LemmyAccount
     ) -> NSFetchRequest<LemmyPost> {
         let request = NSFetchRequest<LemmyPost>(entityName: "Post")
@@ -33,7 +33,7 @@ public final class LemmyPost: NSManagedObject {
     // MARK: Properties
 
     /// Post identifier. The identifier is local to this instance.
-    @NSManaged public var postId: PostId
+    @NSManaged public var postId: Components.Schemas.PostID
 
     // MARK: Meta properties
 
@@ -59,7 +59,7 @@ public final class LemmyPost: NSManagedObject {
 
 extension LemmyPost {
     convenience init(
-        postId: PostId,
+        postId: Components.Schemas.PostID,
         account: LemmyAccount,
         in context: NSManagedObjectContext
     ) {

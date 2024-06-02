@@ -53,15 +53,15 @@ struct PersonView<ViewModel>: View
 {
     @StateObject var viewModel: ViewModel
 
-    @State var name: String = ""
-    @State var homeInstance: String = ""
+    @State var name = ""
+    @State var homeInstance = ""
     @State var displayName: String?
 
-    @State var numberOfPosts: String = ""
+    @State var numberOfPosts = ""
 
-    @State var numberOfComments: String = ""
+    @State var numberOfComments = ""
 
-    @State var accountAge: String = ""
+    @State var accountAge = ""
 
     var avatarPlaceholder: some View {
         ZStack {

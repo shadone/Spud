@@ -63,12 +63,16 @@ class PostDetailLoadingViewController: UIViewController {
     // MARK: Private
 
     private let account: LemmyAccount
-    private let postId: PostId
+    private let postId: Components.Schemas.PostID
     private var disposables = Set<AnyCancellable>()
 
     // MARK: - Functions
 
-    init(postId: PostId, account: LemmyAccount, dependencies: Dependencies) {
+    init(
+        postId: Components.Schemas.PostID,
+        account: LemmyAccount,
+        dependencies: Dependencies
+    ) {
         self.dependencies = (own: dependencies, nested: dependencies)
         self.account = account
         self.postId = postId

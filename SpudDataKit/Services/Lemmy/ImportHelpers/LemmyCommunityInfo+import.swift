@@ -11,7 +11,7 @@ import OSLog
 
 extension LemmyCommunityInfo {
     /// Updates community info from the given full ``CommunityView`` object.
-    func set(from model: CommunityView) {
+    func set(from model: Components.Schemas.CommunityView) {
         set(from: model.community)
         set(from: model.counts)
         // TODO: model.blocks and model.subscribed
@@ -21,7 +21,7 @@ extension LemmyCommunityInfo {
 
     /// Partial update of the ``LemmyCommunityInfo``.
     /// - Note: we do **not** touch ``updatedAt`` property here as it is only a partial update.
-    func set(from model: Community) {
+    func set(from model: Components.Schemas.Community) {
         name = model.name
         title = model.title
         descriptionText = model.description
@@ -29,17 +29,17 @@ extension LemmyCommunityInfo {
         communityCreatedDate = model.published
         communityUpdatedDate = model.updated
         isNsfw = model.nsfw
-        actorId = model.actor_id
+        actorId = URL(string: model.actor_id)!
         isLocal = model.local
-        icon = model.icon?.url
-        banner = model.banner?.url
+        icon = model.icon.map(LenientUrl.init)?.url
+        banner = model.banner.map(LenientUrl.init)?.url
         isHidden = model.hidden
         isPostingRestrictedToMods = model.posting_restricted_to_mods
     }
 
     /// Partial update of the ``LemmyCommunityInfo``.
     /// - Note: we do **not** touch ``updatedAt`` property here as it is only a partial update.
-    private func set(from model: CommunityAggregates) {
+    private func set(from model: Components.Schemas.CommunityAggregates) {
         // TODO:
     }
 }

@@ -14,7 +14,7 @@ protocol PostListViewModelInputs {
     func didSelectPost(_ post: LemmyPost?)
     func didChangeSelectedPostIndex(_ index: Int?)
     func didChangeNumberOfPosts(inserted: Int)
-    func didChangeSortType(_ sortType: SortType)
+    func didChangeSortType(_ sortType: Components.Schemas.SortType)
     func didClickReload()
     func didScrollToBottom()
     func didPrepareFetchController(numberOfFetchedPosts: Int)
@@ -41,8 +41,8 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
         HasAccountService &
         HasAlertService
     typealias NestedDependencies =
-        PostListPostViewModel.Dependencies &
-        PostDetailViewController.Dependencies
+        PostDetailViewController.Dependencies &
+        PostListPostViewModel.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
@@ -69,13 +69,13 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
                 switch feed.feedType {
                 case let .frontpage(listingType, _):
                     switch listingType {
-                    case .all:
+                    case .All:
                         return "All"
-                    case .local:
+                    case .Local:
                         return "Local"
-                    case .subscribed:
+                    case .Subscribed:
                         return "Subscribed"
-                    case .moderatorView:
+                    case .ModeratorView:
                         return "Moderator view"
                     }
 
@@ -136,7 +136,7 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
         numberOfPosts.send(numberOfPosts.value + inserted)
     }
 
-    func didChangeSortType(_ sortType: SortType) {
+    func didChangeSortType(_ sortType: Components.Schemas.SortType) {
         let newFeed = accountService
             .lemmyService(for: account)
             .createFeed(duplicateOf: feed.value, sortType: sortType)

@@ -10,7 +10,7 @@ import LemmyKit
 
 extension LemmyPage {
     convenience init(
-        _ postViews: [PostView],
+        _ postViews: [Components.Schemas.PostView],
         index: Int16,
         account: LemmyAccount,
         in context: NSManagedObjectContext

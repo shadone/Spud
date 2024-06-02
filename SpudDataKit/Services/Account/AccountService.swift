@@ -207,10 +207,9 @@ public class AccountService: AccountServiceType {
 
         logger.info("Setting default account \(accountToMakeDefault.identifierForLogging, privacy: .public)")
 
-        allAccounts(includeSignedOutAccount: true, in: dataStore.mainContext)
-            .forEach {
-                $0.isDefaultAccount = false
-            }
+        for account in allAccounts(includeSignedOutAccount: true, in: dataStore.mainContext) {
+            account.isDefaultAccount = false
+        }
 
         accountToMakeDefault.isDefaultAccount = true
 
@@ -256,14 +255,13 @@ public class AccountService: AccountServiceType {
     ) -> AnyPublisher<LemmyAccount, AccountServiceLoginError> {
         // Creating temporary authenticated LemmyApi object for making login request.
         let api = api(for: site, credential: nil)
-        return api.login(.init(username_or_email: username, password: password))
+        return api.login(username: username, password: password)
             .mapError { apiError -> AccountServiceLoginError in
                 switch apiError {
                 case let .serverError(error):
-                    switch error {
-                    case .incorrect_login:
+                    if error.error == "incorrect_login" {
                         return .invalidLogin
-                    default:
+                    } else {
                         return .apiError(apiError)
                     }
                 default:

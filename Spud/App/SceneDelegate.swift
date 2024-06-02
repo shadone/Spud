@@ -70,7 +70,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     }
 
     func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
-        URLContexts.forEach { urlContext in
+        for urlContext in URLContexts {
             logger.debug("""
                 Received open URL request: \(urlContext.url, privacy: .public) \
                 [\

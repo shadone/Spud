@@ -8,6 +8,10 @@ import Combine
 import CoreData
 import Foundation
 import LemmyKit
+import OSLog
+import SpudUtilKit
+
+private let logger = Logger(.dataStore)
 
 @objc(LemmyCommentElement)
 public final class LemmyCommentElement: NSManagedObject {
@@ -19,7 +23,7 @@ public final class LemmyCommentElement: NSManagedObject {
     @nonobjc
     public class func fetchForDeletion(
         postObjectId: NSManagedObjectID,
-        sortType: CommentSortType
+        sortType: Components.Schemas.CommentSortType
     ) -> NSFetchRequest<LemmyCommentElement> {
         let request = NSFetchRequest<LemmyCommentElement>(entityName: "CommentElement")
         request.predicate = NSPredicate(
@@ -55,12 +59,16 @@ public final class LemmyCommentElement: NSManagedObject {
 
 public extension LemmyCommentElement {
     /// Comment sort order.
-    var sortType: CommentSortType {
+    var sortType: Components.Schemas.CommentSortType {
         get {
-            CommentSortType(rawValue: sortTypeRawValue) ?? .hot
+            guard let value = Components.Schemas.CommentSortType(fromDataStore: sortTypeRawValue) else {
+                logger.assertionFailure("Failed to parse comment sort type '\(sortTypeRawValue)'")
+                return .Hot
+            }
+            return value
         }
         set {
-            sortTypeRawValue = newValue.rawValue
+            sortTypeRawValue = newValue.dataStoreRawValue
         }
     }
 

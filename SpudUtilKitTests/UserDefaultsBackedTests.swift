@@ -43,7 +43,7 @@ class UserDefaultsBackedTests: XCTestCase {
 
     private func resetDefaults() {
         let allKeys = defaultsForTesting.dictionaryRepresentation().keys
-        allKeys.forEach { key in
+        for key in allKeys {
             defaultsForTesting.removeObject(forKey: key)
         }
     }
