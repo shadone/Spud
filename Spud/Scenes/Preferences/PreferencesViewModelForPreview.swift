@@ -46,4 +46,7 @@ class PreferencesViewModelForPreview:
         .init(.safariViewController)
     var openExternalLinkInSafariVCReaderMode: CurrentValueSubject<Bool, Never> = .init(true)
     var openExternalLinkAsUniversalLinkInApp: CurrentValueSubject<Bool, Never> = .init(true)
+
+    var storageSize: CurrentValueSubject<String, Never> = .init("128 MB")
+    var storageFileUrl: CurrentValueSubject<URL, Never> = .init(URL(string: "file:///tmp")!)
 }
