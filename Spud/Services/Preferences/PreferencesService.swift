@@ -13,8 +13,8 @@ import SpudUtilKit
 enum Preferences { }
 
 protocol PreferencesServiceType: AnyObject {
-    var defaultCommentSortType: CommentSortType { get set }
-    var defaultCommentSortTypePublisher: AnyPublisher<CommentSortType, Never> { get }
+    var defaultCommentSortType: Components.Schemas.CommentSortType { get set }
+    var defaultCommentSortTypePublisher: AnyPublisher<Components.Schemas.CommentSortType, Never> { get }
 
     /// Describes how to open external links from posts and comments.
     var openExternalLinks: Preferences.OpenExternalLink { get set }
@@ -36,9 +36,9 @@ class PreferencesService: PreferencesServiceType {
     // MARK: Public
 
     @UserDefaultsBacked(key: "defaultCommentSortType")
-    var defaultCommentSortType: CommentSortType = .hot
+    var defaultCommentSortType: Components.Schemas.CommentSortType = .Hot
 
-    var defaultCommentSortTypePublisher: AnyPublisher<CommentSortType, Never> {
+    var defaultCommentSortTypePublisher: AnyPublisher<Components.Schemas.CommentSortType, Never> {
         $defaultCommentSortType
     }
 

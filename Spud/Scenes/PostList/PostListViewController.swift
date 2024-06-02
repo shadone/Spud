@@ -21,8 +21,8 @@ class PostListViewController: UIViewController {
         HasAppearanceService &
         HasDataStore
     typealias NestedDependencies =
-        PostListPostViewModel.Dependencies &
-        PostDetailViewController.Dependencies
+        PostDetailViewController.Dependencies &
+        PostListPostViewModel.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
@@ -62,7 +62,7 @@ class PostListViewController: UIViewController {
     var isLoadingIndicatorHidden = true
 
     var sortTypeBarButtonItem: UIBarButtonItem!
-    var sortTypeMenuActionsBySortType: [SortType: UIAction] = [:]
+    var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
     var sortTypeActiveAction: UIAction!
     var sortTypeHotAction: UIAction!
     var sortTypeNewAction: UIAction!
@@ -111,7 +111,7 @@ class PostListViewController: UIViewController {
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
-        func makeAction(for sortType: SortType) -> UIAction {
+        func makeAction(for sortType: Components.Schemas.SortType) -> UIAction {
             let menuItem = sortType.itemForMenu
             let action = UIAction(
                 title: menuItem.title,
@@ -123,24 +123,24 @@ class PostListViewController: UIViewController {
             return action
         }
 
-        sortTypeActiveAction = makeAction(for: .active)
-        sortTypeHotAction = makeAction(for: .hot)
-        sortTypeNewAction = makeAction(for: .new)
-        sortTypeOldAction = makeAction(for: .old)
-        sortTypeTopSixHourAction = makeAction(for: .topSixHour)
-        sortTypeTopTwelveHourAction = makeAction(for: .topTwelveHour)
-        sortTypeTopDayAction = makeAction(for: .topDay)
-        sortTypeTopWeekAction = makeAction(for: .topWeek)
-        sortTypeTopMonthAction = makeAction(for: .topMonth)
-        sortTypeTopThreeMonthAction = makeAction(for: .topThreeMonths)
-        sortTypeTopSixMonthAction = makeAction(for: .topSixMonths)
-        sortTypeTopNineMonthAction = makeAction(for: .topNineMonths)
-        sortTypeTopYearAction = makeAction(for: .topYear)
-        sortTypeTopAllAction = makeAction(for: .topAll)
-        sortTypeMostCommentsAction = makeAction(for: .mostComments)
-        sortTypeNewCommentsAction = makeAction(for: .newComments)
-        sortTypeControversialAction = makeAction(for: .controversial)
-        sortTypeScaledAction = makeAction(for: .scaled)
+        sortTypeActiveAction = makeAction(for: .Active)
+        sortTypeHotAction = makeAction(for: .Hot)
+        sortTypeNewAction = makeAction(for: .New)
+        sortTypeOldAction = makeAction(for: .Old)
+        sortTypeTopSixHourAction = makeAction(for: .TopSixHour)
+        sortTypeTopTwelveHourAction = makeAction(for: .TopTwelveHour)
+        sortTypeTopDayAction = makeAction(for: .TopDay)
+        sortTypeTopWeekAction = makeAction(for: .TopWeek)
+        sortTypeTopMonthAction = makeAction(for: .TopMonth)
+        sortTypeTopThreeMonthAction = makeAction(for: .TopThreeMonths)
+        sortTypeTopSixMonthAction = makeAction(for: .TopSixMonths)
+        sortTypeTopNineMonthAction = makeAction(for: .TopNineMonths)
+        sortTypeTopYearAction = makeAction(for: .TopYear)
+        sortTypeTopAllAction = makeAction(for: .TopAll)
+        sortTypeMostCommentsAction = makeAction(for: .MostComments)
+        sortTypeNewCommentsAction = makeAction(for: .NewComments)
+        sortTypeControversialAction = makeAction(for: .Controversial)
+        sortTypeScaledAction = makeAction(for: .Scaled)
 
         sortTypeBarButtonItem = UIBarButtonItem(
             title: "Sort type",
@@ -197,7 +197,9 @@ class PostListViewController: UIViewController {
         sortTypeBarButtonItem.menu = sortTypeMenu
     }
 
-    private func sortTypeActionHandler(for sortType: SortType) -> UIActionHandler {
+    private func sortTypeActionHandler(
+        for sortType: Components.Schemas.SortType
+    ) -> UIActionHandler {
         { [weak self] _ in
             self?.viewModel.inputs.didChangeSortType(sortType)
         }
@@ -238,7 +240,7 @@ class PostListViewController: UIViewController {
     }
 
     private func updateSelectedSortTypeMenu() {
-        sortTypeMenuActionsBySortType.forEach { _, value in
+        for (_, value) in sortTypeMenuActionsBySortType {
             value.state = .off
         }
 

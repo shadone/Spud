@@ -12,7 +12,10 @@ import OSLog
 private let logger = Logger(.lemmyService)
 
 extension LemmyPost {
-    func upsert(comments: [CommentView], for sortType: CommentSortType) {
+    func upsert(
+        comments: [Components.Schemas.CommentView],
+        for sortType: Components.Schemas.CommentSortType
+    ) {
         guard let context = managedObjectContext else {
             logger.assertionFailure()
             return
@@ -49,7 +52,7 @@ extension LemmyPost {
 
         var elementIndex: Int64 = 0
 
-        orderedComments.forEach { commentView in
+        for commentView in orderedComments {
             let commentPath = CommentPath(path: commentView.comment.path)
 
             if let newComment = LemmyComment.upsert(commentView, post: self, in: context) {

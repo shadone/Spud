@@ -18,7 +18,7 @@ enum PostDetailOrEmpty {
 }
 
 protocol PostDetailOrEmptyViewModelInputs {
-    func startLoadingPost(postId: PostId)
+    func startLoadingPost(postId: Components.Schemas.PostID)
     func didFinishLoadingPostInfo(_ postInfo: LemmyPostInfo)
     func displayPostInfo(_ postInfo: LemmyPostInfo)
     func displayEmpty()
@@ -26,7 +26,7 @@ protocol PostDetailOrEmptyViewModelInputs {
 
 protocol PostDetailOrEmptyViewModelOutputs {
     var currentPostInfo: AnyPublisher<LemmyPostInfo?, Never> { get }
-    var loadingPostInfo: AnyPublisher<PostId, Never> { get }
+    var loadingPostInfo: AnyPublisher<Components.Schemas.PostID, Never> { get }
     var postInfoLoaded: AnyPublisher<LemmyPostInfo, Never> { get }
     var viewState: AnyPublisher<PostDetailOrEmpty.ViewState, Never> { get }
 }
@@ -90,14 +90,14 @@ class PostDetailOrEmptyViewModel:
     // MARK: Outputs
 
     let currentPostInfo: AnyPublisher<LemmyPostInfo?, Never>
-    let loadingPostInfo: AnyPublisher<PostId, Never>
+    let loadingPostInfo: AnyPublisher<Components.Schemas.PostID, Never>
     let postInfoLoaded: AnyPublisher<LemmyPostInfo, Never>
     let viewState: AnyPublisher<PostDetailOrEmpty.ViewState, Never>
 
     // MARK: Inputs
 
-    private let startLoadingPostSubject = PassthroughSubject<PostId, Never>()
-    func startLoadingPost(postId: PostId) {
+    private let startLoadingPostSubject = PassthroughSubject<Components.Schemas.PostID, Never>()
+    func startLoadingPost(postId: Components.Schemas.PostID) {
         startLoadingPostSubject.send(postId)
     }
 

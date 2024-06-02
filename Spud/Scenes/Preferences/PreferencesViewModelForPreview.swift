@@ -21,10 +21,10 @@ class PreferencesViewModelForPreview:
 
     func testExternalLink(_ url: URL) { }
     func testUniversalLink() { }
-    func updateDefaultPostSort(_ sortType: SortType) { }
+    func updateDefaultPostSort(_ sortType: Components.Schemas.SortType) { }
     func updateOpenExternalLink(_ value: Preferences.OpenExternalLink) { }
     func updateOpenExternalLinkInSafariVCReaderMode(_ value: Bool) { }
-    func updateDefaultCommentSort(_ commentSortType: LemmyKit.CommentSortType) { }
+    func updateDefaultCommentSort(_ commentSortType: Components.Schemas.CommentSortType) { }
     func updateOpenExternalLinkAsUniversalLinkInApp(_ value: Bool) { }
 
     // MARK: Outputs
@@ -35,15 +35,18 @@ class PreferencesViewModelForPreview:
 
     var externalLinkRequested: AnyPublisher<URL, Never> = .completed
 
-    var allPostSortTypes: [SortType] = SortType.allCases
-    var defaultPostSortType: CurrentValueSubject<SortType, Never> = .init(.hot)
-    var defaultPostSortTypeRequested: AnyPublisher<SortType, Never> = .completed
+    var allPostSortTypes: [Components.Schemas.SortType] = Components.Schemas.SortType.allCases
+    var defaultPostSortType: CurrentValueSubject<Components.Schemas.SortType, Never> = .init(.Hot)
+    var defaultPostSortTypeRequested: AnyPublisher<Components.Schemas.SortType, Never> = .completed
 
-    var allCommentSortTypes: [CommentSortType] = CommentSortType.allCases
-    var defaultCommentSortType: CurrentValueSubject<CommentSortType, Never> = .init(.hot)
+    var allCommentSortTypes: [Components.Schemas.CommentSortType] = Components.Schemas.CommentSortType.allCases
+    var defaultCommentSortType: CurrentValueSubject<Components.Schemas.CommentSortType, Never> = .init(.Hot)
 
     var openExternalLink: CurrentValueSubject<Preferences.OpenExternalLink, Never> =
         .init(.safariViewController)
     var openExternalLinkInSafariVCReaderMode: CurrentValueSubject<Bool, Never> = .init(true)
     var openExternalLinkAsUniversalLinkInApp: CurrentValueSubject<Bool, Never> = .init(true)
+
+    var storageSize: CurrentValueSubject<String, Never> = .init("128 MB")
+    var storageFileUrl: CurrentValueSubject<URL, Never> = .init(URL(string: "file:///tmp")!)
 }

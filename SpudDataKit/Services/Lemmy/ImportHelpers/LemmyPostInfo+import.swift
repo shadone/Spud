@@ -12,7 +12,7 @@ import OSLog
 private let logger = Logger(.dataStore)
 
 extension LemmyPostInfo {
-    func set(from model: PostView) {
+    func set(from model: Components.Schemas.PostView) {
         set(from: model.post)
         set(from: model.counts)
 
@@ -35,22 +35,22 @@ extension LemmyPostInfo {
         updatedAt = Date()
     }
 
-    private func set(from model: Post) {
-        originalPostUrl = model.ap_id
+    private func set(from model: Components.Schemas.Post) {
+        originalPostUrl = URL(string: model.ap_id)!
 
         title = model.name
         body = model.body
 
-        thumbnailUrl = model.thumbnail_url?.url
+        thumbnailUrl = model.thumbnail_url.map(LenientUrl.init)?.url
 
-        url = model.url?.url
+        url = model.url.map(LenientUrl.init)?.url
         urlEmbedTitle = model.embed_title
         urlEmbedDescription = model.embed_description
 
         published = model.published
     }
 
-    private func set(from model: PostAggregates) {
+    private func set(from model: Components.Schemas.PostAggregates) {
         numberOfComments = model.comments
 
         score = model.score

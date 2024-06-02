@@ -13,7 +13,7 @@ private let logger = Logger(.dataStore)
 
 extension LemmyAccount {
     func upsert(
-        myUserInfo model: MyUserInfo?
+        myUserInfo model: Components.Schemas.MyUserInfo?
     ) {
         assert(
             (isSignedOutAccountType && model == nil) ||

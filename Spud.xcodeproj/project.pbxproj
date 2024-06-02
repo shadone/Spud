@@ -73,7 +73,6 @@
 		925B46712A8EE0A9008410EA /* CommentSortType+itemForMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B46702A8EE0A9008410EA /* CommentSortType+itemForMenu.swift */; };
 		925B76CC2A8FFF0A00BD065A /* MarkdownSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B76CB2A8FFF0A00BD065A /* MarkdownSnapshotTests.swift */; };
 		925B76D42A90046200BD065A /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 925B76D32A90046200BD065A /* SnapshotTesting */; };
-		925B76D62A90069C00BD065A /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 925B76D52A90069C00BD065A /* LemmyKit */; };
 		925B76D82A9008CE00BD065A /* MarkdownViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B76D72A9008CE00BD065A /* MarkdownViewController.swift */; };
 		925B76DB2A90174C00BD065A /* UserDefaultsBacked.swift in Sources */ = {isa = PBXBuildFile; fileRef = 926602C12A5F69B8005A1641 /* UserDefaultsBacked.swift */; };
 		925B76DD2A90178000BD065A /* UserDefaultsBackedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B76DC2A90178000BD065A /* UserDefaultsBackedTests.swift */; };
@@ -97,9 +96,13 @@
 		927343352A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343342A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift */; };
 		927343372A61C6960089556E /* TouchDownGestureRecognizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343362A61C6960089556E /* TouchDownGestureRecognizer.swift */; };
 		927343392A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927343382A61C6B30089556E /* UITapGestureRecognizer+LabelLinks.swift */; };
-		9273433E2A61FAB70089556E /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9273433D2A61FAB70089556E /* LemmyKit */; };
 		927618182A730C25003D49D4 /* AppService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618172A730C25003D49D4 /* AppService.swift */; };
-		927C187E2A86E48A00F47B0D /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 927C187D2A86E48A00F47B0D /* LemmyKit */; };
+		927782162C0B9A1B0010068F /* SortType+Identifiable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927782152C0B9A1B0010068F /* SortType+Identifiable.swift */; };
+		927782182C0B9AD90010068F /* CommentSortType+Identifiable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927782172C0B9AD90010068F /* CommentSortType+Identifiable.swift */; };
+		9277821B2C0BA2FD0010068F /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9277821A2C0BA2FD0010068F /* LemmyKit */; };
+		927839C62C0C6E6800521C69 /* ListingType+DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927839C52C0C6E6800521C69 /* ListingType+DataStore.swift */; };
+		927839C82C0C703D00521C69 /* SortType+DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927839C72C0C703D00521C69 /* SortType+DataStore.swift */; };
+		927839CA2C0C70A700521C69 /* CommentSortType+DataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927839C92C0C70A700521C69 /* CommentSortType+DataStore.swift */; };
 		927C9AAE2A48EF37003C46C0 /* AccountListAccountViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */; };
 		927E1F3C2A5841B4002327EC /* UIViewPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927E1F3B2A5841B4002327EC /* UIViewPreview.swift */; };
 		928D686C2A9E94B200EBD10E /* PersonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 928D686B2A9E94B200EBD10E /* PersonView.swift */; };
@@ -241,7 +244,6 @@
 		92CC5DB62A7EC1CF0019436A /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5DB52A7EC1CF0019436A /* OSLog.swift */; };
 		92CC5DB72A7EC1F80019436A /* NodeInfoSoftware.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921943452A75E83A0005474D /* NodeInfoSoftware.swift */; };
 		92CC5DB92A7EC7880019436A /* SemVer in Frameworks */ = {isa = PBXBuildFile; productRef = 92CC5DB82A7EC7880019436A /* SemVer */; };
-		92CC5DBB2A7EC79F0019436A /* LemmyKit in Frameworks */ = {isa = PBXBuildFile; productRef = 92CC5DBA2A7EC79F0019436A /* LemmyKit */; };
 		92CC5DBC2A7EC7C50019436A /* SpudDataKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D622A7EBF5E0019436A /* SpudDataKit.framework */; };
 		92CC5DC02A7ED7210019436A /* SchedulerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62EB2A46EFF400497C3B /* SchedulerService.swift */; };
 		92CC5DC22A7ED7260019436A /* AccountService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9602A3B5E8C00672F64 /* AccountService.swift */; };
@@ -480,7 +482,6 @@
 		9216FBCE2A795F4A00D67636 /* PreferencesService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesService.swift; sourceTree = "<group>"; };
 		9219433C2A7562390005474D /* Instance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Instance.swift; sourceTree = "<group>"; };
 		9219433E2A7564650005474D /* NodeInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeInfo.swift; sourceTree = "<group>"; };
-		921943442A75BEC20005474D /* DiasporaNodeInfo */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = DiasporaNodeInfo; path = ../DiasporaNodeInfo; sourceTree = "<group>"; };
 		921943452A75E83A0005474D /* NodeInfoSoftware.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NodeInfoSoftware.swift; sourceTree = "<group>"; };
 		9224DA0B2A86EFBA00ADC091 /* View+if.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+if.swift"; sourceTree = "<group>"; };
 		9224DA0D2A86F00300ADC091 /* Bool+iOS17.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bool+iOS17.swift"; sourceTree = "<group>"; };
@@ -546,6 +547,11 @@
 		927618602A74F765003D49D4 /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		927618612A74FA70003D49D4 /* URL+lenientString.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+lenientString.swift"; sourceTree = "<group>"; };
 		927618632A74FB9D003D49D4 /* URLLenientStringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = URLLenientStringTests.swift; sourceTree = "<group>"; };
+		927782152C0B9A1B0010068F /* SortType+Identifiable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SortType+Identifiable.swift"; sourceTree = "<group>"; };
+		927782172C0B9AD90010068F /* CommentSortType+Identifiable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentSortType+Identifiable.swift"; sourceTree = "<group>"; };
+		927839C52C0C6E6800521C69 /* ListingType+DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ListingType+DataStore.swift"; sourceTree = "<group>"; };
+		927839C72C0C703D00521C69 /* SortType+DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SortType+DataStore.swift"; sourceTree = "<group>"; };
+		927839C92C0C70A700521C69 /* CommentSortType+DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CommentSortType+DataStore.swift"; sourceTree = "<group>"; };
 		927C9AAD2A48EF37003C46C0 /* AccountListAccountViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountListAccountViewModel.swift; sourceTree = "<group>"; };
 		927E1F3B2A5841B4002327EC /* UIViewPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIViewPreview.swift; sourceTree = "<group>"; };
 		9281B2832A7D925000BA8E39 /* LemmyPostInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyPostInfo.swift; sourceTree = "<group>"; };
@@ -733,7 +739,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				927C187E2A86E48A00F47B0D /* LemmyKit in Frameworks */,
 				92CC5DDD2A7EDE6B0019436A /* SpudDataKit.framework in Frameworks */,
 				92A2271E2A7FB56C00C18FCD /* SpudUIKit.framework in Frameworks */,
 				920B45512A7C1DF400C6C2DC /* SwiftUI.framework in Frameworks */,
@@ -754,7 +759,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				925B76D62A90069C00BD065A /* LemmyKit in Frameworks */,
 				92A226CA2A7EF9A900C18FCD /* SpudDataKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -779,7 +783,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				925AF5E52B38F336001AE338 /* Down in Frameworks */,
-				9273433E2A61FAB70089556E /* LemmyKit in Frameworks */,
 				92DC45382A8191AA003498C1 /* SBTUITestTunnelServer in Frameworks */,
 				92CC5D682A7EBF5E0019436A /* SpudDataKit.framework in Frameworks */,
 				92CC5DBC2A7EC7C50019436A /* SpudDataKit.framework in Frameworks */,
@@ -815,7 +818,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				92CC5DD72A7ED7940019436A /* KeychainAccess in Frameworks */,
-				92CC5DBB2A7EC79F0019436A /* LemmyKit in Frameworks */,
+				9277821B2C0BA2FD0010068F /* LemmyKit in Frameworks */,
 				92CC5DB92A7EC7880019436A /* SemVer in Frameworks */,
 				92CC5DA72A7EC11E0019436A /* SpudUtilKit.framework in Frameworks */,
 			);
@@ -871,7 +874,9 @@
 		9215FDFE2A7FEE6E008B49AB /* Extensions */ = {
 			isa = PBXGroup;
 			children = (
+				927782172C0B9AD90010068F /* CommentSortType+Identifiable.swift */,
 				925B46702A8EE0A9008410EA /* CommentSortType+itemForMenu.swift */,
+				927782152C0B9A1B0010068F /* SortType+Identifiable.swift */,
 				9215FDFF2A7FEE85008B49AB /* SortType+itemForMenu.swift */,
 				92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */,
 			);
@@ -893,14 +898,6 @@
 				9216FBCE2A795F4A00D67636 /* PreferencesService.swift */,
 			);
 			path = Preferences;
-			sourceTree = "<group>";
-		};
-		921943432A75BEC20005474D /* Packages */ = {
-			isa = PBXGroup;
-			children = (
-				921943442A75BEC20005474D /* DiasporaNodeInfo */,
-			);
-			name = Packages;
 			sourceTree = "<group>";
 		};
 		9224DA0A2A86EFAC00ADC091 /* SwiftUI */ = {
@@ -1214,7 +1211,6 @@
 				925B76D92A900D8F00BD065A /* Spud.xctestplan */,
 				925B76DA2A900DBE00BD065A /* SpudSnapshots.xctestplan */,
 				920B458A2A7C51EB00C6C2DC /* SpudWidgetExtension.entitlements */,
-				921943432A75BEC20005474D /* Packages */,
 				9254A3412A86D6F3009EB4B5 /* Shared */,
 				92B7C8FC2A3A40EB00672F64 /* Spud */,
 				92B7C9162A3A40F400672F64 /* SpudTests */,
@@ -1590,9 +1586,12 @@
 		92CC5DB22A7EC1AD0019436A /* Utils */ = {
 			isa = PBXGroup;
 			children = (
+				927839C92C0C70A700521C69 /* CommentSortType+DataStore.swift */,
 				92B2C3212A88EE270038C416 /* FeedType.swift */,
+				927839C52C0C6E6800521C69 /* ListingType+DataStore.swift */,
 				921943452A75E83A0005474D /* NodeInfoSoftware.swift */,
 				92CC5DB52A7EC1CF0019436A /* OSLog.swift */,
+				927839C72C0C703D00521C69 /* SortType+DataStore.swift */,
 				929D13892A76FFBD00E7E5DB /* VoteStatus+Action.swift */,
 				92DD62D02A43A93F00497C3B /* VoteStatus.swift */,
 			);
@@ -1740,7 +1739,6 @@
 			);
 			name = SpudWidgetExtension;
 			packageProductDependencies = (
-				927C187D2A86E48A00F47B0D /* LemmyKit */,
 			);
 			productName = SpudWidgetsExtension;
 			productReference = 920B454F2A7C1DF400C6C2DC /* SpudWidgetExtension.appex */;
@@ -1783,7 +1781,6 @@
 			);
 			name = SpudDataKitTests;
 			packageProductDependencies = (
-				925B76D52A90069C00BD065A /* LemmyKit */,
 			);
 			productName = SpudDataKitTests;
 			productReference = 92A226C62A7EF9A900C18FCD /* SpudDataKitTests.xctest */;
@@ -1848,7 +1845,6 @@
 			);
 			name = Spud;
 			packageProductDependencies = (
-				9273433D2A61FAB70089556E /* LemmyKit */,
 				92DC45372A8191AA003498C1 /* SBTUITestTunnelServer */,
 				925AF5E42B38F336001AE338 /* Down */,
 			);
@@ -1930,8 +1926,8 @@
 			name = SpudDataKit;
 			packageProductDependencies = (
 				92CC5DB82A7EC7880019436A /* SemVer */,
-				92CC5DBA2A7EC79F0019436A /* LemmyKit */,
 				92CC5DD62A7ED7940019436A /* KeychainAccess */,
+				9277821A2C0BA2FD0010068F /* LemmyKit */,
 			);
 			productName = SpudData;
 			productReference = 92CC5D622A7EBF5E0019436A /* SpudDataKit.framework */;
@@ -2018,11 +2014,11 @@
 			mainGroup = 92B7C8F12A3A40EB00672F64;
 			packageReferences = (
 				92CEAEAF2A4D5B4800FAF4DB /* XCRemoteSwiftPackageReference "KeychainAccess" */,
-				9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */,
 				921943472A75ED7F0005474D /* XCRemoteSwiftPackageReference "semver" */,
 				92DC45342A8191AA003498C1 /* XCRemoteSwiftPackageReference "SBTUITestTunnel" */,
 				925B76D22A90046200BD065A /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
 				925AF5E32B38F315001AE338 /* XCRemoteSwiftPackageReference "Down" */,
+				927782192C0BA2FD0010068F /* XCRemoteSwiftPackageReference "LemmyKit" */,
 			);
 			productRefGroup = 92B7C8FB2A3A40EB00672F64 /* Products */;
 			projectDirPath = "";
@@ -2263,6 +2259,7 @@
 				9233A1462A82528600F1F795 /* AppLaunchArgument.swift in Sources */,
 				927618182A730C25003D49D4 /* AppService.swift in Sources */,
 				92B7C9872A3D2DC100672F64 /* CommentsFormatter.swift in Sources */,
+				927782182C0B9AD90010068F /* CommentSortType+Identifiable.swift in Sources */,
 				925B46712A8EE0A9008410EA /* CommentSortType+itemForMenu.swift in Sources */,
 				92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */,
 				926602BD2A5F68DA005A1641 /* GeneralAppearance.swift in Sources */,
@@ -2325,6 +2322,7 @@
 				92DD63002A48502600497C3B /* SiteListSiteViewModel.swift in Sources */,
 				92DD62FC2A484EEF00497C3B /* SiteListViewController.swift in Sources */,
 				9254A34B2A86DFBC009EB4B5 /* SortType+appintent.swift in Sources */,
+				927782162C0B9A1B0010068F /* SortType+Identifiable.swift in Sources */,
 				9215FE002A7FEE85008B49AB /* SortType+itemForMenu.swift in Sources */,
 				92B2C31E2A88C6D30038C416 /* SubscriptionsView.swift in Sources */,
 				922AEE102A40FBEB00AA7B22 /* SubscriptionsViewController.swift in Sources */,
@@ -2378,6 +2376,7 @@
 				92CC5DC32A7ED7260019436A /* AccountServiceLoginError.swift in Sources */,
 				92CC5DD92A7ED8B50019436A /* AlertHandlerRequest.swift in Sources */,
 				92CC5DD82A7ED8B50019436A /* AlertService.swift in Sources */,
+				927839CA2C0C70A700521C69 /* CommentSortType+DataStore.swift in Sources */,
 				92CC5D6D2A7EBF960019436A /* DataStore.swift in Sources */,
 				92CC5D6E2A7EBF9B0019436A /* DataStore.xcdatamodeld in Sources */,
 				92B2C3222A88EE270038C416 /* FeedType.swift in Sources */,
@@ -2420,6 +2419,7 @@
 				92CC5DCF2A7ED7380019436A /* LemmySite+import.swift in Sources */,
 				92CC5D712A7EBFA20019436A /* LemmySite.swift in Sources */,
 				92CC5D802A7EBFA20019436A /* LemmySiteInfo.swift in Sources */,
+				927839C62C0C6E6800521C69 /* ListingType+DataStore.swift in Sources */,
 				92CC5D822A7EBFA20019436A /* NodeInfo.swift in Sources */,
 				92CC5DB72A7EC1F80019436A /* NodeInfoSoftware.swift in Sources */,
 				92CC5DB62A7EC1CF0019436A /* OSLog.swift in Sources */,
@@ -2427,6 +2427,7 @@
 				92CC5DC62A7ED72E0019436A /* PostContentType.swift in Sources */,
 				92CC5DC02A7ED7210019436A /* SchedulerService.swift in Sources */,
 				92CC5DC42A7ED7290019436A /* SiteService.swift in Sources */,
+				927839C82C0C703D00521C69 /* SortType+DataStore.swift in Sources */,
 				9233A1422A82508000F1F795 /* StaticImageService.swift in Sources */,
 				92CC5DB42A7EC1B60019436A /* VoteStatus+Action.swift in Sources */,
 				92CC5DB32A7EC1B60019436A /* VoteStatus.swift in Sources */,
@@ -3440,12 +3441,12 @@
 				minimumVersion = 1.11.1;
 			};
 		};
-		9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */ = {
+		927782192C0BA2FD0010068F /* XCRemoteSwiftPackageReference "LemmyKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/shadone/LemmyKit";
 			requirement = {
-				branch = main;
-				kind = branch;
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.1.2;
 			};
 		};
 		92CEAEAF2A4D5B4800FAF4DB /* XCRemoteSwiftPackageReference "KeychainAccess" */ = {
@@ -3482,30 +3483,15 @@
 			package = 925B76D22A90046200BD065A /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
 			productName = SnapshotTesting;
 		};
-		925B76D52A90069C00BD065A /* LemmyKit */ = {
+		9277821A2C0BA2FD0010068F /* LemmyKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */;
-			productName = LemmyKit;
-		};
-		9273433D2A61FAB70089556E /* LemmyKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */;
-			productName = LemmyKit;
-		};
-		927C187D2A86E48A00F47B0D /* LemmyKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */;
+			package = 927782192C0BA2FD0010068F /* XCRemoteSwiftPackageReference "LemmyKit" */;
 			productName = LemmyKit;
 		};
 		92CC5DB82A7EC7880019436A /* SemVer */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 921943472A75ED7F0005474D /* XCRemoteSwiftPackageReference "semver" */;
 			productName = SemVer;
-		};
-		92CC5DBA2A7EC79F0019436A /* LemmyKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 9273433C2A61FAB70089556E /* XCRemoteSwiftPackageReference "LemmyKit" */;
-			productName = LemmyKit;
 		};
 		92CC5DD62A7ED7940019436A /* KeychainAccess */ = {
 			isa = XCSwiftPackageProductDependency;

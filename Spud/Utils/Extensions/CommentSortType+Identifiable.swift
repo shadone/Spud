@@ -6,9 +6,7 @@
 
 import Foundation
 import LemmyKit
-import SpudDataKit
 
-enum SubscriptionsViewItemType {
-    case listing(Components.Schemas.ListingType)
-    case community(LemmyCommunityInfo)
+extension Components.Schemas.CommentSortType: Identifiable {
+    public var id: String { rawValue }
 }

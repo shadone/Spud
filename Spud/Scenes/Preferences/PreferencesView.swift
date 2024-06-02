@@ -38,7 +38,9 @@ struct PreferencesView<ViewModel>: View
 
                 Section {
                     NavigationLink {
-                        PreferencesAboutView()
+                        PreferencesAboutView(
+                            viewModel: viewModel
+                        )
                     } label: {
                         Label("About", systemImage: "a")
                     }

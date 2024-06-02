@@ -82,7 +82,7 @@ class PreferencesViewController: UIViewController {
             .store(in: &disposables)
     }
 
-    private func updateDefaultPostSortType(_ sortType: SortType) {
+    private func updateDefaultPostSortType(_ sortType: Components.Schemas.SortType) {
         // TODO: update user preferences using /user/save_user_settings api call
         // accountService.lemmyService(for: viewModel.outputs.account.value)
         //     .updateAccountInfo()

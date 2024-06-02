@@ -14,9 +14,9 @@ protocol PreferencesViewModelInputs {
     /// Opens external link as per current user configuration.
     func testExternalLink(_ url: URL)
 
-    func updateDefaultPostSort(_ sortType: SortType)
+    func updateDefaultPostSort(_ sortType: Components.Schemas.SortType)
 
-    func updateDefaultCommentSort(_ commentSortType: CommentSortType)
+    func updateDefaultCommentSort(_ commentSortType: Components.Schemas.CommentSortType)
 
     func updateOpenExternalLink(_ value: Preferences.OpenExternalLink)
 
@@ -35,27 +35,32 @@ protocol PreferencesViewModelOutputs {
     // MARK: Default Post Sort Type
 
     /// Returns all Post sort types that user can choose from.
-    var allPostSortTypes: [SortType] { get }
+    var allPostSortTypes: [Components.Schemas.SortType] { get }
 
     /// The default sort type for post listing that the user has chosen.
-    var defaultPostSortType: CurrentValueSubject<SortType, Never> { get }
+    var defaultPostSortType: CurrentValueSubject<Components.Schemas.SortType, Never> { get }
 
     /// The user chose a different sort type.
-    var defaultPostSortTypeRequested: AnyPublisher<SortType, Never> { get }
+    var defaultPostSortTypeRequested: AnyPublisher<Components.Schemas.SortType, Never> { get }
 
     // MARK: Default Comment Sort Type
 
     /// Returns all Comment sort types that user can choose from.
-    var allCommentSortTypes: [CommentSortType] { get }
+    var allCommentSortTypes: [Components.Schemas.CommentSortType] { get }
 
     /// The default sort type for comments that the user has chosen.
-    var defaultCommentSortType: CurrentValueSubject<CommentSortType, Never> { get }
+    var defaultCommentSortType: CurrentValueSubject<Components.Schemas.CommentSortType, Never> { get }
 
     // MARK: Open External Link
 
     var openExternalLink: CurrentValueSubject<Preferences.OpenExternalLink, Never> { get }
     var openExternalLinkInSafariVCReaderMode: CurrentValueSubject<Bool, Never> { get }
     var openExternalLinkAsUniversalLinkInApp: CurrentValueSubject<Bool, Never> { get }
+
+    // MARK: Storage info
+
+    var storageSize: CurrentValueSubject<String, Never> { get }
+    var storageFileUrl: CurrentValueSubject<URL, Never> { get }
 }
 
 protocol PreferencesViewModelType: ObservableObject {
@@ -70,6 +75,7 @@ class PreferencesViewModel:
 {
     typealias OwnDependencies =
         HasAccountService &
+        HasDataStore &
         HasPreferencesService
     typealias NestedDependencies =
         HasVoid
@@ -97,9 +103,9 @@ class PreferencesViewModel:
 
         // TODO: omit sort types that User's instance cannot handle
         // (e.g. old Lemmy instance not supporting topSixHour sort)
-        allPostSortTypes = SortType.allCases
+        allPostSortTypes = Components.Schemas.SortType.allCases
 
-        defaultPostSortType = .init(account.accountInfo?.defaultSortType ?? .hot)
+        defaultPostSortType = .init(account.accountInfo?.defaultSortType ?? .Hot)
         defaultPostSortTypeRequested = updateDefaultPostSortSubject
             .eraseToAnyPublisher()
 
@@ -107,7 +113,7 @@ class PreferencesViewModel:
 
         // TODO: omit sort types that User's instance cannot handle
         // (e.g. old Lemmy instance not supporting topSixHour sort)
-        allCommentSortTypes = CommentSortType.allCases
+        allCommentSortTypes = Components.Schemas.CommentSortType.allCases
 
         defaultCommentSortType = .init(preferencesService.defaultCommentSortType)
 
@@ -116,6 +122,13 @@ class PreferencesViewModel:
         openExternalLinkInSafariVCReaderMode = .init(preferencesService.openExternalLinksInSafariVCReaderMode)
 
         openExternalLinkAsUniversalLinkInApp = .init(preferencesService.openUniversalLinkInApp)
+
+        storageSize = .init(ByteCountFormatter.string(
+            fromByteCount: Int64(dependencies.dataStore.sizeInBytes),
+            countStyle: .file
+        ))
+
+        storageFileUrl = .init(dependencies.dataStore.storeUrl)
 
         preferencesService.defaultCommentSortTypePublisher
             .sink { [weak self] value in
@@ -145,16 +158,19 @@ class PreferencesViewModel:
 
     let externalLinkRequested: AnyPublisher<URL, Never>
 
-    let allPostSortTypes: [SortType]
-    let defaultPostSortType: CurrentValueSubject<SortType, Never>
-    let defaultPostSortTypeRequested: AnyPublisher<SortType, Never>
+    let allPostSortTypes: [Components.Schemas.SortType]
+    let defaultPostSortType: CurrentValueSubject<Components.Schemas.SortType, Never>
+    let defaultPostSortTypeRequested: AnyPublisher<Components.Schemas.SortType, Never>
 
-    let allCommentSortTypes: [CommentSortType]
-    let defaultCommentSortType: CurrentValueSubject<CommentSortType, Never>
+    let allCommentSortTypes: [Components.Schemas.CommentSortType]
+    let defaultCommentSortType: CurrentValueSubject<Components.Schemas.CommentSortType, Never>
 
     let openExternalLink: CurrentValueSubject<Preferences.OpenExternalLink, Never>
     let openExternalLinkInSafariVCReaderMode: CurrentValueSubject<Bool, Never>
     let openExternalLinkAsUniversalLinkInApp: CurrentValueSubject<Bool, Never>
+
+    let storageSize: CurrentValueSubject<String, Never>
+    let storageFileUrl: CurrentValueSubject<URL, Never>
 
     // MARK: Inputs
 
@@ -163,8 +179,8 @@ class PreferencesViewModel:
         testExternalLinkSubject.send(url)
     }
 
-    let updateDefaultPostSortSubject: PassthroughSubject<SortType, Never> = .init()
-    func updateDefaultPostSort(_ value: SortType) {
+    let updateDefaultPostSortSubject: PassthroughSubject<Components.Schemas.SortType, Never> = .init()
+    func updateDefaultPostSort(_ value: Components.Schemas.SortType) {
         // Send the new value before the request to update it completes to update the UI early.
         defaultPostSortType.send(value)
 
@@ -172,8 +188,8 @@ class PreferencesViewModel:
         objectWillChange.send()
     }
 
-    let updateDefaultCommentSortSubject: PassthroughSubject<CommentSortType, Never> = .init()
-    func updateDefaultCommentSort(_ value: CommentSortType) {
+    let updateDefaultCommentSortSubject: PassthroughSubject<Components.Schemas.CommentSortType, Never> = .init()
+    func updateDefaultCommentSort(_ value: Components.Schemas.CommentSortType) {
         preferencesService.defaultCommentSortType = value
         objectWillChange.send()
     }

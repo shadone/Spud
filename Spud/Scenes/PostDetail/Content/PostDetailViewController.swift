@@ -21,10 +21,10 @@ class PostDetailViewController: UIViewController {
         HasAppearanceService &
         HasDataStore
     typealias NestedDependencies =
-        PostDetailViewModel.Dependencies &
-        PostDetailHeaderViewModel.Dependencies &
+        PersonOrLoadingViewController.Dependencies &
         PostDetailCommentViewModel.Dependencies &
-        PersonOrLoadingViewController.Dependencies
+        PostDetailHeaderViewModel.Dependencies &
+        PostDetailViewModel.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 

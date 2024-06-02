@@ -13,7 +13,7 @@ private let logger = Logger(.lemmyService)
 
 extension LemmyComment {
     convenience init(
-        _ model: CommentView,
+        _ model: Components.Schemas.CommentView,
         post: LemmyPost,
         in context: NSManagedObjectContext
     ) {
@@ -28,9 +28,9 @@ extension LemmyComment {
         creator = LemmyPerson.upsert(model.creator, site: post.account.site, in: context)
     }
 
-    func set(from model: CommentView) {
+    func set(from model: Components.Schemas.CommentView) {
         localCommentId = model.comment.id
-        originalCommentUrl = model.comment.ap_id
+        originalCommentUrl = URL(string: model.comment.ap_id)!
         body = model.comment.content
 
         score = model.counts.score
@@ -57,7 +57,7 @@ extension LemmyComment {
     }
 
     static func upsert(
-        _ model: CommentView,
+        _ model: Components.Schemas.CommentView,
         post: LemmyPost,
         in context: NSManagedObjectContext
     ) -> LemmyComment? {

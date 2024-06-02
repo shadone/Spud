@@ -24,7 +24,7 @@ public final class LemmyCommunity: NSManagedObject {
     // MARK: Properties
 
     /// Community identifier. The identifier is local to this instance.
-    @NSManaged public var communityId: CommunityId
+    @NSManaged public var communityId: Components.Schemas.CommentID
 
     // MARK: Meta properties
 
@@ -54,7 +54,10 @@ public final class LemmyCommunity: NSManagedObject {
 }
 
 extension LemmyCommunity {
-    convenience init(communityId: CommunityId, in context: NSManagedObjectContext) {
+    convenience init(
+        communityId: Components.Schemas.CommunityID,
+        in context: NSManagedObjectContext
+    ) {
         self.init(context: context)
 
         self.communityId = communityId

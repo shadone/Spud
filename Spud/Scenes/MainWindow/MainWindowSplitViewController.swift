@@ -12,9 +12,9 @@ class MainWindowSplitViewController: UISplitViewController {
     typealias OwnDependencies =
         HasAccountService
     typealias NestedDependencies =
-        SubscriptionsViewController.Dependencies &
+        PostDetailOrEmptyViewController.Dependencies &
         PostListViewController.Dependencies &
-        PostDetailOrEmptyViewController.Dependencies
+        SubscriptionsViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 

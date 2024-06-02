@@ -13,7 +13,9 @@ enum LemmyCommentImportHelper {
     /// We want to find which comment tree we do not have full data on.
     /// The result is the list of most nested comments that we lack children on
     /// aka comments with missing children.
-    static func findCommentsWithMissingChildren(_ comments: [CommentView]) -> [CommentView] {
+    static func findCommentsWithMissingChildren(
+        _ comments: [Components.Schemas.CommentView]
+    ) -> [Components.Schemas.CommentView] {
         guard !comments.isEmpty else {
             return []
         }
@@ -21,10 +23,10 @@ enum LemmyCommentImportHelper {
         // sort by path string
         let commentsByPath = comments.sorted { $0.comment.path < $1.comment.path }
 
-        var commentsWithMissingChildren: [CommentView] = []
+        var commentsWithMissingChildren: [Components.Schemas.CommentView] = []
 
         if commentsByPath.count > 1 {
-            var previous: CommentView = commentsByPath[0]
+            var previous = commentsByPath[0]
             for i in 1..<commentsByPath.count - 1 {
                 let comment = commentsByPath[i]
 
@@ -83,23 +85,25 @@ enum LemmyCommentImportHelper {
     /// 0.245.987
     /// 0.249
     /// ```
-    static func sort(comments: [CommentView]) -> [CommentView] {
+    static func sort(
+        comments: [Components.Schemas.CommentView]
+    ) -> [Components.Schemas.CommentView] {
         // build a comment tree
         class CommentNode {
-            let id: CommentId
+            let id: Components.Schemas.CommentID
             var children: [CommentNode]
 
-            init(id: CommentId, children: [CommentNode] = []) {
+            init(id: Components.Schemas.CommentID, children: [CommentNode] = []) {
                 self.id = id
                 self.children = children
             }
         }
-        var commentNodeById: [CommentId: CommentNode] = [:]
+        var commentNodeById: [Components.Schemas.CommentID: CommentNode] = [:]
 
         // TODO: we could optimize for memory here and store index into `comments` instead.
-        var commentViewById: [CommentId: CommentView] = [:]
+        var commentViewById: [Components.Schemas.CommentID: Components.Schemas.CommentView] = [:]
         let root = CommentNode(id: 0)
-        comments.forEach { commentView in
+        for commentView in comments {
             let commentId = commentView.comment.id
             let node = CommentNode(id: commentId)
 
@@ -109,7 +113,7 @@ enum LemmyCommentImportHelper {
             let path = CommentPath(path: commentView.comment.path)
             guard let parentCommentId = path.parent else {
                 root.children.append(node)
-                return
+                continue
             }
 
             let parentNode = commentNodeById[parentCommentId] ?? CommentNode(id: parentCommentId)
@@ -118,15 +122,15 @@ enum LemmyCommentImportHelper {
         }
 
         // now flatten the comment tree into a list
-        var orderedComments: [CommentView] = []
+        var orderedComments: [Components.Schemas.CommentView] = []
         func visit(_ commentNode: CommentNode) {
             let commentView = commentViewById[commentNode.id]!
             orderedComments.append(commentView)
-            commentNode.children.forEach {
-                visit($0)
+            for child in commentNode.children {
+                visit(child)
             }
         }
-        root.children.forEach { commentNode in
+        for commentNode in root.children {
             visit(commentNode)
         }
 

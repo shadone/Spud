@@ -12,7 +12,7 @@ import OSLog
 private let logger = Logger(.dataStore)
 
 extension LemmyFeed {
-    func append(contentsOf postViews: [PostView]) {
+    func append(contentsOf postViews: [Components.Schemas.PostView]) {
         guard let context = managedObjectContext else {
             logger.assertionFailure()
             return
@@ -21,14 +21,15 @@ extension LemmyFeed {
         // Find activityIds that correspond to new unique posts, i.e. removing duplicates.
         let newActivityIds = Set(
             postViews.map(\.post.ap_id)
+                .map { URL(string: $0)! }
         )
         .subtracting(postActivityIds)
 
         // Split all incoming postViews into those that are new and those that are duplicates.
-        var newPostViews: [PostView] = []
-        var existingPostViews: [PostView] = []
-        postViews.forEach { postView in
-            if newActivityIds.contains(postView.post.ap_id) {
+        var newPostViews: [Components.Schemas.PostView] = []
+        var existingPostViews: [Components.Schemas.PostView] = []
+        for postView in postViews {
+            if newActivityIds.contains(URL(string: postView.post.ap_id)!) {
                 newPostViews.append(postView)
             } else {
                 existingPostViews.append(postView)
@@ -47,7 +48,7 @@ extension LemmyFeed {
         addToPages(page)
 
         // Update existing posts with latest PostView info that we just got.
-        existingPostViews.forEach { postView in
+        for postView in existingPostViews {
             _ = LemmyPost.upsert(postView, account: account, in: context)
         }
     }
