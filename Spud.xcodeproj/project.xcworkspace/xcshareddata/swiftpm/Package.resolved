@@ -1,5 +1,5 @@
 {
-  "originHash" : "7d49684aebd05f3d64ebc5ade2b36d4d42cc56c68570ad929f69fd47471d928b",
+  "originHash" : "663f67bd7df3f7ce81cf7e3e5af1ac19f041ffb4c3de33f6a4eb60067b4474b3",
   "pins" : [
     {
       "identity" : "down",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/shadone/LemmyKit",
       "state" : {
-        "branch" : "openapi",
-        "revision" : "e93dcb9a7f18b599e14881fb819498dffe0a4d3c"
+        "revision" : "a941b3a47fb2ebb763b2f1c8f722ff407f29f772",
+        "version" : "0.1.0"
       }
     },
     {
