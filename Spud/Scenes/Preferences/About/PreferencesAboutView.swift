@@ -35,7 +35,11 @@ struct PreferencesLogsView: View {
     }
 }
 
-struct PreferencesAboutView: View {
+struct PreferencesAboutView<ViewModel>: View
+    where ViewModel: PreferencesViewModelType
+{
+    @StateObject var viewModel: ViewModel
+
     var body: some View {
         Form {
             VStack {
@@ -55,6 +59,22 @@ struct PreferencesAboutView: View {
                     Text("Logs")
                 }
             }
+
+            Section {
+                HStack {
+                    Text("Size")
+                    Spacer()
+                    Text(viewModel.outputs.storageSize.value)
+                }
+
+                if #available(iOS 16.0, *) {
+                    ShareLink("Export Backup", item: viewModel.outputs.storageFileUrl.value)
+                        .labelStyle(.titleOnly)
+                }
+
+            } header: {
+                Text("Storage")
+            }
         }
         .navigationTitle("About")
     }
@@ -62,6 +82,8 @@ struct PreferencesAboutView: View {
 
 #Preview {
     NavigationView {
-        PreferencesAboutView()
+        PreferencesAboutView(
+            viewModel: PreferencesViewModelForPreview()
+        )
     }
 }

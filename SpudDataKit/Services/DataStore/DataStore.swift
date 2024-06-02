@@ -17,6 +17,9 @@ public protocol DataStoreType: AnyObject {
     func newBackgroundContext() -> NSManagedObjectContext
     func saveIfNeeded()
 
+    var sizeInBytes: UInt64 { get }
+    var storeUrl: URL { get }
+
     /// Deletes the persistent container from disk as if the app starts fresh.
     ///
     /// - Note: For tests only!
@@ -45,11 +48,20 @@ public class DataStore: DataStoreType {
         return url
     }()
 
-    public lazy var persistentContainer: NSPersistentContainer = createPersistentContainer()
+    public let storeUrl: URL
 
-    public init() { }
+    public let persistentContainer: NSPersistentContainer
 
-    private func createPersistentContainer() -> NSPersistentContainer {
+    public var sizeInBytes: UInt64 {
+        guard
+            let attrs = try? FileManager.default.attributesOfItem(atPath: storeUrl.path)
+        else {
+            return 0
+        }
+        return (attrs[.size] as? NSNumber)?.uint64Value ?? 0
+    }
+
+    public init() {
         let storeName = "DataStore"
         let storeFileName = "\(storeName).sqlite"
 
@@ -61,20 +73,18 @@ public class DataStore: DataStoreType {
             fatalError("Failed to load mom")
         }
 
-        let container = NSPersistentContainer(
+        persistentContainer = NSPersistentContainer(
             name: storeName,
             managedObjectModel: model
         )
 
-        let storeUrl = sharedContainerURL.appendingPathComponent(storeFileName)
+        storeUrl = sharedContainerURL.appendingPathComponent(storeFileName)
 
         let storeDescription = NSPersistentStoreDescription(url: storeUrl)
         storeDescription.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
         storeDescription.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
 
-        container.persistentStoreDescriptions = [storeDescription]
-
-        return container
+        persistentContainer.persistentStoreDescriptions = [storeDescription]
     }
 
     public func startService() {
