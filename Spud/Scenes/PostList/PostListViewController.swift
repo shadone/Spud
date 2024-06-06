@@ -302,23 +302,22 @@ class PostListViewController: UIViewController {
         window.display(post: post)
     }
 
-    private func vote(_ post: LemmyPost, _ action: VoteStatus.Action) {
-        accountService
-            .lemmyService(for: viewModel.outputs.account)
-            .vote(postId: post.objectID, vote: action)
-            .sink(
-                receiveCompletion: alertService.errorHandler(for: .vote),
-                receiveValue: { _ in }
-            )
-            .store(in: &disposables)
-
+    private func vote(_ post: LemmyPost, _ action: VoteStatus.Action) async {
         // Trigger haptic feedback
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+
+        do {
+            try await accountService
+                .lemmyService(for: viewModel.outputs.account)
+                .vote(postId: post.objectID, vote: action)
+        } catch {
+            alertService.handle(error, for: .vote)
+        }
     }
 
-    private func vote(postAtIndex index: Int, _ action: VoteStatus.Action) {
+    private func vote(postAtIndex index: Int, _ action: VoteStatus.Action) async {
         let post = post(at: index)
-        vote(post, action)
+        await vote(post, action)
     }
 
     private func donateIntent() {
@@ -431,14 +430,18 @@ extension PostListViewController: UITableViewDelegate {
                     title: NSLocalizedString("Upvote", comment: ""),
                     image: generalAppearance.upvoteIcon
                 ) { [weak self] _ in
-                    self?.vote(postAtIndex: indexPath.row, .upvote)
+                    Task {
+                        await self?.vote(postAtIndex: indexPath.row, .upvote)
+                    }
                 }
 
                 let downvoteAction = UIAction(
                     title: NSLocalizedString("Downvote", comment: ""),
                     image: generalAppearance.downvoteIcon
                 ) { [weak self] _ in
-                    self?.vote(postAtIndex: indexPath.row, .downvote)
+                    Task {
+                        await self?.vote(postAtIndex: indexPath.row, .downvote)
+                    }
                 }
 
                 return UIMenu(title: "", children: [
@@ -510,10 +513,14 @@ extension PostListViewController: UITableViewDataSource {
         cell.swipeActionTriggered = { [weak self] action in
             switch action {
             case .leadingPrimary:
-                self?.vote(postInfo.post, .upvote)
+                Task {
+                    await self?.vote(postInfo.post, .upvote)
+                }
 
             case .leadingSecondary:
-                self?.vote(postInfo.post, .downvote)
+                Task {
+                    await self?.vote(postInfo.post, .downvote)
+                }
 
             case .trailingPrimary, .trailingSecondary:
                 // TODO: will be reply and save actions

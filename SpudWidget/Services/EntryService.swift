@@ -119,7 +119,6 @@ class EntryService: EntryServiceType {
         do {
             try await lemmyService
                 .fetchFeed(feedId: feed.objectID, page: nil)
-                .async()
         } catch {
             logger.error("Failed to fetch feed: \(error, privacy: .public)")
         }

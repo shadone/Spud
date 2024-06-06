@@ -237,7 +237,6 @@
 		92CC5DAD2A7EC1540019436A /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5DAC2A7EC1540019436A /* OSLog.swift */; };
 		92CC5DAE2A7EC17F0019436A /* AnyOptional.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C97B2A3D27BC00672F64 /* AnyOptional.swift */; };
 		92CC5DAF2A7EC17F0019436A /* Atomic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEB92A4F362A00FAF4DB /* Atomic.swift */; };
-		92CC5DB02A7EC17F0019436A /* ManagedContextScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */; };
 		92CC5DB12A7EC1890019436A /* URL+lenientString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618612A74FA70003D49D4 /* URL+lenientString.swift */; };
 		92CC5DB32A7EC1B60019436A /* VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D02A43A93F00497C3B /* VoteStatus.swift */; };
 		92CC5DB42A7EC1B60019436A /* VoteStatus+Action.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D13892A76FFBD00E7E5DB /* VoteStatus+Action.swift */; };
@@ -626,7 +625,6 @@
 		92B7C95D2A3B5A7800672F64 /* LemmyAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyAccount.swift; sourceTree = "<group>"; };
 		92B7C9602A3B5E8C00672F64 /* AccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountService.swift; sourceTree = "<group>"; };
 		92B7C9622A3B9EC700672F64 /* PostListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListViewModel.swift; sourceTree = "<group>"; };
-		92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagedContextScheduler.swift; sourceTree = "<group>"; };
 		92B7C9662A3D003B00672F64 /* PostListPostViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListPostViewModel.swift; sourceTree = "<group>"; };
 		92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Publisher+wrapInOptional.swift"; sourceTree = "<group>"; };
 		92B7C96B2A3D158400672F64 /* PostDetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailViewController.swift; sourceTree = "<group>"; };
@@ -1545,7 +1543,6 @@
 				92CC5D942A7EC07D0019436A /* Extensions */,
 				92B7C97B2A3D27BC00672F64 /* AnyOptional.swift */,
 				92CEAEB92A4F362A00FAF4DB /* Atomic.swift */,
-				92B7C9642A3BA64900672F64 /* ManagedContextScheduler.swift */,
 				92CC5DAC2A7EC1540019436A /* OSLog.swift */,
 				92CC5D8B2A7EBFEA0019436A /* SpudUtilKit.h */,
 				927618612A74FA70003D49D4 /* URL+lenientString.swift */,
@@ -2444,7 +2441,6 @@
 				92CC5D972A7EC1100019436A /* Date+relativeString.swift in Sources */,
 				92D6BAA22A842EC9005ECCC2 /* InstanceActorId.swift in Sources */,
 				92BA92C02AA34416005E7D75 /* Logger+assert.swift in Sources */,
-				92CC5DB02A7EC17F0019436A /* ManagedContextScheduler.swift in Sources */,
 				92CC5D982A7EC1100019436A /* NSAttributedString+symbol.swift in Sources */,
 				92CC5D9E2A7EC1100019436A /* NSManagedObjectContext+saveIfNeeded.swift in Sources */,
 				92CC5DAD2A7EC1540019436A /* OSLog.swift in Sources */,

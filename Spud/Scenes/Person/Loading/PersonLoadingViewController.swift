@@ -120,13 +120,18 @@ class PersonLoadingViewController: UIViewController {
             }
             .store(in: &disposables)
 
-        accountService
-            .lemmyService(for: account)
-            .fetchPersonInfo(personId: person.objectID)
-            .sink(
-                receiveCompletion: alertService.errorHandler(for: .fetchPersonInfo),
-                receiveValue: { _ in }
-            )
-            .store(in: &disposables)
+        Task {
+            await fetchPersonInfo()
+        }
+    }
+
+    private func fetchPersonInfo() async {
+        do {
+            try await accountService
+                .lemmyService(for: account)
+                .fetchPersonInfo(personId: person.objectID)
+        } catch {
+            alertService.handle(error, for: .fetchPersonInfo)
+        }
     }
 }
