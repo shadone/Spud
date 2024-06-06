@@ -120,12 +120,18 @@ class PostDetailLoadingViewController: UIViewController {
             }
             .store(in: &disposables)
 
-        lemmyService
-            .fetchPostInfo(postId: post.objectID)
-            .sink(
-                receiveCompletion: alertService.errorHandler(for: .fetchPostInfo),
-                receiveValue: { _ in }
-            )
-            .store(in: &disposables)
+        Task {
+            await fetchPostInfo(for: post)
+        }
+    }
+
+    private func fetchPostInfo(for post: LemmyPost) async {
+        do {
+            try await accountService
+                .lemmyService(for: account)
+                .fetchPostInfo(postId: post.objectID)
+        } catch {
+            alertService.handle(error, for: .fetchPostInfo)
+        }
     }
 }

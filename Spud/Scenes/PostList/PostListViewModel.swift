@@ -10,6 +10,7 @@ import LemmyKit
 import OSLog
 import SpudDataKit
 
+@MainActor
 protocol PostListViewModelInputs {
     func didSelectPost(_ post: LemmyPost?)
     func didChangeSelectedPostIndex(_ index: Int?)
@@ -20,6 +21,7 @@ protocol PostListViewModelInputs {
     func didPrepareFetchController(numberOfFetchedPosts: Int)
 }
 
+@MainActor
 protocol PostListViewModelOutputs {
     var feed: CurrentValueSubject<LemmyFeed, Never> { get }
     var account: LemmyAccount { get }
@@ -31,11 +33,13 @@ protocol PostListViewModelOutputs {
     var navigationTitle: AnyPublisher<String, Never> { get }
 }
 
+@MainActor
 protocol PostListViewModelType {
     var inputs: PostListViewModelInputs { get }
     var outputs: PostListViewModelOutputs { get }
 }
 
+@MainActor
 class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostListViewModelOutputs {
     typealias OwnDependencies =
         HasAccountService &
@@ -86,25 +90,22 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
             .eraseToAnyPublisher()
     }
 
-    func fetchNextPage() {
+    func fetchNextPage() async {
         // TODO: this seems bad, wouldn't this causes a fault on "pages"
         //       and suddenly fetch all pages from this feed into memory?
         assert(feed.value.pages.count + 1 < Int64.max)
         let nextPageNumber = Int64(feed.value.pages.count + 1)
 
         isFetchingNextPage.send(true)
-        accountService
-            .lemmyService(for: account)
-            .fetchFeed(feedId: feed.value.objectID, page: nextPageNumber)
-            // Explicitly specify DispatchQueue.main is required to ensure early delivery.
-            // Without it the completion is not triggered while scroll view is
-            // scrolling, instead the completion is delayed until scrolling finishes.
-            .receive(on: DispatchQueue.main)
-            .sink(receiveCompletion: { [weak self] completion in
-                self?.alertService.errorHandler(for: .fetchPostList)(completion)
-                self?.isFetchingNextPage.send(false)
-            }) { _ in }
-            .store(in: &disposables)
+        do {
+            try await accountService
+                .lemmyService(for: account)
+                .fetchFeed(feedId: feed.value.objectID, page: nextPageNumber)
+        } catch {
+            alertService.handle(error, for: .fetchPostList)
+        }
+
+        isFetchingNextPage.send(false)
     }
 
     // MARK: Type
@@ -154,12 +155,16 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
         guard !isFetchingNextPage.value else {
             return
         }
-        fetchNextPage()
+        Task {
+            await fetchNextPage()
+        }
     }
 
     func didPrepareFetchController(numberOfFetchedPosts: Int) {
         // if we already have posts lets use that and not trigger a new fetch from server.
         guard numberOfFetchedPosts == 0 else { return }
-        fetchNextPage()
+        Task {
+            await fetchNextPage()
+        }
     }
 }

@@ -9,6 +9,7 @@ import CoreData
 import LemmyKit
 import SpudDataKit
 
+@MainActor
 protocol PostDetailViewModelInputs {
 //    func voteOnPost(_ action: VoteStatus.Action)
 //    func voteOnComment(_ comment: RedditComment, _ action: VoteStatus.Action)
@@ -16,17 +17,20 @@ protocol PostDetailViewModelInputs {
     func didPrepareFetchController(numberOfFetchedComments: Int)
 }
 
+@MainActor
 protocol PostDetailViewModelOutputs {
     var postInfo: LemmyPostInfo { get }
     var headerViewModel: PostDetailHeaderViewModel { get }
     var commentSortType: CurrentValueSubject<Components.Schemas.CommentSortType, Never> { get }
 }
 
+@MainActor
 protocol PostDetailViewModelType {
     var inputs: PostDetailViewModelInputs { get }
     var outputs: PostDetailViewModelOutputs { get }
 }
 
+@MainActor
 class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, PostDetailViewModelOutputs {
     typealias OwnDependencies =
         HasAccountService &
@@ -104,13 +108,18 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
     }
 
     func didPrepareFetchController(numberOfFetchedComments: Int) {
-        accountService
-            .lemmyService(for: postInfo.post.account)
-            .fetchComments(postId: postObjectId, sortType: commentSortType.value)
-            .sink(
-                receiveCompletion: alertService.errorHandler(for: .fetchComments),
-                receiveValue: { _ in }
-            )
-            .store(in: &disposables)
+        Task {
+            await fetchComments()
+        }
+    }
+
+    private func fetchComments() async {
+        do {
+            try await accountService
+                .lemmyService(for: postInfo.post.account)
+                .fetchComments(postId: postObjectId, sortType: commentSortType.value)
+        } catch {
+            alertService.handle(error, for: .fetchComments)
+        }
     }
 }

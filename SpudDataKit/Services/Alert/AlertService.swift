@@ -12,6 +12,8 @@ private let logger = Logger(.alertService)
 
 /// Helper for handling errors and displaying the appropriate message to the user.
 public protocol AlertServiceType: AnyObject {
+    func handle(_ error: Error, for request: AlertHandlerRequest)
+
     /// Returns a closure for handling errors coming from ``LemmyService`` requests.
     func errorHandler(
         for request: AlertHandlerRequest
@@ -35,6 +37,10 @@ public protocol HasAlertService {
 
 public class AlertService: AlertServiceType {
     public init() { }
+
+    public func handle(_ error: Error, for request: AlertHandlerRequest) {
+        logger.error("\(request) request failed: \(error, privacy: .public)")
+    }
 
     public func errorHandler(
         for request: AlertHandlerRequest

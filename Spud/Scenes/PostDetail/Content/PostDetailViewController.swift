@@ -151,17 +151,22 @@ class PostDetailViewController: UIViewController {
         super.viewDidAppear(animated)
 
         if isFirstAppearance {
-            accountService
-                .lemmyService(for: postInfo.post.account)
-                .markAsRead(postId: postInfo.post.objectID)
-                .sink(
-                    receiveCompletion: alertService.errorHandler(for: .markAsRead),
-                    receiveValue: { _ in }
-                )
-                .store(in: &disposables)
+            Task {
+                await markAsRead()
+            }
         }
 
         isFirstAppearance = false
+    }
+
+    private func markAsRead() async {
+        do {
+            try await accountService
+                .lemmyService(for: postInfo.post.account)
+                .markAsRead(postId: postInfo.post.objectID)
+        } catch {
+            alertService.handle(error, for: .markAsRead)
+        }
     }
 
     private func setupFRC() {
@@ -205,20 +210,23 @@ class PostDetailViewController: UIViewController {
 
     @objc
     private func reloadData() {
-        accountService
-            .lemmyService(for: postInfo.post.account)
-            .fetchComments(
-                postId: postInfo.post.objectID,
-                sortType: viewModel.outputs.commentSortType.value
-            )
-            .sink(
-                receiveCompletion: { [weak self] completion in
-                    self?.refreshControl.endRefreshing()
-                    self?.alertService.errorHandler(for: .fetchComments)(completion)
-                },
-                receiveValue: { _ in }
-            )
-            .store(in: &disposables)
+        Task {
+            await reloadData()
+        }
+    }
+
+    private func reloadData() async {
+        do {
+            try await accountService
+                .lemmyService(for: postInfo.post.account)
+                .fetchComments(
+                    postId: postInfo.post.objectID,
+                    sortType: viewModel.outputs.commentSortType.value
+                )
+        } catch {
+            alertService.handle(error, for: .fetchComments)
+        }
+        refreshControl.endRefreshing()
     }
 
     @objc
@@ -254,42 +262,40 @@ class PostDetailViewController: UIViewController {
         present(safariVC, animated: true)
     }
 
-    private func voteOnPost(_ action: VoteStatus.Action) {
-        accountService
-            .lemmyService(for: postInfo.post.account)
-            .vote(postId: postInfo.post.objectID, vote: action)
-            .sink(
-                receiveCompletion: alertService.errorHandler(for: .vote),
-                receiveValue: { _ in }
-            )
-            .store(in: &disposables)
-
+    private func voteOnPost(_ action: VoteStatus.Action) async {
         // Trigger haptic feedback
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+
+        do {
+            try await accountService
+                .lemmyService(for: postInfo.post.account)
+                .vote(postId: postInfo.post.objectID, vote: action)
+        } catch {
+            alertService.handle(error, for: .vote)
+        }
     }
 
-    private func vote(_ commentElement: LemmyCommentElement, _ action: VoteStatus.Action) {
+    private func vote(_ commentElement: LemmyCommentElement, _ action: VoteStatus.Action) async {
         guard let comment = commentElement.comment else {
             logger.assertionFailure("Vote on more element?")
             return
         }
 
-        accountService
-            .lemmyService(for: postInfo.post.account)
-            .vote(commentId: comment.objectID, vote: action)
-            .sink(
-                receiveCompletion: alertService.errorHandler(for: .vote),
-                receiveValue: { _ in }
-            )
-            .store(in: &disposables)
-
         // Trigger haptic feedback
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+
+        do {
+            try await accountService
+                .lemmyService(for: postInfo.post.account)
+                .vote(commentId: comment.objectID, vote: action)
+        } catch {
+            alertService.handle(error, for: .vote)
+        }
     }
 
-    private func vote(commentAtIndex index: Int, _ action: VoteStatus.Action) {
+    private func vote(commentAtIndex index: Int, _ action: VoteStatus.Action) async {
         let commentElement = commentElement(at: index)
-        vote(commentElement, action)
+        await vote(commentElement, action)
     }
 }
 
@@ -346,14 +352,18 @@ extension PostDetailViewController: UITableViewDelegate {
                     title: NSLocalizedString("Upvote", comment: ""),
                     image: generalAppearance.upvoteIcon
                 ) { [weak self] _ in
-                    self?.vote(commentAtIndex: indexPath.row, .upvote)
+                    Task {
+                        await self?.vote(commentAtIndex: indexPath.row, .upvote)
+                    }
                 }
 
                 let downvoteAction = UIAction(
                     title: NSLocalizedString("Downvote", comment: ""),
                     image: generalAppearance.downvoteIcon
                 ) { [weak self] _ in
-                    self?.vote(commentAtIndex: indexPath.row, .downvote)
+                    Task {
+                        await self?.vote(commentAtIndex: indexPath.row, .downvote)
+                    }
                 }
 
                 return UIMenu(title: "", children: [
@@ -407,10 +417,14 @@ extension PostDetailViewController: UITableViewDataSource {
                 self?.linkTappedFromPreview(safariVC)
             }
             cell.upvoteTapped = { [weak self] in
-                self?.voteOnPost(.upvote)
+                Task {
+                    await self?.voteOnPost(.upvote)
+                }
             }
             cell.downvoteTapped = { [weak self] in
-                self?.voteOnPost(.downvote)
+                Task {
+                    await self?.voteOnPost(.downvote)
+                }
             }
             cell.isBeingConfigured = false
 
@@ -458,10 +472,14 @@ extension PostDetailViewController: UITableViewDataSource {
             cell.swipeActionTriggered = { [weak self] action in
                 switch action {
                 case .leadingPrimary:
-                    self?.vote(commentElement, .upvote)
+                    Task {
+                        await self?.vote(commentElement, .upvote)
+                    }
 
                 case .leadingSecondary:
-                    self?.vote(commentElement, .downvote)
+                    Task {
+                        await self?.vote(commentElement, .downvote)
+                    }
 
                 case .trailingPrimary, .trailingSecondary:
                     // TODO: will be reply and save actions

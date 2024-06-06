@@ -12,6 +12,7 @@ import OSLog
 
 private let logger = Logger(.schedulerService)
 
+@MainActor
 public protocol SchedulerServiceType {
     func startService()
     func processNewSite(_ site: LemmySite)
@@ -21,6 +22,7 @@ public protocol HasSchedulerService {
     var schedulerService: SchedulerServiceType { get }
 }
 
+@MainActor
 public class SchedulerService: SchedulerServiceType {
     // MARK: Private
 
@@ -53,9 +55,12 @@ public class SchedulerService: SchedulerServiceType {
     public func startService() {
         let fiveMinutes: TimeInterval = 300
         timer = Timer.scheduledTimer(withTimeInterval: fiveMinutes, repeats: true) { [weak self] _ in
-            // Periodically check if there is anything new needs to be fetched.
-            self?.fetchSiteInfoAndMyUserInfoForSignedInIfNeeded()
-            self?.fetchSiteInfoForSignedOutIfNeeded()
+            guard let self else { return }
+            Task {
+                // Periodically check if there is anything new needs to be fetched.
+                await self.fetchSiteInfoAndMyUserInfoForSignedInIfNeeded()
+                await self.fetchSiteInfoForSignedOutIfNeeded()
+            }
         }
 
         // Trigger an extra check soon after app launch.
@@ -66,13 +71,15 @@ public class SchedulerService: SchedulerServiceType {
 
     public func processNewSite(_ site: LemmySite) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            self.fetchSiteInfo(for: site)
+            Task {
+                await self.fetchSiteInfo(for: site)
+            }
         }
     }
 
     // MARK: Site Info
 
-    private func fetchSiteInfo(for site: LemmySite) {
+    private func fetchSiteInfo(for site: LemmySite) async {
         logger.info("Fetching site info for \(site.identifierForLogging, privacy: .public)")
 
         // TODO: separate fetching of generic "site info" and account specific info
@@ -85,50 +92,47 @@ public class SchedulerService: SchedulerServiceType {
             isServiceAccount: true,
             in: mainContext
         )
-        accountService
-            .lemmyService(for: account)
-            .fetchSiteInfo()
-            .sink(
-                receiveCompletion: alertService.errorHandler(for: .fetchSiteInfo),
-                receiveValue: { _ in }
-            )
-            .store(in: &disposables)
+
+        do {
+            try await accountService
+                .lemmyService(for: account)
+                .fetchSiteInfo()
+        } catch {
+            alertService.handle(error, for: .fetchSiteInfo)
+        }
     }
 
-    private func fetchSiteInfo(for account: LemmyAccount) {
-        assert(Thread.current.isMainThread)
-
+    private func fetchSiteInfo(for account: LemmyAccount) async {
         logger.info("Fetching site info for \(account.identifierForLogging, privacy: .public)")
 
-        accountService
-            .lemmyService(for: account)
-            .fetchSiteInfo()
-            .sink(
-                receiveCompletion: alertService.errorHandler(for: .fetchSiteInfo),
-                receiveValue: { _ in }
-            )
-            .store(in: &disposables)
+        do {
+            try await accountService
+                .lemmyService(for: account)
+                .fetchSiteInfo()
+        } catch {
+            alertService.handle(error, for: .fetchSiteInfo)
+        }
     }
 
-    private func fetchSiteInfoForSignedOutIfNeeded() {
+    private func fetchSiteInfoForSignedOutIfNeeded() async {
         // Fetch initial site info, i.e. sites that have never fetched corresponding site info.
         // But only for signed out accounts (signed in accounts site info will be fetched
         // together with subscribed communities).
-        accountService
+        let accountsToUpdate = accountService
             .allSignedOut(in: mainContext)
             .filter { $0.site.siteInfo == nil }
-            .forEach { [weak self] account in
-                self?.fetchSiteInfo(for: account)
-            }
+        for account in accountsToUpdate {
+            await fetchSiteInfo(for: account)
+        }
 
         // Fetch initial site info, i.e. sites that have never fetched corresponding site info.
         // But only for sites that we do have any account for (not even signed out).
-        siteService
+        let sitesToUpdate = siteService
             .allSites(in: mainContext)
             .filter { $0.siteInfo == nil && $0.accounts.isEmpty }
-            .forEach { [weak self] site in
-                self?.fetchSiteInfo(for: site)
-            }
+        for site in sitesToUpdate {
+            await fetchSiteInfo(for: site)
+        }
 
         // TODO: Also periodically re-fetch Site info for sites that we do not have a local account for?
     }
@@ -136,7 +140,7 @@ public class SchedulerService: SchedulerServiceType {
     // MARK: Subscribed communities
 
     /// For signed in accounts periodically re-fetch user info e.g. list of subscribed communities.
-    private func fetchSiteInfoAndMyUserInfoForSignedInIfNeeded() {
+    private func fetchSiteInfoAndMyUserInfoForSignedInIfNeeded() async {
         let allSignedInAccounts = accountService
             .allAccounts(includeSignedOutAccount: false, in: mainContext)
 
@@ -145,10 +149,9 @@ public class SchedulerService: SchedulerServiceType {
 
         // Fetch initial site info (which includes `MyUserInfo`) for new accounts
         // that we never fetched it before.
-        accountsToFetchInitialInfo
-            .forEach { [weak self] account in
-                self?.fetchSiteInfo(for: account)
-            }
+        for account in accountsToFetchInitialInfo {
+            await fetchSiteInfo(for: account)
+        }
 
         // Re-fetch info periodically. Check if the data is older than 1 day and fetch.
         let oneDay: TimeInterval = 24 * 60 * 60
@@ -159,9 +162,8 @@ public class SchedulerService: SchedulerServiceType {
                 let age = now.timeIntervalSince(account.updatedAt)
                 return age > oneDay
             }
-        accountsToUpdateInfo
-            .forEach { [weak self] account in
-                self?.fetchSiteInfo(for: account)
-            }
+        for account in accountsToUpdateInfo {
+            await fetchSiteInfo(for: account)
+        }
     }
 }

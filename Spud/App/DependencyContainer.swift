@@ -7,6 +7,7 @@
 import Foundation
 import SpudDataKit
 
+@MainActor
 struct DependencyContainer:
     HasVoid,
     HasDataStore,

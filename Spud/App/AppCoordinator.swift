@@ -13,6 +13,7 @@ import UIKit
 
 private let logger = Logger(.app)
 
+@MainActor
 class AppCoordinator {
     static var shared: AppCoordinator {
         AppDelegate.shared.coordinator
