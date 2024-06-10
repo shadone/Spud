@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22522" systemVersion="23C71" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22758" systemVersion="23F79" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
     <entity name="Account" representedClassName="LemmyAccount" syncable="YES">
         <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="id" attributeType="String"/>
@@ -217,7 +217,6 @@
         <attribute name="numberOfUsersHalfYear" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfUsersMonth" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="numberOfUsersWeek" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="publicKey" attributeType="String"/>
         <attribute name="sidebar" optional="YES" attributeType="String"/>
         <attribute name="updatedAt" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="version" attributeType="String"/>
