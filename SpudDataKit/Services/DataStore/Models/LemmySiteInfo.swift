@@ -46,8 +46,6 @@ public final class LemmySiteInfo: NSManagedObject {
     @NSManaged public var numberOfUsersMonth: Int64
     @NSManaged public var numberOfUsersHalfYear: Int64
 
-    @NSManaged public var publicKey: String
-
     /// The date this sites' info was published by the site admins.
     @NSManaged public var infoCreatedDate: Date
 

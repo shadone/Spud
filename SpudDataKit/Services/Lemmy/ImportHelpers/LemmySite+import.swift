@@ -60,8 +60,6 @@ extension LemmySite {
         siteInfo.numberOfUsersMonth = model.site_view.counts.users_active_month
         siteInfo.numberOfUsersHalfYear = model.site_view.counts.users_active_half_year
 
-        siteInfo.publicKey = model.site_view.site.public_key
-
         siteInfo.infoCreatedDate = model.site_view.local_site.published
         siteInfo.infoUpdatedDate = model.site_view.local_site.updated
 
