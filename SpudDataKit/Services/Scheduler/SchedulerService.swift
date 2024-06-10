@@ -56,7 +56,7 @@ public class SchedulerService: SchedulerServiceType {
         let fiveMinutes: TimeInterval = 300
         timer = Timer.scheduledTimer(withTimeInterval: fiveMinutes, repeats: true) { [weak self] _ in
             guard let self else { return }
-            Task {
+            Task { @MainActor in
                 // Periodically check if there is anything new needs to be fetched.
                 await self.fetchSiteInfoAndMyUserInfoForSignedInIfNeeded()
                 await self.fetchSiteInfoForSignedOutIfNeeded()
@@ -71,7 +71,7 @@ public class SchedulerService: SchedulerServiceType {
 
     public func processNewSite(_ site: LemmySite) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            Task {
+            Task { @MainActor in
                 await self.fetchSiteInfo(for: site)
             }
         }
