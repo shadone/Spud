@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/shadone/LemmyKit",
       "state" : {
-        "revision" : "907066e09406a2ced88aad855ec716e6b3bebfbe",
-        "version" : "0.1.2"
+        "revision" : "172ecb15e9682d808d483938f08480b070b99cee",
+        "version" : "0.2.1"
       }
     },
     {
