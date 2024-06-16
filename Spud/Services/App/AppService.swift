@@ -45,7 +45,6 @@ class AppService: AppServiceType {
         createSafariViewController(url: url)
     }
 
-    @MainActor
     func open(url: URL, on viewController: UIViewController) async {
         assert(url.spud == nil)
 
