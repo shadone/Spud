@@ -6,16 +6,19 @@
 
 import Foundation
 
+@MainActor
 protocol AppearanceServiceType {
     var general: GeneralAppearance { get }
     var postList: PostListAppearanceType { get }
     var postDetail: PostDetailAppearanceType { get }
 }
 
+@MainActor
 protocol HasAppearanceService {
     var appearanceService: AppearanceServiceType { get }
 }
 
+@MainActor
 class AppearanceService: AppearanceServiceType {
     let general = GeneralAppearance()
     let postList: PostListAppearanceType = PostListAppearance()

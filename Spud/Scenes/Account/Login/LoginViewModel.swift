@@ -10,12 +10,14 @@ import LemmyKit
 import SpudDataKit
 import UIKit
 
+@MainActor
 protocol LoginViewModelInputs {
     func usernameChanged(_ username: String)
     func passwordChanged(_ password: String)
     func login()
 }
 
+@MainActor
 protocol LoginViewModelOutputs {
     var site: CurrentValueSubject<LemmySite, Never> { get }
     var icon: AnyPublisher<UIImage, Never> { get }
@@ -24,11 +26,13 @@ protocol LoginViewModelOutputs {
     var loggedIn: PassthroughSubject<LemmyAccount, Never> { get }
 }
 
+@MainActor
 protocol LoginViewModelType {
     var inputs: LoginViewModelInputs { get }
     var outputs: LoginViewModelOutputs { get }
 }
 
+@MainActor
 class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOutputs {
     typealias OwnDependencies =
         HasAccountService &

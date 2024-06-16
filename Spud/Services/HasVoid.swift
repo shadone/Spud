@@ -7,4 +7,5 @@
 import Foundation
 
 /// A dummy dependency for cases when no dependencies are needed.
+@MainActor
 protocol HasVoid { }

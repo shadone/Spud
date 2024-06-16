@@ -12,12 +12,12 @@ import OSLog
 
 private let logger = Logger(.schedulerService)
 
-@MainActor
 public protocol SchedulerServiceType {
     func startService()
     func processNewSite(_ site: LemmySite)
 }
 
+@MainActor
 public protocol HasSchedulerService {
     var schedulerService: SchedulerServiceType { get }
 }

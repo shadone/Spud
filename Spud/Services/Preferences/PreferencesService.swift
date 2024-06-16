@@ -28,6 +28,7 @@ protocol PreferencesServiceType: AnyObject {
     var openUniversalLinkInApp: Bool { get set }
 }
 
+@MainActor
 protocol HasPreferencesService {
     var preferencesService: PreferencesServiceType { get }
 }

@@ -9,10 +9,12 @@ import Foundation
 import LemmyKit
 import SpudDataKit
 
+@MainActor
 protocol SubscriptionsViewModelInputs {
     func loadFeed(_ value: SubscriptionsViewItemType)
 }
 
+@MainActor
 protocol SubscriptionsViewModelOutputs {
     var account: CurrentValueSubject<LemmyAccount, Never> { get }
 
@@ -22,11 +24,13 @@ protocol SubscriptionsViewModelOutputs {
     var followCommunities: AnyPublisher<[LemmyCommunity], Never> { get }
 }
 
+@MainActor
 protocol SubscriptionsViewModelType: ObservableObject {
     var inputs: SubscriptionsViewModelInputs { get }
     var outputs: SubscriptionsViewModelOutputs { get }
 }
 
+@MainActor
 class SubscriptionsViewModel:
     SubscriptionsViewModelType,
     SubscriptionsViewModelInputs,

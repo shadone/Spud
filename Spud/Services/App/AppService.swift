@@ -9,6 +9,7 @@ import SafariServices
 import SpudDataKit
 import UIKit
 
+@MainActor
 protocol AppServiceType: AnyObject {
     /// Opens the post itself in a browser.
     func openInBrowser(post: LemmyPost, on viewController: UIViewController) async
@@ -20,10 +21,12 @@ protocol AppServiceType: AnyObject {
     func safariViewControllerForPreview(url: URL) -> SFSafariViewController
 }
 
+@MainActor
 protocol HasAppService {
     var appService: AppServiceType { get }
 }
 
+@MainActor
 class AppService: AppServiceType {
     private let preferencesService: PreferencesServiceType
 

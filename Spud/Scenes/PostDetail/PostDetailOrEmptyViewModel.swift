@@ -17,6 +17,7 @@ enum PostDetailOrEmpty {
     }
 }
 
+@MainActor
 protocol PostDetailOrEmptyViewModelInputs {
     func startLoadingPost(postId: Components.Schemas.PostID)
     func didFinishLoadingPostInfo(_ postInfo: LemmyPostInfo)
@@ -24,6 +25,7 @@ protocol PostDetailOrEmptyViewModelInputs {
     func displayEmpty()
 }
 
+@MainActor
 protocol PostDetailOrEmptyViewModelOutputs {
     var currentPostInfo: AnyPublisher<LemmyPostInfo?, Never> { get }
     var loadingPostInfo: AnyPublisher<Components.Schemas.PostID, Never> { get }
@@ -31,11 +33,13 @@ protocol PostDetailOrEmptyViewModelOutputs {
     var viewState: AnyPublisher<PostDetailOrEmpty.ViewState, Never> { get }
 }
 
+@MainActor
 protocol PostDetailOrEmptyViewModelType {
     var inputs: PostDetailOrEmptyViewModelInputs { get }
     var outputs: PostDetailOrEmptyViewModelOutputs { get }
 }
 
+@MainActor
 class PostDetailOrEmptyViewModel:
     PostDetailOrEmptyViewModelType,
     PostDetailOrEmptyViewModelInputs,

@@ -8,6 +8,7 @@ import Combine
 import SpudDataKit
 import UIKit
 
+@MainActor
 class PostListPostViewModel {
     typealias OwnDependencies =
         HasAppearanceService &

@@ -8,11 +8,13 @@ import Combine
 import SpudDataKit
 import UIKit
 
+@MainActor
 protocol PersonOrLoadingViewModelInputs {
     func startLoadingPersonInfo(_ person: LemmyPerson)
     func didFinishLoadingPersonInfo(_ personInfo: LemmyPersonInfo)
 }
 
+@MainActor
 protocol PersonOrLoadingViewModelOutputs {
     var currentPersonInfo: AnyPublisher<LemmyPersonInfo?, Never> { get }
     var loadingPersonInfo: AnyPublisher<LemmyPerson, Never> { get }
@@ -20,11 +22,13 @@ protocol PersonOrLoadingViewModelOutputs {
     var navigationTitle: AnyPublisher<String?, Never> { get }
 }
 
+@MainActor
 protocol PersonOrLoadingViewModelType {
     var inputs: PersonOrLoadingViewModelInputs { get }
     var outputs: PersonOrLoadingViewModelOutputs { get }
 }
 
+@MainActor
 class PersonOrLoadingViewModel:
     PersonOrLoadingViewModelType,
     PersonOrLoadingViewModelInputs,

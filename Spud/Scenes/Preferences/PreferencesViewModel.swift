@@ -10,6 +10,7 @@ import LemmyKit
 import SpudDataKit
 import SwiftUI
 
+@MainActor
 protocol PreferencesViewModelInputs {
     /// Opens external link as per current user configuration.
     func testExternalLink(_ url: URL)
@@ -25,6 +26,7 @@ protocol PreferencesViewModelInputs {
     func updateOpenExternalLinkAsUniversalLinkInApp(_ value: Bool)
 }
 
+@MainActor
 protocol PreferencesViewModelOutputs {
     var account: CurrentValueSubject<LemmyAccount, Never> { get }
 
@@ -63,11 +65,13 @@ protocol PreferencesViewModelOutputs {
     var storageFileUrl: CurrentValueSubject<URL, Never> { get }
 }
 
+@MainActor
 protocol PreferencesViewModelType: ObservableObject {
     var inputs: PreferencesViewModelInputs { get }
     var outputs: PreferencesViewModelOutputs { get }
 }
 
+@MainActor
 class PreferencesViewModel:
     PreferencesViewModelType,
     PreferencesViewModelInputs,
