@@ -11,7 +11,7 @@ import OSLog
 import SpudDataKit
 import UIKit
 
-private let logger = Logger(.app)
+private let logger = Logger.app
 
 @MainActor
 class PostDetailCommentViewModel {

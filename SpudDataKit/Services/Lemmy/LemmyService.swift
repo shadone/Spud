@@ -11,7 +11,7 @@ import LemmyKit
 import OSLog
 import SpudUtilKit
 
-private let logger = Logger(.lemmyService)
+private let logger = Logger.lemmyService
 
 public enum LemmyServiceError: Error {
     case internalInconsistency(description: String)

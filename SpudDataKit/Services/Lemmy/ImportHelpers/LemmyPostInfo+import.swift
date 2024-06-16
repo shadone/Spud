@@ -9,7 +9,7 @@ import Foundation
 import LemmyKit
 import OSLog
 
-private let logger = Logger(.dataStore)
+private let logger = Logger.dataStore
 
 extension LemmyPostInfo {
     func set(from model: Components.Schemas.PostView) {

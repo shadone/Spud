@@ -9,7 +9,7 @@ import LemmyKit
 import OSLog
 import WidgetKit
 
-private let logger = Logger(.topPostsProvider)
+private let logger = Logger.topPostsProvider
 
 @available(iOSApplicationExtension 17.0, *)
 class TopPostsAppIntentProvider: AppIntentTimelineProvider {

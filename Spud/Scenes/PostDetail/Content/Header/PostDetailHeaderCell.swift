@@ -11,7 +11,7 @@ import SpudDataKit
 import SpudUIKit
 import UIKit
 
-private let logger = Logger(.app)
+private let logger = Logger.app
 
 class PostDetailHeaderCell: UITableViewCellBase {
     static let reuseIdentifier = "PostDetailHeaderCell"

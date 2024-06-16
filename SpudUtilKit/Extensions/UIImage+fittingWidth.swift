@@ -8,7 +8,7 @@ import Foundation
 import OSLog
 import UIKit
 
-private let logger = Logger(.utils)
+private let logger = Logger.utils
 
 public extension UIImage {
     func fittingHeight(for maxWidth: CGFloat) -> CGFloat {

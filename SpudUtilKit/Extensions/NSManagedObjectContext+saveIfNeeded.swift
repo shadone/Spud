@@ -8,7 +8,7 @@ import CoreData
 import Foundation
 import OSLog
 
-private let logger = Logger(.dataStore)
+private let logger = Logger.dataStore
 
 public extension NSManagedObjectContext {
     func saveIfNeeded() {

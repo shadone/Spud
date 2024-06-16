@@ -8,7 +8,7 @@ import Combine
 import Foundation
 import OSLog
 
-private let logger = Logger(.postContentDetectorService)
+private let logger = Logger.postContentDetectorService
 
 public protocol PostContentDetectorServiceType: AnyObject {
     /// Attempt to detect the content type of the url that the given post contains.

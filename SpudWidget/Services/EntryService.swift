@@ -10,7 +10,7 @@ import OSLog
 import SpudDataKit
 import UIKit
 
-private let logger = Logger(.entryService)
+private let logger = Logger.entryService
 
 protocol EntryServiceType: AnyObject {
     func startService()

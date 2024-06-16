@@ -7,7 +7,7 @@
 import OSLog
 import UIKit
 
-private let logger = Logger(.app)
+private let logger = Logger.app
 
 class SwipeActionView: UIView {
     // MARK: Public

@@ -10,7 +10,7 @@ import Foundation
 import OSLog
 import SpudUtilKit
 
-private let logger = Logger(.dataStore)
+private let logger = Logger.dataStore
 
 @objc(Instance)
 public final class Instance: NSManagedObject {

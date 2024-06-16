@@ -8,7 +8,7 @@ import Foundation
 import OSLog
 import UIKit
 
-private let logger = Logger(.app)
+private let logger = Logger.app
 
 extension UIFont {
     static func scaledFont(
