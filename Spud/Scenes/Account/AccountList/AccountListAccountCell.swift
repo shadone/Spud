@@ -27,11 +27,14 @@ class AccountListAccountCell: UITableViewCell {
             return view
         }()
 
-        [
+        let subviews = [
             titleLabel,
             subtitleLabel,
             contentBottomSpacerView,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         return stackView
     }()

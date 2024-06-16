@@ -32,10 +32,13 @@ class PostListPostCell: UITableViewCell {
         stackView.spacing = 8
         stackView.accessibilityIdentifier = "mainHorizontalStackView"
 
-        [
+        let subviews = [
             thumbnailContainer,
             contentContainer,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         return stackView
     }()
@@ -83,11 +86,14 @@ class PostListPostCell: UITableViewCell {
             return view
         }()
 
-        [
+        let subviews = [
             titleLabel,
             subtitleLabel,
             contentBottomSpacerView,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         stackView.setCustomSpacing(8, after: titleLabel)
 
@@ -135,10 +141,13 @@ class PostListPostCell: UITableViewCell {
 
         contentView.addSubview(swipeActionView)
 
-        [
+        let subviews = [
             thumbnailView,
             thumbnailBottomSpacerView,
-        ].forEach(thumbnailContainer.addArrangedSubview)
+        ]
+        for view in subviews {
+            thumbnailContainer.addArrangedSubview(view)
+        }
 
         NSLayoutConstraint.activate([
             swipeActionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
