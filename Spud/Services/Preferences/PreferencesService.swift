@@ -12,6 +12,7 @@ import SpudUtilKit
 /// The namespace for types used by ``PreferencesService``.
 enum Preferences { }
 
+@MainActor
 protocol PreferencesServiceType: AnyObject {
     var defaultCommentSortType: Components.Schemas.CommentSortType { get set }
     var defaultCommentSortTypePublisher: AnyPublisher<Components.Schemas.CommentSortType, Never> { get }
@@ -33,6 +34,7 @@ protocol HasPreferencesService {
     var preferencesService: PreferencesServiceType { get }
 }
 
+@MainActor
 class PreferencesService: PreferencesServiceType {
     // MARK: Public
 
