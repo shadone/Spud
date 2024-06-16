@@ -35,11 +35,14 @@ class PostDetailHeaderCell: UITableViewCellBase {
         stackView.spacing = 8
         stackView.accessibilityIdentifier = "mainVerticalStackView"
 
-        [
+        let subviews = [
             postImageContainer,
             postContentVerticalStackView,
             buttonBarStackView,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         NSLayoutConstraint.activate([
             postImageContainer.widthAnchor.constraint(equalTo: stackView.widthAnchor),
@@ -78,14 +81,17 @@ class PostDetailHeaderCell: UITableViewCellBase {
         stackView.spacing = 8
         stackView.accessibilityIdentifier = "postContentVerticalStackView"
 
-        [
+        let subviews = [
             postImageContainer,
             titleLabel,
             bodyLabel,
             linkPreviewView,
             attributionLabel,
             subtitleHorizontalStackView,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         return stackView
     }()
@@ -179,11 +185,14 @@ class PostDetailHeaderCell: UITableViewCellBase {
         let spacer = UIView()
         spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
 
-        [
+        let subviews = [
             upvoteBarButton,
             downvoteBarButton,
             spacer,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         return stackView
     }()

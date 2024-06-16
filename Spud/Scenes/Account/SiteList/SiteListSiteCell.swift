@@ -21,10 +21,13 @@ class SiteListSiteCell: UITableViewCell {
         stackView.spacing = 8
         stackView.accessibilityIdentifier = "mainHorizontalStackView"
 
-        [
+        let subviews = [
             iconContainer,
             contentContainer,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         return stackView
     }()
@@ -72,11 +75,14 @@ class SiteListSiteCell: UITableViewCell {
             return view
         }()
 
-        [
+        let subviews = [
             titleLabel,
             subtitleLabel,
             contentBottomSpacerView,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         stackView.setCustomSpacing(8, after: titleLabel)
 
@@ -112,10 +118,13 @@ class SiteListSiteCell: UITableViewCell {
 
         contentView.addSubview(mainHorizontalStackView)
 
-        [
+        let subviews = [
             iconView,
             iconBottomSpacerView,
-        ].forEach(iconContainer.addArrangedSubview)
+        ]
+        for view in subviews {
+            iconContainer.addArrangedSubview(view)
+        }
 
         NSLayoutConstraint.activate([
             mainHorizontalStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),

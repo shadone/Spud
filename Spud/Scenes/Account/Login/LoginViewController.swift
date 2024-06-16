@@ -43,7 +43,7 @@ class LoginViewController: UIViewController {
         stackView.alignment = .center
         stackView.spacing = 8
 
-        [
+        let subviews = [
             iconImageView,
             instanceNameHorizontalStackView,
             usernameTextField,
@@ -52,7 +52,10 @@ class LoginViewController: UIViewController {
             loginButton,
             forgotPasswordButton,
             registerVerticalStackView,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         stackView.setCustomSpacing(0, after: iconImageView)
         stackView.setCustomSpacing(100, after: forgotPasswordButton)
@@ -74,10 +77,13 @@ class LoginViewController: UIViewController {
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.axis = .horizontal
 
-        [
+        let subviews = [
             instanceNameLabel,
             instanceInfoButton,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         return stackView
     }()
@@ -157,12 +163,15 @@ class LoginViewController: UIViewController {
         stackView.axis = .vertical
         stackView.alignment = .center
 
-        [
+        let subviews = [
             dontHaveAccountLabel,
             registerButton,
             orLabel,
             anonymousButton,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         return stackView
     }()

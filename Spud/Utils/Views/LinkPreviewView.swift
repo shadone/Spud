@@ -68,11 +68,14 @@ class LinkPreviewView: UIButton {
         chevronImageView.tintColor = UIColor.secondaryLabel
         chevronImageView.contentMode = .scaleAspectFit
 
-        [
+        let subviews = [
             thumbnailImageView,
             linkLabel,
             chevronImageView,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         NSLayoutConstraint.activate([
             thumbnailImageView.topAnchor.constraint(equalTo: stackView.topAnchor),

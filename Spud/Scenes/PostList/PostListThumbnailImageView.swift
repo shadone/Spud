@@ -56,14 +56,15 @@ class PostListThumbnailImageView: UIView {
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.axis = .vertical
 
-        let views = [
+        let subviews = [
             imageView,
             textPlaceholderView,
             brokenView,
         ]
-
-        views.forEach { $0.isHidden = true }
-        views.forEach(stackView.addArrangedSubview)
+        for view in subviews {
+            view.isHidden = true
+            stackView.addArrangedSubview(view)
+        }
 
         return stackView
     }()

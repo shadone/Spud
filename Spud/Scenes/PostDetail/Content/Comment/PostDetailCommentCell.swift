@@ -34,11 +34,14 @@ class PostDetailCommentCell: UITableViewCell {
         stackView.spacing = 0
         stackView.accessibilityIdentifier = "mainHorizontalStackView"
 
-        [
+        let subviews = [
             indentationRibbonLeadingSpacerView,
             indentationRibbonView,
             verticalStackView,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         stackView.setCustomSpacing(4, after: indentationRibbonView)
 
@@ -72,11 +75,14 @@ class PostDetailCommentCell: UITableViewCell {
         spacerView.backgroundColor = .clear
         spacerView.setContentHuggingPriority(.defaultLow, for: .horizontal)
 
-        [
+        let subviews = [
             authorLabel,
             subtitleLabel,
             spacerView,
-        ].forEach(stackView.addArrangedSubview)
+        ]
+        for view in subviews {
+            stackView.addArrangedSubview(view)
+        }
 
         stackView.setCustomSpacing(4, after: authorLabel)
 
