@@ -8,7 +8,7 @@ import Combine
 import Foundation
 import OSLog
 
-private let logger = Logger(.alertService)
+private let logger = Logger.alertService
 
 /// Helper for handling errors and displaying the appropriate message to the user.
 public protocol AlertServiceType: AnyObject {

@@ -8,7 +8,7 @@ import OSLog
 import SpudDataKit
 import UIKit
 
-private let logger = Logger(.app)
+private let logger = Logger.app
 
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: MainWindow?

@@ -9,7 +9,7 @@ import Foundation
 import LemmyKit
 import OSLog
 
-private let logger = Logger(.lemmyService)
+private let logger = Logger.lemmyService
 
 extension LemmyPerson {
     convenience init(

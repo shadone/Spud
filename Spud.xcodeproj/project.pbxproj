@@ -126,7 +126,7 @@
 		92A226EB2A7EFED200C18FCD /* PostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226EA2A7EFED200C18FCD /* PostView.swift */; };
 		92A226ED2A7EFF1400C18FCD /* TopPostsEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226EC2A7EFF1400C18FCD /* TopPostsEntry.swift */; };
 		92A226EE2A7F000000C18FCD /* UIImage+scalePreservingAspectRatio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9236A46E2A7C608A00178F65 /* UIImage+scalePreservingAspectRatio.swift */; };
-		92A226F02A7F007900C18FCD /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226EF2A7F007900C18FCD /* OSLog.swift */; };
+		92A226F02A7F007900C18FCD /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226EF2A7F007900C18FCD /* Logger.swift */; };
 		92A226F32A7F9CE400C18FCD /* EntryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226F22A7F9CE400C18FCD /* EntryService.swift */; };
 		92A226F52A7FA44F00C18FCD /* PostTextThumbnailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A226F42A7FA44F00C18FCD /* PostTextThumbnailView.swift */; };
 		92A226FE2A7FA59E00C18FCD /* SpudUIKit.h in Headers */ = {isa = PBXBuildFile; fileRef = 92A226FD2A7FA59E00C18FCD /* SpudUIKit.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -158,7 +158,7 @@
 		92B7C9242A3A40F400672F64 /* SpudUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9232A3A40F400672F64 /* SpudUITestsLaunchTests.swift */; };
 		92B7C9312A3A493C00672F64 /* PostListPostCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9302A3A493C00672F64 /* PostListPostCell.swift */; };
 		92B7C93B2A3A5B1E00672F64 /* DependencyContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */; };
-		92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93D2A3A5C3A00672F64 /* OSLog.swift */; };
+		92B7C93E2A3A5C3A00672F64 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C93D2A3A5C3A00672F64 /* Logger.swift */; };
 		92B7C9632A3B9EC700672F64 /* PostListViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9622A3B9EC700672F64 /* PostListViewModel.swift */; };
 		92B7C9672A3D003B00672F64 /* PostListPostViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9662A3D003B00672F64 /* PostListPostViewModel.swift */; };
 		92B7C96C2A3D158400672F64 /* PostDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C96B2A3D158400672F64 /* PostDetailViewController.swift */; };
@@ -235,13 +235,13 @@
 		92CC5DA62A7EC1100019436A /* URL+canonicalHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */; };
 		92CC5DA72A7EC11E0019436A /* SpudUtilKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */; };
 		92CC5DA82A7EC11E0019436A /* SpudUtilKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		92CC5DAD2A7EC1540019436A /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5DAC2A7EC1540019436A /* OSLog.swift */; };
+		92CC5DAD2A7EC1540019436A /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5DAC2A7EC1540019436A /* Logger.swift */; };
 		92CC5DAE2A7EC17F0019436A /* AnyOptional.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C97B2A3D27BC00672F64 /* AnyOptional.swift */; };
 		92CC5DAF2A7EC17F0019436A /* Atomic.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEB92A4F362A00FAF4DB /* Atomic.swift */; };
 		92CC5DB12A7EC1890019436A /* URL+lenientString.swift in Sources */ = {isa = PBXBuildFile; fileRef = 927618612A74FA70003D49D4 /* URL+lenientString.swift */; };
 		92CC5DB32A7EC1B60019436A /* VoteStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD62D02A43A93F00497C3B /* VoteStatus.swift */; };
 		92CC5DB42A7EC1B60019436A /* VoteStatus+Action.swift in Sources */ = {isa = PBXBuildFile; fileRef = 929D13892A76FFBD00E7E5DB /* VoteStatus+Action.swift */; };
-		92CC5DB62A7EC1CF0019436A /* OSLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5DB52A7EC1CF0019436A /* OSLog.swift */; };
+		92CC5DB62A7EC1CF0019436A /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CC5DB52A7EC1CF0019436A /* Logger.swift */; };
 		92CC5DB72A7EC1F80019436A /* NodeInfoSoftware.swift in Sources */ = {isa = PBXBuildFile; fileRef = 921943452A75E83A0005474D /* NodeInfoSoftware.swift */; };
 		92CC5DB92A7EC7880019436A /* SemVer in Frameworks */ = {isa = PBXBuildFile; productRef = 92CC5DB82A7EC7880019436A /* SemVer */; };
 		92CC5DBC2A7EC7C50019436A /* SpudDataKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D622A7EBF5E0019436A /* SpudDataKit.framework */; };
@@ -578,7 +578,7 @@
 		92A226E72A7EFDCF00C18FCD /* TopPostsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopPostsProvider.swift; sourceTree = "<group>"; };
 		92A226EA2A7EFED200C18FCD /* PostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostView.swift; sourceTree = "<group>"; };
 		92A226EC2A7EFF1400C18FCD /* TopPostsEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopPostsEntry.swift; sourceTree = "<group>"; };
-		92A226EF2A7F007900C18FCD /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
+		92A226EF2A7F007900C18FCD /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		92A226F22A7F9CE400C18FCD /* EntryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryService.swift; sourceTree = "<group>"; };
 		92A226F42A7FA44F00C18FCD /* PostTextThumbnailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostTextThumbnailView.swift; sourceTree = "<group>"; };
 		92A226FB2A7FA59E00C18FCD /* SpudUIKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SpudUIKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -614,7 +614,7 @@
 		92B7C9302A3A493C00672F64 /* PostListPostCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListPostCell.swift; sourceTree = "<group>"; };
 		92B7C9382A3A59E600672F64 /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
 		92B7C93A2A3A5B1E00672F64 /* DependencyContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DependencyContainer.swift; sourceTree = "<group>"; };
-		92B7C93D2A3A5C3A00672F64 /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
+		92B7C93D2A3A5C3A00672F64 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		92B7C9402A3A5DD800672F64 /* LemmyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyService.swift; sourceTree = "<group>"; };
 		92B7C94A2A3A604300672F64 /* LemmyFeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyFeed.swift; sourceTree = "<group>"; };
 		92B7C94C2A3A658700672F64 /* LemmyPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyPage.swift; sourceTree = "<group>"; };
@@ -688,8 +688,8 @@
 		92CC5D642A7EBF5E0019436A /* SpudData.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SpudData.h; sourceTree = "<group>"; };
 		92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = SpudUtilKit.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		92CC5D8B2A7EBFEA0019436A /* SpudUtilKit.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SpudUtilKit.h; sourceTree = "<group>"; };
-		92CC5DAC2A7EC1540019436A /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
-		92CC5DB52A7EC1CF0019436A /* OSLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OSLog.swift; sourceTree = "<group>"; };
+		92CC5DAC2A7EC1540019436A /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
+		92CC5DB52A7EC1CF0019436A /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		92CC5DE12A7EEF8D0019436A /* Publisher+async.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Publisher+async.swift"; sourceTree = "<group>"; };
 		92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountServiceLoginError.swift; sourceTree = "<group>"; };
 		92CEAEB72A4EDC0800FAF4DB /* URL+safeHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+safeHost.swift"; sourceTree = "<group>"; };
@@ -845,7 +845,7 @@
 				9236A4732A7C643A00178F65 /* CommentsFormatter.swift */,
 				92A226E52A7EFD8C00C18FCD /* DependencyContainer.swift */,
 				920B455C2A7C1DF500C6C2DC /* Info.plist */,
-				92A226EF2A7F007900C18FCD /* OSLog.swift */,
+				92A226EF2A7F007900C18FCD /* Logger.swift */,
 				920B45532A7C1DF400C6C2DC /* SpudWidgetBundle.swift */,
 				9236A4752A7C644800178F65 /* UpvotesFormatter.swift */,
 			);
@@ -1367,7 +1367,7 @@
 				9215FDFE2A7FEE6E008B49AB /* Extensions */,
 				92B7C97F2A3D2B7200672F64 /* Formatters */,
 				9297E2FD2A42492E00D13E4D /* Views */,
-				92B7C93D2A3A5C3A00672F64 /* OSLog.swift */,
+				92B7C93D2A3A5C3A00672F64 /* Logger.swift */,
 				927E1F3B2A5841B4002327EC /* UIViewPreview.swift */,
 			);
 			path = Utils;
@@ -1553,7 +1553,7 @@
 				92CC5D942A7EC07D0019436A /* Extensions */,
 				92B7C97B2A3D27BC00672F64 /* AnyOptional.swift */,
 				92CEAEB92A4F362A00FAF4DB /* Atomic.swift */,
-				92CC5DAC2A7EC1540019436A /* OSLog.swift */,
+				92CC5DAC2A7EC1540019436A /* Logger.swift */,
 				92CC5D8B2A7EBFEA0019436A /* SpudUtilKit.h */,
 				927618612A74FA70003D49D4 /* URL+lenientString.swift */,
 				926602C12A5F69B8005A1641 /* UserDefaultsBacked.swift */,
@@ -1596,8 +1596,8 @@
 				927839C92C0C70A700521C69 /* CommentSortType+DataStore.swift */,
 				92B2C3212A88EE270038C416 /* FeedType.swift */,
 				927839C52C0C6E6800521C69 /* ListingType+DataStore.swift */,
+				92CC5DB52A7EC1CF0019436A /* Logger.swift */,
 				921943452A75E83A0005474D /* NodeInfoSoftware.swift */,
-				92CC5DB52A7EC1CF0019436A /* OSLog.swift */,
 				927839C72C0C703D00521C69 /* SortType+DataStore.swift */,
 				929D13892A76FFBD00E7E5DB /* VoteStatus+Action.swift */,
 				92DD62D02A43A93F00497C3B /* VoteStatus.swift */,
@@ -2181,7 +2181,7 @@
 				9254A3462A86DB41009EB4B5 /* IntentSortType+convert.swift in Sources */,
 				9254A33E2A86D6DB009EB4B5 /* IntentSortTypeAppEnum.swift in Sources */,
 				9254A3492A86DF5A009EB4B5 /* ListingType+appintent.swift in Sources */,
-				92A226F02A7F007900C18FCD /* OSLog.swift in Sources */,
+				92A226F02A7F007900C18FCD /* Logger.swift in Sources */,
 				92CC5DE72A7EF0440019436A /* Post.swift in Sources */,
 				92603C412A8058260005960F /* PostAccessoryInlineView.swift in Sources */,
 				92603C432A8058380005960F /* PostAccessoryRectangularView.swift in Sources */,
@@ -2280,6 +2280,7 @@
 				927343332A61C6550089556E /* LinkLabel.swift in Sources */,
 				92CEAEC82A54422C00FAF4DB /* LinkPreviewView.swift in Sources */,
 				9254A3482A86DF5A009EB4B5 /* ListingType+appintent.swift in Sources */,
+				92B7C93E2A3A5C3A00672F64 /* Logger.swift in Sources */,
 				92DD63062A48BEAD00497C3B /* LoginViewController.swift in Sources */,
 				92DD63092A48CC2700497C3B /* LoginViewModel.swift in Sources */,
 				9297E2FA2A420DA500D13E4D /* MainWindow.swift in Sources */,
@@ -2287,7 +2288,6 @@
 				92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */,
 				927343352A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift in Sources */,
 				925B46672A8EB8FB008410EA /* OpenExternalLink.swift in Sources */,
-				92B7C93E2A3A5C3A00672F64 /* OSLog.swift in Sources */,
 				9273432A2A61BE9D0089556E /* PersonFormatter.swift in Sources */,
 				92116E992A64463600344251 /* PersonLoadingViewController.swift in Sources */,
 				92116E942A633DEA00344251 /* PersonOrLoadingViewController.swift in Sources */,
@@ -2429,9 +2429,9 @@
 				92CC5D712A7EBFA20019436A /* LemmySite.swift in Sources */,
 				92CC5D802A7EBFA20019436A /* LemmySiteInfo.swift in Sources */,
 				927839C62C0C6E6800521C69 /* ListingType+DataStore.swift in Sources */,
+				92CC5DB62A7EC1CF0019436A /* Logger.swift in Sources */,
 				92CC5D822A7EBFA20019436A /* NodeInfo.swift in Sources */,
 				92CC5DB72A7EC1F80019436A /* NodeInfoSoftware.swift in Sources */,
-				92CC5DB62A7EC1CF0019436A /* OSLog.swift in Sources */,
 				92CC5DC52A7ED72E0019436A /* PostContentDetectorService.swift in Sources */,
 				92CC5DC62A7ED72E0019436A /* PostContentType.swift in Sources */,
 				92CC5DC02A7ED7210019436A /* SchedulerService.swift in Sources */,
@@ -2453,9 +2453,9 @@
 				92CC5D972A7EC1100019436A /* Date+relativeString.swift in Sources */,
 				92D6BAA22A842EC9005ECCC2 /* InstanceActorId.swift in Sources */,
 				92BA92C02AA34416005E7D75 /* Logger+assert.swift in Sources */,
+				92CC5DAD2A7EC1540019436A /* Logger.swift in Sources */,
 				92CC5D982A7EC1100019436A /* NSAttributedString+symbol.swift in Sources */,
 				92CC5D9E2A7EC1100019436A /* NSManagedObjectContext+saveIfNeeded.swift in Sources */,
-				92CC5DAD2A7EC1540019436A /* OSLog.swift in Sources */,
 				92CC5DA12A7EC1100019436A /* Publisher+assignWeak.swift in Sources */,
 				92CC5DE22A7EEF8D0019436A /* Publisher+async.swift in Sources */,
 				92CC5DA22A7EC1100019436A /* Publisher+combineLatestSequence.swift in Sources */,

@@ -10,7 +10,7 @@ import Foundation
 import LemmyKit
 import OSLog
 
-private let logger = Logger(.dataStore)
+private let logger = Logger.dataStore
 
 @objc(LemmyAccountInfo)
 public final class LemmyAccountInfo: NSManagedObject {

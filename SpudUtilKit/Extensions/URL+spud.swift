@@ -7,7 +7,7 @@
 import Foundation
 import OSLog
 
-private let logger = Logger(.utils)
+private let logger = Logger.utils
 
 public extension URL {
     enum SpudInternalLink {

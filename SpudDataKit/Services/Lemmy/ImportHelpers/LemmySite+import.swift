@@ -10,7 +10,7 @@ import LemmyKit
 import OSLog
 import SpudUtilKit
 
-private let logger = Logger(.dataStore)
+private let logger = Logger.dataStore
 
 extension LemmySite {
     func upsert(

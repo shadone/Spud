@@ -11,7 +11,7 @@ import LemmyKit
 import OSLog
 import SpudUtilKit
 
-private let logger = Logger(.dataStore)
+private let logger = Logger.dataStore
 
 @objc(LemmyCommentElement)
 public final class LemmyCommentElement: NSManagedObject {

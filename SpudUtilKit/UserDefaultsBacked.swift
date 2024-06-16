@@ -9,7 +9,7 @@ import Foundation
 import OSLog
 import SwiftUI
 
-private let logger = Logger(.utils)
+private let logger = Logger.utils
 
 @propertyWrapper
 public struct UserDefaultsBacked<Value: Codable> {

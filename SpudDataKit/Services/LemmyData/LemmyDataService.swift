@@ -11,7 +11,7 @@ import LemmyKit
 import OSLog
 import SpudUtilKit
 
-private let logger = Logger(.lemmyDataService)
+private let logger = Logger.lemmyDataService
 
 @MainActor
 public protocol LemmyDataServiceType {

@@ -11,7 +11,7 @@ import LemmyKit
 import OSLog
 import SpudUtilKit
 
-private let logger = Logger(.siteService)
+private let logger = Logger.siteService
 
 public protocol SiteServiceType: AnyObject {
     func startService()

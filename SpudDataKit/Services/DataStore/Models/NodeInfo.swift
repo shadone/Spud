@@ -10,7 +10,7 @@ import Foundation
 import OSLog
 import SemVer
 
-private let logger = Logger(.dataStore)
+private let logger = Logger.dataStore
 
 @objc(NodeInfo)
 public final class NodeInfo: NSManagedObject {

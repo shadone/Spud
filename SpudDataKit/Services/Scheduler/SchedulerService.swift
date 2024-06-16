@@ -10,7 +10,7 @@ import Foundation
 import LemmyKit
 import OSLog
 
-private let logger = Logger(.schedulerService)
+private let logger = Logger.schedulerService
 
 @MainActor
 public protocol SchedulerServiceType {

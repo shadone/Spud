@@ -10,7 +10,7 @@ import OSLog
 import UIKit
 import WidgetKit
 
-private let logger = Logger(.topPostsProvider)
+private let logger = Logger.topPostsProvider
 
 class TopPostsProvider: IntentTimelineProvider {
     typealias Dependencies =

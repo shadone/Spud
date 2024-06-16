@@ -11,7 +11,7 @@ import SafariServices
 import SpudDataKit
 import UIKit
 
-private let logger = Logger(.app)
+private let logger = Logger.app
 
 class PostDetailViewController: UIViewController {
     typealias OwnDependencies =

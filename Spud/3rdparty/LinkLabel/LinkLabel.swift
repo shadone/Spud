@@ -9,7 +9,7 @@
 import OSLog
 import UIKit
 
-private let logger = Logger(.app)
+private let logger = Logger.app
 
 private func < <T: Comparable>(lhs: T?, rhs: T?) -> Bool {
     switch (lhs, rhs) {

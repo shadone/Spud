@@ -12,7 +12,7 @@ import LemmyKit
 import OSLog
 import SpudUtilKit
 
-private let logger = Logger(.accountService)
+private let logger = Logger.accountService
 
 @MainActor
 public protocol AccountServiceType: AnyObject {
