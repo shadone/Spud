@@ -109,8 +109,9 @@ class PostDetailLoadingViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
 
-        let lemmyService = accountService.lemmyService(for: account)
-        let post = lemmyService.getOrCreate(postId: postId)
+        let post = accountService
+            .lemmyDataService(for: account)
+            .getOrCreate(postId: postId)
 
         post.publisher(for: \.postInfo)
             .ignoreNil()

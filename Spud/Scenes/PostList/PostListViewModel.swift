@@ -139,14 +139,14 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
 
     func didChangeSortType(_ sortType: Components.Schemas.SortType) {
         let newFeed = accountService
-            .lemmyService(for: account)
+            .lemmyDataService(for: account)
             .createFeed(duplicateOf: feed.value, sortType: sortType)
         feed.send(newFeed)
     }
 
     func didClickReload() {
         let newFeed = accountService
-            .lemmyService(for: account)
+            .lemmyDataService(for: account)
             .createFeed(duplicateOf: feed.value)
         feed.send(newFeed)
     }

@@ -68,12 +68,12 @@ class SubscriptionsViewModel:
                 switch itemType {
                 case let .listing(listingType):
                     dependencies.accountService
-                        .lemmyService(for: account)
+                        .lemmyDataService(for: account)
                         .createFeed(listingType: listingType)
 
                 case let .community(communityInfo):
                     dependencies.accountService
-                        .lemmyService(for: account)
+                        .lemmyDataService(for: account)
                         .createFeed(.community(
                             communityName: communityInfo.name,
                             instance: communityInfo.instanceActorId,

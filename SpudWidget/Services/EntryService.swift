@@ -98,8 +98,6 @@ class EntryService: EntryServiceType {
         sortType: Components.Schemas.SortType
     ) async -> LemmyFeed {
         let account = accountService.defaultAccount()
-        let lemmyService = accountService
-            .lemmyService(for: account)
 
         let listingType: Components.Schemas.ListingType = {
             switch listingType {
@@ -112,12 +110,14 @@ class EntryService: EntryServiceType {
             }
         }()
 
-        let feed = lemmyService
+        let feed = accountService
+            .lemmyDataService(for: account)
             .createFeed(.frontpage(listingType: listingType, sortType: sortType))
         feed.identifierForDebugging = "widget"
 
         do {
-            try await lemmyService
+            try await accountService
+                .lemmyService(for: account)
                 .fetchFeed(feedId: feed.objectID, page: nil)
         } catch {
             logger.error("Failed to fetch feed: \(error, privacy: .public)")

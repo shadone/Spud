@@ -54,6 +54,11 @@ public protocol AccountServiceType: AnyObject {
     /// Chooses which account is "default" i.e. used automatically at app launch.
     func setDefaultAccount(_ account: LemmyAccount)
 
+    /// Returns a LemmyDataService instance for managing CoreData types.
+    /// This is isolated to the main actor.
+    @MainActor
+    func lemmyDataService(for account: LemmyAccount) -> LemmyDataServiceType
+
     /// Returns a LemmyService instance used for talking to Lemmy api.
     /// - Parameter account: which account to act as.
     func lemmyService(for account: LemmyAccount) -> LemmyServiceType
@@ -71,6 +76,7 @@ public class AccountService: AccountServiceType {
     private let siteService: SiteServiceType
 
     private var lemmyServices: [NSManagedObjectID: LemmyService] = [:]
+    private var lemmyDataServices: [NSManagedObjectID: LemmyDataService] = [:]
 
     // MARK: Functions
 
@@ -222,6 +228,27 @@ public class AccountService: AccountServiceType {
             fatalError("Failed to create URL from instance actor id '\(site.instance.actorId)'")
         }
         return LemmyApi(instanceUrl: instanceUrl, credential: credential)
+    }
+
+    public func lemmyDataService(for account: LemmyAccount) -> LemmyDataServiceType {
+        assert(Thread.current.isMainThread)
+
+        let accountObjectId = account.objectID
+
+        if let lemmyDataService = lemmyDataServices[accountObjectId] {
+            logger.debug("Returning existing LemmyDataService for \(account.identifierForLogging)")
+            return lemmyDataService
+        }
+
+        logger.debug("Creating new LemmyDataService for \(account.identifierForLogging, privacy: .public)")
+
+        let lemmyDataService = LemmyDataService(
+            account: account,
+            dataStore: dataStore
+        )
+        lemmyDataServices[accountObjectId] = lemmyDataService
+
+        return lemmyDataService
     }
 
     public func lemmyService(for account: LemmyAccount) -> LemmyServiceType {

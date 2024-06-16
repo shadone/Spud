@@ -66,7 +66,7 @@ class PersonOrLoadingViewController: UIViewController {
 
         let personHomeAccount = accountService.account(at: site, in: context)
         let person = accountService
-            .lemmyService(for: personHomeAccount)
+            .lemmyDataService(for: personHomeAccount)
             .getOrCreate(personId: personId)
 
         if let personInfo = person.personInfo {

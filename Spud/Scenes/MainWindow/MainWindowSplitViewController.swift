@@ -39,7 +39,7 @@ class MainWindowSplitViewController: UISplitViewController {
         )
 
         let feed = accountService
-            .lemmyService(for: account)
+            .lemmyDataService(for: account)
             .createFeed()
 
         let postListVC = PostListViewController(
