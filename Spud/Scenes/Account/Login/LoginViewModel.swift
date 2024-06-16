@@ -14,7 +14,7 @@ import UIKit
 protocol LoginViewModelInputs {
     func usernameChanged(_ username: String)
     func passwordChanged(_ password: String)
-    func login()
+    func login() async
 }
 
 @MainActor
@@ -135,18 +135,16 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
         self.password.send(password)
     }
 
-    func login() {
-        accountService.login(
-            site: site.value,
-            username: username.value,
-            password: password.value
-        )
-        .sink(
-            receiveCompletion: alertService.errorHandler(for: .login),
-            receiveValue: { [weak self] account in
-                self?.loggedIn.send(account)
-            }
-        )
-        .store(in: &disposables)
+    func login() async {
+        do {
+            let account = try await accountService.login(
+                site: site.value,
+                username: username.value,
+                password: password.value
+            )
+            loggedIn.send(account)
+        } catch {
+            alertService.handle(error, for: .login)
+        }
     }
 }

@@ -46,7 +46,7 @@ public protocol AccountServiceType: AnyObject {
         site: LemmySite,
         username: String,
         password: String
-    ) -> AnyPublisher<LemmyAccount, AccountServiceLoginError>
+    ) async throws -> LemmyAccount
 
     /// Returns an account that is shown on app launch.
     func defaultAccount() -> LemmyAccount
@@ -253,48 +253,50 @@ public class AccountService: AccountServiceType {
         site: LemmySite,
         username: String,
         password: String
-    ) -> AnyPublisher<LemmyAccount, AccountServiceLoginError> {
+    ) async throws -> LemmyAccount {
         // Creating temporary authenticated LemmyApi object for making login request.
         let api = api(for: site, credential: nil)
-        return api.login(username: username, password: password)
-            .mapError { apiError -> AccountServiceLoginError in
-                switch apiError {
-                case let .serverError(error):
-                    if error.error == "incorrect_login" {
-                        return .invalidLogin
-                    } else {
-                        return .apiError(apiError)
-                    }
-                default:
-                    return .apiError(apiError)
-                }
-            }
-            .flatMap { response -> AnyPublisher<LemmyCredential, AccountServiceLoginError> in
-                guard let jwt = response.jwt else {
-                    return .fail(with: AccountServiceLoginError.missingJwt)
-                }
-                return .just(LemmyCredential(jwt: jwt))
-            }
-            .receive(on: DispatchQueue.main)
-            .map { credential in
-                // TODO: use "sub" from JWT instead of username here.
-                // using username here is wrong, it is not a stable identifier,
-                // it can be changed without invalidating the account.
-                // We should use "sub" claim from JWT.
-                let account = LemmyAccount(
-                    userId: username,
-                    at: site,
-                    in: self.dataStore.mainContext
-                )
 
-                self.setDefaultAccount(account)
-                self.dataStore.saveIfNeeded()
+        let response: Components.Schemas.LoginResponse
+        do {
+            response = try await api.login(username: username, password: password)
+        } catch {
+            let error = AccountServiceLoginError(from: error)
 
-                self.writeCredential(credential, for: account)
-
-                return account
+            if case .invalidLogin = error {
+                // this is a "good" kind of error, no need to log this
+                throw error
             }
-            .eraseToAnyPublisher()
+
+            logger.error("""
+                Login failed. site=\(site.identifierForLogging, privacy: .public). \
+                username=\(username, privacy: .sensitive(mask: .hash))
+                \(String(describing: error), privacy: .public)
+                """)
+            throw error
+        }
+
+        guard let jwt = response.jwt else {
+            throw AccountServiceLoginError.missingJwt
+        }
+        let credential = LemmyCredential(jwt: jwt)
+
+        // TODO: use "sub" from JWT instead of username here.
+        // using username here is wrong, it is not a stable identifier,
+        // it can be changed without invalidating the account.
+        // We should use "sub" claim from JWT.
+        let account = LemmyAccount(
+            userId: username,
+            at: site,
+            in: dataStore.mainContext
+        )
+
+        setDefaultAccount(account)
+        dataStore.saveIfNeeded()
+
+        writeCredential(credential, for: account)
+
+        return account
     }
 
     public func account(

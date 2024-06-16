@@ -365,6 +365,8 @@ class LoginViewController: UIViewController {
 
     @objc
     private func login() {
-        viewModel.inputs.login()
+        Task { @MainActor in
+            await viewModel.inputs.login()
+        }
     }
 }
