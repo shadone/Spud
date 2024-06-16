@@ -497,42 +497,48 @@ extension PostDetailViewController: UITableViewDataSource {
 // MARK: - Core Data
 
 extension PostDetailViewController: NSFetchedResultsControllerDelegate {
-    func controllerWillChangeContent(
+    nonisolated func controllerWillChangeContent(
         _ controller: NSFetchedResultsController<NSFetchRequestResult>
     ) {
-        tableView.beginUpdates()
+        MainActor.assumeIsolated {
+            tableView.beginUpdates()
+        }
     }
 
-    func controllerDidChangeContent(_: NSFetchedResultsController<NSFetchRequestResult>) {
-        tableView.endUpdates()
+    nonisolated func controllerDidChangeContent(_: NSFetchedResultsController<NSFetchRequestResult>) {
+        MainActor.assumeIsolated {
+            tableView.endUpdates()
+        }
     }
 
-    func controller(
+    nonisolated func controller(
         _: NSFetchedResultsController<NSFetchRequestResult>,
         didChange _: Any,
         at indexPath: IndexPath?,
         for type: NSFetchedResultsChangeType,
         newIndexPath: IndexPath?
     ) {
-        switch type {
-        case .insert:
-            guard let newIndexPath else { fatalError() }
-            let adjustedIndexPath = IndexPath(row: newIndexPath.row, section: 1)
-            tableView.insertRows(at: [adjustedIndexPath], with: .fade)
+        MainActor.assumeIsolated {
+            switch type {
+            case .insert:
+                guard let newIndexPath else { fatalError() }
+                let adjustedIndexPath = IndexPath(row: newIndexPath.row, section: 1)
+                tableView.insertRows(at: [adjustedIndexPath], with: .fade)
 
-        case .delete:
-            guard let indexPath else { fatalError() }
-            let adjustedIndexPath = IndexPath(row: indexPath.row, section: 1)
-            tableView.deleteRows(at: [adjustedIndexPath], with: .fade)
+            case .delete:
+                guard let indexPath else { fatalError() }
+                let adjustedIndexPath = IndexPath(row: indexPath.row, section: 1)
+                tableView.deleteRows(at: [adjustedIndexPath], with: .fade)
 
-        case .update:
-            break
+            case .update:
+                break
 
-        case .move:
-            logger.assertionFailure()
+            case .move:
+                logger.assertionFailure()
 
-        @unknown default:
-            logger.assertionFailure()
+            @unknown default:
+                logger.assertionFailure()
+            }
         }
     }
 }

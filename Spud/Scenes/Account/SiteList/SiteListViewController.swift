@@ -197,50 +197,56 @@ extension SiteListViewController: UITableViewDataSource {
 // MARK: - Core Data
 
 extension SiteListViewController: NSFetchedResultsControllerDelegate {
-    func controllerWillChangeContent(
+    nonisolated func controllerWillChangeContent(
         _ controller: NSFetchedResultsController<NSFetchRequestResult>
     ) {
-        tableView.beginUpdates()
+        MainActor.assumeIsolated {
+            tableView.beginUpdates()
+        }
     }
 
-    func controllerDidChangeContent(_: NSFetchedResultsController<NSFetchRequestResult>) {
-        tableView.endUpdates()
+    nonisolated func controllerDidChangeContent(_: NSFetchedResultsController<NSFetchRequestResult>) {
+        MainActor.assumeIsolated {
+            tableView.endUpdates()
+        }
     }
 
-    func controller(
+    nonisolated func controller(
         _: NSFetchedResultsController<NSFetchRequestResult>,
         didChange _: Any,
         at indexPath: IndexPath?,
         for type: NSFetchedResultsChangeType,
         newIndexPath: IndexPath?
     ) {
-        switch type {
-        case .insert:
-            guard let newIndexPath else { fatalError() }
-            tableView.insertRows(at: [newIndexPath], with: .fade)
+        MainActor.assumeIsolated {
+            switch type {
+            case .insert:
+                guard let newIndexPath else { fatalError() }
+                tableView.insertRows(at: [newIndexPath], with: .fade)
 
-        case .delete:
-            guard let indexPath else { fatalError() }
-            tableView.deleteRows(at: [indexPath], with: .fade)
+            case .delete:
+                guard let indexPath else { fatalError() }
+                tableView.deleteRows(at: [indexPath], with: .fade)
 
-        case .update:
-            guard let indexPath else { fatalError() }
+            case .update:
+                guard let indexPath else { fatalError() }
 
-            guard let cell = tableView.cellForRow(at: indexPath) else { return }
-            guard let cell = cell as? SiteListSiteCell else { fatalError() }
+                guard let cell = tableView.cellForRow(at: indexPath) else { return }
+                guard let cell = cell as? SiteListSiteCell else { fatalError() }
 
-            let site = site(at: indexPath.row)
-            let viewModel = SiteListSiteViewModel(
-                site: site,
-                dependencies: dependencies.nested
-            )
-            cell.configure(with: viewModel)
+                let site = site(at: indexPath.row)
+                let viewModel = SiteListSiteViewModel(
+                    site: site,
+                    dependencies: dependencies.nested
+                )
+                cell.configure(with: viewModel)
 
-        case .move:
-            logger.assertionFailure()
+            case .move:
+                logger.assertionFailure()
 
-        @unknown default:
-            logger.assertionFailure()
+            @unknown default:
+                logger.assertionFailure()
+            }
         }
     }
 }
