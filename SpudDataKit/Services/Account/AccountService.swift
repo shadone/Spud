@@ -14,6 +14,7 @@ import SpudUtilKit
 
 private let logger = Logger(.accountService)
 
+@MainActor
 public protocol AccountServiceType: AnyObject {
     /// Returns an account that represents a signed out user on a given Lemmy instance.
     func accountForSignedOut(
@@ -56,7 +57,6 @@ public protocol AccountServiceType: AnyObject {
 
     /// Returns a LemmyDataService instance for managing CoreData types.
     /// This is isolated to the main actor.
-    @MainActor
     func lemmyDataService(for account: LemmyAccount) -> LemmyDataServiceType
 
     /// Returns a LemmyService instance used for talking to Lemmy api.
@@ -69,6 +69,7 @@ public protocol HasAccountService {
     var accountService: AccountServiceType { get }
 }
 
+@MainActor
 public class AccountService: AccountServiceType {
     // MARK: Private
 
