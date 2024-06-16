@@ -14,8 +14,8 @@ enum IntentFeedTypeAppEnum: String, AppEnum {
     case subscribed
     case moderatorView
 
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Category")
-    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Category")
+    static let caseDisplayRepresentations: [Self: DisplayRepresentation] = [
         .all: "All",
         .local: "Local",
         .subscribed: "Subscribed",

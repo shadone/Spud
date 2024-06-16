@@ -22,8 +22,8 @@ enum IntentSortTypeAppEnum: String, AppEnum {
     case mostComments
     case newComments
 
-    static var typeDisplayRepresentation = TypeDisplayRepresentation(name: "Sort")
-    static var caseDisplayRepresentations: [Self: DisplayRepresentation] = [
+    static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Sort")
+    static let caseDisplayRepresentations: [Self: DisplayRepresentation] = [
         .active: "Active",
         .hot: "Hot",
         .new: "New",
