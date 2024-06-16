@@ -16,8 +16,8 @@ struct ViewTopPostsAppIntent:
 {
     static let intentClassName = "ViewTopPostsIntent"
 
-    static var title: LocalizedStringResource = "View Top Posts"
-    static var description = IntentDescription("")
+    static let title: LocalizedStringResource = "View Top Posts"
+    static let description = IntentDescription("")
 
     @Parameter(title: "Category", default: .subscribed, requestValueDialog: "Which feed do you want?")
     var feedType: IntentFeedTypeAppEnum
