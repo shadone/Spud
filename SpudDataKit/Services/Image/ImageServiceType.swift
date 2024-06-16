@@ -18,6 +18,7 @@ public extension ImageServiceType {
     }
 }
 
+@MainActor
 public protocol HasImageService {
     var imageService: ImageServiceType { get }
 }

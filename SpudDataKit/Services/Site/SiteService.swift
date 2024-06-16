@@ -29,6 +29,7 @@ public protocol SiteServiceType: AnyObject {
     ) -> LemmySite
 }
 
+@MainActor
 public protocol HasSiteService {
     var siteService: SiteServiceType { get }
 }

@@ -16,6 +16,7 @@ public protocol PostContentDetectorServiceType: AnyObject {
     func contentTypeForUrl(in post: LemmyPostInfo) -> AnyPublisher<PostContentType, Never>
 }
 
+@MainActor
 public protocol HasPostContentDetectorService {
     var postContentDetectorService: PostContentDetectorServiceType { get }
 }

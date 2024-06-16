@@ -59,6 +59,7 @@ public protocol AccountServiceType: AnyObject {
     func lemmyService(for account: LemmyAccount) -> LemmyServiceType
 }
 
+@MainActor
 public protocol HasAccountService {
     var accountService: AccountServiceType { get }
 }

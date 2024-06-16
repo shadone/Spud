@@ -26,6 +26,7 @@ public protocol DataStoreType: AnyObject {
     func destroyPersistentStore()
 }
 
+@MainActor
 public protocol HasDataStore {
     var dataStore: DataStoreType { get }
 }

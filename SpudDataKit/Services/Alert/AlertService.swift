@@ -31,6 +31,7 @@ public protocol AlertServiceType: AnyObject {
     )
 }
 
+@MainActor
 public protocol HasAlertService {
     var alertService: AlertServiceType { get }
 }

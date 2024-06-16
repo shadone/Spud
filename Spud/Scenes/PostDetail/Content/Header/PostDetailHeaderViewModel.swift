@@ -13,6 +13,7 @@ import UIKit
 
 private let logger = Logger(.app)
 
+@MainActor
 class PostDetailHeaderViewModel {
     typealias OwnDependencies =
         HasAppearanceService &
