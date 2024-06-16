@@ -8,7 +8,7 @@ import Foundation
 import SwiftUI
 import UIKit
 
-public struct SymbolImageResource {
+public struct SymbolImageResource: Sendable {
     let systemName: String
 
     public var image: UIImage {

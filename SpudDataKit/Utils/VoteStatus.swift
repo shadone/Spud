@@ -6,7 +6,7 @@
 
 import Foundation
 
-public enum VoteStatus {
+public enum VoteStatus: Sendable {
     /// Upvoted.
     case up
     /// Downvoted.
