@@ -18,4 +18,19 @@ public enum AccountServiceLoginError: Error {
 
     /// Internal error, this should not be happening.
     case missingJwt
+
+    case internalInconsistency(description: String)
+
+    init(from error: Error) {
+        if let error = error as? LemmyApiError {
+            if case let .serverError(errorResponse) = error, errorResponse.error == "incorrect_login" {
+                self = .invalidLogin
+            } else {
+                self = .apiError(error)
+            }
+        } else {
+            assertionFailure("Unexpected exception \(type(of: error)): \(error))")
+            self = .internalInconsistency(description: "Unexpected exception \(type(of: error)): \(error))")
+        }
+    }
 }
