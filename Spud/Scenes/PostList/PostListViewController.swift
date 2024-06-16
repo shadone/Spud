@@ -535,42 +535,48 @@ extension PostListViewController: UITableViewDataSource {
 // MARK: - Core Data
 
 extension PostListViewController: NSFetchedResultsControllerDelegate {
-    func controllerWillChangeContent(
+    nonisolated func controllerWillChangeContent(
         _ controller: NSFetchedResultsController<NSFetchRequestResult>
     ) {
-        tableView.beginUpdates()
+        MainActor.assumeIsolated {
+            tableView.beginUpdates()
+        }
     }
 
-    func controllerDidChangeContent(_: NSFetchedResultsController<NSFetchRequestResult>) {
-        isLoadingIndicatorHidden = true
-        tableView.endUpdates()
-//        viewModel.inputs.didChangeNumberOfPosts(inserted: tableView.numberOfRows)
+    nonisolated func controllerDidChangeContent(_: NSFetchedResultsController<NSFetchRequestResult>) {
+        MainActor.assumeIsolated {
+            isLoadingIndicatorHidden = true
+            tableView.endUpdates()
+            // viewModel.inputs.didChangeNumberOfPosts(inserted: tableView.numberOfRows)
+        }
     }
 
-    func controller(
+    nonisolated func controller(
         _: NSFetchedResultsController<NSFetchRequestResult>,
         didChange _: Any,
         at indexPath: IndexPath?,
         for type: NSFetchedResultsChangeType,
         newIndexPath: IndexPath?
     ) {
-        switch type {
-        case .insert:
-            guard let newIndexPath else { fatalError() }
-            tableView.insertRows(at: [newIndexPath], with: .fade)
+        MainActor.assumeIsolated {
+            switch type {
+            case .insert:
+                guard let newIndexPath else { fatalError() }
+                tableView.insertRows(at: [newIndexPath], with: .fade)
 
-        case .delete:
-            guard let indexPath else { fatalError() }
-            tableView.deleteRows(at: [indexPath], with: .fade)
+            case .delete:
+                guard let indexPath else { fatalError() }
+                tableView.deleteRows(at: [indexPath], with: .fade)
 
-        case .update:
-            break
+            case .update:
+                break
 
-        case .move:
-            logger.assertionFailure()
+            case .move:
+                logger.assertionFailure()
 
-        @unknown default:
-            logger.assertionFailure()
+            @unknown default:
+                logger.assertionFailure()
+            }
         }
     }
 }
