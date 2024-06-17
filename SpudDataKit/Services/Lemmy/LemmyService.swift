@@ -126,12 +126,6 @@ public actor LemmyService: LemmyServiceType {
         }
     }
 
-    private func saveIfNeeded() async {
-        await backgroundContext.perform {
-            self.backgroundContext.saveIfNeeded()
-        }
-    }
-
     public func fetchFeed(feedId feedObjectId: NSManagedObjectID, page pageNumber: Int64?) async throws {
         let (feedType, feedId) = await perform(
             with: feedObjectId,
