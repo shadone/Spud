@@ -381,7 +381,7 @@ public actor LemmyService: LemmyServiceType {
         vote action: VoteStatus.Action
     ) async throws {
         let (
-            localCommentId, commentIdentifierForLogging,
+            localCommentId,
             effectiveAction,
             previousVoteStatus, previousNumberOfUpvotes
         ) = await perform(with: commentObjectId, type: LemmyComment.self) { comment, _ in
@@ -410,7 +410,7 @@ public actor LemmyService: LemmyServiceType {
             }
 
             return (
-                comment.localCommentId, comment.identifierForLogging,
+                comment.localCommentId,
                 effectiveAction,
                 previousVoteStatus, previousNumberOfUpvotes
             )
