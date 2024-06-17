@@ -8,7 +8,7 @@ import Foundation
 import LemmyKit
 import SpudUtilKit
 
-public enum FeedType: Equatable {
+public enum FeedType: Equatable, Sendable {
     case frontpage(
         listingType: Components.Schemas.ListingType,
         sortType: Components.Schemas.SortType
