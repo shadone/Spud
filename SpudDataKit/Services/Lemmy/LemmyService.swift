@@ -100,12 +100,12 @@ public actor LemmyService: LemmyServiceType {
         logger.info("Creating new service for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
     }
 
-    private func perform<CoreDataObject: NSManagedObject, T>(
+    private func perform<CoreDataObject: NSManagedObject, T: Sendable>(
         with objectId: NSManagedObjectID,
         type: CoreDataObject.Type,
-        _ closure: @escaping (CoreDataObject, NSManagedObjectContext) -> T
+        _ closure: @escaping @Sendable (CoreDataObject, NSManagedObjectContext) -> T
     ) async -> T {
-        await backgroundContext.perform(schedule: .immediate) {
+        backgroundContext.performAndWait {
             let object = self.backgroundContext.object(with: objectId)
             assert(object.entity == type.entity())
             let coreDataObject = object as! CoreDataObject
@@ -113,12 +113,12 @@ public actor LemmyService: LemmyServiceType {
         }
     }
 
-    private func perform<CoreDataObject: NSManagedObject, T>(
+    private func perform<CoreDataObject: NSManagedObject, T: Sendable>(
         with objectId: NSManagedObjectID,
         type: CoreDataObject.Type,
-        _ closure: @escaping (CoreDataObject, NSManagedObjectContext) throws -> T
+        _ closure: @escaping @Sendable (CoreDataObject, NSManagedObjectContext) throws -> T
     ) async throws -> T {
-        try await backgroundContext.perform(schedule: .immediate) {
+        try backgroundContext.performAndWait {
             let object = self.backgroundContext.object(with: objectId)
             assert(object.entity == type.entity())
             let coreDataObject = object as! CoreDataObject
