@@ -8,6 +8,20 @@ import Foundation
 import GRDB
 import LemmyKit
 
+public extension AppDatabase {
+    /// Public mirror entry point for fetchPersonInfo. Upserts the person row
+    /// from a fresh `PersonView`. Skipped silently if the site is not yet in
+    /// AppDatabase.
+    func upsertPerson(
+        from view: Components.Schemas.PersonView,
+        siteId: Int64
+    ) async throws {
+        try await writer.write { db in
+            _ = try Self.upsertPerson(from: view, siteId: siteId, in: db)
+        }
+    }
+}
+
 extension AppDatabase {
     /// Upserts the person row for `siteId` keyed on the server-assigned
     /// `model.id`. Returns the resolved row id. Caller must already be inside

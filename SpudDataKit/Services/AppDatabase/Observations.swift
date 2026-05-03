@@ -54,6 +54,89 @@ public extension AppDatabase {
         return makeStream(observation: observation)
     }
 
+    /// Stream of a single post row identified by primary key. Yields nil if
+    /// the row no longer exists.
+    func observePost(id postRowId: Int64) -> AsyncStream<PostRecord?> {
+        let observation = ValueObservation
+            .tracking { db in
+                try PostRecord.fetchOne(db, key: postRowId)
+            }
+            .removeDuplicates()
+        return makeStream(observation: observation)
+    }
+
+    /// Stream of posts in a feed in display order. Walks page → pageElement →
+    /// post and orders by (page.position, pageElement.position).
+    func observePostsInFeed(feedId: Int64) -> AsyncStream<[PostRecord]> {
+        let observation = ValueObservation
+            .tracking { db in
+                try PostRecord.fetchAll(db, sql: """
+                    SELECT post.*
+                    FROM post
+                    JOIN pageElement ON pageElement.postId = post.id
+                    JOIN page ON page.id = pageElement.pageId
+                    WHERE page.feedId = ?
+                    ORDER BY page.position ASC, pageElement.position ASC
+                """, arguments: [feedId])
+            }
+            .removeDuplicates()
+        return makeStream(observation: observation)
+    }
+
+    /// Stream of comment-tree rows for a (post, sortType) pair, in display
+    /// order. Each row pairs the element (which carries position/depth and
+    /// "load more" placeholders) with its backing comment row, if any.
+    func observeComments(
+        forPostRowId postRowId: Int64,
+        sortType: String
+    ) -> AsyncStream<[CommentTreeRow]> {
+        let observation = ValueObservation
+            .tracking { db in
+                let elements = try CommentElementRecord
+                    .filter(Column("postId") == postRowId)
+                    .filter(Column("sortType") == sortType)
+                    .order(Column("position").asc)
+                    .fetchAll(db)
+
+                let commentIds = elements.compactMap(\.commentId)
+                let comments = try CommentRecord
+                    .filter(commentIds.contains(Column("id")))
+                    .fetchAll(db)
+                let commentsById = Dictionary(
+                    uniqueKeysWithValues: comments.compactMap { c in
+                        c.id.map { ($0, c) }
+                    }
+                )
+
+                return elements.map { element in
+                    CommentTreeRow(
+                        element: element,
+                        comment: element.commentId.flatMap { commentsById[$0] }
+                    )
+                }
+            }
+            .removeDuplicates()
+        return makeStream(observation: observation)
+    }
+
+    /// Stream of communities followed by an account, ordered by community
+    /// name (case-insensitive).
+    func observeFollowedCommunities(forAccountId accountId: Int64) -> AsyncStream<[CommunityRecord]> {
+        let observation = ValueObservation
+            .tracking { db in
+                try CommunityRecord.fetchAll(db, sql: """
+                    SELECT community.*
+                    FROM community
+                    JOIN accountFollowedCommunity AS afc
+                        ON afc.communityId = community.id
+                    WHERE afc.accountId = ?
+                    ORDER BY LOWER(community.name) ASC
+                """, arguments: [accountId])
+            }
+            .removeDuplicates()
+        return makeStream(observation: observation)
+    }
+
     private func makeStream<Value: Sendable & Equatable>(
         observation: ValueObservation<ValueReducers.RemoveDuplicates<ValueReducers.Fetch<Value>>>
     ) -> AsyncStream<Value> {
@@ -66,5 +149,18 @@ public extension AppDatabase {
             }
             continuation.onTermination = { _ in cancellable.cancel() }
         }
+    }
+}
+
+/// Pair returned by `observeComments(forPostRowId:sortType:)`. The element
+/// carries position/depth and may represent a "load more" placeholder, in
+/// which case `comment` is nil.
+public struct CommentTreeRow: Sendable, Equatable {
+    public let element: CommentElementRecord
+    public let comment: CommentRecord?
+
+    public init(element: CommentElementRecord, comment: CommentRecord?) {
+        self.element = element
+        self.comment = comment
     }
 }
