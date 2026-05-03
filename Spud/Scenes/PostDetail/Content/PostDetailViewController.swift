@@ -171,7 +171,7 @@ class PostDetailViewController: UIViewController {
         do {
             try await accountService
                 .lemmyService(for: postInfo.post.account)
-                .markAsRead(postId: postInfo.post.objectID)
+                .markAsRead(serverPostId: postInfo.post.postId)
         } catch {
             alertService.handle(error, for: .markAsRead)
         }
@@ -251,7 +251,7 @@ class PostDetailViewController: UIViewController {
             try await accountService
                 .lemmyService(for: postInfo.post.account)
                 .fetchComments(
-                    postId: postInfo.post.objectID,
+                    serverPostId: postInfo.post.postId,
                     sortType: viewModel.commentSortType
                 )
         } catch {
@@ -293,39 +293,18 @@ class PostDetailViewController: UIViewController {
         do {
             try await accountService
                 .lemmyService(for: postInfo.post.account)
-                .vote(postId: postInfo.post.objectID, vote: action)
+                .vote(serverPostId: postInfo.post.postId, vote: action)
         } catch {
             alertService.handle(error, for: .vote)
         }
     }
 
-    private func legacyComment(forServerCommentId serverCommentId: Int64) -> LemmyComment? {
-        let request = LemmyComment.fetchRequest() as NSFetchRequest<LemmyComment>
-        request.predicate = NSPredicate(
-            format: "post == %@ && localCommentId == %d",
-            postInfo.post,
-            serverCommentId
-        )
-        request.fetchLimit = 1
-        do {
-            return try dataStore.mainContext.fetch(request).first
-        } catch {
-            logger.error("Failed to fetch LemmyComment: \(String(describing: error), privacy: .public)")
-            return nil
-        }
-    }
-
     private func voteOnComment(serverCommentId: Int64, action: VoteStatus.Action) async {
-        guard let comment = legacyComment(forServerCommentId: serverCommentId) else {
-            logger.assertionFailure("Vote on missing legacy comment")
-            return
-        }
-
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
             try await accountService
                 .lemmyService(for: postInfo.post.account)
-                .vote(commentId: comment.objectID, vote: action)
+                .vote(serverCommentId: Components.Schemas.CommentID(serverCommentId), vote: action)
         } catch {
             alertService.handle(error, for: .vote)
         }

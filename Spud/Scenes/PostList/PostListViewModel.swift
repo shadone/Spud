@@ -85,7 +85,7 @@ final class PostListViewModel {
         do {
             try await accountService
                 .lemmyService(for: account)
-                .fetchFeed(feedId: feed.objectID, page: nextPageNumber)
+                .fetchFeed(feedKey: feed.id, page: nextPageNumber)
         } catch {
             alertService.handle(error, for: .fetchPostList)
         }

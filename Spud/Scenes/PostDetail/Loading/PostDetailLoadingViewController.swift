@@ -138,7 +138,7 @@ class PostDetailLoadingViewController: UIViewController {
         do {
             try await accountService
                 .lemmyService(for: account)
-                .fetchPostInfo(postId: post.objectID)
+                .fetchPostInfo(serverPostId: post.postId)
         } catch {
             alertService.handle(error, for: .fetchPostInfo)
         }

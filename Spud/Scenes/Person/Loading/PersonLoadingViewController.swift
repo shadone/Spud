@@ -134,7 +134,7 @@ class PersonLoadingViewController: UIViewController {
         do {
             try await accountService
                 .lemmyService(for: account)
-                .fetchPersonInfo(personId: person.objectID)
+                .fetchPersonInfo(serverPersonId: person.personId)
         } catch {
             alertService.handle(error, for: .fetchPersonInfo)
         }
