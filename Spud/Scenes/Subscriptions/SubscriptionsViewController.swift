@@ -44,7 +44,7 @@ class SubscriptionsViewController: UIViewController {
 
         let accountRowId = appDatabase.accountRowIdSync(forKeychainId: account.id)
 
-        self.viewModel = SubscriptionsViewModel(
+        viewModel = SubscriptionsViewModel(
             accountRowId: accountRowId,
             isSignedIn: !account.isSignedOutAccountType,
             appDatabase: appDatabase,
