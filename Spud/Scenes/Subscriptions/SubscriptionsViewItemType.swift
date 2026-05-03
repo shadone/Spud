@@ -12,7 +12,7 @@ import SpudUtilKit
 /// Snapshot row rendered in the subscriptions list. Built from a
 /// `CommunityRecord` plus the parsed instance actor id derived from
 /// `community.actorId`.
-struct SubscriptionsCommunityRow: Sendable, Equatable, Identifiable {
+struct SubscriptionsCommunityRow: Equatable, Identifiable {
     let id: Int64
     let name: String
     let instanceActorId: InstanceActorId
