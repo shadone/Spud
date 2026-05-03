@@ -71,13 +71,13 @@ public extension AppDatabase {
         let observation = ValueObservation
             .tracking { db in
                 try PostRecord.fetchAll(db, sql: """
-                    SELECT post.*
-                    FROM post
-                    JOIN pageElement ON pageElement.postId = post.id
-                    JOIN page ON page.id = pageElement.pageId
-                    WHERE page.feedId = ?
-                    ORDER BY page.position ASC, pageElement.position ASC
-                """, arguments: [feedId])
+                        SELECT post.*
+                        FROM post
+                        JOIN pageElement ON pageElement.postId = post.id
+                        JOIN page ON page.id = pageElement.pageId
+                        WHERE page.feedId = ?
+                        ORDER BY page.position ASC, pageElement.position ASC
+                    """, arguments: [feedId])
             }
             .removeDuplicates()
         return makeStream(observation: observation)
@@ -125,13 +125,13 @@ public extension AppDatabase {
         let observation = ValueObservation
             .tracking { db in
                 try CommunityRecord.fetchAll(db, sql: """
-                    SELECT community.*
-                    FROM community
-                    JOIN accountFollowedCommunity AS afc
-                        ON afc.communityId = community.id
-                    WHERE afc.accountId = ?
-                    ORDER BY LOWER(community.name) ASC
-                """, arguments: [accountId])
+                        SELECT community.*
+                        FROM community
+                        JOIN accountFollowedCommunity AS afc
+                            ON afc.communityId = community.id
+                        WHERE afc.accountId = ?
+                        ORDER BY LOWER(community.name) ASC
+                    """, arguments: [accountId])
             }
             .removeDuplicates()
         return makeStream(observation: observation)
