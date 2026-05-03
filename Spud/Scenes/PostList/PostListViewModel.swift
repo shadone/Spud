@@ -32,14 +32,19 @@ final class PostListViewModel {
     var navigationTitle: String
     var isFetchingNextPage: Bool = false
 
-    private var accountService: AccountServiceType { dependencies.accountService }
-    private var alertService: AlertServiceType { dependencies.alertService }
+    private var accountService: AccountServiceType {
+        dependencies.accountService
+    }
+
+    private var alertService: AlertServiceType {
+        dependencies.alertService
+    }
 
     init(feed: LemmyFeed, dependencies: Dependencies) {
         self.dependencies = dependencies
         self.feed = feed
-        self.account = feed.account
-        self.navigationTitle = Self.navigationTitle(for: feed)
+        account = feed.account
+        navigationTitle = Self.navigationTitle(for: feed)
     }
 
     func didChangeSortType(_ sortType: Components.Schemas.SortType) {

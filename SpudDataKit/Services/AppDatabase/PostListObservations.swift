@@ -57,28 +57,28 @@ public extension AppDatabase {
         let observation = ValueObservation
             .tracking { db -> [PostListRow] in
                 let rows = try Row.fetchAll(db, sql: """
-                    SELECT
-                        post.id                AS postRowId,
-                        post.postId            AS serverPostId,
-                        post.title             AS title,
-                        post.body              AS body,
-                        post.url               AS url,
-                        post.thumbnailUrl      AS thumbnailUrl,
-                        post.urlEmbedTitle     AS urlEmbedTitle,
-                        post.urlEmbedDescription AS urlEmbedDescription,
-                        post.score             AS score,
-                        post.numberOfComments  AS numberOfComments,
-                        post.voteStatus        AS voteStatus,
-                        post.isRead            AS isRead,
-                        post.published         AS published,
-                        community.name         AS communityName
-                    FROM post
-                    JOIN pageElement ON pageElement.postId = post.id
-                    JOIN page        ON page.id = pageElement.pageId
-                    JOIN community   ON community.id = post.communityId
-                    WHERE page.feedId = ?
-                    ORDER BY page.position ASC, pageElement.position ASC
-                """, arguments: [feedId])
+                        SELECT
+                            post.id                AS postRowId,
+                            post.postId            AS serverPostId,
+                            post.title             AS title,
+                            post.body              AS body,
+                            post.url               AS url,
+                            post.thumbnailUrl      AS thumbnailUrl,
+                            post.urlEmbedTitle     AS urlEmbedTitle,
+                            post.urlEmbedDescription AS urlEmbedDescription,
+                            post.score             AS score,
+                            post.numberOfComments  AS numberOfComments,
+                            post.voteStatus        AS voteStatus,
+                            post.isRead            AS isRead,
+                            post.published         AS published,
+                            community.name         AS communityName
+                        FROM post
+                        JOIN pageElement ON pageElement.postId = post.id
+                        JOIN page        ON page.id = pageElement.pageId
+                        JOIN community   ON community.id = post.communityId
+                        WHERE page.feedId = ?
+                        ORDER BY page.position ASC, pageElement.position ASC
+                    """, arguments: [feedId])
 
                 return rows.map { row in
                     PostListRow(
