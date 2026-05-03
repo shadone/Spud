@@ -57,12 +57,25 @@ class PostListViewController: UIViewController {
         tableView.rowHeight = UITableView.automaticDimension
 
         tableView.delegate = self
-        tableView.dataSource = self
 
         tableView.register(PostListPostCell.self, forCellReuseIdentifier: PostListPostCell.reuseIdentifier)
+        tableView.register(LoadingFooterCell.self, forCellReuseIdentifier: LoadingFooterCell.reuseIdentifier)
 
         return tableView
     }()
+
+    enum Section: Int, Hashable {
+        case posts
+        case loading
+    }
+
+    enum Item: Hashable {
+        /// PageElement objectID (FRC tracks LemmyPageElement, not the post itself).
+        case pageElement(NSManagedObjectID)
+        case loadingIndicator
+    }
+
+    private var dataSource: UITableViewDiffableDataSource<Section, Item>!
 
     // MARK: Private
 
@@ -70,7 +83,12 @@ class PostListViewController: UIViewController {
 
     var postsResults: NSFetchedResultsController<LemmyPageElement>?
 
-    var isLoadingIndicatorHidden = true
+    var isLoadingIndicatorHidden = true {
+        didSet {
+            guard oldValue != isLoadingIndicatorHidden, dataSource != nil else { return }
+            applyLoadingIndicatorVisibility()
+        }
+    }
 
     var sortTypeBarButtonItem: UIBarButtonItem!
     var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
@@ -121,6 +139,8 @@ class PostListViewController: UIViewController {
             tableView.topAnchor.constraint(equalTo: view.topAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
+
+        setupDataSource()
 
         func makeAction(for sortType: Components.Schemas.SortType) -> UIAction {
             let menuItem = sortType.itemForMenu
@@ -326,8 +346,8 @@ class PostListViewController: UIViewController {
         }
     }
 
-    private func vote(postAtIndex index: Int, _ action: VoteStatus.Action) async {
-        let post = post(at: index)
+    private func vote(at indexPath: IndexPath, _ action: VoteStatus.Action) async {
+        guard let post = post(at: indexPath) else { return }
         await vote(post, action)
     }
 
@@ -361,23 +381,113 @@ extension PostListViewController {
         postsResults?.sections?[0].numberOfObjects ?? 0
     }
 
-    func post(at index: Int) -> LemmyPost {
+    private func pageElement(for indexPath: IndexPath) -> LemmyPageElement? {
         guard
-            let pageElement = postsResults?.sections?[0].objects?[index] as? LemmyPageElement
+            case let .pageElement(objectID) = dataSource.itemIdentifier(for: indexPath),
+            let element = try? dataStore.mainContext.existingObject(with: objectID) as? LemmyPageElement
         else {
-            fatalError()
+            return nil
         }
-        return pageElement.post
+        return element
     }
 
-    func postInfo(at index: Int) -> LemmyPostInfo {
-        let post = post(at: index)
+    func post(at indexPath: IndexPath) -> LemmyPost? {
+        pageElement(for: indexPath)?.post
+    }
 
-        guard let postInfo = post.postInfo else {
-            fatalError("We have post list with posts containing no info?")
+    func postInfo(at indexPath: IndexPath) -> LemmyPostInfo? {
+        post(at: indexPath)?.postInfo
+    }
+
+    private func setupDataSource() {
+        let mainContext = dataStore.mainContext
+        let nestedDeps = dependencies.nested
+        let appearance = appearanceService
+
+        dataSource = UITableViewDiffableDataSource<Section, Item>(
+            tableView: tableView
+        ) { [weak self] tableView, indexPath, item in
+            switch item {
+            case let .pageElement(objectID):
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: PostListPostCell.reuseIdentifier,
+                    for: indexPath
+                ) as! PostListPostCell
+
+                guard
+                    let element = try? mainContext.existingObject(with: objectID) as? LemmyPageElement,
+                    let postInfo = element.post.postInfo
+                else {
+                    logger.assertionFailure("Failed to resolve PostListPostCell for \(objectID)")
+                    return cell
+                }
+
+                let viewModel = PostListPostViewModel(
+                    postInfo: postInfo,
+                    dependencies: nestedDeps
+                )
+                cell.configure(with: viewModel)
+
+                let general = appearance.general
+                cell.swipeActionConfiguration = .init(
+                    leadingPrimaryAction: .init(
+                        image: general.upvoteIcon,
+                        backgroundColor: general.upvoteSwipeActionBackgroundColor
+                    ),
+                    leadingSecondaryAction: .init(
+                        image: general.downvoteIcon,
+                        backgroundColor: general.downvoteSwipeActionBackgroundColor
+                    ),
+                    trailingPrimaryAction: .init(
+                        // TODO: make reply action
+                        image: UIImage(systemName: "arrowshape.turn.up.backward")!,
+                        backgroundColor: UIColor.blue
+                    ),
+                    trailingSecondaryAction: .init(
+                        // TODO: make save post action
+                        image: UIImage(systemName: "bookmark")!,
+                        backgroundColor: UIColor.green
+                    )
+                )
+
+                cell.swipeActionTriggered = { [weak self] action in
+                    let post = postInfo.post
+                    switch action {
+                    case .leadingPrimary:
+                        Task { await self?.vote(post, .upvote) }
+                    case .leadingSecondary:
+                        Task { await self?.vote(post, .downvote) }
+                    case .trailingPrimary, .trailingSecondary:
+                        // TODO: will be reply and save actions
+                        break
+                    }
+                }
+
+                return cell
+
+            case .loadingIndicator:
+                return tableView.dequeueReusableCell(
+                    withIdentifier: LoadingFooterCell.reuseIdentifier,
+                    for: indexPath
+                )
+            }
         }
+    }
 
-        return postInfo
+    private func applyLoadingIndicatorVisibility() {
+        var snapshot = dataSource.snapshot()
+        let hasLoadingSection = snapshot.sectionIdentifiers.contains(.loading)
+
+        if isLoadingIndicatorHidden {
+            if hasLoadingSection {
+                snapshot.deleteSections([.loading])
+                dataSource.apply(snapshot, animatingDifferences: true)
+            }
+        } else if !hasLoadingSection {
+            snapshot.appendSections([.loading])
+            snapshot.appendItems([.loadingIndicator], toSection: .loading)
+            dataSource.apply(snapshot, animatingDifferences: true)
+        }
     }
 }
 
@@ -395,7 +505,7 @@ extension PostListViewController: UITableViewDelegate {
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let post = post(at: indexPath.row)
+        guard let post = post(at: indexPath) else { return }
         viewModel.inputs.didSelectPost(post)
     }
 
@@ -422,8 +532,8 @@ extension PostListViewController: UITableViewDelegate {
         animator: UIContextMenuInteractionCommitAnimating
     ) {
         // The user pressed on the preview -> lets open the cell
-        guard let indexPath = configuration.identifier as? IndexPath else { fatalError() }
-        let post = post(at: indexPath.row)
+        guard let indexPath = configuration.identifier as? IndexPath,
+              let post = post(at: indexPath) else { return }
         viewModel.inputs.didSelectPost(post)
     }
 
@@ -442,7 +552,7 @@ extension PostListViewController: UITableViewDelegate {
                     image: generalAppearance.upvoteIcon
                 ) { [weak self] _ in
                     Task {
-                        await self?.vote(postAtIndex: indexPath.row, .upvote)
+                        await self?.vote(at: indexPath, .upvote)
                     }
                 }
 
@@ -451,7 +561,7 @@ extension PostListViewController: UITableViewDelegate {
                     image: generalAppearance.downvoteIcon
                 ) { [weak self] _ in
                     Task {
-                        await self?.vote(postAtIndex: indexPath.row, .downvote)
+                        await self?.vote(at: indexPath, .downvote)
                     }
                 }
 
@@ -464,130 +574,28 @@ extension PostListViewController: UITableViewDelegate {
     }
 }
 
-// MARK: - UITableView DataSource
-
-extension PostListViewController: UITableViewDataSource {
-    func numberOfSections(in tableView: UITableView) -> Int {
-        1
-    }
-
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        if section == 0 {
-            // Section 0: posts
-            return numberOfPosts
-        } else if section == 1 {
-            // Section 1: loading indicator
-            return isLoadingIndicatorHidden ? 0 : 1
-        } else {
-            fatalError()
-        }
-    }
-
-    func tableView(
-        _ tableView: UITableView,
-        cellForRowAt indexPath: IndexPath
-    ) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(
-            withIdentifier: PostListPostCell.reuseIdentifier,
-            for: indexPath
-        ) as! PostListPostCell
-
-        let postInfo = postInfo(at: indexPath.row)
-        let viewModel = PostListPostViewModel(
-            postInfo: postInfo,
-            dependencies: dependencies.nested
-        )
-        cell.configure(with: viewModel)
-
-        let generalAppearance = appearanceService.general
-        cell.swipeActionConfiguration = .init(
-            leadingPrimaryAction: .init(
-                image: generalAppearance.upvoteIcon,
-                backgroundColor: generalAppearance.upvoteSwipeActionBackgroundColor
-            ),
-            leadingSecondaryAction: .init(
-                image: generalAppearance.downvoteIcon,
-                backgroundColor: generalAppearance.downvoteSwipeActionBackgroundColor
-            ),
-            trailingPrimaryAction: .init(
-                // TODO: make reply action
-                image: UIImage(systemName: "arrowshape.turn.up.backward")!,
-                backgroundColor: UIColor.blue
-            ),
-            trailingSecondaryAction: .init(
-                // TODO: make save post action
-                image: UIImage(systemName: "bookmark")!,
-                backgroundColor: UIColor.green
-            )
-        )
-
-        cell.swipeActionTriggered = { [weak self] action in
-            switch action {
-            case .leadingPrimary:
-                Task {
-                    await self?.vote(postInfo.post, .upvote)
-                }
-
-            case .leadingSecondary:
-                Task {
-                    await self?.vote(postInfo.post, .downvote)
-                }
-
-            case .trailingPrimary, .trailingSecondary:
-                // TODO: will be reply and save actions
-                break
-            }
-        }
-
-        return cell
-    }
-}
-
 // MARK: - Core Data
 
 extension PostListViewController: NSFetchedResultsControllerDelegate {
-    nonisolated func controllerWillChangeContent(
-        _ controller: NSFetchedResultsController<NSFetchRequestResult>
+    nonisolated func controller(
+        _ controller: NSFetchedResultsController<NSFetchRequestResult>,
+        didChangeContentWith snapshot: NSDiffableDataSourceSnapshotReference
     ) {
-        MainActor.assumeIsolated {
-            tableView.beginUpdates()
-        }
-    }
-
-    nonisolated func controllerDidChangeContent(_: NSFetchedResultsController<NSFetchRequestResult>) {
+        let frcSnapshot = snapshot as NSDiffableDataSourceSnapshot<Int, NSManagedObjectID>
         MainActor.assumeIsolated {
             isLoadingIndicatorHidden = true
-            tableView.endUpdates()
-            // viewModel.inputs.didChangeNumberOfPosts(inserted: tableView.numberOfRows)
-        }
-    }
 
-    nonisolated func controller(
-        _: NSFetchedResultsController<NSFetchRequestResult>,
-        didChange _: Any,
-        at indexPath: IndexPath?,
-        for type: NSFetchedResultsChangeType,
-        newIndexPath: IndexPath?
-    ) {
-        MainActor.assumeIsolated {
-            switch type {
-            case .insert:
-                guard let newIndexPath else { fatalError() }
-                tableView.insertRows(at: [newIndexPath], with: .fade)
-
-            case .delete:
-                guard let indexPath else { fatalError() }
-                tableView.deleteRows(at: [indexPath], with: .fade)
-
-            case .update:
-                break
-
-            case .move:
-                logger.assertionFailure()
-
-            @unknown default:
-                logger.assertionFailure()
+            var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
+            snapshot.appendSections([.posts])
+            snapshot.appendItems(
+                frcSnapshot.itemIdentifiers.map { Item.pageElement($0) },
+                toSection: .posts
+            )
+            if !isLoadingIndicatorHidden {
+                snapshot.appendSections([.loading])
+                snapshot.appendItems([.loadingIndicator], toSection: .loading)
             }
+            dataSource.apply(snapshot, animatingDifferences: true)
         }
     }
 }
