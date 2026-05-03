@@ -448,6 +448,8 @@ public actor LemmyService: LemmyServiceType {
 
             context.saveIfNeeded()
         }
+
+        await mirrorPostInfoToAppDatabase(view: response.post_view)
     }
 
     public func vote(
@@ -508,6 +510,25 @@ public actor LemmyService: LemmyServiceType {
             comment.set(from: response.comment_view)
 
             context.saveIfNeeded()
+        }
+
+        await mirrorCommentVoteToAppDatabase(view: response.comment_view)
+    }
+
+    private func mirrorCommentVoteToAppDatabase(
+        view: Components.Schemas.CommentView
+    ) async {
+        do {
+            guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
+                return
+            }
+            try await appDatabase.upsertComment(
+                from: view,
+                accountId: accountRowId,
+                siteId: siteRowId
+            )
+        } catch {
+            logger.error("AppDatabase upsertComment failed: \(String(describing: error), privacy: .public)")
         }
     }
 
@@ -613,6 +634,19 @@ public actor LemmyService: LemmyServiceType {
             post.postInfo?.isRead = response.success
 
             context.saveIfNeeded()
+        }
+
+        if response.success {
+            do {
+                guard let (accountRowId, _) = try await accountSiteIds() else { return }
+                try await appDatabase.setPostIsRead(
+                    accountId: accountRowId,
+                    serverPostId: Int64(postId),
+                    isRead: true
+                )
+            } catch {
+                logger.error("AppDatabase setPostIsRead failed: \(String(describing: error), privacy: .public)")
+            }
         }
     }
 }

@@ -12,6 +12,26 @@ import OSLog
 private let logger = Logger.appDatabase
 
 extension AppDatabase {
+    /// Sets `isRead` on the matching post row. Silently no-ops if the post
+    /// row hasn't been imported yet.
+    public func setPostIsRead(
+        accountId: Int64,
+        serverPostId: Int64,
+        isRead: Bool
+    ) async throws {
+        try await writer.write { db in
+            guard
+                var record = try PostRecord
+                    .filter(Column("accountId") == accountId)
+                    .filter(Column("postId") == serverPostId)
+                    .fetchOne(db)
+            else { return }
+            record.isRead = isRead
+            record.updatedAt = Date()
+            try record.update(db)
+        }
+    }
+
     /// Upserts a post tied to `accountId` along with its creator and
     /// community, so all foreign keys are satisfied. Returns the resolved
     /// post row id.

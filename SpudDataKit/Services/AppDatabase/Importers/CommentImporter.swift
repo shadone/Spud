@@ -12,6 +12,32 @@ import OSLog
 private let logger = Logger.appDatabase
 
 extension AppDatabase {
+    /// Upserts a single comment row tied to its post. Used by vote/edit flows
+    /// where we receive a fresh CommentView for one comment without rebuilding
+    /// the whole tree. Skips silently if the post is not yet in AppDatabase.
+    public func upsertComment(
+        from view: Components.Schemas.CommentView,
+        accountId: Int64,
+        siteId: Int64
+    ) async throws {
+        try await writer.write { db in
+            guard
+                let postRowId = try PostRecord
+                    .filter(Column("accountId") == accountId)
+                    .filter(Column("postId") == Int64(view.post.id))
+                    .fetchOne(db)?
+                    .id
+            else { return }
+
+            _ = try Self.upsertComment(
+                from: view,
+                postRowId: postRowId,
+                siteId: siteId,
+                in: db
+            )
+        }
+    }
+
     /// Replaces the comment tree for a (post, sortType) pair with the given
     /// CommentViews. Mirrors the legacy LemmyPost.upsert(comments:for:) flow:
     /// existing CommentElementRecord rows for this post + sort are deleted,
