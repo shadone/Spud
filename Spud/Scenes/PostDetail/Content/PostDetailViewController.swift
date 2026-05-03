@@ -4,8 +4,9 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import CoreData
+import Foundation
+import LemmyKit
 import OSLog
 import SafariServices
 import SpudDataKit
@@ -17,58 +18,43 @@ class PostDetailViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
         HasAlertService &
+        HasAppDatabase &
         HasAppService &
         HasAppearanceService &
-        HasDataStore
+        HasDataStore &
+        HasImageService &
+        HasPostContentDetectorService &
+        HasPreferencesService
     typealias NestedDependencies =
-        PersonOrLoadingViewController.Dependencies &
-        PostDetailCommentViewModel.Dependencies &
-        PostDetailHeaderViewModel.Dependencies &
-        PostDetailViewModel.Dependencies
+        PersonOrLoadingViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var dataStore: DataStoreType {
-        dependencies.own.dataStore
-    }
-
-    var appearanceService: AppearanceServiceType {
-        dependencies.own.appearanceService
-    }
-
-    var appService: AppServiceType {
-        dependencies.own.appService
-    }
-
-    var accountService: AccountServiceType {
-        dependencies.own.accountService
-    }
-
-    var alertService: AlertServiceType {
-        dependencies.own.alertService
-    }
+    var dataStore: DataStoreType { dependencies.own.dataStore }
+    var appearanceService: AppearanceServiceType { dependencies.own.appearanceService }
+    var appService: AppServiceType { dependencies.own.appService }
+    var accountService: AccountServiceType { dependencies.own.accountService }
+    var alertService: AlertServiceType { dependencies.own.alertService }
+    var appDatabase: AppDatabase { dependencies.own.appDatabase }
+    var imageService: ImageServiceType { dependencies.own.imageService }
+    var postContentDetector: PostContentDetectorServiceType { dependencies.own.postContentDetectorService }
 
     // MARK: - Public
 
     var postInfo: LemmyPostInfo {
-        viewModel.outputs.postInfo
+        viewModel.postInfo
     }
 
     func setPostInfo(_ postInfo: LemmyPostInfo) {
-        disposables.removeAll()
+        observationTask?.cancel()
+        commentObservationTask?.cancel()
 
         viewModel = PostDetailViewModel(
             postInfo: postInfo,
-            dependencies: dependencies.nested
+            dependencies: dependencies.own
         )
 
-        bindViewModel()
-        setupFRC()
-
-//        tableView.reloadData()
-//        tableView.contentOffset = .zero
-
-        execFRC()
+        startObservations()
     }
 
     // MARK: UI Properties
@@ -77,14 +63,10 @@ class PostDetailViewController: UIViewController {
         let tableView = UITableView(frame: .zero, style: .plain)
         tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.rowHeight = UITableView.automaticDimension
-
         tableView.delegate = self
-
         tableView.refreshControl = refreshControl
-
         tableView.register(PostDetailHeaderCell.self, forCellReuseIdentifier: PostDetailHeaderCell.reuseIdentifier)
         tableView.register(PostDetailCommentCell.self, forCellReuseIdentifier: PostDetailCommentCell.reuseIdentifier)
-
         return tableView
     }()
 
@@ -96,34 +78,34 @@ class PostDetailViewController: UIViewController {
 
     // MARK: - Private
 
-    private var viewModel: PostDetailViewModelType
-    private var disposables = Set<AnyCancellable>()
+    private var viewModel: PostDetailViewModel
+    private var headerRow: PostDetailHeaderRow?
+    private var commentRowsByElementId: [Int64: PostDetailCommentRow] = [:]
+    private var observationTask: Task<Void, Never>?
+    private var commentObservationTask: Task<Void, Never>?
 
-    private var commentsFRC: NSFetchedResultsController<LemmyCommentElement>?
     private var dataSource: UITableViewDiffableDataSource<Section, Item>!
-
-    /// Tracks if viewWillAppear has been called before.
     private var isFirstAppearance: Bool = true
 
     // MARK: Functions
 
     init(postInfo: LemmyPostInfo, dependencies: Dependencies) {
         self.dependencies = (own: dependencies, nested: dependencies)
-
-        viewModel = PostDetailViewModel(
-            postInfo: postInfo,
-            dependencies: dependencies
-        )
+        viewModel = PostDetailViewModel(postInfo: postInfo, dependencies: dependencies)
 
         super.init(nibName: nil, bundle: nil)
 
         setup()
-        setupFRC()
     }
 
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        observationTask?.cancel()
+        commentObservationTask?.cancel()
     }
 
     private func setup() {
@@ -138,7 +120,6 @@ class PostDetailViewController: UIViewController {
         navigationItem.rightBarButtonItem = openInBrowser
 
         view.addSubview(tableView)
-
         NSLayoutConstraint.activate([
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
@@ -151,27 +132,15 @@ class PostDetailViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        bindViewModel()
-    }
-
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-
-        if isFirstAppearance {
-            execFRC()
-        }
+        startObservations()
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
 
         if isFirstAppearance {
-            Task {
-                await markAsRead()
-            }
+            Task { await markAsRead() }
         }
-
         isFirstAppearance = false
     }
 
@@ -185,59 +154,82 @@ class PostDetailViewController: UIViewController {
         }
     }
 
-    private func setupFRC() {
-        // reset the old FRC in case we are reusing the same VC for a new post.
-        commentsFRC?.delegate = nil
+    private func startObservations() {
+        let keychainId = postInfo.post.account.id
+        let serverPostId = Int64(postInfo.post.postId)
 
-        let postObjectId = viewModel.outputs.postInfo.post.objectID
-        let sortTypeRawValue = viewModel.outputs.commentSortType.value.rawValue
-
-        let request = LemmyCommentElement.fetchRequest() as NSFetchRequest<LemmyCommentElement>
-        request.predicate = NSPredicate(
-            format: "post == %@ && sortTypeRawValue == %@",
-            postObjectId,
-            sortTypeRawValue
-        )
-        request.fetchBatchSize = 100
-        request.relationshipKeyPathsForPrefetching = ["comment"]
-        request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \LemmyCommentElement.index, ascending: true),
-        ]
-
-        commentsFRC = NSFetchedResultsController(
-            fetchRequest: request,
-            managedObjectContext: dataStore.mainContext,
-            sectionNameKeyPath: nil, cacheName: nil
-        )
-        commentsFRC?.delegate = self
-    }
-
-    private func execFRC() {
-        do {
-            try commentsFRC?.performFetch()
-        } catch {
-            logger.error("Failed to fetch comments: \(String(describing: error), privacy: .public)")
+        guard let postRowId = appDatabase.postRowIdSync(
+            forKeychainId: keychainId,
+            serverPostId: serverPostId
+        ) else {
+            // Post not yet mirrored; trigger a comment fetch which will
+            // dual-write everything we need, then the observation can
+            // bring rows in on the next start.
+            viewModel.didPrepareObservation(numberOfFetchedComments: 0)
+            return
         }
 
-        viewModel.inputs.didPrepareFetchController(numberOfFetchedComments: numberOfComments)
+        observationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await row in self.appDatabase.observePostDetailHeader(postRowId: postRowId) {
+                if Task.isCancelled { break }
+                self.headerRow = row
+                self.applySnapshot()
+            }
+        }
+
+        startCommentObservation(postRowId: postRowId)
     }
 
-    private func bindViewModel() { }
+    private func startCommentObservation(postRowId: Int64) {
+        commentObservationTask?.cancel()
+
+        let sortTypeRaw = viewModel.commentSortType.rawValue
+        commentObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var hasReceivedFirstSnapshot = false
+            for await rows in self.appDatabase.observePostDetailComments(
+                postRowId: postRowId,
+                sortType: sortTypeRaw
+            ) {
+                if Task.isCancelled { break }
+                self.commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+                self.applySnapshot(orderedComments: rows)
+                if !hasReceivedFirstSnapshot {
+                    hasReceivedFirstSnapshot = true
+                    self.viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
+                }
+            }
+        }
+    }
+
+    private func applySnapshot(orderedComments: [PostDetailCommentRow]? = nil) {
+        var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
+        snapshot.appendSections([.header, .comments])
+        snapshot.appendItems([.header], toSection: .header)
+        snapshot.reloadItems([.header])
+
+        let comments = orderedComments ?? Array(commentRowsByElementId.values)
+            .sorted { $0.position < $1.position }
+        let items = comments.map { Item.comment(elementId: $0.id) }
+        snapshot.appendItems(items, toSection: .comments)
+        snapshot.reloadItems(items)
+
+        dataSource.apply(snapshot, animatingDifferences: true)
+    }
 
     @objc
     private func reloadData() {
-        Task {
-            await reloadData()
-        }
+        Task { await reloadAsync() }
     }
 
-    private func reloadData() async {
+    private func reloadAsync() async {
         do {
             try await accountService
                 .lemmyService(for: postInfo.post.account)
                 .fetchComments(
                     postId: postInfo.post.objectID,
-                    sortType: viewModel.outputs.commentSortType.value
+                    sortType: viewModel.commentSortType
                 )
         } catch {
             alertService.handle(error, for: .fetchComments)
@@ -247,9 +239,7 @@ class PostDetailViewController: UIViewController {
 
     @objc
     private func openInBrowser() {
-        Task {
-            await appService.openInBrowser(post: postInfo.post, on: self)
-        }
+        Task { await appService.openInBrowser(post: postInfo.post, on: self) }
     }
 
     private func linkTapped(_ url: URL) {
@@ -264,13 +254,10 @@ class PostDetailViewController: UIViewController {
             navigationController?.pushViewController(vc, animated: true)
 
         case .post:
-            // TODO: push a new post detail
             logger.assertionFailure("unimplemented")
 
         case .none:
-            Task {
-                await appService.open(url: url, on: self)
-            }
+            Task { await appService.open(url: url, on: self) }
         }
     }
 
@@ -279,9 +266,7 @@ class PostDetailViewController: UIViewController {
     }
 
     private func voteOnPost(_ action: VoteStatus.Action) async {
-        // Trigger haptic feedback
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-
         do {
             try await accountService
                 .lemmyService(for: postInfo.post.account)
@@ -291,15 +276,29 @@ class PostDetailViewController: UIViewController {
         }
     }
 
-    private func vote(_ commentElement: LemmyCommentElement, _ action: VoteStatus.Action) async {
-        guard let comment = commentElement.comment else {
-            logger.assertionFailure("Vote on more element?")
+    private func legacyComment(forServerCommentId serverCommentId: Int64) -> LemmyComment? {
+        let request = LemmyComment.fetchRequest() as NSFetchRequest<LemmyComment>
+        request.predicate = NSPredicate(
+            format: "post == %@ && localCommentId == %d",
+            postInfo.post,
+            serverCommentId
+        )
+        request.fetchLimit = 1
+        do {
+            return try dataStore.mainContext.fetch(request).first
+        } catch {
+            logger.error("Failed to fetch LemmyComment: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    private func voteOnComment(serverCommentId: Int64, action: VoteStatus.Action) async {
+        guard let comment = legacyComment(forServerCommentId: serverCommentId) else {
+            logger.assertionFailure("Vote on missing legacy comment")
             return
         }
 
-        // Trigger haptic feedback
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-
         do {
             try await accountService
                 .lemmyService(for: postInfo.post.account)
@@ -308,14 +307,9 @@ class PostDetailViewController: UIViewController {
             alertService.handle(error, for: .vote)
         }
     }
-
-    private func vote(commentAt indexPath: IndexPath, _ action: VoteStatus.Action) async {
-        guard let element = commentElement(at: indexPath) else { return }
-        await vote(element, action)
-    }
 }
 
-// MARK: - FRC helpers
+// MARK: - Data source
 
 extension PostDetailViewController {
     enum Section: Int, Hashable {
@@ -325,29 +319,14 @@ extension PostDetailViewController {
 
     enum Item: Hashable {
         case header
-        case comment(NSManagedObjectID)
-    }
-
-    var numberOfComments: Int {
-        commentsFRC?.sections?[0].numberOfObjects ?? 0
-    }
-
-    func commentElement(at indexPath: IndexPath) -> LemmyCommentElement? {
-        guard
-            case let .comment(objectID) = dataSource.itemIdentifier(for: indexPath),
-            let element = try? dataStore.mainContext.existingObject(with: objectID) as? LemmyCommentElement
-        else {
-            return nil
-        }
-        return element
+        case comment(elementId: Int64)
     }
 
     private func setupDataSource() {
-        let mainContext = dataStore.mainContext
-        let nestedDeps = dependencies.nested
         let appearance = appearanceService
-        let appService = appService
-        let headerViewModel = viewModel.outputs.headerViewModel
+        let imageService = self.imageService
+        let postContentDetector = self.postContentDetector
+        let appService = self.appService
 
         dataSource = UITableViewDiffableDataSource<Section, Item>(
             tableView: tableView
@@ -363,13 +342,16 @@ extension PostDetailViewController {
                 cell.appService = appService
 
                 cell.isBeingConfigured = true
-                cell.configure(with: headerViewModel)
-                cell.linkTapped = { [weak self] url in
-                    self?.linkTapped(url)
+                if let row = self?.headerRow {
+                    let viewModel = PostDetailHeaderViewModel(
+                        row: row,
+                        appearance: appearance,
+                        postContentDetector: postContentDetector
+                    )
+                    cell.configure(with: viewModel, imageService: imageService)
                 }
-                cell.linkTappedFromPreview = { [weak self] safariVC in
-                    self?.linkTappedFromPreview(safariVC)
-                }
+                cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
+                cell.linkTappedFromPreview = { [weak self] safariVC in self?.linkTappedFromPreview(safariVC) }
                 cell.upvoteTapped = { [weak self] in
                     Task { await self?.voteOnPost(.upvote) }
                 }
@@ -377,31 +359,22 @@ extension PostDetailViewController {
                     Task { await self?.voteOnPost(.downvote) }
                 }
                 cell.isBeingConfigured = false
-
                 return cell
 
-            case let .comment(objectID):
+            case let .comment(elementId):
                 let cell = tableView.dequeueReusableCell(
                     withIdentifier: PostDetailCommentCell.reuseIdentifier,
                     for: indexPath
                 ) as! PostDetailCommentCell
 
-                guard
-                    let element = try? mainContext.existingObject(with: objectID) as? LemmyCommentElement
-                else {
-                    logger.assertionFailure("Failed to resolve LemmyCommentElement for \(objectID)")
+                guard let row = self?.commentRowsByElementId[elementId] else {
+                    logger.assertionFailure("Missing PostDetailCommentRow for element \(elementId)")
                     return cell
                 }
 
-                let viewModel = PostDetailCommentViewModel(
-                    comment: element,
-                    dependencies: nestedDeps
-                )
+                let viewModel = PostDetailCommentViewModel(row: row, appearance: appearance)
                 cell.configure(with: viewModel)
-
-                cell.linkTapped = { [weak self] url in
-                    self?.linkTapped(url)
-                }
+                cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
 
                 let general = appearance.general
                 cell.swipeActionConfiguration = .init(
@@ -414,29 +387,26 @@ extension PostDetailViewController {
                         backgroundColor: general.downvoteSwipeActionBackgroundColor
                     ),
                     trailingPrimaryAction: .init(
-                        // TODO: make reply action
                         image: UIImage(systemName: "arrowshape.turn.up.backward")!,
                         backgroundColor: UIColor.blue
                     ),
                     trailingSecondaryAction: .init(
-                        // TODO: make save comment action
                         image: UIImage(systemName: "bookmark")!,
                         backgroundColor: UIColor.green
                     )
                 )
 
                 cell.swipeActionTriggered = { [weak self] action in
+                    guard let serverCommentId = row.serverCommentId else { return }
                     switch action {
                     case .leadingPrimary:
-                        Task { await self?.vote(element, .upvote) }
+                        Task { await self?.voteOnComment(serverCommentId: serverCommentId, action: .upvote) }
                     case .leadingSecondary:
-                        Task { await self?.vote(element, .downvote) }
+                        Task { await self?.voteOnComment(serverCommentId: serverCommentId, action: .downvote) }
                     case .trailingPrimary, .trailingSecondary:
-                        // TODO: will be reply and save actions
                         break
                     }
                 }
-
                 return cell
             }
         }
@@ -451,8 +421,6 @@ extension PostDetailViewController {
 // MARK: - UITableView Delegate
 
 extension PostDetailViewController: UITableViewDelegate {
-    // MARK: Context Menu
-
     func tableView(
         _ tableView: UITableView,
         previewForHighlightingContextMenuWithConfiguration configuration: UIContextMenuConfiguration
@@ -464,7 +432,6 @@ extension PostDetailViewController: UITableViewDelegate {
         let parameters = UIPreviewParameters()
         parameters.backgroundColor = .clear
         parameters.visiblePath = UIBezierPath(roundedRect: cell.bounds, cornerRadius: 12)
-
         return UITargetedPreview(view: cell, parameters: parameters)
     }
 
@@ -473,7 +440,11 @@ extension PostDetailViewController: UITableViewDelegate {
         contextMenuConfigurationForRowAt indexPath: IndexPath,
         point: CGPoint
     ) -> UIContextMenuConfiguration? {
-        guard indexPath.section == 1 else { return nil }
+        guard
+            indexPath.section == 1,
+            case let .comment(elementId) = dataSource.itemIdentifier(for: indexPath),
+            let serverCommentId = commentRowsByElementId[elementId]?.serverCommentId
+        else { return nil }
 
         let generalAppearance = appearanceService.general
         return UIContextMenuConfiguration(
@@ -484,46 +455,16 @@ extension PostDetailViewController: UITableViewDelegate {
                     title: NSLocalizedString("Upvote", comment: ""),
                     image: generalAppearance.upvoteIcon
                 ) { [weak self] _ in
-                    Task {
-                        await self?.vote(commentAt: indexPath, .upvote)
-                    }
+                    Task { await self?.voteOnComment(serverCommentId: serverCommentId, action: .upvote) }
                 }
-
                 let downvoteAction = UIAction(
                     title: NSLocalizedString("Downvote", comment: ""),
                     image: generalAppearance.downvoteIcon
                 ) { [weak self] _ in
-                    Task {
-                        await self?.vote(commentAt: indexPath, .downvote)
-                    }
+                    Task { await self?.voteOnComment(serverCommentId: serverCommentId, action: .downvote) }
                 }
-
-                return UIMenu(title: "", children: [
-                    upvoteAction,
-                    downvoteAction,
-                ])
+                return UIMenu(title: "", children: [upvoteAction, downvoteAction])
             }
         )
-    }
-}
-
-// MARK: - Core Data
-
-extension PostDetailViewController: NSFetchedResultsControllerDelegate {
-    nonisolated func controller(
-        _ controller: NSFetchedResultsController<NSFetchRequestResult>,
-        didChangeContentWith snapshot: NSDiffableDataSourceSnapshotReference
-    ) {
-        let frcSnapshot = snapshot as NSDiffableDataSourceSnapshot<Int, NSManagedObjectID>
-        MainActor.assumeIsolated {
-            var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
-            snapshot.appendSections([.header, .comments])
-            snapshot.appendItems([.header], toSection: .header)
-            snapshot.appendItems(
-                frcSnapshot.itemIdentifiers.map { Item.comment($0) },
-                toSection: .comments
-            )
-            dataSource.apply(snapshot, animatingDifferences: true)
-        }
     }
 }

@@ -4,130 +4,59 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import CoreData
+import Foundation
 import LemmyKit
+import Observation
+import OSLog
 import SpudDataKit
 
-@MainActor
-protocol PostDetailViewModelInputs {
-//    func voteOnPost(_ action: VoteStatus.Action)
-//    func voteOnComment(_ comment: RedditComment, _ action: VoteStatus.Action)
-    func didChangeCommentSortType(_ sortType: Components.Schemas.CommentSortType)
-    func didPrepareFetchController(numberOfFetchedComments: Int)
-}
+private let logger = Logger.app
 
+/// View-model state for PostDetailViewController. Plain @Observable values
+/// driven by GRDB observations and legacy fetch calls. Sort-type changes
+/// trigger a re-fetch via the legacy LemmyService — that bridge dissolves
+/// in Stage 7.
 @MainActor
-protocol PostDetailViewModelOutputs {
-    var postInfo: LemmyPostInfo { get }
-    var headerViewModel: PostDetailHeaderViewModel { get }
-    var commentSortType: CurrentValueSubject<Components.Schemas.CommentSortType, Never> { get }
-}
-
-@MainActor
-protocol PostDetailViewModelType {
-    var inputs: PostDetailViewModelInputs { get }
-    var outputs: PostDetailViewModelOutputs { get }
-}
-
-@MainActor
-class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, PostDetailViewModelOutputs {
+@Observable
+final class PostDetailViewModel {
     typealias OwnDependencies =
         HasAccountService &
         HasAlertService &
         HasPreferencesService
-    typealias NestedDependencies =
-        PostDetailHeaderViewModel.Dependencies
-    typealias Dependencies = NestedDependencies & OwnDependencies
-    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
+    typealias Dependencies = OwnDependencies
 
-    var accountService: AccountServiceType {
-        dependencies.own.accountService
-    }
+    @ObservationIgnored
+    private let dependencies: OwnDependencies
 
-    var alertService: AlertServiceType {
-        dependencies.own.alertService
-    }
-
-    // MARK: Private
-
-    let postObjectId: NSManagedObjectID
-
-    private var disposables = Set<AnyCancellable>()
-
-    // MARK: Functions
-
-    init(
-        postInfo: LemmyPostInfo,
-        dependencies: Dependencies
-    ) {
-        self.dependencies = (own: dependencies, nested: dependencies)
-        self.postInfo = postInfo
-
-        postObjectId = postInfo.post.objectID
-
-        headerViewModel = PostDetailHeaderViewModel(
-            postInfo: postInfo,
-            dependencies: dependencies
-        )
-
-        let preferencesService = dependencies.preferencesService
-        commentSortType = CurrentValueSubject(preferencesService.defaultCommentSortType)
-    }
-
-    // MARK: Type
-
-    var inputs: PostDetailViewModelInputs {
-        self
-    }
-
-    var outputs: PostDetailViewModelOutputs {
-        self
-    }
-
-    // MARK: Outputs
-
+    @ObservationIgnored
     let postInfo: LemmyPostInfo
-    let headerViewModel: PostDetailHeaderViewModel
-    let commentSortType: CurrentValueSubject<Components.Schemas.CommentSortType, Never>
 
-    // MARK: Inputs
+    var commentSortType: Components.Schemas.CommentSortType
 
-//    func voteOnPost(_ action: VoteStatus.Action) {
-//        accountService
-//            .redditService(for: post.account)?
-//            .vote(postId: postObjectId, vote: action)
-//            .sink(receiveCompletion: { _ in
-//            }) { _ in
-//            }
-//            .store(in: &disposables)
-//    }
-//
-//    func voteOnComment(_ comment: RedditComment, _ action: VoteStatus.Action) {
-//        accountService
-//            .redditService(for: post.account)?
-//            .vote(commentId: comment.objectID, vote: action)
-//            .sink(receiveCompletion: { _ in
-//            }) { _ in
-//            }
-//            .store(in: &disposables)
-//    }
+    private var accountService: AccountServiceType { dependencies.accountService }
+    private var alertService: AlertServiceType { dependencies.alertService }
+
+    init(postInfo: LemmyPostInfo, dependencies: Dependencies) {
+        self.dependencies = dependencies
+        self.postInfo = postInfo
+        self.commentSortType = dependencies.preferencesService.defaultCommentSortType
+    }
 
     func didChangeCommentSortType(_ sortType: Components.Schemas.CommentSortType) {
-        commentSortType.send(sortType)
+        commentSortType = sortType
+        Task { await fetchComments() }
     }
 
-    func didPrepareFetchController(numberOfFetchedComments: Int) {
-        Task {
-            await fetchComments()
-        }
+    func didPrepareObservation(numberOfFetchedComments: Int) {
+        Task { await fetchComments() }
     }
 
-    private func fetchComments() async {
+    func fetchComments() async {
         do {
             try await accountService
                 .lemmyService(for: postInfo.post.account)
-                .fetchComments(postId: postObjectId, sortType: commentSortType.value)
+                .fetchComments(postId: postInfo.post.objectID, sortType: commentSortType)
         } catch {
             alertService.handle(error, for: .fetchComments)
         }
