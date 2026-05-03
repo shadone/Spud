@@ -40,7 +40,6 @@ class AccountListViewController: UIViewController {
         tableView.rowHeight = UITableView.automaticDimension
 
         tableView.delegate = self
-        tableView.dataSource = self
 
         tableView.register(AccountListAccountCell.self, forCellReuseIdentifier: AccountListAccountCell.reuseIdentifier)
 
@@ -50,6 +49,7 @@ class AccountListViewController: UIViewController {
     // MARK: Private
 
     var accountsFRC: NSFetchedResultsController<LemmyAccount>?
+    private var dataSource: UITableViewDiffableDataSource<Int, NSManagedObjectID>!
 
     // MARK: Functions
 
@@ -94,7 +94,28 @@ class AccountListViewController: UIViewController {
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
+        setupDataSource()
         setupFRC()
+    }
+
+    private func setupDataSource() {
+        let mainContext = dataStore.mainContext
+        dataSource = UITableViewDiffableDataSource<Int, NSManagedObjectID>(
+            tableView: tableView
+        ) { tableView, indexPath, objectID in
+            let cell = tableView.dequeueReusableCell(
+                withIdentifier: AccountListAccountCell.reuseIdentifier,
+                for: indexPath
+            ) as! AccountListAccountCell
+
+            guard let account = try? mainContext.existingObject(with: objectID) as? LemmyAccount else {
+                logger.assertionFailure("Failed to resolve account for objectID \(objectID)")
+                return cell
+            }
+
+            cell.configure(with: AccountListAccountViewModel(account: account))
+            return cell
+        }
     }
 
     private func setupFRC() {
@@ -168,17 +189,9 @@ class AccountListViewController: UIViewController {
 // MARK: - FRC helpers
 
 extension AccountListViewController {
-    var numberOfAccounts: Int {
-        accountsFRC?.sections?[0].numberOfObjects ?? 0
-    }
-
-    func account(at index: Int) -> LemmyAccount {
-        guard
-            let account = accountsFRC?.sections?[0].objects?[index] as? LemmyAccount
-        else {
-            fatalError()
-        }
-        return account
+    func account(at indexPath: IndexPath) -> LemmyAccount? {
+        guard let objectID = dataSource.itemIdentifier(for: indexPath) else { return nil }
+        return try? dataStore.mainContext.existingObject(with: objectID) as? LemmyAccount
     }
 }
 
@@ -186,79 +199,22 @@ extension AccountListViewController {
 
 extension AccountListViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let account = account(at: indexPath.row)
+        guard let account = account(at: indexPath) else { return }
         accountService.setDefaultAccount(account)
         dismiss(animated: true)
-    }
-}
-
-// MARK: - Table View DataSource
-
-extension AccountListViewController: UITableViewDataSource {
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        numberOfAccounts
-    }
-
-    func tableView(
-        _ tableView: UITableView,
-        cellForRowAt indexPath: IndexPath
-    ) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(
-            withIdentifier: AccountListAccountCell.reuseIdentifier,
-            for: indexPath
-        ) as! AccountListAccountCell
-
-        let account = account(at: indexPath.row)
-        let viewModel = AccountListAccountViewModel(account: account)
-        cell.configure(with: viewModel)
-
-        return cell
     }
 }
 
 // MARK: - Core Data
 
 extension AccountListViewController: NSFetchedResultsControllerDelegate {
-    nonisolated func controllerWillChangeContent(
-        _ controller: NSFetchedResultsController<NSFetchRequestResult>
-    ) {
-        MainActor.assumeIsolated {
-            tableView.beginUpdates()
-        }
-    }
-
-    nonisolated func controllerDidChangeContent(_: NSFetchedResultsController<NSFetchRequestResult>) {
-        MainActor.assumeIsolated {
-            tableView.endUpdates()
-        }
-    }
-
     nonisolated func controller(
-        _: NSFetchedResultsController<NSFetchRequestResult>,
-        didChange _: Any,
-        at indexPath: IndexPath?,
-        for type: NSFetchedResultsChangeType,
-        newIndexPath: IndexPath?
+        _ controller: NSFetchedResultsController<NSFetchRequestResult>,
+        didChangeContentWith snapshot: NSDiffableDataSourceSnapshotReference
     ) {
+        let typedSnapshot = snapshot as NSDiffableDataSourceSnapshot<Int, NSManagedObjectID>
         MainActor.assumeIsolated {
-            switch type {
-            case .insert:
-                guard let newIndexPath else { fatalError() }
-                tableView.insertRows(at: [newIndexPath], with: .fade)
-
-            case .delete:
-                guard let indexPath else { fatalError() }
-                tableView.deleteRows(at: [indexPath], with: .fade)
-
-            case .update:
-                break
-
-            case .move:
-                logger.assertionFailure()
-
-            @unknown default:
-                logger.assertionFailure()
-            }
+            dataSource.apply(typedSnapshot, animatingDifferences: true)
         }
     }
 }

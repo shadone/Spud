@@ -28,6 +28,7 @@
 		26194DEBAFABAE4EBCBC1BDD /* Post.swift in Sources */ = {isa = PBXBuildFile; fileRef = 691440428D5E2FC5CFF6B2D2 /* Post.swift */; };
 		276B41CA8A9DC42DF8D1033A /* Account.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DBE48F6B120424E9A1A73F2 /* Account.swift */; };
 		29B34E368996CCC33B9A65A4 /* Community.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36454FAFBA3D2B3AEF681057 /* Community.swift */; };
+		2E0E4108962C000B4D3CCEEF /* LoadingFooterCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F34CB29C2355A8B50D21DD /* LoadingFooterCell.swift */; };
 		4F8543AB82CA92AD1D0A9F63 /* InstanceRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43934EFD9B71D978E344BCC4 /* InstanceRecord.swift */; };
 		7714492BB1CAE4630714DDF0 /* AppDatabase+Migrations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F0840C5AB426F95C6989E4E /* AppDatabase+Migrations.swift */; };
 		85DB41B492A0ECF41C8E7346 /* Feed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F443B2BD800D168D379F3B /* Feed.swift */; };
@@ -480,6 +481,7 @@
 		29F94776A333C3A1EB896ABE /* AppDatabaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDatabaseTests.swift; path = SpudDataKitTests/AppDatabaseTests.swift; sourceTree = SOURCE_ROOT; };
 		2DBE48F6B120424E9A1A73F2 /* Account.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Account.swift; path = SpudDataKit/Services/AppDatabase/Records/Account.swift; sourceTree = SOURCE_ROOT; };
 		36454FAFBA3D2B3AEF681057 /* Community.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Community.swift; path = SpudDataKit/Services/AppDatabase/Records/Community.swift; sourceTree = SOURCE_ROOT; };
+		42F34CB29C2355A8B50D21DD /* LoadingFooterCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LoadingFooterCell.swift; path = Spud/Scenes/Common/LoadingFooterCell.swift; sourceTree = SOURCE_ROOT; };
 		433F44EABC1CE73C756737EB /* Site.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Site.swift; path = SpudDataKit/Services/AppDatabase/Records/Site.swift; sourceTree = SOURCE_ROOT; };
 		43934EFD9B71D978E344BCC4 /* InstanceRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InstanceRecord.swift; path = SpudDataKit/Services/AppDatabase/Records/InstanceRecord.swift; sourceTree = SOURCE_ROOT; };
 		454940E4A49A1EF256BFEA36 /* NodeInfoRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NodeInfoRecord.swift; path = SpudDataKit/Services/AppDatabase/Records/NodeInfoRecord.swift; sourceTree = SOURCE_ROOT; };
@@ -1268,6 +1270,7 @@
 				595D41CDBF151C31438096E5 /* Comment.swift */,
 				75F443B2BD800D168D379F3B /* Feed.swift */,
 				29F94776A333C3A1EB896ABE /* AppDatabaseTests.swift */,
+				42F34CB29C2355A8B50D21DD /* LoadingFooterCell.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -2317,6 +2320,7 @@
 				927343332A61C6550089556E /* LinkLabel.swift in Sources */,
 				92CEAEC82A54422C00FAF4DB /* LinkPreviewView.swift in Sources */,
 				9254A3482A86DF5A009EB4B5 /* ListingType+appintent.swift in Sources */,
+				2E0E4108962C000B4D3CCEEF /* LoadingFooterCell.swift in Sources */,
 				92B7C93E2A3A5C3A00672F64 /* Logger.swift in Sources */,
 				92DD63062A48BEAD00497C3B /* LoginViewController.swift in Sources */,
 				92DD63092A48CC2700497C3B /* LoginViewModel.swift in Sources */,
