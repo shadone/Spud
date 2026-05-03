@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import UIKit
 
@@ -55,10 +54,6 @@ class AccountListAccountCell: UITableViewCell {
         return label
     }()
 
-    // MARK: Private
-
-    private var disposables = Set<AnyCancellable>()
-
     // MARK: Functions
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -81,25 +76,9 @@ class AccountListAccountCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override func prepareForReuse() {
-        super.prepareForReuse()
-
-        disposables.removeAll()
-    }
-
     func configure(with viewModel: AccountListAccountViewModel) {
-        viewModel.title
-            .map { NSAttributedString($0) }
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: titleLabel)
-            .store(in: &disposables)
-
-        viewModel.subtitle
-            .assign(to: \.attributedText, on: subtitleLabel)
-            .store(in: &disposables)
-
-        viewModel.defaultAccountAccessoryType
-            .assign(to: \.accessoryType, on: self)
-            .store(in: &disposables)
+        titleLabel.attributedText = viewModel.title
+        subtitleLabel.attributedText = viewModel.subtitle
+        accessoryType = viewModel.accessoryType
     }
 }
