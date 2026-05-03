@@ -30,14 +30,14 @@ public extension AppDatabase {
         do {
             return try writer.read { db in
                 try Int64.fetchOne(db, sql: """
-                    SELECT person.id
-                    FROM person
-                    JOIN site     ON site.id = person.siteId
-                    JOIN instance ON instance.id = site.instanceId
-                    WHERE instance.actorId = ?
-                      AND person.personId = ?
-                    LIMIT 1
-                """, arguments: [instanceActorId, personId])
+                        SELECT person.id
+                        FROM person
+                        JOIN site     ON site.id = person.siteId
+                        JOIN instance ON instance.id = site.instanceId
+                        WHERE instance.actorId = ?
+                          AND person.personId = ?
+                        LIMIT 1
+                    """, arguments: [instanceActorId, personId])
             }
         } catch {
             logger.error("Failed to resolve person row id: \(String(describing: error), privacy: .public)")
@@ -51,19 +51,20 @@ public extension AppDatabase {
         let observation = ValueObservation
             .tracking { db -> PersonProfileRow? in
                 guard let row = try Row.fetchOne(db, sql: """
-                    SELECT
-                        person.id                AS id,
-                        person.name              AS name,
-                        person.displayName       AS displayName,
-                        person.numberOfPosts     AS numberOfPosts,
-                        person.numberOfComments  AS numberOfComments,
-                        person.personCreatedDate AS personCreatedDate,
-                        instance.actorId         AS instanceActorId
-                    FROM person
-                    JOIN site     ON site.id = person.siteId
-                    JOIN instance ON instance.id = site.instanceId
-                    WHERE person.id = ?
-                """, arguments: [personRowId]) else {
+                        SELECT
+                            person.id                AS id,
+                            person.name              AS name,
+                            person.displayName       AS displayName,
+                            person.numberOfPosts     AS numberOfPosts,
+                            person.numberOfComments  AS numberOfComments,
+                            person.personCreatedDate AS personCreatedDate,
+                            instance.actorId         AS instanceActorId
+                        FROM person
+                        JOIN site     ON site.id = person.siteId
+                        JOIN instance ON instance.id = site.instanceId
+                        WHERE person.id = ?
+                    """, arguments: [personRowId])
+                else {
                     return nil
                 }
 
