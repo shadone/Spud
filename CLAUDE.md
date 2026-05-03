@@ -84,27 +84,39 @@ The pre-commit hook runs `scripts/sort-Xcode-project-file.pl` to keep `project.p
 
 `SWIFT_STRICT_CONCURRENCY = complete` is already on at the project level. The earlier WIP attempted to silence the resulting warnings ad-hoc (saw commits like "Added a hack to silence strict concurrency warning", "Quick fix for strict concurrency warnings"). The fresh approach should be Swift 6 language mode end-to-end: explicit `Sendable` annotations, actor-isolated services, no `@unchecked` escape hatches unless the invariant is documented. LemmyKit already enables `StrictConcurrency` and `DisableOutwardActorInference`.
 
-## Pickup checklist (May 2026)
+## Strategic direction (decided May 2026)
 
-Follow this order — each step assumes the previous landed cleanly. Most need Xcode running to validate; do not edit `project.pbxproj` blindly from the CLI.
+Two stack changes are committed to before continuing the Swift 6 migration on the data/app layers:
 
-1. **Toolchain alignment**
-   - Confirm Xcode version (16.x or 17.x) and matching command-line tools.
-   - Run `mint bootstrap` against the updated `Mintfile` (SwiftFormat is on 0.61.1; SwiftGen stays on 6.6.3 — that's the current latest).
-   - Decide Swift language mode. Today: `.swift-version = 5.9`, `pbxproj SWIFT_VERSION = 5.0` (mismatch). For Swift 6 strict concurrency end-to-end, set both to `6.0` and switch each target's `SWIFT_VERSION` build setting in Xcode.
-2. **Deployment target bump**
-   - Currently mixed across targets: `15.0` / `15.2` / `16.0`. Pick a single floor (likely `iOS 17` given current device share) and apply via Xcode → Project → Info → iOS Deployment Target. Re-test on simulator.
-3. **SPM resolution**
-   - `Package.resolved` (in `Spud.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/`) was last refreshed mid-2024. Run File → Packages → Update to Latest Versions inside Xcode and review the diff.
-4. **LemmyKit regeneration**
-   - LemmyKit and `Lemmy-OpenAPI-Spec` were last touched July 2025. Pull current Lemmy server OpenAPI spec, regenerate, re-resolve the package, fix any breaking-change call sites in `SpudDataKit/Services/Lemmy/`.
-5. **Strict concurrency, fresh pass**
-   - Project flag is already `complete`. Don't reuse the stashed WIP. Walk targets bottom-up: `SpudUtilKit` → `SpudUIKit` → `SpudDataKit` → `Spud` / `SpudWidget` / `OpenInAppExtension`. For each, drive warnings to zero before moving up. Prefer `actor` for mutable services, explicit `Sendable` annotations on DTOs, isolated `@MainActor` for view models. No `@unchecked Sendable` without a documented invariant.
-6. **Snapshot test refresh**
-   - After any deployment-target / iOS SDK change, snapshot references will drift. Re-record on iPhone 14 Pro simulator, portrait. If switching to a newer reference device, do it as one deliberate commit and update this file + README.
-7. **Optional housekeeping**
-   - `Spud.coredataproj` at the repo parent is from the old Core Data Editor app — verify still useful or delete.
-   - JPGs at the repo parent (`3072d3c8-…`, `d8a1f433-…`, etc.) look like stray screenshots — confirm and remove.
-   - Add `CHANGELOG.md` / `CONTRIBUTING.md` if/when the project goes public.
+- **Replace Core Data** — the model in `SpudDataKit/Services/DataStore/` is being replaced (SwiftData is the obvious candidate but the choice isn't locked; discuss before assuming). Driven by Apple's de-emphasis of Core Data and friction with Widgets in particular.
+- **Replace Combine** — `AnyPublisher` / `CurrentValueSubject` / `.sink` pipelines throughout `SpudDataKit` are being replaced with `AsyncSequence` and Observation. Same reasoning.
+
+Treat the old `LemmyService` / `DataStore` design as transitional — do not invest in actor-isolation refactors there.
+
+## Pickup checklist
+
+What's done:
+
+- [x] **Toolchain** — SwiftFormat 0.61.1, SwiftGen 6.6.3. `Mintfile` current.
+- [x] **Format pass** — codebase reformatted under SwiftFormat 0.61.1 ruleset.
+- [x] **Swift 6 — SpudUtilKit** — language mode `6.0`, builds clean.
+- [x] **Swift 6 — SpudUIKit** — language mode `6.0`, builds clean. `ColorAsset` marked `@unchecked Sendable` next to its existing extension (not in the SwiftGen-generated file).
+
+What's next, in order:
+
+1. **Decide replacement for Core Data.** SwiftData is the default candidate but evaluate against the Widget integration story and the existing entity graph (Instance, LemmyAccount, LemmyCommunity, LemmyPerson, LemmyPost, LemmyComment, LemmyFeed, LemmyPage, plus *Info companions). Old `Spud.xcdatamodel` only has one version — no migration history to preserve.
+2. **Decide replacement for Combine.** Likely `AsyncSequence` for streams, `@Observable` for view-model state, plain `async`/`await` for one-shot calls. Note `AnyPublisher.async()` extension in SpudUtilKit can be retired entirely once nothing emits Combine.
+3. **Plan migration sequence.** Persistence first or reactive layer first? `LemmyService` heavily mixes both, so they likely move together.
+4. **Then resume Swift 6 migration** on the rewritten `SpudDataKit`, the app target, the widget, and `OpenInAppExtension`. Don't migrate LemmyService's current actor isolation now — it's getting replaced.
+
+## Deferred (not blocking)
+
+- **Deployment target bump** — mixed `15.0` / `15.2` / `16.0`; user confirmed app builds + runs fine on current devices, so not urgent. Bump when there's a concrete iOS-version-gated API to adopt.
+- **SPM `Package.resolved`** — last refreshed mid-2024; not blocking.
+- **LemmyKit regeneration** — current API contract still working in practice. Regen when an endpoint we need has changed, or when SpudDataKit's data layer is being rewritten anyway.
+- **`SpudDataKitTests` compile errors** — pre-existing, references `Comment`, `CommentAggregates`, `CommentView`, `Community`, `Person`, `Post` types that LemmyKit's OpenAPI generator now namespaces under `Components.Schemas.*`. Likely auto-fixed by the data-layer rewrite; don't sink time into patching the fakes.
+- **Snapshot test refresh** — re-record on iPhone 14 Pro / portrait if/when UI changes. Reference device may want updating eventually.
+- **Repo parent housekeeping** — `Spud.coredataproj` (Core Data Editor file), stray JPGs at the parent level (`3072d3c8-…` etc.). Confirm with user and remove.
+- **`CHANGELOG.md` / `CONTRIBUTING.md`** — only if the project goes public.
 
 See [README.md](README.md) for the user-facing overview.
