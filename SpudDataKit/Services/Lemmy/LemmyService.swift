@@ -596,8 +596,8 @@ public actor LemmyService: LemmyServiceType {
         try await appDatabase.writer.read { db in
             guard
                 let account = try AccountRecord
-                    .filter(Column("accountKeychainId") == self.accountIdentifierForLogging)
-                    .fetchOne(db)
+                .filter(Column("accountKeychainId") == self.accountIdentifierForLogging)
+                .fetchOne(db)
             else {
                 return nil
             }
