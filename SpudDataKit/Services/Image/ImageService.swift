@@ -8,7 +8,7 @@ import Combine
 import Foundation
 import UIKit
 
-public class ImageService: ImageServiceType {
+public final class ImageService: ImageServiceType {
     /// In-memory cache for loaded images.
     ///
     /// Each cache entry has associated cost that is the size of the image (width \* height)
@@ -33,65 +33,92 @@ public class ImageService: ImageServiceType {
     public func fetch(
         _ url: URL,
         thumbnail thumbnailUrl: URL?
+    ) -> AsyncStream<ImageLoadingState> {
+        AsyncStream { continuation in
+            let task = Task { [weak self] in
+                guard let self else {
+                    continuation.finish()
+                    return
+                }
+
+                if let cachedImage = memoryCache.object(forKey: url as NSURL) {
+                    continuation.yield(.ready(cachedImage))
+                    continuation.finish()
+                    return
+                }
+
+                let cachedThumbnail = thumbnailUrl.flatMap {
+                    memoryCache.object(forKey: $0 as NSURL)
+                }
+                continuation.yield(.loading(thumbnail: cachedThumbnail))
+
+                do {
+                    let image = try await loadImage(from: url)
+                    if Task.isCancelled {
+                        continuation.finish()
+                        return
+                    }
+                    continuation.yield(.ready(image))
+                } catch let error as ImageLoadingError {
+                    alertService.image(error: error, for: url)
+                    continuation.yield(.failure)
+                } catch {
+                    alertService.image(error: .network(error), for: url)
+                    continuation.yield(.failure)
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    public func fetchPublisher(
+        _ url: URL,
+        thumbnail thumbnailUrl: URL?
     ) -> AnyPublisher<ImageLoadingState, Never> {
-        assert(Thread.isMainThread, "This code is not thread safe")
-
-        if let cachedImage = memoryCache.object(forKey: url as NSURL) {
-            // no need to specify .receive(on:) here (neither RunLoop.main nor DispatchQueue.main).
-            // Doing do will trigger the callbacks on the next runloop breaking UITableViewCell
-            // configuration.
-            return .just(.ready(cachedImage))
-                .eraseToAnyPublisher()
-        }
-
-        // TODO: check if the image is present in URLSession cache.
-
-        let cachedThumbnailImage = thumbnailUrl.flatMap {
-            memoryCache.object(forKey: $0 as NSURL)
-        }
-
-        return get(url)
-            .map { image -> ImageLoadingState in
-                .ready(image)
+        let subject = PassthroughSubject<ImageLoadingState, Never>()
+        let stream = fetch(url, thumbnail: thumbnailUrl)
+        let task = Task {
+            for await state in stream {
+                subject.send(state)
             }
-            .catch { imageError -> AnyPublisher<ImageLoadingState, Never> in
-                self.alertService.image(error: imageError, for: url)
-                return .just(.failure)
-            }
-            .prepend(.loading(thumbnail: cachedThumbnailImage))
+            subject.send(completion: .finished)
+        }
+        return subject
+            .handleEvents(receiveCancel: { task.cancel() })
+            .receive(on: DispatchQueue.main)
             .eraseToAnyPublisher()
     }
 
-    private func get(_ url: URL) -> AnyPublisher<UIImage, ImageLoadingError> {
-        assert(Thread.isMainThread, "This code is not thread safe")
+    private func loadImage(from url: URL) async throws -> UIImage {
+        // TODO: check if the image is present in URLSession cache.
 
-        return session.dataTaskPublisher(for: url)
-            .mapError { urlError -> ImageLoadingError in
-                .network(urlError)
-            }
-            .flatMap { [weak self] data, urlResponse -> AnyPublisher<UIImage, ImageLoadingError> in
-                guard let httpUrlResponse = urlResponse as? HTTPURLResponse else {
-                    fatalError("Huh")
-                }
+        let (data, urlResponse): (Data, URLResponse)
+        do {
+            (data, urlResponse) = try await session.data(from: url)
+        } catch {
+            throw ImageLoadingError.network(error)
+        }
 
-                let statusCode = httpUrlResponse.statusCode
-                guard statusCode == 200 else {
-                    return .fail(with: .serverError(statusCode: statusCode))
-                }
+        guard let httpUrlResponse = urlResponse as? HTTPURLResponse else {
+            throw ImageLoadingError.cannotDecode
+        }
 
-                guard let image = UIImage(data: data) else {
-                    return .fail(with: .cannotDecode)
-                }
+        let statusCode = httpUrlResponse.statusCode
+        guard statusCode == 200 else {
+            throw ImageLoadingError.serverError(statusCode: statusCode)
+        }
 
-                self?.memoryCache.setObject(
-                    image,
-                    forKey: url as NSURL,
-                    cost: Int(image.size.width * image.size.height)
-                )
+        guard let image = UIImage(data: data) else {
+            throw ImageLoadingError.cannotDecode
+        }
 
-                return .just(image)
-            }
-            .receive(on: DispatchQueue.main)
-            .eraseToAnyPublisher()
+        memoryCache.setObject(
+            image,
+            forKey: url as NSURL,
+            cost: Int(image.size.width * image.size.height)
+        )
+
+        return image
     }
 }

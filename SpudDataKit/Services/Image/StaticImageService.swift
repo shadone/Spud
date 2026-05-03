@@ -8,14 +8,32 @@ import Combine
 import Foundation
 import UIKit
 
-public class StaticImageService: ImageServiceType {
+public final class StaticImageService: ImageServiceType {
     public init() { }
 
     public func fetch(
         _ url: URL,
         thumbnail thumbnailUrl: URL?
+    ) -> AsyncStream<ImageLoadingState> {
+        AsyncStream { continuation in
+            let bundle = Bundle(for: StaticImageService.self)
+            if let image = UIImage(named: "tv-pattern", in: bundle, with: nil) {
+                continuation.yield(.ready(image))
+            } else {
+                continuation.yield(.failure)
+            }
+            continuation.finish()
+        }
+    }
+
+    public func fetchPublisher(
+        _ url: URL,
+        thumbnail thumbnailUrl: URL?
     ) -> AnyPublisher<ImageLoadingState, Never> {
         let bundle = Bundle(for: StaticImageService.self)
-        return .just(.ready(UIImage(named: "tv-pattern", in: bundle, with: nil)!))
+        guard let image = UIImage(named: "tv-pattern", in: bundle, with: nil) else {
+            return .just(.failure)
+        }
+        return .just(.ready(image))
     }
 }

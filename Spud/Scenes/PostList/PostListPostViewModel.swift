@@ -121,7 +121,7 @@ class PostListPostViewModel {
             // ```
             let thumbnailUrl = image.thumbnailUrl ?? image.imageUrl
             return imageService
-                .fetch(thumbnailUrl)
+                .fetchPublisher(thumbnailUrl)
                 .map { .image($0) }
                 .eraseToAnyPublisher()
         }

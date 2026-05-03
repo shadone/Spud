@@ -131,7 +131,7 @@ class PostDetailHeaderViewModel {
             return postInfo.publisher(for: \.thumbnailUrl)
                 .removeDuplicates()
                 .flatMap { thumbnailUrl in
-                    self.imageService.fetch(image.imageUrl, thumbnail: thumbnailUrl)
+                    self.imageService.fetchPublisher(image.imageUrl, thumbnail: thumbnailUrl)
                 }
                 .eraseToAnyPublisher()
         }
@@ -167,7 +167,7 @@ class PostDetailHeaderViewModel {
                     }
 
                     return self.imageService
-                        .fetch(thumbnailUrl)
+                        .fetchPublisher(thumbnailUrl)
                         .map { (url, $0) }
                         .eraseToAnyPublisher()
                 }
