@@ -318,6 +318,7 @@
 		92F5712C2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */; };
 		B1BF4A0281418D973DEEE2B3 /* AppDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9C4A6EAE2E5228E45BA901 /* AppDatabase.swift */; };
 		B2B34FD586C81CEFDA32A2DF /* AccountListObservations.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDC1413A981C31C0EB8FD11B /* AccountListObservations.swift */; };
+		B54047E5BA8CDF261150E942 /* WidgetQueries.swift in Sources */ = {isa = PBXBuildFile; fileRef = C77D4224B4FCD6C3607D1095 /* WidgetQueries.swift */; };
 		B55B4D44A5DE1512988BD38E /* PostListObservations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 459243EAA1DCFBB5995FE938 /* PostListObservations.swift */; };
 		BF3643919B963051BF8155CE /* Site.swift in Sources */ = {isa = PBXBuildFile; fileRef = 433F44EABC1CE73C756737EB /* Site.swift */; };
 		C1C94CF693A846B5BDBEFB89 /* PostDetailObservations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90C042C2A4FF2C65F03A782E /* PostDetailObservations.swift */; };
@@ -774,6 +775,7 @@
 		92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIFont+scaledFont.swift"; sourceTree = "<group>"; };
 		92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudLaunchPerformance.swift; sourceTree = "<group>"; };
 		AD2B4BBD8427CFF3890B262B /* PostImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PostImporter.swift; path = SpudDataKit/Services/AppDatabase/Importers/PostImporter.swift; sourceTree = SOURCE_ROOT; };
+		C77D4224B4FCD6C3607D1095 /* WidgetQueries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WidgetQueries.swift; path = SpudDataKit/Services/AppDatabase/WidgetQueries.swift; sourceTree = SOURCE_ROOT; };
 		DDC1413A981C31C0EB8FD11B /* AccountListObservations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AccountListObservations.swift; path = SpudDataKit/Services/AppDatabase/AccountListObservations.swift; sourceTree = SOURCE_ROOT; };
 		DDFD43D3BA98EB4CAF625AA5 /* Person.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Person.swift; path = SpudDataKit/Services/AppDatabase/Records/Person.swift; sourceTree = SOURCE_ROOT; };
 		E8504419BF5DBF1BBAD81680 /* AppDatabaseError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDatabaseError.swift; path = SpudDataKit/Services/AppDatabase/AppDatabaseError.swift; sourceTree = SOURCE_ROOT; };
@@ -889,6 +891,7 @@
 				4D3E4D49AC90580EF8433AD0 /* PersonObservations.swift */,
 				90C042C2A4FF2C65F03A782E /* PostDetailObservations.swift */,
 				459243EAA1DCFBB5995FE938 /* PostListObservations.swift */,
+				C77D4224B4FCD6C3607D1095 /* WidgetQueries.swift */,
 			);
 			name = AppDatabase;
 			path = SpudDataKit/Services/AppDatabase;
@@ -2545,6 +2548,7 @@
 				9233A1422A82508000F1F795 /* StaticImageService.swift in Sources */,
 				92CC5DB42A7EC1B60019436A /* VoteStatus+Action.swift in Sources */,
 				92CC5DB32A7EC1B60019436A /* VoteStatus.swift in Sources */,
+				B54047E5BA8CDF261150E942 /* WidgetQueries.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

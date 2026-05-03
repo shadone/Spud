@@ -8,6 +8,7 @@ import Foundation
 import LemmyKit
 import OSLog
 import SpudDataKit
+import SpudUtilKit
 import UIKit
 
 private let logger = Logger.entryService
@@ -29,13 +30,16 @@ protocol HasEntryService {
 
 class EntryService: EntryServiceType {
     let dataStore: DataStoreType
+    let appDatabase: AppDatabase
     let accountService: AccountServiceType
 
     init(
         dataStore: DataStoreType,
+        appDatabase: AppDatabase,
         accountService: AccountServiceType
     ) {
         self.dataStore = dataStore
+        self.appDatabase = appDatabase
         self.accountService = accountService
     }
 
@@ -59,8 +63,18 @@ class EntryService: EntryServiceType {
     ) async -> TopPostsEntry {
         let feed = await fetchFeed(listingType: listingType, sortType: sortType)
 
-        let topPosts = TopPosts(from: feed)
+        let topPosts = await readTopPosts(feedKey: feed.id)
         return await entry(from: topPosts)
+    }
+
+    private func readTopPosts(feedKey: String) async -> TopPosts {
+        do {
+            let rows = try await appDatabase.widgetTopPosts(feedKey: feedKey, limit: 6)
+            return TopPosts(rows: rows)
+        } catch {
+            logger.error("Failed to read widget top posts: \(String(describing: error), privacy: .public)")
+            return TopPosts(posts: [])
+        }
     }
 
     @MainActor
