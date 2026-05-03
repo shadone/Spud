@@ -23,10 +23,10 @@ extension AppDatabase {
         try await writer.write { db in
             guard
                 let postRowId = try PostRecord
-                    .filter(Column("accountId") == accountId)
-                    .filter(Column("postId") == Int64(view.post.id))
-                    .fetchOne(db)?
-                    .id
+                .filter(Column("accountId") == accountId)
+                .filter(Column("postId") == Int64(view.post.id))
+                .fetchOne(db)?
+                .id
             else { return }
 
             _ = try Self.upsertComment(
@@ -59,10 +59,10 @@ extension AppDatabase {
         try await writer.write { db in
             guard
                 let postRowId = try PostRecord
-                    .filter(Column("accountId") == accountId)
-                    .filter(Column("postId") == serverPostId)
-                    .fetchOne(db)?
-                    .id
+                .filter(Column("accountId") == accountId)
+                .filter(Column("postId") == serverPostId)
+                .fetchOne(db)?
+                .id
             else {
                 logger.debug("Skipping comment mirror - post \(serverPostId, privacy: .public) not yet in AppDatabase")
                 return

@@ -11,10 +11,10 @@ import OSLog
 
 private let logger = Logger.appDatabase
 
-extension AppDatabase {
+public extension AppDatabase {
     /// Sets `isRead` on the matching post row. Silently no-ops if the post
     /// row hasn't been imported yet.
-    public func setPostIsRead(
+    func setPostIsRead(
         accountId: Int64,
         serverPostId: Int64,
         isRead: Bool
@@ -22,9 +22,9 @@ extension AppDatabase {
         try await writer.write { db in
             guard
                 var record = try PostRecord
-                    .filter(Column("accountId") == accountId)
-                    .filter(Column("postId") == serverPostId)
-                    .fetchOne(db)
+                .filter(Column("accountId") == accountId)
+                .filter(Column("postId") == serverPostId)
+                .fetchOne(db)
             else { return }
             record.isRead = isRead
             record.updatedAt = Date()
@@ -36,7 +36,7 @@ extension AppDatabase {
     /// community, so all foreign keys are satisfied. Returns the resolved
     /// post row id.
     @discardableResult
-    public func upsertPost(
+    func upsertPost(
         from view: Components.Schemas.PostView,
         accountId: Int64,
         siteId: Int64
@@ -46,7 +46,7 @@ extension AppDatabase {
         }
     }
 
-    static func upsertPost(
+    internal static func upsertPost(
         from view: Components.Schemas.PostView,
         accountId: Int64,
         siteId: Int64,
