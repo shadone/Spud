@@ -66,6 +66,7 @@ public actor LemmyService: LemmyServiceType {
 
     let accountObjectId: NSManagedObjectID
     let accountIdentifierForLogging: String
+    private let accountIsSignedOut: Bool
 
     // MARK: Private
 
@@ -94,6 +95,7 @@ public actor LemmyService: LemmyServiceType {
     ) {
         accountObjectId = account.objectID
         accountIdentifierForLogging = account.identifierForLogging
+        accountIsSignedOut = account.isSignedOutAccountType
 
         self.dataStore = dataStore
         self.appDatabase = appDatabase
@@ -264,9 +266,15 @@ public actor LemmyService: LemmyServiceType {
         // Core Data; this populates the GRDB shadow that Stage 5 will switch
         // to. Failures here must not break the legacy path.
         do {
-            try await appDatabase.upsertSite(from: response)
+            let (_, siteId) = try await appDatabase.upsertSite(from: response)
+            try await appDatabase.upsertAccount(
+                keychainId: accountIdentifierForLogging,
+                isSignedOut: accountIsSignedOut,
+                siteId: siteId,
+                myUser: response.my_user
+            )
         } catch {
-            logger.error("AppDatabase upsertSite failed: \(String(describing: error), privacy: .public)")
+            logger.error("AppDatabase mirror failed: \(String(describing: error), privacy: .public)")
         }
     }
 

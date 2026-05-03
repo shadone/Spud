@@ -315,6 +315,8 @@
 		92F5712C2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */; };
 		B1BF4A0281418D973DEEE2B3 /* AppDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9C4A6EAE2E5228E45BA901 /* AppDatabase.swift */; };
 		BF3643919B963051BF8155CE /* Site.swift in Sources */ = {isa = PBXBuildFile; fileRef = 433F44EABC1CE73C756737EB /* Site.swift */; };
+		D86D41DABEEC06AE7255030B /* AccountImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56BE4536AFAF17FE14B95486 /* AccountImporter.swift */; };
+		E03C4E5BBB37521A137F19AD /* Observations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36AB425689415A10FBD5B1A7 /* Observations.swift */; };
 		ECDC481983FC9B6C25D00316 /* Comment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595D41CDBF151C31438096E5 /* Comment.swift */; };
 /* End PBXBuildFile section */
 
@@ -482,10 +484,12 @@
 		29F94776A333C3A1EB896ABE /* AppDatabaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDatabaseTests.swift; path = SpudDataKitTests/AppDatabaseTests.swift; sourceTree = SOURCE_ROOT; };
 		2DBE48F6B120424E9A1A73F2 /* Account.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Account.swift; path = SpudDataKit/Services/AppDatabase/Records/Account.swift; sourceTree = SOURCE_ROOT; };
 		36454FAFBA3D2B3AEF681057 /* Community.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Community.swift; path = SpudDataKit/Services/AppDatabase/Records/Community.swift; sourceTree = SOURCE_ROOT; };
+		36AB425689415A10FBD5B1A7 /* Observations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Observations.swift; path = SpudDataKit/Services/AppDatabase/Observations.swift; sourceTree = SOURCE_ROOT; };
 		42F34CB29C2355A8B50D21DD /* LoadingFooterCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LoadingFooterCell.swift; path = Spud/Scenes/Common/LoadingFooterCell.swift; sourceTree = SOURCE_ROOT; };
 		433F44EABC1CE73C756737EB /* Site.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Site.swift; path = SpudDataKit/Services/AppDatabase/Records/Site.swift; sourceTree = SOURCE_ROOT; };
 		43934EFD9B71D978E344BCC4 /* InstanceRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InstanceRecord.swift; path = SpudDataKit/Services/AppDatabase/Records/InstanceRecord.swift; sourceTree = SOURCE_ROOT; };
 		454940E4A49A1EF256BFEA36 /* NodeInfoRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NodeInfoRecord.swift; path = SpudDataKit/Services/AppDatabase/Records/NodeInfoRecord.swift; sourceTree = SOURCE_ROOT; };
+		56BE4536AFAF17FE14B95486 /* AccountImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AccountImporter.swift; path = SpudDataKit/Services/AppDatabase/Importers/AccountImporter.swift; sourceTree = SOURCE_ROOT; };
 		595D41CDBF151C31438096E5 /* Comment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Comment.swift; path = SpudDataKit/Services/AppDatabase/Records/Comment.swift; sourceTree = SOURCE_ROOT; };
 		691440428D5E2FC5CFF6B2D2 /* Post.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Post.swift; path = SpudDataKit/Services/AppDatabase/Records/Post.swift; sourceTree = SOURCE_ROOT; };
 		75F443B2BD800D168D379F3B /* Feed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Feed.swift; path = SpudDataKit/Services/AppDatabase/Records/Feed.swift; sourceTree = SOURCE_ROOT; };
@@ -1274,6 +1278,8 @@
 				29F94776A333C3A1EB896ABE /* AppDatabaseTests.swift */,
 				42F34CB29C2355A8B50D21DD /* LoadingFooterCell.swift */,
 				F1684C0486281766E757594F /* SiteImporter.swift */,
+				56BE4536AFAF17FE14B95486 /* AccountImporter.swift */,
+				36AB425689415A10FBD5B1A7 /* Observations.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -2424,6 +2430,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				276B41CA8A9DC42DF8D1033A /* Account.swift in Sources */,
+				D86D41DABEEC06AE7255030B /* AccountImporter.swift in Sources */,
 				92CC5DC22A7ED7260019436A /* AccountService.swift in Sources */,
 				92CC5DC32A7ED7260019436A /* AccountServiceLoginError.swift in Sources */,
 				92CC5DD92A7ED8B50019436A /* AlertHandlerRequest.swift in Sources */,
@@ -2484,6 +2491,7 @@
 				92CC5D822A7EBFA20019436A /* NodeInfo.swift in Sources */,
 				0B8E467CAA5441FCE86A91BB /* NodeInfoRecord.swift in Sources */,
 				92CC5DB72A7EC1F80019436A /* NodeInfoSoftware.swift in Sources */,
+				E03C4E5BBB37521A137F19AD /* Observations.swift in Sources */,
 				189B41EF8122869281693918 /* Person.swift in Sources */,
 				26194DEBAFABAE4EBCBC1BDD /* Post.swift in Sources */,
 				92CC5DC52A7ED72E0019436A /* PostContentDetectorService.swift in Sources */,
