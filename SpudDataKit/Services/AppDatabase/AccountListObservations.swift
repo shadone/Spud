@@ -30,23 +30,23 @@ public extension AppDatabase {
         let observation = ValueObservation
             .tracking { db -> [AccountListRow] in
                 let rows = try Row.fetchAll(db, sql: """
-                    SELECT
-                        account.id              AS accountId,
-                        account.accountKeychainId AS accountKeychainId,
-                        account.isDefault       AS isDefault,
-                        account.isSignedOutAccountType AS isSignedOutAccountType,
-                        account.email           AS email,
-                        instance.actorId        AS instanceActorId,
-                        person.name             AS personName,
-                        person.displayName      AS personDisplayName
-                    FROM account
-                    JOIN site     ON site.id = account.siteId
-                    JOIN instance ON instance.id = site.instanceId
-                    LEFT JOIN person ON person.id = account.personId
-                    WHERE account.isServiceAccount = 0
-                    ORDER BY account.isSignedOutAccountType ASC,
-                             account.accountKeychainId ASC
-                """)
+                        SELECT
+                            account.id              AS accountId,
+                            account.accountKeychainId AS accountKeychainId,
+                            account.isDefault       AS isDefault,
+                            account.isSignedOutAccountType AS isSignedOutAccountType,
+                            account.email           AS email,
+                            instance.actorId        AS instanceActorId,
+                            person.name             AS personName,
+                            person.displayName      AS personDisplayName
+                        FROM account
+                        JOIN site     ON site.id = account.siteId
+                        JOIN instance ON instance.id = site.instanceId
+                        LEFT JOIN person ON person.id = account.personId
+                        WHERE account.isServiceAccount = 0
+                        ORDER BY account.isSignedOutAccountType ASC,
+                                 account.accountKeychainId ASC
+                    """)
 
                 return rows.map { row in
                     let actorId: String = row["instanceActorId"]
