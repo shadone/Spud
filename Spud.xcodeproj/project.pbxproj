@@ -21,6 +21,16 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		0B8E467CAA5441FCE86A91BB /* NodeInfoRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454940E4A49A1EF256BFEA36 /* NodeInfoRecord.swift */; };
+		180D4D40BE7448D034585349 /* AppDatabaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29F94776A333C3A1EB896ABE /* AppDatabaseTests.swift */; };
+		189B41EF8122869281693918 /* Person.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDFD43D3BA98EB4CAF625AA5 /* Person.swift */; };
+		24EC4282B71DBDA479D97500 /* AppDatabaseError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8504419BF5DBF1BBAD81680 /* AppDatabaseError.swift */; };
+		26194DEBAFABAE4EBCBC1BDD /* Post.swift in Sources */ = {isa = PBXBuildFile; fileRef = 691440428D5E2FC5CFF6B2D2 /* Post.swift */; };
+		276B41CA8A9DC42DF8D1033A /* Account.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DBE48F6B120424E9A1A73F2 /* Account.swift */; };
+		29B34E368996CCC33B9A65A4 /* Community.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36454FAFBA3D2B3AEF681057 /* Community.swift */; };
+		4F8543AB82CA92AD1D0A9F63 /* InstanceRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43934EFD9B71D978E344BCC4 /* InstanceRecord.swift */; };
+		7714492BB1CAE4630714DDF0 /* AppDatabase+Migrations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F0840C5AB426F95C6989E4E /* AppDatabase+Migrations.swift */; };
+		85DB41B492A0ECF41C8E7346 /* Feed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F443B2BD800D168D379F3B /* Feed.swift */; };
 		920B45502A7C1DF400C6C2DC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 929CDBBC2A7C1CE300AE6B30 /* WidgetKit.framework */; };
 		920B45512A7C1DF400C6C2DC /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 929CDBBE2A7C1CE300AE6B30 /* SwiftUI.framework */; };
 		920B45542A7C1DF400C6C2DC /* SpudWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 920B45532A7C1DF400C6C2DC /* SpudWidgetBundle.swift */; };
@@ -29,6 +39,7 @@
 		920B455D2A7C1DF500C6C2DC /* TopPostsWidget.intentdefinition in Sources */ = {isa = PBXBuildFile; fileRef = 920B45592A7C1DF400C6C2DC /* TopPostsWidget.intentdefinition */; };
 		920B455E2A7C1DF500C6C2DC /* TopPostsWidget.intentdefinition in Sources */ = {isa = PBXBuildFile; fileRef = 920B45592A7C1DF400C6C2DC /* TopPostsWidget.intentdefinition */; };
 		920B45612A7C1DF500C6C2DC /* SpudWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 920B454F2A7C1DF400C6C2DC /* SpudWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		9210A76E2FA7E338003F5289 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 9210A76D2FA7E338003F5289 /* GRDB */; };
 		92116E942A633DEA00344251 /* PersonOrLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92116E932A633DEA00344251 /* PersonOrLoadingViewController.swift */; };
 		92116E962A633FE400344251 /* PersonOrLoadingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92116E952A633FE400344251 /* PersonOrLoadingViewModel.swift */; };
 		92116E992A64463600344251 /* PersonLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92116E982A64463600344251 /* PersonLoadingViewController.swift */; };
@@ -300,6 +311,9 @@
 		92DD63092A48CC2700497C3B /* LoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63082A48CC2700497C3B /* LoginViewModel.swift */; };
 		92F5712A2A8EFBB800A06ABD /* UIFont+scaledFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */; };
 		92F5712C2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */; };
+		B1BF4A0281418D973DEEE2B3 /* AppDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9C4A6EAE2E5228E45BA901 /* AppDatabase.swift */; };
+		BF3643919B963051BF8155CE /* Site.swift in Sources */ = {isa = PBXBuildFile; fileRef = 433F44EABC1CE73C756737EB /* Site.swift */; };
+		ECDC481983FC9B6C25D00316 /* Comment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595D41CDBF151C31438096E5 /* Comment.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -462,6 +476,16 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1F0840C5AB426F95C6989E4E /* AppDatabase+Migrations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "AppDatabase+Migrations.swift"; path = "SpudDataKit/Services/AppDatabase/AppDatabase+Migrations.swift"; sourceTree = SOURCE_ROOT; };
+		29F94776A333C3A1EB896ABE /* AppDatabaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDatabaseTests.swift; path = SpudDataKitTests/AppDatabaseTests.swift; sourceTree = SOURCE_ROOT; };
+		2DBE48F6B120424E9A1A73F2 /* Account.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Account.swift; path = SpudDataKit/Services/AppDatabase/Records/Account.swift; sourceTree = SOURCE_ROOT; };
+		36454FAFBA3D2B3AEF681057 /* Community.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Community.swift; path = SpudDataKit/Services/AppDatabase/Records/Community.swift; sourceTree = SOURCE_ROOT; };
+		433F44EABC1CE73C756737EB /* Site.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Site.swift; path = SpudDataKit/Services/AppDatabase/Records/Site.swift; sourceTree = SOURCE_ROOT; };
+		43934EFD9B71D978E344BCC4 /* InstanceRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InstanceRecord.swift; path = SpudDataKit/Services/AppDatabase/Records/InstanceRecord.swift; sourceTree = SOURCE_ROOT; };
+		454940E4A49A1EF256BFEA36 /* NodeInfoRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NodeInfoRecord.swift; path = SpudDataKit/Services/AppDatabase/Records/NodeInfoRecord.swift; sourceTree = SOURCE_ROOT; };
+		595D41CDBF151C31438096E5 /* Comment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Comment.swift; path = SpudDataKit/Services/AppDatabase/Records/Comment.swift; sourceTree = SOURCE_ROOT; };
+		691440428D5E2FC5CFF6B2D2 /* Post.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Post.swift; path = SpudDataKit/Services/AppDatabase/Records/Post.swift; sourceTree = SOURCE_ROOT; };
+		75F443B2BD800D168D379F3B /* Feed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Feed.swift; path = SpudDataKit/Services/AppDatabase/Records/Feed.swift; sourceTree = SOURCE_ROOT; };
 		920B454F2A7C1DF400C6C2DC /* SpudWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SpudWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		920B45532A7C1DF400C6C2DC /* SpudWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudWidgetBundle.swift; sourceTree = "<group>"; };
 		920B45572A7C1DF400C6C2DC /* TopPostsWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TopPostsWidget.swift; sourceTree = "<group>"; };
@@ -728,6 +752,9 @@
 		92DD63082A48CC2700497C3B /* LoginViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewModel.swift; sourceTree = "<group>"; };
 		92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIFont+scaledFont.swift"; sourceTree = "<group>"; };
 		92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudLaunchPerformance.swift; sourceTree = "<group>"; };
+		DDFD43D3BA98EB4CAF625AA5 /* Person.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Person.swift; path = SpudDataKit/Services/AppDatabase/Records/Person.swift; sourceTree = SOURCE_ROOT; };
+		E8504419BF5DBF1BBAD81680 /* AppDatabaseError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDatabaseError.swift; path = SpudDataKit/Services/AppDatabase/AppDatabaseError.swift; sourceTree = SOURCE_ROOT; };
+		EA9C4A6EAE2E5228E45BA901 /* AppDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDatabase.swift; path = SpudDataKit/Services/AppDatabase/AppDatabase.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -813,6 +840,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9210A76E2FA7E338003F5289 /* GRDB in Frameworks */,
 				92CC5DD72A7ED7940019436A /* KeychainAccess in Frameworks */,
 				9277821B2C0BA2FD0010068F /* LemmyKit in Frameworks */,
 				92CC5DB92A7EC7880019436A /* SemVer in Frameworks */,
@@ -1227,6 +1255,19 @@
 				92C0B3332A829F43004EF9E6 /* OpenInAppExtension */,
 				92B7C8FB2A3A40EB00672F64 /* Products */,
 				92B7C9442A3A5E7100672F64 /* Frameworks */,
+				EA9C4A6EAE2E5228E45BA901 /* AppDatabase.swift */,
+				1F0840C5AB426F95C6989E4E /* AppDatabase+Migrations.swift */,
+				E8504419BF5DBF1BBAD81680 /* AppDatabaseError.swift */,
+				43934EFD9B71D978E344BCC4 /* InstanceRecord.swift */,
+				454940E4A49A1EF256BFEA36 /* NodeInfoRecord.swift */,
+				433F44EABC1CE73C756737EB /* Site.swift */,
+				DDFD43D3BA98EB4CAF625AA5 /* Person.swift */,
+				2DBE48F6B120424E9A1A73F2 /* Account.swift */,
+				36454FAFBA3D2B3AEF681057 /* Community.swift */,
+				691440428D5E2FC5CFF6B2D2 /* Post.swift */,
+				595D41CDBF151C31438096E5 /* Comment.swift */,
+				75F443B2BD800D168D379F3B /* Feed.swift */,
+				29F94776A333C3A1EB896ABE /* AppDatabaseTests.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -1930,6 +1971,7 @@
 				92CC5DB82A7EC7880019436A /* SemVer */,
 				92CC5DD62A7ED7940019436A /* KeychainAccess */,
 				9277821A2C0BA2FD0010068F /* LemmyKit */,
+				9210A76D2FA7E338003F5289 /* GRDB */,
 			);
 			productName = SpudData;
 			productReference = 92CC5D622A7EBF5E0019436A /* SpudDataKit.framework */;
@@ -2021,6 +2063,7 @@
 				925B76D22A90046200BD065A /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
 				925AF5E32B38F315001AE338 /* XCRemoteSwiftPackageReference "Down" */,
 				927782192C0BA2FD0010068F /* XCRemoteSwiftPackageReference "LemmyKit" */,
+				9210A76C2FA7E338003F5289 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
 			);
 			productRefGroup = 92B7C8FB2A3A40EB00672F64 /* Products */;
 			projectDirPath = "";
@@ -2213,6 +2256,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				180D4D40BE7448D034585349 /* AppDatabaseTests.swift in Sources */,
 				92A226D22A7EF9F000C18FCD /* Comment+fake.swift in Sources */,
 				928F19D92A80124100843D23 /* CommentAggregates+fake.swift in Sources */,
 				92A226D12A7EF9F000C18FCD /* CommentView+fake.swift in Sources */,
@@ -2372,19 +2416,27 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				276B41CA8A9DC42DF8D1033A /* Account.swift in Sources */,
 				92CC5DC22A7ED7260019436A /* AccountService.swift in Sources */,
 				92CC5DC32A7ED7260019436A /* AccountServiceLoginError.swift in Sources */,
 				92CC5DD92A7ED8B50019436A /* AlertHandlerRequest.swift in Sources */,
 				92CC5DD82A7ED8B50019436A /* AlertService.swift in Sources */,
+				7714492BB1CAE4630714DDF0 /* AppDatabase+Migrations.swift in Sources */,
+				B1BF4A0281418D973DEEE2B3 /* AppDatabase.swift in Sources */,
+				24EC4282B71DBDA479D97500 /* AppDatabaseError.swift in Sources */,
+				ECDC481983FC9B6C25D00316 /* Comment.swift in Sources */,
 				927839CA2C0C70A700521C69 /* CommentSortType+DataStore.swift in Sources */,
+				29B34E368996CCC33B9A65A4 /* Community.swift in Sources */,
 				92CC5D6D2A7EBF960019436A /* DataStore.swift in Sources */,
 				92CC5D6E2A7EBF9B0019436A /* DataStore.xcdatamodeld in Sources */,
+				85DB41B492A0ECF41C8E7346 /* Feed.swift in Sources */,
 				92B2C3222A88EE270038C416 /* FeedType.swift in Sources */,
 				92CC5DDB2A7ED8E60019436A /* ImageLoadingError.swift in Sources */,
 				92CC5DDA2A7ED8E60019436A /* ImageLoadingState.swift in Sources */,
 				92CC5DDC2A7ED8E60019436A /* ImageService.swift in Sources */,
 				9233A1402A82506000F1F795 /* ImageServiceType.swift in Sources */,
 				92CC5D722A7EBFA20019436A /* Instance.swift in Sources */,
+				4F8543AB82CA92AD1D0A9F63 /* InstanceRecord.swift in Sources */,
 				92CC5DC92A7ED7380019436A /* LemmyAccount+import.swift in Sources */,
 				92CC5D782A7EBFA20019436A /* LemmyAccount.swift in Sources */,
 				92CC5DCB2A7ED7380019436A /* LemmyAccountInfo+import.swift in Sources */,
@@ -2423,10 +2475,14 @@
 				927839C62C0C6E6800521C69 /* ListingType+DataStore.swift in Sources */,
 				92CC5DB62A7EC1CF0019436A /* Logger.swift in Sources */,
 				92CC5D822A7EBFA20019436A /* NodeInfo.swift in Sources */,
+				0B8E467CAA5441FCE86A91BB /* NodeInfoRecord.swift in Sources */,
 				92CC5DB72A7EC1F80019436A /* NodeInfoSoftware.swift in Sources */,
+				189B41EF8122869281693918 /* Person.swift in Sources */,
+				26194DEBAFABAE4EBCBC1BDD /* Post.swift in Sources */,
 				92CC5DC52A7ED72E0019436A /* PostContentDetectorService.swift in Sources */,
 				92CC5DC62A7ED72E0019436A /* PostContentType.swift in Sources */,
 				92CC5DC02A7ED7210019436A /* SchedulerService.swift in Sources */,
+				BF3643919B963051BF8155CE /* Site.swift in Sources */,
 				92CC5DC42A7ED7290019436A /* SiteService.swift in Sources */,
 				927839C82C0C703D00521C69 /* SortType+DataStore.swift in Sources */,
 				9233A1422A82508000F1F795 /* StaticImageService.swift in Sources */,
@@ -3429,6 +3485,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		9210A76C2FA7E338003F5289 /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.0.0;
+			};
+		};
 		921943472A75ED7F0005474D /* XCRemoteSwiftPackageReference "semver" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/sersoft-gmbh/semver";
@@ -3480,6 +3544,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		9210A76D2FA7E338003F5289 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9210A76C2FA7E338003F5289 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
+			productName = GRDB;
+		};
 		925AF5E42B38F336001AE338 /* Down */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 925AF5E32B38F315001AE338 /* XCRemoteSwiftPackageReference "Down" */;

@@ -1,0 +1,83 @@
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
+import Foundation
+import GRDB
+
+public struct AccountRecord: Codable, Sendable, Equatable, Identifiable {
+    public static let databaseTableName = "account"
+
+    public var id: Int64?
+    public var siteId: Int64
+    public var personId: Int64?
+    public var accountKeychainId: String
+    public var isDefault: Bool
+    public var isServiceAccount: Bool
+    public var isSignedOutAccountType: Bool
+    public var localAccountId: Int64?
+    public var email: String?
+    public var emailVerified: Bool?
+    public var acceptedApplication: Bool?
+    public var defaultListingType: String?
+    public var defaultSortType: String?
+    public var showAvatars: Bool?
+    public var showBotAccounts: Bool?
+    public var showNsfw: Bool?
+    public var showReadPosts: Bool?
+    public var showScores: Bool?
+    public var createdAt: Date
+    public var updatedAt: Date
+
+    public init(
+        id: Int64? = nil,
+        siteId: Int64,
+        personId: Int64? = nil,
+        accountKeychainId: String,
+        isDefault: Bool = false,
+        isServiceAccount: Bool = false,
+        isSignedOutAccountType: Bool = false,
+        localAccountId: Int64? = nil,
+        email: String? = nil,
+        emailVerified: Bool? = nil,
+        acceptedApplication: Bool? = nil,
+        defaultListingType: String? = nil,
+        defaultSortType: String? = nil,
+        showAvatars: Bool? = nil,
+        showBotAccounts: Bool? = nil,
+        showNsfw: Bool? = nil,
+        showReadPosts: Bool? = nil,
+        showScores: Bool? = nil,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date()
+    ) {
+        self.id = id
+        self.siteId = siteId
+        self.personId = personId
+        self.accountKeychainId = accountKeychainId
+        self.isDefault = isDefault
+        self.isServiceAccount = isServiceAccount
+        self.isSignedOutAccountType = isSignedOutAccountType
+        self.localAccountId = localAccountId
+        self.email = email
+        self.emailVerified = emailVerified
+        self.acceptedApplication = acceptedApplication
+        self.defaultListingType = defaultListingType
+        self.defaultSortType = defaultSortType
+        self.showAvatars = showAvatars
+        self.showBotAccounts = showBotAccounts
+        self.showNsfw = showNsfw
+        self.showReadPosts = showReadPosts
+        self.showScores = showScores
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
+extension AccountRecord: FetchableRecord, MutablePersistableRecord {
+    public mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
+}
