@@ -1,0 +1,114 @@
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
+import Foundation
+import GRDB
+import OSLog
+
+private let logger = Logger.appDatabase
+
+/// Composite snapshot row for the PostList screen. Joins post + community
+/// so the cell can render without further lookups. Vote/score/comment counts
+/// come from the post row directly.
+public struct PostListRow: Sendable, Equatable, Identifiable {
+    public let id: Int64
+    /// Server-assigned post id (`PostRecord.postId`). Used for legacy
+    /// LemmyPost lookups during the dual-write transition.
+    public let serverPostId: Int64
+    public let title: String
+    public let body: String?
+    public let url: String?
+    public let thumbnailUrl: String?
+    public let urlEmbedTitle: String?
+    public let urlEmbedDescription: String?
+    public let communityName: String
+    public let score: Int64
+    public let numberOfComments: Int64
+    /// 1 = upvoted, 0 = downvoted, nil = no vote.
+    public let voteStatus: Int64?
+    public let isRead: Bool
+    public let published: Date
+}
+
+public extension AppDatabase {
+    /// Resolves the row id of a feed by its `feedKey`. Synchronous to keep
+    /// view-controller bring-up paths simple. Returns nil if the feed has not
+    /// been mirrored from Core Data yet.
+    func feedRowIdSync(forFeedKey feedKey: String) -> Int64? {
+        do {
+            return try writer.read { db in
+                try FeedRecord
+                    .filter(Column("feedKey") == feedKey)
+                    .fetchOne(db)?
+                    .id
+            }
+        } catch {
+            logger.error("Failed to resolve feed row id: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Stream of PostList rows for a feed in display order
+    /// (page.position, pageElement.position).
+    func observePostListRows(feedId: Int64) -> AsyncStream<[PostListRow]> {
+        let observation = ValueObservation
+            .tracking { db -> [PostListRow] in
+                let rows = try Row.fetchAll(db, sql: """
+                    SELECT
+                        post.id                AS postRowId,
+                        post.postId            AS serverPostId,
+                        post.title             AS title,
+                        post.body              AS body,
+                        post.url               AS url,
+                        post.thumbnailUrl      AS thumbnailUrl,
+                        post.urlEmbedTitle     AS urlEmbedTitle,
+                        post.urlEmbedDescription AS urlEmbedDescription,
+                        post.score             AS score,
+                        post.numberOfComments  AS numberOfComments,
+                        post.voteStatus        AS voteStatus,
+                        post.isRead            AS isRead,
+                        post.published         AS published,
+                        community.name         AS communityName
+                    FROM post
+                    JOIN pageElement ON pageElement.postId = post.id
+                    JOIN page        ON page.id = pageElement.pageId
+                    JOIN community   ON community.id = post.communityId
+                    WHERE page.feedId = ?
+                    ORDER BY page.position ASC, pageElement.position ASC
+                """, arguments: [feedId])
+
+                return rows.map { row in
+                    PostListRow(
+                        id: row["postRowId"],
+                        serverPostId: row["serverPostId"],
+                        title: row["title"],
+                        body: row["body"],
+                        url: row["url"],
+                        thumbnailUrl: row["thumbnailUrl"],
+                        urlEmbedTitle: row["urlEmbedTitle"],
+                        urlEmbedDescription: row["urlEmbedDescription"],
+                        communityName: row["communityName"] ?? "",
+                        score: row["score"],
+                        numberOfComments: row["numberOfComments"],
+                        voteStatus: row["voteStatus"],
+                        isRead: row["isRead"],
+                        published: row["published"]
+                    )
+                }
+            }
+            .removeDuplicates()
+
+        return AsyncStream { continuation in
+            let cancellable = observation.start(in: writer) { error in
+                logger.error("PostList ValueObservation failed: \(String(describing: error), privacy: .public)")
+                continuation.finish()
+            } onChange: { value in
+                continuation.yield(value)
+            }
+            continuation.onTermination = { _ in cancellable.cancel() }
+        }
+    }
+}

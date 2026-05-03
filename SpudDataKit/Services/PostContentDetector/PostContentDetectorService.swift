@@ -13,6 +13,15 @@ public protocol PostContentDetectorServiceType: AnyObject {
     /// Attempt to detect the content type of the url that the given post contains.
     /// The main point is to detect if the url points to an image.
     func contentTypeForUrl(in post: LemmyPostInfo) -> PostContentType
+
+    /// Same detection but driven by raw post fields rather than the legacy
+    /// Core Data type. Use from GRDB-backed snapshots in Stage 5+ scenes.
+    func contentTypeForUrl(
+        url: URL?,
+        thumbnailUrl: URL?,
+        embedTitle: String?,
+        embedDescription: String?
+    ) -> PostContentType
 }
 
 @MainActor
@@ -24,7 +33,21 @@ public class PostContentDetectorService: PostContentDetectorServiceType {
     public init() { }
 
     public func contentTypeForUrl(in postInfo: LemmyPostInfo) -> PostContentType {
-        guard let url = postInfo.url else {
+        contentTypeForUrl(
+            url: postInfo.url,
+            thumbnailUrl: postInfo.thumbnailUrl,
+            embedTitle: postInfo.urlEmbedTitle,
+            embedDescription: postInfo.urlEmbedDescription
+        )
+    }
+
+    public func contentTypeForUrl(
+        url: URL?,
+        thumbnailUrl: URL?,
+        embedTitle: String?,
+        embedDescription: String?
+    ) -> PostContentType {
+        guard let url else {
             return .textOrEmpty
         }
 
@@ -34,11 +57,11 @@ public class PostContentDetectorService: PostContentDetectorServiceType {
 
         let externalLink = PostContentType.externalLink(.init(
             url: url,
-            embedTitle: postInfo.urlEmbedTitle,
-            embedDescription: postInfo.urlEmbedDescription
+            embedTitle: embedTitle,
+            embedDescription: embedDescription
         ))
         let image = PostContentType.image(.init(
-            thumbnailUrl: postInfo.thumbnailUrl,
+            thumbnailUrl: thumbnailUrl,
             imageUrl: url
         ))
 

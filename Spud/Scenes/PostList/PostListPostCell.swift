@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
+import Foundation
+import SpudDataKit
 import UIKit
 
 class PostListPostCell: UITableViewCell {
@@ -13,12 +14,8 @@ class PostListPostCell: UITableViewCell {
     // MARK: Public
 
     var swipeActionConfiguration: SwipeActionView.Configuration? {
-        get {
-            swipeActionView.configuration
-        }
-        set {
-            swipeActionView.configuration = newValue
-        }
+        get { swipeActionView.configuration }
+        set { swipeActionView.configuration = newValue }
     }
 
     var swipeActionTriggered: ((SwipeActionView.ActionTrigger) -> Void)?
@@ -55,13 +52,6 @@ class PostListPostCell: UITableViewCell {
         let view = PostListThumbnailImageView()
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
-    }()
-
-    lazy var thumbnailTextView: UIImageView = {
-        let imageView = UIImageView()
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.contentMode = .scaleAspectFill
-        return imageView
     }()
 
     lazy var thumbnailBottomSpacerView: UIView = {
@@ -130,7 +120,7 @@ class PostListPostCell: UITableViewCell {
 
     // MARK: Private
 
-    private var disposables = Set<AnyCancellable>()
+    private var thumbnailLoadTask: Task<Void, Never>?
 
     // MARK: Functions
 
@@ -168,40 +158,38 @@ class PostListPostCell: UITableViewCell {
     override func prepareForReuse() {
         super.prepareForReuse()
 
-        disposables.removeAll()
-
+        thumbnailLoadTask?.cancel()
+        thumbnailLoadTask = nil
         thumbnailView.prepareForReuse()
 
         swipeActionConfiguration = nil
         swipeActionTriggered = nil
     }
 
-    func configure(with viewModel: PostListPostViewModel) {
-        viewModel.title
-            .map { NSAttributedString($0) }
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: titleLabel)
-            .store(in: &disposables)
+    func configure(with viewModel: PostListPostViewModel, imageService: ImageServiceType) {
+        titleLabel.attributedText = viewModel.title
+        subtitleLabel.attributedText = viewModel.subtitle
 
-        viewModel.subtitle
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: subtitleLabel)
-            .store(in: &disposables)
-
-        viewModel.thumbnail
-            .map { thumbnailType in
-                switch thumbnailType {
-                case .image(.loading):
-                    return .none
-                case .image(.failure):
-                    return .imageFailure
-                case let .image(.ready(image)):
-                    return .image(image)
-                case .text:
-                    return .text
+        thumbnailLoadTask?.cancel()
+        switch viewModel.thumbnail {
+        case .text:
+            thumbnailView.thumbnailType = .text
+        case let .image(thumbnailUrl):
+            thumbnailView.thumbnailType = .none
+            thumbnailLoadTask = Task { [weak self] in
+                for await state in imageService.fetch(thumbnailUrl) {
+                    if Task.isCancelled { return }
+                    guard let self else { return }
+                    switch state {
+                    case .loading:
+                        self.thumbnailView.thumbnailType = .none
+                    case .failure:
+                        self.thumbnailView.thumbnailType = .imageFailure
+                    case let .ready(image):
+                        self.thumbnailView.thumbnailType = .image(image)
+                    }
                 }
             }
-            .assign(to: \.thumbnailType, on: thumbnailView)
-            .store(in: &disposables)
+        }
     }
 }
