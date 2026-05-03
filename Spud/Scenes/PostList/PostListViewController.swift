@@ -147,7 +147,7 @@ class PostListViewController: UIViewController {
         titleObservationTask?.cancel()
         loadingObservationTask?.cancel()
 
-        let viewModel = self.viewModel
+        let viewModel = viewModel
         titleObservationTask = Task { @MainActor [weak self] in
             for await _ in Self.values(of: { viewModel.navigationTitle }) {
                 if Task.isCancelled { break }
@@ -168,7 +168,8 @@ class PostListViewController: UIViewController {
         of access: @escaping @Sendable () -> Value
     ) -> AsyncStream<Value> {
         AsyncStream { continuation in
-            @Sendable func observe() {
+            @Sendable
+            func observe() {
                 let value = withObservationTracking {
                     access()
                 } onChange: {
@@ -266,21 +267,21 @@ class PostListViewController: UIViewController {
         observationTask = Task { @MainActor [weak self] in
             guard let self else { return }
 
-            let feedRowId = self.appDatabase.feedRowIdSync(forFeedKey: feedKey)
+            let feedRowId = appDatabase.feedRowIdSync(forFeedKey: feedKey)
             guard let feedRowId else {
                 // Feed not yet mirrored; trigger a server fetch and rely on
                 // the next observation start to pick up the rows.
-                self.viewModel.didPrepareObservation(numberOfFetchedPosts: 0)
+                viewModel.didPrepareObservation(numberOfFetchedPosts: 0)
                 return
             }
 
             var hasReceivedFirstSnapshot = false
-            for await rows in self.appDatabase.observePostListRows(feedId: feedRowId) {
+            for await rows in appDatabase.observePostListRows(feedId: feedRowId) {
                 if Task.isCancelled { break }
-                self.apply(rows: rows)
+                apply(rows: rows)
                 if !hasReceivedFirstSnapshot {
                     hasReceivedFirstSnapshot = true
-                    self.viewModel.didPrepareObservation(numberOfFetchedPosts: rows.count)
+                    viewModel.didPrepareObservation(numberOfFetchedPosts: rows.count)
                 }
             }
         }
@@ -324,7 +325,7 @@ class PostListViewController: UIViewController {
 
     private func setupDataSource() {
         let appearance = appearanceService
-        let imageService = self.imageService
+        let imageService = imageService
         let postContentDetector = dependencies.own.postContentDetectorService
 
         dataSource = UITableViewDiffableDataSource<Section, Item>(

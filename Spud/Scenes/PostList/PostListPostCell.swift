@@ -182,11 +182,11 @@ class PostListPostCell: UITableViewCell {
                     guard let self else { return }
                     switch state {
                     case .loading:
-                        self.thumbnailView.thumbnailType = .none
+                        thumbnailView.thumbnailType = .none
                     case .failure:
-                        self.thumbnailView.thumbnailType = .imageFailure
+                        thumbnailView.thumbnailType = .imageFailure
                     case let .ready(image):
-                        self.thumbnailView.thumbnailType = .image(image)
+                        thumbnailView.thumbnailType = .image(image)
                     }
                 }
             }
