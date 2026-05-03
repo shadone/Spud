@@ -224,6 +224,15 @@ public class AccountService: AccountServiceType {
         accountToMakeDefault.isDefaultAccount = true
 
         dataStore.saveIfNeeded()
+
+        let defaultKeychainId = accountToMakeDefault.identifierForLogging
+        Task { [appDatabase] in
+            do {
+                try await appDatabase.setDefaultAccount(keychainId: defaultKeychainId)
+            } catch {
+                logger.error("Failed to mirror default-account flag to AppDatabase: \(String(describing: error), privacy: .public)")
+            }
+        }
     }
 
     private func api(for site: LemmySite, credential: LemmyCredential?) -> LemmyApi {

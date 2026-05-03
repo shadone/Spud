@@ -62,6 +62,30 @@ extension AppDatabase {
         }
     }
 
+    /// Mirrors the Core Data "default account" flag: clears `isDefault` on
+    /// every row and sets it on the row matching `keychainId`. No-op if the
+    /// row hasn't been imported yet.
+    public func setDefaultAccount(keychainId: String) async throws {
+        try await writer.write { db in
+            let now = Date()
+
+            try db.execute(sql: """
+                UPDATE account
+                SET isDefault = 0,
+                    updatedAt = ?
+                WHERE isDefault = 1
+            """, arguments: [now])
+
+            guard var target = try AccountRecord
+                .filter(Column("accountKeychainId") == keychainId)
+                .fetchOne(db)
+            else { return }
+            target.isDefault = true
+            target.updatedAt = now
+            try target.update(db)
+        }
+    }
+
     private static func apply(
         myUser: Components.Schemas.MyUserInfo?,
         to record: inout AccountRecord,
