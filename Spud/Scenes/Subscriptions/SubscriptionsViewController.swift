@@ -4,17 +4,19 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
+import OSLog
 import SpudDataKit
 import SwiftUI
 import UIKit
 
+private let logger = Logger.app
+
 class SubscriptionsViewController: UIViewController {
     typealias OwnDependencies =
-        HasAccountService
+        HasAccountService &
+        HasAppDatabase
     typealias NestedDependencies =
-        PostListViewController.Dependencies &
-        SubscriptionsViewModel.Dependencies
+        PostListViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
@@ -22,12 +24,14 @@ class SubscriptionsViewController: UIViewController {
         dependencies.own.accountService
     }
 
+    var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
+    }
+
     // MARK: Private
 
-    private var disposables = Set<AnyCancellable>()
-
-    private let viewModel: SubscriptionsViewModel
     private let account: LemmyAccount
+    private var viewModel: SubscriptionsViewModel!
 
     // MARK: Functions
 
@@ -36,15 +40,20 @@ class SubscriptionsViewController: UIViewController {
 
         self.account = account
 
-        viewModel = SubscriptionsViewModel(
-            account: account,
-            dependencies: self.dependencies.nested
-        )
-
         super.init(nibName: nil, bundle: nil)
 
+        let accountRowId = appDatabase.accountRowIdSync(forKeychainId: account.id)
+
+        self.viewModel = SubscriptionsViewModel(
+            accountRowId: accountRowId,
+            isSignedIn: !account.isSignedOutAccountType,
+            appDatabase: appDatabase,
+            onFeedRequested: { [weak self] item in
+                self?.handle(item: item)
+            }
+        )
+
         setup()
-        bindViewModel()
     }
 
     @available(*, unavailable)
@@ -60,12 +69,20 @@ class SubscriptionsViewController: UIViewController {
         addSubviewWithEdgeConstraints(child: contentVC)
     }
 
-    private func bindViewModel() {
-        viewModel.outputs.feedRequested
-            .sink { [weak self] feed in
-                self?.display(feed: feed)
-            }
-            .store(in: &disposables)
+    private func handle(item: SubscriptionsViewItemType) {
+        let dataService = accountService.lemmyDataService(for: account)
+        let feed: LemmyFeed
+        switch item {
+        case let .listing(listingType):
+            feed = dataService.createFeed(listingType: listingType)
+        case let .community(row):
+            feed = dataService.createFeed(.community(
+                communityName: row.name,
+                instance: row.instanceActorId,
+                sortType: .Active
+            ))
+        }
+        display(feed: feed)
     }
 
     private func display(feed: LemmyFeed) {

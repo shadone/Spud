@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import LemmyKit
 import SpudDataKit
@@ -108,82 +107,37 @@ struct SubscriptionsCommunityView: View {
     }
 }
 
-struct SubscriptionsView<ViewModel: SubscriptionsViewModelType>: View {
-    @StateObject var viewModel: ViewModel
-
-    @State var isSignedIn = false
-    @State var followCommunities: [LemmyCommunity] = []
+struct SubscriptionsView: View {
+    @Bindable var viewModel: SubscriptionsViewModel
 
     var body: some View {
         List {
-            if isSignedIn {
+            if viewModel.isSignedIn {
                 SubscriptionsListingView(listingType: .Subscribed)
                     .onTapGesture {
-                        viewModel.inputs.loadFeed(.listing(.Subscribed))
+                        viewModel.loadFeed(.listing(.Subscribed))
                     }
             }
             SubscriptionsListingView(listingType: .Local)
                 .onTapGesture {
-                    viewModel.inputs.loadFeed(.listing(.Local))
+                    viewModel.loadFeed(.listing(.Local))
                 }
             SubscriptionsListingView(listingType: .All)
                 .onTapGesture {
-                    viewModel.inputs.loadFeed(.listing(.All))
+                    viewModel.loadFeed(.listing(.All))
                 }
 
-            if !followCommunities.isEmpty {
+            if !viewModel.followCommunities.isEmpty {
                 Section("Subscribed communities") {
-                    ForEach(followCommunities) { community in
-                        if let communityInfo = community.communityInfo {
-                            SubscriptionsCommunityView(community: communityInfo.name)
-                                .onTapGesture {
-                                    viewModel.inputs.loadFeed(.community(communityInfo))
-                                }
-                        }
+                    ForEach(viewModel.followCommunities) { community in
+                        SubscriptionsCommunityView(community: community.name)
+                            .onTapGesture {
+                                viewModel.loadFeed(.community(community))
+                            }
                     }
                 }
             }
         }
         .listStyle(.sidebar)
-        .onReceive(viewModel.outputs.isSignedIn) { value in
-            isSignedIn = value
-        }
-        .onReceive(viewModel.outputs.followCommunities) { value in
-            followCommunities = value
-        }
     }
-}
-
-#Preview {
-    class ViewModel:
-        SubscriptionsViewModelType,
-        SubscriptionsViewModelInputs,
-        SubscriptionsViewModelOutputs
-    {
-        var inputs: SubscriptionsViewModelInputs {
-            self
-        }
-
-        var outputs: SubscriptionsViewModelOutputs {
-            self
-        }
-
-        // MARK: Inputs
-
-        func loadFeed(_ value: SubscriptionsViewItemType) { }
-
-        // MARK: Outputs
-
-        var account: CurrentValueSubject<LemmyAccount, Never> = .init(
-            LemmyAccount()
-        )
-
-        var isSignedIn: AnyPublisher<Bool, Never> = .just(true)
-
-        var feedRequested: AnyPublisher<LemmyFeed, Never> = .empty(completeImmediately: false)
-
-        var followCommunities: AnyPublisher<[LemmyCommunity], Never> = .just([])
-    }
-
-    return SubscriptionsView(viewModel: ViewModel())
 }

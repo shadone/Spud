@@ -62,6 +62,23 @@ public extension AppDatabase {
         }
     }
 
+    /// Returns the row id of the account row matching `keychainId`, or nil
+    /// if not yet imported. Synchronous read intended for one-shot UI bring-up
+    /// where blocking the caller briefly is preferable to making `init` async.
+    func accountRowIdSync(forKeychainId keychainId: String) -> Int64? {
+        do {
+            return try writer.read { db in
+                try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)?
+                    .id
+            }
+        } catch {
+            logger.error("Failed to resolve account row id: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     /// Mirrors the Core Data "default account" flag: clears `isDefault` on
     /// every row and sets it on the row matching `keychainId`. No-op if the
     /// row hasn't been imported yet.
