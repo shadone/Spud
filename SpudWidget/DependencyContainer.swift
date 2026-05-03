@@ -11,6 +11,7 @@ import SpudUtilKit
 
 class DependencyContainer: ObservableObject,
     HasDataStore,
+    HasAppDatabase,
     HasAccountService,
     HasAlertService,
     HasEntryService
@@ -20,6 +21,7 @@ class DependencyContainer: ObservableObject,
     // MARK: Public
 
     let dataStore: DataStoreType = DataStore()
+    let appDatabase: AppDatabase
     let accountService: AccountServiceType
     let alertService: AlertServiceType = AlertService()
     let entryService: EntryServiceType
@@ -27,6 +29,12 @@ class DependencyContainer: ObservableObject,
     // MARK: Functions
 
     init() {
+        do {
+            appDatabase = try AppDatabase()
+        } catch {
+            fatalError("Failed to open AppDatabase: \(error)")
+        }
+
         accountService = AccountService(
             siteService: EmptySiteService(),
             dataStore: dataStore

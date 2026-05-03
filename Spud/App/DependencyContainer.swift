@@ -11,6 +11,7 @@ import SpudDataKit
 struct DependencyContainer:
     HasVoid,
     HasDataStore,
+    HasAppDatabase,
     HasSiteService,
     HasAccountService,
     HasImageService,
@@ -22,6 +23,7 @@ struct DependencyContainer:
     HasPreferencesService
 {
     let dataStore: DataStoreType = DataStore()
+    let appDatabase: AppDatabase
     let siteService: SiteServiceType
     let accountService: AccountServiceType
     let imageService: ImageServiceType
@@ -43,6 +45,12 @@ struct DependencyContainer:
 
         if arguments.contains(.deleteCoreDataStorage) {
             dataStore.destroyPersistentStore()
+        }
+
+        do {
+            appDatabase = try AppDatabase()
+        } catch {
+            fatalError("Failed to open AppDatabase: \(error)")
         }
 
         siteService = SiteService(dataStore: dataStore)
