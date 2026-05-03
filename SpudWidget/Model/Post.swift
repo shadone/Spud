@@ -7,7 +7,9 @@
 import Foundation
 
 public struct Post: Codable, Identifiable {
-    public var id: String { spudUrl.absoluteString }
+    public var id: String {
+        spudUrl.absoluteString
+    }
 
     public let spudUrl: URL
     public let title: String

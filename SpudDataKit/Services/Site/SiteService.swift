@@ -227,8 +227,7 @@ public class SiteService: SiteServiceType {
 
             // TODO: check if it's a Lemmy instance via instance.nodeInfo?.softwareName
 
-            let site = LemmySite(instance: instance, in: context)
-            return site
+            return LemmySite(instance: instance, in: context)
         }
 
         let instance = Instance(actorId: instance, in: context)

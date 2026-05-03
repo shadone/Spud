@@ -23,7 +23,9 @@ public struct InstanceActorId:
         !host.isEmpty
     }
 
-    public var debugDescription: String { hostWithPort }
+    public var debugDescription: String {
+        hostWithPort
+    }
 
     /// Returns actorId for the instance.
     ///
@@ -53,7 +55,9 @@ public struct InstanceActorId:
         return URL(string: actorId)
     }
 
-    public var description: String { actorId }
+    public var description: String {
+        actorId
+    }
 
     // MARK: Functions
 

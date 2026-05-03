@@ -48,9 +48,7 @@ struct PersonNavigationButton: View {
     }
 }
 
-struct PersonView<ViewModel>: View
-    where ViewModel: PersonViewModelType
-{
+struct PersonView<ViewModel: PersonViewModelType>: View {
     @StateObject var viewModel: ViewModel
 
     @State var name = ""

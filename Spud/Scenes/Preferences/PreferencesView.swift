@@ -10,9 +10,7 @@ import LemmyKit
 import SpudDataKit
 import SwiftUI
 
-struct PreferencesView<ViewModel>: View
-    where ViewModel: PreferencesViewModelType
-{
+struct PreferencesView<ViewModel: PreferencesViewModelType>: View {
     @StateObject var viewModel: ViewModel
 
     var body: some View {

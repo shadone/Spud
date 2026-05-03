@@ -23,13 +23,13 @@ final class MarkdownSnapshotTests: XCTestCase {
             .toAttributedString(styler: styler)
     }
 
-    func testSimple() throws {
+    func testSimple() {
         let text = "hello **bold** and *italic* world and [this](https://example.com) link"
         vc.attributedText = markdown(text, styler: styler())
         assertSnapshot(matching: vc, as: .image(traits: .init(userInterfaceStyle: .light)))
     }
 
-    func testMlemMarkdownTest() throws {
+    func testMlemMarkdownTest() {
         // https://lemmy.ml/post/3462852
         let text = "**bold**\n\n*italics*\n\n# header\n\n## header 2\n\n~~strikethrough~~\n\n>quote\n\n- list\n- list\n\n1. ordered list\n2. ordered list\n\ninline `code` inline\n\nabc~subscript~\n\nabc^superscript^\n\n::: spoiler spoiler\na bunch of spoilers here\n:::\n\n---\n\n```\ncode block\ncode block\n```"
         vc.attributedText = markdown(text, styler: styler())

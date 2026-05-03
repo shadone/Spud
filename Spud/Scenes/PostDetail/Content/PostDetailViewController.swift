@@ -28,11 +28,25 @@ class PostDetailViewController: UIViewController {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var dataStore: DataStoreType { dependencies.own.dataStore }
-    var appearanceService: AppearanceServiceType { dependencies.own.appearanceService }
-    var appService: AppServiceType { dependencies.own.appService }
-    var accountService: AccountServiceType { dependencies.own.accountService }
-    var alertService: AlertServiceType { dependencies.own.alertService }
+    var dataStore: DataStoreType {
+        dependencies.own.dataStore
+    }
+
+    var appearanceService: AppearanceServiceType {
+        dependencies.own.appearanceService
+    }
+
+    var appService: AppServiceType {
+        dependencies.own.appService
+    }
+
+    var accountService: AccountServiceType {
+        dependencies.own.accountService
+    }
+
+    var alertService: AlertServiceType {
+        dependencies.own.alertService
+    }
 
     // MARK: - Public
 

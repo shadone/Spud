@@ -90,7 +90,7 @@ class SpudUITests: XCTestCase {
         print("### Network requests intercepted during the test:\n\(allRequestUrls)")
     }
 
-    func testExample() throws {
+    func testExample() {
         let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
         let firstCellSubtitle = firstCell.staticTexts["subtitle"].label
         XCTAssertTrue(firstCellSubtitle.contains("tincidunt"))
@@ -100,7 +100,7 @@ class SpudUITests: XCTestCase {
         XCTAssertTrue(secondCellSubtitle.contains("consequat"))
     }
 
-    func testPostDetail() throws {
+    func testPostDetail() {
         let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
         firstCell.tap()
 
@@ -116,7 +116,7 @@ class SpudUITests: XCTestCase {
         XCTAssertTrue(firstComment.exists)
     }
 
-    func test_PostDetail_TapOnPostCreator() throws {
+    func test_PostDetail_TapOnPostCreator() {
         let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
         firstCell.tap()
 

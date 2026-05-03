@@ -7,7 +7,7 @@
 import Foundation
 import UIKit
 
-// from https://www.advancedswift.com/resize-uiimage-no-stretching-swift/
+/// from https://www.advancedswift.com/resize-uiimage-no-stretching-swift/
 public extension UIImage {
     func scalePreservingAspectRatio(targetSize: CGSize) -> UIImage {
         // Determine the scale factor that preserves aspect ratio
@@ -27,13 +27,11 @@ public extension UIImage {
             size: scaledImageSize
         )
 
-        let scaledImage = renderer.image { _ in
+        return renderer.image { _ in
             self.draw(in: CGRect(
                 origin: .zero,
                 size: scaledImageSize
             ))
         }
-
-        return scaledImage
     }
 }

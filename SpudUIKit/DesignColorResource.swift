@@ -11,8 +11,13 @@ import UIKit
 public struct DesignColorResource {
     let asset: ColorAsset
 
-    public var color: UIColor { asset.color }
-    public var swiftUIColor: SwiftUI.Color { asset.swiftUIColor }
+    public var color: UIColor {
+        asset.color
+    }
+
+    public var swiftUIColor: SwiftUI.Color {
+        asset.swiftUIColor
+    }
 }
 
 extension ColorAsset {

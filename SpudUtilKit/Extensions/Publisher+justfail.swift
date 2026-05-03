@@ -7,8 +7,8 @@
 import Combine
 import Foundation
 
-// By John Sundell
-// https://www.swiftbysundell.com/articles/extending-combine-with-convenience-apis/
+/// By John Sundell
+/// https://www.swiftbysundell.com/articles/extending-combine-with-convenience-apis/
 public extension AnyPublisher {
     static func just(_ output: Output) -> Self {
         Just(output)

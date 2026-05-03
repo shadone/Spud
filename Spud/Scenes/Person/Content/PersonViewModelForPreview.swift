@@ -12,9 +12,13 @@ class PersonViewModelForPreview:
     PersonViewModelInputs,
     PersonViewModelOutputs
 {
-    var inputs: PersonViewModelInputs { self }
+    var inputs: PersonViewModelInputs {
+        self
+    }
 
-    var outputs: PersonViewModelOutputs { self }
+    var outputs: PersonViewModelOutputs {
+        self
+    }
 
     // MARK: Inputs
 

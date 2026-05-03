@@ -14,8 +14,13 @@ class PreferencesViewModelForPreview:
     PreferencesViewModelInputs,
     PreferencesViewModelOutputs
 {
-    var inputs: PreferencesViewModelInputs { self }
-    var outputs: PreferencesViewModelOutputs { self }
+    var inputs: PreferencesViewModelInputs {
+        self
+    }
+
+    var outputs: PreferencesViewModelOutputs {
+        self
+    }
 
     // MARK: Inputs
 

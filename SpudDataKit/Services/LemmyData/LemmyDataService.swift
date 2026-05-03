@@ -184,8 +184,7 @@ public class LemmyDataService: LemmyDataServiceType {
                 return newPost
             } else {
                 logger.assert(results.count == 1, "Found \(results.count) posts with id '\(postId)'")
-                let existingPost = results[0]
-                return existingPost
+                return results[0]
             }
         } catch {
             logger.fault("Failed to fetch a post: \(error, privacy: .public)")
@@ -217,8 +216,7 @@ public class LemmyDataService: LemmyDataServiceType {
                 return newPerson
             } else {
                 logger.assert(results.count == 1, "Found \(results.count) persons with id '\(personId)'")
-                let existingPerson = results[0]
-                return existingPerson
+                return results[0]
             }
         } catch {
             logger.fault("Failed to fetch a person: \(error, privacy: .public)")

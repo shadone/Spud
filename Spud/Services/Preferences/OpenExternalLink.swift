@@ -15,7 +15,9 @@ extension Preferences {
         /// Open external links in the system default browser.
         case browser
 
-        var id: String { rawValue }
+        var id: String {
+            rawValue
+        }
     }
 }
 

@@ -9,7 +9,7 @@ import XCTest
 @testable import SpudDataKit
 
 class CommentHelperTests: XCTestCase {
-    func testFindCommentsWithMissingChildren() throws {
+    func testFindCommentsWithMissingChildren() {
         let person = Person.fake
         let community = Community.fake
         let post = Post.fake(creator: person, community: community)
@@ -98,11 +98,11 @@ class CommentHelperTests: XCTestCase {
         )
     }
 
-    func testNoMissingChildren() {
+    func testNoMissingChildren() throws {
         // this is a silly test that replicates one of the oldest Lemmy posts.
         // The app was crashing on parsing the comments, but in the end it was
         // something odd in the build as clean build solved it. ¯\_(ツ)_/¯
-        let comments: [CommentView] = [
+        let comments: [CommentView] = try [
             CommentView(
                 comment: .init(
                     id: 471_445,
@@ -113,7 +113,7 @@ class CommentHelperTests: XCTestCase {
                     published: Date(timeIntervalSinceReferenceDate: 708_499_714.602),
                     updated: nil,
                     deleted: false,
-                    ap_id: URL(string: "https://sh.itjust.works/comment/171885")!,
+                    ap_id: XCTUnwrap(URL(string: "https://sh.itjust.works/comment/171885")),
                     local: false,
                     path: "0.471445",
                     distinguished: false,
@@ -141,7 +141,7 @@ class CommentHelperTests: XCTestCase {
                     published: Date(timeIntervalSinceReferenceDate: 709_441_501.208),
                     updated: nil,
                     deleted: false,
-                    ap_id: URL(string: "https://vlemmy.net/comment/390987")!,
+                    ap_id: XCTUnwrap(URL(string: "https://vlemmy.net/comment/390987")),
                     local: false,
                     path: "0.403426",
                     distinguished: false,
@@ -169,7 +169,7 @@ class CommentHelperTests: XCTestCase {
                     published: Date(timeIntervalSinceReferenceDate: 708_459_690.855),
                     updated: nil,
                     deleted: false,
-                    ap_id: URL(string: "https://lemmy.world/comment/181062")!,
+                    ap_id: XCTUnwrap(URL(string: "https://lemmy.world/comment/181062")),
                     local: false,
                     path: "0.907431",
                     distinguished: false,
@@ -197,7 +197,7 @@ class CommentHelperTests: XCTestCase {
                     published: Date(timeIntervalSinceReferenceDate: 710_992_247.549),
                     updated: nil,
                     deleted: false,
-                    ap_id: URL(string: "https://talk.kururin.tech/comment/107365")!,
+                    ap_id: XCTUnwrap(URL(string: "https://talk.kururin.tech/comment/107365")),
                     local: false,
                     path: "0.991036",
                     distinguished: false,
@@ -224,7 +224,7 @@ class CommentHelperTests: XCTestCase {
         )
     }
 
-    func testSort() throws {
+    func testSort() {
         let person = Person.fake
         let community = Community.fake
         let post = Post.fake(creator: person, community: community)

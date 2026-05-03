@@ -108,9 +108,7 @@ struct SubscriptionsCommunityView: View {
     }
 }
 
-struct SubscriptionsView<ViewModel>: View
-    where ViewModel: SubscriptionsViewModelType
-{
+struct SubscriptionsView<ViewModel: SubscriptionsViewModelType>: View {
     @StateObject var viewModel: ViewModel
 
     @State var isSignedIn = false
@@ -162,8 +160,13 @@ struct SubscriptionsView<ViewModel>: View
         SubscriptionsViewModelInputs,
         SubscriptionsViewModelOutputs
     {
-        var inputs: SubscriptionsViewModelInputs { self }
-        var outputs: SubscriptionsViewModelOutputs { self }
+        var inputs: SubscriptionsViewModelInputs {
+            self
+        }
+
+        var outputs: SubscriptionsViewModelOutputs {
+            self
+        }
 
         // MARK: Inputs
 
