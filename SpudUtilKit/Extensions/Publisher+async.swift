@@ -9,7 +9,7 @@ import Foundation
 
 /// Original author: Eduardo Domene Junior
 /// https://medium.com/geekculture/from-combine-to-async-await-c08bf1d15b77
-public extension AnyPublisher {
+public extension AnyPublisher where Output: Sendable {
     func async() async throws -> Output {
         try await withCheckedThrowingContinuation { continuation in
             var cancellable: AnyCancellable?
@@ -24,7 +24,7 @@ public extension AnyPublisher {
                     }
                     cancellable?.cancel()
                 } receiveValue: { value in
-                    continuation.resume(with: .success(value))
+                    continuation.resume(returning: value)
                 }
         }
     }
