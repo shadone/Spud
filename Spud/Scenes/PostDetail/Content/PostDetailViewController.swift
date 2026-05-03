@@ -346,7 +346,7 @@ extension PostDetailViewController {
         let mainContext = dataStore.mainContext
         let nestedDeps = dependencies.nested
         let appearance = appearanceService
-        let appService = self.appService
+        let appService = appService
         let headerViewModel = viewModel.outputs.headerViewModel
 
         dataSource = UITableViewDiffableDataSource<Section, Item>(
