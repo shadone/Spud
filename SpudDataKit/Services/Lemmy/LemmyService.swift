@@ -6,6 +6,7 @@
 
 import CoreData
 import Foundation
+import GRDB
 import LemmyKit
 import OSLog
 import SpudUtilKit
@@ -491,6 +492,41 @@ public actor LemmyService: LemmyServiceType {
             // TODO: upsert from response.cross_posts
 
             context.saveIfNeeded()
+        }
+
+        await mirrorPostInfoToAppDatabase(view: response.post_view)
+    }
+
+    private func mirrorPostInfoToAppDatabase(
+        view: Components.Schemas.PostView
+    ) async {
+        do {
+            guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
+                return
+            }
+            try await appDatabase.upsertPost(
+                from: view,
+                accountId: accountRowId,
+                siteId: siteRowId
+            )
+        } catch {
+            logger.error("AppDatabase upsertPost failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Looks up the GRDB account row for this LemmyService and returns
+    /// (accountRowId, siteRowId) - both are needed as foreign keys when
+    /// upserting posts/comments/communities.
+    private func accountSiteIds() async throws -> (Int64, Int64)? {
+        try await appDatabase.writer.read { db in
+            guard
+                let account = try AccountRecord
+                    .filter(Column("accountKeychainId") == self.accountIdentifierForLogging)
+                    .fetchOne(db)
+            else {
+                return nil
+            }
+            return (account.id!, account.siteId)
         }
     }
 

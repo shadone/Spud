@@ -57,7 +57,7 @@ extension AppDatabase {
         }
     }
 
-    fileprivate static func upsertCommunity(
+    static func upsertCommunity(
         from model: Components.Schemas.Community,
         accountId: Int64,
         in db: Database
@@ -85,7 +85,7 @@ extension AppDatabase {
         return record.id!
     }
 
-    fileprivate static func apply(
+    static func apply(
         model: Components.Schemas.Community,
         to record: inout CommunityRecord,
         now: Date
