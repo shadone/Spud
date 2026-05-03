@@ -39,6 +39,7 @@ Packages
 .build/
 xcuserdata
 DerivedData/
+build/
 
 
 ### Xcode ###
