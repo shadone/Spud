@@ -12,27 +12,35 @@ import UIKit
 
 class PersonViewController: UIViewController {
     typealias OwnDependencies =
-        HasVoid
+        HasAppDatabase
     typealias NestedDependencies =
-        PersonViewModel.Dependencies
+        HasVoid
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    // MARK: - UI Properties
+    var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
+    }
 
     // MARK: - Private
 
-    private var viewModel: PersonViewModel
+    private let viewModel: PersonViewModel
 
     // MARK: - Functions
 
     init(personInfo: LemmyPersonInfo, dependencies: Dependencies) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
-        viewModel = PersonViewModel(
-            personInfo: personInfo,
-            dependencies: self.dependencies.nested
+        let person = personInfo.person
+        let personRowId = dependencies.appDatabase.personRowIdSync(
+            instanceActorId: person.site.instance.actorId.actorId,
+            personId: Int64(person.personId)
         )
+        viewModel = PersonViewModel(
+            personRowId: personRowId,
+            appDatabase: dependencies.appDatabase
+        )
+
         super.init(nibName: nil, bundle: nil)
 
         setup()
@@ -46,9 +54,7 @@ class PersonViewController: UIViewController {
     private func setup() {
         view.backgroundColor = .systemBackground
 
-        let contentVC = UIHostingController(rootView: PersonView(
-            viewModel: self.viewModel
-        ))
+        let contentVC = UIHostingController(rootView: PersonView(viewModel: self.viewModel))
         add(child: contentVC)
         addSubviewWithEdgeConstraints(child: contentVC)
     }
