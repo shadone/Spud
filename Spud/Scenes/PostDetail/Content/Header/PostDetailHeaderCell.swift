@@ -339,9 +339,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
                     guard let self else { return }
                     switch state {
                     case let .loading(thumbnailImage):
-                        if let thumbnailImage { self.setImage(thumbnailImage) }
+                        if let thumbnailImage { setImage(thumbnailImage) }
                     case let .ready(image):
-                        self.setImage(image)
+                        setImage(image)
                     case .failure:
                         break
                     }
@@ -359,8 +359,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
                         guard let self else { return }
                         switch state {
                         case let .ready(image):
-                            self.linkPreviewView.thumbnailImage = image
-                            self.adjustHeightForChange()
+                            linkPreviewView.thumbnailImage = image
+                            adjustHeightForChange()
                         case .loading, .failure:
                             break
                         }

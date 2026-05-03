@@ -34,13 +34,18 @@ final class PostDetailViewModel {
 
     var commentSortType: Components.Schemas.CommentSortType
 
-    private var accountService: AccountServiceType { dependencies.accountService }
-    private var alertService: AlertServiceType { dependencies.alertService }
+    private var accountService: AccountServiceType {
+        dependencies.accountService
+    }
+
+    private var alertService: AlertServiceType {
+        dependencies.alertService
+    }
 
     init(postInfo: LemmyPostInfo, dependencies: Dependencies) {
         self.dependencies = dependencies
         self.postInfo = postInfo
-        self.commentSortType = dependencies.preferencesService.defaultCommentSortType
+        commentSortType = dependencies.preferencesService.defaultCommentSortType
     }
 
     func didChangeCommentSortType(_ sortType: Components.Schemas.CommentSortType) {

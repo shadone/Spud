@@ -128,9 +128,9 @@ struct PostDetailHeaderViewModel {
         case let .image(image):
             self.image = .post(image.imageUrl, thumbnailUrl: image.thumbnailUrl)
         case let .externalLink(link):
-            self.image = .linkPreview(url: link.url, thumbnailUrl: thumbnailUrlValue)
+            image = .linkPreview(url: link.url, thumbnailUrl: thumbnailUrlValue)
         case .textOrEmpty:
-            self.image = .none
+            image = .none
         }
     }
 }
