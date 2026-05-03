@@ -8,9 +8,9 @@ import Foundation
 import XCTest
 @testable import SpudUtilKit
 
-// UserDefaults is documented as thread-safe; nonisolated(unsafe) is the
-// idiomatic way to expose it as a global under Swift 6 strict concurrency.
-nonisolated(unsafe) private let defaultsForTesting = UserDefaults(suiteName: "UserDefaultsBackedTests")!
+/// UserDefaults is documented as thread-safe; `nonisolated(unsafe)` is the
+/// idiomatic way to expose it as a global under Swift 6 strict concurrency.
+private nonisolated(unsafe) let defaultsForTesting = UserDefaults(suiteName: "UserDefaultsBackedTests")!
 
 private struct TestData {
     @UserDefaultsBacked(key: "i-am-integer-value", storage: defaultsForTesting)
