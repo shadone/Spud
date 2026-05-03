@@ -26,7 +26,7 @@ extension AppDatabase {
             let now = Date()
 
             let personId: Int64? = try myUser.flatMap { info in
-                try Self.upsertPerson(
+                try AppDatabase.upsertPerson(
                     from: info.local_user_view.person,
                     siteId: siteId,
                     in: db
@@ -60,60 +60,6 @@ extension AppDatabase {
 
             return resolvedAccountId
         }
-    }
-
-    private static func upsertPerson(
-        from model: Components.Schemas.Person,
-        siteId: Int64,
-        in db: Database
-    ) throws -> Int64 {
-        let now = Date()
-
-        if var existing = try PersonRecord
-            .filter(Column("siteId") == siteId)
-            .filter(Column("personId") == Int64(model.id))
-            .fetchOne(db)
-        {
-            Self.apply(model: model, to: &existing, now: now)
-            try existing.update(db)
-            return existing.id!
-        }
-
-        var record = PersonRecord(
-            siteId: siteId,
-            personId: Int64(model.id),
-            createdAt: now,
-            updatedAt: now
-        )
-        Self.apply(model: model, to: &record, now: now)
-        try record.insert(db)
-        return record.id!
-    }
-
-    private static func apply(
-        model: Components.Schemas.Person,
-        to record: inout PersonRecord,
-        now: Date
-    ) {
-        record.name = model.name
-        record.displayName = model.display_name
-        record.avatarUrl = model.avatar
-        record.bannerUrl = model.banner
-        record.bio = model.bio
-        record.actorId = model.actor_id
-        record.matrixUserId = model.matrix_user_id
-        // is_admin is only exposed on PersonView (not Person), so we cannot
-        // tell from MyUserInfo whether the current user is an admin. Match
-        // the legacy LemmyPersonInfo+import behaviour and default to false.
-        record.isAdmin = false
-        record.isBanned = model.banned
-        record.isBotAccount = model.bot_account
-        record.isDeleted = model.deleted
-        record.isLocal = model.local
-        record.banExpires = model.ban_expires
-        record.personCreatedDate = model.published
-        record.personUpdatedDate = model.updated
-        record.updatedAt = now
     }
 
     private static func apply(
