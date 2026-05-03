@@ -61,7 +61,7 @@ final class PostDetailViewModel {
         do {
             try await accountService
                 .lemmyService(for: postInfo.post.account)
-                .fetchComments(postId: postInfo.post.objectID, sortType: commentSortType)
+                .fetchComments(serverPostId: postInfo.post.postId, sortType: commentSortType)
         } catch {
             alertService.handle(error, for: .fetchComments)
         }

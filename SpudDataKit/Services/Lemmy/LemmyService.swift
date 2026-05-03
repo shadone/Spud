@@ -30,35 +30,35 @@ public enum LemmyServiceError: Error {
 }
 
 public protocol LemmyServiceType: Actor {
-    func fetchFeed(feedId: NSManagedObjectID, page pageNumber: Int64?) async throws
+    func fetchFeed(feedKey: String, page pageNumber: Int64?) async throws
 
     func fetchComments(
-        postId: NSManagedObjectID,
+        serverPostId: Components.Schemas.PostID,
         sortType: Components.Schemas.CommentSortType
     ) async throws
 
     func fetchSiteInfo() async throws
 
     func fetchPersonInfo(
-        personId: NSManagedObjectID
+        serverPersonId: Components.Schemas.PersonID
     ) async throws
 
     func vote(
-        postId: NSManagedObjectID,
+        serverPostId: Components.Schemas.PostID,
         vote action: VoteStatus.Action
     ) async throws
 
     func vote(
-        commentId: NSManagedObjectID,
+        serverCommentId: Components.Schemas.CommentID,
         vote action: VoteStatus.Action
     ) async throws
 
     func fetchPostInfo(
-        postId: NSManagedObjectID
+        serverPostId: Components.Schemas.PostID
     ) async throws
 
     func markAsRead(
-        postId: NSManagedObjectID
+        serverPostId: Components.Schemas.PostID
     ) async throws
 }
 
@@ -131,13 +131,79 @@ public actor LemmyService: LemmyServiceType {
         }
     }
 
-    public func fetchFeed(feedId feedObjectId: NSManagedObjectID, page pageNumber: Int64?) async throws {
-        let (feedType, feedId) = await perform(
-            with: feedObjectId,
-            type: LemmyFeed.self
-        ) { feed, _ in
-            (feed.feedType, feed.id)
+    /// Resolves the legacy LemmyPost row matching `(account, serverPostId)`.
+    /// Returns nil if the post hasn't been imported yet.
+    private func resolveLegacyPostObjectId(
+        serverPostId: Components.Schemas.PostID
+    ) async -> NSManagedObjectID? {
+        backgroundContext.performAndWait {
+            let account = self.backgroundContext.object(with: self.accountObjectId)
+            let request: NSFetchRequest<LemmyPost> = LemmyPost.fetchRequest()
+            request.predicate = NSPredicate(
+                format: "postId == %d && account == %@",
+                serverPostId, account
+            )
+            request.fetchLimit = 1
+            return (try? self.backgroundContext.fetch(request).first)?.objectID
         }
+    }
+
+    /// Resolves the legacy LemmyComment row by `localCommentId` for the
+    /// account this service belongs to. Returns nil if not imported yet.
+    private func resolveLegacyCommentObjectId(
+        serverCommentId: Components.Schemas.CommentID
+    ) async -> NSManagedObjectID? {
+        backgroundContext.performAndWait {
+            let account = self.backgroundContext.object(with: self.accountObjectId)
+            let request: NSFetchRequest<LemmyComment> = LemmyComment.fetchRequest()
+            request.predicate = NSPredicate(
+                format: "localCommentId == %d && post.account == %@",
+                serverCommentId, account
+            )
+            request.fetchLimit = 1
+            return (try? self.backgroundContext.fetch(request).first)?.objectID
+        }
+    }
+
+    /// Resolves the legacy LemmyPerson row by `(site, personId)` where the
+    /// site is the home site of this LemmyService's account. Returns nil if
+    /// not imported yet.
+    private func resolveLegacyPersonObjectId(
+        serverPersonId: Components.Schemas.PersonID
+    ) async -> NSManagedObjectID? {
+        backgroundContext.performAndWait {
+            let account = self.backgroundContext.object(with: self.accountObjectId) as! LemmyAccount
+            let request: NSFetchRequest<LemmyPerson> = LemmyPerson.fetchRequest()
+            request.predicate = NSPredicate(
+                format: "personId == %d && site == %@",
+                serverPersonId, account.site
+            )
+            request.fetchLimit = 1
+            return (try? self.backgroundContext.fetch(request).first)?.objectID
+        }
+    }
+
+    /// Resolves the legacy LemmyFeed row by `feedKey` (`LemmyFeed.id`).
+    /// Returns the objectID and feedType in one trip. Nil if not found.
+    private func resolveLegacyFeed(
+        feedKey: String
+    ) async -> (NSManagedObjectID, FeedType)? {
+        backgroundContext.performAndWait {
+            let request: NSFetchRequest<LemmyFeed> = LemmyFeed.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", feedKey)
+            request.fetchLimit = 1
+            guard let feed = try? self.backgroundContext.fetch(request).first else {
+                return nil
+            }
+            return (feed.objectID, feed.feedType)
+        }
+    }
+
+    public func fetchFeed(feedKey: String, page pageNumber: Int64?) async throws {
+        guard let (feedObjectId, feedType) = await resolveLegacyFeed(feedKey: feedKey) else {
+            throw LemmyServiceError.internalInconsistency(description: "feed not found: \(feedKey)")
+        }
+        let feedId = feedKey
 
         let response: Components.Schemas.GetPostsResponse
 
@@ -222,9 +288,12 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func fetchComments(
-        postId postObjectId: NSManagedObjectID,
+        serverPostId: Components.Schemas.PostID,
         sortType: Components.Schemas.CommentSortType
     ) async throws {
+        guard let postObjectId = await resolveLegacyPostObjectId(serverPostId: serverPostId) else {
+            throw LemmyServiceError.internalInconsistency(description: "post not found: \(serverPostId)")
+        }
         let (postId, postIdentifierForLogging) = await perform(
             with: postObjectId,
             type: LemmyPost.self
@@ -340,8 +409,11 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func fetchPersonInfo(
-        personId personObjectId: NSManagedObjectID
+        serverPersonId: Components.Schemas.PersonID
     ) async throws {
+        guard let personObjectId = await resolveLegacyPersonObjectId(serverPersonId: serverPersonId) else {
+            throw LemmyServiceError.internalInconsistency(description: "person not found: \(serverPersonId)")
+        }
         let (personId, personIdentifierForLogging) = await perform(
             with: personObjectId,
             type: LemmyPerson.self
@@ -390,9 +462,12 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func vote(
-        postId postObjectId: NSManagedObjectID,
+        serverPostId: Components.Schemas.PostID,
         vote action: VoteStatus.Action
     ) async throws {
+        guard let postObjectId = await resolveLegacyPostObjectId(serverPostId: serverPostId) else {
+            throw LemmyServiceError.internalInconsistency(description: "post not found: \(serverPostId)")
+        }
         let (
             postId, postIdentifierForLogging,
             effectiveAction,
@@ -466,9 +541,12 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func vote(
-        commentId commentObjectId: NSManagedObjectID,
+        serverCommentId: Components.Schemas.CommentID,
         vote action: VoteStatus.Action
     ) async throws {
+        guard let commentObjectId = await resolveLegacyCommentObjectId(serverCommentId: serverCommentId) else {
+            throw LemmyServiceError.internalInconsistency(description: "comment not found: \(serverCommentId)")
+        }
         let (
             localCommentId,
             effectiveAction,
@@ -546,8 +624,11 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func fetchPostInfo(
-        postId postObjectId: NSManagedObjectID
+        serverPostId: Components.Schemas.PostID
     ) async throws {
+        guard let postObjectId = await resolveLegacyPostObjectId(serverPostId: serverPostId) else {
+            throw LemmyServiceError.internalInconsistency(description: "post not found: \(serverPostId)")
+        }
         let (postId, postIdentifierForLogging) = await perform(
             with: postObjectId,
             type: LemmyPost.self
@@ -619,8 +700,11 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func markAsRead(
-        postId postObjectId: NSManagedObjectID
+        serverPostId: Components.Schemas.PostID
     ) async throws {
+        guard let postObjectId = await resolveLegacyPostObjectId(serverPostId: serverPostId) else {
+            throw LemmyServiceError.internalInconsistency(description: "post not found: \(serverPostId)")
+        }
         let (postId, postIdentifierForLogging) = await perform(
             with: postObjectId,
             type: LemmyPost.self

@@ -407,12 +407,11 @@ class PostListViewController: UIViewController {
     }
 
     private func vote(serverPostId: Int64, action: VoteStatus.Action) async {
-        guard let post = legacyPost(forServerPostId: serverPostId) else { return }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
             try await accountService
                 .lemmyService(for: viewModel.account)
-                .vote(postId: post.objectID, vote: action)
+                .vote(serverPostId: Components.Schemas.PostID(serverPostId), vote: action)
         } catch {
             alertService.handle(error, for: .vote)
         }
