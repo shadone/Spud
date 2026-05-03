@@ -262,6 +262,33 @@ public actor LemmyService: LemmyServiceType {
             post.upsert(comments: response.comments, for: sortType)
             context.saveIfNeeded()
         }
+
+        await mirrorCommentsToAppDatabase(
+            serverPostId: postId,
+            sortType: sortType,
+            comments: response.comments
+        )
+    }
+
+    private func mirrorCommentsToAppDatabase(
+        serverPostId: Components.Schemas.PostID,
+        sortType: Components.Schemas.CommentSortType,
+        comments: [Components.Schemas.CommentView]
+    ) async {
+        do {
+            guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
+                return
+            }
+            try await appDatabase.upsertComments(
+                forServerPostId: Int64(serverPostId),
+                accountId: accountRowId,
+                siteId: siteRowId,
+                sortType: sortType,
+                comments: comments
+            )
+        } catch {
+            logger.error("AppDatabase upsertComments failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     public func fetchSiteInfo() async throws {
