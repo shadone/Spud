@@ -374,6 +374,19 @@ public actor LemmyService: LemmyServiceType {
 
             context.saveIfNeeded()
         }
+
+        await mirrorPersonInfoToAppDatabase(personView: response.person_view)
+    }
+
+    private func mirrorPersonInfoToAppDatabase(
+        personView: Components.Schemas.PersonView
+    ) async {
+        do {
+            guard let (_, siteId) = try await accountSiteIds() else { return }
+            try await appDatabase.upsertPerson(from: personView, siteId: siteId)
+        } catch {
+            logger.error("Failed to mirror person info to AppDatabase: \(String(describing: error), privacy: .public)")
+        }
     }
 
     public func vote(
