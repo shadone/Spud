@@ -32,27 +32,27 @@ public extension AppDatabase {
     func widgetTopPosts(feedKey: String, limit: Int) async throws -> [WidgetPostRow] {
         try await writer.read { db in
             let rows = try Row.fetchAll(db, sql: """
-                SELECT
-                    post.postId               AS serverPostId,
-                    post.title                AS title,
-                    post.thumbnailUrl         AS thumbnailUrl,
-                    post.score                AS score,
-                    post.numberOfComments     AS numberOfComments,
-                    community.name            AS communityName,
-                    community.actorId         AS communityActorId,
-                    accountInstance.actorId   AS accountInstanceActorId
-                FROM feed
-                JOIN page         ON page.feedId = feed.id
-                JOIN pageElement  ON pageElement.pageId = page.id
-                JOIN post         ON post.id = pageElement.postId
-                JOIN community    ON community.id = post.communityId
-                JOIN account      ON account.id = feed.accountId
-                JOIN site         AS accountSite     ON accountSite.id = account.siteId
-                JOIN instance     AS accountInstance ON accountInstance.id = accountSite.instanceId
-                WHERE feed.feedKey = ?
-                ORDER BY page.position ASC, pageElement.position ASC
-                LIMIT ?
-            """, arguments: [feedKey, limit])
+                    SELECT
+                        post.postId               AS serverPostId,
+                        post.title                AS title,
+                        post.thumbnailUrl         AS thumbnailUrl,
+                        post.score                AS score,
+                        post.numberOfComments     AS numberOfComments,
+                        community.name            AS communityName,
+                        community.actorId         AS communityActorId,
+                        accountInstance.actorId   AS accountInstanceActorId
+                    FROM feed
+                    JOIN page         ON page.feedId = feed.id
+                    JOIN pageElement  ON pageElement.pageId = page.id
+                    JOIN post         ON post.id = pageElement.postId
+                    JOIN community    ON community.id = post.communityId
+                    JOIN account      ON account.id = feed.accountId
+                    JOIN site         AS accountSite     ON accountSite.id = account.siteId
+                    JOIN instance     AS accountInstance ON accountInstance.id = accountSite.instanceId
+                    WHERE feed.feedKey = ?
+                    ORDER BY page.position ASC, pageElement.position ASC
+                    LIMIT ?
+                """, arguments: [feedKey, limit])
 
             return rows.map { row in
                 let communityActorId: String? = row["communityActorId"]
