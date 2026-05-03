@@ -86,7 +86,7 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
                 guard let iconUrl else {
                     return Just(placeholder).eraseToAnyPublisher()
                 }
-                return dependencies.imageService.fetch(iconUrl)
+                return dependencies.imageService.fetchPublisher(iconUrl)
                     .map { state -> UIImage? in
                         switch state {
                         case .loading:

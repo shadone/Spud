@@ -55,7 +55,7 @@ class SiteListSiteViewModel {
                     return Just(nil)
                         .eraseToAnyPublisher()
                 }
-                return self.imageService.fetch(iconUrl)
+                return self.imageService.fetchPublisher(iconUrl)
                     .wrapInOptional()
                     .eraseToAnyPublisher()
             }
