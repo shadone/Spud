@@ -267,12 +267,18 @@ public actor LemmyService: LemmyServiceType {
         // to. Failures here must not break the legacy path.
         do {
             let (_, siteId) = try await appDatabase.upsertSite(from: response)
-            try await appDatabase.upsertAccount(
+            let accountId = try await appDatabase.upsertAccount(
                 keychainId: accountIdentifierForLogging,
                 isSignedOut: accountIsSignedOut,
                 siteId: siteId,
                 myUser: response.my_user
             )
+            if let follows = response.my_user?.follows {
+                try await appDatabase.setFollowedCommunities(
+                    accountId: accountId,
+                    follows: follows
+                )
+            }
         } catch {
             logger.error("AppDatabase mirror failed: \(String(describing: error), privacy: .public)")
         }
