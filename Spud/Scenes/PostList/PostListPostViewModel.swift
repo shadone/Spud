@@ -100,41 +100,31 @@ class PostListPostViewModel {
         case text
     }
 
-    var postContentType: AnyPublisher<PostContentType, Never> {
-        postContentDetectorService
-            .contentTypeForUrl(in: postInfo)
-    }
+    let postContentType: PostContentType
 
     var thumbnail: AnyPublisher<ThumbnailType, Never> {
-        postContentType
-            .flatMap { postContentType -> AnyPublisher<ThumbnailType, Never> in
-                switch postContentType {
-                case .externalLink:
-                    // TODO: display a link icon / overlay.
-                    fallthrough
+        switch postContentType {
+        case .externalLink, .textOrEmpty:
+            // TODO: display a link icon / overlay for external links.
+            return .just(.text)
 
-                case .textOrEmpty:
-                    return .just(.text)
-
-                case let .image(image):
-                    // TODO: is it ok to fetch image url when thumbnail is not available?
-                    // It happens for posts with imgur links e.g.
-                    // ```json
-                    //   "post": {
-                    //     "id": 595454,
-                    //     "url": "https://i.imgur.com/7sOcLD8.jpg",
-                    //     "ap_id": "https://lemmy.ml/post/1865618",
-                    //     ...
-                    //   },
-                    // ```
-                    let thumbnailUrl = image.thumbnailUrl ?? image.imageUrl
-                    return self.imageService
-                        .fetch(thumbnailUrl)
-                        .map { .image($0) }
-                        .eraseToAnyPublisher()
-                }
-            }
-            .eraseToAnyPublisher()
+        case let .image(image):
+            // TODO: is it ok to fetch image url when thumbnail is not available?
+            // It happens for posts with imgur links e.g.
+            // ```json
+            //   "post": {
+            //     "id": 595454,
+            //     "url": "https://i.imgur.com/7sOcLD8.jpg",
+            //     "ap_id": "https://lemmy.ml/post/1865618",
+            //     ...
+            //   },
+            // ```
+            let thumbnailUrl = image.thumbnailUrl ?? image.imageUrl
+            return imageService
+                .fetch(thumbnailUrl)
+                .map { .image($0) }
+                .eraseToAnyPublisher()
+        }
     }
 
     // MARK: Private
@@ -222,5 +212,6 @@ class PostListPostViewModel {
     init(postInfo: LemmyPostInfo, dependencies: Dependencies) {
         self.postInfo = postInfo
         self.dependencies = (own: dependencies, nested: dependencies)
+        postContentType = dependencies.postContentDetectorService.contentTypeForUrl(in: postInfo)
     }
 }

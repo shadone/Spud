@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import OSLog
 
@@ -13,7 +12,7 @@ private let logger = Logger.postContentDetectorService
 public protocol PostContentDetectorServiceType: AnyObject {
     /// Attempt to detect the content type of the url that the given post contains.
     /// The main point is to detect if the url points to an image.
-    func contentTypeForUrl(in post: LemmyPostInfo) -> AnyPublisher<PostContentType, Never>
+    func contentTypeForUrl(in post: LemmyPostInfo) -> PostContentType
 }
 
 @MainActor
@@ -24,18 +23,14 @@ public protocol HasPostContentDetectorService {
 public class PostContentDetectorService: PostContentDetectorServiceType {
     public init() { }
 
-    public func contentTypeForUrl(in postInfo: LemmyPostInfo) -> AnyPublisher<PostContentType, Never> {
+    public func contentTypeForUrl(in postInfo: LemmyPostInfo) -> PostContentType {
         guard let url = postInfo.url else {
-            return .just(.textOrEmpty)
+            return .textOrEmpty
         }
 
         // TODO: we could do more offline checks here:
         // - check if the domain is in Core Data as LemmySite (i.e. link to pictrs resource).
         // - check if popular image hosting like imgur.
-
-        func isImageMimeType(_ response: URLResponse) -> Bool {
-            response.mimeType?.starts(with: "image/") ?? false
-        }
 
         let externalLink = PostContentType.externalLink(.init(
             url: url,
@@ -58,9 +53,9 @@ public class PostContentDetectorService: PostContentDetectorServiceType {
         } != nil
 
         if hasKnownImageExtension {
-            return .just(image)
+            return image
         }
 
-        return .just(externalLink)
+        return externalLink
     }
 }
