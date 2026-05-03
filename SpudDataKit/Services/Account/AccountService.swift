@@ -32,6 +32,12 @@ public protocol AccountServiceType: AnyObject {
         in context: NSManagedObjectContext
     ) -> LemmyAccount
 
+    /// Looks up the LemmyAccount whose keychain id matches `keychainId`.
+    /// Used by Stage 5 cutover screens to bridge from a GRDB-backed
+    /// `accountKeychainId` back to the legacy NSManagedObject when the
+    /// receiver still expects one (e.g. `setDefaultAccount`).
+    func account(withKeychainId keychainId: String, in context: NSManagedObjectContext) -> LemmyAccount?
+
     /// Returns all signed out accounts. The returned accounts are fetched in the specified context.
     func allSignedOut(in context: NSManagedObjectContext) -> [LemmyAccount]
 
@@ -130,6 +136,22 @@ public class AccountService: AccountServiceType {
         }
 
         return account ?? createAccountForSignedOut()
+    }
+
+    public func account(
+        withKeychainId keychainId: String,
+        in context: NSManagedObjectContext
+    ) -> LemmyAccount? {
+        assert(Thread.current.isMainThread)
+        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
+        request.fetchLimit = 1
+        request.predicate = NSPredicate(format: "id == %@", keychainId)
+        do {
+            return try context.fetch(request).first
+        } catch {
+            logger.assertionFailure("Failed to fetch account by keychainId: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     public func allSignedOut(in context: NSManagedObjectContext) -> [LemmyAccount] {

@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import CoreData
 import Foundation
 import OSLog
 import SpudDataKit
@@ -15,6 +14,7 @@ private let logger = Logger.app
 class AccountListViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
+        HasAppDatabase &
         HasDataStore
     typealias NestedDependencies =
         SiteListViewController.Dependencies
@@ -27,6 +27,10 @@ class AccountListViewController: UIViewController {
 
     var accountService: AccountServiceType {
         dependencies.own.accountService
+    }
+
+    var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
     }
 
     // MARK: UI Properties
@@ -48,8 +52,9 @@ class AccountListViewController: UIViewController {
 
     // MARK: Private
 
-    var accountsFRC: NSFetchedResultsController<LemmyAccount>?
-    private var dataSource: UITableViewDiffableDataSource<Int, NSManagedObjectID>!
+    private var dataSource: UITableViewDiffableDataSource<Int, Int64>!
+    private var rowsByAccountId: [Int64: AccountListRow] = [:]
+    private var observationTask: Task<Void, Never>?
 
     // MARK: Functions
 
@@ -64,6 +69,10 @@ class AccountListViewController: UIViewController {
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        observationTask?.cancel()
     }
 
     private func setup() {
@@ -95,63 +104,51 @@ class AccountListViewController: UIViewController {
         ])
 
         setupDataSource()
-        setupFRC()
     }
 
     private func setupDataSource() {
-        let mainContext = dataStore.mainContext
-        dataSource = UITableViewDiffableDataSource<Int, NSManagedObjectID>(
+        dataSource = UITableViewDiffableDataSource<Int, Int64>(
             tableView: tableView
-        ) { tableView, indexPath, objectID in
+        ) { [weak self] tableView, indexPath, accountRowId in
             let cell = tableView.dequeueReusableCell(
                 withIdentifier: AccountListAccountCell.reuseIdentifier,
                 for: indexPath
             ) as! AccountListAccountCell
 
-            guard let account = try? mainContext.existingObject(with: objectID) as? LemmyAccount else {
-                logger.assertionFailure("Failed to resolve account for objectID \(objectID)")
+            guard let row = self?.rowsByAccountId[accountRowId] else {
+                logger.assertionFailure("Missing AccountListRow for accountId \(accountRowId)")
                 return cell
             }
 
-            cell.configure(with: AccountListAccountViewModel(account: account))
+            cell.configure(with: AccountListAccountViewModel(row: row))
             return cell
         }
     }
 
-    private func setupFRC() {
-        // reset the old FRC in case we are reusing the same VC for a new post.
-        accountsFRC?.delegate = nil
-
-        let request = LemmyAccount.fetchRequest() as NSFetchRequest<LemmyAccount>
-        request.predicate = NSPredicate(
-            format: "isServiceAccount == false"
-        )
-        request.fetchBatchSize = 100
-        request.relationshipKeyPathsForPrefetching = ["site"]
-        request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \LemmyAccount.isSignedOutAccountType, ascending: true),
-        ]
-
-        accountsFRC = NSFetchedResultsController(
-            fetchRequest: request,
-            managedObjectContext: dataStore.mainContext,
-            sectionNameKeyPath: nil, cacheName: nil
-        )
-        accountsFRC?.delegate = self
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        startObserving()
     }
 
-    private func execFRC() {
-        do {
-            try accountsFRC?.performFetch()
-        } catch {
-            logger.error("Failed to fetch accounts: \(String(describing: error), privacy: .public)")
+    private func startObserving() {
+        observationTask?.cancel()
+        observationTask = Task { [appDatabase] in
+            for await rows in appDatabase.observeAccountListRows() {
+                if Task.isCancelled { break }
+                await MainActor.run { self.apply(rows: rows) }
+            }
         }
     }
 
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
+    private func apply(rows: [AccountListRow]) {
+        rowsByAccountId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
 
-        execFRC()
+        var snapshot = NSDiffableDataSourceSnapshot<Int, Int64>()
+        snapshot.appendSections([0])
+        snapshot.appendItems(rows.map(\.id), toSection: 0)
+        // Reload items so cells re-bind when row contents change but the id list doesn't.
+        snapshot.reloadItems(rows.map(\.id))
+        dataSource.apply(snapshot, animatingDifferences: true)
     }
 
     private func updateBarButtonItems() {
@@ -186,35 +183,24 @@ class AccountListViewController: UIViewController {
     }
 }
 
-// MARK: - FRC helpers
-
-extension AccountListViewController {
-    func account(at indexPath: IndexPath) -> LemmyAccount? {
-        guard let objectID = dataSource.itemIdentifier(for: indexPath) else { return nil }
-        return try? dataStore.mainContext.existingObject(with: objectID) as? LemmyAccount
-    }
-}
-
 // MARK: - Table View Delegate
 
 extension AccountListViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        guard let account = account(at: indexPath) else { return }
-        accountService.setDefaultAccount(account)
-        dismiss(animated: true)
-    }
-}
+        guard
+            let accountRowId = dataSource.itemIdentifier(for: indexPath),
+            let row = rowsByAccountId[accountRowId]
+        else { return }
 
-// MARK: - Core Data
-
-extension AccountListViewController: NSFetchedResultsControllerDelegate {
-    nonisolated func controller(
-        _ controller: NSFetchedResultsController<NSFetchRequestResult>,
-        didChangeContentWith snapshot: NSDiffableDataSourceSnapshotReference
-    ) {
-        let typedSnapshot = snapshot as NSDiffableDataSourceSnapshot<Int, NSManagedObjectID>
-        MainActor.assumeIsolated {
-            dataSource.apply(typedSnapshot, animatingDifferences: true)
+        guard let legacyAccount = accountService.account(
+            withKeychainId: row.accountKeychainId,
+            in: dataStore.mainContext
+        ) else {
+            logger.assertionFailure("No legacy LemmyAccount for keychainId \(row.accountKeychainId)")
+            return
         }
+
+        accountService.setDefaultAccount(legacyAccount)
+        dismiss(animated: true)
     }
 }
