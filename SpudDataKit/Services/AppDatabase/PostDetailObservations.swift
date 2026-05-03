@@ -87,31 +87,32 @@ public extension AppDatabase {
         let observation = ValueObservation
             .tracking { db -> PostDetailHeaderRow? in
                 guard let row = try Row.fetchOne(db, sql: """
-                    SELECT
-                        post.id                    AS postRowId,
-                        post.postId                AS serverPostId,
-                        post.title                 AS title,
-                        post.body                  AS body,
-                        post.url                   AS url,
-                        post.thumbnailUrl          AS thumbnailUrl,
-                        post.urlEmbedTitle         AS urlEmbedTitle,
-                        post.urlEmbedDescription   AS urlEmbedDescription,
-                        post.score                 AS score,
-                        post.numberOfComments      AS numberOfComments,
-                        post.voteStatus            AS voteStatus,
-                        post.published             AS published,
-                        community.name             AS communityName,
-                        creator.name               AS creatorName,
-                        creator.displayName        AS creatorDisplayName,
-                        creator.personId           AS creatorPersonId,
-                        creatorInstance.actorId    AS creatorInstanceActorId
-                    FROM post
-                    JOIN community  ON community.id = post.communityId
-                    JOIN person     AS creator         ON creator.id = post.creatorId
-                    JOIN site       AS creatorSite     ON creatorSite.id = creator.siteId
-                    JOIN instance   AS creatorInstance ON creatorInstance.id = creatorSite.instanceId
-                    WHERE post.id = ?
-                """, arguments: [postRowId]) else {
+                        SELECT
+                            post.id                    AS postRowId,
+                            post.postId                AS serverPostId,
+                            post.title                 AS title,
+                            post.body                  AS body,
+                            post.url                   AS url,
+                            post.thumbnailUrl          AS thumbnailUrl,
+                            post.urlEmbedTitle         AS urlEmbedTitle,
+                            post.urlEmbedDescription   AS urlEmbedDescription,
+                            post.score                 AS score,
+                            post.numberOfComments      AS numberOfComments,
+                            post.voteStatus            AS voteStatus,
+                            post.published             AS published,
+                            community.name             AS communityName,
+                            creator.name               AS creatorName,
+                            creator.displayName        AS creatorDisplayName,
+                            creator.personId           AS creatorPersonId,
+                            creatorInstance.actorId    AS creatorInstanceActorId
+                        FROM post
+                        JOIN community  ON community.id = post.communityId
+                        JOIN person     AS creator         ON creator.id = post.creatorId
+                        JOIN site       AS creatorSite     ON creatorSite.id = creator.siteId
+                        JOIN instance   AS creatorInstance ON creatorInstance.id = creatorSite.instanceId
+                        WHERE post.id = ?
+                    """, arguments: [postRowId])
+                else {
                     return nil
                 }
 
@@ -158,30 +159,30 @@ public extension AppDatabase {
         let observation = ValueObservation
             .tracking { db -> [PostDetailCommentRow] in
                 let rows = try Row.fetchAll(db, sql: """
-                    SELECT
-                        commentElement.id              AS elementId,
-                        commentElement.position        AS position,
-                        commentElement.depth           AS depth,
-                        commentElement.moreChildCount  AS moreChildCount,
-                        commentElement.moreParentId    AS moreParentId,
-                        comment.localCommentId         AS serverCommentId,
-                        comment.body                   AS body,
-                        comment.score                  AS score,
-                        comment.voteStatus             AS voteStatus,
-                        comment.published              AS published,
-                        creator.name                   AS creatorName,
-                        creator.displayName            AS creatorDisplayName,
-                        creator.personId               AS creatorPersonId,
-                        creatorInstance.actorId        AS creatorInstanceActorId
-                    FROM commentElement
-                    LEFT JOIN comment ON comment.id = commentElement.commentId
-                    LEFT JOIN person     AS creator         ON creator.id = comment.creatorId
-                    LEFT JOIN site       AS creatorSite     ON creatorSite.id = creator.siteId
-                    LEFT JOIN instance   AS creatorInstance ON creatorInstance.id = creatorSite.instanceId
-                    WHERE commentElement.postId = ?
-                      AND commentElement.sortType = ?
-                    ORDER BY commentElement.position ASC
-                """, arguments: [postRowId, sortType])
+                        SELECT
+                            commentElement.id              AS elementId,
+                            commentElement.position        AS position,
+                            commentElement.depth           AS depth,
+                            commentElement.moreChildCount  AS moreChildCount,
+                            commentElement.moreParentId    AS moreParentId,
+                            comment.localCommentId         AS serverCommentId,
+                            comment.body                   AS body,
+                            comment.score                  AS score,
+                            comment.voteStatus             AS voteStatus,
+                            comment.published              AS published,
+                            creator.name                   AS creatorName,
+                            creator.displayName            AS creatorDisplayName,
+                            creator.personId               AS creatorPersonId,
+                            creatorInstance.actorId        AS creatorInstanceActorId
+                        FROM commentElement
+                        LEFT JOIN comment ON comment.id = commentElement.commentId
+                        LEFT JOIN person     AS creator         ON creator.id = comment.creatorId
+                        LEFT JOIN site       AS creatorSite     ON creatorSite.id = creator.siteId
+                        LEFT JOIN instance   AS creatorInstance ON creatorInstance.id = creatorSite.instanceId
+                        WHERE commentElement.postId = ?
+                          AND commentElement.sortType = ?
+                        ORDER BY commentElement.position ASC
+                    """, arguments: [postRowId, sortType])
 
                 return rows.map { row in
                     let rawCreatorName: String? = row["creatorDisplayName"] ?? row["creatorName"]

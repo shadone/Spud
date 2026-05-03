@@ -30,14 +30,37 @@ class PostDetailViewController: UIViewController {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var dataStore: DataStoreType { dependencies.own.dataStore }
-    var appearanceService: AppearanceServiceType { dependencies.own.appearanceService }
-    var appService: AppServiceType { dependencies.own.appService }
-    var accountService: AccountServiceType { dependencies.own.accountService }
-    var alertService: AlertServiceType { dependencies.own.alertService }
-    var appDatabase: AppDatabase { dependencies.own.appDatabase }
-    var imageService: ImageServiceType { dependencies.own.imageService }
-    var postContentDetector: PostContentDetectorServiceType { dependencies.own.postContentDetectorService }
+    var dataStore: DataStoreType {
+        dependencies.own.dataStore
+    }
+
+    var appearanceService: AppearanceServiceType {
+        dependencies.own.appearanceService
+    }
+
+    var appService: AppServiceType {
+        dependencies.own.appService
+    }
+
+    var accountService: AccountServiceType {
+        dependencies.own.accountService
+    }
+
+    var alertService: AlertServiceType {
+        dependencies.own.alertService
+    }
+
+    var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
+    }
+
+    var imageService: ImageServiceType {
+        dependencies.own.imageService
+    }
+
+    var postContentDetector: PostContentDetectorServiceType {
+        dependencies.own.postContentDetectorService
+    }
 
     // MARK: - Public
 
@@ -171,10 +194,10 @@ class PostDetailViewController: UIViewController {
 
         observationTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for await row in self.appDatabase.observePostDetailHeader(postRowId: postRowId) {
+            for await row in appDatabase.observePostDetailHeader(postRowId: postRowId) {
                 if Task.isCancelled { break }
-                self.headerRow = row
-                self.applySnapshot()
+                headerRow = row
+                applySnapshot()
             }
         }
 
@@ -188,16 +211,16 @@ class PostDetailViewController: UIViewController {
         commentObservationTask = Task { @MainActor [weak self] in
             guard let self else { return }
             var hasReceivedFirstSnapshot = false
-            for await rows in self.appDatabase.observePostDetailComments(
+            for await rows in appDatabase.observePostDetailComments(
                 postRowId: postRowId,
                 sortType: sortTypeRaw
             ) {
                 if Task.isCancelled { break }
-                self.commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
-                self.applySnapshot(orderedComments: rows)
+                commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+                applySnapshot(orderedComments: rows)
                 if !hasReceivedFirstSnapshot {
                     hasReceivedFirstSnapshot = true
-                    self.viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
+                    viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
                 }
             }
         }
@@ -324,9 +347,9 @@ extension PostDetailViewController {
 
     private func setupDataSource() {
         let appearance = appearanceService
-        let imageService = self.imageService
-        let postContentDetector = self.postContentDetector
-        let appService = self.appService
+        let imageService = imageService
+        let postContentDetector = postContentDetector
+        let appService = appService
 
         dataSource = UITableViewDiffableDataSource<Section, Item>(
             tableView: tableView
