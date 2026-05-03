@@ -21,6 +21,7 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		09884C748A120135922D8D0D /* CommunityImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62524CC4ADBBA114FED198A8 /* CommunityImporter.swift */; };
 		0B8E467CAA5441FCE86A91BB /* NodeInfoRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454940E4A49A1EF256BFEA36 /* NodeInfoRecord.swift */; };
 		180D4D40BE7448D034585349 /* AppDatabaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29F94776A333C3A1EB896ABE /* AppDatabaseTests.swift */; };
 		189B41EF8122869281693918 /* Person.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDFD43D3BA98EB4CAF625AA5 /* Person.swift */; };
@@ -491,6 +492,7 @@
 		454940E4A49A1EF256BFEA36 /* NodeInfoRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = NodeInfoRecord.swift; path = SpudDataKit/Services/AppDatabase/Records/NodeInfoRecord.swift; sourceTree = SOURCE_ROOT; };
 		56BE4536AFAF17FE14B95486 /* AccountImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AccountImporter.swift; path = SpudDataKit/Services/AppDatabase/Importers/AccountImporter.swift; sourceTree = SOURCE_ROOT; };
 		595D41CDBF151C31438096E5 /* Comment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Comment.swift; path = SpudDataKit/Services/AppDatabase/Records/Comment.swift; sourceTree = SOURCE_ROOT; };
+		62524CC4ADBBA114FED198A8 /* CommunityImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CommunityImporter.swift; path = SpudDataKit/Services/AppDatabase/Importers/CommunityImporter.swift; sourceTree = SOURCE_ROOT; };
 		691440428D5E2FC5CFF6B2D2 /* Post.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Post.swift; path = SpudDataKit/Services/AppDatabase/Records/Post.swift; sourceTree = SOURCE_ROOT; };
 		75F443B2BD800D168D379F3B /* Feed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Feed.swift; path = SpudDataKit/Services/AppDatabase/Records/Feed.swift; sourceTree = SOURCE_ROOT; };
 		920B454F2A7C1DF400C6C2DC /* SpudWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SpudWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -1280,6 +1282,7 @@
 				F1684C0486281766E757594F /* SiteImporter.swift */,
 				56BE4536AFAF17FE14B95486 /* AccountImporter.swift */,
 				36AB425689415A10FBD5B1A7 /* Observations.swift */,
+				62524CC4ADBBA114FED198A8 /* CommunityImporter.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -2441,6 +2444,7 @@
 				ECDC481983FC9B6C25D00316 /* Comment.swift in Sources */,
 				927839CA2C0C70A700521C69 /* CommentSortType+DataStore.swift in Sources */,
 				29B34E368996CCC33B9A65A4 /* Community.swift in Sources */,
+				09884C748A120135922D8D0D /* CommunityImporter.swift in Sources */,
 				92CC5D6D2A7EBF960019436A /* DataStore.swift in Sources */,
 				92CC5D6E2A7EBF9B0019436A /* DataStore.xcdatamodeld in Sources */,
 				85DB41B492A0ECF41C8E7346 /* Feed.swift in Sources */,
