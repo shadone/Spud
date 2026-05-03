@@ -54,9 +54,9 @@ public extension AppDatabase {
         return makeStream(observation: observation)
     }
 
-    private func makeStream<Value: Sendable>(
+    private func makeStream<Value: Sendable & Equatable>(
         observation: ValueObservation<ValueReducers.RemoveDuplicates<ValueReducers.Fetch<Value>>>
-    ) -> AsyncStream<Value> where Value: Equatable {
+    ) -> AsyncStream<Value> {
         AsyncStream { continuation in
             let cancellable = observation.start(in: writer) { error in
                 logger.error("ValueObservation failed: \(String(describing: error), privacy: .public)")
