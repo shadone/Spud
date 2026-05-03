@@ -192,6 +192,33 @@ public actor LemmyService: LemmyServiceType {
             feed.append(contentsOf: response.posts)
             context.saveIfNeeded()
         }
+
+        await mirrorFeedPageToAppDatabase(
+            feedKey: feedId,
+            feedType: feedType,
+            posts: response.posts
+        )
+    }
+
+    private func mirrorFeedPageToAppDatabase(
+        feedKey: String,
+        feedType: FeedType,
+        posts: [Components.Schemas.PostView]
+    ) async {
+        do {
+            guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
+                return
+            }
+            try await appDatabase.appendFeedPage(
+                feedKey: feedKey,
+                feedType: feedType,
+                accountId: accountRowId,
+                siteId: siteRowId,
+                posts: posts
+            )
+        } catch {
+            logger.error("AppDatabase appendFeedPage failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     public func fetchComments(
