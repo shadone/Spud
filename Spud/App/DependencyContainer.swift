@@ -56,7 +56,8 @@ struct DependencyContainer:
         siteService = SiteService(dataStore: dataStore)
         accountService = AccountService(
             siteService: siteService,
-            dataStore: dataStore
+            dataStore: dataStore,
+            appDatabase: appDatabase
         )
         schedulerService = SchedulerService(
             dataStore: dataStore,

@@ -70,6 +70,7 @@ public actor LemmyService: LemmyServiceType {
     // MARK: Private
 
     private let dataStore: DataStoreType
+    let appDatabase: AppDatabase
     private let api: LemmyApi
 
     private var mainContext: NSManagedObjectContext {
@@ -88,12 +89,14 @@ public actor LemmyService: LemmyServiceType {
     init(
         account: LemmyAccount,
         dataStore: DataStoreType,
+        appDatabase: AppDatabase,
         api: LemmyApi
     ) {
         accountObjectId = account.objectID
         accountIdentifierForLogging = account.identifierForLogging
 
         self.dataStore = dataStore
+        self.appDatabase = appDatabase
         self.api = api
 
         logger.info("Creating new service for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
@@ -255,6 +258,15 @@ public actor LemmyService: LemmyServiceType {
             account.site.upsert(siteInfo: response)
 
             context.saveIfNeeded()
+        }
+
+        // Stage 4 dual-write: mirror into AppDatabase. ViewModels still read
+        // Core Data; this populates the GRDB shadow that Stage 5 will switch
+        // to. Failures here must not break the legacy path.
+        do {
+            try await appDatabase.upsertSite(from: response)
+        } catch {
+            logger.error("AppDatabase upsertSite failed: \(String(describing: error), privacy: .public)")
         }
     }
 

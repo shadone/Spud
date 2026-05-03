@@ -73,6 +73,7 @@ public class AccountService: AccountServiceType {
     // MARK: Private
 
     private let dataStore: DataStoreType
+    private let appDatabase: AppDatabase
     private let siteService: SiteServiceType
 
     private var lemmyServices: [NSManagedObjectID: LemmyService] = [:]
@@ -82,9 +83,11 @@ public class AccountService: AccountServiceType {
 
     public init(
         siteService: SiteServiceType,
-        dataStore: DataStoreType
+        dataStore: DataStoreType,
+        appDatabase: AppDatabase
     ) {
         self.dataStore = dataStore
+        self.appDatabase = appDatabase
         self.siteService = siteService
     }
 
@@ -269,6 +272,7 @@ public class AccountService: AccountServiceType {
         let lemmyService = LemmyService(
             account: account,
             dataStore: dataStore,
+            appDatabase: appDatabase,
             api: api
         )
         lemmyServices[accountObjectId] = lemmyService

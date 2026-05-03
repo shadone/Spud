@@ -37,7 +37,8 @@ class DependencyContainer: ObservableObject,
 
         accountService = AccountService(
             siteService: EmptySiteService(),
-            dataStore: dataStore
+            dataStore: dataStore,
+            appDatabase: appDatabase
         )
         entryService = EntryService(
             dataStore: dataStore,
