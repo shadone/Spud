@@ -120,32 +120,21 @@ class PostDetailHeaderViewModel {
             .eraseToAnyPublisher()
     }
 
-    var postContentType: AnyPublisher<PostContentType, Never> {
-        postContentDetectorService
-            .contentTypeForUrl(in: postInfo)
-    }
+    let postContentType: PostContentType
 
     var image: AnyPublisher<ImageLoadingState, Never> {
-        postContentType
-            .removeDuplicates()
-            .combineLatest(
-                postInfo.publisher(for: \.thumbnailUrl)
-                    .removeDuplicates()
-            )
-            .flatMap { tuple -> AnyPublisher<ImageLoadingState, Never> in
-                let postContentType = tuple.0
-                let thumbnailUrl = tuple.1
+        switch postContentType {
+        case .textOrEmpty, .externalLink:
+            return .empty(completeImmediately: false)
 
-                switch postContentType {
-                case .textOrEmpty, .externalLink:
-                    return .empty(completeImmediately: false)
-
-                case let .image(image):
-                    return self.imageService
-                        .fetch(image.imageUrl, thumbnail: thumbnailUrl)
+        case let .image(image):
+            return postInfo.publisher(for: \.thumbnailUrl)
+                .removeDuplicates()
+                .flatMap { thumbnailUrl in
+                    self.imageService.fetch(image.imageUrl, thumbnail: thumbnailUrl)
                 }
-            }
-            .eraseToAnyPublisher()
+                .eraseToAnyPublisher()
+        }
     }
 
     var body: AnyPublisher<NSAttributedString, Never> {
@@ -160,18 +149,14 @@ class PostDetailHeaderViewModel {
     }
 
     var linkPreviewThumbnail: AnyPublisher<(URL, ImageLoadingState?)?, Never> {
-        postContentType
-            .combineLatest(
-                postInfo.publisher(for: \.thumbnailUrl),
-                postInfo.publisher(for: \.url)
-            )
-            .flatMap { tuple -> AnyPublisher<(URL, ImageLoadingState?)?, Never> in
-                let postContentType = tuple.0
-                let thumbnailUrl = tuple.1
-                let url = tuple.2
+        switch postContentType {
+        case .image, .textOrEmpty:
+            return .just(nil)
 
-                switch postContentType {
-                case .externalLink:
+        case .externalLink:
+            return postInfo.publisher(for: \.thumbnailUrl)
+                .combineLatest(postInfo.publisher(for: \.url))
+                .flatMap { thumbnailUrl, url -> AnyPublisher<(URL, ImageLoadingState?)?, Never> in
                     guard let url else {
                         logger.assertionFailure("external link post without the link")
                         return .just(nil)
@@ -185,12 +170,9 @@ class PostDetailHeaderViewModel {
                         .fetch(thumbnailUrl)
                         .map { (url, $0) }
                         .eraseToAnyPublisher()
-
-                case .image, .textOrEmpty:
-                    return .just(nil)
                 }
-            }
-            .eraseToAnyPublisher()
+                .eraseToAnyPublisher()
+        }
     }
 
     var isUpvoted: AnyPublisher<Bool, Never> {
@@ -310,5 +292,6 @@ class PostDetailHeaderViewModel {
     ) {
         self.postInfo = postInfo
         self.dependencies = (own: dependencies, nested: dependencies)
+        postContentType = dependencies.postContentDetectorService.contentTypeForUrl(in: postInfo)
     }
 }
