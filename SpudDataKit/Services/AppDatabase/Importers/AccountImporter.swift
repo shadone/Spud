@@ -11,12 +11,12 @@ import OSLog
 
 private let logger = Logger.appDatabase
 
-extension AppDatabase {
+public extension AppDatabase {
     /// Upserts an account row tied to `siteId`, optionally including the
     /// signed-in user's person row and per-account settings drawn from the
     /// `MyUserInfo` payload of `GetSiteResponse`.
     @discardableResult
-    public func upsertAccount(
+    func upsertAccount(
         keychainId: String,
         isSignedOut: Bool,
         siteId: Int64,
@@ -65,16 +65,16 @@ extension AppDatabase {
     /// Mirrors the Core Data "default account" flag: clears `isDefault` on
     /// every row and sets it on the row matching `keychainId`. No-op if the
     /// row hasn't been imported yet.
-    public func setDefaultAccount(keychainId: String) async throws {
+    func setDefaultAccount(keychainId: String) async throws {
         try await writer.write { db in
             let now = Date()
 
             try db.execute(sql: """
-                UPDATE account
-                SET isDefault = 0,
-                    updatedAt = ?
-                WHERE isDefault = 1
-            """, arguments: [now])
+                    UPDATE account
+                    SET isDefault = 0,
+                        updatedAt = ?
+                    WHERE isDefault = 1
+                """, arguments: [now])
 
             guard var target = try AccountRecord
                 .filter(Column("accountKeychainId") == keychainId)
