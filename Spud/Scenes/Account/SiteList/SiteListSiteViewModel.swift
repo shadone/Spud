@@ -17,7 +17,9 @@ class SiteListSiteViewModel {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var imageService: ImageServiceType { dependencies.own.imageService }
+    var imageService: ImageServiceType {
+        dependencies.own.imageService
+    }
 
     // MARK: Public
 

@@ -8,9 +8,7 @@ import Foundation
 import LemmyKit
 import SwiftUI
 
-struct PreferencesGeneralView<ViewModel>: View
-    where ViewModel: PreferencesViewModelType
-{
+struct PreferencesGeneralView<ViewModel: PreferencesViewModelType>: View {
     @StateObject var viewModel: ViewModel
 
     var defaultPostSortType: Binding<Components.Schemas.SortType> {

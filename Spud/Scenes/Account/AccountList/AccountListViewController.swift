@@ -21,8 +21,13 @@ class AccountListViewController: UIViewController {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var dataStore: DataStoreType { dependencies.own.dataStore }
-    var accountService: AccountServiceType { dependencies.own.accountService }
+    var dataStore: DataStoreType {
+        dependencies.own.dataStore
+    }
+
+    var accountService: AccountServiceType {
+        dependencies.own.accountService
+    }
 
     // MARK: UI Properties
 

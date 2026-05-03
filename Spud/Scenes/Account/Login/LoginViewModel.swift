@@ -43,8 +43,13 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var accountService: AccountServiceType { dependencies.own.accountService }
-    var alertService: AlertServiceType { dependencies.own.alertService }
+    var accountService: AccountServiceType {
+        dependencies.own.accountService
+    }
+
+    var alertService: AlertServiceType {
+        dependencies.own.alertService
+    }
 
     // MARK: Private
 
@@ -114,8 +119,13 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
 
     // MARK: Type
 
-    var inputs: LoginViewModelInputs { self }
-    var outputs: LoginViewModelOutputs { self }
+    var inputs: LoginViewModelInputs {
+        self
+    }
+
+    var outputs: LoginViewModelOutputs {
+        self
+    }
 
     // MARK: Outputs
 

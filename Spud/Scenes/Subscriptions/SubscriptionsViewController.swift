@@ -18,7 +18,9 @@ class SubscriptionsViewController: UIViewController {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var accountService: AccountServiceType { dependencies.own.accountService }
+    var accountService: AccountServiceType {
+        dependencies.own.accountService
+    }
 
     // MARK: Private
 

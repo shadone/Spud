@@ -9,12 +9,12 @@ import XCTest
 @testable import SpudUtilKit
 
 class InstanceActorIdTests: XCTestCase {
-    func test_string_invalid() throws {
+    func test_string_invalid() {
         XCTAssertNil(InstanceActorId(from: ""))
         XCTAssertNil(InstanceActorId(from: "mkyong,com"))
     }
 
-    func test_string_valid() throws {
+    func test_string_valid() {
         XCTAssertEqual(
             InstanceActorId(from: "www.google.com")?.actorId,
             "https://www.google.com"
@@ -53,7 +53,7 @@ class InstanceActorIdTests: XCTestCase {
         )
     }
 
-    func test_string_simple() throws {
+    func test_string_simple() {
         let foobar = InstanceActorId(from: "foobar.com")
         XCTAssertNotNil(foobar)
         XCTAssertEqual(foobar?.host, "foobar.com")
@@ -67,7 +67,7 @@ class InstanceActorIdTests: XCTestCase {
         XCTAssertEqual(caseSensitive?.actorId, "https://foobar.com")
     }
 
-    func test_string_scheme() throws {
+    func test_string_scheme() {
         let foobar = InstanceActorId(from: "https://foobar.com")
         XCTAssertNotNil(foobar)
         XCTAssertEqual(foobar?.host, "foobar.com")
@@ -75,7 +75,7 @@ class InstanceActorIdTests: XCTestCase {
         XCTAssertEqual(foobar?.actorId, "https://foobar.com")
     }
 
-    func test_string_port() throws {
+    func test_string_port() {
         let foobar = InstanceActorId(from: "foobar.com:8080")
         XCTAssertNotNil(foobar)
         XCTAssertEqual(foobar?.host, "foobar.com")
@@ -83,7 +83,7 @@ class InstanceActorIdTests: XCTestCase {
         XCTAssertEqual(foobar?.actorId, "https://foobar.com:8080")
     }
 
-    func test_string_schemeAndPort() throws {
+    func test_string_schemeAndPort() {
         let foobar = InstanceActorId(from: "https://foobar.com:8080")
         XCTAssertNotNil(foobar)
         XCTAssertEqual(foobar?.host, "foobar.com")
@@ -92,17 +92,17 @@ class InstanceActorIdTests: XCTestCase {
     }
 
     func test_url_invalid() throws {
-        XCTAssertNil(InstanceActorId(from: URL(string: "https://")!))
+        XCTAssertNil(try InstanceActorId(from: XCTUnwrap(URL(string: "https://"))))
     }
 
     func test_url() throws {
-        let foobar = InstanceActorId(from: URL(string: "https://foobar.com")!)
+        let foobar = try InstanceActorId(from: XCTUnwrap(URL(string: "https://foobar.com")))
         XCTAssertNotNil(foobar)
         XCTAssertEqual(foobar?.host, "foobar.com")
         XCTAssertNil(foobar?.port)
         XCTAssertEqual(foobar?.actorId, "https://foobar.com")
 
-        let caseSensitive = InstanceActorId(from: URL(string: "https://FoObAr.CoM")!)
+        let caseSensitive = try InstanceActorId(from: XCTUnwrap(URL(string: "https://FoObAr.CoM")))
         XCTAssertNotNil(caseSensitive)
         XCTAssertEqual(caseSensitive?.host, "foobar.com")
         XCTAssertNil(caseSensitive?.port)
@@ -110,7 +110,7 @@ class InstanceActorIdTests: XCTestCase {
     }
 
     func test_url_port() throws {
-        let foobar = InstanceActorId(from: URL(string: "https://foobar.com:8080")!)
+        let foobar = try InstanceActorId(from: XCTUnwrap(URL(string: "https://foobar.com:8080")))
         XCTAssertNotNil(foobar)
         XCTAssertEqual(foobar?.host, "foobar.com")
         XCTAssertEqual(foobar?.port, 8080)

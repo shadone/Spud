@@ -74,5 +74,7 @@ extension LemmyCommunity {
 }
 
 extension LemmyCommunity: Identifiable {
-    public var id: NSManagedObjectID { objectID }
+    public var id: NSManagedObjectID {
+        objectID
+    }
 }

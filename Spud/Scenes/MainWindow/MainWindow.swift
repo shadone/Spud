@@ -19,7 +19,9 @@ class MainWindow: UIWindow {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    private var accountService: AccountServiceType { dependencies.own.accountService }
+    private var accountService: AccountServiceType {
+        dependencies.own.accountService
+    }
 
     // MARK: Private
 

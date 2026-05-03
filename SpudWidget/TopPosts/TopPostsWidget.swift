@@ -176,7 +176,7 @@ struct TopPostsWidget: Widget {
     )
 }
 
-// Old school preview that could be useful for testing on iOS 16
+/// Old school preview that could be useful for testing on iOS 16
 struct TopPostsWidget_Previews: PreviewProvider {
     static var topPosts = TopPosts.snapshot
 

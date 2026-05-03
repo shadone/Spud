@@ -71,8 +71,13 @@ class PersonOrLoadingViewModel:
 
     // MARK: Type
 
-    var inputs: PersonOrLoadingViewModelInputs { self }
-    var outputs: PersonOrLoadingViewModelOutputs { self }
+    var inputs: PersonOrLoadingViewModelInputs {
+        self
+    }
+
+    var outputs: PersonOrLoadingViewModelOutputs {
+        self
+    }
 
     // MARK: Outputs
 

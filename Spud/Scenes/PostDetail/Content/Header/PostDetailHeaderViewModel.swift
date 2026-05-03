@@ -24,9 +24,17 @@ class PostDetailHeaderViewModel {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var imageService: ImageServiceType { dependencies.own.imageService }
-    var appearanceService: AppearanceServiceType { dependencies.own.appearanceService }
-    var postContentDetectorService: PostContentDetectorServiceType { dependencies.own.postContentDetectorService }
+    var imageService: ImageServiceType {
+        dependencies.own.imageService
+    }
+
+    var appearanceService: AppearanceServiceType {
+        dependencies.own.appearanceService
+    }
+
+    var postContentDetectorService: PostContentDetectorServiceType {
+        dependencies.own.postContentDetectorService
+    }
 
     // MARK: Public
 

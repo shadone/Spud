@@ -35,9 +35,7 @@ struct PreferencesLogsView: View {
     }
 }
 
-struct PreferencesAboutView<ViewModel>: View
-    where ViewModel: PreferencesViewModelType
-{
+struct PreferencesAboutView<ViewModel: PreferencesViewModelType>: View {
     @StateObject var viewModel: ViewModel
 
     var body: some View {

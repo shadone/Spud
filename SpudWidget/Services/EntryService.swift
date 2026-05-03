@@ -45,13 +45,11 @@ class EntryService: EntryServiceType {
         let snapshot = TopPosts.snapshot
 
         let now = Date()
-        let entry = TopPostsEntry(
+        return TopPostsEntry(
             date: now,
             topPosts: snapshot,
             images: snapshot.resolveImagesFromAssets
         )
-
-        return entry
     }
 
     @MainActor
@@ -62,9 +60,7 @@ class EntryService: EntryServiceType {
         let feed = await fetchFeed(listingType: listingType, sortType: sortType)
 
         let topPosts = TopPosts(from: feed)
-        let entry = await entry(from: topPosts)
-
-        return entry
+        return await entry(from: topPosts)
     }
 
     @MainActor

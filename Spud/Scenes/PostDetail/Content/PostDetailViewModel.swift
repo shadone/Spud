@@ -41,8 +41,13 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var accountService: AccountServiceType { dependencies.own.accountService }
-    var alertService: AlertServiceType { dependencies.own.alertService }
+    var accountService: AccountServiceType {
+        dependencies.own.accountService
+    }
+
+    var alertService: AlertServiceType {
+        dependencies.own.alertService
+    }
 
     // MARK: Private
 
@@ -72,8 +77,13 @@ class PostDetailViewModel: PostDetailViewModelType, PostDetailViewModelInputs, P
 
     // MARK: Type
 
-    var inputs: PostDetailViewModelInputs { self }
-    var outputs: PostDetailViewModelOutputs { self }
+    var inputs: PostDetailViewModelInputs {
+        self
+    }
+
+    var outputs: PostDetailViewModelOutputs {
+        self
+    }
 
     // MARK: Outputs
 

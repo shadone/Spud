@@ -26,7 +26,11 @@ public protocol AnyOptional {
 }
 
 extension Optional: AnyOptional {
-    public var optional: Wrapped? { self }
+    public var optional: Wrapped? {
+        self
+    }
 
-    public var isNil: Bool { self == nil }
+    public var isNil: Bool {
+        self == nil
+    }
 }

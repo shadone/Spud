@@ -41,12 +41,10 @@ extension UILabel {
             x: point.x - textContainerOffset.x,
             y: point.y - textContainerOffset.y
         )
-        let indexOfCharacter = layoutManager.characterIndex(
+        return layoutManager.characterIndex(
             for: locationOfTouchInTextContainer,
             in: textContainer,
             fractionOfDistanceBetweenInsertionPoints: nil
         )
-
-        return indexOfCharacter
     }
 }

@@ -7,8 +7,8 @@
 import Combine
 import Foundation
 
-// Original author: Eduardo Domene Junior
-// https://medium.com/geekculture/from-combine-to-async-await-c08bf1d15b77
+/// Original author: Eduardo Domene Junior
+/// https://medium.com/geekculture/from-combine-to-async-await-c08bf1d15b77
 public extension AnyPublisher {
     func async() async throws -> Output {
         try await withCheckedThrowingContinuation { continuation in

@@ -22,7 +22,9 @@ class PostDetailCommentViewModel {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var appearanceService: AppearanceServiceType { dependencies.own.appearanceService }
+    var appearanceService: AppearanceServiceType {
+        dependencies.own.appearanceService
+    }
 
     // MARK: Public
 

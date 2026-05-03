@@ -43,7 +43,9 @@ class SubscriptionsViewModel:
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var accountService: AccountServiceType { dependencies.own.accountService }
+    var accountService: AccountServiceType {
+        dependencies.own.accountService
+    }
 
     // MARK: Private
 
@@ -106,8 +108,13 @@ class SubscriptionsViewModel:
 
     // MARK: Type
 
-    var inputs: SubscriptionsViewModelInputs { self }
-    var outputs: SubscriptionsViewModelOutputs { self }
+    var inputs: SubscriptionsViewModelInputs {
+        self
+    }
+
+    var outputs: SubscriptionsViewModelOutputs {
+        self
+    }
 
     // MARK: Outputs
 

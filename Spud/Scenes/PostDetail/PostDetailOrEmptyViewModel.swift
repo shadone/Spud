@@ -88,8 +88,13 @@ class PostDetailOrEmptyViewModel:
 
     // MARK: Type
 
-    var inputs: PostDetailOrEmptyViewModelInputs { self }
-    var outputs: PostDetailOrEmptyViewModelOutputs { self }
+    var inputs: PostDetailOrEmptyViewModelInputs {
+        self
+    }
+
+    var outputs: PostDetailOrEmptyViewModelOutputs {
+        self
+    }
 
     // MARK: Outputs
 

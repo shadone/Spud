@@ -9,7 +9,7 @@ import XCTest
 @testable import SpudUtilKit
 
 class URLLenientStringTests: XCTestCase {
-    func testKnownProblematicUrls() throws {
+    func testKnownProblematicUrls() {
         XCTAssertEqual(
             URL(lenientString: "https://matrix.to/#/#lemmy-admin-support-topics:discuss.online")?.absoluteString,
             "https://matrix.to/#/%23lemmy-admin-support-topics:discuss.online"

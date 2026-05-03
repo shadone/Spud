@@ -21,8 +21,13 @@ class PreferencesViewController: UIViewController {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var appService: AppServiceType { dependencies.own.appService }
-    var accountService: AccountServiceType { dependencies.own.accountService }
+    var appService: AppServiceType {
+        dependencies.own.appService
+    }
+
+    var accountService: AccountServiceType {
+        dependencies.own.accountService
+    }
 
     // MARK: - Private
 

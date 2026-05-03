@@ -48,7 +48,7 @@ class UserDefaultsBackedTests: XCTestCase {
         }
     }
 
-    func testWriting() throws {
+    func testWriting() {
         XCTAssertNil(defaultsForTesting.value(forKey: "i-am-integer-value"))
         XCTAssertNil(defaultsForTesting.value(forKey: "i-am-float-value"))
         XCTAssertNil(defaultsForTesting.value(forKey: "i-am-bool-value"))

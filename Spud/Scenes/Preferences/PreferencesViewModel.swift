@@ -86,8 +86,13 @@ class PreferencesViewModel:
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var preferencesService: PreferencesServiceType { dependencies.own.preferencesService }
-    var accountService: AccountServiceType { dependencies.own.accountService }
+    var preferencesService: PreferencesServiceType {
+        dependencies.own.preferencesService
+    }
+
+    var accountService: AccountServiceType {
+        dependencies.own.accountService
+    }
 
     // MARK: Private
 
@@ -153,8 +158,13 @@ class PreferencesViewModel:
 
     // MARK: Type
 
-    var inputs: PreferencesViewModelInputs { self }
-    var outputs: PreferencesViewModelOutputs { self }
+    var inputs: PreferencesViewModelInputs {
+        self
+    }
+
+    var outputs: PreferencesViewModelOutputs {
+        self
+    }
 
     // MARK: Outputs
 

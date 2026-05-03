@@ -86,8 +86,13 @@ class PersonViewModel:
 
     // MARK: Type
 
-    var inputs: PersonViewModelInputs { self }
-    var outputs: PersonViewModelOutputs { self }
+    var inputs: PersonViewModelInputs {
+        self
+    }
+
+    var outputs: PersonViewModelOutputs {
+        self
+    }
 
     // MARK: Outputs
 

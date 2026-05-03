@@ -50,8 +50,13 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var accountService: AccountServiceType { dependencies.own.accountService }
-    var alertService: AlertServiceType { dependencies.own.alertService }
+    var accountService: AccountServiceType {
+        dependencies.own.accountService
+    }
+
+    var alertService: AlertServiceType {
+        dependencies.own.alertService
+    }
 
     // MARK: Private
 
@@ -110,8 +115,13 @@ class PostListViewModel: PostListViewModelType, PostListViewModelInputs, PostLis
 
     // MARK: Type
 
-    var inputs: PostListViewModelInputs { self }
-    var outputs: PostListViewModelOutputs { self }
+    var inputs: PostListViewModelInputs {
+        self
+    }
+
+    var outputs: PostListViewModelOutputs {
+        self
+    }
 
     // MARK: Outputs
 

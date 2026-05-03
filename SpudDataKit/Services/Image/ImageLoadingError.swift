@@ -16,5 +16,7 @@ public enum ImageLoadingError: Error {
     /// Network error has occurred.
     case network(Error)
 
-    var localizedDescription: String { String(describing: self) }
+    var localizedDescription: String {
+        String(describing: self)
+    }
 }

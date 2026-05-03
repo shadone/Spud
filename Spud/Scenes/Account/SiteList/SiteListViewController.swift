@@ -22,8 +22,13 @@ class SiteListViewController: UIViewController {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var dataStore: DataStoreType { dependencies.own.dataStore }
-    var siteService: SiteServiceType { dependencies.own.siteService }
+    var dataStore: DataStoreType {
+        dependencies.own.dataStore
+    }
+
+    var siteService: SiteServiceType {
+        dependencies.own.siteService
+    }
 
     // MARK: UI Properties
 
