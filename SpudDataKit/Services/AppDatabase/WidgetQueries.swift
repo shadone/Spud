@@ -13,8 +13,7 @@ import SpudUtilKit
 private let logger = Logger.appDatabase
 
 /// Snapshot row for the home-screen widget. Joins post + community +
-/// account → site → instance so the widget can render entries without going
-/// back through Core Data.
+/// account → site → instance so the widget can render entries in one read.
 public struct WidgetPostRow: Sendable, Equatable {
     public let serverPostId: Int64
     public let title: String

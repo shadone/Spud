@@ -14,8 +14,8 @@ private let logger = Logger.app
 
 /// View-model state for PostListViewController. Holds a `FeedHandle`
 /// (feedKey + feedType) plus plain values driven by GRDB observations and
-/// legacy fetch calls. Pagination is tracked locally — pages count grows by
-/// one after each successful `fetchNextPage`.
+/// LemmyService fetches. Pagination is tracked locally — pages count grows
+/// by one after each successful `fetchNextPage`.
 @MainActor
 @Observable
 final class PostListViewModel {

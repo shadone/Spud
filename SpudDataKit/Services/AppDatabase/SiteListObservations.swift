@@ -12,8 +12,7 @@ import SpudUtilKit
 private let logger = Logger.appDatabase
 
 /// Snapshot row for the Site picker (`SiteListViewController` / Login icon).
-/// Joins SiteRecord with its InstanceRecord so the UI can render without
-/// going back through Core Data.
+/// Joins SiteRecord with its InstanceRecord so the UI can render in one read.
 public struct SiteListRow: Sendable, Equatable, Identifiable {
     public let id: Int64
     public let instance: InstanceActorId

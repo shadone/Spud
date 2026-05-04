@@ -15,8 +15,7 @@ private let logger = Logger.appDatabase
 /// come from the post row directly.
 public struct PostListRow: Sendable, Equatable, Identifiable {
     public let id: Int64
-    /// Server-assigned post id (`PostRecord.postId`). Used for legacy
-    /// LemmyPost lookups during the dual-write transition.
+    /// Server-assigned post id (`PostRecord.postId`).
     public let serverPostId: Int64
     public let title: String
     public let body: String?
@@ -35,8 +34,8 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
 
 public extension AppDatabase {
     /// Resolves the row id of a feed by its `feedKey`. Synchronous to keep
-    /// view-controller bring-up paths simple. Returns nil if the feed has not
-    /// been mirrored from Core Data yet.
+    /// view-controller bring-up paths simple. Returns nil before the first
+    /// `appendFeedPage` lazily creates the row.
     func feedRowIdSync(forFeedKey feedKey: String) -> Int64? {
         do {
             return try writer.read { db in

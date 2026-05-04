@@ -58,11 +58,11 @@ public extension AppDatabase {
         )
     }
 
-    /// Current vote status for the post identified by `serverPostId` from the
-    /// account identified by `accountKeychainId`. Stage 3d.1 replacement for
-    /// the Core Data lookup that `LemmyService.vote(serverPostId:vote:)`
-    /// previously used to compute the effective toggle action. Defaults to
-    /// `.neutral` when no row exists or the column is `NULL` / unrecognised.
+    /// Current vote status for the post identified by `serverPostId` from
+    /// the account identified by `accountKeychainId`. Used by
+    /// `LemmyService.vote(serverPostId:vote:)` to compute the effective
+    /// toggle action. Defaults to `.neutral` when no row exists or the
+    /// column is `NULL` / unrecognised.
     func postVoteStatus(
         forAccountKeychainId keychainId: String,
         serverPostId: Components.Schemas.PostID
@@ -81,8 +81,7 @@ public extension AppDatabase {
 
     /// Current vote status for the comment identified by its server-side
     /// `localCommentId` from the account identified by `accountKeychainId`.
-    /// Stage 3d.1 replacement for the Core Data lookup that
-    /// `LemmyService.vote(serverCommentId:vote:)` previously used.
+    /// Used by `LemmyService.vote(serverCommentId:vote:)`.
     func commentVoteStatus(
         forAccountKeychainId keychainId: String,
         serverCommentId: Components.Schemas.CommentID
