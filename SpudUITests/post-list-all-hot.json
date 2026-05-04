@@ -50,7 +50,8 @@
         "icon": "https://lemmy.world/pictrs/image/1457718c-43b7-41df-b443-85747c9c5396.jpeg",
         "hidden": false,
         "posting_restricted_to_mods": false,
-        "instance_id": 1192
+        "instance_id": 1192,
+        "visibility": "Public"
       },
       "creator_banned_from_community": false,
       "counts": {
@@ -74,7 +75,11 @@
       "saved": false,
       "read": false,
       "creator_blocked": false,
-      "unread_comments": 120
+      "unread_comments": 120,
+      "banned_from_community": false,
+      "creator_is_moderator": false,
+      "creator_is_admin": false,
+      "hidden": false
     },
     {
       "post": {
@@ -123,7 +128,8 @@
         "banner": "https://lemmy.world/pictrs/image/7f4a91de-49a1-4f76-a257-afab586d9abf.png",
         "hidden": false,
         "posting_restricted_to_mods": false,
-        "instance_id": 1192
+        "instance_id": 1192,
+        "visibility": "Public"
       },
       "creator_banned_from_community": false,
       "counts": {
@@ -147,7 +153,11 @@
       "saved": false,
       "read": false,
       "creator_blocked": false,
-      "unread_comments": 127
+      "unread_comments": 127,
+      "banned_from_community": false,
+      "creator_is_moderator": false,
+      "creator_is_admin": false,
+      "hidden": false
     }
   ]
 }
