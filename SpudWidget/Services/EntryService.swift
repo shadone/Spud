@@ -29,16 +29,13 @@ protocol HasEntryService {
 }
 
 class EntryService: EntryServiceType {
-    let dataStore: DataStoreType
     let appDatabase: AppDatabase
     let accountService: AccountServiceType
 
     init(
-        dataStore: DataStoreType,
         appDatabase: AppDatabase,
         accountService: AccountServiceType
     ) {
-        self.dataStore = dataStore
         self.appDatabase = appDatabase
         self.accountService = accountService
     }

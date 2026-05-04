@@ -77,7 +77,7 @@ class PreferencesViewModel:
 {
     typealias OwnDependencies =
         HasAccountService &
-        HasDataStore &
+        HasAppDatabase &
         HasPreferencesService
     typealias NestedDependencies =
         HasVoid
@@ -129,11 +129,11 @@ class PreferencesViewModel:
         openExternalLinkAsUniversalLinkInApp = .init(preferencesService.openUniversalLinkInApp)
 
         storageSize = .init(ByteCountFormatter.string(
-            fromByteCount: Int64(dependencies.dataStore.sizeInBytes),
+            fromByteCount: Int64(dependencies.appDatabase.sizeInBytes),
             countStyle: .file
         ))
 
-        storageFileUrl = .init(dependencies.dataStore.storeUrl)
+        storageFileUrl = .init(dependencies.appDatabase.storeURL ?? URL(fileURLWithPath: "/"))
 
         preferencesService.defaultCommentSortTypePublisher
             .sink { [weak self] value in

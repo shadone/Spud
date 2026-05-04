@@ -10,7 +10,6 @@ import SpudDataKit
 @MainActor
 struct DependencyContainer:
     HasVoid,
-    HasDataStore,
     HasAppDatabase,
     HasSiteService,
     HasAccountService,
@@ -22,7 +21,6 @@ struct DependencyContainer:
     HasAlertService,
     HasPreferencesService
 {
-    let dataStore: DataStoreType = DataStore()
     let appDatabase: AppDatabase
     let siteService: SiteServiceType
     let accountService: AccountServiceType
@@ -43,10 +41,6 @@ struct DependencyContainer:
             imageService = ImageService(alertService: alertService)
         }
 
-        if arguments.contains(.deleteCoreDataStorage) {
-            dataStore.destroyPersistentStore()
-        }
-
         do {
             appDatabase = try AppDatabase()
         } catch {
@@ -65,7 +59,6 @@ struct DependencyContainer:
     }
 
     func start() {
-        dataStore.startService()
         siteService.startService()
         schedulerService.startService()
     }
