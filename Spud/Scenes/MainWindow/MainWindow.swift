@@ -89,7 +89,8 @@ class MainWindow: UIWindow {
     private func recreateTabBarViewControllers(for account: LemmyAccount) {
         // Tab: Setup the split view controller
         let splitViewController = MainWindowSplitViewController(
-            account: account,
+            accountKeychainId: account.id,
+            isSignedIn: !account.isSignedOutAccountType,
             dependencies: dependencies.nested
         )
         self.splitViewController = splitViewController
@@ -137,13 +138,13 @@ class MainWindow: UIWindow {
         }
     }
 
-    func display(serverPostId: Components.Schemas.PostID, account: LemmyAccount) {
+    func display(serverPostId: Components.Schemas.PostID, accountKeychainId: String) {
         // Switch to the post content tab
         tabBarController.selectedIndex = 0
 
         let postDetailVC = PostDetailOrEmptyViewController(
             serverPostId: serverPostId,
-            account: account,
+            accountKeychainId: accountKeychainId,
             dependencies: dependencies.nested
         )
 

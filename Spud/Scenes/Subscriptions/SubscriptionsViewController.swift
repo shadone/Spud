@@ -30,23 +30,26 @@ class SubscriptionsViewController: UIViewController {
 
     // MARK: Private
 
-    private let account: LemmyAccount
+    private let accountKeychainId: String
     private var viewModel: SubscriptionsViewModel!
 
     // MARK: Functions
 
-    init(account: LemmyAccount, dependencies: Dependencies) {
+    init(
+        accountKeychainId: String,
+        isSignedIn: Bool,
+        dependencies: Dependencies
+    ) {
         self.dependencies = (own: dependencies, nested: dependencies)
-
-        self.account = account
+        self.accountKeychainId = accountKeychainId
 
         super.init(nibName: nil, bundle: nil)
 
-        let accountRowId = appDatabase.accountRowIdSync(forKeychainId: account.id)
+        let accountRowId = appDatabase.accountRowIdSync(forKeychainId: accountKeychainId)
 
         viewModel = SubscriptionsViewModel(
             accountRowId: accountRowId,
-            isSignedIn: !account.isSignedOutAccountType,
+            isSignedIn: isSignedIn,
             appDatabase: appDatabase,
             onFeedRequested: { [weak self] item in
                 self?.handle(item: item)
@@ -76,10 +79,10 @@ class SubscriptionsViewController: UIViewController {
             // Sort type follows the account's preferred default (legacy behavior
             // before Stage 7).
             let sortType = accountService
-                .lemmyDataService(for: account)
+                .lemmyDataService(forAccountKeychainId: accountKeychainId)
                 .defaultSortType()
             feed = accountService.createFeed(
-                for: account,
+                forAccountKeychainId: accountKeychainId,
                 feedType: .frontpage(
                     listingType: listingType,
                     sortType: sortType
@@ -87,7 +90,7 @@ class SubscriptionsViewController: UIViewController {
             )
         case let .community(row):
             feed = accountService.createFeed(
-                for: account,
+                forAccountKeychainId: accountKeychainId,
                 feedType: .community(
                     communityName: row.name,
                     instance: row.instanceActorId,
@@ -101,7 +104,7 @@ class SubscriptionsViewController: UIViewController {
     private func display(feed: FeedHandle) {
         let postListVC = PostListViewController(
             feed: feed,
-            account: account,
+            accountKeychainId: accountKeychainId,
             dependencies: dependencies.nested
         )
         navigationController?.pushViewController(postListVC, animated: true)

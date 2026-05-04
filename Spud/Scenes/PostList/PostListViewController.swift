@@ -92,10 +92,14 @@ class PostListViewController: UIViewController {
 
     // MARK: Functions
 
-    init(feed: FeedHandle, account: LemmyAccount, dependencies: Dependencies) {
+    init(feed: FeedHandle, accountKeychainId: String, dependencies: Dependencies) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
-        viewModel = PostListViewModel(feed: feed, account: account, dependencies: dependencies)
+        viewModel = PostListViewModel(
+            feed: feed,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies
+        )
 
         super.init(nibName: nil, bundle: nil)
 
@@ -390,7 +394,7 @@ class PostListViewController: UIViewController {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
             try await accountService
-                .lemmyService(for: viewModel.account)
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
                 .vote(serverPostId: Components.Schemas.PostID(serverPostId), vote: action)
         } catch {
             alertService.handle(error, for: .vote)
@@ -401,7 +405,7 @@ class PostListViewController: UIViewController {
         guard let window = view.window as? MainWindow else { fatalError() }
         window.display(
             serverPostId: Components.Schemas.PostID(serverPostId),
-            account: viewModel.account
+            accountKeychainId: viewModel.accountKeychainId
         )
     }
 

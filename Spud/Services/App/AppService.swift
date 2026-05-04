@@ -15,7 +15,7 @@ protocol AppServiceType: AnyObject {
     /// Opens the post itself in a browser.
     func openInBrowser(
         serverPostId: Components.Schemas.PostID,
-        account: LemmyAccount,
+        accountKeychainId: String,
         on viewController: UIViewController
     ) async
 
@@ -34,19 +34,24 @@ protocol HasAppService {
 @MainActor
 class AppService: AppServiceType {
     private let preferencesService: PreferencesServiceType
+    private let appDatabase: AppDatabase
 
     // MARK: Functions
 
-    init(preferencesService: PreferencesServiceType) {
+    init(preferencesService: PreferencesServiceType, appDatabase: AppDatabase) {
         self.preferencesService = preferencesService
+        self.appDatabase = appDatabase
     }
 
     func openInBrowser(
         serverPostId: Components.Schemas.PostID,
-        account: LemmyAccount,
+        accountKeychainId: String,
         on viewController: UIViewController
     ) {
-        let instanceUrl = URL(string: account.site.instance.actorId.actorId)!
+        guard
+            let actorId = appDatabase.accountInstanceActorIdSync(forKeychainId: accountKeychainId),
+            let instanceUrl = URL(string: actorId)
+        else { return }
         let postUrl = instanceUrl.appending(path: "post/\(serverPostId)")
         let safariVC = SFSafariViewController(url: postUrl)
         viewController.present(safariVC, animated: true)

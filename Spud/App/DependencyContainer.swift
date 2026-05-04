@@ -66,7 +66,7 @@ struct DependencyContainer:
             alertService: alertService
         )
         postContentDetectorService = PostContentDetectorService()
-        appService = AppService(preferencesService: preferencesService)
+        appService = AppService(preferencesService: preferencesService, appDatabase: appDatabase)
     }
 
     func start() {

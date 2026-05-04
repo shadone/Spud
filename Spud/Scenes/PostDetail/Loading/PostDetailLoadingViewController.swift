@@ -71,7 +71,7 @@ class PostDetailLoadingViewController: UIViewController {
 
     // MARK: Private
 
-    private let account: LemmyAccount
+    private let accountKeychainId: String
     private let serverPostId: Components.Schemas.PostID
     private var observationTask: Task<Void, Never>?
 
@@ -79,11 +79,11 @@ class PostDetailLoadingViewController: UIViewController {
 
     init(
         serverPostId: Components.Schemas.PostID,
-        account: LemmyAccount,
+        accountKeychainId: String,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
-        self.account = account
+        self.accountKeychainId = accountKeychainId
         self.serverPostId = serverPostId
 
         super.init(nibName: nil, bundle: nil)
@@ -132,7 +132,7 @@ class PostDetailLoadingViewController: UIViewController {
     private func fetchPostInfo() async {
         do {
             try await accountService
-                .lemmyService(for: account)
+                .lemmyService(forAccountKeychainId: accountKeychainId)
                 .fetchPostInfo(serverPostId: serverPostId)
         } catch {
             alertService.handle(error, for: .fetchPostInfo)
@@ -145,7 +145,7 @@ class PostDetailLoadingViewController: UIViewController {
         // landed yet, fall through silently — the parent will keep showing
         // the spinner and the user can pop the screen.
         if appDatabase.postRowIdSync(
-            forKeychainId: account.id,
+            forKeychainId: accountKeychainId,
             serverPostId: Int64(serverPostId)
         ) != nil {
             didFinishLoading?(serverPostId)

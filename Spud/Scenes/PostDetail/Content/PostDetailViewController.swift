@@ -62,13 +62,13 @@ class PostDetailViewController: UIViewController {
         viewModel.serverPostId
     }
 
-    func setPost(serverPostId: Components.Schemas.PostID, account: LemmyAccount) {
+    func setPost(serverPostId: Components.Schemas.PostID, accountKeychainId: String) {
         observationTask?.cancel()
         commentObservationTask?.cancel()
 
         viewModel = PostDetailViewModel(
             serverPostId: serverPostId,
-            account: account,
+            accountKeychainId: accountKeychainId,
             dependencies: dependencies.own
         )
 
@@ -109,13 +109,13 @@ class PostDetailViewController: UIViewController {
 
     init(
         serverPostId: Components.Schemas.PostID,
-        account: LemmyAccount,
+        accountKeychainId: String,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
         viewModel = PostDetailViewModel(
             serverPostId: serverPostId,
-            account: account,
+            accountKeychainId: accountKeychainId,
             dependencies: dependencies
         )
 
@@ -173,7 +173,7 @@ class PostDetailViewController: UIViewController {
     private func markAsRead() async {
         do {
             try await accountService
-                .lemmyService(for: viewModel.account)
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
                 .markAsRead(serverPostId: viewModel.serverPostId)
         } catch {
             alertService.handle(error, for: .markAsRead)
@@ -181,7 +181,7 @@ class PostDetailViewController: UIViewController {
     }
 
     private func startObservations() {
-        let keychainId = viewModel.account.id
+        let keychainId = viewModel.accountKeychainId
         let serverPostId = Int64(viewModel.serverPostId)
 
         guard let postRowId = appDatabase.postRowIdSync(
@@ -252,7 +252,7 @@ class PostDetailViewController: UIViewController {
     private func reloadAsync() async {
         do {
             try await accountService
-                .lemmyService(for: viewModel.account)
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
                 .fetchComments(
                     serverPostId: viewModel.serverPostId,
                     sortType: viewModel.commentSortType
@@ -268,7 +268,7 @@ class PostDetailViewController: UIViewController {
         Task {
             await appService.openInBrowser(
                 serverPostId: viewModel.serverPostId,
-                account: viewModel.account,
+                accountKeychainId: viewModel.accountKeychainId,
                 on: self
             )
         }
@@ -280,7 +280,7 @@ class PostDetailViewController: UIViewController {
             let vc = PersonOrLoadingViewController(
                 personId: personId,
                 instance: instance,
-                account: viewModel.account,
+                accountKeychainId: viewModel.accountKeychainId,
                 dependencies: dependencies.nested
             )
             navigationController?.pushViewController(vc, animated: true)
@@ -301,7 +301,7 @@ class PostDetailViewController: UIViewController {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
             try await accountService
-                .lemmyService(for: viewModel.account)
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
                 .vote(serverPostId: viewModel.serverPostId, vote: action)
         } catch {
             alertService.handle(error, for: .vote)
@@ -312,7 +312,7 @@ class PostDetailViewController: UIViewController {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
             try await accountService
-                .lemmyService(for: viewModel.account)
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
                 .vote(serverCommentId: Components.Schemas.CommentID(serverCommentId), vote: action)
         } catch {
             alertService.handle(error, for: .vote)
