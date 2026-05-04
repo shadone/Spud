@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import SpudDataKit
 import UIKit
@@ -107,7 +106,7 @@ class SiteListSiteCell: UITableViewCell {
 
     // MARK: Private
 
-    private var disposables = Set<AnyCancellable>()
+    private var iconObservationTask: Task<Void, Never>?
 
     // MARK: Functions
 
@@ -145,37 +144,37 @@ class SiteListSiteCell: UITableViewCell {
     override func prepareForReuse() {
         super.prepareForReuse()
 
-        disposables.removeAll()
+        iconObservationTask?.cancel()
+        iconObservationTask = nil
         iconView.prepareForReuse()
     }
 
     func configure(with viewModel: SiteListSiteViewModel) {
-        viewModel.title
-            .map { NSAttributedString($0) }
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: titleLabel)
-            .store(in: &disposables)
+        titleLabel.attributedText = NSAttributedString(viewModel.title)
+        subtitleLabel.attributedText = NSAttributedString(viewModel.descriptionText)
 
-        viewModel.descriptionText
-            .map { NSAttributedString($0) }
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: subtitleLabel)
-            .store(in: &disposables)
-
-        viewModel.icon
-            .map { imageLoadingState in
-                switch imageLoadingState {
-                case let .ready(image):
-                    return .image(image)
-                case .failure:
-                    return .failure
-                case .loading:
-                    return .none
-                case .none:
-                    return .noIcon
-                }
+        iconObservationTask?.cancel()
+        iconObservationTask = Task { @MainActor [weak self, viewModel] in
+            for await state in ObservationStream.values(of: { viewModel.iconState }) {
+                self?.iconView.iconType = Self.iconType(from: state)
             }
-            .assign(to: \.iconType, on: iconView)
-            .store(in: &disposables)
+        }
+    }
+
+    private static func iconType(from state: ImageLoadingState?) -> SiteListIconImageView.IconType {
+        switch state {
+        case let .ready(image):
+            .image(image)
+        case .failure:
+            .failure
+        case .loading:
+            .none
+        case .none:
+            .noIcon
+        }
+    }
+
+    deinit {
+        iconObservationTask?.cancel()
     }
 }
