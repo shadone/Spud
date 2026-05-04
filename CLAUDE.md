@@ -112,6 +112,9 @@ The pre-commit hook runs `scripts/sort-Xcode-project-file.pl` to keep `project.p
 - Editing `Spud.xcodeproj/project.pbxproj` from Python: `pbxproj`'s `remove_file_by_id` assumes every `PBXBuildFile` has `fileRef`, but SPM product refs use `productRef`. Monkey-patch with a `getattr(build_file, 'fileRef', None) or getattr(build_file, 'productRef', None)` fallback before calling.
 - Pre-commit hook runs `scripts/sort-Xcode-project-file.pl` automatically; never bypass with `--no-verify`.
 - XCResult bundles from `build_and_test.py` live at `~/.ios-simulator-skill/xcresults/xcresult-<ts>.xcresult`. Get detailed test failure messages with `xcrun xcresulttool get test-results tests --path <bundle> --compact` — the wrapper's own `--get-errors` / `--get-warnings` only surfaces build issues, not test assertion text.
+- Refreshing transitive SPM versions (e.g., when bumping LemmyKit pulls in newer openapi-* deps): `rm Spud.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved && rm -rf ~/Library/Caches/org.swift.swiftpm/repositories && xcodebuild -resolvePackageDependencies -project Spud.xcodeproj`. Must be `-project`, not `-workspace` — the workspace silently substitutes the local sibling LemmyKit and blocks transitive openapi-* resolution from the remote pin.
+- `xcrun simctl list devices | grep Booted` — see which simulator is booted; the build wrapper auto-picks it (and its iOS version) over the configured iPhone 17 Pro unless `--simulator` is passed.
+- Don't reach for `sending` on init parameters whose type is already an actor — actors are auto-Sendable, so the `Sending '<value>' risks causing data races` diagnostic is coming from elsewhere (typically a stale Package.resolved or wrong simulator SDK).
 
 ## Strict concurrency
 
