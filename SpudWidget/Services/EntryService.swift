@@ -121,9 +121,9 @@ class EntryService: EntryServiceType {
         )
 
         do {
-            try await accountService
+            _ = try await accountService
                 .lemmyService(forAccountKeychainId: keychainId)
-                .fetchFeed(feed, page: nil)
+                .fetchFeed(feed, pageCursor: nil)
         } catch {
             logger.error("Failed to fetch feed: \(error, privacy: .public)")
         }
