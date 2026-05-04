@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import OSLog
 
@@ -13,16 +12,6 @@ private let logger = Logger.alertService
 /// Helper for handling errors and displaying the appropriate message to the user.
 public protocol AlertServiceType: AnyObject, Sendable {
     func handle(_ error: Error, for request: AlertHandlerRequest)
-
-    /// Returns a closure for handling errors coming from ``LemmyService`` requests.
-    func errorHandler(
-        for request: AlertHandlerRequest
-    ) -> (Subscribers.Completion<LemmyServiceError>) -> Void
-
-    /// Returns a closure for handling errors coming from ``AccountService`` requests.
-    func errorHandler(
-        for request: AlertHandlerRequest
-    ) -> (Subscribers.Completion<AccountServiceLoginError>) -> Void
 
     /// Returns a closure for handling errors coming from ``ImageService`` requests.
     func image(
@@ -41,34 +30,6 @@ public final class AlertService: AlertServiceType {
 
     public func handle(_ error: Error, for request: AlertHandlerRequest) {
         logger.error("\(request) request failed: \(error, privacy: .public)")
-    }
-
-    public func errorHandler(
-        for request: AlertHandlerRequest
-    ) -> (Subscribers.Completion<LemmyServiceError>) -> Void {
-        { completion in
-            switch completion {
-            case .finished:
-                break
-
-            case let .failure(error):
-                logger.error("\(request) request failed: \(error, privacy: .public)")
-            }
-        }
-    }
-
-    public func errorHandler(
-        for request: AlertHandlerRequest
-    ) -> (Subscribers.Completion<AccountServiceLoginError>) -> Void {
-        { completion in
-            switch completion {
-            case .finished:
-                break
-
-            case let .failure(error):
-                logger.error("\(request) request failed: \(error, privacy: .public)")
-            }
-        }
     }
 
     public func image(
