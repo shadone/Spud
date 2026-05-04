@@ -4,10 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import SpudDataKit
-import SpudUtilKit
 import UIKit
 
 class LoginViewController: UIViewController {
@@ -218,8 +216,8 @@ class LoginViewController: UIViewController {
 
     // MARK: Private
 
-    let viewModel: LoginViewModelType
-    var disposables = Set<AnyCancellable>()
+    private let viewModel: LoginViewModel
+    private var observationTasks: [Task<Void, Never>] = []
 
     // MARK: Functions
 
@@ -289,41 +287,38 @@ class LoginViewController: UIViewController {
             totp2faTokenTextField.widthAnchor.constraint(equalTo: usernameTextField.widthAnchor),
         ])
 
-        NotificationCenter.default
-            .publisher(for: UITextField.textDidChangeNotification, object: usernameTextField)
-            .sink { [weak self] _ in
-                self?.usernameChanged()
-            }
-            .store(in: &disposables)
-
-        NotificationCenter.default
-            .publisher(for: UITextField.textDidChangeNotification, object: passwordTextField)
-            .sink { [weak self] _ in
-                self?.passwordChanged()
-            }
-            .store(in: &disposables)
+        usernameTextField.addTarget(self, action: #selector(usernameChanged), for: .editingChanged)
+        passwordTextField.addTarget(self, action: #selector(passwordChanged), for: .editingChanged)
     }
 
     private func bindViewModel() {
-        viewModel.outputs.icon
-            .wrapInOptional()
-            .assign(to: \.image, on: iconImageView)
-            .store(in: &disposables)
+        instanceNameLabel.text = viewModel.instanceName
 
-        viewModel.outputs.instanceName
-            .wrapInOptional()
-            .assign(to: \.text, on: instanceNameLabel)
-            .store(in: &disposables)
-
-        viewModel.outputs.loginButtonEnabled
-            .assign(to: \.isEnabled, on: loginButton)
-            .store(in: &disposables)
-
-        viewModel.outputs.loggedIn
-            .sink { [weak self] _ in
-                self?.dismissAfterLogin()
+        observationTasks.append(Task { @MainActor [weak self, viewModel] in
+            for await image in ObservationStream.values(of: { viewModel.icon }) {
+                self?.iconImageView.image = image
             }
-            .store(in: &disposables)
+        })
+
+        observationTasks.append(Task { @MainActor [weak self, viewModel] in
+            for await enabled in ObservationStream.values(of: { viewModel.loginButtonEnabled }) {
+                self?.loginButton.isEnabled = enabled
+            }
+        })
+
+        observationTasks.append(Task { @MainActor [weak self, viewModel] in
+            for await loggedIn in ObservationStream.values(of: { viewModel.loggedIn }) {
+                guard loggedIn else { continue }
+                self?.dismissAfterLogin()
+                return
+            }
+        })
+    }
+
+    deinit {
+        for task in observationTasks {
+            task.cancel()
+        }
     }
 
     private func dismissAfterLogin() {
@@ -337,22 +332,24 @@ class LoginViewController: UIViewController {
 
     @objc
     private func continueWithSignedOutAccount() {
-        accountService.signInAsSignedOut(atInstance: viewModel.outputs.row.instance)
+        accountService.signInAsSignedOut(atInstance: viewModel.row.instance)
         dismiss(animated: true)
     }
 
+    @objc
     private func usernameChanged() {
-        viewModel.inputs.usernameChanged(usernameTextField.text ?? "")
+        viewModel.username = usernameTextField.text ?? ""
     }
 
+    @objc
     private func passwordChanged() {
-        viewModel.inputs.passwordChanged(passwordTextField.text ?? "")
+        viewModel.password = passwordTextField.text ?? ""
     }
 
     @objc
     private func login() {
         Task { @MainActor in
-            await viewModel.inputs.login()
+            await viewModel.login()
         }
     }
 }

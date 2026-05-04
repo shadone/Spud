@@ -273,6 +273,7 @@
 		92DD63022A48561E00497C3B /* SiteListIconImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63012A48561E00497C3B /* SiteListIconImageView.swift */; };
 		92DD63062A48BEAD00497C3B /* LoginViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63052A48BEAD00497C3B /* LoginViewController.swift */; };
 		92DD63092A48CC2700497C3B /* LoginViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DD63082A48CC2700497C3B /* LoginViewModel.swift */; };
+		9226052026040A0000000001 /* Observation+AsyncStream.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9226052026040A0000000002 /* Observation+AsyncStream.swift */; };
 		92F5712A2A8EFBB800A06ABD /* UIFont+scaledFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */; };
 		92F5712C2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */; };
 		B1BF4A0281418D973DEEE2B3 /* AppDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9C4A6EAE2E5228E45BA901 /* AppDatabase.swift */; };
@@ -688,6 +689,7 @@
 		92DD63012A48561E00497C3B /* SiteListIconImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SiteListIconImageView.swift; sourceTree = "<group>"; };
 		92DD63052A48BEAD00497C3B /* LoginViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewController.swift; sourceTree = "<group>"; };
 		92DD63082A48CC2700497C3B /* LoginViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewModel.swift; sourceTree = "<group>"; };
+		9226052026040A0000000002 /* Observation+AsyncStream.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Observation+AsyncStream.swift"; sourceTree = "<group>"; };
 		92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIFont+scaledFont.swift"; sourceTree = "<group>"; };
 		92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudLaunchPerformance.swift; sourceTree = "<group>"; };
 		AA5D413698ABBD5724D9A15A /* LemmyServiceQueries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LemmyServiceQueries.swift; path = SpudDataKit/Services/AppDatabase/LemmyServiceQueries.swift; sourceTree = SOURCE_ROOT; };
@@ -827,6 +829,7 @@
 			isa = PBXGroup;
 			children = (
 				925B46702A8EE0A9008410EA /* CommentSortType+itemForMenu.swift */,
+				9226052026040A0000000002 /* Observation+AsyncStream.swift */,
 				9215FDFF2A7FEE85008B49AB /* SortType+itemForMenu.swift */,
 				92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */,
 			);
@@ -2194,6 +2197,7 @@
 				92DD62D92A45919600497C3B /* MainWindowSplitViewController.swift in Sources */,
 				92DD62D72A458F1100497C3B /* MainWindowTabBarController.swift in Sources */,
 				927343352A61C67F0089556E /* NSMutableAttributedString+RemoveAttributes.swift in Sources */,
+				9226052026040A0000000001 /* Observation+AsyncStream.swift in Sources */,
 				925B46672A8EB8FB008410EA /* OpenExternalLink.swift in Sources */,
 				9273432A2A61BE9D0089556E /* PersonFormatter.swift in Sources */,
 				92116E992A64463600344251 /* PersonLoadingViewController.swift in Sources */,
