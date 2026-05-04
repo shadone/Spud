@@ -122,8 +122,7 @@ class EntryService: EntryServiceType {
 
         let feed = accountService.createFeed(
             for: account,
-            feedType: .frontpage(listingType: listingType, sortType: sortType),
-            identifierForDebugging: "widget"
+            feedType: .frontpage(listingType: listingType, sortType: sortType)
         )
 
         do {

@@ -99,16 +99,13 @@ public extension AccountServiceType {
     /// Creates a feed for `account` with the given parameters. Returns a
     /// `FeedHandle` carrying the stable `feedKey` (for GRDB observations and
     /// LemmyService.fetchFeed) and the `feedType` (for navigation/sort UI).
+    /// The matching `FeedRecord` row is created lazily by the first
+    /// `appendFeedPage`, so this entry point performs no I/O.
     func createFeed(
         for account: LemmyAccount,
-        feedType: FeedType,
-        identifierForDebugging: String? = nil
+        feedType: FeedType
     ) -> FeedHandle {
-        let feed = lemmyDataService(for: account).createFeed(feedType)
-        if let identifierForDebugging {
-            feed.identifierForDebugging = identifierForDebugging
-        }
-        return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
+        FeedHandle(feedKey: UUID().uuidString, feedType: feedType)
     }
 
     /// Creates a feed for `account` using the account's default listing and
@@ -119,8 +116,7 @@ public extension AccountServiceType {
             listingType: dataService.defaultListingType(),
             sortType: dataService.defaultSortType()
         )
-        let feed = dataService.createFeed(feedType)
-        return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
+        return FeedHandle(feedKey: UUID().uuidString, feedType: feedType)
     }
 
     /// Creates a feed for `account` derived from `existing` (same feed type
@@ -128,7 +124,7 @@ public extension AccountServiceType {
     /// PostListViewModel.didChangeSortType / didClickReload.
     func createFeed(
         duplicateOf existing: FeedHandle,
-        for account: LemmyAccount,
+        for _: LemmyAccount,
         sortType: Components.Schemas.SortType? = nil
     ) -> FeedHandle {
         let newFeedType: FeedType = {
@@ -146,24 +142,16 @@ public extension AccountServiceType {
                 )
             }
         }()
-        let feed = lemmyDataService(for: account).createFeed(newFeedType)
-        return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
+        return FeedHandle(feedKey: UUID().uuidString, feedType: newFeedType)
     }
 
-    // keychainId-keyed counterparts. Stage 7 cutover screens that have
-    // already moved off `LemmyAccount` use these to talk to the legacy
-    // LemmyDataService without re-resolving the managed object.
+    // keychainId-keyed counterparts.
 
     func createFeed(
-        forAccountKeychainId keychainId: String,
-        feedType: FeedType,
-        identifierForDebugging: String? = nil
+        forAccountKeychainId _: String,
+        feedType: FeedType
     ) -> FeedHandle {
-        let feed = lemmyDataService(forAccountKeychainId: keychainId).createFeed(feedType)
-        if let identifierForDebugging {
-            feed.identifierForDebugging = identifierForDebugging
-        }
-        return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
+        FeedHandle(feedKey: UUID().uuidString, feedType: feedType)
     }
 
     func createDefaultFeed(forAccountKeychainId keychainId: String) -> FeedHandle {
@@ -172,13 +160,12 @@ public extension AccountServiceType {
             listingType: dataService.defaultListingType(),
             sortType: dataService.defaultSortType()
         )
-        let feed = dataService.createFeed(feedType)
-        return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
+        return FeedHandle(feedKey: UUID().uuidString, feedType: feedType)
     }
 
     func createFeed(
         duplicateOf existing: FeedHandle,
-        forAccountKeychainId keychainId: String,
+        forAccountKeychainId _: String,
         sortType: Components.Schemas.SortType? = nil
     ) -> FeedHandle {
         let newFeedType: FeedType = {
@@ -196,8 +183,7 @@ public extension AccountServiceType {
                 )
             }
         }()
-        let feed = lemmyDataService(forAccountKeychainId: keychainId).createFeed(newFeedType)
-        return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
+        return FeedHandle(feedKey: UUID().uuidString, feedType: newFeedType)
     }
 }
 
