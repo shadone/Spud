@@ -8,6 +8,7 @@ import Foundation
 import GRDB
 import LemmyKit
 import OSLog
+import SpudUtilKit
 
 private let logger = Logger.appDatabase
 
@@ -141,23 +142,161 @@ public extension AppDatabase {
     /// row hasn't been imported yet.
     func setDefaultAccount(keychainId: String) async throws {
         try await writer.write { db in
-            let now = Date()
-
-            try db.execute(sql: """
-                    UPDATE account
-                    SET isDefault = 0,
-                        updatedAt = ?
-                    WHERE isDefault = 1
-                """, arguments: [now])
-
-            guard var target = try AccountRecord
-                .filter(Column("accountKeychainId") == keychainId)
-                .fetchOne(db)
-            else { return }
-            target.isDefault = true
-            target.updatedAt = now
-            try target.update(db)
+            try Self.applyDefaultAccount(keychainId: keychainId, in: db)
         }
+    }
+
+    /// Synchronous companion to `setDefaultAccount(keychainId:)`. Stage 7
+    /// `AccountService.setDefaultAccount(forAccountKeychainId:)` runs on
+    /// MainActor in response to user taps and avoids hopping off to await.
+    func setDefaultAccountSync(keychainId: String) throws {
+        try writer.write { db in
+            try Self.applyDefaultAccount(keychainId: keychainId, in: db)
+        }
+    }
+
+    private static func applyDefaultAccount(keychainId: String, in db: Database) throws {
+        let now = Date()
+
+        try db.execute(sql: """
+                UPDATE account
+                SET isDefault = 0,
+                    updatedAt = ?
+                WHERE isDefault = 1
+            """, arguments: [now])
+
+        guard var target = try AccountRecord
+            .filter(Column("accountKeychainId") == keychainId)
+            .fetchOne(db)
+        else { return }
+        target.isDefault = true
+        target.updatedAt = now
+        try target.update(db)
+    }
+
+    /// Synchronous: returns the keychainId of the signed-out account for
+    /// `instance` matching `isServiceAccount`, creating it (and its sibling
+    /// site/instance rows) if no row exists yet. Stage 3d.4 replacement for
+    /// the Core Data `accountForSignedOut(at: LemmySite, ...)` lookup.
+    func ensureSignedOutAccountKeychainId(
+        forInstance instance: InstanceActorId,
+        isServiceAccount: Bool
+    ) throws -> String {
+        try writer.write { db in
+            let (_, siteId) = try Self.ensureInstanceAndSite(
+                forInstance: instance,
+                in: db
+            )
+            if let existing = try AccountRecord
+                .filter(Column("siteId") == siteId)
+                .filter(Column("isSignedOutAccountType") == true)
+                .filter(Column("isServiceAccount") == isServiceAccount)
+                .fetchOne(db)
+            {
+                return existing.accountKeychainId
+            }
+            let now = Date()
+            var record = AccountRecord(
+                siteId: siteId,
+                accountKeychainId: UUID().uuidString,
+                isServiceAccount: isServiceAccount,
+                isSignedOutAccountType: true,
+                createdAt: now,
+                updatedAt: now
+            )
+            try record.insert(db)
+            return record.accountKeychainId
+        }
+    }
+
+    /// Synchronous: returns the keychainId of the most appropriate account
+    /// for `instance` — the default account on that site if any, otherwise
+    /// the first signed-out account on that site, creating a signed-out
+    /// non-service account if none exists. Stage 3d.4 replacement for the
+    /// Core Data `account(at: LemmySite, ...)` lookup behind
+    /// `accountKeychainId(forInstance:)`.
+    func bestAccountKeychainId(
+        forInstance instance: InstanceActorId
+    ) throws -> String {
+        try writer.write { db in
+            let (_, siteId) = try Self.ensureInstanceAndSite(
+                forInstance: instance,
+                in: db
+            )
+            if let defaultAcct = try AccountRecord
+                .filter(Column("siteId") == siteId)
+                .filter(Column("isDefault") == true)
+                .fetchOne(db)
+            {
+                return defaultAcct.accountKeychainId
+            }
+            if let signedOut = try AccountRecord
+                .filter(Column("siteId") == siteId)
+                .filter(Column("isSignedOutAccountType") == true)
+                .filter(Column("isServiceAccount") == false)
+                .fetchOne(db)
+            {
+                return signedOut.accountKeychainId
+            }
+            let now = Date()
+            var record = AccountRecord(
+                siteId: siteId,
+                accountKeychainId: UUID().uuidString,
+                isServiceAccount: false,
+                isSignedOutAccountType: true,
+                createdAt: now,
+                updatedAt: now
+            )
+            try record.insert(db)
+            return record.accountKeychainId
+        }
+    }
+
+    /// Inline ensure-site used by sync helpers above. Mirrors the body of
+    /// `ensureSite(forInstance:)` so the entire write happens in one
+    /// transaction.
+    private static func ensureInstanceAndSite(
+        forInstance instance: InstanceActorId,
+        in db: Database
+    ) throws -> (instanceId: Int64, siteId: Int64) {
+        let now = Date()
+        let normalizedActorId = instance.actorId
+
+        let instanceId: Int64
+        if var existing = try InstanceRecord
+            .filter(InstanceRecord.Columns.actorId == normalizedActorId)
+            .fetchOne(db)
+        {
+            existing.updatedAt = now
+            try existing.update(db)
+            instanceId = existing.id!
+        } else {
+            var record = InstanceRecord(
+                actorId: normalizedActorId,
+                createdAt: now,
+                updatedAt: now
+            )
+            try record.insert(db)
+            instanceId = record.id!
+        }
+
+        let siteId: Int64
+        if let existing = try SiteRecord
+            .filter(Column("instanceId") == instanceId)
+            .fetchOne(db)
+        {
+            siteId = existing.id!
+        } else {
+            var record = SiteRecord(
+                instanceId: instanceId,
+                createdAt: now,
+                updatedAt: now
+            )
+            try record.insert(db)
+            siteId = record.id!
+        }
+
+        return (instanceId, siteId)
     }
 
     private static func apply(
