@@ -12,11 +12,63 @@ import SpudUtilKit
 
 private let logger = Logger.appDatabase
 
-extension AppDatabase {
+public extension AppDatabase {
+    /// Idempotently ensures rows exist for `actorId`'s instance and its
+    /// sibling site, without requiring a `GetSiteResponse`. Used by Stage 7
+    /// to mirror Core Data sites/instances into AppDatabase at the moment
+    /// they are created (e.g. by `SiteService`), so SchedulerService's GRDB
+    /// queries can see "fetch pending" rows whose `name` / `infoUpdatedDate`
+    /// are still nil.
+    @discardableResult
+    func ensureSite(
+        forInstance actorId: InstanceActorId
+    ) async throws -> (instanceId: Int64, siteId: Int64) {
+        try await writer.write { db in
+            let now = Date()
+            let normalizedActorId = actorId.actorId
+
+            let instanceId: Int64
+            if var existing = try InstanceRecord
+                .filter(InstanceRecord.Columns.actorId == normalizedActorId)
+                .fetchOne(db)
+            {
+                existing.updatedAt = now
+                try existing.update(db)
+                instanceId = existing.id!
+            } else {
+                var record = InstanceRecord(
+                    actorId: normalizedActorId,
+                    createdAt: now,
+                    updatedAt: now
+                )
+                try record.insert(db)
+                instanceId = record.id!
+            }
+
+            let siteId: Int64
+            if let existing = try SiteRecord
+                .filter(Column("instanceId") == instanceId)
+                .fetchOne(db)
+            {
+                siteId = existing.id!
+            } else {
+                var record = SiteRecord(
+                    instanceId: instanceId,
+                    createdAt: now,
+                    updatedAt: now
+                )
+                try record.insert(db)
+                siteId = record.id!
+            }
+
+            return (instanceId, siteId)
+        }
+    }
+
     /// Upserts an instance row and its sibling site row from a `GetSite` API
     /// response. Returns the resolved (instanceId, siteId).
     @discardableResult
-    public func upsertSite(
+    func upsertSite(
         from response: Components.Schemas.GetSiteResponse
     ) async throws -> (instanceId: Int64, siteId: Int64) {
         let actorIdValue = response.site_view.site.actor_id
