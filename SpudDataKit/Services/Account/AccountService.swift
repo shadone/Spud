@@ -211,49 +211,7 @@ public class AccountService: AccountServiceType {
         }
     }
 
-    public func accountForSignedOut(
-        at site: LemmySite,
-        isServiceAccount: Bool,
-        in context: NSManagedObjectContext
-    ) -> LemmyAccount {
-        assert(Thread.current.isMainThread)
-
-        let account: LemmyAccount? = {
-            let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
-            request.fetchLimit = 1
-            request.predicate = NSPredicate(
-                format: "isSignedOutAccountType == true AND isServiceAccount == %@ AND site == %@",
-                NSNumber(booleanLiteral: isServiceAccount),
-                site
-            )
-            do {
-                let accounts = try context.fetch(request)
-                logger.assert(accounts.count <= 1, """
-                    Expected zero or one but found \(accounts.count) \
-                    signed out accounts for \(site.identifierForLogging)!
-                    """)
-                return accounts.first
-            } catch {
-                logger.assertionFailure("""
-                    Failed to fetch account for \(site.identifierForLogging): \
-                    \(error.localizedDescription)
-                    """)
-                return nil
-            }
-        }()
-
-        func createAccountForSignedOut() -> LemmyAccount {
-            let account = LemmyAccount(signedOutAt: site, in: context)
-            account.isServiceAccount = isServiceAccount
-            context.saveIfNeeded()
-            mirrorAccount(account)
-            return account
-        }
-
-        return account ?? createAccountForSignedOut()
-    }
-
-    public func account(
+    private func account(
         withKeychainId keychainId: String,
         in context: NSManagedObjectContext
     ) -> LemmyAccount? {
@@ -269,22 +227,7 @@ public class AccountService: AccountServiceType {
         }
     }
 
-    public func allSignedOut(in context: NSManagedObjectContext) -> [LemmyAccount] {
-        assert(Thread.current.isMainThread)
-
-        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
-        request.predicate = NSPredicate(
-            format: "isSignedOutAccountType == true"
-        )
-        do {
-            return try context.fetch(request)
-        } catch {
-            logger.assertionFailure("Failed to fetch all signed out accounts: \(error.localizedDescription)")
-            return []
-        }
-    }
-
-    public func allAccounts(
+    private func allAccounts(
         includeSignedOutAccount: Bool,
         in context: NSManagedObjectContext
     ) -> [LemmyAccount] {
@@ -304,81 +247,8 @@ public class AccountService: AccountServiceType {
         }
     }
 
-    public func defaultAccount() -> LemmyAccount {
-        assert(Thread.current.isMainThread)
-
-        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
-        // We intentionally do not set predicate here.
-        // In case there is a problem with the data and we somehow lost the default account,
-        // we would pick the next available account to make the default one.
-        request.predicate = NSPredicate(
-            format: "isServiceAccount == false"
-        )
-        request.fetchLimit = 1
-        request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \LemmyAccount.isDefaultAccount, ascending: false),
-            NSSortDescriptor(keyPath: \LemmyAccount.id, ascending: true),
-        ]
-
-        let accounts: [LemmyAccount]
-        do {
-            accounts = try dataStore.mainContext.fetch(request)
-        } catch {
-            logger.fault("Failed to fetch default account: \(error.localizedDescription, privacy: .public)")
-            fatalError("Failed to fetch default account: \(error.localizedDescription)")
-        }
-
-        if let account = accounts.first {
-            if !account.isDefaultAccount {
-                setDefaultAccount(account)
-            }
-            return account
-        }
-
-        // we do not have a usable account, this is likely first app launch,
-        // lets create a new account.
-        return createDefaultAccount()
-    }
-
-    private func createDefaultAccount() -> LemmyAccount {
-        // TODO: add separate call siteService.siteForDefaultAccount
-        let site = siteService.allSites(in: dataStore.mainContext).first!
-        let account = LemmyAccount(signedOutAt: site, in: dataStore.mainContext)
-        dataStore.saveIfNeeded()
-        mirrorAccount(account)
-        return account
-    }
-
-    public func setDefaultAccount(_ accountToMakeDefault: LemmyAccount) {
-        assert(!accountToMakeDefault.isServiceAccount)
-        assert(Thread.current.isMainThread)
-
-        logger.info("Setting default account \(accountToMakeDefault.identifierForLogging, privacy: .public)")
-
-        for account in allAccounts(includeSignedOutAccount: true, in: dataStore.mainContext) {
-            account.isDefaultAccount = false
-        }
-
-        accountToMakeDefault.isDefaultAccount = true
-
-        dataStore.saveIfNeeded()
-
-        let defaultKeychainId = accountToMakeDefault.identifierForLogging
-        Task { [appDatabase] in
-            do {
-                try await appDatabase.setDefaultAccount(keychainId: defaultKeychainId)
-            } catch {
-                logger.error("Failed to mirror default-account flag to AppDatabase: \(String(describing: error), privacy: .public)")
-            }
-        }
-    }
-
     public func defaultAccountKeychainId() -> String {
-        // Prefer the GRDB-resident default. Stage 3d.4 introduced flows that
-        // create new accounts in AppDatabase only, so Core Data may no
-        // longer be authoritative. Fall through to defaultAccount() (which
-        // bootstraps a Core Data + GRDB account on first launch) only when
-        // AppDatabase has no candidate row.
+        assert(Thread.current.isMainThread)
         do {
             if let keychainId = try appDatabase.writer.read({ db -> String? in
                 try AccountRecord
@@ -392,7 +262,31 @@ public class AccountService: AccountServiceType {
         } catch {
             logger.error("defaultAccountKeychainId GRDB read failed: \(error.localizedDescription, privacy: .public)")
         }
-        return defaultAccount().id
+        return bootstrapDefaultKeychainId()
+    }
+
+    /// First-launch path. AppDatabase has no candidate account, so create a
+    /// signed-out one for whichever site SiteService has lying around (today
+    /// the first one populated by `seedInitialSitesIfNeeded`). Returns the
+    /// new account's keychainId. Stage 3d.6 will collapse this into a GRDB
+    /// query that picks an InstanceActorId directly without going through
+    /// `siteService.allSites(in:)`.
+    private func bootstrapDefaultKeychainId() -> String {
+        guard let site = siteService.allSites(in: dataStore.mainContext).first else {
+            fatalError("Cannot bootstrap default account: no sites available")
+        }
+        let actorId = site.instance.actorId
+        do {
+            let keychainId = try appDatabase.ensureSignedOutAccountKeychainId(
+                forInstance: actorId,
+                isServiceAccount: false
+            )
+            try appDatabase.setDefaultAccountSync(keychainId: keychainId)
+            return keychainId
+        } catch {
+            logger.fault("bootstrapDefaultKeychainId failed: \(error.localizedDescription, privacy: .public)")
+            fatalError("bootstrapDefaultKeychainId failed: \(error)")
+        }
     }
 
     public func isSignedOut(forAccountKeychainId keychainId: String) -> Bool {
@@ -625,51 +519,6 @@ public class AccountService: AccountServiceType {
         // refresh tick will populate the UI's display name. Until then the
         // AccountList shows the keychainId-derived placeholder — same as
         // the legacy path before the GetSite response arrived.
-    }
-
-    public func account(
-        at site: LemmySite,
-        in context: NSManagedObjectContext
-    ) -> LemmyAccount {
-        assert(Thread.current.isMainThread)
-
-        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
-        request.predicate = NSPredicate(
-            format: "site == %@",
-            site
-        )
-
-        let accounts: [LemmyAccount]
-        do {
-            accounts = try context.fetch(request)
-        } catch {
-            logger.error("Failed to fetch accounts for site: \(error.localizedDescription, privacy: .public)")
-            fatalError("Failed to fetch accounts for site: \(error.localizedDescription)")
-        }
-
-        if let defaultAccount = accounts.first(where: { $0.isDefaultAccount }) {
-            return defaultAccount
-        }
-
-        if let signedOutAccount = accounts.first(where: { $0.isSignedOutAccountType }) {
-            // Return the first signed out account. It might be a service account.
-            return signedOutAccount
-        }
-
-        // TODO: check if there a signed in account for that site
-        // It might be interesting to return both new signed out account and the existing
-        // account. This way we could show UI like "here is the data from the source
-        // but fyi you have an account there".
-
-        func createAccountForSignedOut() -> LemmyAccount {
-            let account = LemmyAccount(signedOutAt: site, in: context)
-            account.isServiceAccount = false
-            context.saveIfNeeded()
-            mirrorAccount(account)
-            return account
-        }
-
-        return createAccountForSignedOut()
     }
 }
 
