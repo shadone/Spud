@@ -214,7 +214,7 @@ public class AccountService: AccountServiceType {
     private let appDatabase: AppDatabase
     private let siteService: SiteServiceType
 
-    private var lemmyServices: [NSManagedObjectID: LemmyService] = [:]
+    private var lemmyServices: [String: LemmyService] = [:]
     private var lemmyDataServices: [NSManagedObjectID: LemmyDataService] = [:]
 
     // MARK: Functions
@@ -495,9 +495,9 @@ public class AccountService: AccountServiceType {
     public func lemmyService(for account: LemmyAccount) -> LemmyServiceType {
         assert(Thread.current.isMainThread)
 
-        let accountObjectId = account.objectID
+        let keychainId = account.id
 
-        if let lemmyService = lemmyServices[accountObjectId] {
+        if let lemmyService = lemmyServices[keychainId] {
             logger.debug("Returning existing LemmyService for \(account.identifierForLogging)")
             return lemmyService
         }
@@ -508,12 +508,12 @@ public class AccountService: AccountServiceType {
         logger.debug("Creating new LemmyService for \(account.identifierForLogging, privacy: .public)")
 
         let lemmyService = LemmyService(
-            account: account,
-            dataStore: dataStore,
+            accountKeychainId: keychainId,
+            accountIsSignedOut: account.isSignedOutAccountType,
             appDatabase: appDatabase,
             api: api
         )
-        lemmyServices[accountObjectId] = lemmyService
+        lemmyServices[keychainId] = lemmyService
 
         return lemmyService
     }
