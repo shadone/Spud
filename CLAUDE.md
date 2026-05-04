@@ -72,13 +72,14 @@ brew install mint
 mint bootstrap                            # SwiftFormat + SwiftGen pinned by Mintfile
 ln -sf ../../scripts/git-hooks/pre-commit .git/hooks/pre-commit
 
-# Build (workspace, not project)
+# Build (workspace, not project). The agentic build_and_test.py wrapper expects
+# --simulator "iPhone 17 Pro" — match that here unless you know a 15 Pro is installed.
 xcodebuild -workspace ../Spud.xcworkspace -scheme Spud \
-  -destination 'platform=iOS Simulator,name=iPhone 15 Pro' build
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 
 # Unit tests
 xcodebuild -workspace ../Spud.xcworkspace -scheme Spud \
-  -testPlan Spud -destination 'platform=iOS Simulator,name=iPhone 15 Pro' test
+  -testPlan Spud -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
 
 # Snapshot tests — iPhone 14 Pro is required
 xcodebuild -workspace ../Spud.xcworkspace -scheme Spud \
@@ -98,22 +99,27 @@ The pre-commit hook runs `scripts/sort-Xcode-project-file.pl` to keep `project.p
 - `.swiftformat` is authoritative — SwiftFormat (pinned in `Mintfile`) runs via the pre-commit hook
 - SwiftFormat invocation: `mint run swiftformat <paths>` (pre-commit hook runs in lint mode only — format before staging)
 - `.swift-version` is the Swift toolchain pin; project-level `SWIFT_VERSION` in `pbxproj` should match
+- Default branch is `main` (overrides the global "source repos use `develop`" preference)
 - No emojis in code, comments, docs, or commit messages
 - Conventional commit subjects (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`)
 - Small, focused commits; split unrelated changes
 - Prefer many small files over few large ones
+- Inside `Task { [weak self] ... guard let self else { return } ... }`, drop the `self.` prefix on subsequent property writes — SwiftFormat's `redundantSelf` rule flags it
 
 ## Tooling quirks
 
 - SourceKit "No such module" diagnostics in editor tooling are unreliable here — trust `build_and_test.py` over IDE squiggles.
 - Editing `Spud.xcodeproj/project.pbxproj` from Python: `pbxproj`'s `remove_file_by_id` assumes every `PBXBuildFile` has `fileRef`, but SPM product refs use `productRef`. Monkey-patch with a `getattr(build_file, 'fileRef', None) or getattr(build_file, 'productRef', None)` fallback before calling.
 - Pre-commit hook runs `scripts/sort-Xcode-project-file.pl` automatically; never bypass with `--no-verify`.
+- XCResult bundles from `build_and_test.py` live at `~/.ios-simulator-skill/xcresults/xcresult-<ts>.xcresult`. Get detailed test failure messages with `xcrun xcresulttool get test-results tests --path <bundle> --compact` — the wrapper's own `--get-errors` / `--get-warnings` only surfaces build issues, not test assertion text.
 
 ## Strict concurrency
 
 `SWIFT_STRICT_CONCURRENCY = complete` is on at the project level. Every shipped target — Spud, SpudDataKit, SpudWidgetExtension, OpenInAppExtension, SpudUtilKit, SpudUIKit — and SpudDataKitTests are at Swift 6.0 language mode. SpudTests, SpudUITests, and SpudSnapshotTests remain at 5.0 (they're stubs / UI tests that haven't needed attention).
 
 `@preconcurrency import LemmyKit` in SpudDataKit's LemmyService and AccountService — LemmyKit declares `actor LemmyApi` but the experimental StrictConcurrency flag means consumers see it as non-Sendable across the module boundary. Drop the `@preconcurrency` once LemmyKit advances to Swift 6 language mode.
+
+`@preconcurrency import` covers the API surface (calling actor methods) but **not** sending non-Sendable value types into actor inits. Value types crossing the boundary into a LemmyKit actor (`LemmyCredential`, etc.) need explicit `: Sendable` declared on the type itself in LemmyKit. CLI builds may pass while Xcode 16 surfaces this as an error — trust Xcode here.
 
 `ValueObservation.start` defaults to `.async(onQueue: .main)` which is `@MainActor`-isolated and illegal from non-isolated AsyncStream init closures. All `*Observations.swift` helpers pass `.async(onQueue: .global(qos: .userInitiated))` explicitly.
 
@@ -125,7 +131,7 @@ GRDB observations live in `SpudDataKit/Services/AppDatabase/*Observations.swift`
 
 ## Strategic direction
 
-- **Combine → AsyncSequence / Observation** — Combine is fully retired from the Spud, SpudDataKit, and SpudUtilKit targets. View-models are `@Observable`; bindings flow through the shared `ObservationStream.values(of:)` helper in `Spud/Utils/Extensions/Observation+AsyncStream.swift`. `@UserDefaultsBacked`'s projected value is `AsyncStream<Value>`, backed by a thread-safe `Broadcaster` class — multiple subscribers, replay-on-subscribe semantics. `PreferencesService` exposes `*Stream: AsyncStream<...>` accessors that just forward `$prop`.
+- **Combine → AsyncSequence / Observation** — Combine is fully retired from the Spud, SpudDataKit, and SpudUtilKit targets. View-models are `@Observable`; bind UI through the shared `ObservationStream.values(of:)` helper in `Spud/Utils/Extensions/Observation+AsyncStream.swift` (do not roll your own `withObservationTracking` loop). `@UserDefaultsBacked`'s projected value is `AsyncStream<Value>`, backed by a thread-safe `Broadcaster` class — multiple subscribers, replay-on-subscribe semantics. `PreferencesService` exposes `*Stream: AsyncStream<...>` accessors that just forward `$prop`.
 - **Swift 6 language mode** — flip SpudDataKit / Spud / SpudWidget after the remaining warnings hit zero.
 
 ## Pickup checklist
