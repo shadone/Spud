@@ -111,7 +111,7 @@ The pre-commit hook runs `scripts/sort-Xcode-project-file.pl` to keep `project.p
 
 ## Strict concurrency
 
-`SWIFT_STRICT_CONCURRENCY = complete` is on at the project level. All shipped targets — Spud, SpudDataKit, SpudWidgetExtension, OpenInAppExtension, SpudUtilKit, SpudUIKit — are at Swift 6.0 language mode. Test targets (SpudTests, SpudDataKitTests, SpudUITests, SpudSnapshotTests) are still at 5.0 because the test fakes have pre-existing compile errors against the current LemmyKit OpenAPI namespace.
+`SWIFT_STRICT_CONCURRENCY = complete` is on at the project level. Every shipped target — Spud, SpudDataKit, SpudWidgetExtension, OpenInAppExtension, SpudUtilKit, SpudUIKit — and SpudDataKitTests are at Swift 6.0 language mode. SpudTests, SpudUITests, and SpudSnapshotTests remain at 5.0 (they're stubs / UI tests that haven't needed attention).
 
 `@preconcurrency import LemmyKit` in SpudDataKit's LemmyService and AccountService — LemmyKit declares `actor LemmyApi` but the experimental StrictConcurrency flag means consumers see it as non-Sendable across the module boundary. Drop the `@preconcurrency` once LemmyKit advances to Swift 6 language mode.
 
@@ -140,13 +140,15 @@ What's done:
 - [x] **Stage 8 — strict concurrency** — Spud / SpudDataKit / SpudWidgetExtension / OpenInAppExtension all at Swift 6.0 language mode, building clean.
 - [x] **Combine — first retirement pass** — `ImageServiceType.fetchPublisher` removed; consumers (SiteListSiteViewModel, LoginViewModel) bridge AsyncStream → PassthroughSubject inline.
 - [x] **Cursor-based pagination** — `LemmyService.fetchFeed(_:pageCursor:)` returns the next cursor; `PostListViewModel` tracks `nextPageCursor`. The two LemmyKit `getPosts` deprecation warnings are gone.
+- [x] **Combine retirement, first half** — dead Publisher extensions (`async`, `ignoreNil`, `assignWeak`, `combineLatestSequence`, `just`/`fail`/`completed`/`empty`) deleted from SpudUtilKit. AlertService and ImageService no longer `import Combine`.
+- [x] **SpudDataKitTests fakes** — rewritten for the current `Components.Schemas.*` namespace; SpudDataKitTests at Swift 6.0.
 
 Build status: **Spud has 1 warning** (a benign `Duplicate -rpath '@executable_path'` from extension search-path inheritance). **Widget has 0 warnings.**
 
 What's next:
 
-1. **Combine retirement, second pass.** Move the remaining view-models off `AnyPublisher` / `CurrentValueSubject` to `@Observable` + AsyncStream. Then retire `AnyPublisher.async()` and `wrapInOptional` extensions in SpudUtilKit, and `import Combine` from AlertService.
-2. **Test targets** — fix the SpudDataKitTests fakes against the current LemmyKit namespace, then flip the test targets to Swift 6.
+1. **Combine retirement, second pass.** The Spud-target view-models (Login, SiteList, Preferences) and the Appearance services still use `AnyPublisher` / `CurrentValueSubject`. Migrate to `@Observable` + AsyncStream. Then retire `wrapInOptional` in SpudUtilKit.
+2. **SpudUITests Swift-6 flip** — out-of-scope for now; the UI tests have pre-existing `info.ddenis.SpudTests` failures that need triage first.
 
 ## Deferred (not blocking)
 
