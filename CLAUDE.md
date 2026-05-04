@@ -43,9 +43,26 @@ Dependency direction: `Spud` → `SpudDataKit` → `SpudUtilKit`; `Spud` → `Sp
 - `SpudUITests.xcscheme` — UI tests in isolation
 - `SpudSnapshots.xctestplan` — snapshot tests only; **must run on iPhone 14 Pro simulator in portrait**, otherwise reference images won't match
 
-## Core Data
+## Persistence
 
-Single model: `SpudDataKit/Services/DataStore/DataStore.xcdatamodeld/Spud.xcdatamodel` (no version migrations yet — only one model version exists). Entities live in `SpudDataKit/Services/DataStore/Models/` as plain Swift files (manual `@NSManaged` properties, not codegen). Top-level entities: `Instance`, `LemmySite`, `LemmyAccount`, `LemmyCommunity`, `LemmyPerson`, `LemmyPost`, `LemmyComment`, `LemmyFeed`, `LemmyPage`, plus `*Info` companions and element rows. Adding a new model version requires creating a new `.xcdatamodel` inside the `.xcdatamodeld` bundle and setting it as current.
+GRDB / SQLite, in `SpudDataKit/Services/AppDatabase/`. The DB lives at
+`group.info.ddenis.Spud.shared/AppDatabase/AppDatabase.sqlite` — App Group
+container so the widget and extensions read the same database.
+
+Schema migrations are GRDB `DatabaseMigrator` registrations in
+`AppDatabase+Migrations.swift`. Add a new migration as the next case;
+don't edit existing ones.
+
+Records live in `SpudDataKit/Services/AppDatabase/Records/` (one file per
+GRDB record type: `AccountRecord`, `SiteRecord`, `PostRecord`, etc).
+Importers (`Importers/*Importer.swift`) translate Lemmy API responses
+into upserts. Read-side helpers (`Observations.swift`,
+`*Observations.swift`, `*Queries.swift`) expose AsyncStreams and one-shot
+sync reads.
+
+Core Data was demolished in Stage 7 (May 2026). `LemmyAccount` /
+`LemmySite` / etc. and `DataStore` no longer exist; the durable account
+identifier is `accountKeychainId: String`.
 
 ## Build & test
 
@@ -94,22 +111,22 @@ The pre-commit hook runs `scripts/sort-Xcode-project-file.pl` to keep `project.p
 
 ## Strict concurrency
 
-`SWIFT_STRICT_CONCURRENCY = complete` is already on at the project level. The earlier WIP attempted to silence the resulting warnings ad-hoc (saw commits like "Added a hack to silence strict concurrency warning", "Quick fix for strict concurrency warnings"). The fresh approach should be Swift 6 language mode end-to-end: explicit `Sendable` annotations, actor-isolated services, no `@unchecked` escape hatches unless the invariant is documented. LemmyKit already enables `StrictConcurrency` and `DisableOutwardActorInference`.
+`SWIFT_STRICT_CONCURRENCY = complete` is on at the project level. SpudUtilKit and SpudUIKit are at Swift 6.0 language mode; SpudDataKit, Spud, SpudWidget, and the extensions are at Swift 5.0 with strict concurrency producing warnings (Stage 8 work has the warning count down to 4 on Spud / 3 on widget).
 
-## Strategic direction (decided May 2026)
+`@preconcurrency import LemmyKit` in SpudDataKit's LemmyService and AccountService — LemmyKit declares `actor LemmyApi` but the experimental StrictConcurrency flag means consumers see it as non-Sendable across the module boundary. Drop the `@preconcurrency` once LemmyKit advances to Swift 6 language mode.
 
-Two stack changes are committed to before continuing the Swift 6 migration on the data/app layers:
+`ValueObservation.start` defaults to `.async(onQueue: .main)` which is `@MainActor`-isolated and illegal from non-isolated AsyncStream init closures. All `*Observations.swift` helpers pass `.async(onQueue: .global(qos: .userInitiated))` explicitly.
 
-- **Replace Core Data** — the model in `SpudDataKit/Services/DataStore/` is being replaced (SwiftData is the obvious candidate but the choice isn't locked; discuss before assuming). Driven by Apple's de-emphasis of Core Data and friction with Widgets in particular.
-- **Replace Combine** — `AnyPublisher` / `CurrentValueSubject` / `.sink` pipelines throughout `SpudDataKit` are being replaced with `AsyncSequence` and Observation. Same reasoning.
+## Stage 7 (Core Data demolition) — done May 2026
 
-Treat the old `LemmyService` / `DataStore` design as transitional — do not invest in actor-isolation refactors there.
+Core Data is gone. The migration moved persistence to GRDB and the durable account identifier to `accountKeychainId: String`. View-models and view-controllers hold the keychainId, never an account record. `AccountServiceType` is keychainId-only.
 
-### Stage 7 conventions (in-flight migration off LemmyAccount)
+GRDB observations live in `SpudDataKit/Services/AppDatabase/*Observations.swift`; sync row-id lookups (e.g. `postRowIdSync`, `accountRowIdSync`) in the importers. Records are pure structs (Sendable when their fields are).
 
-- `LemmyAccount.id` is the keychain id (String). Treat it as the durable account identifier — view-models and view-controllers in the Spud target hold `accountKeychainId: String`, never `LemmyAccount`.
-- `AccountServiceType` carries two parallel APIs during the migration: `for: LemmyAccount` and `forAccountKeychainId: String`. App-target code uses the keychainId variants; the LemmyAccount variants are SpudDataKit-internal and disappear in 3d.
-- GRDB observations live in `SpudDataKit/Services/AppDatabase/*Observations.swift`; sync row-id lookups (e.g. `postRowIdSync`, `accountRowIdSync`) in the importers.
+## Strategic direction
+
+- **Combine → AsyncSequence / Observation** — partial. `SpudDataKit` writes are GRDB and reads are AsyncStreams; `AlertService` and `ImageService` still expose Combine pipelines; view-models still use `AnyPublisher` / `CurrentValueSubject` for binding. Plan: stop adding new Combine, drop `fetchPublisher` once view-models migrate to AsyncStream consumption, then retire the `AnyPublisher.async()` extension in SpudUtilKit.
+- **Swift 6 language mode** — flip SpudDataKit / Spud / SpudWidget after the remaining warnings hit zero.
 
 ## Pickup checklist
 
@@ -118,14 +135,16 @@ What's done:
 - [x] **Toolchain** — SwiftFormat 0.61.1, SwiftGen 6.6.3. `Mintfile` current.
 - [x] **Format pass** — codebase reformatted under SwiftFormat 0.61.1 ruleset.
 - [x] **Swift 6 — SpudUtilKit** — language mode `6.0`, builds clean.
-- [x] **Swift 6 — SpudUIKit** — language mode `6.0`, builds clean. `ColorAsset` marked `@unchecked Sendable` next to its existing extension (not in the SwiftGen-generated file).
+- [x] **Swift 6 — SpudUIKit** — language mode `6.0`, builds clean. `ColorAsset` marked `@unchecked Sendable`.
+- [x] **Stage 7 — Core Data demolition** — `Lemmy*` model classes, `Spud.xcdatamodeld`, `DataStore`, and every `import CoreData` are gone.
+- [x] **Stage 8 first pass** — strict-concurrency warnings on `Spud` from 44 → 4 (1 linker, 2 LemmyKit deprecations, 1 ImageService Combine bridge), widget from many → 3 (the same 2 deprecations + 1 bridge).
 
-What's next, in order:
+What's next:
 
-1. **Decide replacement for Core Data.** SwiftData is the default candidate but evaluate against the Widget integration story and the existing entity graph (Instance, LemmyAccount, LemmyCommunity, LemmyPerson, LemmyPost, LemmyComment, LemmyFeed, LemmyPage, plus *Info companions). Old `Spud.xcdatamodel` only has one version — no migration history to preserve.
-2. **Decide replacement for Combine.** Likely `AsyncSequence` for streams, `@Observable` for view-model state, plain `async`/`await` for one-shot calls. Note `AnyPublisher.async()` extension in SpudUtilKit can be retired entirely once nothing emits Combine.
-3. **Plan migration sequence.** Persistence first or reactive layer first? `LemmyService` heavily mixes both, so they likely move together.
-4. **Then resume Swift 6 migration** on the rewritten `SpudDataKit`, the app target, the widget, and `OpenInAppExtension`. Don't migrate LemmyService's current actor isolation now — it's getting replaced.
+1. **Cursor-based pagination.** The 2 remaining LemmyKit deprecations (`getPosts(type:..., page: Page?)` and `getPosts(community:..., page: Page?)`) want migration to `Components.Schemas.PaginationCursor?`. Touches `FeedHandle` / `LemmyService.fetchFeed` / `appendFeedPage`.
+2. **Combine retirement.** Drop `fetchPublisher`, migrate the view-models in `Login`, `SiteList` and elsewhere to consume `AsyncStream<ImageLoadingState>` directly. Then retire `AnyPublisher.async()` in SpudUtilKit.
+3. **Flip remaining targets to Swift 6 language mode** once warnings hit zero.
+4. **`OpenInAppExtension` and `SpudUITests` strict-concurrency pass** — not yet touched.
 
 ## Deferred (not blocking)
 
