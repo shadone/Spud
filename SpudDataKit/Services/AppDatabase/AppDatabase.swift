@@ -25,21 +25,38 @@ public final class AppDatabase: Sendable {
 
     public let writer: any DatabaseWriter
 
+    /// URL of the on-disk SQLite file for diagnostics and the Preferences
+    /// "show database in Files" affordance. Nil when the database is
+    /// in-memory.
+    public let storeURL: URL?
+
+    /// On-disk size in bytes, or zero if not on disk or unreachable.
+    public var sizeInBytes: UInt64 {
+        guard
+            let storeURL,
+            let attrs = try? FileManager.default.attributesOfItem(atPath: storeURL.path)
+        else {
+            return 0
+        }
+        return (attrs[.size] as? NSNumber)?.uint64Value ?? 0
+    }
+
     /// In-memory database for tests and ephemeral use.
     public static func inMemory() throws -> AppDatabase {
         let queue = try DatabaseQueue(configuration: makeConfiguration())
-        return try AppDatabase(writer: queue)
+        return try AppDatabase(writer: queue, storeURL: nil)
     }
 
     /// Default initializer opens the shared on-disk database in the App Group.
     public convenience init() throws {
         let url = try Self.defaultStoreURL()
         let pool = try DatabasePool(path: url.path, configuration: Self.makeConfiguration())
-        try self.init(writer: pool)
+        try self.init(writer: pool, storeURL: url)
     }
 
-    public init(writer: any DatabaseWriter) throws {
+    public init(writer: any DatabaseWriter, storeURL: URL? = nil) throws {
         self.writer = writer
+        self.storeURL = storeURL
         try Self.migrator.migrate(writer)
     }
 

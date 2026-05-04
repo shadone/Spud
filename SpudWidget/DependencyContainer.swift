@@ -9,7 +9,6 @@ import SpudDataKit
 import SpudUtilKit
 
 class DependencyContainer: ObservableObject,
-    HasDataStore,
     HasAppDatabase,
     HasAccountService,
     HasAlertService,
@@ -19,7 +18,6 @@ class DependencyContainer: ObservableObject,
 
     // MARK: Public
 
-    let dataStore: DataStoreType = DataStore()
     let appDatabase: AppDatabase
     let accountService: AccountServiceType
     let alertService: AlertServiceType = AlertService()
@@ -36,7 +34,6 @@ class DependencyContainer: ObservableObject,
 
         accountService = AccountService(appDatabase: appDatabase)
         entryService = EntryService(
-            dataStore: dataStore,
             appDatabase: appDatabase,
             accountService: accountService
         )
@@ -45,7 +42,6 @@ class DependencyContainer: ObservableObject,
     }
 
     private func start() {
-        dataStore.startService()
         entryService.startService()
     }
 }
