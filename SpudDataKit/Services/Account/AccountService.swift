@@ -70,6 +70,63 @@ public protocol AccountServiceType: AnyObject {
 }
 
 @MainActor
+public extension AccountServiceType {
+    /// Creates a feed for `account` with the given parameters. Returns a
+    /// `FeedHandle` carrying the stable `feedKey` (for GRDB observations and
+    /// LemmyService.fetchFeed) and the `feedType` (for navigation/sort UI).
+    func createFeed(
+        for account: LemmyAccount,
+        feedType: FeedType,
+        identifierForDebugging: String? = nil
+    ) -> FeedHandle {
+        let feed = lemmyDataService(for: account).createFeed(feedType)
+        if let identifierForDebugging {
+            feed.identifierForDebugging = identifierForDebugging
+        }
+        return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
+    }
+
+    /// Creates a feed for `account` using the account's default listing and
+    /// sort types. Used by the split view's primary post list.
+    func createDefaultFeed(for account: LemmyAccount) -> FeedHandle {
+        let dataService = lemmyDataService(for: account)
+        let feedType = FeedType.frontpage(
+            listingType: dataService.defaultListingType(),
+            sortType: dataService.defaultSortType()
+        )
+        let feed = dataService.createFeed(feedType)
+        return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
+    }
+
+    /// Creates a feed for `account` derived from `existing` (same feed type
+    /// shape) but with `sortType` overridden when non-nil. Used by
+    /// PostListViewModel.didChangeSortType / didClickReload.
+    func createFeed(
+        duplicateOf existing: FeedHandle,
+        for account: LemmyAccount,
+        sortType: Components.Schemas.SortType? = nil
+    ) -> FeedHandle {
+        let newFeedType: FeedType = {
+            switch existing.feedType {
+            case let .frontpage(listingType, oldSortType):
+                return .frontpage(
+                    listingType: listingType,
+                    sortType: sortType ?? oldSortType
+                )
+            case let .community(communityName, instance, oldSortType):
+                return .community(
+                    communityName: communityName,
+                    instance: instance,
+                    sortType: sortType ?? oldSortType
+                )
+            }
+        }()
+        let feed = lemmyDataService(for: account).createFeed(newFeedType)
+        return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
+    }
+}
+
+@MainActor
 public protocol HasAccountService {
     var accountService: AccountServiceType { get }
 }

@@ -25,6 +25,7 @@
 		0B8E467CAA5441FCE86A91BB /* NodeInfoRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 454940E4A49A1EF256BFEA36 /* NodeInfoRecord.swift */; };
 		180D4D40BE7448D034585349 /* AppDatabaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29F94776A333C3A1EB896ABE /* AppDatabaseTests.swift */; };
 		189B41EF8122869281693918 /* Person.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDFD43D3BA98EB4CAF625AA5 /* Person.swift */; };
+		234E4E74BED93B2B5AD331DE /* FeedHandle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B8146A385C0D1EEAB9CF045 /* FeedHandle.swift */; };
 		24EC4282B71DBDA479D97500 /* AppDatabaseError.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8504419BF5DBF1BBAD81680 /* AppDatabaseError.swift */; };
 		26194DEBAFABAE4EBCBC1BDD /* Post.swift in Sources */ = {isa = PBXBuildFile; fileRef = 691440428D5E2FC5CFF6B2D2 /* Post.swift */; };
 		276B41CA8A9DC42DF8D1033A /* Account.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DBE48F6B120424E9A1A73F2 /* Account.swift */; };
@@ -505,6 +506,7 @@
 		595D41CDBF151C31438096E5 /* Comment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Comment.swift; path = SpudDataKit/Services/AppDatabase/Records/Comment.swift; sourceTree = SOURCE_ROOT; };
 		62524CC4ADBBA114FED198A8 /* CommunityImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CommunityImporter.swift; path = SpudDataKit/Services/AppDatabase/Importers/CommunityImporter.swift; sourceTree = SOURCE_ROOT; };
 		691440428D5E2FC5CFF6B2D2 /* Post.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Post.swift; path = SpudDataKit/Services/AppDatabase/Records/Post.swift; sourceTree = SOURCE_ROOT; };
+		6B8146A385C0D1EEAB9CF045 /* FeedHandle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FeedHandle.swift; path = SpudDataKit/Services/Account/FeedHandle.swift; sourceTree = SOURCE_ROOT; };
 		75F443B2BD800D168D379F3B /* Feed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Feed.swift; path = SpudDataKit/Services/AppDatabase/Records/Feed.swift; sourceTree = SOURCE_ROOT; };
 		792A498AB17CAE75D2E1E5C0 /* PersonImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PersonImporter.swift; path = SpudDataKit/Services/AppDatabase/Importers/PersonImporter.swift; sourceTree = SOURCE_ROOT; };
 		79394240A2C30AD7C970D83E /* CommentImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CommentImporter.swift; path = SpudDataKit/Services/AppDatabase/Importers/CommentImporter.swift; sourceTree = SOURCE_ROOT; };
@@ -1528,6 +1530,7 @@
 			children = (
 				92B7C9602A3B5E8C00672F64 /* AccountService.swift */,
 				92CEAEAB2A4CD79500FAF4DB /* AccountServiceLoginError.swift */,
+				6B8146A385C0D1EEAB9CF045 /* FeedHandle.swift */,
 			);
 			path = Account;
 			sourceTree = "<group>";
@@ -2482,6 +2485,7 @@
 				92CC5D6D2A7EBF960019436A /* DataStore.swift in Sources */,
 				92CC5D6E2A7EBF9B0019436A /* DataStore.xcdatamodeld in Sources */,
 				85DB41B492A0ECF41C8E7346 /* Feed.swift in Sources */,
+				234E4E74BED93B2B5AD331DE /* FeedHandle.swift in Sources */,
 				58F84F82B41CFAB70A328FCA /* FeedImporter.swift in Sources */,
 				92B2C3222A88EE270038C416 /* FeedType.swift in Sources */,
 				92CC5DDB2A7ED8E60019436A /* ImageLoadingError.swift in Sources */,
@@ -2700,7 +2704,10 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.Spud.Widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2732,7 +2739,10 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.Spud.Widget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2756,7 +2766,10 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudSnapshotTests;
@@ -2781,7 +2794,10 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudSnapshotTests;
@@ -2801,7 +2817,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudDataKitTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2819,7 +2838,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudDataKitTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2837,7 +2859,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudUtilKitTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2855,7 +2880,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudUtilKitTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -2887,7 +2915,10 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
@@ -2926,7 +2957,10 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
@@ -2946,7 +2980,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -2955,7 +2992,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -3098,7 +3138,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.Spud;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -3132,7 +3175,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.Spud;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -3154,7 +3200,10 @@
 				DEVELOPMENT_TEAM = J8B76VBZ57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -3175,7 +3224,10 @@
 				DEVELOPMENT_TEAM = J8B76VBZ57;
 				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -3194,7 +3246,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = J8B76VBZ57;
 				GENERATE_INFOPLIST_FILE = YES;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -3213,7 +3268,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = J8B76VBZ57;
 				GENERATE_INFOPLIST_FILE = YES;
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = info.ddenis.SpudUITests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -3244,7 +3302,10 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
@@ -3281,7 +3342,10 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				OTHER_LDFLAGS = (
@@ -3319,7 +3383,10 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
@@ -3357,7 +3424,10 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
@@ -3394,7 +3464,10 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";
@@ -3431,7 +3504,10 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/SpudDataKit/Services/AppDatabase";
+				LIBRARY_SEARCH_PATHS = (
+					"$(SRCROOT)/SpudDataKit/Services/AppDatabase",
+					"$(SRCROOT)/SpudDataKit/Services/Account",
+				);
 				MARKETING_VERSION = 1.0;
 				MODULE_VERIFIER_SUPPORTED_LANGUAGES = "objective-c objective-c++";
 				MODULE_VERIFIER_SUPPORTED_LANGUAGE_STANDARDS = "gnu11 gnu++20";

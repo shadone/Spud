@@ -98,10 +98,10 @@ class PostListViewController: UIViewController {
 
     // MARK: Functions
 
-    init(feed: LemmyFeed, dependencies: Dependencies) {
+    init(feed: FeedHandle, account: LemmyAccount, dependencies: Dependencies) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
-        viewModel = PostListViewModel(feed: feed, dependencies: dependencies)
+        viewModel = PostListViewModel(feed: feed, account: account, dependencies: dependencies)
 
         super.init(nibName: nil, bundle: nil)
 
@@ -217,7 +217,7 @@ class PostListViewController: UIViewController {
         )
         navigationItem.rightBarButtonItem = sortTypeBarButtonItem
 
-        rebuildSortTypeMenu(activeSortType: viewModel.feed.sortType)
+        rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
     }
 
     private func rebuildSortTypeMenu(activeSortType: Components.Schemas.SortType) {
@@ -252,7 +252,7 @@ class PostListViewController: UIViewController {
     private func sortTypeChanged(to sortType: Components.Schemas.SortType) {
         viewModel.didChangeSortType(sortType)
         feedChanged()
-        rebuildSortTypeMenu(activeSortType: viewModel.feed.sortType)
+        rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
         donateIntent()
     }
 
@@ -263,7 +263,7 @@ class PostListViewController: UIViewController {
 
         applyLoadingIndicatorVisibility(hidden: !viewModel.isFetchingNextPage)
 
-        let feedKey = viewModel.feed.id
+        let feedKey = viewModel.feed.feedKey
         observationTask = Task { @MainActor [weak self] in
             guard let self else { return }
 
@@ -430,7 +430,7 @@ class PostListViewController: UIViewController {
         guard let feedType = IntentFeedType(from: feed.feedType) else { return }
 
         intent.feedType = feedType
-        intent.sortType = .init(from: feed.sortType)
+        intent.sortType = .init(from: feed.feedType.sortType)
 
         logger.debug("Donating intent \(intent, privacy: .public)")
 

@@ -14,31 +14,19 @@ private let logger = Logger.lemmyDataService
 
 @MainActor
 public protocol LemmyDataServiceType {
-    /// Creates feed with default parameters for the account.
-    func createFeed() -> LemmyFeed
-
-    /// Creates feed for the given ``listingType`` with default sort type parameters for the account.
-    func createFeed(listingType: Components.Schemas.ListingType) -> LemmyFeed
-
-    /// Creates feed with the explicitly given feed parameters.
+    /// Creates feed with the explicitly given feed parameters. Used by the
+    /// AccountServiceType.createFeed(...) wrappers; not called by view code.
     func createFeed(_ type: FeedType) -> LemmyFeed
 
-    func createFeed(duplicateOf feed: LemmyFeed) -> LemmyFeed
+    /// Returns the account's preferred default listing type.
+    func defaultListingType() -> Components.Schemas.ListingType
 
-    func createFeed(
-        duplicateOf feed: LemmyFeed,
-        sortType: Components.Schemas.SortType?
-    ) -> LemmyFeed
+    /// Returns the account's preferred default sort type.
+    func defaultSortType() -> Components.Schemas.SortType
 
     func getOrCreate(postId: Components.Schemas.PostID) -> LemmyPost
 
     func getOrCreate(personId: Components.Schemas.PersonID) -> LemmyPerson
-}
-
-public extension LemmyDataServiceType {
-    func createFeed(duplicateOf feed: LemmyFeed) -> LemmyFeed {
-        createFeed(duplicateOf: feed, sortType: nil)
-    }
 }
 
 @MainActor
@@ -75,58 +63,15 @@ public class LemmyDataService: LemmyDataServiceType {
         logger.info("Creating new service for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
     }
 
-    private func defaultListingType(
-        for account: LemmyAccount
-    ) -> Components.Schemas.ListingType {
+    public func defaultListingType() -> Components.Schemas.ListingType {
         lazy var siteListingType = accountInMainContext.site.siteInfo?.defaultPostListingType
         let userListingType = accountInMainContext.accountInfo?.defaultListingType
         return userListingType ?? siteListingType ?? .All
     }
 
-    private func defaultSortType(
-        for account: LemmyAccount
-    ) -> Components.Schemas.SortType {
+    public func defaultSortType() -> Components.Schemas.SortType {
         let userSortType = accountInMainContext.accountInfo?.defaultSortType
         return userSortType ?? .Hot
-    }
-
-    public func createFeed() -> LemmyFeed {
-        assert(Thread.current.isMainThread)
-
-        let accountInMainContext = accountInMainContext
-
-        let listingType = defaultListingType(for: accountInMainContext)
-        let sortType = defaultSortType(for: accountInMainContext)
-
-        let newFeed = LemmyFeed(
-            .frontpage(listingType: listingType, sortType: sortType),
-            account: accountInMainContext,
-            in: dataStore.mainContext
-        )
-
-        dataStore.saveIfNeeded()
-
-        return newFeed
-    }
-
-    public func createFeed(
-        listingType: Components.Schemas.ListingType
-    ) -> LemmyFeed {
-        assert(Thread.current.isMainThread)
-
-        let accountInMainContext = accountInMainContext
-
-        let sortType = defaultSortType(for: accountInMainContext)
-
-        let newFeed = LemmyFeed(
-            .frontpage(listingType: listingType, sortType: sortType),
-            account: accountInMainContext,
-            in: dataStore.mainContext
-        )
-
-        dataStore.saveIfNeeded()
-
-        return newFeed
     }
 
     public func createFeed(_ type: FeedType) -> LemmyFeed {
@@ -139,23 +84,6 @@ public class LemmyDataService: LemmyDataServiceType {
             type,
             account: accountInMainContext,
             in: dataStore.mainContext
-        )
-
-        dataStore.saveIfNeeded()
-
-        return newFeed
-    }
-
-    public func createFeed(
-        duplicateOf feed: LemmyFeed,
-        sortType: Components.Schemas.SortType?
-    ) -> LemmyFeed {
-        assert(Thread.current.isMainThread)
-
-        let newFeed = LemmyFeed(
-            duplicateOf: feed,
-            sortType: sortType,
-            in: mainContext
         )
 
         dataStore.saveIfNeeded()
