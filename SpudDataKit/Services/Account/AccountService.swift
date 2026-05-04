@@ -16,14 +16,14 @@ private let logger = Logger.accountService
 
 @MainActor
 public protocol AccountServiceType: AnyObject {
-    /// Returns an account that represents a signed out user on a given Lemmy instance.
-    /// Last LemmyAccount-typed method on the protocol — kept transitionally for
-    /// SchedulerService.fetchSiteInfo(for:) and removed in the LemmySite demolition.
+    /// Resolves (or creates) a signed-out account for `instance` and returns
+    /// its `accountKeychainId`. `isServiceAccount` distinguishes the
+    /// background-fetch service rows used by SchedulerService from real
+    /// signed-out user accounts.
     func accountForSignedOut(
-        at site: LemmySite,
-        isServiceAccount: Bool,
-        in context: NSManagedObjectContext
-    ) -> LemmyAccount
+        forInstance instance: InstanceActorId,
+        isServiceAccount: Bool
+    ) -> String
 
     /// Creates (if needed) the signed-out account for `site` and marks it as the default account.
     func signInAsSignedOut(at site: LemmySite)
@@ -490,6 +490,20 @@ public class AccountService: AccountServiceType {
         let mainContext = dataStore.mainContext
         let site = siteService.site(for: instance, in: mainContext)
         return account(at: site, in: mainContext).id
+    }
+
+    public func accountForSignedOut(
+        forInstance instance: InstanceActorId,
+        isServiceAccount: Bool
+    ) -> String {
+        assert(Thread.current.isMainThread)
+        let mainContext = dataStore.mainContext
+        let site = siteService.site(for: instance, in: mainContext)
+        return accountForSignedOut(
+            at: site,
+            isServiceAccount: isServiceAccount,
+            in: mainContext
+        ).id
     }
 
     public func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType {
