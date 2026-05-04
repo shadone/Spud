@@ -157,7 +157,6 @@
 		92A2271F2A7FB56C00C18FCD /* SpudUIKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 92A226FB2A7FA59E00C18FCD /* SpudUIKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		92A7AE1C2A60832D00990539 /* PersonViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A7AE1B2A60832D00990539 /* PersonViewController.swift */; };
 		92A87F432A41EA200098C20C /* PostDetailOrEmptyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */; };
-		92A87F452A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */; };
 		92A87F472A41EA9C0098C20C /* PostDetailEmptyViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92A87F462A41EA9C0098C20C /* PostDetailEmptyViewController.swift */; };
 		92B2C31E2A88C6D30038C416 /* SubscriptionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B2C31D2A88C6D30038C416 /* SubscriptionsView.swift */; };
 		92B2C3202A88E1190038C416 /* SubscriptionsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B2C31F2A88E1190038C416 /* SubscriptionsViewModel.swift */; };
@@ -635,7 +634,6 @@
 		92A227222A7FB65400C18FCD /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		92A7AE1B2A60832D00990539 /* PersonViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonViewController.swift; sourceTree = "<group>"; };
 		92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailOrEmptyViewController.swift; sourceTree = "<group>"; };
-		92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailOrEmptyViewModel.swift; sourceTree = "<group>"; };
 		92A87F462A41EA9C0098C20C /* PostDetailEmptyViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailEmptyViewController.swift; sourceTree = "<group>"; };
 		92B2C31D2A88C6D30038C416 /* SubscriptionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionsView.swift; sourceTree = "<group>"; };
 		92B2C31F2A88E1190038C416 /* SubscriptionsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionsViewModel.swift; sourceTree = "<group>"; };
@@ -820,13 +818,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		92A226F82A7FA59E00C18FCD /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		92B7C8F72A3A40EB00672F64 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -840,25 +831,11 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		92B7C9102A3A40F400672F64 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		92B7C91A2A3A40F400672F64 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				92DC45362A8191AA003498C1 /* SBTUITestTunnelClient in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		92C0B32F2A829F43004EF9E6 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -871,13 +848,6 @@
 				9277821B2C0BA2FD0010068F /* LemmyKit in Frameworks */,
 				92CC5DB92A7EC7880019436A /* SemVer in Frameworks */,
 				92CC5DA72A7EC11E0019436A /* SpudUtilKit.framework in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		92CC5D862A7EBFEA0019436A /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1539,7 +1509,6 @@
 				92A87F412A41EA100098C20C /* Empty */,
 				9297E2F32A42041B00D13E4D /* Loading */,
 				92A87F422A41EA200098C20C /* PostDetailOrEmptyViewController.swift */,
-				92A87F442A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift */,
 			);
 			path = PostDetail;
 			sourceTree = "<group>";
@@ -1841,7 +1810,6 @@
 			buildPhases = (
 				925B76C52A8FFF0A00BD065A /* Sources */,
 				925B76C62A8FFF0A00BD065A /* Frameworks */,
-				925B76C72A8FFF0A00BD065A /* Resources */,
 			);
 			buildRules = (
 			);
@@ -1863,7 +1831,6 @@
 			buildPhases = (
 				92A226C22A7EF9A900C18FCD /* Sources */,
 				92A226C32A7EF9A900C18FCD /* Frameworks */,
-				92A226C42A7EF9A900C18FCD /* Resources */,
 			);
 			buildRules = (
 			);
@@ -1883,7 +1850,6 @@
 			buildPhases = (
 				92A226D62A7EFA1400C18FCD /* Sources */,
 				92A226D72A7EFA1400C18FCD /* Frameworks */,
-				92A226D82A7EFA1400C18FCD /* Resources */,
 			);
 			buildRules = (
 			);
@@ -1901,7 +1867,6 @@
 			buildPhases = (
 				92A226F62A7FA59E00C18FCD /* Headers */,
 				92A226F72A7FA59E00C18FCD /* Sources */,
-				92A226F82A7FA59E00C18FCD /* Frameworks */,
 				92A226F92A7FA59E00C18FCD /* Resources */,
 			);
 			buildRules = (
@@ -1948,7 +1913,6 @@
 			buildConfigurationList = 92B7C92A2A3A40F400672F64 /* Build configuration list for PBXNativeTarget "SpudTests" */;
 			buildPhases = (
 				92B7C90F2A3A40F400672F64 /* Sources */,
-				92B7C9102A3A40F400672F64 /* Frameworks */,
 				92B7C9112A3A40F400672F64 /* Resources */,
 			);
 			buildRules = (
@@ -1987,7 +1951,6 @@
 			buildConfigurationList = 92C0B34D2A829F43004EF9E6 /* Build configuration list for PBXNativeTarget "OpenInAppExtension" */;
 			buildPhases = (
 				92C0B32E2A829F43004EF9E6 /* Sources */,
-				92C0B32F2A829F43004EF9E6 /* Frameworks */,
 				92C0B3302A829F43004EF9E6 /* Resources */,
 			);
 			buildRules = (
@@ -2031,7 +1994,6 @@
 			buildPhases = (
 				92CC5D842A7EBFEA0019436A /* Headers */,
 				92CC5D852A7EBFEA0019436A /* Sources */,
-				92CC5D862A7EBFEA0019436A /* Frameworks */,
 				92CC5D872A7EBFEA0019436A /* Resources */,
 			);
 			buildRules = (
@@ -2139,27 +2101,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				920B455B2A7C1DF500C6C2DC /* Assets.xcassets in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		925B76C72A8FFF0A00BD065A /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		92A226C42A7EF9A900C18FCD /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		92A226D82A7EFA1400C18FCD /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2389,7 +2330,6 @@
 				92B7C9712A3D173300672F64 /* PostDetailHeaderViewModel.swift in Sources */,
 				9297E2F52A42042B00D13E4D /* PostDetailLoadingViewController.swift in Sources */,
 				92A87F432A41EA200098C20C /* PostDetailOrEmptyViewController.swift in Sources */,
-				92A87F452A41EA6E0098C20C /* PostDetailOrEmptyViewModel.swift in Sources */,
 				92B7C96C2A3D158400672F64 /* PostDetailViewController.swift in Sources */,
 				92B7C96E2A3D15B100672F64 /* PostDetailViewModel.swift in Sources */,
 				926602C02A5F6970005A1641 /* PostListAppearance.swift in Sources */,

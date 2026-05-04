@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import CoreData
 import Foundation
 import LemmyKit
 import OSLog
@@ -21,7 +20,6 @@ class PostDetailViewController: UIViewController {
         HasAppDatabase &
         HasAppService &
         HasAppearanceService &
-        HasDataStore &
         HasImageService &
         HasPostContentDetectorService &
         HasPreferencesService
@@ -29,10 +27,6 @@ class PostDetailViewController: UIViewController {
         PersonOrLoadingViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
-
-    var dataStore: DataStoreType {
-        dependencies.own.dataStore
-    }
 
     var appearanceService: AppearanceServiceType {
         dependencies.own.appearanceService
@@ -64,16 +58,17 @@ class PostDetailViewController: UIViewController {
 
     // MARK: - Public
 
-    var postInfo: LemmyPostInfo {
-        viewModel.postInfo
+    var serverPostId: Components.Schemas.PostID {
+        viewModel.serverPostId
     }
 
-    func setPostInfo(_ postInfo: LemmyPostInfo) {
+    func setPost(serverPostId: Components.Schemas.PostID, account: LemmyAccount) {
         observationTask?.cancel()
         commentObservationTask?.cancel()
 
         viewModel = PostDetailViewModel(
-            postInfo: postInfo,
+            serverPostId: serverPostId,
+            account: account,
             dependencies: dependencies.own
         )
 
@@ -112,9 +107,17 @@ class PostDetailViewController: UIViewController {
 
     // MARK: Functions
 
-    init(postInfo: LemmyPostInfo, dependencies: Dependencies) {
+    init(
+        serverPostId: Components.Schemas.PostID,
+        account: LemmyAccount,
+        dependencies: Dependencies
+    ) {
         self.dependencies = (own: dependencies, nested: dependencies)
-        viewModel = PostDetailViewModel(postInfo: postInfo, dependencies: dependencies)
+        viewModel = PostDetailViewModel(
+            serverPostId: serverPostId,
+            account: account,
+            dependencies: dependencies
+        )
 
         super.init(nibName: nil, bundle: nil)
 
@@ -170,16 +173,16 @@ class PostDetailViewController: UIViewController {
     private func markAsRead() async {
         do {
             try await accountService
-                .lemmyService(for: postInfo.post.account)
-                .markAsRead(serverPostId: postInfo.post.postId)
+                .lemmyService(for: viewModel.account)
+                .markAsRead(serverPostId: viewModel.serverPostId)
         } catch {
             alertService.handle(error, for: .markAsRead)
         }
     }
 
     private func startObservations() {
-        let keychainId = postInfo.post.account.id
-        let serverPostId = Int64(postInfo.post.postId)
+        let keychainId = viewModel.account.id
+        let serverPostId = Int64(viewModel.serverPostId)
 
         guard let postRowId = appDatabase.postRowIdSync(
             forKeychainId: keychainId,
@@ -249,9 +252,9 @@ class PostDetailViewController: UIViewController {
     private func reloadAsync() async {
         do {
             try await accountService
-                .lemmyService(for: postInfo.post.account)
+                .lemmyService(for: viewModel.account)
                 .fetchComments(
-                    serverPostId: postInfo.post.postId,
+                    serverPostId: viewModel.serverPostId,
                     sortType: viewModel.commentSortType
                 )
         } catch {
@@ -262,7 +265,13 @@ class PostDetailViewController: UIViewController {
 
     @objc
     private func openInBrowser() {
-        Task { await appService.openInBrowser(post: postInfo.post, on: self) }
+        Task {
+            await appService.openInBrowser(
+                serverPostId: viewModel.serverPostId,
+                account: viewModel.account,
+                on: self
+            )
+        }
     }
 
     private func linkTapped(_ url: URL) {
@@ -271,7 +280,7 @@ class PostDetailViewController: UIViewController {
             let vc = PersonOrLoadingViewController(
                 personId: personId,
                 instance: instance,
-                account: postInfo.post.account,
+                account: viewModel.account,
                 dependencies: dependencies.nested
             )
             navigationController?.pushViewController(vc, animated: true)
@@ -292,8 +301,8 @@ class PostDetailViewController: UIViewController {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
             try await accountService
-                .lemmyService(for: postInfo.post.account)
-                .vote(serverPostId: postInfo.post.postId, vote: action)
+                .lemmyService(for: viewModel.account)
+                .vote(serverPostId: viewModel.serverPostId, vote: action)
         } catch {
             alertService.handle(error, for: .vote)
         }
@@ -303,7 +312,7 @@ class PostDetailViewController: UIViewController {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
             try await accountService
-                .lemmyService(for: postInfo.post.account)
+                .lemmyService(for: viewModel.account)
                 .vote(serverCommentId: Components.Schemas.CommentID(serverCommentId), vote: action)
         } catch {
             alertService.handle(error, for: .vote)

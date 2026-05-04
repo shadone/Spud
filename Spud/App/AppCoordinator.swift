@@ -69,7 +69,7 @@ class AppCoordinator {
             let site = dependencies.siteService.site(for: instance, in: mainContext)
             let account = dependencies.accountService.account(at: site, in: mainContext)
 
-            window.display(postId: postId, using: account)
+            window.display(serverPostId: postId, account: account)
 
         case .person:
             // TODO: open PersonVC
