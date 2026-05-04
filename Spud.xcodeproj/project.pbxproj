@@ -216,7 +216,6 @@
 		92CC5D9B2A7EC1100019436A /* Sequence+NSAttributedString+joined.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9752A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift */; };
 		92CC5D9C2A7EC1100019436A /* UIImage+fittingWidth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92BBE4A22A5C03FF008C2F55 /* UIImage+fittingWidth.swift */; };
 		92CC5D9F2A7EC1100019436A /* TimeInterval+roundedInt.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C98A2A3D2F0100672F64 /* TimeInterval+roundedInt.swift */; };
-		92CC5DA02A7EC1100019436A /* Publisher+wrapInOptional.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */; };
 		92CC5DA52A7EC1100019436A /* UIViewController+addChild.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9297E2F62A4205F600D13E4D /* UIViewController+addChild.swift */; };
 		92CC5DA62A7EC1100019436A /* URL+canonicalHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92CEAEC92A54450700FAF4DB /* URL+canonicalHost.swift */; };
 		92CC5DA72A7EC11E0019436A /* SpudUtilKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 92CC5D892A7EBFEA0019436A /* SpudUtilKit.framework */; };
@@ -611,7 +610,6 @@
 		92B7C9602A3B5E8C00672F64 /* AccountService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountService.swift; sourceTree = "<group>"; };
 		92B7C9622A3B9EC700672F64 /* PostListViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListViewModel.swift; sourceTree = "<group>"; };
 		92B7C9662A3D003B00672F64 /* PostListPostViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostListPostViewModel.swift; sourceTree = "<group>"; };
-		92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Publisher+wrapInOptional.swift"; sourceTree = "<group>"; };
 		92B7C96B2A3D158400672F64 /* PostDetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailViewController.swift; sourceTree = "<group>"; };
 		92B7C96D2A3D15B100672F64 /* PostDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailViewModel.swift; sourceTree = "<group>"; };
 		92B7C9702A3D173300672F64 /* PostDetailHeaderViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailHeaderViewModel.swift; sourceTree = "<group>"; };
@@ -1508,7 +1506,6 @@
 				92D6BAA12A842EC9005ECCC2 /* InstanceActorId.swift */,
 				92BA92BF2AA34416005E7D75 /* Logger+assert.swift */,
 				92B7C9822A3D2C8800672F64 /* NSAttributedString+symbol.swift */,
-				92B7C9682A3D101300672F64 /* Publisher+wrapInOptional.swift */,
 				92B7C9752A3D22D000672F64 /* Sequence+NSAttributedString+joined.swift */,
 				92BBE4AA2A5C39D9008C2F55 /* String+endsWith.swift */,
 				92B7C98A2A3D2F0100672F64 /* TimeInterval+roundedInt.swift */,
@@ -2350,7 +2347,6 @@
 				92BA92C02AA34416005E7D75 /* Logger+assert.swift in Sources */,
 				92CC5DAD2A7EC1540019436A /* Logger.swift in Sources */,
 				92CC5D982A7EC1100019436A /* NSAttributedString+symbol.swift in Sources */,
-				92CC5DA02A7EC1100019436A /* Publisher+wrapInOptional.swift in Sources */,
 				92CC5D9B2A7EC1100019436A /* Sequence+NSAttributedString+joined.swift in Sources */,
 				92CC5D962A7EC1100019436A /* String+endsWith.swift in Sources */,
 				92CC5D9F2A7EC1100019436A /* TimeInterval+roundedInt.swift in Sources */,
