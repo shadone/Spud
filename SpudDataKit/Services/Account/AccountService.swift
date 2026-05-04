@@ -22,6 +22,11 @@ public protocol AccountServiceType: AnyObject {
         in context: NSManagedObjectContext
     ) -> LemmyAccount
 
+    /// Creates (if needed) the signed-out account for `site` and marks it as the default account.
+    /// Stage 7 cutover entry point used by `LoginViewController` so call sites do not need to
+    /// resolve a `LemmyAccount` or pass a managed object context.
+    func signInAsSignedOut(at site: LemmySite)
+
     /// Looks up a most suitable account for the the given Lemmy instance.
     ///
     /// - Note: This is meant to be used only for real user actions, not for service accounts.
@@ -429,6 +434,15 @@ public class AccountService: AccountServiceType {
         lemmyServices[accountObjectId] = lemmyService
 
         return lemmyService
+    }
+
+    public func signInAsSignedOut(at site: LemmySite) {
+        let account = accountForSignedOut(
+            at: site,
+            isServiceAccount: false,
+            in: dataStore.mainContext
+        )
+        setDefaultAccount(account)
     }
 
     public func setDefaultAccount(forAccountKeychainId keychainId: String) {
