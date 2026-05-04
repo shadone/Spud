@@ -37,11 +37,14 @@ class PreferencesViewController: UIViewController {
 
     // MARK: - Functions
 
-    init(account: LemmyAccount, dependencies: Dependencies) {
+    init(
+        defaultPostSortType: Components.Schemas.SortType,
+        dependencies: Dependencies
+    ) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
         viewModel = PreferencesViewModel(
-            account: account,
+            defaultPostSortType: defaultPostSortType,
             dependencies: self.dependencies.nested
         )
         super.init(nibName: nil, bundle: nil)

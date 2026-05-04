@@ -28,8 +28,6 @@ protocol PreferencesViewModelInputs {
 
 @MainActor
 protocol PreferencesViewModelOutputs {
-    var account: CurrentValueSubject<LemmyAccount, Never> { get }
-
     // MARK: Testing opening external link
 
     var externalLinkRequested: AnyPublisher<URL, Never> { get }
@@ -101,12 +99,10 @@ class PreferencesViewModel:
     // MARK: Functions
 
     init(
-        account: LemmyAccount,
+        defaultPostSortType initialDefaultPostSortType: Components.Schemas.SortType,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
-
-        self.account = CurrentValueSubject<LemmyAccount, Never>(account)
 
         externalLinkRequested = testExternalLinkSubject.eraseToAnyPublisher()
 
@@ -114,7 +110,7 @@ class PreferencesViewModel:
         // (e.g. old Lemmy instance not supporting topSixHour sort)
         allPostSortTypes = Components.Schemas.SortType.allCases
 
-        defaultPostSortType = .init(account.accountInfo?.defaultSortType ?? .Hot)
+        defaultPostSortType = .init(initialDefaultPostSortType)
         defaultPostSortTypeRequested = updateDefaultPostSortSubject
             .eraseToAnyPublisher()
 
@@ -167,8 +163,6 @@ class PreferencesViewModel:
     }
 
     // MARK: Outputs
-
-    let account: CurrentValueSubject<LemmyAccount, Never>
 
     let externalLinkRequested: AnyPublisher<URL, Never>
 
