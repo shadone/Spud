@@ -23,7 +23,7 @@ protocol LoginViewModelOutputs {
     var icon: AnyPublisher<UIImage, Never> { get }
     var instanceName: AnyPublisher<String, Never> { get }
     var loginButtonEnabled: AnyPublisher<Bool, Never> { get }
-    var loggedIn: PassthroughSubject<LemmyAccount, Never> { get }
+    var loggedIn: PassthroughSubject<Void, Never> { get }
 }
 
 @MainActor
@@ -133,7 +133,7 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
     let icon: AnyPublisher<UIImage, Never>
     let instanceName: AnyPublisher<String, Never>
     let loginButtonEnabled: AnyPublisher<Bool, Never>
-    let loggedIn: PassthroughSubject<LemmyAccount, Never>
+    let loggedIn: PassthroughSubject<Void, Never>
 
     // MARK: Inputs
 
@@ -147,12 +147,12 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
 
     func login() async {
         do {
-            let account = try await accountService.login(
+            _ = try await accountService.login(
                 site: site.value,
                 username: username.value,
                 password: password.value
             )
-            loggedIn.send(account)
+            loggedIn.send(())
         } catch {
             alertService.handle(error, for: .login)
         }

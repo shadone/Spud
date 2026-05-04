@@ -60,6 +60,10 @@ public protocol AccountServiceType: AnyObject {
     /// Chooses which account is "default" i.e. used automatically at app launch.
     func setDefaultAccount(_ account: LemmyAccount)
 
+    /// Resolves the account by `keychainId` and marks it default. No-op if
+    /// the account isn't registered.
+    func setDefaultAccount(forAccountKeychainId keychainId: String)
+
     /// Returns a LemmyDataService instance for managing CoreData types.
     /// This is isolated to the main actor.
     func lemmyDataService(for account: LemmyAccount) -> LemmyDataServiceType
@@ -425,6 +429,14 @@ public class AccountService: AccountServiceType {
         lemmyServices[accountObjectId] = lemmyService
 
         return lemmyService
+    }
+
+    public func setDefaultAccount(forAccountKeychainId keychainId: String) {
+        guard let account = account(withKeychainId: keychainId, in: dataStore.mainContext) else {
+            logger.error("Cannot setDefaultAccount: no account for keychainId")
+            return
+        }
+        setDefaultAccount(account)
     }
 
     public func lemmyDataService(forAccountKeychainId keychainId: String) -> LemmyDataServiceType {
