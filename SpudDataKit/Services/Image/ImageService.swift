@@ -78,7 +78,7 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     ) -> AnyPublisher<ImageLoadingState, Never> {
         let subject = PassthroughSubject<ImageLoadingState, Never>()
         let stream = fetch(url, thumbnail: thumbnailUrl)
-        let task = Task {
+        let task = Task { [subject] in
             for await state in stream {
                 subject.send(state)
             }
