@@ -14,8 +14,9 @@ private let logger = Logger.app
 
 /// View-model state for PostListViewController. Holds a `FeedHandle`
 /// (feedKey + feedType) plus plain values driven by GRDB observations and
-/// LemmyService fetches. Pagination is tracked locally — pages count grows
-/// by one after each successful `fetchNextPage`.
+/// LemmyService fetches. Pagination is cursor-based — `nextPageCursor`
+/// comes from the previous fetch's response and is nil at the head of the
+/// feed and after exhaustion.
 @MainActor
 @Observable
 final class PostListViewModel {
@@ -33,7 +34,9 @@ final class PostListViewModel {
     var isFetchingNextPage: Bool = false
 
     @ObservationIgnored
-    private var pagesFetched: Int64 = 0
+    private var nextPageCursor: String?
+    @ObservationIgnored
+    private var feedExhausted: Bool = false
 
     private var accountService: AccountServiceType {
         dependencies.accountService
@@ -57,7 +60,8 @@ final class PostListViewModel {
             sortType: sortType
         )
         feed = newFeed
-        pagesFetched = 0
+        nextPageCursor = nil
+        feedExhausted = false
         navigationTitle = Self.navigationTitle(for: newFeed.feedType)
     }
 
@@ -67,12 +71,13 @@ final class PostListViewModel {
             forAccountKeychainId: accountKeychainId
         )
         feed = newFeed
-        pagesFetched = 0
+        nextPageCursor = nil
+        feedExhausted = false
         navigationTitle = Self.navigationTitle(for: newFeed.feedType)
     }
 
     func didScrollToBottom() {
-        guard !isFetchingNextPage else { return }
+        guard !isFetchingNextPage, !feedExhausted else { return }
         Task { await fetchNextPage() }
     }
 
@@ -84,16 +89,17 @@ final class PostListViewModel {
     }
 
     func fetchNextPage() async {
-        let nextPageNumber = pagesFetched + 1
-
         isFetchingNextPage = true
         defer { isFetchingNextPage = false }
 
         do {
-            try await accountService
+            let returnedCursor = try await accountService
                 .lemmyService(forAccountKeychainId: accountKeychainId)
-                .fetchFeed(feed, page: nextPageNumber)
-            pagesFetched = nextPageNumber
+                .fetchFeed(feed, pageCursor: nextPageCursor)
+            nextPageCursor = returnedCursor
+            if returnedCursor == nil {
+                feedExhausted = true
+            }
         } catch {
             alertService.handle(error, for: .fetchPostList)
         }

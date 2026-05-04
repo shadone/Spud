@@ -29,7 +29,12 @@ public enum LemmyServiceError: Error {
 }
 
 public protocol LemmyServiceType: Actor {
-    func fetchFeed(_ feed: FeedHandle, page pageNumber: Int64?) async throws
+    /// Fetch one page of posts for `feed`. Pass `pageCursor: nil` for the
+    /// first page; on subsequent calls pass the cursor returned by the
+    /// previous fetch. Returns the cursor for the next page, or nil if the
+    /// feed is exhausted.
+    @discardableResult
+    func fetchFeed(_ feed: FeedHandle, pageCursor: String?) async throws -> String?
 
     func fetchComments(
         serverPostId: Components.Schemas.PostID,
@@ -104,7 +109,7 @@ public actor LemmyService: LemmyServiceType {
         }
     }
 
-    public func fetchFeed(_ feed: FeedHandle, page pageNumber: Int64?) async throws {
+    public func fetchFeed(_ feed: FeedHandle, pageCursor: String?) async throws -> String? {
         let feedKey = feed.feedKey
         let feedType = feed.feedType
 
@@ -117,12 +122,12 @@ public actor LemmyService: LemmyServiceType {
                     feedId=\(feedKey, privacy: .public) \
                     listingType=\(listingType.rawValue, privacy: .public) \
                     sortType=\(sortType.rawValue, privacy: .public) \
-                    page=\(pageNumber.map { "\($0)" } ?? "nil", privacy: .public)
+                    pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
                 response = try await api.getPosts(
                     type: listingType,
                     sort: sortType,
-                    page: pageNumber
+                    page: pageCursor
                 )
 
             case let .community(communityName, instance, sortType):
@@ -132,12 +137,12 @@ public actor LemmyService: LemmyServiceType {
                     communityName=\(communityName, privacy: .public) \
                     instance=\(instance.debugDescription, privacy: .public) \
                     sortType=\(sortType.rawValue, privacy: .public) \
-                    page=\(pageNumber.map { "\($0)" } ?? "nil", privacy: .public)
+                    pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
                 response = try await api.getPosts(
                     community: .name("\(communityName)@\(instance.hostWithPort)"),
                     sort: sortType,
-                    page: pageNumber
+                    page: pageCursor
                 )
             }
         } catch {
@@ -161,6 +166,8 @@ public actor LemmyService: LemmyServiceType {
             feedType: feedType,
             posts: response.posts
         )
+
+        return response.next_page
     }
 
     private func mirrorFeedPageToAppDatabase(
