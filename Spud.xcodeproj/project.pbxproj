@@ -37,6 +37,7 @@
 		48DE41F6B8B867AC93EC5087 /* CommentImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79394240A2C30AD7C970D83E /* CommentImporter.swift */; };
 		4F8543AB82CA92AD1D0A9F63 /* InstanceRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43934EFD9B71D978E344BCC4 /* InstanceRecord.swift */; };
 		58F84F82B41CFAB70A328FCA /* FeedImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0898496FB1E0A1F44AC6BA27 /* FeedImporter.swift */; };
+		607C4BDEBCBDDE79C41E4A88 /* LemmyServiceQueries.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5D413698ABBD5724D9A15A /* LemmyServiceQueries.swift */; };
 		7714492BB1CAE4630714DDF0 /* AppDatabase+Migrations.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F0840C5AB426F95C6989E4E /* AppDatabase+Migrations.swift */; };
 		85DB41B492A0ECF41C8E7346 /* Feed.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75F443B2BD800D168D379F3B /* Feed.swift */; };
 		920B45502A7C1DF400C6C2DC /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 929CDBBC2A7C1CE300AE6B30 /* WidgetKit.framework */; };
@@ -774,6 +775,7 @@
 		92DD63082A48CC2700497C3B /* LoginViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginViewModel.swift; sourceTree = "<group>"; };
 		92F571292A8EFBB800A06ABD /* UIFont+scaledFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIFont+scaledFont.swift"; sourceTree = "<group>"; };
 		92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudLaunchPerformance.swift; sourceTree = "<group>"; };
+		AA5D413698ABBD5724D9A15A /* LemmyServiceQueries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LemmyServiceQueries.swift; path = SpudDataKit/Services/AppDatabase/LemmyServiceQueries.swift; sourceTree = SOURCE_ROOT; };
 		AD2B4BBD8427CFF3890B262B /* PostImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PostImporter.swift; path = SpudDataKit/Services/AppDatabase/Importers/PostImporter.swift; sourceTree = SOURCE_ROOT; };
 		C77D4224B4FCD6C3607D1095 /* WidgetQueries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WidgetQueries.swift; path = SpudDataKit/Services/AppDatabase/WidgetQueries.swift; sourceTree = SOURCE_ROOT; };
 		DDC1413A981C31C0EB8FD11B /* AccountListObservations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AccountListObservations.swift; path = SpudDataKit/Services/AppDatabase/AccountListObservations.swift; sourceTree = SOURCE_ROOT; };
@@ -1288,6 +1290,7 @@
 				79394240A2C30AD7C970D83E /* CommentImporter.swift */,
 				09F8482A951FA89C3646EF7F /* AppDatabase */,
 				87454E5DA42E6030355B994B /* SchedulerQueries.swift */,
+				AA5D413698ABBD5724D9A15A /* LemmyServiceQueries.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -2465,6 +2468,7 @@
 				92CC5D732A7EBFA20019436A /* LemmyPostInfo+VoteStatus.swift in Sources */,
 				92CC5D7E2A7EBFA20019436A /* LemmyPostInfo.swift in Sources */,
 				92CC5DC72A7ED7320019436A /* LemmyService.swift in Sources */,
+				607C4BDEBCBDDE79C41E4A88 /* LemmyServiceQueries.swift in Sources */,
 				92CC5DCF2A7ED7380019436A /* LemmySite+import.swift in Sources */,
 				92CC5D712A7EBFA20019436A /* LemmySite.swift in Sources */,
 				92CC5D802A7EBFA20019436A /* LemmySiteInfo.swift in Sources */,
