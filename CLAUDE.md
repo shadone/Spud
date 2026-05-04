@@ -137,15 +137,16 @@ What's done:
 - [x] **Swift 6 — SpudUtilKit** — language mode `6.0`, builds clean.
 - [x] **Swift 6 — SpudUIKit** — language mode `6.0`, builds clean. `ColorAsset` marked `@unchecked Sendable`.
 - [x] **Stage 7 — Core Data demolition** — `Lemmy*` model classes, `Spud.xcdatamodeld`, `DataStore`, and every `import CoreData` are gone.
-- [x] **Stage 8 — strict concurrency** — Spud / SpudDataKit / SpudWidgetExtension / OpenInAppExtension all at Swift 6.0 language mode, building clean. Spud has 3 warnings (1 linker rpath dup, 2 LemmyKit `getPosts` deprecations). Widget has 2 (the deprecations).
+- [x] **Stage 8 — strict concurrency** — Spud / SpudDataKit / SpudWidgetExtension / OpenInAppExtension all at Swift 6.0 language mode, building clean.
 - [x] **Combine — first retirement pass** — `ImageServiceType.fetchPublisher` removed; consumers (SiteListSiteViewModel, LoginViewModel) bridge AsyncStream → PassthroughSubject inline.
+- [x] **Cursor-based pagination** — `LemmyService.fetchFeed(_:pageCursor:)` returns the next cursor; `PostListViewModel` tracks `nextPageCursor`. The two LemmyKit `getPosts` deprecation warnings are gone.
+
+Build status: **Spud has 1 warning** (a benign `Duplicate -rpath '@executable_path'` from extension search-path inheritance). **Widget has 0 warnings.**
 
 What's next:
 
-1. **Cursor-based pagination.** The 2 remaining LemmyKit deprecations (`getPosts(type:..., page: Page?)` and `getPosts(community:..., page: Page?)`) want migration to `Components.Schemas.PaginationCursor?`. Touches `FeedHandle` / `LemmyService.fetchFeed` / `appendFeedPage`.
-2. **Combine retirement, second pass.** Move the remaining view-models off `AnyPublisher` / `CurrentValueSubject` to `@Observable` + AsyncStream. Then retire `AnyPublisher.async()` and `wrapInOptional` extensions in SpudUtilKit, and `import Combine` from AlertService and ImageService.
-3. **Test targets** — fix the SpudDataKitTests fakes against the current LemmyKit namespace, then flip the test targets to Swift 6.
-4. **Linker `-rpath` dup** — investigate the duplicate `@executable_path` in LD_RUNPATH_SEARCH_PATHS that surfaces as a linker warning on every clean build.
+1. **Combine retirement, second pass.** Move the remaining view-models off `AnyPublisher` / `CurrentValueSubject` to `@Observable` + AsyncStream. Then retire `AnyPublisher.async()` and `wrapInOptional` extensions in SpudUtilKit, and `import Combine` from AlertService.
+2. **Test targets** — fix the SpudDataKitTests fakes against the current LemmyKit namespace, then flip the test targets to Swift 6.
 
 ## Deferred (not blocking)
 
