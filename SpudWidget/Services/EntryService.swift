@@ -129,7 +129,7 @@ class EntryService: EntryServiceType {
         do {
             try await accountService
                 .lemmyService(for: account)
-                .fetchFeed(feedKey: feed.feedKey, page: nil)
+                .fetchFeed(feed, page: nil)
         } catch {
             logger.error("Failed to fetch feed: \(error, privacy: .public)")
         }
