@@ -35,6 +35,7 @@
 		307A49D79C64FB213CFB9A68 /* SchedulerQueries.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87454E5DA42E6030355B994B /* SchedulerQueries.swift */; };
 		40F642A18FD6E78F29FEA87B /* SiteImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1684C0486281766E757594F /* SiteImporter.swift */; };
 		48DE41F6B8B867AC93EC5087 /* CommentImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79394240A2C30AD7C970D83E /* CommentImporter.swift */; };
+		4B464437821A5D79A6C324E1 /* SiteListObservations.swift in Sources */ = {isa = PBXBuildFile; fileRef = C12B4E18AFB871597A6AAD53 /* SiteListObservations.swift */; };
 		4F8543AB82CA92AD1D0A9F63 /* InstanceRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43934EFD9B71D978E344BCC4 /* InstanceRecord.swift */; };
 		58F84F82B41CFAB70A328FCA /* FeedImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0898496FB1E0A1F44AC6BA27 /* FeedImporter.swift */; };
 		607C4BDEBCBDDE79C41E4A88 /* LemmyServiceQueries.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5D413698ABBD5724D9A15A /* LemmyServiceQueries.swift */; };
@@ -749,6 +750,7 @@
 		92F5712B2A8FF1BC00A06ABD /* SpudLaunchPerformance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudLaunchPerformance.swift; sourceTree = "<group>"; };
 		AA5D413698ABBD5724D9A15A /* LemmyServiceQueries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LemmyServiceQueries.swift; path = SpudDataKit/Services/AppDatabase/LemmyServiceQueries.swift; sourceTree = SOURCE_ROOT; };
 		AD2B4BBD8427CFF3890B262B /* PostImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PostImporter.swift; path = SpudDataKit/Services/AppDatabase/Importers/PostImporter.swift; sourceTree = SOURCE_ROOT; };
+		C12B4E18AFB871597A6AAD53 /* SiteListObservations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SiteListObservations.swift; path = SpudDataKit/Services/AppDatabase/SiteListObservations.swift; sourceTree = SOURCE_ROOT; };
 		C77D4224B4FCD6C3607D1095 /* WidgetQueries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WidgetQueries.swift; path = SpudDataKit/Services/AppDatabase/WidgetQueries.swift; sourceTree = SOURCE_ROOT; };
 		DDC1413A981C31C0EB8FD11B /* AccountListObservations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AccountListObservations.swift; path = SpudDataKit/Services/AppDatabase/AccountListObservations.swift; sourceTree = SOURCE_ROOT; };
 		DDFD43D3BA98EB4CAF625AA5 /* Person.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Person.swift; path = SpudDataKit/Services/AppDatabase/Records/Person.swift; sourceTree = SOURCE_ROOT; };
@@ -1262,6 +1264,7 @@
 				09F8482A951FA89C3646EF7F /* AppDatabase */,
 				87454E5DA42E6030355B994B /* SchedulerQueries.swift */,
 				AA5D413698ABBD5724D9A15A /* LemmyServiceQueries.swift */,
+				C12B4E18AFB871597A6AAD53 /* SiteListObservations.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -1451,19 +1454,6 @@
 		92B7C9542A3A737A00672F64 /* ImportHelpers */ = {
 			isa = PBXGroup;
 			children = (
-
-
-
-
-
-
-
-
-
-
-
-
-
 				92B7C9982A3F2C7000672F64 /* LemmyCommentImportHelper.swift */,
 			);
 			path = ImportHelpers;
@@ -2380,19 +2370,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-
-
-
-
-
-
-
-
-
-
-
-
-
 				276B41CA8A9DC42DF8D1033A /* Account.swift in Sources */,
 				D86D41DABEEC06AE7255030B /* AccountImporter.swift in Sources */,
 				B2B34FD586C81CEFDA32A2DF /* AccountListObservations.swift in Sources */,
@@ -2461,6 +2438,7 @@
 				92CC5DC02A7ED7210019436A /* SchedulerService.swift in Sources */,
 				BF3643919B963051BF8155CE /* Site.swift in Sources */,
 				40F642A18FD6E78F29FEA87B /* SiteImporter.swift in Sources */,
+				4B464437821A5D79A6C324E1 /* SiteListObservations.swift in Sources */,
 				92CC5DC42A7ED7290019436A /* SiteService.swift in Sources */,
 				927839C82C0C703D00521C69 /* SortType+DataStore.swift in Sources */,
 				9233A1422A82508000F1F795 /* StaticImageService.swift in Sources */,
