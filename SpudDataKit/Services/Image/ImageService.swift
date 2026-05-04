@@ -48,7 +48,7 @@ public final class ImageService: ImageServiceType {
                 }
 
                 let cachedThumbnail = thumbnailUrl.flatMap {
-                    memoryCache.object(forKey: $0 as NSURL)
+                    self.memoryCache.object(forKey: $0 as NSURL)
                 }
                 continuation.yield(.loading(thumbnail: cachedThumbnail))
 

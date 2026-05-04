@@ -48,7 +48,7 @@ extension AppDatabase {
                 .deleteAll(db)
 
             for communityRowId in communityRowIds {
-                var junction = AccountFollowedCommunityRecord(
+                let junction = AccountFollowedCommunityRecord(
                     accountId: accountId,
                     communityId: communityRowId
                 )

@@ -101,7 +101,7 @@ public extension AppDatabase {
             .removeDuplicates()
 
         return AsyncStream { continuation in
-            let cancellable = observation.start(in: writer) { error in
+            let cancellable = observation.start(in: writer, scheduling: .async(onQueue: .global(qos: .userInitiated))) { error in
                 logger.error("PostList ValueObservation failed: \(String(describing: error), privacy: .public)")
                 continuation.finish()
             } onChange: { value in
