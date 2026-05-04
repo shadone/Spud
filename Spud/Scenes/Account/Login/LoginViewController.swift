@@ -221,9 +221,6 @@ class LoginViewController: UIViewController {
     let viewModel: LoginViewModelType
     var disposables = Set<AnyCancellable>()
 
-    var usernameChangedObserver: NSObjectProtocol?
-    var passwordChangedObserver: NSObjectProtocol?
-
     // MARK: Functions
 
     init(
@@ -241,18 +238,6 @@ class LoginViewController: UIViewController {
 
         setup()
         bindViewModel()
-    }
-
-    deinit {
-        if let usernameChangedObserver {
-            NotificationCenter.default.removeObserver(usernameChangedObserver)
-            self.usernameChangedObserver = nil
-        }
-
-        if let passwordChangedObserver {
-            NotificationCenter.default.removeObserver(passwordChangedObserver)
-            self.passwordChangedObserver = nil
-        }
     }
 
     @available(*, unavailable)
@@ -304,20 +289,19 @@ class LoginViewController: UIViewController {
             totp2faTokenTextField.widthAnchor.constraint(equalTo: usernameTextField.widthAnchor),
         ])
 
-        usernameChangedObserver = NotificationCenter.default.addObserver(
-            forName: UITextField.textDidChangeNotification,
-            object: usernameTextField,
-            queue: .main
-        ) { [weak self] _ in
-            self?.usernameChanged()
-        }
-        passwordChangedObserver = NotificationCenter.default.addObserver(
-            forName: UITextField.textDidChangeNotification,
-            object: passwordTextField,
-            queue: .main
-        ) { [weak self] _ in
-            self?.passwordChanged()
-        }
+        NotificationCenter.default
+            .publisher(for: UITextField.textDidChangeNotification, object: usernameTextField)
+            .sink { [weak self] _ in
+                self?.usernameChanged()
+            }
+            .store(in: &disposables)
+
+        NotificationCenter.default
+            .publisher(for: UITextField.textDidChangeNotification, object: passwordTextField)
+            .sink { [weak self] _ in
+                self?.passwordChanged()
+            }
+            .store(in: &disposables)
     }
 
     private func bindViewModel() {

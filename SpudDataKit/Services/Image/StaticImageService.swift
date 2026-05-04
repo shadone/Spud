@@ -8,7 +8,7 @@ import Combine
 import Foundation
 import UIKit
 
-public final class StaticImageService: ImageServiceType {
+public final class StaticImageService: ImageServiceType, @unchecked Sendable {
     public init() { }
 
     public func fetch(

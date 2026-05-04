@@ -6,7 +6,7 @@
 
 import Foundation
 
-public struct Community: Codable {
+public struct Community: Codable, Sendable {
     public let name: String
     public let site: String
 

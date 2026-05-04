@@ -7,7 +7,7 @@
 import Combine
 import Foundation
 
-public protocol ImageServiceType: AnyObject {
+public protocol ImageServiceType: AnyObject, Sendable {
     /// Asynchronously fetch the image at `url`, optionally yielding a thumbnail
     /// while the full image loads.
     ///

@@ -11,7 +11,7 @@ import OSLog
 private let logger = Logger.alertService
 
 /// Helper for handling errors and displaying the appropriate message to the user.
-public protocol AlertServiceType: AnyObject {
+public protocol AlertServiceType: AnyObject, Sendable {
     func handle(_ error: Error, for request: AlertHandlerRequest)
 
     /// Returns a closure for handling errors coming from ``LemmyService`` requests.
@@ -36,7 +36,7 @@ public protocol HasAlertService {
     var alertService: AlertServiceType { get }
 }
 
-public class AlertService: AlertServiceType {
+public final class AlertService: AlertServiceType {
     public init() { }
 
     public func handle(_ error: Error, for request: AlertHandlerRequest) {
