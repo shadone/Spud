@@ -53,7 +53,7 @@ struct DependencyContainer:
             fatalError("Failed to open AppDatabase: \(error)")
         }
 
-        siteService = SiteService(dataStore: dataStore)
+        siteService = SiteService(dataStore: dataStore, appDatabase: appDatabase)
         accountService = AccountService(
             siteService: siteService,
             dataStore: dataStore,
