@@ -227,13 +227,13 @@ class LoginViewController: UIViewController {
     // MARK: Functions
 
     init(
-        site: LemmySite,
+        row: SiteListRow,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
         viewModel = LoginViewModel(
-            site: site,
+            row: row,
             dependencies: self.dependencies.nested
         )
 
@@ -353,7 +353,7 @@ class LoginViewController: UIViewController {
 
     @objc
     private func continueWithSignedOutAccount() {
-        accountService.signInAsSignedOut(atInstance: viewModel.outputs.site.value.instance.actorId)
+        accountService.signInAsSignedOut(atInstance: viewModel.outputs.row.instance)
         dismiss(animated: true)
     }
 
