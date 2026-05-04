@@ -111,7 +111,7 @@ The pre-commit hook runs `scripts/sort-Xcode-project-file.pl` to keep `project.p
 
 ## Strict concurrency
 
-`SWIFT_STRICT_CONCURRENCY = complete` is on at the project level. SpudUtilKit and SpudUIKit are at Swift 6.0 language mode; SpudDataKit, Spud, SpudWidget, and the extensions are at Swift 5.0 with strict concurrency producing warnings (Stage 8 work has the warning count down to 4 on Spud / 3 on widget).
+`SWIFT_STRICT_CONCURRENCY = complete` is on at the project level. All shipped targets — Spud, SpudDataKit, SpudWidgetExtension, OpenInAppExtension, SpudUtilKit, SpudUIKit — are at Swift 6.0 language mode. Test targets (SpudTests, SpudDataKitTests, SpudUITests, SpudSnapshotTests) are still at 5.0 because the test fakes have pre-existing compile errors against the current LemmyKit OpenAPI namespace.
 
 `@preconcurrency import LemmyKit` in SpudDataKit's LemmyService and AccountService — LemmyKit declares `actor LemmyApi` but the experimental StrictConcurrency flag means consumers see it as non-Sendable across the module boundary. Drop the `@preconcurrency` once LemmyKit advances to Swift 6 language mode.
 
@@ -137,14 +137,15 @@ What's done:
 - [x] **Swift 6 — SpudUtilKit** — language mode `6.0`, builds clean.
 - [x] **Swift 6 — SpudUIKit** — language mode `6.0`, builds clean. `ColorAsset` marked `@unchecked Sendable`.
 - [x] **Stage 7 — Core Data demolition** — `Lemmy*` model classes, `Spud.xcdatamodeld`, `DataStore`, and every `import CoreData` are gone.
-- [x] **Stage 8 first pass** — strict-concurrency warnings on `Spud` from 44 → 4 (1 linker, 2 LemmyKit deprecations, 1 ImageService Combine bridge), widget from many → 3 (the same 2 deprecations + 1 bridge).
+- [x] **Stage 8 — strict concurrency** — Spud / SpudDataKit / SpudWidgetExtension / OpenInAppExtension all at Swift 6.0 language mode, building clean. Spud has 3 warnings (1 linker rpath dup, 2 LemmyKit `getPosts` deprecations). Widget has 2 (the deprecations).
+- [x] **Combine — first retirement pass** — `ImageServiceType.fetchPublisher` removed; consumers (SiteListSiteViewModel, LoginViewModel) bridge AsyncStream → PassthroughSubject inline.
 
 What's next:
 
 1. **Cursor-based pagination.** The 2 remaining LemmyKit deprecations (`getPosts(type:..., page: Page?)` and `getPosts(community:..., page: Page?)`) want migration to `Components.Schemas.PaginationCursor?`. Touches `FeedHandle` / `LemmyService.fetchFeed` / `appendFeedPage`.
-2. **Combine retirement.** Drop `fetchPublisher`, migrate the view-models in `Login`, `SiteList` and elsewhere to consume `AsyncStream<ImageLoadingState>` directly. Then retire `AnyPublisher.async()` in SpudUtilKit.
-3. **Flip remaining targets to Swift 6 language mode** once warnings hit zero.
-4. **`OpenInAppExtension` and `SpudUITests` strict-concurrency pass** — not yet touched.
+2. **Combine retirement, second pass.** Move the remaining view-models off `AnyPublisher` / `CurrentValueSubject` to `@Observable` + AsyncStream. Then retire `AnyPublisher.async()` and `wrapInOptional` extensions in SpudUtilKit, and `import Combine` from AlertService and ImageService.
+3. **Test targets** — fix the SpudDataKitTests fakes against the current LemmyKit namespace, then flip the test targets to Swift 6.
+4. **Linker `-rpath` dup** — investigate the duplicate `@executable_path` in LD_RUNPATH_SEARCH_PATHS that surfaces as a linker warning on every clean build.
 
 ## Deferred (not blocking)
 
