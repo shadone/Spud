@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import CoreData
 import Foundation
 import GRDB
 import KeychainAccess
@@ -120,103 +119,16 @@ public protocol HasAccountService {
 public class AccountService: AccountServiceType {
     // MARK: Private
 
-    private let dataStore: DataStoreType
     private let appDatabase: AppDatabase
-    private let siteService: SiteServiceType
 
     private var lemmyServices: [String: LemmyService] = [:]
 
     // MARK: Functions
 
     public init(
-        siteService: SiteServiceType,
-        dataStore: DataStoreType,
         appDatabase: AppDatabase
     ) {
-        self.dataStore = dataStore
         self.appDatabase = appDatabase
-        self.siteService = siteService
-    }
-
-    /// One-shot upgrade-path sweep that mirrors every Core Data account into
-    /// AppDatabase via `ensureSite` + `ensureAccount`. Required for Stage 7
-    /// users who installed a build predating the per-create mirror — old
-    /// Core Data accounts otherwise have no GRDB row and would be invisible
-    /// to SchedulerService's GRDB queries. Idempotent, safe to call on every
-    /// launch.
-    public func backfillAccountsToAppDatabase() {
-        struct Snapshot {
-            let actorId: InstanceActorId
-            let keychainId: String
-            let isSignedOut: Bool
-            let isServiceAccount: Bool
-        }
-        let snapshots: [Snapshot] = allAccounts(
-            includeSignedOutAccount: true,
-            in: dataStore.mainContext
-        ).map { account in
-            Snapshot(
-                actorId: account.site.instance.actorId,
-                keychainId: account.id,
-                isSignedOut: account.isSignedOutAccountType,
-                isServiceAccount: account.isServiceAccount
-            )
-        }
-        guard !snapshots.isEmpty else { return }
-        Task { [appDatabase] in
-            for snap in snapshots {
-                do {
-                    let (_, siteId) = try await appDatabase.ensureSite(forInstance: snap.actorId)
-                    _ = try await appDatabase.ensureAccount(
-                        keychainId: snap.keychainId,
-                        siteId: siteId,
-                        isSignedOut: snap.isSignedOut,
-                        isServiceAccount: snap.isServiceAccount
-                    )
-                } catch {
-                    logger.error("""
-                        Failed to backfill account into AppDatabase: \
-                        \(String(describing: error), privacy: .public)
-                        """)
-                }
-            }
-        }
-    }
-
-    private func account(
-        withKeychainId keychainId: String,
-        in context: NSManagedObjectContext
-    ) -> LemmyAccount? {
-        assert(Thread.current.isMainThread)
-        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
-        request.fetchLimit = 1
-        request.predicate = NSPredicate(format: "id == %@", keychainId)
-        do {
-            return try context.fetch(request).first
-        } catch {
-            logger.assertionFailure("Failed to fetch account by keychainId: \(error.localizedDescription)")
-            return nil
-        }
-    }
-
-    private func allAccounts(
-        includeSignedOutAccount: Bool,
-        in context: NSManagedObjectContext
-    ) -> [LemmyAccount] {
-        assert(Thread.current.isMainThread)
-
-        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
-        if !includeSignedOutAccount {
-            request.predicate = NSPredicate(
-                format: "isSignedOutAccountType == false"
-            )
-        }
-        do {
-            return try context.fetch(request)
-        } catch {
-            logger.assertionFailure("Failed to fetch all accounts: \(error.localizedDescription)")
-            return []
-        }
     }
 
     public func defaultAccountKeychainId() -> String {
@@ -238,19 +150,15 @@ public class AccountService: AccountServiceType {
     }
 
     /// First-launch path. AppDatabase has no candidate account, so create a
-    /// signed-out one for whichever site SiteService has lying around (today
-    /// the first one populated by `seedInitialSitesIfNeeded`). Returns the
-    /// new account's keychainId. Stage 3d.6 will collapse this into a GRDB
-    /// query that picks an InstanceActorId directly without going through
-    /// `siteService.allSites(in:)`.
+    /// signed-out one for whichever instance the seeded site list has on
+    /// hand. Returns the new account's keychainId.
     private func bootstrapDefaultKeychainId() -> String {
-        guard let site = siteService.allSites(in: dataStore.mainContext).first else {
+        guard let row = appDatabase.allSiteListRowsSync().first else {
             fatalError("Cannot bootstrap default account: no sites available")
         }
-        let actorId = site.instance.actorId
         do {
             let keychainId = try appDatabase.ensureSignedOutAccountKeychainId(
-                forInstance: actorId,
+                forInstance: row.instance,
                 isServiceAccount: false
             )
             try appDatabase.setDefaultAccountSync(keychainId: keychainId)
@@ -321,10 +229,6 @@ public class AccountService: AccountServiceType {
     }
 
     public func signInAsSignedOut(atInstance instance: InstanceActorId) {
-        // Ensure the Core Data Site/Instance rows still exist so the legacy
-        // SiteListViewController FRC keeps showing this site. Removed once
-        // the SiteList UI moves to GRDB.
-        _ = siteService.site(for: instance, in: dataStore.mainContext)
         do {
             let keychainId = try appDatabase.ensureSignedOutAccountKeychainId(
                 forInstance: instance,
@@ -341,22 +245,11 @@ public class AccountService: AccountServiceType {
             try appDatabase.setDefaultAccountSync(keychainId: keychainId)
         } catch {
             logger.error("setDefaultAccount failed: \(error.localizedDescription, privacy: .public)")
-            return
         }
-        // Mirror to Core Data so the legacy defaultAccount() fetch stays in
-        // sync until 3d.6 deletes LemmyAccount entirely.
-        guard let account = account(withKeychainId: keychainId, in: dataStore.mainContext) else { return }
-        for other in allAccounts(includeSignedOutAccount: true, in: dataStore.mainContext) {
-            other.isDefaultAccount = false
-        }
-        account.isDefaultAccount = true
-        dataStore.saveIfNeeded()
     }
 
     public func accountKeychainId(forInstance instance: InstanceActorId) -> String {
         assert(Thread.current.isMainThread)
-        // Keep Core Data Site row in sync for the legacy SiteList UI.
-        _ = siteService.site(for: instance, in: dataStore.mainContext)
         do {
             return try appDatabase.bestAccountKeychainId(forInstance: instance)
         } catch {
@@ -370,7 +263,6 @@ public class AccountService: AccountServiceType {
         isServiceAccount: Bool
     ) -> String {
         assert(Thread.current.isMainThread)
-        _ = siteService.site(for: instance, in: dataStore.mainContext)
         do {
             return try appDatabase.ensureSignedOutAccountKeychainId(
                 forInstance: instance,
@@ -440,9 +332,6 @@ public class AccountService: AccountServiceType {
         username: String,
         password: String
     ) async throws {
-        // Keep the Core Data Site row in sync for the legacy SiteList FRC.
-        _ = siteService.site(for: instance, in: dataStore.mainContext)
-
         guard let url = instance.url else {
             fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
         }
@@ -510,15 +399,6 @@ extension AccountService {
         )
     }
 
-    /// Legacy keychain key — `account.objectID.uriRepresentation().absoluteString`.
-    /// Used only by the credential-migration sweep so we can copy values out
-    /// before they become unreachable in 3d.7 when the Core Data store goes
-    /// away.
-    private static func legacyKeychainKey(for account: LemmyAccount) -> String {
-        assert(!account.objectID.isTemporaryID)
-        return account.objectID.uriRepresentation().absoluteString
-    }
-
     private func writeCredential(_ credential: LemmyCredential, forKeychainId keychainId: String) {
         let stringValue = credential.toString()
         do {
@@ -547,48 +427,6 @@ extension AccountService {
         } catch {
             logger.assertionFailure("Failed to get credential from keychain: \(error.localizedDescription)")
             return nil
-        }
-    }
-
-    @discardableResult
-    private func migrateLegacyCredentialIfPresent(for account: LemmyAccount) -> LemmyCredential? {
-        let legacyKey = Self.legacyKeychainKey(for: account)
-        let stringValue: String?
-        do {
-            stringValue = try keychain.get(legacyKey)
-        } catch {
-            logger.error("Failed to read legacy credential: \(error.localizedDescription, privacy: .public)")
-            return nil
-        }
-        guard let stringValue else { return nil }
-        let credential: LemmyCredential
-        do {
-            credential = try LemmyCredential.fromString(stringValue)
-        } catch {
-            logger.error("Failed to parse legacy credential '\(stringValue, privacy: .sensitive)': \(error.localizedDescription, privacy: .public)")
-            return nil
-        }
-        do {
-            try keychain.set(stringValue, key: account.id)
-            try keychain.remove(legacyKey)
-            logger.info("Migrated keychain credential to keychainId-keyed slot")
-        } catch {
-            logger.error("Failed to migrate legacy credential: \(error.localizedDescription, privacy: .public)")
-        }
-        return credential
-    }
-
-    /// Walks every signed-in Core Data account and ensures its keychain
-    /// credential lives under the new keychainId-keyed slot. Idempotent —
-    /// only does work for accounts whose credential is still under the
-    /// legacy objectID-URI key. Must run before 3d.7 deletes the Core Data
-    /// store, after which the legacy keys would be unreachable.
-    public func migrateCredentialsToKeychainIdKeyed() {
-        let accounts = allAccounts(includeSignedOutAccount: false, in: dataStore.mainContext)
-        for account in accounts {
-            guard !account.isSignedOutAccountType else { continue }
-            if readCredential(forKeychainId: account.id) != nil { continue }
-            migrateLegacyCredentialIfPresent(for: account)
         }
     }
 }

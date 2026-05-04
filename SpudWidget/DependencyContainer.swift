@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import CoreData
 import Foundation
 import SpudDataKit
 import SpudUtilKit
@@ -35,11 +34,7 @@ class DependencyContainer: ObservableObject,
             fatalError("Failed to open AppDatabase: \(error)")
         }
 
-        accountService = AccountService(
-            siteService: EmptySiteService(),
-            dataStore: dataStore,
-            appDatabase: appDatabase
-        )
+        accountService = AccountService(appDatabase: appDatabase)
         entryService = EntryService(
             dataStore: dataStore,
             appDatabase: appDatabase,
@@ -52,20 +47,5 @@ class DependencyContainer: ObservableObject,
     private func start() {
         dataStore.startService()
         entryService.startService()
-    }
-}
-
-// TODO: remove me when AccountService no longer depends on SiteService
-private class EmptySiteService: SiteServiceType {
-    func startService() { }
-
-    func allSites(in context: NSManagedObjectContext) -> [LemmySite] {
-        fatalError()
-    }
-
-    func populateSiteListWithSuggestedInstancesIfNeeded() { }
-
-    func site(for instance: InstanceActorId, in context: NSManagedObjectContext) -> LemmySite {
-        fatalError()
     }
 }
