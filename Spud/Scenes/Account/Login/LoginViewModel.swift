@@ -4,36 +4,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
-import LemmyKit
+import Observation
 import SpudDataKit
 import UIKit
 
 @MainActor
-protocol LoginViewModelInputs {
-    func usernameChanged(_ username: String)
-    func passwordChanged(_ password: String)
-    func login() async
-}
-
-@MainActor
-protocol LoginViewModelOutputs {
-    var row: SiteListRow { get }
-    var icon: AnyPublisher<UIImage, Never> { get }
-    var instanceName: AnyPublisher<String, Never> { get }
-    var loginButtonEnabled: AnyPublisher<Bool, Never> { get }
-    var loggedIn: PassthroughSubject<Void, Never> { get }
-}
-
-@MainActor
-protocol LoginViewModelType {
-    var inputs: LoginViewModelInputs { get }
-    var outputs: LoginViewModelOutputs { get }
-}
-
-@MainActor
-class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOutputs {
+@Observable
+final class LoginViewModel {
     typealias OwnDependencies =
         HasAccountService &
         HasAlertService &
@@ -41,22 +19,36 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
     typealias NestedDependencies =
         HasVoid
     typealias Dependencies = NestedDependencies & OwnDependencies
+
+    @ObservationIgnored
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var accountService: AccountServiceType {
+    private var accountService: AccountServiceType {
         dependencies.own.accountService
     }
 
-    var alertService: AlertServiceType {
+    private var alertService: AlertServiceType {
         dependencies.own.alertService
     }
 
-    // MARK: Private
+    private var imageService: ImageServiceType {
+        dependencies.own.imageService
+    }
 
-    private let username: CurrentValueSubject<String, Never>
-    private let password: CurrentValueSubject<String, Never>
+    let row: SiteListRow
+    let instanceName: String
 
-    // MARK: Functions
+    var icon: UIImage
+    var username: String = ""
+    var password: String = ""
+    var loggedIn: Bool = false
+
+    var loginButtonEnabled: Bool {
+        !username.isEmpty && !password.isEmpty
+    }
+
+    @ObservationIgnored
+    private var iconFetchTask: Task<Void, Never>?
 
     init(
         row: SiteListRow,
@@ -64,83 +56,41 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
     ) {
         self.row = row
         self.dependencies = (own: dependencies, nested: dependencies)
+        instanceName = row.hostname
 
         let placeholder = UIImage(systemName: "questionmark")!
+        icon = placeholder
+
         if let iconUrl = row.iconUrl {
             let stream = dependencies.imageService.fetch(iconUrl)
-            let subject = PassthroughSubject<UIImage, Never>()
-            let task = Task { [subject] in
+            iconFetchTask = Task { [weak self] in
                 for await state in stream {
-                    let image: UIImage?
+                    guard let self else { return }
                     switch state {
                     case .loading:
-                        image = nil
+                        break
                     case let .ready(loaded):
-                        image = loaded
+                        icon = loaded
                     case .failure:
-                        image = placeholder
-                    }
-                    if let image {
-                        subject.send(image)
+                        icon = placeholder
                     }
                 }
-                subject.send(completion: .finished)
             }
-            icon = subject
-                .handleEvents(receiveCancel: { task.cancel() })
-                .eraseToAnyPublisher()
-        } else {
-            icon = Just(placeholder).eraseToAnyPublisher()
         }
-
-        instanceName = Just(row.hostname).eraseToAnyPublisher()
-
-        username = .init("")
-        password = .init("")
-        loginButtonEnabled = username.combineLatest(password)
-            .map { username, password in
-                !username.isEmpty && !password.isEmpty
-            }
-            .eraseToAnyPublisher()
-        loggedIn = .init()
     }
 
-    // MARK: Type
-
-    var inputs: LoginViewModelInputs {
-        self
-    }
-
-    var outputs: LoginViewModelOutputs {
-        self
-    }
-
-    // MARK: Outputs
-
-    let row: SiteListRow
-    let icon: AnyPublisher<UIImage, Never>
-    let instanceName: AnyPublisher<String, Never>
-    let loginButtonEnabled: AnyPublisher<Bool, Never>
-    let loggedIn: PassthroughSubject<Void, Never>
-
-    // MARK: Inputs
-
-    func usernameChanged(_ username: String) {
-        self.username.send(username)
-    }
-
-    func passwordChanged(_ password: String) {
-        self.password.send(password)
+    deinit {
+        iconFetchTask?.cancel()
     }
 
     func login() async {
         do {
             try await accountService.login(
                 atInstance: row.instance,
-                username: username.value,
-                password: password.value
+                username: username,
+                password: password
             )
-            loggedIn.send(())
+            loggedIn = true
         } catch {
             alertService.handle(error, for: .login)
         }
