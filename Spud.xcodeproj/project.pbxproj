@@ -48,7 +48,6 @@
 		920B45612A7C1DF500C6C2DC /* SpudWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 920B454F2A7C1DF400C6C2DC /* SpudWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		9210A76E2FA7E338003F5289 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 9210A76D2FA7E338003F5289 /* GRDB */; };
 		92116E942A633DEA00344251 /* PersonOrLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92116E932A633DEA00344251 /* PersonOrLoadingViewController.swift */; };
-		92116E962A633FE400344251 /* PersonOrLoadingViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92116E952A633FE400344251 /* PersonOrLoadingViewModel.swift */; };
 		92116E992A64463600344251 /* PersonLoadingViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92116E982A64463600344251 /* PersonLoadingViewController.swift */; };
 		9215FE002A7FEE85008B49AB /* SortType+itemForMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9215FDFF2A7FEE85008B49AB /* SortType+itemForMenu.swift */; };
 		9216BE6E2B685EFA00AA7EB9 /* SubscriptionsViewItemType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9216BE6D2B685EFA00AA7EB9 /* SubscriptionsViewItemType.swift */; };
@@ -520,7 +519,6 @@
 		920B45892A7C51BF00C6C2DC /* Spud.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Spud.entitlements; sourceTree = "<group>"; };
 		920B458A2A7C51EB00C6C2DC /* SpudWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SpudWidgetExtension.entitlements; sourceTree = "<group>"; };
 		92116E932A633DEA00344251 /* PersonOrLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonOrLoadingViewController.swift; sourceTree = "<group>"; };
-		92116E952A633FE400344251 /* PersonOrLoadingViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonOrLoadingViewModel.swift; sourceTree = "<group>"; };
 		92116E982A64463600344251 /* PersonLoadingViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonLoadingViewController.swift; sourceTree = "<group>"; };
 		9215FDFF2A7FEE85008B49AB /* SortType+itemForMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SortType+itemForMenu.swift"; sourceTree = "<group>"; };
 		9216BE6C2B6319D500AA7EB9 /* Mintfile */ = {isa = PBXFileReference; lastKnownFileType = text; path = Mintfile; sourceTree = "<group>"; };
@@ -1249,7 +1247,6 @@
 				92116E922A633DAF00344251 /* Content */,
 				92116E972A64462B00344251 /* Loading */,
 				92116E932A633DEA00344251 /* PersonOrLoadingViewController.swift */,
-				92116E952A633FE400344251 /* PersonOrLoadingViewModel.swift */,
 			);
 			path = Person;
 			sourceTree = "<group>";
@@ -2380,7 +2377,6 @@
 				9273432A2A61BE9D0089556E /* PersonFormatter.swift in Sources */,
 				92116E992A64463600344251 /* PersonLoadingViewController.swift in Sources */,
 				92116E942A633DEA00344251 /* PersonOrLoadingViewController.swift in Sources */,
-				92116E962A633FE400344251 /* PersonOrLoadingViewModel.swift in Sources */,
 				928D686C2A9E94B200EBD10E /* PersonView.swift in Sources */,
 				92A7AE1C2A60832D00990539 /* PersonViewController.swift in Sources */,
 				927343232A61B30B0089556E /* PersonViewModel.swift in Sources */,

@@ -5,7 +5,6 @@
 //
 
 import Foundation
-import LemmyKit
 import SpudDataKit
 import SwiftUI
 import UIKit
@@ -28,14 +27,9 @@ class PersonViewController: UIViewController {
 
     // MARK: - Functions
 
-    init(personInfo: LemmyPersonInfo, dependencies: Dependencies) {
+    init(personRowId: Int64, dependencies: Dependencies) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
-        let person = personInfo.person
-        let personRowId = dependencies.appDatabase.personRowIdSync(
-            instanceActorId: person.site.instance.actorId.actorId,
-            personId: Int64(person.personId)
-        )
         viewModel = PersonViewModel(
             personRowId: personRowId,
             appDatabase: dependencies.appDatabase
