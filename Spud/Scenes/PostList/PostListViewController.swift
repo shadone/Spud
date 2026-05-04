@@ -262,11 +262,15 @@ class PostListViewController: UIViewController {
         observationTask = Task { @MainActor [weak self] in
             guard let self else { return }
 
-            let feedRowId = appDatabase.feedRowIdSync(forFeedKey: feedKey)
-            guard let feedRowId else {
-                // Feed not yet mirrored; trigger a server fetch and rely on
-                // the next observation start to pick up the rows.
-                viewModel.didPrepareObservation(numberOfFetchedPosts: 0)
+            // Feeds are created lazily by the importer on the first fetch.
+            // If the row doesn't exist yet, await the first page so the
+            // importer creates it before we set up the observation.
+            if appDatabase.feedRowIdSync(forFeedKey: feedKey) == nil {
+                await viewModel.fetchNextPage()
+                if Task.isCancelled { return }
+            }
+
+            guard let feedRowId = appDatabase.feedRowIdSync(forFeedKey: feedKey) else {
                 return
             }
 
