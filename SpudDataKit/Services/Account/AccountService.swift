@@ -64,9 +64,18 @@ public protocol AccountServiceType: AnyObject {
     /// This is isolated to the main actor.
     func lemmyDataService(for account: LemmyAccount) -> LemmyDataServiceType
 
+    /// Resolves the LemmyDataService for the account whose
+    /// `accountKeychainId` matches `keychainId`. Crashes if no such account
+    /// is registered.
+    func lemmyDataService(forAccountKeychainId keychainId: String) -> LemmyDataServiceType
+
     /// Returns a LemmyService instance used for talking to Lemmy api.
     /// - Parameter account: which account to act as.
     func lemmyService(for account: LemmyAccount) -> LemmyServiceType
+
+    /// Resolves the LemmyService for the account whose `accountKeychainId`
+    /// matches `keychainId`. Crashes if no such account is registered.
+    func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType
 }
 
 @MainActor
@@ -122,6 +131,56 @@ public extension AccountServiceType {
             }
         }()
         let feed = lemmyDataService(for: account).createFeed(newFeedType)
+        return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
+    }
+
+    // keychainId-keyed counterparts. Stage 7 cutover screens that have
+    // already moved off `LemmyAccount` use these to talk to the legacy
+    // LemmyDataService without re-resolving the managed object.
+
+    func createFeed(
+        forAccountKeychainId keychainId: String,
+        feedType: FeedType,
+        identifierForDebugging: String? = nil
+    ) -> FeedHandle {
+        let feed = lemmyDataService(forAccountKeychainId: keychainId).createFeed(feedType)
+        if let identifierForDebugging {
+            feed.identifierForDebugging = identifierForDebugging
+        }
+        return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
+    }
+
+    func createDefaultFeed(forAccountKeychainId keychainId: String) -> FeedHandle {
+        let dataService = lemmyDataService(forAccountKeychainId: keychainId)
+        let feedType = FeedType.frontpage(
+            listingType: dataService.defaultListingType(),
+            sortType: dataService.defaultSortType()
+        )
+        let feed = dataService.createFeed(feedType)
+        return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
+    }
+
+    func createFeed(
+        duplicateOf existing: FeedHandle,
+        forAccountKeychainId keychainId: String,
+        sortType: Components.Schemas.SortType? = nil
+    ) -> FeedHandle {
+        let newFeedType: FeedType = {
+            switch existing.feedType {
+            case let .frontpage(listingType, oldSortType):
+                return .frontpage(
+                    listingType: listingType,
+                    sortType: sortType ?? oldSortType
+                )
+            case let .community(communityName, instance, oldSortType):
+                return .community(
+                    communityName: communityName,
+                    instance: instance,
+                    sortType: sortType ?? oldSortType
+                )
+            }
+        }()
+        let feed = lemmyDataService(forAccountKeychainId: keychainId).createFeed(newFeedType)
         return FeedHandle(feedKey: feed.id, feedType: feed.feedType)
     }
 }
@@ -366,6 +425,20 @@ public class AccountService: AccountServiceType {
         lemmyServices[accountObjectId] = lemmyService
 
         return lemmyService
+    }
+
+    public func lemmyDataService(forAccountKeychainId keychainId: String) -> LemmyDataServiceType {
+        guard let account = account(withKeychainId: keychainId, in: dataStore.mainContext) else {
+            fatalError("No account registered for keychainId \(keychainId)")
+        }
+        return lemmyDataService(for: account)
+    }
+
+    public func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType {
+        guard let account = account(withKeychainId: keychainId, in: dataStore.mainContext) else {
+            fatalError("No account registered for keychainId \(keychainId)")
+        }
+        return lemmyService(for: account)
     }
 
     public func login(
