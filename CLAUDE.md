@@ -15,7 +15,7 @@ info.ddenis/Spud/
 └── LemmyKit/                   ← sibling SPM package, OpenAPI-generated Lemmy client
 ```
 
-Always open `Spud.xcworkspace`, not the bare `Spud.xcodeproj`. The workspace also contains older sibling checkouts (`Lemmy-OpenAPI-Spec`, `Lemmy-Swift-Client`, `DiasporaNodeInfo`, `Down`, `OpenInApolloExtension`) — those are historical/unused at the workspace level; LemmyKit is the live one.
+Always open `Spud.xcworkspace`, not the bare `Spud.xcodeproj`. `LemmyKit` and `DiasporaNodeInfo` are the live sibling SPM checkouts consumed by Spud through the workspace. See the workspace-level `../CLAUDE.md` for the inventory of every directory at this level (live, reference-only, historical).
 
 ## Targets
 
@@ -164,7 +164,6 @@ What's next:
 
 - **LemmyKit regeneration** — current API contract still working in practice. Regen when an endpoint we need has changed, or when SpudDataKit's data layer is being rewritten anyway.
 - **Snapshot test refresh** — re-record on iPhone 14 Pro / portrait if/when UI changes. Reference device may want updating eventually.
-- **Repo parent housekeeping** — `Spud.coredataproj` (Core Data Editor file), stray JPGs at the parent level (`3072d3c8-…` etc.). Confirm with user and remove.
 - **`CHANGELOG.md` / `CONTRIBUTING.md`** — only if the project goes public.
 
 See [README.md](README.md) for the user-facing overview.
