@@ -4,15 +4,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
-import CoreData
 import LemmyKit
 import SpudDataKit
 import UIKit
 
 class MainWindow: UIWindow {
     typealias OwnDependencies =
-        HasAccountService
+        HasAccountService &
+        HasAppDatabase
     typealias NestedDependencies =
         AccountViewController.Dependencies &
         MainWindowSplitViewController.Dependencies &
@@ -24,26 +23,18 @@ class MainWindow: UIWindow {
         dependencies.own.accountService
     }
 
-    // MARK: Private
+    private var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
+    }
 
-    private var accountInserted: AnyPublisher<LemmyAccount, Never> = NotificationCenter.default
-        .publisher(for: .NSManagedObjectContextObjectsDidChange)
-        .compactMap { notification -> LemmyAccount? in
-            guard
-                let insertedObjects = notification.userInfo?[NSInsertedObjectsKey] as? NSSet
-            else {
-                return nil
-            }
-            let accounts = insertedObjects.compactMap { $0 as? LemmyAccount }
-            assert(accounts.count <= 1)
-            return accounts.first
-        }
-        .eraseToAnyPublisher()
+    // MARK: Private
 
     private let tabBarController: MainWindowTabBarController
     private var splitViewController: MainWindowSplitViewController?
-
-    private var disposables = Set<AnyCancellable>()
+    private var defaultAccountObservationTask: Task<Void, Never>?
+    /// Keychain id of the account currently driving the tab bar — guards
+    /// against rebuilds when the GRDB observation re-emits the same row.
+    private var currentDefaultAccountKeychainId: String?
 
     // MARK: Functions
 
@@ -57,21 +48,24 @@ class MainWindow: UIWindow {
 
         super.init(windowScene: windowScene)
 
-        accountInserted
-            // run in the next tick instead of immediately
-            // to avoid crash when calling saveContext() from within
-            // NSManagedObjectContextObjectsDidChange which in turn
-            // was triggered from saveContext().
-            .receive(on: RunLoop.main)
-            .sink { account in
-                self.checkForUpdatedDefaultAccount(account)
-            }
-            .store(in: &disposables)
-
-        let account = accountService.defaultAccount()
-        recreateTabBarViewControllers(for: account)
+        // Bootstrap synchronously: defaultAccount() ensures one exists and
+        // is marked default, which the GRDB observation will subsequently
+        // mirror. We extract the values we need and let the legacy account
+        // object go.
+        let bootstrap = accountService.defaultAccount()
+        applyDefaultAccount(
+            keychainId: bootstrap.id,
+            isSignedIn: !bootstrap.isSignedOutAccountType,
+            defaultPostSortType: bootstrap.accountInfo?.defaultSortType ?? .Hot
+        )
 
         rootViewController = tabBarController
+
+        startObservingDefaultAccount()
+    }
+
+    deinit {
+        defaultAccountObservationTask?.cancel()
     }
 
     @available(*, unavailable)
@@ -79,18 +73,34 @@ class MainWindow: UIWindow {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private func checkForUpdatedDefaultAccount(_ account: LemmyAccount) {
-        guard account.isDefaultAccount else { return }
-        assert(!account.isServiceAccount)
-
-        recreateTabBarViewControllers(for: account)
+    private func startObservingDefaultAccount() {
+        defaultAccountObservationTask?.cancel()
+        defaultAccountObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await record in appDatabase.observeDefaultAccount() {
+                if Task.isCancelled { break }
+                guard let record else { continue }
+                guard record.accountKeychainId != currentDefaultAccountKeychainId else { continue }
+                applyDefaultAccount(
+                    keychainId: record.accountKeychainId,
+                    isSignedIn: !record.isSignedOutAccountType,
+                    defaultPostSortType: record.resolvedDefaultSortType
+                )
+            }
+        }
     }
 
-    private func recreateTabBarViewControllers(for account: LemmyAccount) {
+    private func applyDefaultAccount(
+        keychainId: String,
+        isSignedIn: Bool,
+        defaultPostSortType: Components.Schemas.SortType
+    ) {
+        currentDefaultAccountKeychainId = keychainId
+
         // Tab: Setup the split view controller
         let splitViewController = MainWindowSplitViewController(
-            accountKeychainId: account.id,
-            isSignedIn: !account.isSignedOutAccountType,
+            accountKeychainId: keychainId,
+            isSignedIn: isSignedIn,
             dependencies: dependencies.nested
         )
         self.splitViewController = splitViewController
@@ -105,7 +115,7 @@ class MainWindow: UIWindow {
 
         // Tab: Setup the preferences view controller
         let preferencesViewController = PreferencesViewController(
-            defaultPostSortType: account.accountInfo?.defaultSortType ?? .Hot,
+            defaultPostSortType: defaultPostSortType,
             dependencies: dependencies.nested
         )
 

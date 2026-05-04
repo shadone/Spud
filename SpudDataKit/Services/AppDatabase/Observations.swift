@@ -29,6 +29,20 @@ public extension AppDatabase {
         return makeStream(observation: observation)
     }
 
+    /// Stream of the current default account, or nil if none is marked
+    /// default. Yields immediately on subscription and again on each change.
+    func observeDefaultAccount() -> AsyncStream<AccountRecord?> {
+        let observation = ValueObservation
+            .tracking { db in
+                try AccountRecord
+                    .filter(Column("isDefault") == true)
+                    .filter(Column("isServiceAccount") == false)
+                    .fetchOne(db)
+            }
+            .removeDuplicates()
+        return makeStream(observation: observation)
+    }
+
     /// Stream of accounts for a specific site, ordered by keychain id.
     func observeAccounts(forSiteId siteId: Int64) -> AsyncStream<[AccountRecord]> {
         let observation = ValueObservation

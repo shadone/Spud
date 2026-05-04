@@ -6,6 +6,7 @@
 
 import Foundation
 import GRDB
+import LemmyKit
 
 public struct AccountRecord: Codable, Sendable, Equatable, Identifiable {
     public static let databaseTableName = "account"
@@ -79,5 +80,18 @@ public struct AccountRecord: Codable, Sendable, Equatable, Identifiable {
 extension AccountRecord: FetchableRecord, MutablePersistableRecord {
     public mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
+    }
+}
+
+public extension AccountRecord {
+    /// Decodes the persisted `defaultSortType` raw value to its OpenAPI
+    /// enum case, or `.Hot` when the column is nil or its value no longer
+    /// maps to a known case.
+    var resolvedDefaultSortType: Components.Schemas.SortType {
+        guard
+            let raw = defaultSortType,
+            let value = Components.Schemas.SortType(rawValue: raw)
+        else { return .Hot }
+        return value
     }
 }
