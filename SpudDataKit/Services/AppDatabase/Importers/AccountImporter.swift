@@ -17,10 +17,6 @@ public extension AppDatabase {
     /// row is created here, its `isServiceAccount` and `isSignedOutAccountType`
     /// flags are set from the parameters. Existing rows are not modified —
     /// fuller updates flow through `upsertAccount` once a fetch succeeds.
-    /// Used by Stage 7 to mirror Core Data accounts into AppDatabase at
-    /// creation time so SchedulerService can find "fetch pending" accounts
-    /// (those with `localAccountId IS NULL` for signed-in, or any signed-out
-    /// row whose site has no info yet) via GRDB.
     @discardableResult
     func ensureAccount(
         keychainId: String,
@@ -137,16 +133,15 @@ public extension AppDatabase {
         }
     }
 
-    /// Mirrors the Core Data "default account" flag: clears `isDefault` on
-    /// every row and sets it on the row matching `keychainId`. No-op if the
-    /// row hasn't been imported yet.
+    /// Clears `isDefault` on every account row and sets it on the row
+    /// matching `keychainId`. No-op if the row hasn't been imported yet.
     func setDefaultAccount(keychainId: String) async throws {
         try await writer.write { db in
             try Self.applyDefaultAccount(keychainId: keychainId, in: db)
         }
     }
 
-    /// Synchronous companion to `setDefaultAccount(keychainId:)`. Stage 7
+    /// Synchronous companion to `setDefaultAccount(keychainId:)`.
     /// `AccountService.setDefaultAccount(forAccountKeychainId:)` runs on
     /// MainActor in response to user taps and avoids hopping off to await.
     func setDefaultAccountSync(keychainId: String) throws {
@@ -176,8 +171,7 @@ public extension AppDatabase {
 
     /// Synchronous: returns the keychainId of the signed-out account for
     /// `instance` matching `isServiceAccount`, creating it (and its sibling
-    /// site/instance rows) if no row exists yet. Stage 3d.4 replacement for
-    /// the Core Data `accountForSignedOut(at: LemmySite, ...)` lookup.
+    /// site/instance rows) if no row exists yet.
     func ensureSignedOutAccountKeychainId(
         forInstance instance: InstanceActorId,
         isServiceAccount: Bool
@@ -212,9 +206,7 @@ public extension AppDatabase {
     /// Synchronous: returns the keychainId of the most appropriate account
     /// for `instance` — the default account on that site if any, otherwise
     /// the first signed-out account on that site, creating a signed-out
-    /// non-service account if none exists. Stage 3d.4 replacement for the
-    /// Core Data `account(at: LemmySite, ...)` lookup behind
-    /// `accountKeychainId(forInstance:)`.
+    /// non-service account if none exists.
     func bestAccountKeychainId(
         forInstance instance: InstanceActorId
     ) throws -> String {

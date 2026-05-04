@@ -373,13 +373,8 @@ public class AccountService: AccountServiceType {
         )
         try await appDatabase.setDefaultAccount(keychainId: keychainId)
         writeCredential(credential, forKeychainId: keychainId)
-        // username is not persisted on AccountRecord; it surfaces from the
-        // MyUserInfo fetch which SchedulerService will trigger via the
-        // signedInAccountsAwaitingMyUserInfo predicate. That's also where
-        // the Person row for this account gets imported, so the auto-
-        // refresh tick will populate the UI's display name. Until then the
-        // AccountList shows the keychainId-derived placeholder — same as
-        // the legacy path before the GetSite response arrived.
+        // Username and Person row land asynchronously via the next
+        // SchedulerService tick (`signedInAccountsAwaitingMyUserInfo`).
     }
 }
 

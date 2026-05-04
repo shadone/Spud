@@ -68,8 +68,8 @@ extension AppDatabase {
     }
 
     /// Appends a new page worth of posts to the feed. Deduplicates against
-    /// posts already linked to this feed via originalPostUrl (matching the
-    /// legacy postActivityIds set on LemmyFeed). Returns the new pageId.
+    /// posts already linked to this feed via originalPostUrl. Returns the
+    /// new pageId.
     @discardableResult
     public func appendFeedPage(
         feedKey: String,

@@ -14,10 +14,9 @@ private let logger = Logger.appDatabase
 
 public extension AppDatabase {
     /// Keychain ids of signed-out accounts whose home site has not had its
-    /// site info imported yet. Stage 7 replacement for the Core Data
-    /// `allSignedOut(in:).filter { $0.site.siteInfo == nil }` predicate
-    /// driving SchedulerService's first-fetch path. `site.name` is nil when
-    /// `SiteImporter.apply` has never run for the row.
+    /// site info imported yet. Drives SchedulerService's first-fetch path:
+    /// `site.name` is nil exactly when `SiteImporter.apply` has never run
+    /// for the row.
     func signedOutAccountsAwaitingSiteInfo() async throws -> [String] {
         try await writer.read { db in
             try String.fetchAll(db, sql: """
@@ -31,9 +30,7 @@ public extension AppDatabase {
     }
 
     /// Instance actor ids of sites that have no associated account yet AND
-    /// no imported site info. Stage 7 replacement for the Core Data
-    /// `siteService.allSites(in:).filter { $0.siteInfo == nil && $0.accounts.isEmpty }`
-    /// predicate.
+    /// no imported site info.
     func ownerlessSitesAwaitingInfo() async throws -> [InstanceActorId] {
         let raws = try await writer.read { db in
             try String.fetchAll(db, sql: """
@@ -71,7 +68,7 @@ public extension AppDatabase {
 
     /// Keychain ids of signed-in accounts that already have `MyUserInfo`
     /// imported (`localAccountId IS NOT NULL`) and were last updated before
-    /// `cutoff`. Stage 7 replacement for the daily-refresh predicate.
+    /// `cutoff`. Drives the daily-refresh tick.
     func signedInAccountsStale(updatedBefore cutoff: Date) async throws -> [String] {
         try await writer.read { db in
             try String.fetchAll(db, sql: """

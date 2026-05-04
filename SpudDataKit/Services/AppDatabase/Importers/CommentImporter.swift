@@ -39,14 +39,12 @@ extension AppDatabase {
     }
 
     /// Replaces the comment tree for a (post, sortType) pair with the given
-    /// CommentViews. Mirrors the legacy LemmyPost.upsert(comments:for:) flow:
-    /// existing CommentElementRecord rows for this post + sort are deleted,
-    /// then new ones are inserted in tree-sorted order. Comments with missing
-    /// children get an extra "load more" placeholder element.
+    /// CommentViews. Existing CommentElementRecord rows for this post + sort
+    /// are deleted, then new ones are inserted in tree-sorted order. Comments
+    /// with missing children get an extra "load more" placeholder element.
     ///
-    /// Skips the operation if the post is not yet in AppDatabase - in that
-    /// case the legacy Core Data path is the only writer until fetchFeed or
-    /// fetchPostInfo catches up.
+    /// Skips the operation if the post is not yet in AppDatabase — the next
+    /// `fetchFeed` or `fetchPostInfo` will land it first.
     public func upsertComments(
         forServerPostId serverPostId: Int64,
         accountId: Int64,

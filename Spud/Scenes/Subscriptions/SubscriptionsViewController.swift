@@ -76,8 +76,6 @@ class SubscriptionsViewController: UIViewController {
         let feed: FeedHandle
         switch item {
         case let .listing(listingType):
-            // Sort type follows the account's preferred default (legacy behavior
-            // before Stage 7).
             let sortType = accountService.defaultSortType(forAccountKeychainId: accountKeychainId)
             feed = accountService.createFeed(
                 forAccountKeychainId: accountKeychainId,

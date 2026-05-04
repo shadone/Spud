@@ -14,11 +14,9 @@ private let logger = Logger.appDatabase
 
 public extension AppDatabase {
     /// Idempotently ensures rows exist for `actorId`'s instance and its
-    /// sibling site, without requiring a `GetSiteResponse`. Used by Stage 7
-    /// to mirror Core Data sites/instances into AppDatabase at the moment
-    /// they are created (e.g. by `SiteService`), so SchedulerService's GRDB
-    /// queries can see "fetch pending" rows whose `name` / `infoUpdatedDate`
-    /// are still nil.
+    /// sibling site, without requiring a `GetSiteResponse`. Called by
+    /// SiteService and the login flow so SchedulerService's GRDB queries
+    /// see "fetch pending" rows whose `name` / `infoUpdatedDate` are nil.
     @discardableResult
     func ensureSite(
         forInstance actorId: InstanceActorId
