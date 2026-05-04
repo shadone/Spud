@@ -17,6 +17,8 @@ private let logger = Logger.accountService
 @MainActor
 public protocol AccountServiceType: AnyObject {
     /// Returns an account that represents a signed out user on a given Lemmy instance.
+    /// Last LemmyAccount-typed method on the protocol — kept transitionally for
+    /// SchedulerService.fetchSiteInfo(for:) and removed in the LemmySite demolition.
     func accountForSignedOut(
         at site: LemmySite,
         isServiceAccount: Bool,
@@ -24,44 +26,14 @@ public protocol AccountServiceType: AnyObject {
     ) -> LemmyAccount
 
     /// Creates (if needed) the signed-out account for `site` and marks it as the default account.
-    /// Stage 7 cutover entry point used by `LoginViewController` so call sites do not need to
-    /// resolve a `LemmyAccount` or pass a managed object context.
     func signInAsSignedOut(at site: LemmySite)
-
-    /// Looks up a most suitable account for the the given Lemmy instance.
-    ///
-    /// - Note: This is meant to be used only for real user actions, not for service accounts.
-    ///
-    /// - Returns: A detault account if it is on the same site, if exists. Otherwise returns a signed out account.
-    func account(
-        at site: LemmySite,
-        in context: NSManagedObjectContext
-    ) -> LemmyAccount
-
-    /// Looks up the LemmyAccount whose keychain id matches `keychainId`.
-    /// Used by Stage 5 cutover screens to bridge from a GRDB-backed
-    /// `accountKeychainId` back to the legacy NSManagedObject when the
-    /// receiver still expects one (e.g. `setDefaultAccount`).
-    func account(withKeychainId keychainId: String, in context: NSManagedObjectContext) -> LemmyAccount?
-
-    /// Returns all signed out accounts. The returned accounts are fetched in the specified context.
-    func allSignedOut(in context: NSManagedObjectContext) -> [LemmyAccount]
-
-    /// Returns a list of all accounts.
-    func allAccounts(
-        includeSignedOutAccount: Bool,
-        in context: NSManagedObjectContext
-    ) -> [LemmyAccount]
 
     /// Log in to a given Lemmy instance with explicitly provided username and password.
     func login(
         site: LemmySite,
         username: String,
         password: String
-    ) async throws -> LemmyAccount
-
-    /// Returns an account that is shown on app launch.
-    func defaultAccount() -> LemmyAccount
+    ) async throws
 
     /// Returns the `accountKeychainId` of the account that is shown on app
     /// launch. Bootstraps a signed-out default on first launch.
@@ -71,23 +43,14 @@ public protocol AccountServiceType: AnyObject {
     /// `AccountRecord.isSignedOutAccountType` synchronously.
     func isSignedOut(forAccountKeychainId keychainId: String) -> Bool
 
-    /// Chooses which account is "default" i.e. used automatically at app launch.
-    func setDefaultAccount(_ account: LemmyAccount)
-
     /// Resolves the account by `keychainId` and marks it default. No-op if
     /// the account isn't registered.
     func setDefaultAccount(forAccountKeychainId keychainId: String)
 
     /// Resolves an account suitable for `instance` and returns its
     /// `accountKeychainId`. Creates the site and a signed-out account if
-    /// none exist. Stage 7 cutover entry point for `AppCoordinator.open`,
-    /// so the caller does not need to touch `LemmyAccount`,
-    /// `siteService`, or `NSManagedObjectContext`.
+    /// none exist.
     func accountKeychainId(forInstance instance: InstanceActorId) -> String
-
-    /// Returns a LemmyService instance used for talking to Lemmy api.
-    /// - Parameter account: which account to act as.
-    func lemmyService(for account: LemmyAccount) -> LemmyServiceType
 
     /// Resolves the LemmyService for the account whose `accountKeychainId`
     /// matches `keychainId`. Crashes if no such account is registered.
@@ -103,52 +66,11 @@ public protocol AccountServiceType: AnyObject {
 
 @MainActor
 public extension AccountServiceType {
-    /// Creates a feed for `account` with the given parameters. Returns a
-    /// `FeedHandle` carrying the stable `feedKey` (for GRDB observations and
+    /// Creates a feed with the given parameters. Returns a `FeedHandle`
+    /// carrying the stable `feedKey` (for GRDB observations and
     /// LemmyService.fetchFeed) and the `feedType` (for navigation/sort UI).
     /// The matching `FeedRecord` row is created lazily by the first
     /// `appendFeedPage`, so this entry point performs no I/O.
-    func createFeed(
-        for account: LemmyAccount,
-        feedType: FeedType
-    ) -> FeedHandle {
-        FeedHandle(feedKey: UUID().uuidString, feedType: feedType)
-    }
-
-    /// Creates a feed for `account` using the account's default listing and
-    /// sort types. Used by the split view's primary post list.
-    func createDefaultFeed(for account: LemmyAccount) -> FeedHandle {
-        createDefaultFeed(forAccountKeychainId: account.id)
-    }
-
-    /// Creates a feed for `account` derived from `existing` (same feed type
-    /// shape) but with `sortType` overridden when non-nil. Used by
-    /// PostListViewModel.didChangeSortType / didClickReload.
-    func createFeed(
-        duplicateOf existing: FeedHandle,
-        for _: LemmyAccount,
-        sortType: Components.Schemas.SortType? = nil
-    ) -> FeedHandle {
-        let newFeedType: FeedType = {
-            switch existing.feedType {
-            case let .frontpage(listingType, oldSortType):
-                return .frontpage(
-                    listingType: listingType,
-                    sortType: sortType ?? oldSortType
-                )
-            case let .community(communityName, instance, oldSortType):
-                return .community(
-                    communityName: communityName,
-                    instance: instance,
-                    sortType: sortType ?? oldSortType
-                )
-            }
-        }()
-        return FeedHandle(feedKey: UUID().uuidString, feedType: newFeedType)
-    }
-
-    // keychainId-keyed counterparts.
-
     func createFeed(
         forAccountKeychainId _: String,
         feedType: FeedType
@@ -581,7 +503,7 @@ public class AccountService: AccountServiceType {
         site: LemmySite,
         username: String,
         password: String
-    ) async throws -> LemmyAccount {
+    ) async throws {
         // Creating temporary authenticated LemmyApi object for making login request.
         let api = api(for: site, credential: nil)
 
@@ -624,8 +546,6 @@ public class AccountService: AccountServiceType {
 
         writeCredential(credential, for: account)
         mirrorAccount(account)
-
-        return account
     }
 
     public func account(
