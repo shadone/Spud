@@ -50,22 +50,22 @@ class PostDetailOrEmptyViewController: UIViewController {
         }
     }
 
-    private let account: LemmyAccount
+    private let accountKeychainId: String
     private var currentViewController: UIViewController?
 
     // MARK: - Functions
 
     init(
         serverPostId: Components.Schemas.PostID,
-        account: LemmyAccount,
+        accountKeychainId: String,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
-        self.account = account
+        self.accountKeychainId = accountKeychainId
 
         let resolved = Self.resolveState(
             forServerPostId: serverPostId,
-            account: account,
+            accountKeychainId: accountKeychainId,
             appDatabase: dependencies.appDatabase
         )
         state = resolved
@@ -75,9 +75,9 @@ class PostDetailOrEmptyViewController: UIViewController {
         stateChanged()
     }
 
-    init(account: LemmyAccount, dependencies: Dependencies) {
+    init(accountKeychainId: String, dependencies: Dependencies) {
         self.dependencies = (own: dependencies, nested: dependencies)
-        self.account = account
+        self.accountKeychainId = accountKeychainId
 
         state = .empty
 
@@ -94,18 +94,18 @@ class PostDetailOrEmptyViewController: UIViewController {
     private func resolveState(forServerPostId serverPostId: Components.Schemas.PostID) -> State {
         Self.resolveState(
             forServerPostId: serverPostId,
-            account: account,
+            accountKeychainId: accountKeychainId,
             appDatabase: appDatabase
         )
     }
 
     private static func resolveState(
         forServerPostId serverPostId: Components.Schemas.PostID,
-        account: LemmyAccount,
+        accountKeychainId: String,
         appDatabase: AppDatabase
     ) -> State {
         if appDatabase.postRowIdSync(
-            forKeychainId: account.id,
+            forKeychainId: accountKeychainId,
             serverPostId: Int64(serverPostId)
         ) != nil {
             return .post(serverPostId: serverPostId)
@@ -126,7 +126,7 @@ class PostDetailOrEmptyViewController: UIViewController {
         case let .post(serverPostId):
             let contentViewController = PostDetailViewController(
                 serverPostId: serverPostId,
-                account: account,
+                accountKeychainId: accountKeychainId,
                 dependencies: dependencies.nested
             )
             newViewController = contentViewController
@@ -137,7 +137,7 @@ class PostDetailOrEmptyViewController: UIViewController {
         case let .load(serverPostId):
             let loadingViewController = PostDetailLoadingViewController(
                 serverPostId: serverPostId,
-                account: account,
+                accountKeychainId: accountKeychainId,
                 dependencies: dependencies.nested
             )
             newViewController = loadingViewController

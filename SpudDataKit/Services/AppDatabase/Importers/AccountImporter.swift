@@ -62,6 +62,26 @@ public extension AppDatabase {
         }
     }
 
+    /// Synchronous lookup of the home-instance actor URL for the account
+    /// matching `keychainId`. Returns nil if the account hasn't been imported
+    /// or the join cannot be resolved.
+    func accountInstanceActorIdSync(forKeychainId keychainId: String) -> String? {
+        do {
+            return try writer.read { db in
+                try Row.fetchOne(db, sql: """
+                        SELECT instance.actorId AS actorId
+                        FROM account
+                        JOIN site     ON site.id = account.siteId
+                        JOIN instance ON instance.id = site.instanceId
+                        WHERE account.accountKeychainId = ?
+                    """, arguments: [keychainId])?["actorId"]
+            }
+        } catch {
+            logger.error("Failed to resolve account instance actorId: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     /// Returns the row id of the account row matching `keychainId`, or nil
     /// if not yet imported. Synchronous read intended for one-shot UI bring-up
     /// where blocking the caller briefly is preferable to making `init` async.

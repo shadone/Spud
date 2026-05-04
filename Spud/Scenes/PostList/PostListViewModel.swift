@@ -28,7 +28,7 @@ final class PostListViewModel {
     private let dependencies: OwnDependencies
 
     var feed: FeedHandle
-    let account: LemmyAccount
+    let accountKeychainId: String
     var navigationTitle: String
     var isFetchingNextPage: Bool = false
 
@@ -43,17 +43,17 @@ final class PostListViewModel {
         dependencies.alertService
     }
 
-    init(feed: FeedHandle, account: LemmyAccount, dependencies: Dependencies) {
+    init(feed: FeedHandle, accountKeychainId: String, dependencies: Dependencies) {
         self.dependencies = dependencies
         self.feed = feed
-        self.account = account
+        self.accountKeychainId = accountKeychainId
         navigationTitle = Self.navigationTitle(for: feed.feedType)
     }
 
     func didChangeSortType(_ sortType: Components.Schemas.SortType) {
         let newFeed = accountService.createFeed(
             duplicateOf: feed,
-            for: account,
+            forAccountKeychainId: accountKeychainId,
             sortType: sortType
         )
         feed = newFeed
@@ -64,7 +64,7 @@ final class PostListViewModel {
     func didClickReload() {
         let newFeed = accountService.createFeed(
             duplicateOf: feed,
-            for: account
+            forAccountKeychainId: accountKeychainId
         )
         feed = newFeed
         pagesFetched = 0
@@ -91,7 +91,7 @@ final class PostListViewModel {
 
         do {
             try await accountService
-                .lemmyService(for: account)
+                .lemmyService(forAccountKeychainId: accountKeychainId)
                 .fetchFeed(feedKey: feed.feedKey, page: nextPageNumber)
             pagesFetched = nextPageNumber
         } catch {

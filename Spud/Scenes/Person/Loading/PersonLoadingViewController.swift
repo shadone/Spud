@@ -75,7 +75,7 @@ class PersonLoadingViewController: UIViewController {
 
     private let serverPersonId: Components.Schemas.PersonID
     private let instance: InstanceActorId
-    private let account: LemmyAccount
+    private let accountKeychainId: String
     private var observationTask: Task<Void, Never>?
 
     // MARK: - Functions
@@ -83,13 +83,13 @@ class PersonLoadingViewController: UIViewController {
     init(
         serverPersonId: Components.Schemas.PersonID,
         instance: InstanceActorId,
-        account: LemmyAccount,
+        accountKeychainId: String,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
         self.serverPersonId = serverPersonId
         self.instance = instance
-        self.account = account
+        self.accountKeychainId = accountKeychainId
 
         super.init(nibName: nil, bundle: nil)
 
@@ -138,7 +138,7 @@ class PersonLoadingViewController: UIViewController {
     private func fetchPersonInfo() async {
         do {
             try await accountService
-                .lemmyService(for: account)
+                .lemmyService(forAccountKeychainId: accountKeychainId)
                 .fetchPersonInfo(serverPersonId: serverPersonId)
         } catch {
             alertService.handle(error, for: .fetchPersonInfo)

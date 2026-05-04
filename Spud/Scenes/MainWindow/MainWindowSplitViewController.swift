@@ -29,29 +29,34 @@ class MainWindowSplitViewController: UISplitViewController {
 
     // MARK: Functions
 
-    init(account: LemmyAccount, dependencies: Dependencies) {
+    init(
+        accountKeychainId: String,
+        isSignedIn: Bool,
+        dependencies: Dependencies
+    ) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
         super.init(style: .doubleColumn)
 
         // Setup the post list view controller (the primary part of split view controller)
         let subscriptionsVC = SubscriptionsViewController(
-            account: account,
+            accountKeychainId: accountKeychainId,
+            isSignedIn: isSignedIn,
             dependencies: self.dependencies.nested
         )
 
-        let feed = accountService.createDefaultFeed(for: account)
+        let feed = accountService.createDefaultFeed(forAccountKeychainId: accountKeychainId)
 
         let postListVC = PostListViewController(
             feed: feed,
-            account: account,
+            accountKeychainId: accountKeychainId,
             dependencies: self.dependencies.nested
         )
         postListNavigationController.setViewControllers([subscriptionsVC, postListVC], animated: false)
 
         // Setup the post detail (the secondary part of split view controller)
         let postDetailVC = PostDetailOrEmptyViewController(
-            account: account,
+            accountKeychainId: accountKeychainId,
             dependencies: self.dependencies.nested
         )
         postDetailNavigationController.setViewControllers([postDetailVC], animated: false)

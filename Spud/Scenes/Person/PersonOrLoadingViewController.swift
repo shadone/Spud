@@ -44,7 +44,7 @@ class PersonOrLoadingViewController: UIViewController {
 
     private let serverPersonId: Components.Schemas.PersonID
     private let instance: InstanceActorId
-    private let account: LemmyAccount
+    private let accountKeychainId: String
     private var currentViewController: UIViewController?
 
     // MARK: - Functions
@@ -52,13 +52,13 @@ class PersonOrLoadingViewController: UIViewController {
     init(
         personId: Components.Schemas.PersonID,
         instance: InstanceActorId,
-        account: LemmyAccount,
+        accountKeychainId: String,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
         serverPersonId = personId
         self.instance = instance
-        self.account = account
+        self.accountKeychainId = accountKeychainId
 
         let appDatabase = self.dependencies.own.appDatabase
         if let personRowId = appDatabase.personRowIdSync(
@@ -97,7 +97,7 @@ class PersonOrLoadingViewController: UIViewController {
             let loadingViewController = PersonLoadingViewController(
                 serverPersonId: serverPersonId,
                 instance: instance,
-                account: account,
+                accountKeychainId: accountKeychainId,
                 dependencies: dependencies.nested
             )
             newViewController = loadingViewController
