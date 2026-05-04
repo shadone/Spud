@@ -156,8 +156,6 @@ What's next:
 
 ## Deferred (not blocking)
 
-- **Deployment target bump** — mixed `15.0` / `15.2` / `16.0`; user confirmed app builds + runs fine on current devices, so not urgent. Bump when there's a concrete iOS-version-gated API to adopt.
-- **SPM `Package.resolved`** — last refreshed mid-2024; not blocking.
 - **LemmyKit regeneration** — current API contract still working in practice. Regen when an endpoint we need has changed, or when SpudDataKit's data layer is being rewritten anyway.
 - **Snapshot test refresh** — re-record on iPhone 14 Pro / portrait if/when UI changes. Reference device may want updating eventually.
 - **Repo parent housekeeping** — `Spud.coredataproj` (Core Data Editor file), stray JPGs at the parent level (`3072d3c8-…` etc.). Confirm with user and remove.
