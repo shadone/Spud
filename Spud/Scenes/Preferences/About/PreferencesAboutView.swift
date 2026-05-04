@@ -35,8 +35,8 @@ struct PreferencesLogsView: View {
     }
 }
 
-struct PreferencesAboutView<ViewModel: PreferencesViewModelType>: View {
-    @StateObject var viewModel: ViewModel
+struct PreferencesAboutView: View {
+    let viewModel: PreferencesViewModel
 
     var body: some View {
         Form {
@@ -62,11 +62,11 @@ struct PreferencesAboutView<ViewModel: PreferencesViewModelType>: View {
                 HStack {
                     Text("Size")
                     Spacer()
-                    Text(viewModel.outputs.storageSize.value)
+                    Text(viewModel.storageSize)
                 }
 
                 if #available(iOS 16.0, *) {
-                    ShareLink("Export Backup", item: viewModel.outputs.storageFileUrl.value)
+                    ShareLink("Export Backup", item: viewModel.storageFileUrl)
                         .labelStyle(.titleOnly)
                 }
 
@@ -80,8 +80,6 @@ struct PreferencesAboutView<ViewModel: PreferencesViewModelType>: View {
 
 #Preview {
     NavigationView {
-        PreferencesAboutView(
-            viewModel: PreferencesViewModelForPreview()
-        )
+        PreferencesAboutView(viewModel: PreferencesViewModel())
     }
 }
