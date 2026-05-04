@@ -6,15 +6,11 @@
 
 import Foundation
 import GRDB
-import LemmyKit
+@preconcurrency import LemmyKit
 import OSLog
 import SpudUtilKit
 
 private let logger = Logger.lemmyService
-
-/// LemmyApi is a struct of immutable lets (Client, AuthorizationMiddleware
-/// actor, LemmyCredential, String). Safe to send across isolation boundaries.
-extension LemmyApi: @retroactive @unchecked Sendable { }
 
 public enum LemmyServiceError: Error {
     case internalInconsistency(description: String)
