@@ -7,7 +7,7 @@
 import Foundation
 import GRDB
 import KeychainAccess
-@preconcurrency import LemmyKit
+import LemmyKit
 import OSLog
 import SpudUtilKit
 
