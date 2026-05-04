@@ -373,13 +373,6 @@ public class AccountService: AccountServiceType {
         }
     }
 
-    private func api(for site: LemmySite, credential: LemmyCredential?) -> LemmyApi {
-        guard let instanceUrl = site.instance.actorId.url else {
-            fatalError("Failed to create URL from instance actor id '\(site.instance.actorId)'")
-        }
-        return LemmyApi(instanceUrl: instanceUrl, credential: credential)
-    }
-
     public func defaultAccountKeychainId() -> String {
         // Prefer the GRDB-resident default. Stage 3d.4 introduced flows that
         // create new accounts in AppDatabase only, so Core Data may no
@@ -461,32 +454,6 @@ public class AccountService: AccountServiceType {
         }
     }
 
-    public func lemmyService(for account: LemmyAccount) -> LemmyServiceType {
-        assert(Thread.current.isMainThread)
-
-        let keychainId = account.id
-
-        if let lemmyService = lemmyServices[keychainId] {
-            logger.debug("Returning existing LemmyService for \(account.identifierForLogging)")
-            return lemmyService
-        }
-
-        let credential = readCredential(for: account)
-        let api = api(for: account.site, credential: credential)
-
-        logger.debug("Creating new LemmyService for \(account.identifierForLogging, privacy: .public)")
-
-        let lemmyService = LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: account.isSignedOutAccountType,
-            appDatabase: appDatabase,
-            api: api
-        )
-        lemmyServices[keychainId] = lemmyService
-
-        return lemmyService
-    }
-
     public func signInAsSignedOut(atInstance instance: InstanceActorId) {
         // Ensure the Core Data Site/Instance rows still exist so the legacy
         // SiteListViewController FRC keeps showing this site. Removed once
@@ -550,10 +517,56 @@ public class AccountService: AccountServiceType {
     }
 
     public func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType {
-        guard let account = account(withKeychainId: keychainId, in: dataStore.mainContext) else {
-            fatalError("No account registered for keychainId \(keychainId)")
+        assert(Thread.current.isMainThread)
+
+        if let cached = lemmyServices[keychainId] {
+            return cached
         }
-        return lemmyService(for: account)
+
+        let snapshot: (isSignedOut: Bool, actorId: InstanceActorId)
+        do {
+            snapshot = try appDatabase.writer.read { db -> (Bool, InstanceActorId) in
+                guard
+                    let row = try Row.fetchOne(db, sql: """
+                            SELECT
+                                account.isSignedOutAccountType AS isSignedOut,
+                                instance.actorId               AS actorId
+                            FROM account
+                            JOIN site     ON site.id = account.siteId
+                            JOIN instance ON instance.id = site.instanceId
+                            WHERE account.accountKeychainId = ?
+                        """, arguments: [keychainId])
+                else {
+                    fatalError("No account registered for keychainId \(keychainId)")
+                }
+                let isSignedOut: Bool = row["isSignedOut"]
+                let actorIdRaw: String = row["actorId"]
+                guard let actorId = InstanceActorId(from: actorIdRaw) else {
+                    fatalError("Invalid instance actorId '\(actorIdRaw)' for account \(keychainId)")
+                }
+                return (isSignedOut, actorId)
+            }
+        } catch {
+            logger.fault("lemmyService(forAccountKeychainId:) lookup failed: \(error.localizedDescription, privacy: .public)")
+            fatalError("lemmyService(forAccountKeychainId:) failed: \(error)")
+        }
+
+        guard let url = snapshot.actorId.url else {
+            fatalError("Failed to create URL from instance actor id '\(snapshot.actorId.actorId)'")
+        }
+        let credential = snapshot.isSignedOut ? nil : readCredential(forKeychainId: keychainId)
+        let api = LemmyApi(instanceUrl: url, credential: credential)
+
+        logger.debug("Creating new LemmyService for \(keychainId, privacy: .sensitive(mask: .hash))")
+
+        let service = LemmyService(
+            accountKeychainId: keychainId,
+            accountIsSignedOut: snapshot.isSignedOut,
+            appDatabase: appDatabase,
+            api: api
+        )
+        lemmyServices[keychainId] = service
+        return service
     }
 
     public func login(
@@ -561,11 +574,15 @@ public class AccountService: AccountServiceType {
         username: String,
         password: String
     ) async throws {
-        let mainContext = dataStore.mainContext
-        let site = siteService.site(for: instance, in: mainContext)
+        // Keep the Core Data Site row in sync for the legacy SiteList FRC.
+        _ = siteService.site(for: instance, in: dataStore.mainContext)
+
+        guard let url = instance.url else {
+            fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
+        }
 
         // Creating temporary authenticated LemmyApi object for making login request.
-        let api = api(for: site, credential: nil)
+        let api = LemmyApi(instanceUrl: url, credential: nil)
 
         let response: Components.Schemas.LoginResponse
         do {
@@ -591,21 +608,23 @@ public class AccountService: AccountServiceType {
         }
         let credential = LemmyCredential(jwt: jwt)
 
-        // TODO: use "sub" from JWT instead of username here.
-        // using username here is wrong, it is not a stable identifier,
-        // it can be changed without invalidating the account.
-        // We should use "sub" claim from JWT.
-        let account = LemmyAccount(
-            userId: username,
-            at: site,
-            in: mainContext
+        let keychainId = UUID().uuidString
+        let (_, siteId) = try await appDatabase.ensureSite(forInstance: instance)
+        _ = try await appDatabase.ensureAccount(
+            keychainId: keychainId,
+            siteId: siteId,
+            isSignedOut: false,
+            isServiceAccount: false
         )
-
-        setDefaultAccount(account)
-        dataStore.saveIfNeeded()
-
-        writeCredential(credential, for: account)
-        mirrorAccount(account)
+        try await appDatabase.setDefaultAccount(keychainId: keychainId)
+        writeCredential(credential, forKeychainId: keychainId)
+        // username is not persisted on AccountRecord; it surfaces from the
+        // MyUserInfo fetch which SchedulerService will trigger via the
+        // signedInAccountsAwaitingMyUserInfo predicate. That's also where
+        // the Person row for this account gets imported, so the auto-
+        // refresh tick will populate the UI's display name. Until then the
+        // AccountList shows the keychainId-derived placeholder — same as
+        // the legacy path before the GetSite response arrived.
     }
 
     public func account(
