@@ -30,7 +30,7 @@ public enum LemmyServiceError: Error {
 }
 
 public protocol LemmyServiceType: Actor {
-    func fetchFeed(feedKey: String, page pageNumber: Int64?) async throws
+    func fetchFeed(_ feed: FeedHandle, page pageNumber: Int64?) async throws
 
     func fetchComments(
         serverPostId: Components.Schemas.PostID,
@@ -105,10 +105,9 @@ public actor LemmyService: LemmyServiceType {
         }
     }
 
-    public func fetchFeed(feedKey: String, page pageNumber: Int64?) async throws {
-        guard let feedType = try await appDatabase.feedType(forFeedKey: feedKey) else {
-            throw LemmyServiceError.internalInconsistency(description: "feed not found: \(feedKey)")
-        }
+    public func fetchFeed(_ feed: FeedHandle, page pageNumber: Int64?) async throws {
+        let feedKey = feed.feedKey
+        let feedType = feed.feedType
 
         let response: Components.Schemas.GetPostsResponse
         do {
