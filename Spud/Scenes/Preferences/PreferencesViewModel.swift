@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import LemmyKit
 import Observation
@@ -89,19 +88,19 @@ final class PreferencesViewModel {
         let preferencesService = dependencies.preferencesService
 
         preferenceObservationTasks.append(Task { @MainActor [weak self] in
-            for await value in preferencesService.defaultCommentSortTypePublisher.values {
+            for await value in preferencesService.defaultCommentSortTypeStream {
                 self?.defaultCommentSortType = value
             }
         })
 
         preferenceObservationTasks.append(Task { @MainActor [weak self] in
-            for await value in preferencesService.openExternalLinksPublisher.values {
+            for await value in preferencesService.openExternalLinksStream {
                 self?.openExternalLink = value
             }
         })
 
         preferenceObservationTasks.append(Task { @MainActor [weak self] in
-            for await value in preferencesService.openExternalLinksInSafariVCReaderModePublisher.values {
+            for await value in preferencesService.openExternalLinksInSafariVCReaderModeStream {
                 self?.openExternalLinkInSafariVCReaderMode = value
             }
         })
