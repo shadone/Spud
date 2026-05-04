@@ -51,8 +51,16 @@ class SiteListSiteViewModel {
         guard let iconUrl = row.iconUrl else {
             return Just(nil).eraseToAnyPublisher()
         }
-        return imageService.fetchPublisher(iconUrl)
-            .wrapInOptional()
+        let stream = imageService.fetch(iconUrl)
+        let subject = PassthroughSubject<ImageLoadingState?, Never>()
+        let task = Task { [subject] in
+            for await state in stream {
+                subject.send(state)
+            }
+            subject.send(completion: .finished)
+        }
+        return subject
+            .handleEvents(receiveCancel: { task.cancel() })
             .eraseToAnyPublisher()
     }
 

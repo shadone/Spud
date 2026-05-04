@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import UIKit
 
@@ -24,16 +23,5 @@ public final class StaticImageService: ImageServiceType, @unchecked Sendable {
             }
             continuation.finish()
         }
-    }
-
-    public func fetchPublisher(
-        _ url: URL,
-        thumbnail thumbnailUrl: URL?
-    ) -> AnyPublisher<ImageLoadingState, Never> {
-        let bundle = Bundle(for: StaticImageService.self)
-        guard let image = UIImage(named: "tv-pattern", in: bundle, with: nil) else {
-            return .just(.failure)
-        }
-        return .just(.ready(image))
     }
 }

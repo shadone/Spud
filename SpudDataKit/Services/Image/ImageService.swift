@@ -72,24 +72,6 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         }
     }
 
-    public func fetchPublisher(
-        _ url: URL,
-        thumbnail thumbnailUrl: URL?
-    ) -> AnyPublisher<ImageLoadingState, Never> {
-        let subject = PassthroughSubject<ImageLoadingState, Never>()
-        let stream = fetch(url, thumbnail: thumbnailUrl)
-        let task = Task { [subject] in
-            for await state in stream {
-                subject.send(state)
-            }
-            subject.send(completion: .finished)
-        }
-        return subject
-            .handleEvents(receiveCancel: { task.cancel() })
-            .receive(on: DispatchQueue.main)
-            .eraseToAnyPublisher()
-    }
-
     private func loadImage(from url: URL) async throws -> UIImage {
         // TODO: check if the image is present in URLSession cache.
 

@@ -67,18 +67,27 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
 
         let placeholder = UIImage(systemName: "questionmark")!
         if let iconUrl = row.iconUrl {
-            icon = dependencies.imageService.fetchPublisher(iconUrl)
-                .map { state -> UIImage? in
+            let stream = dependencies.imageService.fetch(iconUrl)
+            let subject = PassthroughSubject<UIImage, Never>()
+            let task = Task { [subject] in
+                for await state in stream {
+                    let image: UIImage?
                     switch state {
                     case .loading:
-                        return nil
-                    case let .ready(image):
-                        return image
+                        image = nil
+                    case let .ready(loaded):
+                        image = loaded
                     case .failure:
-                        return placeholder
+                        image = placeholder
+                    }
+                    if let image {
+                        subject.send(image)
                     }
                 }
-                .ignoreNil()
+                subject.send(completion: .finished)
+            }
+            icon = subject
+                .handleEvents(receiveCancel: { task.cancel() })
                 .eraseToAnyPublisher()
         } else {
             icon = Just(placeholder).eraseToAnyPublisher()
