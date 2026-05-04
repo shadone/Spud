@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 
 public protocol ImageServiceType: AnyObject, Sendable {
@@ -14,22 +13,11 @@ public protocol ImageServiceType: AnyObject, Sendable {
     /// The stream emits `.loading(thumbnail:)` first, then either `.ready(image)`
     /// on success or `.failure` on error, and then completes.
     func fetch(_ url: URL, thumbnail thumbnailUrl: URL?) -> AsyncStream<ImageLoadingState>
-
-    /// Combine wrapper around ``fetch(_:thumbnail:)``. Will be removed once
-    /// ViewModels migrate off Combine.
-    func fetchPublisher(
-        _ url: URL,
-        thumbnail thumbnailUrl: URL?
-    ) -> AnyPublisher<ImageLoadingState, Never>
 }
 
 public extension ImageServiceType {
     func fetch(_ url: URL) -> AsyncStream<ImageLoadingState> {
         fetch(url, thumbnail: nil)
-    }
-
-    func fetchPublisher(_ url: URL) -> AnyPublisher<ImageLoadingState, Never> {
-        fetchPublisher(url, thumbnail: nil)
     }
 }
 
