@@ -69,6 +69,13 @@ public protocol AccountServiceType: AnyObject {
     /// the account isn't registered.
     func setDefaultAccount(forAccountKeychainId keychainId: String)
 
+    /// Resolves an account suitable for `instance` and returns its
+    /// `accountKeychainId`. Creates the site and a signed-out account if
+    /// none exist. Stage 7 cutover entry point for `AppCoordinator.open`,
+    /// so the caller does not need to touch `LemmyAccount`,
+    /// `siteService`, or `NSManagedObjectContext`.
+    func accountKeychainId(forInstance instance: InstanceActorId) -> String
+
     /// Returns a LemmyDataService instance for managing CoreData types.
     /// This is isolated to the main actor.
     func lemmyDataService(for account: LemmyAccount) -> LemmyDataServiceType
@@ -451,6 +458,13 @@ public class AccountService: AccountServiceType {
             return
         }
         setDefaultAccount(account)
+    }
+
+    public func accountKeychainId(forInstance instance: InstanceActorId) -> String {
+        assert(Thread.current.isMainThread)
+        let mainContext = dataStore.mainContext
+        let site = siteService.site(for: instance, in: mainContext)
+        return account(at: site, in: mainContext).id
     }
 
     public func lemmyDataService(forAccountKeychainId keychainId: String) -> LemmyDataServiceType {

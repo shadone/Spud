@@ -45,11 +45,8 @@ class AppCoordinator {
     func open(_ url: URL, in window: MainWindow) {
         switch url.spud {
         case let .post(postId, instance):
-            let mainContext = dependencies.dataStore.mainContext
-            let site = dependencies.siteService.site(for: instance, in: mainContext)
-            let account = dependencies.accountService.account(at: site, in: mainContext)
-
-            window.display(serverPostId: postId, accountKeychainId: account.id)
+            let accountKeychainId = dependencies.accountService.accountKeychainId(forInstance: instance)
+            window.display(serverPostId: postId, accountKeychainId: accountKeychainId)
 
         case .person:
             // TODO: open PersonVC
