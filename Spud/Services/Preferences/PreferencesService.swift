@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import LemmyKit
 import SpudUtilKit
@@ -15,15 +14,15 @@ enum Preferences { }
 @MainActor
 protocol PreferencesServiceType: AnyObject {
     var defaultCommentSortType: Components.Schemas.CommentSortType { get set }
-    var defaultCommentSortTypePublisher: AnyPublisher<Components.Schemas.CommentSortType, Never> { get }
+    var defaultCommentSortTypeStream: AsyncStream<Components.Schemas.CommentSortType> { get }
 
     /// Describes how to open external links from posts and comments.
     var openExternalLinks: Preferences.OpenExternalLink { get set }
-    var openExternalLinksPublisher: AnyPublisher<Preferences.OpenExternalLink, Never> { get }
+    var openExternalLinksStream: AsyncStream<Preferences.OpenExternalLink> { get }
 
     /// Specifies whether to open Reader mode when opening external link in SFSafariViewController.
     var openExternalLinksInSafariVCReaderMode: Bool { get set }
-    var openExternalLinksInSafariVCReaderModePublisher: AnyPublisher<Bool, Never> { get }
+    var openExternalLinksInSafariVCReaderModeStream: AsyncStream<Bool> { get }
 
     /// When opening external link first check if it's a universal link first and then open it in the app.
     var openUniversalLinkInApp: Bool { get set }
@@ -36,26 +35,24 @@ protocol HasPreferencesService {
 
 @MainActor
 class PreferencesService: PreferencesServiceType {
-    // MARK: Public
-
     @UserDefaultsBacked(key: "defaultCommentSortType")
     var defaultCommentSortType: Components.Schemas.CommentSortType = .Hot
 
-    var defaultCommentSortTypePublisher: AnyPublisher<Components.Schemas.CommentSortType, Never> {
+    var defaultCommentSortTypeStream: AsyncStream<Components.Schemas.CommentSortType> {
         $defaultCommentSortType
     }
 
     @UserDefaultsBacked(key: "openExternalLinks")
     var openExternalLinks: Preferences.OpenExternalLink = .safariViewController
 
-    var openExternalLinksPublisher: AnyPublisher<Preferences.OpenExternalLink, Never> {
+    var openExternalLinksStream: AsyncStream<Preferences.OpenExternalLink> {
         $openExternalLinks
     }
 
     @UserDefaultsBacked(key: "openExternalLinksInSafariVCReaderMode")
     var openExternalLinksInSafariVCReaderMode = true
 
-    var openExternalLinksInSafariVCReaderModePublisher: AnyPublisher<Bool, Never> {
+    var openExternalLinksInSafariVCReaderModeStream: AsyncStream<Bool> {
         $openExternalLinksInSafariVCReaderMode
     }
 

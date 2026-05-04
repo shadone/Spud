@@ -7,8 +7,8 @@
 import Foundation
 import LemmyKit
 
-extension Person {
-    static var fake: Person = .init(
+extension Components.Schemas.Person {
+    static let fake: Components.Schemas.Person = .init(
         id: 1,
         name: "one",
         display_name: "One",
@@ -16,7 +16,7 @@ extension Person {
         banned: false,
         published: Date(timeIntervalSince1970: 1_683_349_689),
         updated: nil,
-        actor_id: URL(string: "https://example.com/u/one")!,
+        actor_id: "https://example.com/u/one",
         bio: nil,
         local: true,
         banner: nil,

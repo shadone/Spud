@@ -4,18 +4,15 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
-import CoreData
 import Foundation
-import LemmyKit
 import OSLog
+import SpudUtilKit
 
 private let logger = Logger.schedulerService
 
 @MainActor
 public protocol SchedulerServiceType {
     func startService()
-    func processNewSite(_ site: LemmySite)
 }
 
 @MainActor
@@ -27,29 +24,21 @@ public protocol HasSchedulerService {
 public class SchedulerService: SchedulerServiceType {
     // MARK: Private
 
-    private let dataStore: DataStoreType
+    private let appDatabase: AppDatabase
     private let accountService: AccountServiceType
-    private let siteService: SiteServiceType
     private let alertService: AlertServiceType
 
     private var timer: Timer?
-    private var disposables = Set<AnyCancellable>()
-
-    private var mainContext: NSManagedObjectContext {
-        dataStore.mainContext
-    }
 
     // MARK: Functions
 
     public init(
-        dataStore: DataStoreType,
+        appDatabase: AppDatabase,
         accountService: AccountServiceType,
-        siteService: SiteServiceType,
         alertService: AlertServiceType
     ) {
-        self.dataStore = dataStore
+        self.appDatabase = appDatabase
         self.accountService = accountService
-        self.siteService = siteService
         self.alertService = alertService
     }
 
@@ -70,45 +59,28 @@ public class SchedulerService: SchedulerServiceType {
         }
     }
 
-    public func processNewSite(_ site: LemmySite) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            Task { @MainActor in
-                await self.fetchSiteInfo(for: site)
-            }
-        }
-    }
-
     // MARK: Site Info
 
-    private func fetchSiteInfo(for site: LemmySite) async {
-        logger.info("Fetching site info for \(site.identifierForLogging, privacy: .public)")
+    private func fetchSiteInfo(forInstance actorId: InstanceActorId) async {
+        logger.info("Fetching site info for \(actorId.actorId, privacy: .public)")
 
         // TODO: separate fetching of generic "site info" and account specific info
         // For now we fetch site info as signed out user only,
         // but better would be to fetch site info for each account (to fetch subscriptions)
         // and also extract generic site info from server response.
 
-        let account = accountService.accountForSignedOut(
-            at: site,
-            isServiceAccount: true,
-            in: mainContext
+        let keychainId = accountService.accountForSignedOut(
+            forInstance: actorId,
+            isServiceAccount: true
         )
 
-        do {
-            try await accountService
-                .lemmyService(for: account)
-                .fetchSiteInfo()
-        } catch {
-            alertService.handle(error, for: .fetchSiteInfo)
-        }
+        await fetchSiteInfo(forAccountKeychainId: keychainId)
     }
 
-    private func fetchSiteInfo(for account: LemmyAccount) async {
-        logger.info("Fetching site info for \(account.identifierForLogging, privacy: .public)")
-
+    private func fetchSiteInfo(forAccountKeychainId keychainId: String) async {
         do {
             try await accountService
-                .lemmyService(for: account)
+                .lemmyService(forAccountKeychainId: keychainId)
                 .fetchSiteInfo()
         } catch {
             alertService.handle(error, for: .fetchSiteInfo)
@@ -119,20 +91,28 @@ public class SchedulerService: SchedulerServiceType {
         // Fetch initial site info, i.e. sites that have never fetched corresponding site info.
         // But only for signed out accounts (signed in accounts site info will be fetched
         // together with subscribed communities).
-        let accountsToUpdate = accountService
-            .allSignedOut(in: mainContext)
-            .filter { $0.site.siteInfo == nil }
-        for account in accountsToUpdate {
-            await fetchSiteInfo(for: account)
+        let signedOutKeychainIds: [String]
+        do {
+            signedOutKeychainIds = try await appDatabase.signedOutAccountsAwaitingSiteInfo()
+        } catch {
+            logger.error("Failed to query signed-out accounts awaiting site info: \(String(describing: error), privacy: .public)")
+            signedOutKeychainIds = []
+        }
+        for keychainId in signedOutKeychainIds {
+            await fetchSiteInfo(forAccountKeychainId: keychainId)
         }
 
         // Fetch initial site info, i.e. sites that have never fetched corresponding site info.
-        // But only for sites that we do have any account for (not even signed out).
-        let sitesToUpdate = siteService
-            .allSites(in: mainContext)
-            .filter { $0.siteInfo == nil && $0.accounts.isEmpty }
-        for site in sitesToUpdate {
-            await fetchSiteInfo(for: site)
+        // But only for sites that we do not have any account for (not even signed out).
+        let ownerlessActorIds: [InstanceActorId]
+        do {
+            ownerlessActorIds = try await appDatabase.ownerlessSitesAwaitingInfo()
+        } catch {
+            logger.error("Failed to query ownerless sites: \(String(describing: error), privacy: .public)")
+            ownerlessActorIds = []
+        }
+        for actorId in ownerlessActorIds {
+            await fetchSiteInfo(forInstance: actorId)
         }
 
         // TODO: Also periodically re-fetch Site info for sites that we do not have a local account for?
@@ -142,29 +122,31 @@ public class SchedulerService: SchedulerServiceType {
 
     /// For signed in accounts periodically re-fetch user info e.g. list of subscribed communities.
     private func fetchSiteInfoAndMyUserInfoForSignedInIfNeeded() async {
-        let allSignedInAccounts = accountService
-            .allAccounts(includeSignedOutAccount: false, in: mainContext)
-
-        let accountsToFetchInitialInfo = allSignedInAccounts
-            .filter { $0.accountInfo == nil }
-
         // Fetch initial site info (which includes `MyUserInfo`) for new accounts
         // that we never fetched it before.
-        for account in accountsToFetchInitialInfo {
-            await fetchSiteInfo(for: account)
+        let initialKeychainIds: [String]
+        do {
+            initialKeychainIds = try await appDatabase.signedInAccountsAwaitingMyUserInfo()
+        } catch {
+            logger.error("Failed to query signed-in accounts awaiting MyUserInfo: \(String(describing: error), privacy: .public)")
+            initialKeychainIds = []
+        }
+        for keychainId in initialKeychainIds {
+            await fetchSiteInfo(forAccountKeychainId: keychainId)
         }
 
         // Re-fetch info periodically. Check if the data is older than 1 day and fetch.
         let oneDay: TimeInterval = 24 * 60 * 60
-        let accountsToUpdateInfo = allSignedInAccounts
-            .filter { $0.accountInfo != nil }
-            .filter { account in
-                let now = Date()
-                let age = now.timeIntervalSince(account.updatedAt)
-                return age > oneDay
-            }
-        for account in accountsToUpdateInfo {
-            await fetchSiteInfo(for: account)
+        let cutoff = Date().addingTimeInterval(-oneDay)
+        let staleKeychainIds: [String]
+        do {
+            staleKeychainIds = try await appDatabase.signedInAccountsStale(updatedBefore: cutoff)
+        } catch {
+            logger.error("Failed to query stale signed-in accounts: \(String(describing: error), privacy: .public)")
+            staleKeychainIds = []
+        }
+        for keychainId in staleKeychainIds {
+            await fetchSiteInfo(forAccountKeychainId: keychainId)
         }
     }
 }

@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import CoreData
 import Foundation
 import OSLog
 import SpudDataKit
@@ -14,7 +13,7 @@ private let logger = Logger.app
 
 class SiteListViewController: UIViewController {
     typealias OwnDependencies =
-        HasDataStore &
+        HasAppDatabase &
         HasSiteService
     typealias NestedDependencies =
         LoginViewController.Dependencies &
@@ -22,8 +21,8 @@ class SiteListViewController: UIViewController {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var dataStore: DataStoreType {
-        dependencies.own.dataStore
+    var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
     }
 
     var siteService: SiteServiceType {
@@ -49,8 +48,10 @@ class SiteListViewController: UIViewController {
 
     // MARK: Private
 
-    private var fetchRequest: NSFetchRequest<LemmySite>!
-    private var sitesFRC: NSFetchedResultsController<LemmySite>!
+    private var allRows: [SiteListRow] = []
+    private var visibleRows: [SiteListRow] = []
+    private var searchQuery: String = ""
+    private var observationTask: Task<Void, Never>?
 
     private var searchController: UISearchController!
 
@@ -62,6 +63,10 @@ class SiteListViewController: UIViewController {
         super.init(nibName: nil, bundle: nil)
 
         setup()
+    }
+
+    deinit {
+        observationTask?.cancel()
     }
 
     @available(*, unavailable)
@@ -99,41 +104,52 @@ class SiteListViewController: UIViewController {
 
         navigationItem.searchController = searchController
 
-        setupFRC()
+        // Seed with whatever's already in AppDatabase so the tableView is
+        // populated by the time it appears.
+        allRows = appDatabase.allSiteListRowsSync()
+        applyFilter()
     }
 
-    private func setupFRC() {
-        // reset the old FRC in case we are reusing the same VC for a new post.
-        sitesFRC?.delegate = nil
-
-        let request = LemmySite.fetchRequest() as NSFetchRequest<LemmySite>
-        request.fetchBatchSize = 100
-        request.relationshipKeyPathsForPrefetching = ["siteInfo"]
-        request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \LemmySite.createdAt, ascending: true),
-        ]
-
-        sitesFRC = NSFetchedResultsController(
-            fetchRequest: request,
-            managedObjectContext: dataStore.mainContext,
-            sectionNameKeyPath: nil, cacheName: nil
-        )
-        sitesFRC?.delegate = self
-    }
-
-    private func execFRC() {
-        do {
-            try sitesFRC?.performFetch()
-        } catch {
-            logger.error("Failed to fetch sites: \(String(describing: error), privacy: .public)")
+    private func startObserving() {
+        observationTask?.cancel()
+        observationTask = Task { @MainActor [weak self, appDatabase] in
+            for await rows in appDatabase.observeAllSites() {
+                guard let self else { return }
+                allRows = rows
+                applyFilter()
+            }
         }
+    }
+
+    private func applyFilter() {
+        if searchQuery.isEmpty {
+            visibleRows = allRows
+        } else {
+            let needle = searchQuery.lowercased()
+            visibleRows = allRows.filter { row in
+                if row.hostname.lowercased().contains(needle) { return true }
+                if let description = row.descriptionText?.lowercased(),
+                   description.contains(needle)
+                {
+                    return true
+                }
+                return false
+            }
+        }
+        tableView.reloadData()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 
-        execFRC()
         siteService.populateSiteListWithSuggestedInstancesIfNeeded()
+        startObserving()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        observationTask?.cancel()
+        observationTask = nil
     }
 
     @objc
@@ -142,30 +158,13 @@ class SiteListViewController: UIViewController {
     }
 }
 
-// MARK: - FRC helpers
-
-extension SiteListViewController {
-    var numberOfSites: Int {
-        sitesFRC?.sections?[0].numberOfObjects ?? 0
-    }
-
-    func site(at index: Int) -> LemmySite {
-        guard
-            let site = sitesFRC?.sections?[0].objects?[index] as? LemmySite
-        else {
-            fatalError()
-        }
-        return site
-    }
-}
-
 // MARK: - Table View Delegate
 
 extension SiteListViewController: UITableViewDelegate {
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let site = site(at: indexPath.row)
+    func tableView(_: UITableView, didSelectRowAt indexPath: IndexPath) {
+        let row = visibleRows[indexPath.row]
         let loginViewController = LoginViewController(
-            site: site,
+            row: row,
             dependencies: dependencies.nested
         )
         navigationController?.pushViewController(loginViewController, animated: true)
@@ -175,8 +174,8 @@ extension SiteListViewController: UITableViewDelegate {
 // MARK: - Table View DataSource
 
 extension SiteListViewController: UITableViewDataSource {
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        numberOfSites
+    func tableView(_: UITableView, numberOfRowsInSection _: Int) -> Int {
+        visibleRows.count
     }
 
     func tableView(
@@ -188,9 +187,8 @@ extension SiteListViewController: UITableViewDataSource {
             for: indexPath
         ) as! SiteListSiteCell
 
-        let site = site(at: indexPath.row)
         let viewModel = SiteListSiteViewModel(
-            site: site,
+            row: visibleRows[indexPath.row],
             dependencies: dependencies.nested
         )
         cell.configure(with: viewModel)
@@ -199,71 +197,12 @@ extension SiteListViewController: UITableViewDataSource {
     }
 }
 
-// MARK: - Core Data
-
-extension SiteListViewController: NSFetchedResultsControllerDelegate {
-    nonisolated func controllerWillChangeContent(
-        _ controller: NSFetchedResultsController<NSFetchRequestResult>
-    ) {
-        MainActor.assumeIsolated {
-            tableView.beginUpdates()
-        }
-    }
-
-    nonisolated func controllerDidChangeContent(_: NSFetchedResultsController<NSFetchRequestResult>) {
-        MainActor.assumeIsolated {
-            tableView.endUpdates()
-        }
-    }
-
-    nonisolated func controller(
-        _: NSFetchedResultsController<NSFetchRequestResult>,
-        didChange _: Any,
-        at indexPath: IndexPath?,
-        for type: NSFetchedResultsChangeType,
-        newIndexPath: IndexPath?
-    ) {
-        MainActor.assumeIsolated {
-            switch type {
-            case .insert:
-                guard let newIndexPath else { fatalError() }
-                tableView.insertRows(at: [newIndexPath], with: .fade)
-
-            case .delete:
-                guard let indexPath else { fatalError() }
-                tableView.deleteRows(at: [indexPath], with: .fade)
-
-            case .update:
-                guard let indexPath else { fatalError() }
-
-                guard let cell = tableView.cellForRow(at: indexPath) else { return }
-                guard let cell = cell as? SiteListSiteCell else { fatalError() }
-
-                let site = site(at: indexPath.row)
-                let viewModel = SiteListSiteViewModel(
-                    site: site,
-                    dependencies: dependencies.nested
-                )
-                cell.configure(with: viewModel)
-
-            case .move:
-                logger.assertionFailure()
-
-            @unknown default:
-                logger.assertionFailure()
-            }
-        }
-    }
-}
-
 // MARK: - UISearchController Delegate
 
 extension SiteListViewController: UISearchControllerDelegate {
-    func didDismissSearchController(_ searchController: UISearchController) {
-        sitesFRC.fetchRequest.predicate = nil
-
-        execFRC()
-        tableView.reloadData()
+    func didDismissSearchController(_: UISearchController) {
+        searchQuery = ""
+        applyFilter()
     }
 }
 
@@ -271,27 +210,8 @@ extension SiteListViewController: UISearchControllerDelegate {
 
 extension SiteListViewController: UISearchResultsUpdating {
     func updateSearchResults(for searchController: UISearchController) {
-        let whitespaceCharacterSet = CharacterSet.whitespaces
-
-        let query = searchController.searchBar.text?
-            .trimmingCharacters(in: whitespaceCharacterSet) ?? ""
-
-        let instanceUrl = NSPredicate(
-            format: "instance.actorIdRawValue CONTAINS[cd] %@",
-            query
-        )
-        let descriptionText = NSPredicate(
-            format: "siteInfo.descriptionText CONTAINS[cd] %@",
-            query
-        )
-
-        let predicate = NSCompoundPredicate(orPredicateWithSubpredicates: [
-            instanceUrl,
-            descriptionText,
-        ])
-        sitesFRC.fetchRequest.predicate = predicate
-
-        execFRC()
-        tableView.reloadData()
+        searchQuery = searchController.searchBar.text?
+            .trimmingCharacters(in: .whitespaces) ?? ""
+        applyFilter()
     }
 }

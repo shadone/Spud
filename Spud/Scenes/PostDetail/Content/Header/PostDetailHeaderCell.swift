@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import OSLog
 import SafariServices
 import SpudDataKit
@@ -249,9 +248,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
     // MARK: Private
 
-    private var disposables = Set<AnyCancellable>()
-
     private var postImageContainerHeightConstraint: NSLayoutConstraint!
+    private var imageLoadTask: Task<Void, Never>?
 
     // MARK: Functions
 
@@ -303,7 +301,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
     override func prepareForReuse() {
         super.prepareForReuse()
 
-        disposables.removeAll()
+        imageLoadTask?.cancel()
+        imageLoadTask = nil
+
         linkTapped = nil
         linkTappedFromPreview = nil
 
@@ -311,110 +311,63 @@ class PostDetailHeaderCell: UITableViewCellBase {
         linkPreviewView.prepareForReuse()
 
         postImageContainer.isHidden = true
+        postImageView.image = nil
     }
 
-    func configure(with viewModel: PostDetailHeaderViewModel) {
-        viewModel.title
-            .map { NSAttributedString($0) }
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: titleLabel)
-            .store(in: &disposables)
+    func configure(with viewModel: PostDetailHeaderViewModel, imageService: ImageServiceType) {
+        titleLabel.attributedText = viewModel.title
+        bodyLabel.attributedText = viewModel.body
+        attributionLabel.attributedText = viewModel.attribution
+        subtitleScoreLabel.attributedText = viewModel.subtitleScore
+        subtitleCommentLabel.attributedText = viewModel.subtitleComments
+        subtitleAgeLabel.attributedText = viewModel.subtitleAge
 
-        viewModel.body
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: bodyLabel)
-            .store(in: &disposables)
+        upvoteBarButton.isSelected = viewModel.isUpvoted
+        downvoteBarButton.isSelected = viewModel.isDownvoted
 
-        viewModel.attribution
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: attributionLabel)
-            .store(in: &disposables)
+        imageLoadTask?.cancel()
+        switch viewModel.image {
+        case .none:
+            postImageContainer.isHidden = true
+            linkPreviewView.isHidden = true
 
-        viewModel.subtitleScore
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: subtitleScoreLabel)
-            .store(in: &disposables)
-
-        viewModel.subtitleComments
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: subtitleCommentLabel)
-            .store(in: &disposables)
-
-        viewModel.subtitleAge
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: subtitleAgeLabel)
-            .store(in: &disposables)
-
-        viewModel.linkPreviewThumbnail
-            .sink(receiveValue: { [weak self] tuple in
-                self?.configureLinkPreview(tuple)
-            })
-            .store(in: &disposables)
-
-        viewModel.image
-            .sink { [weak self] imageLoadingState in
-                switch imageLoadingState {
-                case let .loading(thumbnailImage):
-                    if let thumbnailImage {
-                        // TODO: display loading indicator
-                        self?.setImage(thumbnailImage)
+        case let .post(imageUrl, thumbnailUrl):
+            linkPreviewView.isHidden = true
+            imageLoadTask = Task { [weak self] in
+                for await state in imageService.fetch(imageUrl, thumbnail: thumbnailUrl) {
+                    if Task.isCancelled { return }
+                    guard let self else { return }
+                    switch state {
+                    case let .loading(thumbnailImage):
+                        if let thumbnailImage { setImage(thumbnailImage) }
+                    case let .ready(image):
+                        setImage(image)
+                    case .failure:
+                        break
                     }
-
-                case let .ready(image):
-                    self?.setImage(image)
-
-                case .failure:
-                    // TODO: Image loading failed. Display retry button to try to load the image again.
-                    break
                 }
             }
-            .store(in: &disposables)
 
-        viewModel.isUpvoted
-            .sink { [weak self] isUpvoted in
-                self?.upvoteBarButton.isSelected = isUpvoted
+        case let .linkPreview(url, thumbnailUrl):
+            postImageContainer.isHidden = true
+            linkPreviewView.url = url
+            linkPreviewView.isHidden = false
+            if let thumbnailUrl {
+                imageLoadTask = Task { [weak self] in
+                    for await state in imageService.fetch(thumbnailUrl) {
+                        if Task.isCancelled { return }
+                        guard let self else { return }
+                        switch state {
+                        case let .ready(image):
+                            linkPreviewView.thumbnailImage = image
+                            adjustHeightForChange()
+                        case .loading, .failure:
+                            break
+                        }
+                    }
+                }
             }
-            .store(in: &disposables)
-
-        viewModel.isDownvoted
-            .sink { [weak self] isUpvoted in
-                self?.downvoteBarButton.isSelected = isUpvoted
-            }
-            .store(in: &disposables)
-    }
-
-    private func configureLinkPreview(_ tuple: (URL, ImageLoadingState?)?) {
-        guard let tuple else {
-            linkPreviewView.isHidden = true
-            return
-        }
-
-        let (url, thumbnailType) = tuple
-
-        linkPreviewView.url = url
-        linkPreviewView.isHidden = false
-
-        switch thumbnailType {
-        case .loading:
-            // noop. We just show the link preview which was already done above.
-            break
-
-        case let .ready(image):
-            linkPreviewView.thumbnailImage = image
-
-        case .failure:
-            // TODO: display broken image icon
-            break
-
-        case .none:
-            // The link does not have a thumbnail.
-            break
-        }
-
-        if !isBeingConfigured {
-            // Tell UITableView we want to change our cell height.
-            tableView?.beginUpdates()
-            tableView?.endUpdates()
+            adjustHeightForChange()
         }
     }
 
@@ -422,7 +375,6 @@ class PostDetailHeaderCell: UITableViewCellBase {
         postImageView.image = image
         postImageContainer.isHidden = false
 
-        assert(tableView != nil)
         let cellWidth = tableView?.bounds.width ?? 100
         let maxImageHeight = (tableView?.bounds.height ?? 800) * 0.6
         let imageFittingHeight = image.fittingHeight(for: cellWidth)
@@ -430,11 +382,13 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
         postImageContainerHeightConstraint.constant = imageHeight
 
-        if !isBeingConfigured {
-            // Tell UITableView we want to change our cell height.
-            tableView?.beginUpdates()
-            tableView?.endUpdates()
-        }
+        adjustHeightForChange()
+    }
+
+    private func adjustHeightForChange() {
+        guard !isBeingConfigured else { return }
+        tableView?.beginUpdates()
+        tableView?.endUpdates()
     }
 
     @objc

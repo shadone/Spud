@@ -8,10 +8,10 @@ import Foundation
 import LemmyKit
 
 extension Components.Schemas.CommentSortType {
-    /// Deserialized a comment sort type from a string stored in Data Store (Core Data).
+    /// Deserializes a comment sort type from a string stored in the
+    /// database. Lowercase spellings are accepted for backwards
+    /// compatibility with older rows that predated the OpenAPI casing change.
     init?(fromDataStore rawValue: String) {
-        // When reading from Core Data we support deserialing from lowercase values
-        // for compabitility reasons.
         switch rawValue {
         case "hot":
             self = .Hot
@@ -36,7 +36,7 @@ extension Components.Schemas.CommentSortType {
         }
     }
 
-    /// Serializes the comment sort type to a string that will be stored in Data Store (Core Data)
+    /// Serializes the comment sort type to a string for database storage.
     var dataStoreRawValue: String {
         rawValue
     }

@@ -4,36 +4,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
-import CoreData
-import LemmyKit
+import Foundation
+import Observation
 import SpudDataKit
 import UIKit
 
 @MainActor
-protocol LoginViewModelInputs {
-    func usernameChanged(_ username: String)
-    func passwordChanged(_ password: String)
-    func login() async
-}
-
-@MainActor
-protocol LoginViewModelOutputs {
-    var site: CurrentValueSubject<LemmySite, Never> { get }
-    var icon: AnyPublisher<UIImage, Never> { get }
-    var instanceName: AnyPublisher<String, Never> { get }
-    var loginButtonEnabled: AnyPublisher<Bool, Never> { get }
-    var loggedIn: PassthroughSubject<LemmyAccount, Never> { get }
-}
-
-@MainActor
-protocol LoginViewModelType {
-    var inputs: LoginViewModelInputs { get }
-    var outputs: LoginViewModelOutputs { get }
-}
-
-@MainActor
-class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOutputs {
+@Observable
+final class LoginViewModel {
     typealias OwnDependencies =
         HasAccountService &
         HasAlertService &
@@ -41,118 +19,78 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
     typealias NestedDependencies =
         HasVoid
     typealias Dependencies = NestedDependencies & OwnDependencies
+
+    @ObservationIgnored
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var accountService: AccountServiceType {
+    private var accountService: AccountServiceType {
         dependencies.own.accountService
     }
 
-    var alertService: AlertServiceType {
+    private var alertService: AlertServiceType {
         dependencies.own.alertService
     }
 
-    // MARK: Private
-
-    private var disposables = Set<AnyCancellable>()
-
-    private var siteInfo: AnyPublisher<LemmySiteInfo, Never> {
-        site
-            .flatMap { site in
-                site.publisher(for: \.siteInfo)
-            }
-            .ignoreNil()
-            .eraseToAnyPublisher()
+    private var imageService: ImageServiceType {
+        dependencies.own.imageService
     }
 
-    private let username: CurrentValueSubject<String, Never>
-    private let password: CurrentValueSubject<String, Never>
+    let row: SiteListRow
+    let instanceName: String
 
-    // MARK: Functions
+    var icon: UIImage
+    var username: String = ""
+    var password: String = ""
+    var loggedIn: Bool = false
+
+    var loginButtonEnabled: Bool {
+        !username.isEmpty && !password.isEmpty
+    }
+
+    @ObservationIgnored
+    private var iconFetchTask: Task<Void, Never>?
 
     init(
-        site: LemmySite,
+        row: SiteListRow,
         dependencies: Dependencies
     ) {
-        self.site = .init(site)
+        self.row = row
         self.dependencies = (own: dependencies, nested: dependencies)
+        instanceName = row.hostname
 
-        icon = site.publisher(for: \.siteInfo)
-            .ignoreNil()
-            .flatMap { siteInfo in
-                siteInfo.publisher(for: \.iconUrl)
-            }
-            .flatMap { iconUrl -> AnyPublisher<UIImage, Never> in
-                let placeholder = UIImage(systemName: "questionmark")!
-                guard let iconUrl else {
-                    return Just(placeholder).eraseToAnyPublisher()
-                }
-                return dependencies.imageService.fetch(iconUrl)
-                    .map { state -> UIImage? in
-                        switch state {
-                        case .loading:
-                            return nil
-                        case let .ready(image):
-                            return image
-                        case .failure:
-                            return placeholder
-                        }
+        let placeholder = UIImage(systemName: "questionmark")!
+        icon = placeholder
+
+        if let iconUrl = row.iconUrl {
+            let stream = dependencies.imageService.fetch(iconUrl)
+            iconFetchTask = Task { [weak self] in
+                for await state in stream {
+                    guard let self else { return }
+                    switch state {
+                    case .loading:
+                        break
+                    case let .ready(loaded):
+                        icon = loaded
+                    case .failure:
+                        icon = placeholder
                     }
-                    .ignoreNil()
-                    .eraseToAnyPublisher()
+                }
             }
-            .eraseToAnyPublisher()
-
-        instanceName = site.publisher(for: \.instance)
-            .flatMap(\.actorIdPublisher)
-            .map(\.host)
-            .eraseToAnyPublisher()
-
-        username = .init("")
-        password = .init("")
-        loginButtonEnabled = username.combineLatest(password)
-            .map { username, password in
-                !username.isEmpty && !password.isEmpty
-            }
-            .eraseToAnyPublisher()
-        loggedIn = .init()
+        }
     }
 
-    // MARK: Type
-
-    var inputs: LoginViewModelInputs {
-        self
-    }
-
-    var outputs: LoginViewModelOutputs {
-        self
-    }
-
-    // MARK: Outputs
-
-    let site: CurrentValueSubject<LemmySite, Never>
-    let icon: AnyPublisher<UIImage, Never>
-    let instanceName: AnyPublisher<String, Never>
-    let loginButtonEnabled: AnyPublisher<Bool, Never>
-    let loggedIn: PassthroughSubject<LemmyAccount, Never>
-
-    // MARK: Inputs
-
-    func usernameChanged(_ username: String) {
-        self.username.send(username)
-    }
-
-    func passwordChanged(_ password: String) {
-        self.password.send(password)
+    deinit {
+        iconFetchTask?.cancel()
     }
 
     func login() async {
         do {
-            let account = try await accountService.login(
-                site: site.value,
-                username: username.value,
-                password: password.value
+            try await accountService.login(
+                atInstance: row.instance,
+                username: username,
+                password: password
             )
-            loggedIn.send(account)
+            loggedIn = true
         } catch {
             alertService.handle(error, for: .login)
         }

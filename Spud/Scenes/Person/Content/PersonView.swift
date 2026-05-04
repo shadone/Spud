@@ -48,18 +48,8 @@ struct PersonNavigationButton: View {
     }
 }
 
-struct PersonView<ViewModel: PersonViewModelType>: View {
-    @StateObject var viewModel: ViewModel
-
-    @State var name = ""
-    @State var homeInstance = ""
-    @State var displayName: String?
-
-    @State var numberOfPosts = ""
-
-    @State var numberOfComments = ""
-
-    @State var accountAge = ""
+struct PersonView: View {
+    @Bindable var viewModel: PersonViewModel
 
     var avatarPlaceholder: some View {
         ZStack {
@@ -81,11 +71,11 @@ struct PersonView<ViewModel: PersonViewModelType>: View {
                     avatarPlaceholder
 
                     VStack(alignment: .leading) {
-                        if let displayName {
+                        if let displayName = viewModel.displayName {
                             Text(displayName)
                         }
-                        Text(name)
-                        Text(homeInstance)
+                        Text(viewModel.name)
+                        Text(viewModel.homeInstance)
                             .font(.footnote)
                     }
                 }
@@ -95,7 +85,7 @@ struct PersonView<ViewModel: PersonViewModelType>: View {
             Section {
                 HStack(spacing: 16) {
                     VStack(alignment: .center) {
-                        Text(accountAge)
+                        Text(viewModel.accountAge)
                             .font(.title3)
                             .fontWeight(.medium)
                             .multilineTextAlignment(.center)
@@ -117,28 +107,18 @@ struct PersonView<ViewModel: PersonViewModelType>: View {
                 PersonNavigationButton(
                     action: { },
                     title: "Posts",
-                    badge: numberOfPosts,
+                    badge: viewModel.numberOfPosts,
                     systemImageName: "doc.richtext"
                 )
 
                 PersonNavigationButton(
                     action: { },
                     title: "Comments",
-                    badge: numberOfComments,
+                    badge: viewModel.numberOfComments,
                     systemImageName: "text.bubble"
                 )
             }
         }
         .listStyle(.insetGrouped)
-        .onReceive(viewModel.outputs.name) { name = $0 }
-        .onReceive(viewModel.outputs.homeInstance) { homeInstance = $0 }
-        .onReceive(viewModel.outputs.displayName) { displayName = $0 }
-        .onReceive(viewModel.outputs.numberOfPosts) { numberOfPosts = $0 }
-        .onReceive(viewModel.outputs.numberOfComments) { numberOfComments = $0 }
-        .onReceive(viewModel.outputs.accountAge) { accountAge = $0 }
     }
-}
-
-#Preview {
-    PersonView(viewModel: PersonViewModelForPreview())
 }

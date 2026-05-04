@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
-import CoreData
 import Foundation
 import OSLog
 import SpudDataKit
@@ -20,24 +18,6 @@ class AppCoordinator {
     }
 
     let dependencies: DependencyContainer
-
-    // MARK: Private
-
-    private var disposables = Set<AnyCancellable>()
-
-    private var feedUpdated: AnyPublisher<LemmyFeed, Never> = NotificationCenter.default
-        .publisher(for: .NSManagedObjectContextObjectsDidChange)
-        .compactMap { notification -> LemmyFeed? in
-            guard
-                let updatedObjects = notification.userInfo?[NSUpdatedObjectsKey] as? NSSet
-            else {
-                return nil
-            }
-            let feeds = updatedObjects.compactMap { $0 as? LemmyFeed }
-            assert(feeds.count <= 1)
-            return feeds.first
-        }
-        .eraseToAnyPublisher()
 
     // MARK: Functions
 
@@ -65,11 +45,8 @@ class AppCoordinator {
     func open(_ url: URL, in window: MainWindow) {
         switch url.spud {
         case let .post(postId, instance):
-            let mainContext = dependencies.dataStore.mainContext
-            let site = dependencies.siteService.site(for: instance, in: mainContext)
-            let account = dependencies.accountService.account(at: site, in: mainContext)
-
-            window.display(postId: postId, using: account)
+            let accountKeychainId = dependencies.accountService.accountKeychainId(forInstance: instance)
+            window.display(serverPostId: postId, accountKeychainId: accountKeychainId)
 
         case .person:
             // TODO: open PersonVC

@@ -6,7 +6,7 @@
 
 import Foundation
 
-public struct Post: Codable, Identifiable {
+public struct Post: Codable, Identifiable, Sendable {
     public var id: String {
         spudUrl.absoluteString
     }

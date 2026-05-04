@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import LemmyKit
 import SpudDataKit
@@ -29,19 +28,17 @@ class PreferencesViewController: UIViewController {
         dependencies.own.accountService
     }
 
-    // MARK: - Private
-
     private let viewModel: PreferencesViewModel
+    private var externalLinkTask: Task<Void, Never>?
 
-    private var disposables = Set<AnyCancellable>()
-
-    // MARK: - Functions
-
-    init(account: LemmyAccount, dependencies: Dependencies) {
+    init(
+        defaultPostSortType: Components.Schemas.SortType,
+        dependencies: Dependencies
+    ) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
         viewModel = PreferencesViewModel(
-            account: account,
+            defaultPostSortType: defaultPostSortType,
             dependencies: self.dependencies.nested
         )
         super.init(nibName: nil, bundle: nil)
@@ -55,6 +52,10 @@ class PreferencesViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
+    deinit {
+        externalLinkTask?.cancel()
+    }
+
     private func setup() {
         view.backgroundColor = .systemBackground
 
@@ -63,33 +64,17 @@ class PreferencesViewController: UIViewController {
 
         navigationItem.title = "Preferences"
 
-        let contentVC = UIHostingController(rootView: PreferencesView(
-            viewModel: self.viewModel
-        ))
+        let contentVC = UIHostingController(rootView: PreferencesView(viewModel: viewModel))
         add(child: contentVC)
         addSubviewWithEdgeConstraints(child: contentVC)
     }
 
     private func bindViewModel() {
-        viewModel.outputs.externalLinkRequested
-            .sink { [weak self] url in
+        externalLinkTask = Task { @MainActor [weak self, viewModel] in
+            for await url in viewModel.externalLinkRequested {
                 guard let self else { return }
-                Task {
-                    await self.appService.open(url: url, on: self)
-                }
+                await appService.open(url: url, on: self)
             }
-            .store(in: &disposables)
-
-        viewModel.outputs.defaultPostSortTypeRequested
-            .sink { [weak self] sortType in
-                self?.updateDefaultPostSortType(sortType)
-            }
-            .store(in: &disposables)
-    }
-
-    private func updateDefaultPostSortType(_ sortType: Components.Schemas.SortType) {
-        // TODO: update user preferences using /user/save_user_settings api call
-        // accountService.lemmyService(for: viewModel.outputs.account.value)
-        //     .updateAccountInfo()
+        }
     }
 }

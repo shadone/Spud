@@ -45,7 +45,7 @@ class TopPostsAppIntentProvider: AppIntentTimelineProvider {
             logger.debug("Snapshot requested")
         }
 
-        let entry = dependencies.entryService.topPostsSnapshot()
+        let entry = await dependencies.entryService.topPostsSnapshot()
 
         logger.debug("Snapshot delivered")
 

@@ -4,222 +4,161 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import LemmyKit
+import Observation
 import SpudDataKit
 import SwiftUI
 
 @MainActor
-protocol PreferencesViewModelInputs {
-    /// Opens external link as per current user configuration.
-    func testExternalLink(_ url: URL)
-
-    func updateDefaultPostSort(_ sortType: Components.Schemas.SortType)
-
-    func updateDefaultCommentSort(_ commentSortType: Components.Schemas.CommentSortType)
-
-    func updateOpenExternalLink(_ value: Preferences.OpenExternalLink)
-
-    func updateOpenExternalLinkInSafariVCReaderMode(_ value: Bool)
-
-    func updateOpenExternalLinkAsUniversalLinkInApp(_ value: Bool)
-}
-
-@MainActor
-protocol PreferencesViewModelOutputs {
-    var account: CurrentValueSubject<LemmyAccount, Never> { get }
-
-    // MARK: Testing opening external link
-
-    var externalLinkRequested: AnyPublisher<URL, Never> { get }
-
-    // MARK: Default Post Sort Type
-
-    /// Returns all Post sort types that user can choose from.
-    var allPostSortTypes: [Components.Schemas.SortType] { get }
-
-    /// The default sort type for post listing that the user has chosen.
-    var defaultPostSortType: CurrentValueSubject<Components.Schemas.SortType, Never> { get }
-
-    /// The user chose a different sort type.
-    var defaultPostSortTypeRequested: AnyPublisher<Components.Schemas.SortType, Never> { get }
-
-    // MARK: Default Comment Sort Type
-
-    /// Returns all Comment sort types that user can choose from.
-    var allCommentSortTypes: [Components.Schemas.CommentSortType] { get }
-
-    /// The default sort type for comments that the user has chosen.
-    var defaultCommentSortType: CurrentValueSubject<Components.Schemas.CommentSortType, Never> { get }
-
-    // MARK: Open External Link
-
-    var openExternalLink: CurrentValueSubject<Preferences.OpenExternalLink, Never> { get }
-    var openExternalLinkInSafariVCReaderMode: CurrentValueSubject<Bool, Never> { get }
-    var openExternalLinkAsUniversalLinkInApp: CurrentValueSubject<Bool, Never> { get }
-
-    // MARK: Storage info
-
-    var storageSize: CurrentValueSubject<String, Never> { get }
-    var storageFileUrl: CurrentValueSubject<URL, Never> { get }
-}
-
-@MainActor
-protocol PreferencesViewModelType: ObservableObject {
-    var inputs: PreferencesViewModelInputs { get }
-    var outputs: PreferencesViewModelOutputs { get }
-}
-
-@MainActor
-class PreferencesViewModel:
-    PreferencesViewModelType,
-    PreferencesViewModelInputs,
-    PreferencesViewModelOutputs
-{
+@Observable
+final class PreferencesViewModel {
     typealias OwnDependencies =
         HasAccountService &
-        HasDataStore &
+        HasAppDatabase &
         HasPreferencesService
     typealias NestedDependencies =
         HasVoid
     typealias Dependencies = NestedDependencies & OwnDependencies
-    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var preferencesService: PreferencesServiceType {
-        dependencies.own.preferencesService
+    @ObservationIgnored
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)?
+
+    private var preferencesService: PreferencesServiceType? {
+        dependencies?.own.preferencesService
     }
 
-    var accountService: AccountServiceType {
-        dependencies.own.accountService
+    private var accountService: AccountServiceType? {
+        dependencies?.own.accountService
     }
 
-    // MARK: Private
+    let allPostSortTypes: [Components.Schemas.SortType]
+    let allCommentSortTypes: [Components.Schemas.CommentSortType]
 
-    private var disposables = Set<AnyCancellable>()
+    var defaultPostSortType: Components.Schemas.SortType
+    var defaultCommentSortType: Components.Schemas.CommentSortType
 
-    // MARK: Functions
+    var openExternalLink: Preferences.OpenExternalLink
+    var openExternalLinkInSafariVCReaderMode: Bool
+    var openExternalLinkAsUniversalLinkInApp: Bool
+
+    var storageSize: String
+    var storageFileUrl: URL
+
+    /// Async sequence of URLs that the user tapped in the link-testing footer.
+    /// The view controller drains this stream to open the URL through
+    /// `AppService` honouring the current user preferences.
+    @ObservationIgnored
+    let externalLinkRequested: AsyncStream<URL>
+
+    @ObservationIgnored
+    private let externalLinkRequestedContinuation: AsyncStream<URL>.Continuation
+
+    @ObservationIgnored
+    private var preferenceObservationTasks: [Task<Void, Never>] = []
 
     init(
-        account: LemmyAccount,
+        defaultPostSortType initialDefaultPostSortType: Components.Schemas.SortType,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
-        self.account = CurrentValueSubject<LemmyAccount, Never>(account)
-
-        externalLinkRequested = testExternalLinkSubject.eraseToAnyPublisher()
-
-        // TODO: omit sort types that User's instance cannot handle
-        // (e.g. old Lemmy instance not supporting topSixHour sort)
         allPostSortTypes = Components.Schemas.SortType.allCases
+        allCommentSortTypes = Components.Schemas.CommentSortType.allCases
 
-        defaultPostSortType = .init(account.accountInfo?.defaultSortType ?? .Hot)
-        defaultPostSortTypeRequested = updateDefaultPostSortSubject
-            .eraseToAnyPublisher()
+        defaultPostSortType = initialDefaultPostSortType
+        defaultCommentSortType = dependencies.preferencesService.defaultCommentSortType
+
+        openExternalLink = dependencies.preferencesService.openExternalLinks
+        openExternalLinkInSafariVCReaderMode =
+            dependencies.preferencesService.openExternalLinksInSafariVCReaderMode
+        openExternalLinkAsUniversalLinkInApp =
+            dependencies.preferencesService.openUniversalLinkInApp
+
+        storageSize = ByteCountFormatter.string(
+            fromByteCount: Int64(dependencies.appDatabase.sizeInBytes),
+            countStyle: .file
+        )
+        storageFileUrl = dependencies.appDatabase.storeURL ?? URL(fileURLWithPath: "/")
+
+        let (stream, continuation) = AsyncStream<URL>.makeStream()
+        externalLinkRequested = stream
+        externalLinkRequestedContinuation = continuation
 
         let preferencesService = dependencies.preferencesService
 
-        // TODO: omit sort types that User's instance cannot handle
-        // (e.g. old Lemmy instance not supporting topSixHour sort)
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.defaultCommentSortTypeStream {
+                self?.defaultCommentSortType = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.openExternalLinksStream {
+                self?.openExternalLink = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.openExternalLinksInSafariVCReaderModeStream {
+                self?.openExternalLinkInSafariVCReaderMode = value
+            }
+        })
+    }
+
+    /// Preview-only init with seed values and no service dependencies.
+    /// Mutations write back to local state only.
+    init(preview: Void = ()) {
+        dependencies = nil
+        externalLinkRequestedContinuation = AsyncStream<URL>.makeStream().continuation
+        externalLinkRequested = AsyncStream { _ in }
+
+        allPostSortTypes = Components.Schemas.SortType.allCases
         allCommentSortTypes = Components.Schemas.CommentSortType.allCases
-
-        defaultCommentSortType = .init(preferencesService.defaultCommentSortType)
-
-        openExternalLink = .init(preferencesService.openExternalLinks)
-
-        openExternalLinkInSafariVCReaderMode = .init(preferencesService.openExternalLinksInSafariVCReaderMode)
-
-        openExternalLinkAsUniversalLinkInApp = .init(preferencesService.openUniversalLinkInApp)
-
-        storageSize = .init(ByteCountFormatter.string(
-            fromByteCount: Int64(dependencies.dataStore.sizeInBytes),
-            countStyle: .file
-        ))
-
-        storageFileUrl = .init(dependencies.dataStore.storeUrl)
-
-        preferencesService.defaultCommentSortTypePublisher
-            .sink { [weak self] value in
-                self?.defaultCommentSortType.send(value)
-            }
-            .store(in: &disposables)
-
-        preferencesService.openExternalLinksPublisher
-            .assign(to: \.value, on: openExternalLink)
-            .store(in: &disposables)
-
-        preferencesService.openExternalLinksInSafariVCReaderModePublisher
-            .sink { [weak self] value in
-                self?.openExternalLinkInSafariVCReaderMode.send(value)
-            }
-            .store(in: &disposables)
+        defaultPostSortType = .Hot
+        defaultCommentSortType = .Hot
+        openExternalLink = .safariViewController
+        openExternalLinkInSafariVCReaderMode = true
+        openExternalLinkAsUniversalLinkInApp = true
+        storageSize = "128 MB"
+        storageFileUrl = URL(fileURLWithPath: "/tmp")
     }
 
-    // MARK: Type
-
-    var inputs: PreferencesViewModelInputs {
-        self
+    deinit {
+        externalLinkRequestedContinuation.finish()
+        for task in preferenceObservationTasks {
+            task.cancel()
+        }
     }
-
-    var outputs: PreferencesViewModelOutputs {
-        self
-    }
-
-    // MARK: Outputs
-
-    let account: CurrentValueSubject<LemmyAccount, Never>
-
-    let externalLinkRequested: AnyPublisher<URL, Never>
-
-    let allPostSortTypes: [Components.Schemas.SortType]
-    let defaultPostSortType: CurrentValueSubject<Components.Schemas.SortType, Never>
-    let defaultPostSortTypeRequested: AnyPublisher<Components.Schemas.SortType, Never>
-
-    let allCommentSortTypes: [Components.Schemas.CommentSortType]
-    let defaultCommentSortType: CurrentValueSubject<Components.Schemas.CommentSortType, Never>
-
-    let openExternalLink: CurrentValueSubject<Preferences.OpenExternalLink, Never>
-    let openExternalLinkInSafariVCReaderMode: CurrentValueSubject<Bool, Never>
-    let openExternalLinkAsUniversalLinkInApp: CurrentValueSubject<Bool, Never>
-
-    let storageSize: CurrentValueSubject<String, Never>
-    let storageFileUrl: CurrentValueSubject<URL, Never>
 
     // MARK: Inputs
 
-    let testExternalLinkSubject: PassthroughSubject<URL, Never> = .init()
     func testExternalLink(_ url: URL) {
-        testExternalLinkSubject.send(url)
+        externalLinkRequestedContinuation.yield(url)
     }
 
-    let updateDefaultPostSortSubject: PassthroughSubject<Components.Schemas.SortType, Never> = .init()
     func updateDefaultPostSort(_ value: Components.Schemas.SortType) {
-        // Send the new value before the request to update it completes to update the UI early.
-        defaultPostSortType.send(value)
-
-        updateDefaultPostSortSubject.send(value)
-        objectWillChange.send()
+        defaultPostSortType = value
+        // TODO: persist via /user/save_user_settings once accountService supports it.
     }
 
-    let updateDefaultCommentSortSubject: PassthroughSubject<Components.Schemas.CommentSortType, Never> = .init()
     func updateDefaultCommentSort(_ value: Components.Schemas.CommentSortType) {
-        preferencesService.defaultCommentSortType = value
-        objectWillChange.send()
+        defaultCommentSortType = value
+        preferencesService?.defaultCommentSortType = value
     }
 
     func updateOpenExternalLink(_ value: Preferences.OpenExternalLink) {
-        preferencesService.openExternalLinks = value
-        objectWillChange.send()
+        openExternalLink = value
+        preferencesService?.openExternalLinks = value
     }
 
     func updateOpenExternalLinkInSafariVCReaderMode(_ value: Bool) {
-        preferencesService.openExternalLinksInSafariVCReaderMode = value
-        objectWillChange.send()
+        openExternalLinkInSafariVCReaderMode = value
+        preferencesService?.openExternalLinksInSafariVCReaderMode = value
     }
 
     func updateOpenExternalLinkAsUniversalLinkInApp(_ value: Bool) {
-        preferencesService.openUniversalLinkInApp = value
-        objectWillChange.send()
+        openExternalLinkAsUniversalLinkInApp = value
+        preferencesService?.openUniversalLinkInApp = value
     }
 }

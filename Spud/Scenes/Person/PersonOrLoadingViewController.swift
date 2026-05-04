@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import LemmyKit
 import SpudDataKit
 import SpudUtilKit
@@ -13,13 +12,16 @@ import UIKit
 class PersonOrLoadingViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
-        HasDataStore &
-        HasSiteService
+        HasAppDatabase
     typealias NestedDependencies =
         PersonLoadingViewController.Dependencies &
         PersonViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
+
+    var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
+    }
 
     // MARK: - Public
 
@@ -29,11 +31,9 @@ class PersonOrLoadingViewController: UIViewController {
 
     // MARK: - Private
 
-    private let viewModel: PersonOrLoadingViewModelType
-
     private enum State {
-        case person(LemmyPersonInfo)
-        case load(LemmyPerson)
+        case person(personRowId: Int64)
+        case load
     }
 
     private var state: State {
@@ -42,44 +42,35 @@ class PersonOrLoadingViewController: UIViewController {
         }
     }
 
-    private let account: LemmyAccount
+    private let serverPersonId: Components.Schemas.PersonID
+    private let instance: InstanceActorId
+    private let accountKeychainId: String
     private var currentViewController: UIViewController?
-    private var disposables = Set<AnyCancellable>()
 
     // MARK: - Functions
 
     init(
         personId: Components.Schemas.PersonID,
         instance: InstanceActorId,
-        account: LemmyAccount,
+        accountKeychainId: String,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
-        self.account = account
+        serverPersonId = personId
+        self.instance = instance
+        self.accountKeychainId = accountKeychainId
 
-        let dataStore = self.dependencies.own.dataStore
-        let siteService = self.dependencies.own.siteService
-        let accountService = self.dependencies.own.accountService
-
-        let context = dataStore.mainContext
-        let site = siteService.site(for: instance, in: context)
-
-        let personHomeAccount = accountService.account(at: site, in: context)
-        let person = accountService
-            .lemmyDataService(for: personHomeAccount)
-            .getOrCreate(personId: personId)
-
-        if let personInfo = person.personInfo {
-            state = .person(personInfo)
+        let appDatabase = self.dependencies.own.appDatabase
+        if let personRowId = appDatabase.personRowIdSync(
+            instanceActorId: instance.actorId,
+            personId: Int64(personId)
+        ) {
+            state = .person(personRowId: personRowId)
         } else {
-            state = .load(person)
+            state = .load
         }
 
-        viewModel = PersonOrLoadingViewModel(person.personInfo)
-
         super.init(nibName: nil, bundle: nil)
-
-        bindViewModel()
 
         stateChanged()
     }
@@ -89,47 +80,30 @@ class PersonOrLoadingViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private func bindViewModel() {
-        viewModel.outputs.personInfoLoaded
-            .sink { [weak self] personInfo in
-                self?.state = .person(personInfo)
-            }
-            .store(in: &disposables)
-
-        viewModel.outputs.loadingPersonInfo
-            .sink { [weak self] person in
-                self?.state = .load(person)
-            }
-            .store(in: &disposables)
-
-        viewModel.outputs.navigationTitle
-            .assign(to: \.title, on: navigationItem)
-            .store(in: &disposables)
-    }
-
     private func stateChanged() {
         remove(child: currentViewController)
         currentViewController = nil
 
         let newViewController: UIViewController
         switch state {
-        case let .person(personInfo):
+        case let .person(personRowId):
             let contentViewController = PersonViewController(
-                personInfo: personInfo,
+                personRowId: personRowId,
                 dependencies: dependencies.nested
             )
             newViewController = contentViewController
 
-        case let .load(person):
+        case .load:
             let loadingViewController = PersonLoadingViewController(
-                person: person,
-                account: account,
+                serverPersonId: serverPersonId,
+                instance: instance,
+                accountKeychainId: accountKeychainId,
                 dependencies: dependencies.nested
             )
             newViewController = loadingViewController
 
-            loadingViewController.didFinishLoading = { [weak self] personInfo in
-                self?.viewModel.inputs.didFinishLoadingPersonInfo(personInfo)
+            loadingViewController.didFinishLoading = { [weak self] personRowId in
+                self?.state = .person(personRowId: personRowId)
             }
         }
 

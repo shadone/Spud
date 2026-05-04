@@ -1,0 +1,87 @@
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
+import Foundation
+import GRDB
+
+public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
+    public static let databaseTableName = "post"
+
+    public var id: Int64?
+    public var accountId: Int64
+    public var communityId: Int64
+    public var creatorId: Int64
+    public var postId: Int64
+    public var title: String
+    public var body: String?
+    public var url: String?
+    public var urlEmbedTitle: String?
+    public var urlEmbedDescription: String?
+    public var thumbnailUrl: String?
+    public var originalPostUrl: String
+    public var score: Int64
+    public var numberOfUpvotes: Int64
+    public var numberOfDownvotes: Int64
+    public var numberOfComments: Int64
+    public var isRead: Bool
+    /// 1 = upvote, 0 = downvote, nil = no vote.
+    public var voteStatus: Int64?
+    public var published: Date
+    public var createdAt: Date
+    public var updatedAt: Date
+
+    public init(
+        id: Int64? = nil,
+        accountId: Int64,
+        communityId: Int64,
+        creatorId: Int64,
+        postId: Int64,
+        title: String,
+        body: String? = nil,
+        url: String? = nil,
+        urlEmbedTitle: String? = nil,
+        urlEmbedDescription: String? = nil,
+        thumbnailUrl: String? = nil,
+        originalPostUrl: String,
+        score: Int64 = 0,
+        numberOfUpvotes: Int64 = 0,
+        numberOfDownvotes: Int64 = 0,
+        numberOfComments: Int64 = 0,
+        isRead: Bool = false,
+        voteStatus: Int64? = nil,
+        published: Date,
+        createdAt: Date = Date(),
+        updatedAt: Date = Date()
+    ) {
+        self.id = id
+        self.accountId = accountId
+        self.communityId = communityId
+        self.creatorId = creatorId
+        self.postId = postId
+        self.title = title
+        self.body = body
+        self.url = url
+        self.urlEmbedTitle = urlEmbedTitle
+        self.urlEmbedDescription = urlEmbedDescription
+        self.thumbnailUrl = thumbnailUrl
+        self.originalPostUrl = originalPostUrl
+        self.score = score
+        self.numberOfUpvotes = numberOfUpvotes
+        self.numberOfDownvotes = numberOfDownvotes
+        self.numberOfComments = numberOfComments
+        self.isRead = isRead
+        self.voteStatus = voteStatus
+        self.published = published
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+}
+
+extension PostRecord: FetchableRecord, MutablePersistableRecord {
+    public mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
+}

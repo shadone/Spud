@@ -7,8 +7,13 @@
 import Foundation
 import LemmyKit
 
-extension Comment {
-    static func fake(id: Int32, post: Post, creator: Person, parent: CommentPath) -> Comment {
+extension Components.Schemas.Comment {
+    static func fake(
+        id: Components.Schemas.CommentID,
+        post: Components.Schemas.Post,
+        creator: Components.Schemas.Person,
+        parent: CommentPath
+    ) -> Components.Schemas.Comment {
         .init(
             id: id,
             creator_id: creator.id,
@@ -18,7 +23,7 @@ extension Comment {
             published: Date(),
             updated: nil,
             deleted: false,
-            ap_id: URL(string: "https://example.com/comment/1")!,
+            ap_id: "https://example.com/comment/1",
             local: true,
             path: parent.appending(id).pathString,
             distinguished: false,

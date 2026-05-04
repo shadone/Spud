@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import UIKit
 
@@ -15,6 +14,6 @@ class GeneralAppearance {
     let upvoteSwipeActionBackgroundColor: UIColor = .systemRed.withAlphaComponent(0.8)
     let downvoteSwipeActionBackgroundColor: UIColor = .systemIndigo.withAlphaComponent(0.8)
 
-    @Published var upvoteButtonActiveColor: UIColor = .systemRed
-    @Published var downvoteButtonActiveColor: UIColor = .systemIndigo
+    var upvoteButtonActiveColor: UIColor = .systemRed
+    var downvoteButtonActiveColor: UIColor = .systemIndigo
 }

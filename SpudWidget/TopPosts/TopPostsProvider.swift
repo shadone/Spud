@@ -12,7 +12,8 @@ import WidgetKit
 
 private let logger = Logger.topPostsProvider
 
-class TopPostsProvider: IntentTimelineProvider {
+@MainActor
+class TopPostsProvider: @preconcurrency IntentTimelineProvider {
     typealias Dependencies =
         HasEntryService
     private let dependencies: Dependencies
@@ -44,10 +45,11 @@ class TopPostsProvider: IntentTimelineProvider {
             logger.debug("Snapshot requested")
         }
 
-        let entry = dependencies.entryService.topPostsSnapshot()
-
-        logger.debug("Snapshot delivered")
-        completion(entry)
+        Task { @MainActor in
+            let entry = dependencies.entryService.topPostsSnapshot()
+            logger.debug("Snapshot delivered")
+            completion(entry)
+        }
     }
 
     func getTimeline(

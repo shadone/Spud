@@ -4,23 +4,20 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import LemmyKit
 import SpudDataKit
 import SwiftUI
 
-struct PreferencesView<ViewModel: PreferencesViewModelType>: View {
-    @StateObject var viewModel: ViewModel
+struct PreferencesView: View {
+    let viewModel: PreferencesViewModel
 
     var body: some View {
         NavigationView {
             Form {
                 Section {
                     NavigationLink {
-                        PreferencesGeneralView(
-                            viewModel: viewModel
-                        )
+                        PreferencesGeneralView(viewModel: viewModel)
                     } label: {
                         Label("General", systemImage: "gear")
                     }
@@ -36,9 +33,7 @@ struct PreferencesView<ViewModel: PreferencesViewModelType>: View {
 
                 Section {
                     NavigationLink {
-                        PreferencesAboutView(
-                            viewModel: viewModel
-                        )
+                        PreferencesAboutView(viewModel: viewModel)
                     } label: {
                         Label("About", systemImage: "a")
                     }
@@ -49,7 +44,5 @@ struct PreferencesView<ViewModel: PreferencesViewModelType>: View {
 }
 
 #Preview {
-    PreferencesView(
-        viewModel: PreferencesViewModelForPreview()
-    )
+    PreferencesView(viewModel: PreferencesViewModel())
 }
