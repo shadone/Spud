@@ -37,17 +37,56 @@ public class SiteService: SiteServiceType {
     // MARK: Private
 
     private let dataStore: DataStoreType
+    private let appDatabase: AppDatabase
 
     // MARK: Functions
 
     public init(
-        dataStore: DataStoreType
+        dataStore: DataStoreType,
+        appDatabase: AppDatabase
     ) {
         self.dataStore = dataStore
+        self.appDatabase = appDatabase
     }
 
     public func startService() {
         seedInitialSitesIfNeeded()
+        mirrorAllSitesToAppDatabase()
+    }
+
+    /// Ensures every Core Data site has a sibling AppDatabase row. Required
+    /// after Stage 7 introduced GRDB-backed scheduler predicates: sites that
+    /// existed before the migration (e.g. populated suggestions that were
+    /// never fetched) only have Core Data rows. Subsequent creations are
+    /// mirrored at the call site via `mirrorSite(forInstance:)`.
+    private func mirrorAllSitesToAppDatabase() {
+        let actorIds = allSites(in: dataStore.mainContext).map(\.instance.actorId)
+        guard !actorIds.isEmpty else { return }
+        Task { [appDatabase] in
+            for actorId in actorIds {
+                do {
+                    _ = try await appDatabase.ensureSite(forInstance: actorId)
+                } catch {
+                    logger.error("""
+                        Failed to mirror site to AppDatabase for \(actorId.actorId, privacy: .public): \
+                        \(String(describing: error), privacy: .public)
+                        """)
+                }
+            }
+        }
+    }
+
+    private func mirrorSite(forInstance actorId: InstanceActorId) {
+        Task { [appDatabase] in
+            do {
+                _ = try await appDatabase.ensureSite(forInstance: actorId)
+            } catch {
+                logger.error("""
+                    Failed to mirror site to AppDatabase for \(actorId.actorId, privacy: .public): \
+                    \(String(describing: error), privacy: .public)
+                    """)
+            }
+        }
     }
 
     private func seedInitialSitesIfNeeded() {
@@ -185,6 +224,8 @@ public class SiteService: SiteServiceType {
                 instance: instance,
                 in: dataStore.mainContext
             )
+
+            mirrorSite(forInstance: instanceActorId)
         }
 
         dataStore.saveIfNeeded()
@@ -219,20 +260,23 @@ public class SiteService: SiteServiceType {
             }
         }()
 
-        if let instance = existingInstance {
-            if let site = instance.site {
+        if let existing = existingInstance {
+            if let site = existing.site {
                 return site
             }
 
             // TODO: check if it's a Lemmy instance via instance.nodeInfo?.softwareName
 
-            return LemmySite(instance: instance, in: context)
+            let site = LemmySite(instance: existing, in: context)
+            mirrorSite(forInstance: instance)
+            return site
         }
 
-        let instance = Instance(actorId: instance, in: context)
-        let site = LemmySite(instance: instance, in: context)
+        let newInstance = Instance(actorId: instance, in: context)
+        let site = LemmySite(instance: newInstance, in: context)
 
         context.saveIfNeeded()
+        mirrorSite(forInstance: instance)
 
         return site
     }
