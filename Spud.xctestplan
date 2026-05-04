@@ -25,11 +25,6 @@
       }
     },
     {
-      "skippedTests" : [
-        "SpudUITests\/testExample()",
-        "SpudUITests\/testPostDetail()",
-        "SpudUITests\/test_PostDetail_TapOnPostCreator()"
-      ],
       "target" : {
         "containerPath" : "container:Spud.xcodeproj",
         "identifier" : "92B7C91C2A3A40F400672F64",
