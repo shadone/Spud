@@ -381,7 +381,25 @@ public class AccountService: AccountServiceType {
     }
 
     public func defaultAccountKeychainId() -> String {
-        defaultAccount().id
+        // Prefer the GRDB-resident default. Stage 3d.4 introduced flows that
+        // create new accounts in AppDatabase only, so Core Data may no
+        // longer be authoritative. Fall through to defaultAccount() (which
+        // bootstraps a Core Data + GRDB account on first launch) only when
+        // AppDatabase has no candidate row.
+        do {
+            if let keychainId = try appDatabase.writer.read({ db -> String? in
+                try AccountRecord
+                    .filter(Column("isServiceAccount") == false)
+                    .order(sql: "isDefault DESC, id ASC")
+                    .fetchOne(db)?
+                    .accountKeychainId
+            }) {
+                return keychainId
+            }
+        } catch {
+            logger.error("defaultAccountKeychainId GRDB read failed: \(error.localizedDescription, privacy: .public)")
+        }
+        return defaultAccount().id
     }
 
     public func isSignedOut(forAccountKeychainId keychainId: String) -> Bool {
@@ -470,29 +488,48 @@ public class AccountService: AccountServiceType {
     }
 
     public func signInAsSignedOut(atInstance instance: InstanceActorId) {
-        let mainContext = dataStore.mainContext
-        let site = siteService.site(for: instance, in: mainContext)
-        let account = accountForSignedOut(
-            at: site,
-            isServiceAccount: false,
-            in: mainContext
-        )
-        setDefaultAccount(account)
+        // Ensure the Core Data Site/Instance rows still exist so the legacy
+        // SiteListViewController FRC keeps showing this site. Removed once
+        // the SiteList UI moves to GRDB.
+        _ = siteService.site(for: instance, in: dataStore.mainContext)
+        do {
+            let keychainId = try appDatabase.ensureSignedOutAccountKeychainId(
+                forInstance: instance,
+                isServiceAccount: false
+            )
+            try appDatabase.setDefaultAccountSync(keychainId: keychainId)
+        } catch {
+            logger.error("signInAsSignedOut failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     public func setDefaultAccount(forAccountKeychainId keychainId: String) {
-        guard let account = account(withKeychainId: keychainId, in: dataStore.mainContext) else {
-            logger.error("Cannot setDefaultAccount: no account for keychainId")
+        do {
+            try appDatabase.setDefaultAccountSync(keychainId: keychainId)
+        } catch {
+            logger.error("setDefaultAccount failed: \(error.localizedDescription, privacy: .public)")
             return
         }
-        setDefaultAccount(account)
+        // Mirror to Core Data so the legacy defaultAccount() fetch stays in
+        // sync until 3d.6 deletes LemmyAccount entirely.
+        guard let account = account(withKeychainId: keychainId, in: dataStore.mainContext) else { return }
+        for other in allAccounts(includeSignedOutAccount: true, in: dataStore.mainContext) {
+            other.isDefaultAccount = false
+        }
+        account.isDefaultAccount = true
+        dataStore.saveIfNeeded()
     }
 
     public func accountKeychainId(forInstance instance: InstanceActorId) -> String {
         assert(Thread.current.isMainThread)
-        let mainContext = dataStore.mainContext
-        let site = siteService.site(for: instance, in: mainContext)
-        return account(at: site, in: mainContext).id
+        // Keep Core Data Site row in sync for the legacy SiteList UI.
+        _ = siteService.site(for: instance, in: dataStore.mainContext)
+        do {
+            return try appDatabase.bestAccountKeychainId(forInstance: instance)
+        } catch {
+            logger.fault("accountKeychainId(forInstance:) failed: \(error.localizedDescription, privacy: .public)")
+            fatalError("accountKeychainId(forInstance:) failed: \(error)")
+        }
     }
 
     public func accountForSignedOut(
@@ -500,13 +537,16 @@ public class AccountService: AccountServiceType {
         isServiceAccount: Bool
     ) -> String {
         assert(Thread.current.isMainThread)
-        let mainContext = dataStore.mainContext
-        let site = siteService.site(for: instance, in: mainContext)
-        return accountForSignedOut(
-            at: site,
-            isServiceAccount: isServiceAccount,
-            in: mainContext
-        ).id
+        _ = siteService.site(for: instance, in: dataStore.mainContext)
+        do {
+            return try appDatabase.ensureSignedOutAccountKeychainId(
+                forInstance: instance,
+                isServiceAccount: isServiceAccount
+            )
+        } catch {
+            logger.fault("accountForSignedOut(forInstance:) failed: \(error.localizedDescription, privacy: .public)")
+            fatalError("accountForSignedOut(forInstance:) failed: \(error)")
+        }
     }
 
     public func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType {
