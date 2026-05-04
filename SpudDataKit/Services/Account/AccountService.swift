@@ -183,34 +183,6 @@ public class AccountService: AccountServiceType {
         }
     }
 
-    /// Fire-and-forget mirror of a freshly created Core Data account into
-    /// AppDatabase. Snapshots the relevant fields synchronously on the main
-    /// actor before hopping off so the Task does not touch the managed
-    /// object across actor boundaries. Failures are logged; the legacy
-    /// Core Data path remains the source of truth until 3d.
-    private func mirrorAccount(_ account: LemmyAccount) {
-        let actorId = account.site.instance.actorId
-        let keychainId = account.id
-        let isSignedOut = account.isSignedOutAccountType
-        let isServiceAccount = account.isServiceAccount
-        Task { [appDatabase] in
-            do {
-                let (_, siteId) = try await appDatabase.ensureSite(forInstance: actorId)
-                _ = try await appDatabase.ensureAccount(
-                    keychainId: keychainId,
-                    siteId: siteId,
-                    isSignedOut: isSignedOut,
-                    isServiceAccount: isServiceAccount
-                )
-            } catch {
-                logger.error("""
-                    Failed to mirror account to AppDatabase: \
-                    \(String(describing: error), privacy: .public)
-                    """)
-            }
-        }
-    }
-
     private func account(
         withKeychainId keychainId: String,
         in context: NSManagedObjectContext
@@ -557,10 +529,6 @@ extension AccountService {
         }
     }
 
-    private func writeCredential(_ credential: LemmyCredential, for account: LemmyAccount) {
-        writeCredential(credential, forKeychainId: account.id)
-    }
-
     private func readCredential(forKeychainId keychainId: String) -> LemmyCredential? {
         do {
             guard let stringValue = try keychain.get(keychainId) else {
@@ -580,17 +548,6 @@ extension AccountService {
             logger.assertionFailure("Failed to get credential from keychain: \(error.localizedDescription)")
             return nil
         }
-    }
-
-    /// Looks up the credential for `account`. If it has not yet been migrated
-    /// to the keychainId-keyed slot, copies it across and deletes the legacy
-    /// objectID-URI-keyed entry as a side effect.
-    private func readCredential(for account: LemmyAccount) -> LemmyCredential? {
-        guard !account.isSignedOutAccountType else { return nil }
-        if let credential = readCredential(forKeychainId: account.id) {
-            return credential
-        }
-        return migrateLegacyCredentialIfPresent(for: account)
     }
 
     @discardableResult
