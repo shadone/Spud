@@ -12,16 +12,11 @@ import UIKit
 
 class LoginViewController: UIViewController {
     typealias OwnDependencies =
-        HasAccountService &
-        HasDataStore
+        HasAccountService
     typealias NestedDependencies =
         LoginViewModel.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
-
-    var dataStore: DataStoreType {
-        dependencies.own.dataStore
-    }
 
     var accountService: AccountServiceType {
         dependencies.own.accountService
@@ -358,14 +353,7 @@ class LoginViewController: UIViewController {
 
     @objc
     private func continueWithSignedOutAccount() {
-        let account = accountService.accountForSignedOut(
-            at: viewModel.outputs.site.value,
-            isServiceAccount: false,
-            in: dataStore.mainContext
-        )
-
-        accountService.setDefaultAccount(account)
-
+        accountService.signInAsSignedOut(at: viewModel.outputs.site.value)
         dismiss(animated: true)
     }
 
