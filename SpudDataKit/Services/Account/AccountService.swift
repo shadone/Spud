@@ -229,6 +229,34 @@ public class AccountService: AccountServiceType {
         self.siteService = siteService
     }
 
+    /// Fire-and-forget mirror of a freshly created Core Data account into
+    /// AppDatabase. Snapshots the relevant fields synchronously on the main
+    /// actor before hopping off so the Task does not touch the managed
+    /// object across actor boundaries. Failures are logged; the legacy
+    /// Core Data path remains the source of truth until 3d.
+    private func mirrorAccount(_ account: LemmyAccount) {
+        let actorId = account.site.instance.actorId
+        let keychainId = account.id
+        let isSignedOut = account.isSignedOutAccountType
+        let isServiceAccount = account.isServiceAccount
+        Task { [appDatabase] in
+            do {
+                let (_, siteId) = try await appDatabase.ensureSite(forInstance: actorId)
+                _ = try await appDatabase.ensureAccount(
+                    keychainId: keychainId,
+                    siteId: siteId,
+                    isSignedOut: isSignedOut,
+                    isServiceAccount: isServiceAccount
+                )
+            } catch {
+                logger.error("""
+                    Failed to mirror account to AppDatabase: \
+                    \(String(describing: error), privacy: .public)
+                    """)
+            }
+        }
+    }
+
     public func accountForSignedOut(
         at site: LemmySite,
         isServiceAccount: Bool,
@@ -264,6 +292,7 @@ public class AccountService: AccountServiceType {
             let account = LemmyAccount(signedOutAt: site, in: context)
             account.isServiceAccount = isServiceAccount
             context.saveIfNeeded()
+            mirrorAccount(account)
             return account
         }
 
@@ -362,6 +391,7 @@ public class AccountService: AccountServiceType {
         let site = siteService.allSites(in: dataStore.mainContext).first!
         let account = LemmyAccount(signedOutAt: site, in: dataStore.mainContext)
         dataStore.saveIfNeeded()
+        mirrorAccount(account)
         return account
     }
 
@@ -527,6 +557,7 @@ public class AccountService: AccountServiceType {
         dataStore.saveIfNeeded()
 
         writeCredential(credential, for: account)
+        mirrorAccount(account)
 
         return account
     }
@@ -569,6 +600,7 @@ public class AccountService: AccountServiceType {
             let account = LemmyAccount(signedOutAt: site, in: context)
             account.isServiceAccount = false
             context.saveIfNeeded()
+            mirrorAccount(account)
             return account
         }
 
