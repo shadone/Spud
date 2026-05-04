@@ -147,8 +147,8 @@ class LoginViewModel: LoginViewModelType, LoginViewModelInputs, LoginViewModelOu
 
     func login() async {
         do {
-            _ = try await accountService.login(
-                site: site.value,
+            try await accountService.login(
+                atInstance: site.value.instance.actorId,
                 username: username.value,
                 password: password.value
             )
