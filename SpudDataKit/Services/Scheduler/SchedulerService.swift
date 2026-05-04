@@ -94,21 +94,13 @@ public class SchedulerService: SchedulerServiceType {
             in: mainContext
         )
 
-        do {
-            try await accountService
-                .lemmyService(for: account)
-                .fetchSiteInfo()
-        } catch {
-            alertService.handle(error, for: .fetchSiteInfo)
-        }
+        await fetchSiteInfo(forAccountKeychainId: account.id)
     }
 
-    private func fetchSiteInfo(for account: LemmyAccount) async {
-        logger.info("Fetching site info for \(account.identifierForLogging, privacy: .public)")
-
+    private func fetchSiteInfo(forAccountKeychainId keychainId: String) async {
         do {
             try await accountService
-                .lemmyService(for: account)
+                .lemmyService(forAccountKeychainId: keychainId)
                 .fetchSiteInfo()
         } catch {
             alertService.handle(error, for: .fetchSiteInfo)
@@ -123,7 +115,7 @@ public class SchedulerService: SchedulerServiceType {
             .allSignedOut(in: mainContext)
             .filter { $0.site.siteInfo == nil }
         for account in accountsToUpdate {
-            await fetchSiteInfo(for: account)
+            await fetchSiteInfo(forAccountKeychainId: account.id)
         }
 
         // Fetch initial site info, i.e. sites that have never fetched corresponding site info.
@@ -151,7 +143,7 @@ public class SchedulerService: SchedulerServiceType {
         // Fetch initial site info (which includes `MyUserInfo`) for new accounts
         // that we never fetched it before.
         for account in accountsToFetchInitialInfo {
-            await fetchSiteInfo(for: account)
+            await fetchSiteInfo(forAccountKeychainId: account.id)
         }
 
         // Re-fetch info periodically. Check if the data is older than 1 day and fetch.
@@ -164,7 +156,7 @@ public class SchedulerService: SchedulerServiceType {
                 return age > oneDay
             }
         for account in accountsToUpdateInfo {
-            await fetchSiteInfo(for: account)
+            await fetchSiteInfo(forAccountKeychainId: account.id)
         }
     }
 }
