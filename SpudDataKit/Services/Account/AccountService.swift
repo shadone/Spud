@@ -6,6 +6,7 @@
 
 import CoreData
 import Foundation
+import GRDB
 import KeychainAccess
 import LemmyKit
 import OSLog
@@ -76,15 +77,6 @@ public protocol AccountServiceType: AnyObject {
     /// `siteService`, or `NSManagedObjectContext`.
     func accountKeychainId(forInstance instance: InstanceActorId) -> String
 
-    /// Returns a LemmyDataService instance for managing CoreData types.
-    /// This is isolated to the main actor.
-    func lemmyDataService(for account: LemmyAccount) -> LemmyDataServiceType
-
-    /// Resolves the LemmyDataService for the account whose
-    /// `accountKeychainId` matches `keychainId`. Crashes if no such account
-    /// is registered.
-    func lemmyDataService(forAccountKeychainId keychainId: String) -> LemmyDataServiceType
-
     /// Returns a LemmyService instance used for talking to Lemmy api.
     /// - Parameter account: which account to act as.
     func lemmyService(for account: LemmyAccount) -> LemmyServiceType
@@ -92,6 +84,13 @@ public protocol AccountServiceType: AnyObject {
     /// Resolves the LemmyService for the account whose `accountKeychainId`
     /// matches `keychainId`. Crashes if no such account is registered.
     func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType
+
+    /// The account's preferred listing type. Falls back to the site's
+    /// `defaultPostListingType`, then to `.All` if neither is set.
+    func defaultListingType(forAccountKeychainId keychainId: String) -> Components.Schemas.ListingType
+
+    /// The account's preferred sort type. Falls back to `.Hot` if not set.
+    func defaultSortType(forAccountKeychainId keychainId: String) -> Components.Schemas.SortType
 }
 
 @MainActor
@@ -111,12 +110,7 @@ public extension AccountServiceType {
     /// Creates a feed for `account` using the account's default listing and
     /// sort types. Used by the split view's primary post list.
     func createDefaultFeed(for account: LemmyAccount) -> FeedHandle {
-        let dataService = lemmyDataService(for: account)
-        let feedType = FeedType.frontpage(
-            listingType: dataService.defaultListingType(),
-            sortType: dataService.defaultSortType()
-        )
-        return FeedHandle(feedKey: UUID().uuidString, feedType: feedType)
+        createDefaultFeed(forAccountKeychainId: account.id)
     }
 
     /// Creates a feed for `account` derived from `existing` (same feed type
@@ -155,10 +149,9 @@ public extension AccountServiceType {
     }
 
     func createDefaultFeed(forAccountKeychainId keychainId: String) -> FeedHandle {
-        let dataService = lemmyDataService(forAccountKeychainId: keychainId)
         let feedType = FeedType.frontpage(
-            listingType: dataService.defaultListingType(),
-            sortType: dataService.defaultSortType()
+            listingType: defaultListingType(forAccountKeychainId: keychainId),
+            sortType: defaultSortType(forAccountKeychainId: keychainId)
         )
         return FeedHandle(feedKey: UUID().uuidString, feedType: feedType)
     }
@@ -201,7 +194,6 @@ public class AccountService: AccountServiceType {
     private let siteService: SiteServiceType
 
     private var lemmyServices: [String: LemmyService] = [:]
-    private var lemmyDataServices: [NSManagedObjectID: LemmyDataService] = [:]
 
     // MARK: Functions
 
@@ -457,25 +449,49 @@ public class AccountService: AccountServiceType {
         return LemmyApi(instanceUrl: instanceUrl, credential: credential)
     }
 
-    public func lemmyDataService(for account: LemmyAccount) -> LemmyDataServiceType {
-        assert(Thread.current.isMainThread)
-
-        let accountObjectId = account.objectID
-
-        if let lemmyDataService = lemmyDataServices[accountObjectId] {
-            logger.debug("Returning existing LemmyDataService for \(account.identifierForLogging)")
-            return lemmyDataService
+    public func defaultListingType(forAccountKeychainId keychainId: String) -> Components.Schemas.ListingType {
+        do {
+            return try appDatabase.writer.read { db in
+                guard
+                    let account = try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)
+                else { return .All }
+                if
+                    let raw = account.defaultListingType,
+                    let value = Components.Schemas.ListingType(rawValue: raw)
+                {
+                    return value
+                }
+                if
+                    let site = try SiteRecord.filter(Column("id") == account.siteId).fetchOne(db),
+                    let raw = site.defaultPostListingType,
+                    let value = Components.Schemas.ListingType(rawValue: raw)
+                {
+                    return value
+                }
+                return .All
+            }
+        } catch {
+            logger.error("Failed to read defaultListingType: \(error.localizedDescription, privacy: .public)")
+            return .All
         }
+    }
 
-        logger.debug("Creating new LemmyDataService for \(account.identifierForLogging, privacy: .public)")
-
-        let lemmyDataService = LemmyDataService(
-            account: account,
-            dataStore: dataStore
-        )
-        lemmyDataServices[accountObjectId] = lemmyDataService
-
-        return lemmyDataService
+    public func defaultSortType(forAccountKeychainId keychainId: String) -> Components.Schemas.SortType {
+        do {
+            return try appDatabase.writer.read { db in
+                guard
+                    let account = try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)
+                else { return .Hot }
+                return account.resolvedDefaultSortType
+            }
+        } catch {
+            logger.error("Failed to read defaultSortType: \(error.localizedDescription, privacy: .public)")
+            return .Hot
+        }
     }
 
     public func lemmyService(for account: LemmyAccount) -> LemmyServiceType {
@@ -526,13 +542,6 @@ public class AccountService: AccountServiceType {
         let mainContext = dataStore.mainContext
         let site = siteService.site(for: instance, in: mainContext)
         return account(at: site, in: mainContext).id
-    }
-
-    public func lemmyDataService(forAccountKeychainId keychainId: String) -> LemmyDataServiceType {
-        guard let account = account(withKeychainId: keychainId, in: dataStore.mainContext) else {
-            fatalError("No account registered for keychainId \(keychainId)")
-        }
-        return lemmyDataService(for: account)
     }
 
     public func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType {

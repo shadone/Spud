@@ -78,9 +78,7 @@ class SubscriptionsViewController: UIViewController {
         case let .listing(listingType):
             // Sort type follows the account's preferred default (legacy behavior
             // before Stage 7).
-            let sortType = accountService
-                .lemmyDataService(forAccountKeychainId: accountKeychainId)
-                .defaultSortType()
+            let sortType = accountService.defaultSortType(forAccountKeychainId: accountKeychainId)
             feed = accountService.createFeed(
                 forAccountKeychainId: accountKeychainId,
                 feedType: .frontpage(
