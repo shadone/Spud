@@ -8,6 +8,12 @@ import LemmyKit
 import XCTest
 @testable import SpudDataKit
 
+private typealias Person = Components.Schemas.Person
+private typealias Community = Components.Schemas.Community
+private typealias Post = Components.Schemas.Post
+private typealias Comment = Components.Schemas.Comment
+private typealias CommentView = Components.Schemas.CommentView
+
 class CommentHelperTests: XCTestCase {
     func testFindCommentsWithMissingChildren() {
         let person = Person.fake
@@ -98,11 +104,11 @@ class CommentHelperTests: XCTestCase {
         )
     }
 
-    func testNoMissingChildren() throws {
+    func testNoMissingChildren() {
         // this is a silly test that replicates one of the oldest Lemmy posts.
         // The app was crashing on parsing the comments, but in the end it was
         // something odd in the build as clean build solved it. ¯\_(ツ)_/¯
-        let comments: [CommentView] = try [
+        let comments: [CommentView] = [
             CommentView(
                 comment: .init(
                     id: 471_445,
@@ -113,7 +119,7 @@ class CommentHelperTests: XCTestCase {
                     published: Date(timeIntervalSinceReferenceDate: 708_499_714.602),
                     updated: nil,
                     deleted: false,
-                    ap_id: XCTUnwrap(URL(string: "https://sh.itjust.works/comment/171885")),
+                    ap_id: "https://sh.itjust.works/comment/171885",
                     local: false,
                     path: "0.471445",
                     distinguished: false,
@@ -124,9 +130,10 @@ class CommentHelperTests: XCTestCase {
                 community: .fake,
                 counts: .fake(commentId: 471_445, childCount: 0),
                 creator_banned_from_community: false,
+                banned_from_community: false,
                 creator_is_moderator: false,
                 creator_is_admin: false,
-                subscribed: .notSubscribed,
+                subscribed: .NotSubscribed,
                 saved: false,
                 creator_blocked: false,
                 my_vote: nil
@@ -141,7 +148,7 @@ class CommentHelperTests: XCTestCase {
                     published: Date(timeIntervalSinceReferenceDate: 709_441_501.208),
                     updated: nil,
                     deleted: false,
-                    ap_id: XCTUnwrap(URL(string: "https://vlemmy.net/comment/390987")),
+                    ap_id: "https://vlemmy.net/comment/390987",
                     local: false,
                     path: "0.403426",
                     distinguished: false,
@@ -152,9 +159,10 @@ class CommentHelperTests: XCTestCase {
                 community: .fake,
                 counts: .fake(commentId: 403_426, childCount: 0),
                 creator_banned_from_community: false,
+                banned_from_community: false,
                 creator_is_moderator: false,
                 creator_is_admin: false,
-                subscribed: .notSubscribed,
+                subscribed: .NotSubscribed,
                 saved: false,
                 creator_blocked: false,
                 my_vote: nil
@@ -169,7 +177,7 @@ class CommentHelperTests: XCTestCase {
                     published: Date(timeIntervalSinceReferenceDate: 708_459_690.855),
                     updated: nil,
                     deleted: false,
-                    ap_id: XCTUnwrap(URL(string: "https://lemmy.world/comment/181062")),
+                    ap_id: "https://lemmy.world/comment/181062",
                     local: false,
                     path: "0.907431",
                     distinguished: false,
@@ -180,9 +188,10 @@ class CommentHelperTests: XCTestCase {
                 community: .fake,
                 counts: .fake(commentId: 907_431, childCount: 0),
                 creator_banned_from_community: false,
+                banned_from_community: false,
                 creator_is_moderator: false,
                 creator_is_admin: false,
-                subscribed: .notSubscribed,
+                subscribed: .NotSubscribed,
                 saved: false,
                 creator_blocked: false,
                 my_vote: nil
@@ -197,7 +206,7 @@ class CommentHelperTests: XCTestCase {
                     published: Date(timeIntervalSinceReferenceDate: 710_992_247.549),
                     updated: nil,
                     deleted: false,
-                    ap_id: XCTUnwrap(URL(string: "https://talk.kururin.tech/comment/107365")),
+                    ap_id: "https://talk.kururin.tech/comment/107365",
                     local: false,
                     path: "0.991036",
                     distinguished: false,
@@ -208,9 +217,10 @@ class CommentHelperTests: XCTestCase {
                 community: .fake,
                 counts: .fake(commentId: 991_036, childCount: 0),
                 creator_banned_from_community: false,
+                banned_from_community: false,
                 creator_is_moderator: false,
                 creator_is_admin: false,
-                subscribed: .notSubscribed,
+                subscribed: .NotSubscribed,
                 saved: false,
                 creator_blocked: false,
                 my_vote: nil
