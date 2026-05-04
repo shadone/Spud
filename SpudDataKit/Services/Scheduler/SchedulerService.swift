@@ -5,7 +5,6 @@
 //
 
 import Foundation
-import LemmyKit
 import OSLog
 import SpudUtilKit
 
