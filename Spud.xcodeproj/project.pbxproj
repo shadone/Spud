@@ -95,7 +95,6 @@
 		925B76D82A9008CE00BD065A /* MarkdownViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B76D72A9008CE00BD065A /* MarkdownViewController.swift */; };
 		925B76DB2A90174C00BD065A /* UserDefaultsBacked.swift in Sources */ = {isa = PBXBuildFile; fileRef = 926602C12A5F69B8005A1641 /* UserDefaultsBacked.swift */; };
 		925B76DD2A90178000BD065A /* UserDefaultsBackedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925B76DC2A90178000BD065A /* UserDefaultsBackedTests.swift */; };
-		925D33C62C1F599D002B11DF /* LemmyDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925D33C52C1F5999002B11DF /* LemmyDataService.swift */; };
 		92603C382A8037AF0005960F /* TopPosts+snapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92603C372A8037AF0005960F /* TopPosts+snapshot.swift */; };
 		92603C3A2A803CCF0005960F /* PostType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92603C392A803CCF0005960F /* PostType.swift */; };
 		92603C3D2A80472B0005960F /* URL+spudImageFromAsset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92603C3C2A80472B0005960F /* URL+spudImageFromAsset.swift */; };
@@ -554,7 +553,6 @@
 		925B76D92A900D8F00BD065A /* Spud.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = Spud.xctestplan; sourceTree = "<group>"; };
 		925B76DA2A900DBE00BD065A /* SpudSnapshots.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = SpudSnapshots.xctestplan; sourceTree = "<group>"; };
 		925B76DC2A90178000BD065A /* UserDefaultsBackedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserDefaultsBackedTests.swift; sourceTree = "<group>"; };
-		925D33C52C1F5999002B11DF /* LemmyDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LemmyDataService.swift; sourceTree = "<group>"; };
 		92603C372A8037AF0005960F /* TopPosts+snapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TopPosts+snapshot.swift"; sourceTree = "<group>"; };
 		92603C392A803CCF0005960F /* PostType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostType.swift; sourceTree = "<group>"; };
 		92603C3C2A80472B0005960F /* URL+spudImageFromAsset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "URL+spudImageFromAsset.swift"; sourceTree = "<group>"; };
@@ -1007,7 +1005,6 @@
 		925D33C42C1F5987002B11DF /* LemmyData */ = {
 			isa = PBXGroup;
 			children = (
-				925D33C52C1F5999002B11DF /* LemmyDataService.swift */,
 			);
 			path = LemmyData;
 			sourceTree = "<group>";
@@ -2431,7 +2428,6 @@
 				92CC5DD32A7ED7380019436A /* LemmyCommentImportHelper.swift in Sources */,
 				92CC5D7A2A7EBFA20019436A /* LemmyCommunity.swift in Sources */,
 				92CC5D6F2A7EBFA20019436A /* LemmyCommunityInfo.swift in Sources */,
-				925D33C62C1F599D002B11DF /* LemmyDataService.swift in Sources */,
 				92CC5D742A7EBFA20019436A /* LemmyFeed+FeedType.swift in Sources */,
 				92CC5D772A7EBFA20019436A /* LemmyFeed.swift in Sources */,
 				92CC5D7B2A7EBFA20019436A /* LemmyPage.swift in Sources */,
