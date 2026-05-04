@@ -155,7 +155,10 @@ public extension AppDatabase {
         observation: ValueObservation<ValueReducers.RemoveDuplicates<ValueReducers.Fetch<Value>>>
     ) -> AsyncStream<Value> {
         AsyncStream { continuation in
-            let cancellable = observation.start(in: writer) { error in
+            let cancellable = observation.start(
+                in: writer,
+                scheduling: .async(onQueue: .global(qos: .userInitiated))
+            ) { error in
                 logger.error("ValueObservation failed: \(String(describing: error), privacy: .public)")
                 continuation.finish()
             } onChange: { value in
