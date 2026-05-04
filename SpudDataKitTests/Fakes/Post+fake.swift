@@ -7,8 +7,11 @@
 import Foundation
 import LemmyKit
 
-extension Post {
-    static func fake(creator: Person, community: Community) -> Post {
+extension Components.Schemas.Post {
+    static func fake(
+        creator: Components.Schemas.Person,
+        community: Components.Schemas.Community
+    ) -> Components.Schemas.Post {
         .init(
             id: 1,
             name: "Hello world",
@@ -25,7 +28,7 @@ extension Post {
             embed_title: nil,
             embed_description: nil,
             thumbnail_url: nil,
-            ap_id: URL(string: "https://example.com/post/1")!,
+            ap_id: "https://example.com/post/1",
             local: true,
             embed_video_url: nil,
             language_id: 1,
