@@ -60,10 +60,8 @@ struct DependencyContainer:
             appDatabase: appDatabase
         )
         schedulerService = SchedulerService(
-            dataStore: dataStore,
             appDatabase: appDatabase,
             accountService: accountService,
-            siteService: siteService,
             alertService: alertService
         )
         postContentDetectorService = PostContentDetectorService()

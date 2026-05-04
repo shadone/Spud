@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
-import CoreData
 import Foundation
 import LemmyKit
 import OSLog
@@ -16,7 +14,6 @@ private let logger = Logger.schedulerService
 @MainActor
 public protocol SchedulerServiceType {
     func startService()
-    func processNewSite(_ site: LemmySite)
 }
 
 @MainActor
@@ -28,32 +25,21 @@ public protocol HasSchedulerService {
 public class SchedulerService: SchedulerServiceType {
     // MARK: Private
 
-    private let dataStore: DataStoreType
     private let appDatabase: AppDatabase
     private let accountService: AccountServiceType
-    private let siteService: SiteServiceType
     private let alertService: AlertServiceType
 
     private var timer: Timer?
-    private var disposables = Set<AnyCancellable>()
-
-    private var mainContext: NSManagedObjectContext {
-        dataStore.mainContext
-    }
 
     // MARK: Functions
 
     public init(
-        dataStore: DataStoreType,
         appDatabase: AppDatabase,
         accountService: AccountServiceType,
-        siteService: SiteServiceType,
         alertService: AlertServiceType
     ) {
-        self.dataStore = dataStore
         self.appDatabase = appDatabase
         self.accountService = accountService
-        self.siteService = siteService
         self.alertService = alertService
     }
 
@@ -74,31 +60,22 @@ public class SchedulerService: SchedulerServiceType {
         }
     }
 
-    public func processNewSite(_ site: LemmySite) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            Task { @MainActor in
-                await self.fetchSiteInfo(for: site)
-            }
-        }
-    }
-
     // MARK: Site Info
 
-    private func fetchSiteInfo(for site: LemmySite) async {
-        logger.info("Fetching site info for \(site.identifierForLogging, privacy: .public)")
+    private func fetchSiteInfo(forInstance actorId: InstanceActorId) async {
+        logger.info("Fetching site info for \(actorId.actorId, privacy: .public)")
 
         // TODO: separate fetching of generic "site info" and account specific info
         // For now we fetch site info as signed out user only,
         // but better would be to fetch site info for each account (to fetch subscriptions)
         // and also extract generic site info from server response.
 
-        let account = accountService.accountForSignedOut(
-            at: site,
-            isServiceAccount: true,
-            in: mainContext
+        let keychainId = accountService.accountForSignedOut(
+            forInstance: actorId,
+            isServiceAccount: true
         )
 
-        await fetchSiteInfo(forAccountKeychainId: account.id)
+        await fetchSiteInfo(forAccountKeychainId: keychainId)
     }
 
     private func fetchSiteInfo(forAccountKeychainId keychainId: String) async {
@@ -136,8 +113,7 @@ public class SchedulerService: SchedulerServiceType {
             ownerlessActorIds = []
         }
         for actorId in ownerlessActorIds {
-            let site = siteService.site(for: actorId, in: mainContext)
-            await fetchSiteInfo(for: site)
+            await fetchSiteInfo(forInstance: actorId)
         }
 
         // TODO: Also periodically re-fetch Site info for sites that we do not have a local account for?
