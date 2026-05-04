@@ -14,16 +14,11 @@ private let logger = Logger.app
 class AccountListViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
-        HasAppDatabase &
-        HasDataStore
+        HasAppDatabase
     typealias NestedDependencies =
         SiteListViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
-
-    var dataStore: DataStoreType {
-        dependencies.own.dataStore
-    }
 
     var accountService: AccountServiceType {
         dependencies.own.accountService
@@ -192,15 +187,7 @@ extension AccountListViewController: UITableViewDelegate {
             let row = rowsByAccountId[accountRowId]
         else { return }
 
-        guard let legacyAccount = accountService.account(
-            withKeychainId: row.accountKeychainId,
-            in: dataStore.mainContext
-        ) else {
-            logger.assertionFailure("No legacy LemmyAccount for keychainId \(row.accountKeychainId)")
-            return
-        }
-
-        accountService.setDefaultAccount(legacyAccount)
+        accountService.setDefaultAccount(forAccountKeychainId: row.accountKeychainId)
         dismiss(animated: true)
     }
 }
