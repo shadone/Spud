@@ -12,6 +12,43 @@ import OSLog
 private let logger = Logger.appDatabase
 
 public extension AppDatabase {
+    /// Idempotently ensures an account row exists for `keychainId`. If the
+    /// row is created here, its `isServiceAccount` and `isSignedOutAccountType`
+    /// flags are set from the parameters. Existing rows are not modified —
+    /// fuller updates flow through `upsertAccount` once a fetch succeeds.
+    /// Used by Stage 7 to mirror Core Data accounts into AppDatabase at
+    /// creation time so SchedulerService can find "fetch pending" accounts
+    /// (those with `localAccountId IS NULL` for signed-in, or any signed-out
+    /// row whose site has no info yet) via GRDB.
+    @discardableResult
+    func ensureAccount(
+        keychainId: String,
+        siteId: Int64,
+        isSignedOut: Bool,
+        isServiceAccount: Bool
+    ) async throws -> Int64 {
+        try await writer.write { db in
+            if let existing = try AccountRecord
+                .filter(Column("accountKeychainId") == keychainId)
+                .fetchOne(db)
+            {
+                return existing.id!
+            }
+
+            let now = Date()
+            var record = AccountRecord(
+                siteId: siteId,
+                accountKeychainId: keychainId,
+                isServiceAccount: isServiceAccount,
+                isSignedOutAccountType: isSignedOut,
+                createdAt: now,
+                updatedAt: now
+            )
+            try record.insert(db)
+            return record.id!
+        }
+    }
+
     /// Upserts an account row tied to `siteId`, optionally including the
     /// signed-in user's person row and per-account settings drawn from the
     /// `MyUserInfo` payload of `GetSiteResponse`.
