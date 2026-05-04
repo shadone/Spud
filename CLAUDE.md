@@ -117,9 +117,9 @@ The pre-commit hook runs `scripts/sort-Xcode-project-file.pl` to keep `project.p
 
 `SWIFT_STRICT_CONCURRENCY = complete` is on at the project level. Every shipped target — Spud, SpudDataKit, SpudWidgetExtension, OpenInAppExtension, SpudUtilKit, SpudUIKit — and SpudDataKitTests are at Swift 6.0 language mode. SpudTests, SpudUITests, and SpudSnapshotTests remain at 5.0 (they're stubs / UI tests that haven't needed attention).
 
-`@preconcurrency import LemmyKit` in SpudDataKit's LemmyService and AccountService — LemmyKit declares `actor LemmyApi` but the experimental StrictConcurrency flag means consumers see it as non-Sendable across the module boundary. Drop the `@preconcurrency` once LemmyKit advances to Swift 6 language mode.
+LemmyKit is at Swift 6 language mode (since 0.3.0) with Sendable on its hand-written types and openapi-generator >= 1.5 emits Sendable on every generated response type, so `import LemmyKit` (no `@preconcurrency`) works in SpudDataKit. Required: LemmyKit checkout has the openapi-generator dep bump (>= 1.12) **and** the build targets iOS 18+ SDK — iOS 17 SDK still flags `Sending 'self.api'` at every cross-actor `await api.xxx(...)` site.
 
-`@preconcurrency import` covers the API surface (calling actor methods) but **not** sending non-Sendable value types into actor inits. Value types crossing the boundary into a LemmyKit actor (`LemmyCredential`, etc.) need explicit `: Sendable` declared on the type itself in LemmyKit. CLI builds may pass while Xcode 16 surfaces this as an error — trust Xcode here.
+When invoking the agentic build wrapper, always pass `--workspace ../Spud.xcworkspace` explicitly. The wrapper auto-detects the bare `Spud.xcodeproj` in cwd, which uses the project's pinned `Package.resolved` (older openapi versions) instead of the live LemmyKit checkout via the workspace. Symptom: 11 `Sending 'self.api' risks causing data races` errors in `LemmyService.swift` that don't reproduce with raw `xcodebuild -workspace ...`.
 
 `ValueObservation.start` defaults to `.async(onQueue: .main)` which is `@MainActor`-isolated and illegal from non-isolated AsyncStream init closures. All `*Observations.swift` helpers pass `.async(onQueue: .global(qos: .userInitiated))` explicitly.
 

@@ -6,7 +6,7 @@
 
 import Foundation
 import GRDB
-@preconcurrency import LemmyKit
+import LemmyKit
 import OSLog
 import SpudUtilKit
 
