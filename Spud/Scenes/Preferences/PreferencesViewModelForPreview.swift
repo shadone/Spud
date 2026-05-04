@@ -34,10 +34,6 @@ class PreferencesViewModelForPreview:
 
     // MARK: Outputs
 
-    var account: CurrentValueSubject<LemmyAccount, Never> = .init(
-        LemmyAccount()
-    )
-
     var externalLinkRequested: AnyPublisher<URL, Never> = .completed
 
     var allPostSortTypes: [Components.Schemas.SortType] = Components.Schemas.SortType.allCases

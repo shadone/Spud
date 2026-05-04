@@ -105,7 +105,7 @@ class MainWindow: UIWindow {
 
         // Tab: Setup the preferences view controller
         let preferencesViewController = PreferencesViewController(
-            account: account,
+            defaultPostSortType: account.accountInfo?.defaultSortType ?? .Hot,
             dependencies: dependencies.nested
         )
 
