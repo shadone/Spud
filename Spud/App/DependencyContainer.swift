@@ -73,7 +73,10 @@ struct DependencyContainer:
     func start() {
         dataStore.startService()
         siteService.startService()
-        (accountService as? AccountService)?.backfillAccountsToAppDatabase()
+        if let accountService = accountService as? AccountService {
+            accountService.migrateCredentialsToKeychainIdKeyed()
+            accountService.backfillAccountsToAppDatabase()
+        }
         schedulerService.startService()
     }
 }

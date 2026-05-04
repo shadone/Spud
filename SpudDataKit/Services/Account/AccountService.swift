@@ -655,45 +655,100 @@ extension AccountService {
         )
     }
 
-    private func writeCredential(_ credential: LemmyCredential, for account: LemmyAccount) {
+    /// Legacy keychain key — `account.objectID.uriRepresentation().absoluteString`.
+    /// Used only by the credential-migration sweep so we can copy values out
+    /// before they become unreachable in 3d.7 when the Core Data store goes
+    /// away.
+    private static func legacyKeychainKey(for account: LemmyAccount) -> String {
         assert(!account.objectID.isTemporaryID)
-        let key = account.objectID.uriRepresentation().absoluteString
+        return account.objectID.uriRepresentation().absoluteString
+    }
 
+    private func writeCredential(_ credential: LemmyCredential, forKeychainId keychainId: String) {
         let stringValue = credential.toString()
-
         do {
-            try keychain.set(stringValue, key: key)
+            try keychain.set(stringValue, key: keychainId)
             logger.debug("Saved credential into keychain")
         } catch {
             logger.error("Failed to save credential into keychain: \(error.localizedDescription, privacy: .public)")
         }
     }
 
-    private func readCredential(for account: LemmyAccount) -> LemmyCredential? {
-        assert(!account.objectID.isTemporaryID)
-        guard !account.isSignedOutAccountType else { return nil }
+    private func writeCredential(_ credential: LemmyCredential, for account: LemmyAccount) {
+        writeCredential(credential, forKeychainId: account.id)
+    }
 
+    private func readCredential(forKeychainId keychainId: String) -> LemmyCredential? {
         do {
-            let key = account.objectID.uriRepresentation().absoluteString
-            guard let stringValue = try keychain.get(key) else {
+            guard let stringValue = try keychain.get(keychainId) else {
                 logger.debug("Did not find credential in keychain")
                 return nil
             }
 
-            let credential: LemmyCredential
             do {
-                credential = try LemmyCredential.fromString(stringValue)
+                let credential = try LemmyCredential.fromString(stringValue)
+                logger.debug("Fetched credential from keychain")
+                return credential
             } catch {
                 logger.error("Failed to parse credential '\(stringValue, privacy: .sensitive)': \(error.localizedDescription, privacy: .public)")
                 return nil
             }
-
-            logger.debug("Fetched credential from keychain")
-
-            return credential
         } catch {
             logger.assertionFailure("Failed to get credential from keychain: \(error.localizedDescription)")
             return nil
+        }
+    }
+
+    /// Looks up the credential for `account`. If it has not yet been migrated
+    /// to the keychainId-keyed slot, copies it across and deletes the legacy
+    /// objectID-URI-keyed entry as a side effect.
+    private func readCredential(for account: LemmyAccount) -> LemmyCredential? {
+        guard !account.isSignedOutAccountType else { return nil }
+        if let credential = readCredential(forKeychainId: account.id) {
+            return credential
+        }
+        return migrateLegacyCredentialIfPresent(for: account)
+    }
+
+    @discardableResult
+    private func migrateLegacyCredentialIfPresent(for account: LemmyAccount) -> LemmyCredential? {
+        let legacyKey = Self.legacyKeychainKey(for: account)
+        let stringValue: String?
+        do {
+            stringValue = try keychain.get(legacyKey)
+        } catch {
+            logger.error("Failed to read legacy credential: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+        guard let stringValue else { return nil }
+        let credential: LemmyCredential
+        do {
+            credential = try LemmyCredential.fromString(stringValue)
+        } catch {
+            logger.error("Failed to parse legacy credential '\(stringValue, privacy: .sensitive)': \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+        do {
+            try keychain.set(stringValue, key: account.id)
+            try keychain.remove(legacyKey)
+            logger.info("Migrated keychain credential to keychainId-keyed slot")
+        } catch {
+            logger.error("Failed to migrate legacy credential: \(error.localizedDescription, privacy: .public)")
+        }
+        return credential
+    }
+
+    /// Walks every signed-in Core Data account and ensures its keychain
+    /// credential lives under the new keychainId-keyed slot. Idempotent —
+    /// only does work for accounts whose credential is still under the
+    /// legacy objectID-URI key. Must run before 3d.7 deletes the Core Data
+    /// store, after which the legacy keys would be unreachable.
+    public func migrateCredentialsToKeychainIdKeyed() {
+        let accounts = allAccounts(includeSignedOutAccount: false, in: dataStore.mainContext)
+        for account in accounts {
+            guard !account.isSignedOutAccountType else { continue }
+            if readCredential(forKeychainId: account.id) != nil { continue }
+            migrateLegacyCredentialIfPresent(for: account)
         }
     }
 }
