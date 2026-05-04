@@ -34,16 +34,16 @@ Each item is a small, contained change; not blocking on each other. None are req
 
 ## Stage 3d — final demolition
 
-This is the multi-session piece. Rough order; each step keeps the build green.
+This is the multi-session piece. Rough order; each step keeps the build green. Stages 1–7 are done as of 2026-05-04; 8 is a continuous chore performed alongside each delete commit.
 
-1. **Rewrite `LemmyService` end-to-end on GRDB.** Currently it's an `actor` keyed by `NSManagedObjectID`, dual-writes to GRDB. The replacement reads/writes only GRDB; the public protocol stays the same (already takes server ids after `fe5e20e`). The cache becomes keyed by `accountKeychainId` (already done in `8d0537c`). Drop `dataStore` and `backgroundContext`. Drop the `resolveLegacy*ObjectId` helpers.
-2. **Rewrite `LemmyDataService` or remove it.** It currently creates `LemmyFeed` Core Data objects; with `FeedHandle` already in place, this can collapse into `FeedRecord` writes inside `AccountService.createFeed*` directly.
-3. **Rewrite `SchedulerService` on GRDB.** Use the queries added in 3c.3 above. Internal `dataStore.mainContext` references go away.
-4. **Drop legacy `AccountServiceType` API.** Remove `accountForSignedOut(...)`, `account(at:in:)`, `account(withKeychainId:in:)`, `allSignedOut`, `allAccounts(includeSignedOutAccount:in:)`, `defaultAccount() -> LemmyAccount`, `setDefaultAccount(_:)`, `lemmyService(for:)`, `lemmyDataService(for:)`. Their keychainId-keyed counterparts already exist. `login` returns `Void` (or an `AccountRecord`) instead of `LemmyAccount`.
-5. **Delete the `*+import.swift` dual-write helpers** under `SpudDataKit/Services/Lemmy/` — they're only used to mirror Core Data into GRDB during the transition.
-6. **Delete the `Lemmy*` model classes** under `SpudDataKit/Services/DataStore/Models/` (Instance, LemmySite, LemmyAccount, LemmyCommunity, LemmyPerson, LemmyPost, LemmyComment, LemmyFeed, LemmyPage + companion `*Info` and element rows).
-7. **Delete `Spud.xcdatamodeld`, `DataStore`, `HasDataStore`** and any remaining `import CoreData` / `import Combine`.
-8. **Run `pbxproj` cleanup** for every removed file (use the `productRef` monkey-patch documented in CLAUDE.md → "Tooling quirks").
+1. ~~**Rewrite `LemmyService` end-to-end on GRDB.**~~ Done.
+2. ~~**Rewrite `LemmyDataService` or remove it.**~~ Removed.
+3. ~~**Rewrite `SchedulerService` on GRDB.**~~ Done.
+4. ~~**Drop legacy `AccountServiceType` API.**~~ Done. Surface is keychainId-only plus `accountForSignedOut(forInstance:)`.
+5. ~~**Delete the `*+import.swift` dual-write helpers**~~ Done.
+6. ~~**Delete the `Lemmy*` model classes**~~ Done. All 21 NSManagedObject subclasses gone.
+7. ~~**Delete `Spud.xcdatamodeld`, `DataStore`, `HasDataStore`** and `import CoreData`.~~ Done. `import Combine` deferred to Stage 8 because AlertService / ImageService still expose Combine pipelines.
+8. ~~**Run `pbxproj` cleanup**~~ Audited — zero dangling/unreferenced ids.
 
 ## Stage 8 — Swift 6 strict concurrency on data + app layers
 
