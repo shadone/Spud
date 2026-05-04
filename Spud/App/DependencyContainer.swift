@@ -53,12 +53,8 @@ struct DependencyContainer:
             fatalError("Failed to open AppDatabase: \(error)")
         }
 
-        siteService = SiteService(dataStore: dataStore, appDatabase: appDatabase)
-        accountService = AccountService(
-            siteService: siteService,
-            dataStore: dataStore,
-            appDatabase: appDatabase
-        )
+        siteService = SiteService(appDatabase: appDatabase)
+        accountService = AccountService(appDatabase: appDatabase)
         schedulerService = SchedulerService(
             appDatabase: appDatabase,
             accountService: accountService,
@@ -71,10 +67,6 @@ struct DependencyContainer:
     func start() {
         dataStore.startService()
         siteService.startService()
-        if let accountService = accountService as? AccountService {
-            accountService.migrateCredentialsToKeychainIdKeyed()
-            accountService.backfillAccountsToAppDatabase()
-        }
         schedulerService.startService()
     }
 }
