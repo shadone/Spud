@@ -4,19 +4,23 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import LemmyKit
 import SpudDataKit
+import SpudUtilKit
 import UIKit
 
 class PostDetailOrEmptyViewController: UIViewController {
     typealias OwnDependencies =
-        HasVoid
+        HasAppDatabase
     typealias NestedDependencies =
         PostDetailLoadingViewController.Dependencies &
         PostDetailViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
+
+    private var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
+    }
 
     // MARK: - Public
 
@@ -24,30 +28,20 @@ class PostDetailOrEmptyViewController: UIViewController {
         currentViewController as? PostDetailViewController
     }
 
-    var postInfoPublisher: AnyPublisher<LemmyPostInfo?, Never> {
-        viewModel.outputs.currentPostInfo
-    }
-
-    func displayPostInfo(_ postInfo: LemmyPostInfo) {
-        viewModel.inputs.displayPostInfo(postInfo)
+    func display(serverPostId: Components.Schemas.PostID) {
+        state = resolveState(forServerPostId: serverPostId)
     }
 
     func displayEmpty() {
-        viewModel.inputs.displayEmpty()
-    }
-
-    func startLoadingPost(postId: Components.Schemas.PostID) {
-        viewModel.inputs.startLoadingPost(postId: postId)
+        state = .empty
     }
 
     // MARK: - Private
 
-    private let viewModel: PostDetailOrEmptyViewModelType
-
     private enum State {
         case empty
-        case post(LemmyPostInfo)
-        case load(postId: Components.Schemas.PostID)
+        case post(serverPostId: Components.Schemas.PostID)
+        case load(serverPostId: Components.Schemas.PostID)
     }
 
     private var state: State {
@@ -56,36 +50,38 @@ class PostDetailOrEmptyViewController: UIViewController {
         }
     }
 
-    private let account: LemmyAccount
+    private let accountKeychainId: String
     private var currentViewController: UIViewController?
-    private var disposables = Set<AnyCancellable>()
 
     // MARK: - Functions
 
-    init(postInfo: LemmyPostInfo, dependencies: Dependencies) {
+    init(
+        serverPostId: Components.Schemas.PostID,
+        accountKeychainId: String,
+        dependencies: Dependencies
+    ) {
         self.dependencies = (own: dependencies, nested: dependencies)
-        account = postInfo.post.account
+        self.accountKeychainId = accountKeychainId
 
-        state = .post(postInfo)
-        viewModel = PostDetailOrEmptyViewModel(postInfo)
+        let resolved = Self.resolveState(
+            forServerPostId: serverPostId,
+            accountKeychainId: accountKeychainId,
+            appDatabase: dependencies.appDatabase
+        )
+        state = resolved
 
         super.init(nibName: nil, bundle: nil)
-
-        bindViewModel()
 
         stateChanged()
     }
 
-    init(account: LemmyAccount, dependencies: Dependencies) {
+    init(accountKeychainId: String, dependencies: Dependencies) {
         self.dependencies = (own: dependencies, nested: dependencies)
-        self.account = account
+        self.accountKeychainId = accountKeychainId
 
         state = .empty
-        viewModel = PostDetailOrEmptyViewModel(nil)
 
         super.init(nibName: nil, bundle: nil)
-
-        bindViewModel()
 
         stateChanged()
     }
@@ -95,30 +91,26 @@ class PostDetailOrEmptyViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private func bindViewModel() {
-        viewModel.outputs.postInfoLoaded
-            .sink { [weak self] postInfo in
-                self?.state = .post(postInfo)
-            }
-            .store(in: &disposables)
+    private func resolveState(forServerPostId serverPostId: Components.Schemas.PostID) -> State {
+        Self.resolveState(
+            forServerPostId: serverPostId,
+            accountKeychainId: accountKeychainId,
+            appDatabase: appDatabase
+        )
+    }
 
-        viewModel.outputs.loadingPostInfo
-            .sink { [weak self] postId in
-                self?.state = .load(postId: postId)
-            }
-            .store(in: &disposables)
-
-        viewModel.outputs.viewState
-            .sink { [weak self] viewState in
-                switch viewState {
-                case .empty:
-                    self?.state = .empty
-                case .displayingPost, .loading:
-                    // this is handled in other outputs above
-                    break
-                }
-            }
-            .store(in: &disposables)
+    private static func resolveState(
+        forServerPostId serverPostId: Components.Schemas.PostID,
+        accountKeychainId: String,
+        appDatabase: AppDatabase
+    ) -> State {
+        if appDatabase.postRowIdSync(
+            forKeychainId: accountKeychainId,
+            serverPostId: Int64(serverPostId)
+        ) != nil {
+            return .post(serverPostId: serverPostId)
+        }
+        return .load(serverPostId: serverPostId)
     }
 
     private func stateChanged() {
@@ -131,9 +123,10 @@ class PostDetailOrEmptyViewController: UIViewController {
             let emptyViewController = PostDetailEmptyViewController()
             newViewController = emptyViewController
 
-        case let .post(postInfo):
+        case let .post(serverPostId):
             let contentViewController = PostDetailViewController(
-                postInfo: postInfo,
+                serverPostId: serverPostId,
+                accountKeychainId: accountKeychainId,
                 dependencies: dependencies.nested
             )
             newViewController = contentViewController
@@ -141,16 +134,16 @@ class PostDetailOrEmptyViewController: UIViewController {
             // FIXME: this is hacky, make custom ChildVC base class for handling navitems
             navigationItem.rightBarButtonItem = contentViewController.navigationItem.rightBarButtonItem
 
-        case let .load(postId):
+        case let .load(serverPostId):
             let loadingViewController = PostDetailLoadingViewController(
-                postId: postId,
-                account: account,
+                serverPostId: serverPostId,
+                accountKeychainId: accountKeychainId,
                 dependencies: dependencies.nested
             )
             newViewController = loadingViewController
 
-            loadingViewController.didFinishLoading = { [weak self] postInfo in
-                self?.viewModel.inputs.didFinishLoadingPostInfo(postInfo)
+            loadingViewController.didFinishLoading = { [weak self] serverPostId in
+                self?.state = .post(serverPostId: serverPostId)
             }
         }
 

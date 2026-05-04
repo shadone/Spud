@@ -4,19 +4,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Down
 import Foundation
 import SpudUtilKit
 import UIKit
 
 protocol PostDetailAppearanceType: AnyObject {
-    var bodyStylerConfiguration: AnyPublisher<DownStylerConfiguration, Never> { get }
-
-    var textSizeAdjustmentPublisher: AnyPublisher<CGFloat, Never> { get }
     var textSizeAdjustment: CGFloat { get set }
-
-    var commentRibbonThemePublisher: AnyPublisher<PostCommentRibbonTheme, Never> { get }
     var commentRibbonTheme: PostCommentRibbonTheme { get set }
 }
 
@@ -102,24 +96,8 @@ class PostDetailAppearance: PostDetailAppearanceType {
         )
     }
 
-    var bodyStylerConfiguration: AnyPublisher<DownStylerConfiguration, Never> {
-        $textSizeAdjustment
-            .map { textSizeAdjustment -> DownStylerConfiguration in
-                Self.bodyStylerConfiguration(for: textSizeAdjustment)
-            }
-            .eraseToAnyPublisher()
-    }
-
-    var textSizeAdjustmentPublisher: AnyPublisher<CGFloat, Never> {
-        $textSizeAdjustment
-    }
-
     @UserDefaultsBacked(key: "PostDetail.TextSizeAdjustment")
     var textSizeAdjustment: CGFloat = 0
-
-    var commentRibbonThemePublisher: AnyPublisher<PostCommentRibbonTheme, Never> {
-        $commentRibbonTheme
-    }
 
     @UserDefaultsBacked(key: "PostDetail.CommentRibbonTheme")
     var commentRibbonTheme: PostCommentRibbonTheme = .rainbow

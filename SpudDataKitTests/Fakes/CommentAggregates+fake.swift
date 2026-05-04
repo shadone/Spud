@@ -7,11 +7,11 @@
 import Foundation
 import LemmyKit
 
-extension CommentAggregates {
+extension Components.Schemas.CommentAggregates {
     static func fake(
-        commentId: CommentId,
+        commentId: Components.Schemas.CommentID,
         childCount: Int32
-    ) -> CommentAggregates {
+    ) -> Components.Schemas.CommentAggregates {
         .init(
             comment_id: commentId,
             score: 1,

@@ -27,25 +27,4 @@ public enum VoteStatus: Sendable {
         }
         return false
     }
-
-    /// Initialize from Core Data raw value.
-    init(rawValue: NSNumber?) {
-        guard let isUp = rawValue?.boolValue else {
-            self = .neutral
-            return
-        }
-        self = isUp ? .up : .down
-    }
-
-    /// Raw value for storing in Core Data models.
-    var rawValue: NSNumber? {
-        switch self {
-        case .up:
-            return NSNumber(booleanLiteral: true)
-        case .down:
-            return NSNumber(booleanLiteral: false)
-        case .neutral:
-            return nil
-        }
-    }
 }

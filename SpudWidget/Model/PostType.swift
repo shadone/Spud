@@ -7,7 +7,7 @@
 import Foundation
 import UIKit
 
-public enum PostType: Codable {
+public enum PostType: Codable, Sendable {
     case text
     case image(URL)
 

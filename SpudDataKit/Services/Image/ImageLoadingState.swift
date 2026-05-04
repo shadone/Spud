@@ -7,7 +7,11 @@
 import Foundation
 import UIKit
 
-public enum ImageLoadingState {
+/// UIImage isn't formally Sendable but is treated as immutable in the
+/// image-service pipeline (we never mutate fetched UIImages, just hand them
+/// off to UIImageView). @unchecked Sendable lets the enum cross actor
+/// boundaries without spurious warnings.
+public enum ImageLoadingState: @unchecked Sendable {
     /// The image is being fetched.
     case loading(thumbnail: UIImage?)
 

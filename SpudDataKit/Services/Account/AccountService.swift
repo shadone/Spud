@@ -4,11 +4,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
-import CoreData
 import Foundation
+import GRDB
 import KeychainAccess
-import LemmyKit
+@preconcurrency import LemmyKit
 import OSLog
 import SpudUtilKit
 
@@ -16,52 +15,99 @@ private let logger = Logger.accountService
 
 @MainActor
 public protocol AccountServiceType: AnyObject {
-    /// Returns an account that represents a signed out user on a given Lemmy instance.
+    /// Resolves (or creates) a signed-out account for `instance` and returns
+    /// its `accountKeychainId`. `isServiceAccount` distinguishes the
+    /// background-fetch service rows used by SchedulerService from real
+    /// signed-out user accounts.
     func accountForSignedOut(
-        at site: LemmySite,
-        isServiceAccount: Bool,
-        in context: NSManagedObjectContext
-    ) -> LemmyAccount
+        forInstance instance: InstanceActorId,
+        isServiceAccount: Bool
+    ) -> String
 
-    /// Looks up a most suitable account for the the given Lemmy instance.
-    ///
-    /// - Note: This is meant to be used only for real user actions, not for service accounts.
-    ///
-    /// - Returns: A detault account if it is on the same site, if exists. Otherwise returns a signed out account.
-    func account(
-        at site: LemmySite,
-        in context: NSManagedObjectContext
-    ) -> LemmyAccount
-
-    /// Returns all signed out accounts. The returned accounts are fetched in the specified context.
-    func allSignedOut(in context: NSManagedObjectContext) -> [LemmyAccount]
-
-    /// Returns a list of all accounts.
-    func allAccounts(
-        includeSignedOutAccount: Bool,
-        in context: NSManagedObjectContext
-    ) -> [LemmyAccount]
+    /// Creates (if needed) the signed-out account for `instance` and marks
+    /// it as the default account.
+    func signInAsSignedOut(atInstance instance: InstanceActorId)
 
     /// Log in to a given Lemmy instance with explicitly provided username and password.
     func login(
-        site: LemmySite,
+        atInstance instance: InstanceActorId,
         username: String,
         password: String
-    ) async throws -> LemmyAccount
+    ) async throws
 
-    /// Returns an account that is shown on app launch.
-    func defaultAccount() -> LemmyAccount
+    /// Returns the `accountKeychainId` of the account that is shown on app
+    /// launch. Bootstraps a signed-out default on first launch.
+    func defaultAccountKeychainId() -> String
 
-    /// Chooses which account is "default" i.e. used automatically at app launch.
-    func setDefaultAccount(_ account: LemmyAccount)
+    /// Whether the account is the signed-out placeholder for its site. Reads
+    /// `AccountRecord.isSignedOutAccountType` synchronously.
+    func isSignedOut(forAccountKeychainId keychainId: String) -> Bool
 
-    /// Returns a LemmyDataService instance for managing CoreData types.
-    /// This is isolated to the main actor.
-    func lemmyDataService(for account: LemmyAccount) -> LemmyDataServiceType
+    /// Resolves the account by `keychainId` and marks it default. No-op if
+    /// the account isn't registered.
+    func setDefaultAccount(forAccountKeychainId keychainId: String)
 
-    /// Returns a LemmyService instance used for talking to Lemmy api.
-    /// - Parameter account: which account to act as.
-    func lemmyService(for account: LemmyAccount) -> LemmyServiceType
+    /// Resolves an account suitable for `instance` and returns its
+    /// `accountKeychainId`. Creates the site and a signed-out account if
+    /// none exist.
+    func accountKeychainId(forInstance instance: InstanceActorId) -> String
+
+    /// Resolves the LemmyService for the account whose `accountKeychainId`
+    /// matches `keychainId`. Crashes if no such account is registered.
+    func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType
+
+    /// The account's preferred listing type. Falls back to the site's
+    /// `defaultPostListingType`, then to `.All` if neither is set.
+    func defaultListingType(forAccountKeychainId keychainId: String) -> Components.Schemas.ListingType
+
+    /// The account's preferred sort type. Falls back to `.Hot` if not set.
+    func defaultSortType(forAccountKeychainId keychainId: String) -> Components.Schemas.SortType
+}
+
+@MainActor
+public extension AccountServiceType {
+    /// Creates a feed with the given parameters. Returns a `FeedHandle`
+    /// carrying the stable `feedKey` (for GRDB observations and
+    /// LemmyService.fetchFeed) and the `feedType` (for navigation/sort UI).
+    /// The matching `FeedRecord` row is created lazily by the first
+    /// `appendFeedPage`, so this entry point performs no I/O.
+    func createFeed(
+        forAccountKeychainId _: String,
+        feedType: FeedType
+    ) -> FeedHandle {
+        FeedHandle(feedKey: UUID().uuidString, feedType: feedType)
+    }
+
+    func createDefaultFeed(forAccountKeychainId keychainId: String) -> FeedHandle {
+        let feedType = FeedType.frontpage(
+            listingType: defaultListingType(forAccountKeychainId: keychainId),
+            sortType: defaultSortType(forAccountKeychainId: keychainId)
+        )
+        return FeedHandle(feedKey: UUID().uuidString, feedType: feedType)
+    }
+
+    func createFeed(
+        duplicateOf existing: FeedHandle,
+        forAccountKeychainId _: String,
+        sortType: Components.Schemas.SortType? = nil
+    ) -> FeedHandle {
+        let newFeedType: FeedType = {
+            switch existing.feedType {
+            case let .frontpage(listingType, oldSortType):
+                return .frontpage(
+                    listingType: listingType,
+                    sortType: sortType ?? oldSortType
+                )
+            case let .community(communityName, instance, oldSortType):
+                return .community(
+                    communityName: communityName,
+                    instance: instance,
+                    sortType: sortType ?? oldSortType
+                )
+            }
+        }()
+        return FeedHandle(feedKey: UUID().uuidString, feedType: newFeedType)
+    }
 }
 
 @MainActor
@@ -73,217 +119,225 @@ public protocol HasAccountService {
 public class AccountService: AccountServiceType {
     // MARK: Private
 
-    private let dataStore: DataStoreType
-    private let siteService: SiteServiceType
+    private let appDatabase: AppDatabase
 
-    private var lemmyServices: [NSManagedObjectID: LemmyService] = [:]
-    private var lemmyDataServices: [NSManagedObjectID: LemmyDataService] = [:]
+    private var lemmyServices: [String: LemmyService] = [:]
 
     // MARK: Functions
 
     public init(
-        siteService: SiteServiceType,
-        dataStore: DataStoreType
+        appDatabase: AppDatabase
     ) {
-        self.dataStore = dataStore
-        self.siteService = siteService
+        self.appDatabase = appDatabase
+    }
+
+    public func defaultAccountKeychainId() -> String {
+        assert(Thread.current.isMainThread)
+        do {
+            if let keychainId = try appDatabase.writer.read({ db -> String? in
+                try AccountRecord
+                    .filter(Column("isServiceAccount") == false)
+                    .order(sql: "isDefault DESC, id ASC")
+                    .fetchOne(db)?
+                    .accountKeychainId
+            }) {
+                return keychainId
+            }
+        } catch {
+            logger.error("defaultAccountKeychainId GRDB read failed: \(error.localizedDescription, privacy: .public)")
+        }
+        return bootstrapDefaultKeychainId()
+    }
+
+    /// First-launch path. AppDatabase has no candidate account, so create a
+    /// signed-out one for whichever instance the seeded site list has on
+    /// hand. Returns the new account's keychainId.
+    private func bootstrapDefaultKeychainId() -> String {
+        guard let row = appDatabase.allSiteListRowsSync().first else {
+            fatalError("Cannot bootstrap default account: no sites available")
+        }
+        do {
+            let keychainId = try appDatabase.ensureSignedOutAccountKeychainId(
+                forInstance: row.instance,
+                isServiceAccount: false
+            )
+            try appDatabase.setDefaultAccountSync(keychainId: keychainId)
+            return keychainId
+        } catch {
+            logger.fault("bootstrapDefaultKeychainId failed: \(error.localizedDescription, privacy: .public)")
+            fatalError("bootstrapDefaultKeychainId failed: \(error)")
+        }
+    }
+
+    public func isSignedOut(forAccountKeychainId keychainId: String) -> Bool {
+        do {
+            return try appDatabase.writer.read { db in
+                try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)?
+                    .isSignedOutAccountType ?? true
+            }
+        } catch {
+            logger.error("Failed to read isSignedOut: \(error.localizedDescription, privacy: .public)")
+            return true
+        }
+    }
+
+    public func defaultListingType(forAccountKeychainId keychainId: String) -> Components.Schemas.ListingType {
+        do {
+            return try appDatabase.writer.read { db in
+                guard
+                    let account = try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)
+                else { return .All }
+                if
+                    let raw = account.defaultListingType,
+                    let value = Components.Schemas.ListingType(rawValue: raw)
+                {
+                    return value
+                }
+                if
+                    let site = try SiteRecord.filter(Column("id") == account.siteId).fetchOne(db),
+                    let raw = site.defaultPostListingType,
+                    let value = Components.Schemas.ListingType(rawValue: raw)
+                {
+                    return value
+                }
+                return .All
+            }
+        } catch {
+            logger.error("Failed to read defaultListingType: \(error.localizedDescription, privacy: .public)")
+            return .All
+        }
+    }
+
+    public func defaultSortType(forAccountKeychainId keychainId: String) -> Components.Schemas.SortType {
+        do {
+            return try appDatabase.writer.read { db in
+                guard
+                    let account = try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)
+                else { return .Hot }
+                return account.resolvedDefaultSortType
+            }
+        } catch {
+            logger.error("Failed to read defaultSortType: \(error.localizedDescription, privacy: .public)")
+            return .Hot
+        }
+    }
+
+    public func signInAsSignedOut(atInstance instance: InstanceActorId) {
+        do {
+            let keychainId = try appDatabase.ensureSignedOutAccountKeychainId(
+                forInstance: instance,
+                isServiceAccount: false
+            )
+            try appDatabase.setDefaultAccountSync(keychainId: keychainId)
+        } catch {
+            logger.error("signInAsSignedOut failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    public func setDefaultAccount(forAccountKeychainId keychainId: String) {
+        do {
+            try appDatabase.setDefaultAccountSync(keychainId: keychainId)
+        } catch {
+            logger.error("setDefaultAccount failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    public func accountKeychainId(forInstance instance: InstanceActorId) -> String {
+        assert(Thread.current.isMainThread)
+        do {
+            return try appDatabase.bestAccountKeychainId(forInstance: instance)
+        } catch {
+            logger.fault("accountKeychainId(forInstance:) failed: \(error.localizedDescription, privacy: .public)")
+            fatalError("accountKeychainId(forInstance:) failed: \(error)")
+        }
     }
 
     public func accountForSignedOut(
-        at site: LemmySite,
-        isServiceAccount: Bool,
-        in context: NSManagedObjectContext
-    ) -> LemmyAccount {
+        forInstance instance: InstanceActorId,
+        isServiceAccount: Bool
+    ) -> String {
         assert(Thread.current.isMainThread)
-
-        let account: LemmyAccount? = {
-            let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
-            request.fetchLimit = 1
-            request.predicate = NSPredicate(
-                format: "isSignedOutAccountType == true AND isServiceAccount == %@ AND site == %@",
-                NSNumber(booleanLiteral: isServiceAccount),
-                site
+        do {
+            return try appDatabase.ensureSignedOutAccountKeychainId(
+                forInstance: instance,
+                isServiceAccount: isServiceAccount
             )
-            do {
-                let accounts = try context.fetch(request)
-                logger.assert(accounts.count <= 1, """
-                    Expected zero or one but found \(accounts.count) \
-                    signed out accounts for \(site.identifierForLogging)!
-                    """)
-                return accounts.first
-            } catch {
-                logger.assertionFailure("""
-                    Failed to fetch account for \(site.identifierForLogging): \
-                    \(error.localizedDescription)
-                    """)
-                return nil
+        } catch {
+            logger.fault("accountForSignedOut(forInstance:) failed: \(error.localizedDescription, privacy: .public)")
+            fatalError("accountForSignedOut(forInstance:) failed: \(error)")
+        }
+    }
+
+    public func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType {
+        assert(Thread.current.isMainThread)
+
+        if let cached = lemmyServices[keychainId] {
+            return cached
+        }
+
+        let snapshot: (isSignedOut: Bool, actorId: InstanceActorId)
+        do {
+            snapshot = try appDatabase.writer.read { db -> (Bool, InstanceActorId) in
+                guard
+                    let row = try Row.fetchOne(db, sql: """
+                            SELECT
+                                account.isSignedOutAccountType AS isSignedOut,
+                                instance.actorId               AS actorId
+                            FROM account
+                            JOIN site     ON site.id = account.siteId
+                            JOIN instance ON instance.id = site.instanceId
+                            WHERE account.accountKeychainId = ?
+                        """, arguments: [keychainId])
+                else {
+                    fatalError("No account registered for keychainId \(keychainId)")
+                }
+                let isSignedOut: Bool = row["isSignedOut"]
+                let actorIdRaw: String = row["actorId"]
+                guard let actorId = InstanceActorId(from: actorIdRaw) else {
+                    fatalError("Invalid instance actorId '\(actorIdRaw)' for account \(keychainId)")
+                }
+                return (isSignedOut, actorId)
             }
-        }()
-
-        func createAccountForSignedOut() -> LemmyAccount {
-            let account = LemmyAccount(signedOutAt: site, in: context)
-            account.isServiceAccount = isServiceAccount
-            context.saveIfNeeded()
-            return account
-        }
-
-        return account ?? createAccountForSignedOut()
-    }
-
-    public func allSignedOut(in context: NSManagedObjectContext) -> [LemmyAccount] {
-        assert(Thread.current.isMainThread)
-
-        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
-        request.predicate = NSPredicate(
-            format: "isSignedOutAccountType == true"
-        )
-        do {
-            return try context.fetch(request)
         } catch {
-            logger.assertionFailure("Failed to fetch all signed out accounts: \(error.localizedDescription)")
-            return []
-        }
-    }
-
-    public func allAccounts(
-        includeSignedOutAccount: Bool,
-        in context: NSManagedObjectContext
-    ) -> [LemmyAccount] {
-        assert(Thread.current.isMainThread)
-
-        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
-        if !includeSignedOutAccount {
-            request.predicate = NSPredicate(
-                format: "isSignedOutAccountType == false"
-            )
-        }
-        do {
-            return try context.fetch(request)
-        } catch {
-            logger.assertionFailure("Failed to fetch all accounts: \(error.localizedDescription)")
-            return []
-        }
-    }
-
-    public func defaultAccount() -> LemmyAccount {
-        assert(Thread.current.isMainThread)
-
-        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
-        // We intentionally do not set predicate here.
-        // In case there is a problem with the data and we somehow lost the default account,
-        // we would pick the next available account to make the default one.
-        request.predicate = NSPredicate(
-            format: "isServiceAccount == false"
-        )
-        request.fetchLimit = 1
-        request.sortDescriptors = [
-            NSSortDescriptor(keyPath: \LemmyAccount.isDefaultAccount, ascending: false),
-            NSSortDescriptor(keyPath: \LemmyAccount.id, ascending: true),
-        ]
-
-        let accounts: [LemmyAccount]
-        do {
-            accounts = try dataStore.mainContext.fetch(request)
-        } catch {
-            logger.fault("Failed to fetch default account: \(error.localizedDescription, privacy: .public)")
-            fatalError("Failed to fetch default account: \(error.localizedDescription)")
+            logger.fault("lemmyService(forAccountKeychainId:) lookup failed: \(error.localizedDescription, privacy: .public)")
+            fatalError("lemmyService(forAccountKeychainId:) failed: \(error)")
         }
 
-        if let account = accounts.first {
-            if !account.isDefaultAccount {
-                setDefaultAccount(account)
-            }
-            return account
+        guard let url = snapshot.actorId.url else {
+            fatalError("Failed to create URL from instance actor id '\(snapshot.actorId.actorId)'")
         }
+        let credential = snapshot.isSignedOut ? nil : readCredential(forKeychainId: keychainId)
+        let api = LemmyApi(instanceUrl: url, credential: credential)
 
-        // we do not have a usable account, this is likely first app launch,
-        // lets create a new account.
-        return createDefaultAccount()
-    }
+        logger.debug("Creating new LemmyService for \(keychainId, privacy: .sensitive(mask: .hash))")
 
-    private func createDefaultAccount() -> LemmyAccount {
-        // TODO: add separate call siteService.siteForDefaultAccount
-        let site = siteService.allSites(in: dataStore.mainContext).first!
-        let account = LemmyAccount(signedOutAt: site, in: dataStore.mainContext)
-        dataStore.saveIfNeeded()
-        return account
-    }
-
-    public func setDefaultAccount(_ accountToMakeDefault: LemmyAccount) {
-        assert(!accountToMakeDefault.isServiceAccount)
-        assert(Thread.current.isMainThread)
-
-        logger.info("Setting default account \(accountToMakeDefault.identifierForLogging, privacy: .public)")
-
-        for account in allAccounts(includeSignedOutAccount: true, in: dataStore.mainContext) {
-            account.isDefaultAccount = false
-        }
-
-        accountToMakeDefault.isDefaultAccount = true
-
-        dataStore.saveIfNeeded()
-    }
-
-    private func api(for site: LemmySite, credential: LemmyCredential?) -> LemmyApi {
-        guard let instanceUrl = site.instance.actorId.url else {
-            fatalError("Failed to create URL from instance actor id '\(site.instance.actorId)'")
-        }
-        return LemmyApi(instanceUrl: instanceUrl, credential: credential)
-    }
-
-    public func lemmyDataService(for account: LemmyAccount) -> LemmyDataServiceType {
-        assert(Thread.current.isMainThread)
-
-        let accountObjectId = account.objectID
-
-        if let lemmyDataService = lemmyDataServices[accountObjectId] {
-            logger.debug("Returning existing LemmyDataService for \(account.identifierForLogging)")
-            return lemmyDataService
-        }
-
-        logger.debug("Creating new LemmyDataService for \(account.identifierForLogging, privacy: .public)")
-
-        let lemmyDataService = LemmyDataService(
-            account: account,
-            dataStore: dataStore
-        )
-        lemmyDataServices[accountObjectId] = lemmyDataService
-
-        return lemmyDataService
-    }
-
-    public func lemmyService(for account: LemmyAccount) -> LemmyServiceType {
-        assert(Thread.current.isMainThread)
-
-        let accountObjectId = account.objectID
-
-        if let lemmyService = lemmyServices[accountObjectId] {
-            logger.debug("Returning existing LemmyService for \(account.identifierForLogging)")
-            return lemmyService
-        }
-
-        let credential = readCredential(for: account)
-        let api = api(for: account.site, credential: credential)
-
-        logger.debug("Creating new LemmyService for \(account.identifierForLogging, privacy: .public)")
-
-        let lemmyService = LemmyService(
-            account: account,
-            dataStore: dataStore,
+        let service = LemmyService(
+            accountKeychainId: keychainId,
+            accountIsSignedOut: snapshot.isSignedOut,
+            appDatabase: appDatabase,
             api: api
         )
-        lemmyServices[accountObjectId] = lemmyService
-
-        return lemmyService
+        lemmyServices[keychainId] = service
+        return service
     }
 
     public func login(
-        site: LemmySite,
+        atInstance instance: InstanceActorId,
         username: String,
         password: String
-    ) async throws -> LemmyAccount {
+    ) async throws {
+        guard let url = instance.url else {
+            fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
+        }
+
         // Creating temporary authenticated LemmyApi object for making login request.
-        let api = api(for: site, credential: nil)
+        let api = LemmyApi(instanceUrl: url, credential: nil)
 
         let response: Components.Schemas.LoginResponse
         do {
@@ -297,7 +351,7 @@ public class AccountService: AccountServiceType {
             }
 
             logger.error("""
-                Login failed. site=\(site.identifierForLogging, privacy: .public). \
+                Login failed. instance=\(instance.actorId, privacy: .public). \
                 username=\(username, privacy: .sensitive(mask: .hash))
                 \(String(describing: error), privacy: .public)
                 """)
@@ -309,66 +363,18 @@ public class AccountService: AccountServiceType {
         }
         let credential = LemmyCredential(jwt: jwt)
 
-        // TODO: use "sub" from JWT instead of username here.
-        // using username here is wrong, it is not a stable identifier,
-        // it can be changed without invalidating the account.
-        // We should use "sub" claim from JWT.
-        let account = LemmyAccount(
-            userId: username,
-            at: site,
-            in: dataStore.mainContext
+        let keychainId = UUID().uuidString
+        let (_, siteId) = try await appDatabase.ensureSite(forInstance: instance)
+        _ = try await appDatabase.ensureAccount(
+            keychainId: keychainId,
+            siteId: siteId,
+            isSignedOut: false,
+            isServiceAccount: false
         )
-
-        setDefaultAccount(account)
-        dataStore.saveIfNeeded()
-
-        writeCredential(credential, for: account)
-
-        return account
-    }
-
-    public func account(
-        at site: LemmySite,
-        in context: NSManagedObjectContext
-    ) -> LemmyAccount {
-        assert(Thread.current.isMainThread)
-
-        let request: NSFetchRequest<LemmyAccount> = LemmyAccount.fetchRequest()
-        request.predicate = NSPredicate(
-            format: "site == %@",
-            site
-        )
-
-        let accounts: [LemmyAccount]
-        do {
-            accounts = try context.fetch(request)
-        } catch {
-            logger.error("Failed to fetch accounts for site: \(error.localizedDescription, privacy: .public)")
-            fatalError("Failed to fetch accounts for site: \(error.localizedDescription)")
-        }
-
-        if let defaultAccount = accounts.first(where: { $0.isDefaultAccount }) {
-            return defaultAccount
-        }
-
-        if let signedOutAccount = accounts.first(where: { $0.isSignedOutAccountType }) {
-            // Return the first signed out account. It might be a service account.
-            return signedOutAccount
-        }
-
-        // TODO: check if there a signed in account for that site
-        // It might be interesting to return both new signed out account and the existing
-        // account. This way we could show UI like "here is the data from the source
-        // but fyi you have an account there".
-
-        func createAccountForSignedOut() -> LemmyAccount {
-            let account = LemmyAccount(signedOutAt: site, in: context)
-            account.isServiceAccount = false
-            context.saveIfNeeded()
-            return account
-        }
-
-        return createAccountForSignedOut()
+        try await appDatabase.setDefaultAccount(keychainId: keychainId)
+        writeCredential(credential, forKeychainId: keychainId)
+        // Username and Person row land asynchronously via the next
+        // SchedulerService tick (`signedInAccountsAwaitingMyUserInfo`).
     }
 }
 
@@ -388,42 +394,31 @@ extension AccountService {
         )
     }
 
-    private func writeCredential(_ credential: LemmyCredential, for account: LemmyAccount) {
-        assert(!account.objectID.isTemporaryID)
-        let key = account.objectID.uriRepresentation().absoluteString
-
+    private func writeCredential(_ credential: LemmyCredential, forKeychainId keychainId: String) {
         let stringValue = credential.toString()
-
         do {
-            try keychain.set(stringValue, key: key)
+            try keychain.set(stringValue, key: keychainId)
             logger.debug("Saved credential into keychain")
         } catch {
             logger.error("Failed to save credential into keychain: \(error.localizedDescription, privacy: .public)")
         }
     }
 
-    private func readCredential(for account: LemmyAccount) -> LemmyCredential? {
-        assert(!account.objectID.isTemporaryID)
-        guard !account.isSignedOutAccountType else { return nil }
-
+    private func readCredential(forKeychainId keychainId: String) -> LemmyCredential? {
         do {
-            let key = account.objectID.uriRepresentation().absoluteString
-            guard let stringValue = try keychain.get(key) else {
+            guard let stringValue = try keychain.get(keychainId) else {
                 logger.debug("Did not find credential in keychain")
                 return nil
             }
 
-            let credential: LemmyCredential
             do {
-                credential = try LemmyCredential.fromString(stringValue)
+                let credential = try LemmyCredential.fromString(stringValue)
+                logger.debug("Fetched credential from keychain")
+                return credential
             } catch {
                 logger.error("Failed to parse credential '\(stringValue, privacy: .sensitive)': \(error.localizedDescription, privacy: .public)")
                 return nil
             }
-
-            logger.debug("Fetched credential from keychain")
-
-            return credential
         } catch {
             logger.assertionFailure("Failed to get credential from keychain: \(error.localizedDescription)")
             return nil

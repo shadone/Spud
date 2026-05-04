@@ -8,46 +8,46 @@ import Foundation
 import LemmyKit
 import SwiftUI
 
-struct PreferencesGeneralView<ViewModel: PreferencesViewModelType>: View {
-    @StateObject var viewModel: ViewModel
+struct PreferencesGeneralView: View {
+    let viewModel: PreferencesViewModel
 
-    var defaultPostSortType: Binding<Components.Schemas.SortType> {
+    private var defaultPostSortType: Binding<Components.Schemas.SortType> {
         .init {
-            viewModel.outputs.defaultPostSortType.value
+            viewModel.defaultPostSortType
         } set: { newValue in
-            viewModel.inputs.updateDefaultPostSort(newValue)
+            viewModel.updateDefaultPostSort(newValue)
         }
     }
 
-    var defaultCommentSortType: Binding<Components.Schemas.CommentSortType> {
+    private var defaultCommentSortType: Binding<Components.Schemas.CommentSortType> {
         .init {
-            viewModel.outputs.defaultCommentSortType.value
+            viewModel.defaultCommentSortType
         } set: { newValue in
-            viewModel.inputs.updateDefaultCommentSort(newValue)
+            viewModel.updateDefaultCommentSort(newValue)
         }
     }
 
-    var openExternalLinks: Binding<Preferences.OpenExternalLink> {
+    private var openExternalLinks: Binding<Preferences.OpenExternalLink> {
         .init {
-            viewModel.outputs.openExternalLink.value
+            viewModel.openExternalLink
         } set: { newValue in
-            viewModel.inputs.updateOpenExternalLink(newValue)
+            viewModel.updateOpenExternalLink(newValue)
         }
     }
 
-    var openExternalLinkInSafariVCReaderMode: Binding<Bool> {
+    private var openExternalLinkInSafariVCReaderMode: Binding<Bool> {
         .init {
-            viewModel.outputs.openExternalLinkInSafariVCReaderMode.value
+            viewModel.openExternalLinkInSafariVCReaderMode
         } set: { newValue in
-            viewModel.inputs.updateOpenExternalLinkInSafariVCReaderMode(newValue)
+            viewModel.updateOpenExternalLinkInSafariVCReaderMode(newValue)
         }
     }
 
-    var openExternalLinkAsUniversalLinkInApp: Binding<Bool> {
+    private var openExternalLinkAsUniversalLinkInApp: Binding<Bool> {
         .init {
-            viewModel.outputs.openExternalLinkAsUniversalLinkInApp.value
+            viewModel.openExternalLinkAsUniversalLinkInApp
         } set: { newValue in
-            viewModel.inputs.updateOpenExternalLinkAsUniversalLinkInApp(newValue)
+            viewModel.updateOpenExternalLinkAsUniversalLinkInApp(newValue)
         }
     }
 
@@ -61,7 +61,7 @@ struct PreferencesGeneralView<ViewModel: PreferencesViewModelType>: View {
                 }
 
                 Picker("Default Sort", selection: defaultPostSortType) {
-                    ForEach(viewModel.outputs.allPostSortTypes) { sortType in
+                    ForEach(viewModel.allPostSortTypes) { sortType in
                         let item = sortType.itemForMenu
                         if let imageSystemName = item.imageSystemName {
                             Label(item.title, systemImage: imageSystemName)
@@ -78,7 +78,7 @@ struct PreferencesGeneralView<ViewModel: PreferencesViewModelType>: View {
 
             Section {
                 Picker("Default Sort", selection: defaultCommentSortType) {
-                    ForEach(viewModel.outputs.allCommentSortTypes) { commentSortType in
+                    ForEach(viewModel.allCommentSortTypes) { commentSortType in
                         let item = commentSortType.itemForMenu
                         Text(item.title)
                             .tag(commentSortType)
@@ -131,7 +131,7 @@ struct PreferencesGeneralView<ViewModel: PreferencesViewModelType>: View {
                     }
                 }
                 .environment(\.openURL, OpenURLAction(handler: { url in
-                    viewModel.inputs.testExternalLink(url)
+                    viewModel.testExternalLink(url)
                     return .handled
                 }))
             }
@@ -142,8 +142,6 @@ struct PreferencesGeneralView<ViewModel: PreferencesViewModelType>: View {
 
 #Preview {
     NavigationView {
-        PreferencesGeneralView(
-            viewModel: PreferencesViewModelForPreview()
-        )
+        PreferencesGeneralView(viewModel: PreferencesViewModel())
     }
 }

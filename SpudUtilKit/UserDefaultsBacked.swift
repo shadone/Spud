@@ -4,33 +4,38 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import OSLog
-import SwiftUI
 
 private let logger = Logger.utils
 
 @propertyWrapper
-public struct UserDefaultsBacked<Value: Codable> {
+public struct UserDefaultsBacked<Value: Codable & Sendable> {
     private let key: String
     private let defaultValue: Value
     private let storage: UserDefaults
-    private let valuePublisher: CurrentValueSubject<Value, Never>
+    private let broadcaster: Broadcaster<Value>
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
     public var wrappedValue: Value {
         get {
-            valuePublisher.value
+            broadcaster.current
         }
-        set {
+        nonmutating set {
             set(newValue)
         }
     }
 
-    public var projectedValue: AnyPublisher<Value, Never> {
-        valuePublisher.eraseToAnyPublisher()
+    /// AsyncStream of values. The first element is the current value;
+    /// subsequent elements are emitted on every write through this
+    /// instance's `wrappedValue`. The stream is unbounded — each consumer
+    /// gets its own subscription, and dropping the iterator unregisters
+    /// it. Writes from a different `UserDefaultsBacked` instance backed
+    /// by the same key are not observed; consumers should subscribe to
+    /// the instance that owns the writes.
+    public var projectedValue: AsyncStream<Value> {
+        broadcaster.subscribe()
     }
 
     public init(
@@ -68,7 +73,7 @@ public struct UserDefaultsBacked<Value: Codable> {
             }
         }
 
-        valuePublisher = CurrentValueSubject(maybeValue ?? defaultValue)
+        broadcaster = Broadcaster(maybeValue ?? defaultValue)
     }
 
     private func set(_ newValue: Value) {
@@ -89,12 +94,58 @@ public struct UserDefaultsBacked<Value: Codable> {
                     """)
             }
         }
-        valuePublisher.send(newValue)
+        broadcaster.send(newValue)
     }
 }
 
 public extension UserDefaultsBacked where Value: ExpressibleByNilLiteral {
     init(key: String, storage: UserDefaults = .standard) {
         self.init(wrappedValue: nil, key: key, storage: storage)
+    }
+}
+
+/// Holds the current value plus a set of AsyncStream continuations that
+/// observe writes. Thread-safe via an internal lock; safe to pass across
+/// isolation boundaries because the lock guards the only mutable state.
+private final class Broadcaster<Value: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _current: Value
+    private var continuations: [UUID: AsyncStream<Value>.Continuation] = [:]
+
+    init(_ initial: Value) {
+        _current = initial
+    }
+
+    var current: Value {
+        lock.lock()
+        defer { lock.unlock() }
+        return _current
+    }
+
+    func send(_ value: Value) {
+        lock.lock()
+        _current = value
+        let snapshot = Array(continuations.values)
+        lock.unlock()
+        for continuation in snapshot {
+            continuation.yield(value)
+        }
+    }
+
+    func subscribe() -> AsyncStream<Value> {
+        AsyncStream { continuation in
+            let id = UUID()
+            lock.lock()
+            let initial = _current
+            continuations[id] = continuation
+            lock.unlock()
+            continuation.yield(initial)
+            continuation.onTermination = { [weak self] _ in
+                guard let self else { return }
+                lock.lock()
+                continuations.removeValue(forKey: id)
+                lock.unlock()
+            }
+        }
     }
 }

@@ -8,11 +8,13 @@ import Foundation
 import LemmyKit
 import OSLog
 import SpudDataKit
+import SpudUtilKit
 import UIKit
 
 private let logger = Logger.entryService
 
-protocol EntryServiceType: AnyObject {
+@MainActor
+protocol EntryServiceType: AnyObject, Sendable {
     func startService()
 
     func topPostsSnapshot() -> TopPostsEntry
@@ -23,19 +25,20 @@ protocol EntryServiceType: AnyObject {
     ) async -> TopPostsEntry
 }
 
-protocol HasEntryService {
-    var entryService: EntryServiceType { get }
+protocol HasEntryService: Sendable {
+    @MainActor var entryService: EntryServiceType { get }
 }
 
+@MainActor
 class EntryService: EntryServiceType {
-    let dataStore: DataStoreType
+    let appDatabase: AppDatabase
     let accountService: AccountServiceType
 
     init(
-        dataStore: DataStoreType,
+        appDatabase: AppDatabase,
         accountService: AccountServiceType
     ) {
-        self.dataStore = dataStore
+        self.appDatabase = appDatabase
         self.accountService = accountService
     }
 
@@ -52,31 +55,37 @@ class EntryService: EntryServiceType {
         )
     }
 
-    @MainActor
     func topPosts(
         listingType: Components.Schemas.ListingType,
         sortType: Components.Schemas.SortType
     ) async -> TopPostsEntry {
         let feed = await fetchFeed(listingType: listingType, sortType: sortType)
 
-        let topPosts = TopPosts(from: feed)
+        let topPosts = await readTopPosts(feedKey: feed.feedKey)
         return await entry(from: topPosts)
     }
 
-    @MainActor
+    private func readTopPosts(feedKey: String) async -> TopPosts {
+        do {
+            let rows = try await appDatabase.widgetTopPosts(feedKey: feedKey, limit: 6)
+            return TopPosts(rows: rows)
+        } catch {
+            logger.error("Failed to read widget top posts: \(String(describing: error), privacy: .public)")
+            return TopPosts(posts: [])
+        }
+    }
+
     private func entry(
         from topPosts: TopPosts
     ) async -> TopPostsEntry {
         let imageUrls = topPosts.posts
             .compactMap(\.type.imageUrl)
 
-        let imagesByUrl = await withTaskGroup(of: (URL, UIImage?).self) { group in
-            for url in imageUrls {
-                group.addTask {
-                    await (url, self.fetchImage(url))
-                }
+        var imagesByUrl: [URL: UIImage] = [:]
+        for url in imageUrls {
+            if let image = await fetchImage(url) {
+                imagesByUrl[url] = image
             }
-            return await group.reduce(into: [:]) { $0[$1.0] = $1.1 }
         }
 
         logger.debug("Done, returning entry")
@@ -88,45 +97,40 @@ class EntryService: EntryServiceType {
         )
     }
 
-    @MainActor
     private func fetchFeed(
         listingType: Components.Schemas.ListingType,
         sortType: Components.Schemas.SortType
-    ) async -> LemmyFeed {
-        let account = accountService.defaultAccount()
+    ) async -> FeedHandle {
+        let keychainId = accountService.defaultAccountKeychainId()
+        let isSignedOut = accountService.isSignedOut(forAccountKeychainId: keychainId)
 
         let listingType: Components.Schemas.ListingType = {
             switch listingType {
             case .Subscribed:
-                return account.isSignedOutAccountType ? .All : .Subscribed
+                return isSignedOut ? .All : .Subscribed
             case .ModeratorView:
-                return account.isSignedOutAccountType ? .All : .ModeratorView
+                return isSignedOut ? .All : .ModeratorView
             case .All, .Local:
                 return listingType
             }
         }()
 
-        let feed = accountService
-            .lemmyDataService(for: account)
-            .createFeed(.frontpage(listingType: listingType, sortType: sortType))
-        feed.identifierForDebugging = "widget"
+        let feed = accountService.createFeed(
+            forAccountKeychainId: keychainId,
+            feedType: .frontpage(listingType: listingType, sortType: sortType)
+        )
 
         do {
-            try await accountService
-                .lemmyService(for: account)
-                .fetchFeed(feedId: feed.objectID, page: nil)
+            _ = try await accountService
+                .lemmyService(forAccountKeychainId: keychainId)
+                .fetchFeed(feed, pageCursor: nil)
         } catch {
             logger.error("Failed to fetch feed: \(error, privacy: .public)")
         }
 
-        dataStore
-            .mainContext
-            .refresh(feed, mergeChanges: true)
-
         return feed
     }
 
-    @MainActor
     private func fetchImage(_ url: URL) async -> UIImage? {
         // TODO: look into fetching images using background request
         // https://developer.apple.com/documentation/widgetkit/making-network-requests-in-a-widget-extension

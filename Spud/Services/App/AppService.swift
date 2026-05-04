@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import LemmyKit
 import SafariServices
 import SpudDataKit
 import UIKit
@@ -12,7 +13,11 @@ import UIKit
 @MainActor
 protocol AppServiceType: AnyObject {
     /// Opens the post itself in a browser.
-    func openInBrowser(post: LemmyPost, on viewController: UIViewController) async
+    func openInBrowser(
+        serverPostId: Components.Schemas.PostID,
+        accountKeychainId: String,
+        on viewController: UIViewController
+    ) async
 
     /// Opens the given external link according to user preferences (e.g. opens in In-App Safari or external browser).
     func open(url: URL, on viewController: UIViewController) async
@@ -29,15 +34,26 @@ protocol HasAppService {
 @MainActor
 class AppService: AppServiceType {
     private let preferencesService: PreferencesServiceType
+    private let appDatabase: AppDatabase
 
     // MARK: Functions
 
-    init(preferencesService: PreferencesServiceType) {
+    init(preferencesService: PreferencesServiceType, appDatabase: AppDatabase) {
         self.preferencesService = preferencesService
+        self.appDatabase = appDatabase
     }
 
-    func openInBrowser(post: LemmyPost, on viewController: UIViewController) {
-        let safariVC = SFSafariViewController(url: post.localLemmyUiUrl)
+    func openInBrowser(
+        serverPostId: Components.Schemas.PostID,
+        accountKeychainId: String,
+        on viewController: UIViewController
+    ) {
+        guard
+            let actorId = appDatabase.accountInstanceActorIdSync(forKeychainId: accountKeychainId),
+            let instanceUrl = URL(string: actorId)
+        else { return }
+        let postUrl = instanceUrl.appending(path: "post/\(serverPostId)")
+        let safariVC = SFSafariViewController(url: postUrl)
         viewController.present(safariVC, animated: true)
     }
 

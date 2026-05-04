@@ -4,16 +4,20 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import OSLog
 
 private let logger = Logger.postContentDetectorService
 
 public protocol PostContentDetectorServiceType: AnyObject {
-    /// Attempt to detect the content type of the url that the given post contains.
-    /// The main point is to detect if the url points to an image.
-    func contentTypeForUrl(in post: LemmyPostInfo) -> AnyPublisher<PostContentType, Never>
+    /// Attempt to detect the content type of the post's url. The main point
+    /// is to detect if the url points to an image.
+    func contentTypeForUrl(
+        url: URL?,
+        thumbnailUrl: URL?,
+        embedTitle: String?,
+        embedDescription: String?
+    ) -> PostContentType
 }
 
 @MainActor
@@ -24,26 +28,27 @@ public protocol HasPostContentDetectorService {
 public class PostContentDetectorService: PostContentDetectorServiceType {
     public init() { }
 
-    public func contentTypeForUrl(in postInfo: LemmyPostInfo) -> AnyPublisher<PostContentType, Never> {
-        guard let url = postInfo.url else {
-            return .just(.textOrEmpty)
+    public func contentTypeForUrl(
+        url: URL?,
+        thumbnailUrl: URL?,
+        embedTitle: String?,
+        embedDescription: String?
+    ) -> PostContentType {
+        guard let url else {
+            return .textOrEmpty
         }
 
         // TODO: we could do more offline checks here:
-        // - check if the domain is in Core Data as LemmySite (i.e. link to pictrs resource).
+        // - check if the domain is in known image-hosting domains
         // - check if popular image hosting like imgur.
-
-        func isImageMimeType(_ response: URLResponse) -> Bool {
-            response.mimeType?.starts(with: "image/") ?? false
-        }
 
         let externalLink = PostContentType.externalLink(.init(
             url: url,
-            embedTitle: postInfo.urlEmbedTitle,
-            embedDescription: postInfo.urlEmbedDescription
+            embedTitle: embedTitle,
+            embedDescription: embedDescription
         ))
         let image = PostContentType.image(.init(
-            thumbnailUrl: postInfo.thumbnailUrl,
+            thumbnailUrl: thumbnailUrl,
             imageUrl: url
         ))
 
@@ -58,9 +63,9 @@ public class PostContentDetectorService: PostContentDetectorServiceType {
         } != nil
 
         if hasKnownImageExtension {
-            return .just(image)
+            return image
         }
 
-        return .just(externalLink)
+        return externalLink
     }
 }

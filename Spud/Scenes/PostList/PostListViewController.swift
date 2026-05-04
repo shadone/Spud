@@ -4,10 +4,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
-import CoreData
+import Foundation
 import Intents
 import LemmyKit
+import Observation
 import OSLog
 import SpudDataKit
 import UIKit
@@ -18,17 +18,14 @@ class PostListViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
         HasAlertService &
+        HasAppDatabase &
         HasAppearanceService &
-        HasDataStore
+        HasImageService &
+        HasPostContentDetectorService
     typealias NestedDependencies =
-        PostDetailViewController.Dependencies &
-        PostListPostViewModel.Dependencies
+        PostDetailViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
-
-    var dataStore: DataStoreType {
-        dependencies.own.dataStore
-    }
 
     var accountService: AccountServiceType {
         dependencies.own.accountService
@@ -42,12 +39,17 @@ class PostListViewController: UIViewController {
         dependencies.own.appearanceService
     }
 
+    var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
+    }
+
+    var imageService: ImageServiceType {
+        dependencies.own.imageService
+    }
+
     // MARK: Public
 
-    var viewModelSubject: CurrentValueSubject<PostListViewModelType, Never>
-    var viewModel: PostListViewModelType {
-        viewModelSubject.value
-    }
+    private let viewModel: PostListViewModel
 
     // MARK: UI Properties
 
@@ -57,62 +59,67 @@ class PostListViewController: UIViewController {
         tableView.rowHeight = UITableView.automaticDimension
 
         tableView.delegate = self
-        tableView.dataSource = self
 
         tableView.register(PostListPostCell.self, forCellReuseIdentifier: PostListPostCell.reuseIdentifier)
+        tableView.register(LoadingFooterCell.self, forCellReuseIdentifier: LoadingFooterCell.reuseIdentifier)
 
         return tableView
     }()
 
+    enum Section: Int, Hashable {
+        case posts
+        case loading
+    }
+
+    enum Item: Hashable {
+        /// Server-assigned post id (PostRecord.postId), unique within an account.
+        case post(serverPostId: Int64)
+        case loadingIndicator
+    }
+
+    private var dataSource: UITableViewDiffableDataSource<Section, Item>!
+
     // MARK: Private
 
-    var disposables = Set<AnyCancellable>()
-
-    var postsResults: NSFetchedResultsController<LemmyPageElement>?
-
-    var isLoadingIndicatorHidden = true
+    private var rowsByServerPostId: [Int64: PostListRow] = [:]
+    private var orderedRows: [PostListRow] = []
+    private var observationTask: Task<Void, Never>?
+    private var titleObservationTask: Task<Void, Never>?
+    private var loadingObservationTask: Task<Void, Never>?
 
     var sortTypeBarButtonItem: UIBarButtonItem!
     var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
-    var sortTypeActiveAction: UIAction!
-    var sortTypeHotAction: UIAction!
-    var sortTypeNewAction: UIAction!
-    var sortTypeOldAction: UIAction!
-    var sortTypeTopSixHourAction: UIAction!
-    var sortTypeTopTwelveHourAction: UIAction!
-    var sortTypeTopDayAction: UIAction!
-    var sortTypeTopWeekAction: UIAction!
-    var sortTypeTopMonthAction: UIAction!
-    var sortTypeTopThreeMonthAction: UIAction!
-    var sortTypeTopSixMonthAction: UIAction!
-    var sortTypeTopNineMonthAction: UIAction!
-    var sortTypeTopYearAction: UIAction!
-    var sortTypeTopAllAction: UIAction!
-    var sortTypeMostCommentsAction: UIAction!
-    var sortTypeNewCommentsAction: UIAction!
-    var sortTypeControversialAction: UIAction!
-    var sortTypeScaledAction: UIAction!
 
     // MARK: Functions
 
-    init(feed: LemmyFeed, dependencies: Dependencies) {
+    init(feed: FeedHandle, accountKeychainId: String, dependencies: Dependencies) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
-        let viewModel = PostListViewModel(
+        viewModel = PostListViewModel(
             feed: feed,
+            accountKeychainId: accountKeychainId,
             dependencies: dependencies
         )
-        viewModelSubject = .init(viewModel)
 
         super.init(nibName: nil, bundle: nil)
 
         setup()
-        bindViewModel()
+        navigationItem.title = viewModel.navigationTitle
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        observationTask?.cancel()
+        titleObservationTask?.cancel()
+        loadingObservationTask?.cancel()
     }
 
     private func setup() {
         view.backgroundColor = .white
-
         view.addSubview(tableView)
 
         NSLayoutConstraint.activate([
@@ -122,36 +129,81 @@ class PostListViewController: UIViewController {
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
+        setupDataSource()
+        setupSortTypeMenu()
+    }
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+
+        startObservations()
+        feedChanged()
+        donateIntent()
+    }
+
+    private func startObservations() {
+        titleObservationTask?.cancel()
+        loadingObservationTask?.cancel()
+
+        let viewModel = viewModel
+        titleObservationTask = Task { @MainActor [weak self] in
+            for await _ in Self.values(of: { viewModel.navigationTitle }) {
+                if Task.isCancelled { break }
+                self?.navigationItem.title = viewModel.navigationTitle
+            }
+        }
+        loadingObservationTask = Task { @MainActor [weak self] in
+            for await _ in Self.values(of: { viewModel.isFetchingNextPage }) {
+                if Task.isCancelled { break }
+                self?.applyLoadingIndicatorVisibility(hidden: !viewModel.isFetchingNextPage)
+            }
+        }
+    }
+
+    /// Tiny shim that turns an Observable property into an AsyncStream of
+    /// values via the standard `withObservationTracking` loop. Uses
+    /// `ObservationScheduler` to break the @Sendable onChange / @MainActor
+    /// observe-recursion loop into an instance method capture.
+    @MainActor
+    private static func values<Value: Sendable>(
+        of access: @escaping @MainActor () -> Value
+    ) -> AsyncStream<Value> {
+        AsyncStream { continuation in
+            let scheduler = ObservationScheduler<Value>(
+                continuation: continuation,
+                access: access
+            )
+            scheduler.observe()
+        }
+    }
+
+    private func setupSortTypeMenu() {
         func makeAction(for sortType: Components.Schemas.SortType) -> UIAction {
             let menuItem = sortType.itemForMenu
             let action = UIAction(
                 title: menuItem.title,
                 image: menuItem.image
             ) { [weak self] _ in
-                self?.viewModel.inputs.didChangeSortType(sortType)
+                self?.sortTypeChanged(to: sortType)
             }
             sortTypeMenuActionsBySortType[sortType] = action
             return action
         }
 
-        sortTypeActiveAction = makeAction(for: .Active)
-        sortTypeHotAction = makeAction(for: .Hot)
-        sortTypeNewAction = makeAction(for: .New)
-        sortTypeOldAction = makeAction(for: .Old)
-        sortTypeTopSixHourAction = makeAction(for: .TopSixHour)
-        sortTypeTopTwelveHourAction = makeAction(for: .TopTwelveHour)
-        sortTypeTopDayAction = makeAction(for: .TopDay)
-        sortTypeTopWeekAction = makeAction(for: .TopWeek)
-        sortTypeTopMonthAction = makeAction(for: .TopMonth)
-        sortTypeTopThreeMonthAction = makeAction(for: .TopThreeMonths)
-        sortTypeTopSixMonthAction = makeAction(for: .TopSixMonths)
-        sortTypeTopNineMonthAction = makeAction(for: .TopNineMonths)
-        sortTypeTopYearAction = makeAction(for: .TopYear)
-        sortTypeTopAllAction = makeAction(for: .TopAll)
-        sortTypeMostCommentsAction = makeAction(for: .MostComments)
-        sortTypeNewCommentsAction = makeAction(for: .NewComments)
-        sortTypeControversialAction = makeAction(for: .Controversial)
-        sortTypeScaledAction = makeAction(for: .Scaled)
+        let actives: [Components.Schemas.SortType] = [
+            .Active, .Hot, .New, .Old, .Controversial, .Scaled,
+        ]
+        let tops: [Components.Schemas.SortType] = [
+            .TopSixHour, .TopTwelveHour, .TopDay, .TopWeek, .TopMonth,
+            .TopThreeMonths, .TopSixMonths, .TopNineMonths, .TopYear, .TopAll,
+        ]
+        let comments: [Components.Schemas.SortType] = [
+            .MostComments, .NewComments,
+        ]
+
+        for sortType in actives + tops + comments {
+            _ = makeAction(for: sortType)
+        }
 
         sortTypeBarButtonItem = UIBarButtonItem(
             title: "Sort type",
@@ -159,189 +211,213 @@ class PostListViewController: UIViewController {
             menu: nil
         )
         navigationItem.rightBarButtonItem = sortTypeBarButtonItem
+
+        rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
     }
 
-    private func buildSortTypeMenu() {
+    private func rebuildSortTypeMenu(activeSortType: Components.Schemas.SortType) {
+        for (sortType, action) in sortTypeMenuActionsBySortType {
+            action.state = (sortType == activeSortType) ? .on : .off
+        }
+
+        let actives: [Components.Schemas.SortType] = [
+            .Active, .Hot, .New, .Old, .Controversial, .Scaled,
+        ]
+        let tops: [Components.Schemas.SortType] = [
+            .TopSixHour, .TopTwelveHour, .TopDay, .TopWeek, .TopMonth,
+            .TopThreeMonths, .TopSixMonths, .TopNineMonths, .TopYear, .TopAll,
+        ]
+        let comments: [Components.Schemas.SortType] = [
+            .MostComments, .NewComments,
+        ]
+
         let sortTypeMenu = UIMenu(
             title: "",
             options: .singleSelection,
             children: [
-                UIMenu(
-                    title: "",
-                    options: .displayInline,
-                    children: [
-                        sortTypeActiveAction,
-                        sortTypeHotAction,
-                        sortTypeNewAction,
-                        sortTypeOldAction,
-                        sortTypeControversialAction,
-                        sortTypeScaledAction,
-                    ]
-                ),
-                UIMenu(
-                    title: "Top",
-                    options: .singleSelection,
-                    children: [
-                        sortTypeTopSixHourAction,
-                        sortTypeTopTwelveHourAction,
-                        sortTypeTopDayAction,
-                        sortTypeTopWeekAction,
-                        sortTypeTopMonthAction,
-                        sortTypeTopThreeMonthAction,
-                        sortTypeTopSixMonthAction,
-                        sortTypeTopNineMonthAction,
-                        sortTypeTopYearAction,
-                        sortTypeTopAllAction,
-                    ]
-                ),
-                UIMenu(
-                    title: "",
-                    options: .displayInline,
-                    children: [
-                        sortTypeMostCommentsAction,
-                        sortTypeNewCommentsAction,
-                    ]
-                ),
+                UIMenu(title: "", options: .displayInline, children: actives.compactMap { sortTypeMenuActionsBySortType[$0] }),
+                UIMenu(title: "Top", options: .singleSelection, children: tops.compactMap { sortTypeMenuActionsBySortType[$0] }),
+                UIMenu(title: "", options: .displayInline, children: comments.compactMap { sortTypeMenuActionsBySortType[$0] }),
             ]
         )
 
         sortTypeBarButtonItem.menu = sortTypeMenu
     }
 
-    private func sortTypeActionHandler(
-        for sortType: Components.Schemas.SortType
-    ) -> UIActionHandler {
-        { [weak self] _ in
-            self?.viewModel.inputs.didChangeSortType(sortType)
-        }
+    private func sortTypeChanged(to sortType: Components.Schemas.SortType) {
+        viewModel.didChangeSortType(sortType)
+        feedChanged()
+        rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
+        donateIntent()
     }
 
-    @available(*, unavailable)
-    required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
+    private func feedChanged() {
+        observationTask?.cancel()
+        rowsByServerPostId.removeAll()
+        orderedRows.removeAll()
 
-    private func bindViewModel() {
-        viewModel.outputs.selectedPost
-            .ignoreNil()
-            .sink { [weak self] post in
-                self?.postSelected(post)
+        applyLoadingIndicatorVisibility(hidden: !viewModel.isFetchingNextPage)
+
+        let feedKey = viewModel.feed.feedKey
+        observationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            // Feeds are created lazily by the importer on the first fetch.
+            // If the row doesn't exist yet, await the first page so the
+            // importer creates it before we set up the observation.
+            if appDatabase.feedRowIdSync(forFeedKey: feedKey) == nil {
+                await viewModel.fetchNextPage()
+                if Task.isCancelled { return }
             }
-            .store(in: &disposables)
 
-        viewModel.outputs.feed
-            .sink { [weak self] _ in
-                self?.feedChanged()
-                self?.updateSelectedSortTypeMenu()
-                self?.donateIntent()
+            guard let feedRowId = appDatabase.feedRowIdSync(forFeedKey: feedKey) else {
+                return
             }
-            .store(in: &disposables)
 
-        viewModel.outputs.isFetchingNextPage
-            .removeDuplicates()
-            .sink { [weak self] isFetchingNextPage in
-                self?.isLoadingIndicatorHidden = !isFetchingNextPage
+            var hasReceivedFirstSnapshot = false
+            for await rows in appDatabase.observePostListRows(feedId: feedRowId) {
+                if Task.isCancelled { break }
+                apply(rows: rows)
+                if !hasReceivedFirstSnapshot {
+                    hasReceivedFirstSnapshot = true
+                    viewModel.didPrepareObservation(numberOfFetchedPosts: rows.count)
+                }
             }
-            .store(in: &disposables)
-
-        viewModel.outputs.navigationTitle
-            .wrapInOptional()
-            .assign(to: \.title, on: navigationItem)
-            .store(in: &disposables)
+        }
     }
 
-    private func updateSelectedSortTypeMenu() {
-        for (_, value) in sortTypeMenuActionsBySortType {
-            value.state = .off
+    private func apply(rows: [PostListRow]) {
+        orderedRows = rows
+        rowsByServerPostId = Dictionary(uniqueKeysWithValues: rows.map { ($0.serverPostId, $0) })
+
+        var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
+        snapshot.appendSections([.posts])
+        let items = rows.map { Item.post(serverPostId: $0.serverPostId) }
+        snapshot.appendItems(items, toSection: .posts)
+        snapshot.reloadItems(items)
+
+        if viewModel.isFetchingNextPage {
+            snapshot.appendSections([.loading])
+            snapshot.appendItems([.loadingIndicator], toSection: .loading)
         }
 
-        let sortType = viewModel.outputs.feed.value.sortType
-        guard let action = sortTypeMenuActionsBySortType[sortType] else {
-            logger.assertionFailure()
-            return
-        }
-        action.state = .on
-
-        // it seems that setting the state on an action for an existing UIMenu doesn't
-        // update the ui. The menu wasn't picking up a new state, it seems like the UIMenu
-        // caches the state of the actions/menuitems.
-        // Lets rebuild the whole menu.
-        buildSortTypeMenu()
+        dataSource.apply(snapshot, animatingDifferences: true)
     }
 
-    func feedChanged() {
-        let request = LemmyPageElement.fetchRequest() as NSFetchRequest<LemmyPageElement>
-        request.predicate = NSPredicate(
-            format: "page.feed.id == %@",
-            viewModel.outputs.feed.value.id
-        )
+    private func applyLoadingIndicatorVisibility(hidden: Bool) {
+        guard dataSource != nil else { return }
 
-        let pageIndex = NSSortDescriptor(keyPath: \LemmyPageElement.page.index, ascending: true)
-        let postInPageIndex = NSSortDescriptor(keyPath: \LemmyPageElement.index, ascending: true)
-        request.sortDescriptors = [
-            pageIndex,
-            postInPageIndex,
-        ]
+        var snapshot = dataSource.snapshot()
+        let hasLoadingSection = snapshot.sectionIdentifiers.contains(.loading)
 
-        postsResults = NSFetchedResultsController(
-            fetchRequest: request,
-            managedObjectContext: dataStore.mainContext,
-            sectionNameKeyPath: nil, cacheName: nil
-        )
-        postsResults?.delegate = self
-
-        do {
-            try postsResults?.performFetch()
-        } catch {
-            logger.error("Failed to fetch: \(String(describing: error), privacy: .public)")
+        if hidden {
+            if hasLoadingSection {
+                snapshot.deleteSections([.loading])
+                dataSource.apply(snapshot, animatingDifferences: true)
+            }
+        } else if !hasLoadingSection {
+            snapshot.appendSections([.loading])
+            snapshot.appendItems([.loadingIndicator], toSection: .loading)
+            dataSource.apply(snapshot, animatingDifferences: true)
         }
-
-        viewModel.inputs.didSelectPost(nil)
-        viewModel.inputs.didChangeSelectedPostIndex(nil)
-
-        isLoadingIndicatorHidden = numberOfPosts > 0
-
-        tableView.reloadData()
-
-        viewModel.inputs.didPrepareFetchController(numberOfFetchedPosts: numberOfPosts)
     }
 
-    private func postSelected(_ post: LemmyPost) {
-        guard let window = view.window as? MainWindow else {
-            fatalError()
+    private func setupDataSource() {
+        let appearance = appearanceService
+        let imageService = imageService
+        let postContentDetector = dependencies.own.postContentDetectorService
+
+        dataSource = UITableViewDiffableDataSource<Section, Item>(
+            tableView: tableView
+        ) { [weak self] tableView, indexPath, item in
+            switch item {
+            case let .post(serverPostId):
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: PostListPostCell.reuseIdentifier,
+                    for: indexPath
+                ) as! PostListPostCell
+
+                guard let row = self?.rowsByServerPostId[serverPostId] else {
+                    logger.assertionFailure("Missing PostListRow for serverPostId \(serverPostId)")
+                    return cell
+                }
+
+                let viewModel = PostListPostViewModel(
+                    row: row,
+                    appearance: appearance,
+                    postContentDetector: postContentDetector
+                )
+                cell.configure(with: viewModel, imageService: imageService)
+
+                let general = appearance.general
+                cell.swipeActionConfiguration = .init(
+                    leadingPrimaryAction: .init(
+                        image: general.upvoteIcon,
+                        backgroundColor: general.upvoteSwipeActionBackgroundColor
+                    ),
+                    leadingSecondaryAction: .init(
+                        image: general.downvoteIcon,
+                        backgroundColor: general.downvoteSwipeActionBackgroundColor
+                    ),
+                    trailingPrimaryAction: .init(
+                        image: UIImage(systemName: "arrowshape.turn.up.backward")!,
+                        backgroundColor: UIColor.blue
+                    ),
+                    trailingSecondaryAction: .init(
+                        image: UIImage(systemName: "bookmark")!,
+                        backgroundColor: UIColor.green
+                    )
+                )
+
+                cell.swipeActionTriggered = { [weak self] action in
+                    switch action {
+                    case .leadingPrimary:
+                        Task { await self?.vote(serverPostId: serverPostId, action: .upvote) }
+                    case .leadingSecondary:
+                        Task { await self?.vote(serverPostId: serverPostId, action: .downvote) }
+                    case .trailingPrimary, .trailingSecondary:
+                        break
+                    }
+                }
+
+                return cell
+
+            case .loadingIndicator:
+                return tableView.dequeueReusableCell(
+                    withIdentifier: LoadingFooterCell.reuseIdentifier,
+                    for: indexPath
+                )
+            }
         }
-        window.display(post: post)
     }
 
-    private func vote(_ post: LemmyPost, _ action: VoteStatus.Action) async {
-        // Trigger haptic feedback
+    private func vote(serverPostId: Int64, action: VoteStatus.Action) async {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-
         do {
             try await accountService
-                .lemmyService(for: viewModel.outputs.account)
-                .vote(postId: post.objectID, vote: action)
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                .vote(serverPostId: Components.Schemas.PostID(serverPostId), vote: action)
         } catch {
             alertService.handle(error, for: .vote)
         }
     }
 
-    private func vote(postAtIndex index: Int, _ action: VoteStatus.Action) async {
-        let post = post(at: index)
-        await vote(post, action)
+    private func postSelected(serverPostId: Int64) {
+        guard let window = view.window as? MainWindow else { fatalError() }
+        window.display(
+            serverPostId: Components.Schemas.PostID(serverPostId),
+            accountKeychainId: viewModel.accountKeychainId
+        )
     }
 
     private func donateIntent() {
         let intent = ViewTopPostsIntent()
 
-        let feed = viewModel.outputs.feed.value
-
-        guard let feedType = IntentFeedType(from: feed.feedType) else {
-            return
-        }
+        let feed = viewModel.feed
+        guard let feedType = IntentFeedType(from: feed.feedType) else { return }
 
         intent.feedType = feedType
-        intent.sortType = .init(from: feed.sortType)
+        intent.sortType = .init(from: feed.feedType.sortType)
 
         logger.debug("Donating intent \(intent, privacy: .public)")
 
@@ -354,33 +430,6 @@ class PostListViewController: UIViewController {
     }
 }
 
-// MARK: - FRC helpers
-
-extension PostListViewController {
-    var numberOfPosts: Int {
-        postsResults?.sections?[0].numberOfObjects ?? 0
-    }
-
-    func post(at index: Int) -> LemmyPost {
-        guard
-            let pageElement = postsResults?.sections?[0].objects?[index] as? LemmyPageElement
-        else {
-            fatalError()
-        }
-        return pageElement.post
-    }
-
-    func postInfo(at index: Int) -> LemmyPostInfo {
-        let post = post(at: index)
-
-        guard let postInfo = post.postInfo else {
-            fatalError("We have post list with posts containing no info?")
-        }
-
-        return postInfo
-    }
-}
-
 // MARK: - UITableView Delegate
 
 extension PostListViewController: UITableViewDelegate {
@@ -390,13 +439,13 @@ extension PostListViewController: UITableViewDelegate {
         guard totalHeight > 0 else { return }
         let verticalFraction = position / totalHeight
         if verticalFraction > 0.9 {
-            viewModel.inputs.didScrollToBottom()
+            viewModel.didScrollToBottom()
         }
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let post = post(at: indexPath.row)
-        viewModel.inputs.didSelectPost(post)
+        guard case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath) else { return }
+        postSelected(serverPostId: serverPostId)
     }
 
     // MARK: Context Menu
@@ -421,10 +470,11 @@ extension PostListViewController: UITableViewDelegate {
         willPerformPreviewActionForMenuWith configuration: UIContextMenuConfiguration,
         animator: UIContextMenuInteractionCommitAnimating
     ) {
-        // The user pressed on the preview -> lets open the cell
-        guard let indexPath = configuration.identifier as? IndexPath else { fatalError() }
-        let post = post(at: indexPath.row)
-        viewModel.inputs.didSelectPost(post)
+        guard
+            let indexPath = configuration.identifier as? IndexPath,
+            case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath)
+        else { return }
+        postSelected(serverPostId: serverPostId)
     }
 
     func tableView(
@@ -436,158 +486,55 @@ extension PostListViewController: UITableViewDelegate {
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
             previewProvider: nil,
-            actionProvider: { _ in
+            actionProvider: { [weak self] _ in
+                guard
+                    case let .post(serverPostId) = self?.dataSource.itemIdentifier(for: indexPath)
+                else { return nil }
+
                 let upvoteAction = UIAction(
                     title: NSLocalizedString("Upvote", comment: ""),
                     image: generalAppearance.upvoteIcon
                 ) { [weak self] _ in
-                    Task {
-                        await self?.vote(postAtIndex: indexPath.row, .upvote)
-                    }
+                    Task { await self?.vote(serverPostId: serverPostId, action: .upvote) }
                 }
 
                 let downvoteAction = UIAction(
                     title: NSLocalizedString("Downvote", comment: ""),
                     image: generalAppearance.downvoteIcon
                 ) { [weak self] _ in
-                    Task {
-                        await self?.vote(postAtIndex: indexPath.row, .downvote)
-                    }
+                    Task { await self?.vote(serverPostId: serverPostId, action: .downvote) }
                 }
 
-                return UIMenu(title: "", children: [
-                    upvoteAction,
-                    downvoteAction,
-                ])
+                return UIMenu(title: "", children: [upvoteAction, downvoteAction])
             }
         )
     }
 }
 
-// MARK: - UITableView DataSource
+/// Re-tracks an Observable property after each onChange tick and yields
+/// the latest value into the supplied AsyncStream.Continuation. Decoupling
+/// `observe()` into an instance method dodges the "non-Sendable local
+/// function captured in @Sendable closure" warning that arises when
+/// `withObservationTracking`'s onChange recurses into a @MainActor func.
+@MainActor
+private final class ObservationScheduler<Value: Sendable>: Sendable {
+    private let continuation: AsyncStream<Value>.Continuation
+    private let access: @MainActor () -> Value
 
-extension PostListViewController: UITableViewDataSource {
-    func numberOfSections(in tableView: UITableView) -> Int {
-        1
-    }
-
-    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        if section == 0 {
-            // Section 0: posts
-            return numberOfPosts
-        } else if section == 1 {
-            // Section 1: loading indicator
-            return isLoadingIndicatorHidden ? 0 : 1
-        } else {
-            fatalError()
-        }
-    }
-
-    func tableView(
-        _ tableView: UITableView,
-        cellForRowAt indexPath: IndexPath
-    ) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(
-            withIdentifier: PostListPostCell.reuseIdentifier,
-            for: indexPath
-        ) as! PostListPostCell
-
-        let postInfo = postInfo(at: indexPath.row)
-        let viewModel = PostListPostViewModel(
-            postInfo: postInfo,
-            dependencies: dependencies.nested
-        )
-        cell.configure(with: viewModel)
-
-        let generalAppearance = appearanceService.general
-        cell.swipeActionConfiguration = .init(
-            leadingPrimaryAction: .init(
-                image: generalAppearance.upvoteIcon,
-                backgroundColor: generalAppearance.upvoteSwipeActionBackgroundColor
-            ),
-            leadingSecondaryAction: .init(
-                image: generalAppearance.downvoteIcon,
-                backgroundColor: generalAppearance.downvoteSwipeActionBackgroundColor
-            ),
-            trailingPrimaryAction: .init(
-                // TODO: make reply action
-                image: UIImage(systemName: "arrowshape.turn.up.backward")!,
-                backgroundColor: UIColor.blue
-            ),
-            trailingSecondaryAction: .init(
-                // TODO: make save post action
-                image: UIImage(systemName: "bookmark")!,
-                backgroundColor: UIColor.green
-            )
-        )
-
-        cell.swipeActionTriggered = { [weak self] action in
-            switch action {
-            case .leadingPrimary:
-                Task {
-                    await self?.vote(postInfo.post, .upvote)
-                }
-
-            case .leadingSecondary:
-                Task {
-                    await self?.vote(postInfo.post, .downvote)
-                }
-
-            case .trailingPrimary, .trailingSecondary:
-                // TODO: will be reply and save actions
-                break
-            }
-        }
-
-        return cell
-    }
-}
-
-// MARK: - Core Data
-
-extension PostListViewController: NSFetchedResultsControllerDelegate {
-    nonisolated func controllerWillChangeContent(
-        _ controller: NSFetchedResultsController<NSFetchRequestResult>
+    init(
+        continuation: AsyncStream<Value>.Continuation,
+        access: @escaping @MainActor () -> Value
     ) {
-        MainActor.assumeIsolated {
-            tableView.beginUpdates()
-        }
+        self.continuation = continuation
+        self.access = access
     }
 
-    nonisolated func controllerDidChangeContent(_: NSFetchedResultsController<NSFetchRequestResult>) {
-        MainActor.assumeIsolated {
-            isLoadingIndicatorHidden = true
-            tableView.endUpdates()
-            // viewModel.inputs.didChangeNumberOfPosts(inserted: tableView.numberOfRows)
+    func observe() {
+        let value = withObservationTracking {
+            access()
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observe() }
         }
-    }
-
-    nonisolated func controller(
-        _: NSFetchedResultsController<NSFetchRequestResult>,
-        didChange _: Any,
-        at indexPath: IndexPath?,
-        for type: NSFetchedResultsChangeType,
-        newIndexPath: IndexPath?
-    ) {
-        MainActor.assumeIsolated {
-            switch type {
-            case .insert:
-                guard let newIndexPath else { fatalError() }
-                tableView.insertRows(at: [newIndexPath], with: .fade)
-
-            case .delete:
-                guard let indexPath else { fatalError() }
-                tableView.deleteRows(at: [indexPath], with: .fade)
-
-            case .update:
-                break
-
-            case .move:
-                logger.assertionFailure()
-
-            @unknown default:
-                logger.assertionFailure()
-            }
-        }
+        continuation.yield(value)
     }
 }

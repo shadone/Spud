@@ -8,10 +8,10 @@ import Foundation
 import LemmyKit
 
 extension Components.Schemas.SortType {
-    /// Deserialized a sort type from a string stored in Data Store (Core Data).
+    /// Deserializes a sort type from a string stored in the database. Lower-
+    /// case spellings are accepted for backwards compatibility with older
+    /// rows that predated the OpenAPI casing change.
     init?(fromDataStore rawValue: String) {
-        // When reading from Core Data we support deserialing from lowercase values
-        // for compabitility reasons.
         switch rawValue {
         case "active":
             self = .Active
@@ -75,7 +75,7 @@ extension Components.Schemas.SortType {
         }
     }
 
-    /// Serializes the sort type to a string that will be stored in Data Store (Core Data)
+    /// Serializes the sort type to a string for database storage.
     var dataStoreRawValue: String {
         rawValue
     }

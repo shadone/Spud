@@ -9,7 +9,10 @@ import Intents
 import UIKit
 import WidgetKit
 
-struct TopPostsEntry: TimelineEntry {
+/// UIImage isn't formally Sendable (UIKit is @MainActor), but the widget
+/// pipeline only writes the dictionary once, then hands it to WidgetKit
+/// for serialization — no further mutation, no shared write access.
+struct TopPostsEntry: TimelineEntry, @unchecked Sendable {
     let date: Date
 
     let topPosts: TopPosts

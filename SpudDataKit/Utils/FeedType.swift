@@ -20,6 +20,13 @@ public enum FeedType: Equatable, Sendable {
         sortType: Components.Schemas.SortType
     )
 
+    public var sortType: Components.Schemas.SortType {
+        switch self {
+        case let .frontpage(_, sortType), let .community(_, _, sortType):
+            return sortType
+        }
+    }
+
     init?(
         sortType: Components.Schemas.SortType?,
         frontpageListingType: Components.Schemas.ListingType?,

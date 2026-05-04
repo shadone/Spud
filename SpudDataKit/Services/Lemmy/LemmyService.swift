@@ -4,10 +4,9 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
-import CoreData
 import Foundation
-import LemmyKit
+import GRDB
+@preconcurrency import LemmyKit
 import OSLog
 import SpudUtilKit
 
@@ -30,148 +29,127 @@ public enum LemmyServiceError: Error {
 }
 
 public protocol LemmyServiceType: Actor {
-    func fetchFeed(feedId: NSManagedObjectID, page pageNumber: Int64?) async throws
+    /// Fetch one page of posts for `feed`. Pass `pageCursor: nil` for the
+    /// first page; on subsequent calls pass the cursor returned by the
+    /// previous fetch. Returns the cursor for the next page, or nil if the
+    /// feed is exhausted.
+    @discardableResult
+    func fetchFeed(_ feed: FeedHandle, pageCursor: String?) async throws -> String?
 
     func fetchComments(
-        postId: NSManagedObjectID,
+        serverPostId: Components.Schemas.PostID,
         sortType: Components.Schemas.CommentSortType
     ) async throws
 
     func fetchSiteInfo() async throws
 
     func fetchPersonInfo(
-        personId: NSManagedObjectID
+        serverPersonId: Components.Schemas.PersonID
     ) async throws
 
     func vote(
-        postId: NSManagedObjectID,
+        serverPostId: Components.Schemas.PostID,
         vote action: VoteStatus.Action
     ) async throws
 
     func vote(
-        commentId: NSManagedObjectID,
+        serverCommentId: Components.Schemas.CommentID,
         vote action: VoteStatus.Action
     ) async throws
 
     func fetchPostInfo(
-        postId: NSManagedObjectID
+        serverPostId: Components.Schemas.PostID
     ) async throws
 
     func markAsRead(
-        postId: NSManagedObjectID
+        serverPostId: Components.Schemas.PostID
     ) async throws
 }
 
 public actor LemmyService: LemmyServiceType {
     // MARK: Public
 
-    let accountObjectId: NSManagedObjectID
     let accountIdentifierForLogging: String
 
     // MARK: Private
 
-    private let dataStore: DataStoreType
+    private let accountIsSignedOut: Bool
+    let appDatabase: AppDatabase
     private let api: LemmyApi
-
-    private var mainContext: NSManagedObjectContext {
-        dataStore.mainContext
-    }
-
-    private lazy var backgroundContext: NSManagedObjectContext = {
-        let backgroundContext = dataStore.newBackgroundContext()
-        backgroundContext.mergePolicy = NSMergePolicy.mergeByPropertyStoreTrump
-        backgroundContext.name = "background[\(accountIdentifierForLogging)]"
-        return backgroundContext
-    }()
 
     // MARK: Functions
 
     init(
-        account: LemmyAccount,
-        dataStore: DataStoreType,
+        accountKeychainId: String,
+        accountIsSignedOut: Bool,
+        appDatabase: AppDatabase,
         api: LemmyApi
     ) {
-        accountObjectId = account.objectID
-        accountIdentifierForLogging = account.identifierForLogging
-
-        self.dataStore = dataStore
+        accountIdentifierForLogging = accountKeychainId
+        self.accountIsSignedOut = accountIsSignedOut
+        self.appDatabase = appDatabase
         self.api = api
 
         logger.info("Creating new service for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
     }
 
-    private func perform<CoreDataObject: NSManagedObject, T: Sendable>(
-        with objectId: NSManagedObjectID,
-        type: CoreDataObject.Type,
-        _ closure: @escaping @Sendable (CoreDataObject, NSManagedObjectContext) -> T
-    ) async -> T {
-        backgroundContext.performAndWait {
-            let object = self.backgroundContext.object(with: objectId)
-            assert(object.entity == type.entity())
-            let coreDataObject = object as! CoreDataObject
-            return closure(coreDataObject, self.backgroundContext)
+    /// Looks up the GRDB account row for this LemmyService and returns
+    /// `(accountRowId, siteRowId)` - both are needed as foreign keys when
+    /// upserting posts/comments/communities.
+    private func accountSiteIds() async throws -> (Int64, Int64)? {
+        try await appDatabase.writer.read { db in
+            guard
+                let account = try AccountRecord
+                .filter(Column("accountKeychainId") == self.accountIdentifierForLogging)
+                .fetchOne(db)
+            else {
+                return nil
+            }
+            return (account.id!, account.siteId)
         }
     }
 
-    private func perform<CoreDataObject: NSManagedObject, T: Sendable>(
-        with objectId: NSManagedObjectID,
-        type: CoreDataObject.Type,
-        _ closure: @escaping @Sendable (CoreDataObject, NSManagedObjectContext) throws -> T
-    ) async throws -> T {
-        try backgroundContext.performAndWait {
-            let object = self.backgroundContext.object(with: objectId)
-            assert(object.entity == type.entity())
-            let coreDataObject = object as! CoreDataObject
-            return try closure(coreDataObject, self.backgroundContext)
-        }
-    }
-
-    public func fetchFeed(feedId feedObjectId: NSManagedObjectID, page pageNumber: Int64?) async throws {
-        let (feedType, feedId) = await perform(
-            with: feedObjectId,
-            type: LemmyFeed.self
-        ) { feed, _ in
-            (feed.feedType, feed.id)
-        }
+    public func fetchFeed(_ feed: FeedHandle, pageCursor: String?) async throws -> String? {
+        let feedKey = feed.feedKey
+        let feedType = feed.feedType
 
         let response: Components.Schemas.GetPostsResponse
-
         do {
             switch feedType {
             case let .frontpage(listingType, sortType):
                 logger.debug("""
                     Fetch feed for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
-                    feedId=\(feedId, privacy: .public) \
+                    feedId=\(feedKey, privacy: .public) \
                     listingType=\(listingType.rawValue, privacy: .public) \
                     sortType=\(sortType.rawValue, privacy: .public) \
-                    page=\(pageNumber.map { "\($0)" } ?? "nil", privacy: .public)
+                    pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
                 response = try await api.getPosts(
                     type: listingType,
                     sort: sortType,
-                    page: pageNumber
+                    page: pageCursor
                 )
 
             case let .community(communityName, instance, sortType):
                 logger.debug("""
                     Fetch feed for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
-                    feedId=\(feedId, privacy: .public) \
+                    feedId=\(feedKey, privacy: .public) \
                     communityName=\(communityName, privacy: .public) \
                     instance=\(instance.debugDescription, privacy: .public) \
                     sortType=\(sortType.rawValue, privacy: .public) \
-                    page=\(pageNumber.map { "\($0)" } ?? "nil", privacy: .public)
+                    pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
                 response = try await api.getPosts(
                     community: .name("\(communityName)@\(instance.hostWithPort)"),
                     sort: sortType,
-                    page: pageNumber
+                    page: pageCursor
                 )
             }
         } catch {
             logger.error("""
                 Fetch feed failed. \
                 account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
-                feedId=\(feedId) \
+                feedId=\(feedKey, privacy: .public) \
                 \(String(describing: error), privacy: .public)
                 """)
             throw LemmyServiceError(from: error)
@@ -180,42 +158,60 @@ public actor LemmyService: LemmyServiceType {
         logger.debug("""
             Fetch feed complete with \(response.posts.count, privacy: .public) posts. \
             account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-            feedId=\(feedId, privacy: .public)
+            feedId=\(feedKey, privacy: .public)
             """)
 
-        await perform(with: feedObjectId, type: LemmyFeed.self) { feed, context in
-            feed.append(contentsOf: response.posts)
-            context.saveIfNeeded()
+        await mirrorFeedPageToAppDatabase(
+            feedKey: feedKey,
+            feedType: feedType,
+            posts: response.posts
+        )
+
+        return response.next_page
+    }
+
+    private func mirrorFeedPageToAppDatabase(
+        feedKey: String,
+        feedType: FeedType,
+        posts: [Components.Schemas.PostView]
+    ) async {
+        do {
+            guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
+                return
+            }
+            try await appDatabase.appendFeedPage(
+                feedKey: feedKey,
+                feedType: feedType,
+                accountId: accountRowId,
+                siteId: siteRowId,
+                posts: posts
+            )
+        } catch {
+            logger.error("AppDatabase appendFeedPage failed: \(String(describing: error), privacy: .public)")
         }
     }
 
     public func fetchComments(
-        postId postObjectId: NSManagedObjectID,
+        serverPostId: Components.Schemas.PostID,
         sortType: Components.Schemas.CommentSortType
     ) async throws {
-        let (postId, postIdentifierForLogging) = await perform(
-            with: postObjectId,
-            type: LemmyPost.self
-        ) { post, _ in
-            (post.postId, post.identifierForLogging)
-        }
-
         logger.debug("""
             Fetch comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
-            post=\(postIdentifierForLogging, privacy: .public) \
+            postId=\(serverPostId, privacy: .public) \
             sortType=\(sortType.rawValue, privacy: .public)
             """)
 
         let response: Components.Schemas.GetCommentsResponse
         do {
             response = try await api.getComments(
-                postID: postId,
+                postID: serverPostId,
                 sort: sortType,
                 maxDepth: 8
             )
         } catch {
             logger.error("""
                 Fetch comments failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                postId=\(serverPostId, privacy: .public). \
                 \(String(describing: error), privacy: .public)
                 """)
             throw LemmyServiceError(from: error)
@@ -226,9 +222,31 @@ public actor LemmyService: LemmyServiceType {
             complete with \(response.comments.count, privacy: .public) comments
             """)
 
-        await perform(with: postObjectId, type: LemmyPost.self) { post, context in
-            post.upsert(comments: response.comments, for: sortType)
-            context.saveIfNeeded()
+        await mirrorCommentsToAppDatabase(
+            serverPostId: serverPostId,
+            sortType: sortType,
+            comments: response.comments
+        )
+    }
+
+    private func mirrorCommentsToAppDatabase(
+        serverPostId: Components.Schemas.PostID,
+        sortType: Components.Schemas.CommentSortType,
+        comments: [Components.Schemas.CommentView]
+    ) async {
+        do {
+            guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
+                return
+            }
+            try await appDatabase.upsertComments(
+                forServerPostId: Int64(serverPostId),
+                accountId: accountRowId,
+                siteId: siteRowId,
+                sortType: sortType,
+                comments: comments
+            )
+        } catch {
+            logger.error("AppDatabase upsertComments failed: \(String(describing: error), privacy: .public)")
         }
     }
 
@@ -248,256 +266,236 @@ public actor LemmyService: LemmyServiceType {
 
         logger.debug("Fetch site complete. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
 
-        await perform(
-            with: accountObjectId,
-            type: LemmyAccount.self
-        ) { account, context in
-            account.upsert(myUserInfo: response.my_user)
-            account.site.upsert(siteInfo: response)
-
-            context.saveIfNeeded()
+        do {
+            let (_, siteId) = try await appDatabase.upsertSite(from: response)
+            let accountId = try await appDatabase.upsertAccount(
+                keychainId: accountIdentifierForLogging,
+                isSignedOut: accountIsSignedOut,
+                siteId: siteId,
+                myUser: response.my_user
+            )
+            if let follows = response.my_user?.follows {
+                try await appDatabase.setFollowedCommunities(
+                    accountId: accountId,
+                    follows: follows
+                )
+            }
+        } catch {
+            logger.error("AppDatabase fetchSiteInfo upsert failed: \(String(describing: error), privacy: .public)")
         }
     }
 
     public func fetchPersonInfo(
-        personId personObjectId: NSManagedObjectID
+        serverPersonId: Components.Schemas.PersonID
     ) async throws {
-        let (personId, personIdentifierForLogging) = await perform(
-            with: personObjectId,
-            type: LemmyPerson.self
-        ) { person, _ in
-            (person.personId, person.identifierForLogging)
-        }
-
-        logger.debug("Fetch person info for person=\(personIdentifierForLogging, privacy: .public)")
+        logger.debug("""
+            Fetch person info. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            personId=\(serverPersonId, privacy: .public)
+            """)
 
         let response: Components.Schemas.GetPersonDetailsResponse
         do {
-            response = try await api.getPersonDetails(personId: personId)
+            response = try await api.getPersonDetails(personId: serverPersonId)
         } catch {
             logger.error("""
-                Fetch person info failed. person=\(personIdentifierForLogging, privacy: .public). \
+                Fetch person info failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                personId=\(serverPersonId, privacy: .public). \
                 \(String(describing: error), privacy: .public)
                 """)
             throw LemmyServiceError(from: error)
         }
 
-        logger.debug("Fetch person info complete. person=\(personIdentifierForLogging, privacy: .public)")
+        logger.debug("""
+            Fetch person info complete. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            personId=\(serverPersonId, privacy: .public)
+            """)
 
-        await perform(with: personObjectId, type: LemmyPerson.self) { person, context in
-            person.set(from: response.person_view)
-            assert(person.personInfo != nil)
+        await mirrorPersonInfoToAppDatabase(personView: response.person_view)
+    }
 
-            // TODO: upsert from response.posts
-            // TODO: upsert from response.comments
-            // TODO: upsert from response.moderates
-
-            context.saveIfNeeded()
+    private func mirrorPersonInfoToAppDatabase(
+        personView: Components.Schemas.PersonView
+    ) async {
+        do {
+            guard let (_, siteId) = try await accountSiteIds() else { return }
+            try await appDatabase.upsertPerson(from: personView, siteId: siteId)
+        } catch {
+            logger.error("Failed to mirror person info to AppDatabase: \(String(describing: error), privacy: .public)")
         }
     }
 
     public func vote(
-        postId postObjectId: NSManagedObjectID,
+        serverPostId: Components.Schemas.PostID,
         vote action: VoteStatus.Action
     ) async throws {
-        let (
-            postId, postIdentifierForLogging,
-            effectiveAction,
-            previousVoteStatus, previousNumberOfUpvotes
-        ) = try await perform(
-            with: postObjectId,
-            type: LemmyPost.self
-        ) { post, _ in
-            guard let postInfo = post.postInfo else {
-                logger.assertionFailure()
-                throw LemmyServiceError.internalInconsistency(description: "missing post info")
-            }
-
-            let effectiveAction = postInfo.voteStatus.effectiveAction(for: action)
-
-            logger.debug("""
-                Vote '\(action, privacy: .public)' \
-                (effective '\(effectiveAction, privacy: .public)') \
-                for post=\(post.identifierForLogging, privacy: .public)
-                """)
-
-            let previousNumberOfUpvotes = postInfo.numberOfUpvotes
-            let previousVoteStatus = postInfo.voteStatus
-
-            // Update vote count to visually indicate something is happening
-            postInfo.numberOfUpvotes += postInfo.voteStatus.voteCountChange(for: action)
-
-            // Set the vote status to the new value without waiting for confirmation from the server.
-            switch effectiveAction {
-            case .liked:
-                postInfo.voteStatus = .up
-            case .disliked:
-                postInfo.voteStatus = .down
-            case .neutral:
-                postInfo.voteStatus = .neutral
-            }
-
-            return (
-                post.postId, post.identifierForLogging,
-                effectiveAction,
-                previousVoteStatus, previousNumberOfUpvotes
+        let currentVoteStatus: VoteStatus
+        do {
+            currentVoteStatus = try await appDatabase.postVoteStatus(
+                forAccountKeychainId: accountIdentifierForLogging,
+                serverPostId: serverPostId
             )
+        } catch {
+            logger.error("Failed to read post vote status: \(String(describing: error), privacy: .public)")
+            throw LemmyServiceError.internalInconsistency(description: "post vote status lookup failed: \(error.localizedDescription)")
         }
+
+        let effectiveAction = currentVoteStatus.effectiveAction(for: action)
+
+        logger.debug("""
+            Vote '\(action, privacy: .public)' \
+            (effective '\(effectiveAction, privacy: .public)') \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            postId=\(serverPostId, privacy: .public)
+            """)
 
         let response: Components.Schemas.PostResponse
         do {
-            response = try await api.likePost(postId, status: effectiveAction)
+            response = try await api.likePost(serverPostId, status: effectiveAction)
         } catch {
             logger.error("""
-                Vote failed. post=\(postIdentifierForLogging, privacy: .public). \
+                Vote failed. postId=\(serverPostId, privacy: .public). \
                 \(String(describing: error), privacy: .public)
                 """)
-
-            await perform(with: postObjectId, type: LemmyPost.self) { post, context in
-                post.postInfo?.voteStatus = previousVoteStatus
-                post.postInfo?.numberOfUpvotes = previousNumberOfUpvotes
-
-                context.saveIfNeeded()
-            }
-
             throw LemmyServiceError(from: error)
         }
 
-        await perform(with: postObjectId, type: LemmyPost.self) { post, context in
-            post.set(from: response.post_view)
-
-            context.saveIfNeeded()
-        }
+        await mirrorPostInfoToAppDatabase(view: response.post_view)
     }
 
     public func vote(
-        commentId commentObjectId: NSManagedObjectID,
+        serverCommentId: Components.Schemas.CommentID,
         vote action: VoteStatus.Action
     ) async throws {
-        let (
-            localCommentId,
-            effectiveAction,
-            previousVoteStatus, previousNumberOfUpvotes
-        ) = await perform(with: commentObjectId, type: LemmyComment.self) { comment, _ in
-            let effectiveAction = comment.voteStatus.effectiveAction(for: action)
-
-            logger.debug("""
-                Vote '\(action, privacy: .public)' \
-                (effective '\(effectiveAction, privacy: .public)') \
-                for comment=\(comment.identifierForLogging, privacy: .public)
-                """)
-
-            let previousNumberOfUpvotes = comment.numberOfUpvotes
-            let previousVoteStatus = comment.voteStatus
-
-            // Update vote count to visually indicate something is happening
-            comment.numberOfUpvotes += comment.voteStatus.voteCountChange(for: action)
-
-            // Set the vote status to the new value without waiting for confirmation from the server.
-            switch effectiveAction {
-            case .liked:
-                comment.voteStatus = .up
-            case .disliked:
-                comment.voteStatus = .down
-            case .neutral:
-                comment.voteStatus = .neutral
-            }
-
-            return (
-                comment.localCommentId,
-                effectiveAction,
-                previousVoteStatus, previousNumberOfUpvotes
+        let currentVoteStatus: VoteStatus
+        do {
+            currentVoteStatus = try await appDatabase.commentVoteStatus(
+                forAccountKeychainId: accountIdentifierForLogging,
+                serverCommentId: serverCommentId
             )
+        } catch {
+            logger.error("Failed to read comment vote status: \(String(describing: error), privacy: .public)")
+            throw LemmyServiceError.internalInconsistency(description: "comment vote status lookup failed: \(error.localizedDescription)")
         }
+
+        let effectiveAction = currentVoteStatus.effectiveAction(for: action)
+
+        logger.debug("""
+            Vote '\(action, privacy: .public)' \
+            (effective '\(effectiveAction, privacy: .public)') \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            commentId=\(serverCommentId, privacy: .public)
+            """)
 
         let response: Components.Schemas.CommentResponse
         do {
-            response = try await api.likeComment(localCommentId, status: effectiveAction)
+            response = try await api.likeComment(serverCommentId, status: effectiveAction)
         } catch {
-            await perform(with: commentObjectId, type: LemmyComment.self) { comment, context in
-                comment.voteStatus = previousVoteStatus
-                comment.numberOfUpvotes = previousNumberOfUpvotes
-
-                context.saveIfNeeded()
-            }
-
+            logger.error("""
+                Vote failed. commentId=\(serverCommentId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
             throw LemmyServiceError(from: error)
         }
 
-        await perform(with: commentObjectId, type: LemmyComment.self) { comment, context in
-            comment.set(from: response.comment_view)
+        await mirrorCommentVoteToAppDatabase(view: response.comment_view)
+    }
 
-            context.saveIfNeeded()
+    private func mirrorCommentVoteToAppDatabase(
+        view: Components.Schemas.CommentView
+    ) async {
+        do {
+            guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
+                return
+            }
+            try await appDatabase.upsertComment(
+                from: view,
+                accountId: accountRowId,
+                siteId: siteRowId
+            )
+        } catch {
+            logger.error("AppDatabase upsertComment failed: \(String(describing: error), privacy: .public)")
         }
     }
 
     public func fetchPostInfo(
-        postId postObjectId: NSManagedObjectID
+        serverPostId: Components.Schemas.PostID
     ) async throws {
-        let (postId, postIdentifierForLogging) = await perform(
-            with: postObjectId,
-            type: LemmyPost.self
-        ) { post, _ in
-            (post.postId, post.identifierForLogging)
-        }
-
-        logger.debug("Fetch post. post=\(postIdentifierForLogging, privacy: .public)")
+        logger.debug("""
+            Fetch post. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            postId=\(serverPostId, privacy: .public)
+            """)
 
         let response: Components.Schemas.GetPostResponse
         do {
-            response = try await api.getPost(id: postId)
+            response = try await api.getPost(id: serverPostId)
         } catch {
             logger.error("""
-                Fetch post failed. post=\(postIdentifierForLogging, privacy: .public). \
+                Fetch post failed. postId=\(serverPostId, privacy: .public). \
                 \(String(describing: error), privacy: .public)
                 """)
             throw LemmyServiceError(from: error)
         }
 
-        logger.debug("Fetch post complete. post=\(postIdentifierForLogging, privacy: .public)")
+        logger.debug("""
+            Fetch post complete. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            postId=\(serverPostId, privacy: .public)
+            """)
 
-        await perform(with: postObjectId, type: LemmyPost.self) { post, context in
-            post.set(from: response.post_view)
+        await mirrorPostInfoToAppDatabase(view: response.post_view)
+    }
 
-            assert(post.postInfo != nil)
-            post.postInfo?.community.set(from: response.community_view)
-
-            // TODO: upsert from response.moderators
-            // TODO: upsert from response.cross_posts
-
-            context.saveIfNeeded()
+    private func mirrorPostInfoToAppDatabase(
+        view: Components.Schemas.PostView
+    ) async {
+        do {
+            guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
+                return
+            }
+            try await appDatabase.upsertPost(
+                from: view,
+                accountId: accountRowId,
+                siteId: siteRowId
+            )
+        } catch {
+            logger.error("AppDatabase upsertPost failed: \(String(describing: error), privacy: .public)")
         }
     }
 
     public func markAsRead(
-        postId postObjectId: NSManagedObjectID
+        serverPostId: Components.Schemas.PostID
     ) async throws {
-        let (postId, postIdentifierForLogging) = await perform(
-            with: postObjectId,
-            type: LemmyPost.self
-        ) { post, _ in
-            (post.postId, post.identifierForLogging)
-        }
-
-        logger.debug("Marking post as read. post=\(postIdentifierForLogging, privacy: .public)")
+        logger.debug("""
+            Marking post as read. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            postId=\(serverPostId, privacy: .public)
+            """)
 
         let response: Components.Schemas.SuccessResponse
         do {
-            response = try await api.markPostAsRead(postIds: [postId], read: true)
+            response = try await api.markPostAsRead(postIds: [serverPostId], read: true)
         } catch {
             logger.error("""
-                Mark post as read failed. post=\(postIdentifierForLogging, privacy: .public). \
+                Mark post as read failed. postId=\(serverPostId, privacy: .public). \
                 \(String(describing: error), privacy: .public)
                 """)
             throw LemmyServiceError(from: error)
         }
 
-        await perform(with: postObjectId, type: LemmyPost.self) { post, context in
-            logger.debug("Mark post as read complete. post=\(postIdentifierForLogging, privacy: .public); success=\(response.success)")
-            assert(post.postInfo != nil)
-            post.postInfo?.isRead = response.success
+        logger.debug("""
+            Mark post as read complete. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            postId=\(serverPostId, privacy: .public) success=\(response.success, privacy: .public)
+            """)
 
-            context.saveIfNeeded()
+        if response.success {
+            do {
+                guard let (accountRowId, _) = try await accountSiteIds() else { return }
+                try await appDatabase.setPostIsRead(
+                    accountId: accountRowId,
+                    serverPostId: Int64(serverPostId),
+                    isRead: true
+                )
+            } catch {
+                logger.error("AppDatabase setPostIsRead failed: \(String(describing: error), privacy: .public)")
+            }
         }
     }
 }

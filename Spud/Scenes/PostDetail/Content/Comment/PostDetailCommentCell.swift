@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import UIKit
 
 class PostDetailCommentCell: UITableViewCell {
@@ -15,12 +14,8 @@ class PostDetailCommentCell: UITableViewCell {
     var linkTapped: ((URL) -> Void)?
 
     var swipeActionConfiguration: SwipeActionView.Configuration? {
-        get {
-            swipeActionView.configuration
-        }
-        set {
-            swipeActionView.configuration = newValue
-        }
+        get { swipeActionView.configuration }
+        set { swipeActionView.configuration = newValue }
     }
 
     var swipeActionTriggered: ((SwipeActionView.ActionTrigger) -> Void)?
@@ -139,8 +134,6 @@ class PostDetailCommentCell: UITableViewCell {
     lazy var swipeActionView: SwipeActionView = {
         let view = SwipeActionView(
             contentView: mainHorizontalStackView,
-            // setting smaller left margin because there is indentation ribbon that adds
-            // additional spacing.
             margin: UIEdgeInsets(top: 8, left: 4, bottom: -8, right: -8),
             configuration: nil
         )
@@ -150,16 +143,6 @@ class PostDetailCommentCell: UITableViewCell {
         }
         return view
     }()
-
-    // MARK: Private
-
-    private var disposables = Set<AnyCancellable>()
-
-    var ribbonColor: UIColor = .lightGray {
-        didSet {
-            ribbonColorChanged()
-        }
-    }
 
     // MARK: Functions
 
@@ -198,42 +181,24 @@ class PostDetailCommentCell: UITableViewCell {
     override func prepareForReuse() {
         super.prepareForReuse()
 
-        disposables.removeAll()
         linkTapped = nil
+        swipeActionConfiguration = nil
+        swipeActionTriggered = nil
     }
 
     func configure(with viewModel: PostDetailCommentViewModel) {
-        viewModel.author
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: authorLabel)
-            .store(in: &disposables)
+        if viewModel.isMore {
+            authorLabel.attributedText = viewModel.moreText
+            subtitleLabel.attributedText = nil
+            messageLabel.attributedText = nil
+        } else {
+            authorLabel.attributedText = viewModel.author
+            subtitleLabel.attributedText = viewModel.subtitle
+            messageLabel.attributedText = viewModel.body
+        }
 
-        viewModel.subtitle
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: subtitleLabel)
-            .store(in: &disposables)
-
-        viewModel.body
-            .wrapInOptional()
-            .assign(to: \.attributedText, on: messageLabel)
-            .store(in: &disposables)
-
-        viewModel.indentationRibbonLeadingMargin
-            .assign(to: \.constant, on: indentationRibbonViewLeadingConstaint)
-            .store(in: &disposables)
-
-        viewModel.indentationRibbonWidth
-            .assign(to: \.constant, on: indentationRibbonWidthConstraint)
-            .store(in: &disposables)
-
-        viewModel.indentationRibbonColor
-            .sink(receiveValue: { [weak self] color in
-                self?.ribbonColor = color
-            })
-            .store(in: &disposables)
-    }
-
-    private func ribbonColorChanged() {
-        indentationRibbonView.backgroundColor = ribbonColor
+        indentationRibbonViewLeadingConstaint.constant = viewModel.indentationRibbonLeadingMargin
+        indentationRibbonWidthConstraint.constant = viewModel.indentationRibbonWidth
+        indentationRibbonView.backgroundColor = viewModel.indentationRibbonColor
     }
 }
