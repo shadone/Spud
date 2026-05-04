@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import Foundation
 import LemmyKit
 import SpudUtilKit
@@ -40,40 +39,23 @@ class PreferencesService: PreferencesServiceType {
     var defaultCommentSortType: Components.Schemas.CommentSortType = .Hot
 
     var defaultCommentSortTypeStream: AsyncStream<Components.Schemas.CommentSortType> {
-        Self.stream(from: $defaultCommentSortType)
+        $defaultCommentSortType
     }
 
     @UserDefaultsBacked(key: "openExternalLinks")
     var openExternalLinks: Preferences.OpenExternalLink = .safariViewController
 
     var openExternalLinksStream: AsyncStream<Preferences.OpenExternalLink> {
-        Self.stream(from: $openExternalLinks)
+        $openExternalLinks
     }
 
     @UserDefaultsBacked(key: "openExternalLinksInSafariVCReaderMode")
     var openExternalLinksInSafariVCReaderMode = true
 
     var openExternalLinksInSafariVCReaderModeStream: AsyncStream<Bool> {
-        Self.stream(from: $openExternalLinksInSafariVCReaderMode)
+        $openExternalLinksInSafariVCReaderMode
     }
 
     @UserDefaultsBacked(key: "openUniversalLinkInApp")
     var openUniversalLinkInApp: Bool = true
-
-    /// Bridges a Combine publisher into an AsyncStream so callers don't
-    /// need to import Combine. Cancelling the stream cancels the
-    /// underlying subscription.
-    private static func stream<Value: Sendable>(
-        from publisher: AnyPublisher<Value, Never>
-    ) -> AsyncStream<Value> {
-        AsyncStream { continuation in
-            let task = Task {
-                for await value in publisher.values {
-                    continuation.yield(value)
-                }
-                continuation.finish()
-            }
-            continuation.onTermination = { _ in task.cancel() }
-        }
-    }
 }
