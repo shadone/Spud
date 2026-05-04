@@ -229,6 +229,51 @@ public class AccountService: AccountServiceType {
         self.siteService = siteService
     }
 
+    /// One-shot upgrade-path sweep that mirrors every Core Data account into
+    /// AppDatabase via `ensureSite` + `ensureAccount`. Required for Stage 7
+    /// users who installed a build predating the per-create mirror — old
+    /// Core Data accounts otherwise have no GRDB row and would be invisible
+    /// to SchedulerService's GRDB queries. Idempotent, safe to call on every
+    /// launch.
+    public func backfillAccountsToAppDatabase() {
+        struct Snapshot {
+            let actorId: InstanceActorId
+            let keychainId: String
+            let isSignedOut: Bool
+            let isServiceAccount: Bool
+        }
+        let snapshots: [Snapshot] = allAccounts(
+            includeSignedOutAccount: true,
+            in: dataStore.mainContext
+        ).map { account in
+            Snapshot(
+                actorId: account.site.instance.actorId,
+                keychainId: account.id,
+                isSignedOut: account.isSignedOutAccountType,
+                isServiceAccount: account.isServiceAccount
+            )
+        }
+        guard !snapshots.isEmpty else { return }
+        Task { [appDatabase] in
+            for snap in snapshots {
+                do {
+                    let (_, siteId) = try await appDatabase.ensureSite(forInstance: snap.actorId)
+                    _ = try await appDatabase.ensureAccount(
+                        keychainId: snap.keychainId,
+                        siteId: siteId,
+                        isSignedOut: snap.isSignedOut,
+                        isServiceAccount: snap.isServiceAccount
+                    )
+                } catch {
+                    logger.error("""
+                        Failed to backfill account into AppDatabase: \
+                        \(String(describing: error), privacy: .public)
+                        """)
+                }
+            }
+        }
+    }
+
     /// Fire-and-forget mirror of a freshly created Core Data account into
     /// AppDatabase. Snapshots the relevant fields synchronously on the main
     /// actor before hopping off so the Task does not touch the managed

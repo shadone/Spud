@@ -32,6 +32,7 @@
 		27AC4DBCB248DA91131F9D0B /* PersonImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 792A498AB17CAE75D2E1E5C0 /* PersonImporter.swift */; };
 		29B34E368996CCC33B9A65A4 /* Community.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36454FAFBA3D2B3AEF681057 /* Community.swift */; };
 		2E0E4108962C000B4D3CCEEF /* LoadingFooterCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F34CB29C2355A8B50D21DD /* LoadingFooterCell.swift */; };
+		307A49D79C64FB213CFB9A68 /* SchedulerQueries.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87454E5DA42E6030355B994B /* SchedulerQueries.swift */; };
 		40F642A18FD6E78F29FEA87B /* SiteImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1684C0486281766E757594F /* SiteImporter.swift */; };
 		48DE41F6B8B867AC93EC5087 /* CommentImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79394240A2C30AD7C970D83E /* CommentImporter.swift */; };
 		4F8543AB82CA92AD1D0A9F63 /* InstanceRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43934EFD9B71D978E344BCC4 /* InstanceRecord.swift */; };
@@ -508,6 +509,7 @@
 		75F443B2BD800D168D379F3B /* Feed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Feed.swift; path = SpudDataKit/Services/AppDatabase/Records/Feed.swift; sourceTree = SOURCE_ROOT; };
 		792A498AB17CAE75D2E1E5C0 /* PersonImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PersonImporter.swift; path = SpudDataKit/Services/AppDatabase/Importers/PersonImporter.swift; sourceTree = SOURCE_ROOT; };
 		79394240A2C30AD7C970D83E /* CommentImporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CommentImporter.swift; path = SpudDataKit/Services/AppDatabase/Importers/CommentImporter.swift; sourceTree = SOURCE_ROOT; };
+		87454E5DA42E6030355B994B /* SchedulerQueries.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SchedulerQueries.swift; path = SpudDataKit/Services/AppDatabase/SchedulerQueries.swift; sourceTree = SOURCE_ROOT; };
 		90C042C2A4FF2C65F03A782E /* PostDetailObservations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PostDetailObservations.swift; path = SpudDataKit/Services/AppDatabase/PostDetailObservations.swift; sourceTree = SOURCE_ROOT; };
 		920B454F2A7C1DF400C6C2DC /* SpudWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SpudWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		920B45532A7C1DF400C6C2DC /* SpudWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpudWidgetBundle.swift; sourceTree = "<group>"; };
@@ -1285,6 +1287,7 @@
 				0898496FB1E0A1F44AC6BA27 /* FeedImporter.swift */,
 				79394240A2C30AD7C970D83E /* CommentImporter.swift */,
 				09F8482A951FA89C3646EF7F /* AppDatabase */,
+				87454E5DA42E6030355B994B /* SchedulerQueries.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -2480,6 +2483,7 @@
 				C1C94CF693A846B5BDBEFB89 /* PostDetailObservations.swift in Sources */,
 				EDB44BAEAF75AEA7700F7125 /* PostImporter.swift in Sources */,
 				B55B4D44A5DE1512988BD38E /* PostListObservations.swift in Sources */,
+				307A49D79C64FB213CFB9A68 /* SchedulerQueries.swift in Sources */,
 				92CC5DC02A7ED7210019436A /* SchedulerService.swift in Sources */,
 				BF3643919B963051BF8155CE /* Site.swift in Sources */,
 				40F642A18FD6E78F29FEA87B /* SiteImporter.swift in Sources */,

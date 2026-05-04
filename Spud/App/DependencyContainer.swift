@@ -61,6 +61,7 @@ struct DependencyContainer:
         )
         schedulerService = SchedulerService(
             dataStore: dataStore,
+            appDatabase: appDatabase,
             accountService: accountService,
             siteService: siteService,
             alertService: alertService
@@ -71,7 +72,8 @@ struct DependencyContainer:
 
     func start() {
         dataStore.startService()
-        schedulerService.startService()
         siteService.startService()
+        (accountService as? AccountService)?.backfillAccountsToAppDatabase()
+        schedulerService.startService()
     }
 }
