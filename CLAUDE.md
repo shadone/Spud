@@ -67,6 +67,11 @@ xcodebuild -workspace ../Spud.xcworkspace -scheme Spud \
 xcodebuild -workspace ../Spud.xcworkspace -scheme Spud \
   -testPlan SpudSnapshots \
   -destination 'platform=iOS Simulator,name=iPhone 14 Pro' test
+
+# Faster build path used in agentic sessions — incremental, parses errors/warnings,
+# supports --json. Fall back to xcodebuild only if you need flags it doesn't expose.
+python3 /Users/denis/dev/info.ddenis/dotfiles/agent-rules/skills/ios-simulator-skill/scripts/build_and_test.py --scheme Spud
+python3 /Users/denis/dev/info.ddenis/dotfiles/agent-rules/skills/ios-simulator-skill/scripts/build_and_test.py --scheme SpudWidgetExtension
 ```
 
 The pre-commit hook runs `scripts/sort-Xcode-project-file.pl` to keep `project.pbxproj` deterministic. Don't bypass it.
@@ -74,11 +79,18 @@ The pre-commit hook runs `scripts/sort-Xcode-project-file.pl` to keep `project.p
 ## Code style
 
 - `.swiftformat` is authoritative — SwiftFormat (pinned in `Mintfile`) runs via the pre-commit hook
+- SwiftFormat invocation: `mint run swiftformat <paths>` (pre-commit hook runs in lint mode only — format before staging)
 - `.swift-version` is the Swift toolchain pin; project-level `SWIFT_VERSION` in `pbxproj` should match
 - No emojis in code, comments, docs, or commit messages
 - Conventional commit subjects (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`)
 - Small, focused commits; split unrelated changes
 - Prefer many small files over few large ones
+
+## Tooling quirks
+
+- SourceKit "No such module" diagnostics in editor tooling are unreliable here — trust `build_and_test.py` over IDE squiggles.
+- Editing `Spud.xcodeproj/project.pbxproj` from Python: `pbxproj`'s `remove_file_by_id` assumes every `PBXBuildFile` has `fileRef`, but SPM product refs use `productRef`. Monkey-patch with a `getattr(build_file, 'fileRef', None) or getattr(build_file, 'productRef', None)` fallback before calling.
+- Pre-commit hook runs `scripts/sort-Xcode-project-file.pl` automatically; never bypass with `--no-verify`.
 
 ## Strict concurrency
 
@@ -92,6 +104,12 @@ Two stack changes are committed to before continuing the Swift 6 migration on th
 - **Replace Combine** — `AnyPublisher` / `CurrentValueSubject` / `.sink` pipelines throughout `SpudDataKit` are being replaced with `AsyncSequence` and Observation. Same reasoning.
 
 Treat the old `LemmyService` / `DataStore` design as transitional — do not invest in actor-isolation refactors there.
+
+### Stage 7 conventions (in-flight migration off LemmyAccount)
+
+- `LemmyAccount.id` is the keychain id (String). Treat it as the durable account identifier — view-models and view-controllers in the Spud target hold `accountKeychainId: String`, never `LemmyAccount`.
+- `AccountServiceType` carries two parallel APIs during the migration: `for: LemmyAccount` and `forAccountKeychainId: String`. App-target code uses the keychainId variants; the LemmyAccount variants are SpudDataKit-internal and disappear in 3d.
+- GRDB observations live in `SpudDataKit/Services/AppDatabase/*Observations.swift`; sync row-id lookups (e.g. `postRowIdSync`, `accountRowIdSync`) in the importers.
 
 ## Pickup checklist
 
