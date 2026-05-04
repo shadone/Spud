@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import CoreData
 import Foundation
 import Intents
 import LemmyKit
@@ -21,17 +20,12 @@ class PostListViewController: UIViewController {
         HasAlertService &
         HasAppDatabase &
         HasAppearanceService &
-        HasDataStore &
         HasImageService &
         HasPostContentDetectorService
     typealias NestedDependencies =
         PostDetailViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
-
-    var dataStore: DataStoreType {
-        dependencies.own.dataStore
-    }
 
     var accountService: AccountServiceType {
         dependencies.own.accountService
@@ -392,20 +386,6 @@ class PostListViewController: UIViewController {
         }
     }
 
-    private func legacyPost(forServerPostId serverPostId: Int64) -> LemmyPost? {
-        let request = LemmyPost.fetchRequest(
-            postId: Components.Schemas.PostID(serverPostId),
-            account: viewModel.account
-        )
-        request.fetchLimit = 1
-        do {
-            return try dataStore.mainContext.fetch(request).first
-        } catch {
-            logger.error("Failed to fetch LemmyPost: \(String(describing: error), privacy: .public)")
-            return nil
-        }
-    }
-
     private func vote(serverPostId: Int64, action: VoteStatus.Action) async {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
@@ -418,9 +398,11 @@ class PostListViewController: UIViewController {
     }
 
     private func postSelected(serverPostId: Int64) {
-        guard let post = legacyPost(forServerPostId: serverPostId) else { return }
         guard let window = view.window as? MainWindow else { fatalError() }
-        window.display(post: post)
+        window.display(
+            serverPostId: Components.Schemas.PostID(serverPostId),
+            account: viewModel.account
+        )
     }
 
     private func donateIntent() {

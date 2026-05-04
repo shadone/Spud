@@ -6,6 +6,7 @@
 
 import Combine
 import CoreData
+import LemmyKit
 import SpudDataKit
 import UIKit
 
@@ -136,26 +137,13 @@ class MainWindow: UIWindow {
         }
     }
 
-    func display(postId: Int32, using account: LemmyAccount) {
+    func display(serverPostId: Components.Schemas.PostID, account: LemmyAccount) {
         // Switch to the post content tab
         tabBarController.selectedIndex = 0
 
         let postDetailVC = PostDetailOrEmptyViewController(
+            serverPostId: serverPostId,
             account: account,
-            dependencies: AppCoordinator.shared.dependencies
-        )
-        postDetailVC.startLoadingPost(postId: postId)
-
-        pushDetail(viewController: postDetailVC)
-    }
-
-    func display(post: LemmyPost) {
-        guard let postInfo = post.postInfo else {
-            fatalError("We have post list with posts containing no info?")
-        }
-
-        let postDetailVC = PostDetailOrEmptyViewController(
-            postInfo: postInfo,
             dependencies: dependencies.nested
         )
 

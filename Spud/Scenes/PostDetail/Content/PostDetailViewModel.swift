@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import CoreData
 import Foundation
 import LemmyKit
 import Observation
@@ -14,9 +13,8 @@ import SpudDataKit
 private let logger = Logger.app
 
 /// View-model state for PostDetailViewController. Plain @Observable values
-/// driven by GRDB observations and legacy fetch calls. Sort-type changes
-/// trigger a re-fetch via the legacy LemmyService — that bridge dissolves
-/// in Stage 7.
+/// driven by GRDB observations. Sort-type changes trigger a re-fetch via
+/// LemmyService.
 @MainActor
 @Observable
 final class PostDetailViewModel {
@@ -30,7 +28,10 @@ final class PostDetailViewModel {
     private let dependencies: OwnDependencies
 
     @ObservationIgnored
-    let postInfo: LemmyPostInfo
+    let serverPostId: Components.Schemas.PostID
+
+    @ObservationIgnored
+    let account: LemmyAccount
 
     var commentSortType: Components.Schemas.CommentSortType
 
@@ -42,9 +43,14 @@ final class PostDetailViewModel {
         dependencies.alertService
     }
 
-    init(postInfo: LemmyPostInfo, dependencies: Dependencies) {
+    init(
+        serverPostId: Components.Schemas.PostID,
+        account: LemmyAccount,
+        dependencies: Dependencies
+    ) {
         self.dependencies = dependencies
-        self.postInfo = postInfo
+        self.serverPostId = serverPostId
+        self.account = account
         commentSortType = dependencies.preferencesService.defaultCommentSortType
     }
 
@@ -60,8 +66,8 @@ final class PostDetailViewModel {
     func fetchComments() async {
         do {
             try await accountService
-                .lemmyService(for: postInfo.post.account)
-                .fetchComments(serverPostId: postInfo.post.postId, sortType: commentSortType)
+                .lemmyService(for: account)
+                .fetchComments(serverPostId: serverPostId, sortType: commentSortType)
         } catch {
             alertService.handle(error, for: .fetchComments)
         }

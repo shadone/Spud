@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Combine
 import LemmyKit
 import OSLog
 import SpudDataKit
@@ -14,7 +13,7 @@ class PostDetailLoadingViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
         HasAlertService &
-        HasDataStore
+        HasAppDatabase
     typealias NestedDependencies =
         HasVoid
     typealias Dependencies = NestedDependencies & OwnDependencies
@@ -28,13 +27,15 @@ class PostDetailLoadingViewController: UIViewController {
         dependencies.own.alertService
     }
 
-    private var dataStore: DataStoreType {
-        dependencies.own.dataStore
+    private var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
     }
 
     // MARK: - Public
 
-    var didFinishLoading: ((LemmyPostInfo) -> Void)?
+    /// Fires once the post row appears in AppDatabase, with the resolved
+    /// server post id ready for the content view controller to consume.
+    var didFinishLoading: ((Components.Schemas.PostID) -> Void)?
 
     // MARK: - Private
 
@@ -71,19 +72,19 @@ class PostDetailLoadingViewController: UIViewController {
     // MARK: Private
 
     private let account: LemmyAccount
-    private let postId: Components.Schemas.PostID
-    private var disposables = Set<AnyCancellable>()
+    private let serverPostId: Components.Schemas.PostID
+    private var observationTask: Task<Void, Never>?
 
     // MARK: - Functions
 
     init(
-        postId: Components.Schemas.PostID,
+        serverPostId: Components.Schemas.PostID,
         account: LemmyAccount,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
         self.account = account
-        self.postId = postId
+        self.serverPostId = serverPostId
 
         super.init(nibName: nil, bundle: nil)
 
@@ -93,6 +94,10 @@ class PostDetailLoadingViewController: UIViewController {
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        observationTask?.cancel()
     }
 
     private func setup() {
@@ -117,30 +122,33 @@ class PostDetailLoadingViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
 
-        let post = accountService
-            .lemmyDataService(for: account)
-            .getOrCreate(postId: postId)
-
-        post.publisher(for: \.postInfo)
-            .ignoreNil()
-            .first()
-            .sink { [weak self] postInfo in
-                self?.didFinishLoading?(postInfo)
-            }
-            .store(in: &disposables)
-
-        Task {
-            await fetchPostInfo(for: post)
+        observationTask?.cancel()
+        observationTask = Task { @MainActor [weak self] in
+            await self?.fetchPostInfo()
+            await self?.notifyIfRowAvailable()
         }
     }
 
-    private func fetchPostInfo(for post: LemmyPost) async {
+    private func fetchPostInfo() async {
         do {
             try await accountService
                 .lemmyService(for: account)
-                .fetchPostInfo(serverPostId: post.postId)
+                .fetchPostInfo(serverPostId: serverPostId)
         } catch {
             alertService.handle(error, for: .fetchPostInfo)
+        }
+    }
+
+    private func notifyIfRowAvailable() async {
+        // After fetchPostInfo succeeds the GRDB mirror has written the row.
+        // Resolve it and notify the parent. If for some reason it hasn't
+        // landed yet, fall through silently — the parent will keep showing
+        // the spinner and the user can pop the screen.
+        if appDatabase.postRowIdSync(
+            forKeychainId: account.id,
+            serverPostId: Int64(serverPostId)
+        ) != nil {
+            didFinishLoading?(serverPostId)
         }
     }
 }
