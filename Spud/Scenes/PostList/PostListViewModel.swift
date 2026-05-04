@@ -12,10 +12,10 @@ import SpudDataKit
 
 private let logger = Logger.app
 
-/// View-model state for PostListViewController. Holds plain values driven by
-/// GRDB observations (rows) and legacy fetch calls (paging). Sort-type and
-/// reload still construct a fresh `LemmyFeed` via the legacy data service —
-/// that part of the pipeline migrates in Stage 7.
+/// View-model state for PostListViewController. Holds a `FeedHandle`
+/// (feedKey + feedType) plus plain values driven by GRDB observations and
+/// legacy fetch calls. Pagination is tracked locally — pages count grows by
+/// one after each successful `fetchNextPage`.
 @MainActor
 @Observable
 final class PostListViewModel {
@@ -27,10 +27,13 @@ final class PostListViewModel {
     @ObservationIgnored
     private let dependencies: OwnDependencies
 
-    var feed: LemmyFeed
+    var feed: FeedHandle
     let account: LemmyAccount
     var navigationTitle: String
     var isFetchingNextPage: Bool = false
+
+    @ObservationIgnored
+    private var pagesFetched: Int64 = 0
 
     private var accountService: AccountServiceType {
         dependencies.accountService
@@ -40,27 +43,32 @@ final class PostListViewModel {
         dependencies.alertService
     }
 
-    init(feed: LemmyFeed, dependencies: Dependencies) {
+    init(feed: FeedHandle, account: LemmyAccount, dependencies: Dependencies) {
         self.dependencies = dependencies
         self.feed = feed
-        account = feed.account
-        navigationTitle = Self.navigationTitle(for: feed)
+        self.account = account
+        navigationTitle = Self.navigationTitle(for: feed.feedType)
     }
 
     func didChangeSortType(_ sortType: Components.Schemas.SortType) {
-        let newFeed = accountService
-            .lemmyDataService(for: account)
-            .createFeed(duplicateOf: feed, sortType: sortType)
+        let newFeed = accountService.createFeed(
+            duplicateOf: feed,
+            for: account,
+            sortType: sortType
+        )
         feed = newFeed
-        navigationTitle = Self.navigationTitle(for: newFeed)
+        pagesFetched = 0
+        navigationTitle = Self.navigationTitle(for: newFeed.feedType)
     }
 
     func didClickReload() {
-        let newFeed = accountService
-            .lemmyDataService(for: account)
-            .createFeed(duplicateOf: feed)
+        let newFeed = accountService.createFeed(
+            duplicateOf: feed,
+            for: account
+        )
         feed = newFeed
-        navigationTitle = Self.navigationTitle(for: newFeed)
+        pagesFetched = 0
+        navigationTitle = Self.navigationTitle(for: newFeed.feedType)
     }
 
     func didScrollToBottom() {
@@ -76,8 +84,7 @@ final class PostListViewModel {
     }
 
     func fetchNextPage() async {
-        assert(feed.pages.count + 1 < Int64.max)
-        let nextPageNumber = Int64(feed.pages.count + 1)
+        let nextPageNumber = pagesFetched + 1
 
         isFetchingNextPage = true
         defer { isFetchingNextPage = false }
@@ -85,14 +92,15 @@ final class PostListViewModel {
         do {
             try await accountService
                 .lemmyService(for: account)
-                .fetchFeed(feedKey: feed.id, page: nextPageNumber)
+                .fetchFeed(feedKey: feed.feedKey, page: nextPageNumber)
+            pagesFetched = nextPageNumber
         } catch {
             alertService.handle(error, for: .fetchPostList)
         }
     }
 
-    private static func navigationTitle(for feed: LemmyFeed) -> String {
-        switch feed.feedType {
+    private static func navigationTitle(for feedType: FeedType) -> String {
+        switch feedType {
         case let .frontpage(listingType, _):
             switch listingType {
             case .All: return "All"

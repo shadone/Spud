@@ -63,7 +63,7 @@ class EntryService: EntryServiceType {
     ) async -> TopPostsEntry {
         let feed = await fetchFeed(listingType: listingType, sortType: sortType)
 
-        let topPosts = await readTopPosts(feedKey: feed.id)
+        let topPosts = await readTopPosts(feedKey: feed.feedKey)
         return await entry(from: topPosts)
     }
 
@@ -106,7 +106,7 @@ class EntryService: EntryServiceType {
     private func fetchFeed(
         listingType: Components.Schemas.ListingType,
         sortType: Components.Schemas.SortType
-    ) async -> LemmyFeed {
+    ) async -> FeedHandle {
         let account = accountService.defaultAccount()
 
         let listingType: Components.Schemas.ListingType = {
@@ -120,22 +120,19 @@ class EntryService: EntryServiceType {
             }
         }()
 
-        let feed = accountService
-            .lemmyDataService(for: account)
-            .createFeed(.frontpage(listingType: listingType, sortType: sortType))
-        feed.identifierForDebugging = "widget"
+        let feed = accountService.createFeed(
+            for: account,
+            feedType: .frontpage(listingType: listingType, sortType: sortType),
+            identifierForDebugging: "widget"
+        )
 
         do {
             try await accountService
                 .lemmyService(for: account)
-                .fetchFeed(feedKey: feed.id, page: nil)
+                .fetchFeed(feedKey: feed.feedKey, page: nil)
         } catch {
             logger.error("Failed to fetch feed: \(error, privacy: .public)")
         }
-
-        dataStore
-            .mainContext
-            .refresh(feed, mergeChanges: true)
 
         return feed
     }

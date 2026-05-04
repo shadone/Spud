@@ -70,23 +70,40 @@ class SubscriptionsViewController: UIViewController {
     }
 
     private func handle(item: SubscriptionsViewItemType) {
-        let dataService = accountService.lemmyDataService(for: account)
-        let feed: LemmyFeed
+        let feed: FeedHandle
         switch item {
         case let .listing(listingType):
-            feed = dataService.createFeed(listingType: listingType)
+            // Sort type follows the account's preferred default (legacy behavior
+            // before Stage 7).
+            let sortType = accountService
+                .lemmyDataService(for: account)
+                .defaultSortType()
+            feed = accountService.createFeed(
+                for: account,
+                feedType: .frontpage(
+                    listingType: listingType,
+                    sortType: sortType
+                )
+            )
         case let .community(row):
-            feed = dataService.createFeed(.community(
-                communityName: row.name,
-                instance: row.instanceActorId,
-                sortType: .Active
-            ))
+            feed = accountService.createFeed(
+                for: account,
+                feedType: .community(
+                    communityName: row.name,
+                    instance: row.instanceActorId,
+                    sortType: .Active
+                )
+            )
         }
         display(feed: feed)
     }
 
-    private func display(feed: LemmyFeed) {
-        let postListVC = PostListViewController(feed: feed, dependencies: dependencies.nested)
+    private func display(feed: FeedHandle) {
+        let postListVC = PostListViewController(
+            feed: feed,
+            account: account,
+            dependencies: dependencies.nested
+        )
         navigationController?.pushViewController(postListVC, animated: true)
     }
 }

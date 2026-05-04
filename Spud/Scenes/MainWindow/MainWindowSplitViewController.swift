@@ -40,12 +40,11 @@ class MainWindowSplitViewController: UISplitViewController {
             dependencies: self.dependencies.nested
         )
 
-        let feed = accountService
-            .lemmyDataService(for: account)
-            .createFeed()
+        let feed = accountService.createDefaultFeed(for: account)
 
         let postListVC = PostListViewController(
             feed: feed,
+            account: account,
             dependencies: self.dependencies.nested
         )
         postListNavigationController.setViewControllers([subscriptionsVC, postListVC], animated: false)
