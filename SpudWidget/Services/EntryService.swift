@@ -107,27 +107,28 @@ class EntryService: EntryServiceType {
         listingType: Components.Schemas.ListingType,
         sortType: Components.Schemas.SortType
     ) async -> FeedHandle {
-        let account = accountService.defaultAccount()
+        let keychainId = accountService.defaultAccountKeychainId()
+        let isSignedOut = accountService.isSignedOut(forAccountKeychainId: keychainId)
 
         let listingType: Components.Schemas.ListingType = {
             switch listingType {
             case .Subscribed:
-                return account.isSignedOutAccountType ? .All : .Subscribed
+                return isSignedOut ? .All : .Subscribed
             case .ModeratorView:
-                return account.isSignedOutAccountType ? .All : .ModeratorView
+                return isSignedOut ? .All : .ModeratorView
             case .All, .Local:
                 return listingType
             }
         }()
 
         let feed = accountService.createFeed(
-            for: account,
+            forAccountKeychainId: keychainId,
             feedType: .frontpage(listingType: listingType, sortType: sortType)
         )
 
         do {
             try await accountService
-                .lemmyService(for: account)
+                .lemmyService(forAccountKeychainId: keychainId)
                 .fetchFeed(feed, page: nil)
         } catch {
             logger.error("Failed to fetch feed: \(error, privacy: .public)")

@@ -63,6 +63,14 @@ public protocol AccountServiceType: AnyObject {
     /// Returns an account that is shown on app launch.
     func defaultAccount() -> LemmyAccount
 
+    /// Returns the `accountKeychainId` of the account that is shown on app
+    /// launch. Bootstraps a signed-out default on first launch.
+    func defaultAccountKeychainId() -> String
+
+    /// Whether the account is the signed-out placeholder for its site. Reads
+    /// `AccountRecord.isSignedOutAccountType` synchronously.
+    func isSignedOut(forAccountKeychainId keychainId: String) -> Bool
+
     /// Chooses which account is "default" i.e. used automatically at app launch.
     func setDefaultAccount(_ account: LemmyAccount)
 
@@ -447,6 +455,24 @@ public class AccountService: AccountServiceType {
             fatalError("Failed to create URL from instance actor id '\(site.instance.actorId)'")
         }
         return LemmyApi(instanceUrl: instanceUrl, credential: credential)
+    }
+
+    public func defaultAccountKeychainId() -> String {
+        defaultAccount().id
+    }
+
+    public func isSignedOut(forAccountKeychainId keychainId: String) -> Bool {
+        do {
+            return try appDatabase.writer.read { db in
+                try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)?
+                    .isSignedOutAccountType ?? true
+            }
+        } catch {
+            logger.error("Failed to read isSignedOut: \(error.localizedDescription, privacy: .public)")
+            return true
+        }
     }
 
     public func defaultListingType(forAccountKeychainId keychainId: String) -> Components.Schemas.ListingType {

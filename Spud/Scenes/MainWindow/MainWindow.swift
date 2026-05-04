@@ -48,15 +48,15 @@ class MainWindow: UIWindow {
 
         super.init(windowScene: windowScene)
 
-        // Bootstrap synchronously: defaultAccount() ensures one exists and
-        // is marked default, which the GRDB observation will subsequently
-        // mirror. We extract the values we need and let the legacy account
-        // object go.
-        let bootstrap = accountService.defaultAccount()
+        // Bootstrap synchronously: defaultAccountKeychainId() ensures one
+        // exists and is marked default, which the GRDB observation will
+        // subsequently mirror. The follow-up reads pull whatever we need
+        // straight from AppDatabase.
+        let keychainId = accountService.defaultAccountKeychainId()
         applyDefaultAccount(
-            keychainId: bootstrap.id,
-            isSignedIn: !bootstrap.isSignedOutAccountType,
-            defaultPostSortType: bootstrap.accountInfo?.defaultSortType ?? .Hot
+            keychainId: keychainId,
+            isSignedIn: !accountService.isSignedOut(forAccountKeychainId: keychainId),
+            defaultPostSortType: accountService.defaultSortType(forAccountKeychainId: keychainId)
         )
 
         rootViewController = tabBarController
