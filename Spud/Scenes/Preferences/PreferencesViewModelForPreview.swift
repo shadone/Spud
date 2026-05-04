@@ -34,11 +34,11 @@ class PreferencesViewModelForPreview:
 
     // MARK: Outputs
 
-    var externalLinkRequested: AnyPublisher<URL, Never> = .completed
+    var externalLinkRequested: AnyPublisher<URL, Never> = Empty(completeImmediately: true).eraseToAnyPublisher()
 
     var allPostSortTypes: [Components.Schemas.SortType] = Components.Schemas.SortType.allCases
     var defaultPostSortType: CurrentValueSubject<Components.Schemas.SortType, Never> = .init(.Hot)
-    var defaultPostSortTypeRequested: AnyPublisher<Components.Schemas.SortType, Never> = .completed
+    var defaultPostSortTypeRequested: AnyPublisher<Components.Schemas.SortType, Never> = Empty(completeImmediately: true).eraseToAnyPublisher()
 
     var allCommentSortTypes: [Components.Schemas.CommentSortType] = Components.Schemas.CommentSortType.allCases
     var defaultCommentSortType: CurrentValueSubject<Components.Schemas.CommentSortType, Never> = .init(.Hot)
