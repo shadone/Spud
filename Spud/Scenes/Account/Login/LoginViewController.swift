@@ -353,7 +353,7 @@ class LoginViewController: UIViewController {
 
     @objc
     private func continueWithSignedOutAccount() {
-        accountService.signInAsSignedOut(at: viewModel.outputs.site.value)
+        accountService.signInAsSignedOut(atInstance: viewModel.outputs.site.value.instance.actorId)
         dismiss(animated: true)
     }
 

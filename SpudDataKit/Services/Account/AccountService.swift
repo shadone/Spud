@@ -25,12 +25,13 @@ public protocol AccountServiceType: AnyObject {
         isServiceAccount: Bool
     ) -> String
 
-    /// Creates (if needed) the signed-out account for `site` and marks it as the default account.
-    func signInAsSignedOut(at site: LemmySite)
+    /// Creates (if needed) the signed-out account for `instance` and marks
+    /// it as the default account.
+    func signInAsSignedOut(atInstance instance: InstanceActorId)
 
     /// Log in to a given Lemmy instance with explicitly provided username and password.
     func login(
-        site: LemmySite,
+        atInstance instance: InstanceActorId,
         username: String,
         password: String
     ) async throws
@@ -468,11 +469,13 @@ public class AccountService: AccountServiceType {
         return lemmyService
     }
 
-    public func signInAsSignedOut(at site: LemmySite) {
+    public func signInAsSignedOut(atInstance instance: InstanceActorId) {
+        let mainContext = dataStore.mainContext
+        let site = siteService.site(for: instance, in: mainContext)
         let account = accountForSignedOut(
             at: site,
             isServiceAccount: false,
-            in: dataStore.mainContext
+            in: mainContext
         )
         setDefaultAccount(account)
     }
@@ -514,10 +517,13 @@ public class AccountService: AccountServiceType {
     }
 
     public func login(
-        site: LemmySite,
+        atInstance instance: InstanceActorId,
         username: String,
         password: String
     ) async throws {
+        let mainContext = dataStore.mainContext
+        let site = siteService.site(for: instance, in: mainContext)
+
         // Creating temporary authenticated LemmyApi object for making login request.
         let api = api(for: site, credential: nil)
 
@@ -533,7 +539,7 @@ public class AccountService: AccountServiceType {
             }
 
             logger.error("""
-                Login failed. site=\(site.identifierForLogging, privacy: .public). \
+                Login failed. instance=\(instance.actorId, privacy: .public). \
                 username=\(username, privacy: .sensitive(mask: .hash))
                 \(String(describing: error), privacy: .public)
                 """)
@@ -552,7 +558,7 @@ public class AccountService: AccountServiceType {
         let account = LemmyAccount(
             userId: username,
             at: site,
-            in: dataStore.mainContext
+            in: mainContext
         )
 
         setDefaultAccount(account)
