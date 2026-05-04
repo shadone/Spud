@@ -13,7 +13,8 @@ import UIKit
 
 private let logger = Logger.entryService
 
-protocol EntryServiceType: AnyObject {
+@MainActor
+protocol EntryServiceType: AnyObject, Sendable {
     func startService()
 
     func topPostsSnapshot() -> TopPostsEntry
@@ -24,10 +25,11 @@ protocol EntryServiceType: AnyObject {
     ) async -> TopPostsEntry
 }
 
-protocol HasEntryService {
-    var entryService: EntryServiceType { get }
+protocol HasEntryService: Sendable {
+    @MainActor var entryService: EntryServiceType { get }
 }
 
+@MainActor
 class EntryService: EntryServiceType {
     let appDatabase: AppDatabase
     let accountService: AccountServiceType
@@ -53,7 +55,6 @@ class EntryService: EntryServiceType {
         )
     }
 
-    @MainActor
     func topPosts(
         listingType: Components.Schemas.ListingType,
         sortType: Components.Schemas.SortType
@@ -74,20 +75,17 @@ class EntryService: EntryServiceType {
         }
     }
 
-    @MainActor
     private func entry(
         from topPosts: TopPosts
     ) async -> TopPostsEntry {
         let imageUrls = topPosts.posts
             .compactMap(\.type.imageUrl)
 
-        let imagesByUrl = await withTaskGroup(of: (URL, UIImage?).self) { group in
-            for url in imageUrls {
-                group.addTask {
-                    await (url, self.fetchImage(url))
-                }
+        var imagesByUrl: [URL: UIImage] = [:]
+        for url in imageUrls {
+            if let image = await fetchImage(url) {
+                imagesByUrl[url] = image
             }
-            return await group.reduce(into: [:]) { $0[$1.0] = $1.1 }
         }
 
         logger.debug("Done, returning entry")
@@ -99,7 +97,6 @@ class EntryService: EntryServiceType {
         )
     }
 
-    @MainActor
     private func fetchFeed(
         listingType: Components.Schemas.ListingType,
         sortType: Components.Schemas.SortType
@@ -134,7 +131,6 @@ class EntryService: EntryServiceType {
         return feed
     }
 
-    @MainActor
     private func fetchImage(_ url: URL) async -> UIImage? {
         // TODO: look into fetching images using background request
         // https://developer.apple.com/documentation/widgetkit/making-network-requests-in-a-widget-extension

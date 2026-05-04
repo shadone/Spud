@@ -8,7 +8,7 @@ import Combine
 import Foundation
 import UIKit
 
-public final class ImageService: ImageServiceType {
+public final class ImageService: ImageServiceType, @unchecked Sendable {
     /// In-memory cache for loaded images.
     ///
     /// Each cache entry has associated cost that is the size of the image (width \* height)

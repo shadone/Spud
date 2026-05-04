@@ -8,7 +8,7 @@ import Foundation
 import SpudDataKit
 import SpudUtilKit
 
-public struct TopPosts: Codable {
+public struct TopPosts: Codable, Sendable {
     public let posts: [Post]
 
     public init(posts: [Post]) {

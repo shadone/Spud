@@ -161,22 +161,19 @@ class PostListViewController: UIViewController {
     }
 
     /// Tiny shim that turns an Observable property into an AsyncStream of
-    /// values via the standard `withObservationTracking` loop.
+    /// values via the standard `withObservationTracking` loop. Uses
+    /// `ObservationScheduler` to break the @Sendable onChange / @MainActor
+    /// observe-recursion loop into an instance method capture.
+    @MainActor
     private static func values<Value: Sendable>(
-        of access: @escaping @Sendable () -> Value
+        of access: @escaping @MainActor () -> Value
     ) -> AsyncStream<Value> {
         AsyncStream { continuation in
-            @Sendable
-            func observe() {
-                let value = withObservationTracking {
-                    access()
-                } onChange: {
-                    Task { @MainActor in observe() }
-                }
-                continuation.yield(value)
-            }
-            observe()
-            continuation.onTermination = { _ in }
+            let scheduler = ObservationScheduler<Value>(
+                continuation: continuation,
+                access: access
+            )
+            scheduler.observe()
         }
     }
 
@@ -507,5 +504,33 @@ extension PostListViewController: UITableViewDelegate {
                 return UIMenu(title: "", children: [upvoteAction, downvoteAction])
             }
         )
+    }
+}
+
+/// Re-tracks an Observable property after each onChange tick and yields
+/// the latest value into the supplied AsyncStream.Continuation. Decoupling
+/// `observe()` into an instance method dodges the "non-Sendable local
+/// function captured in @Sendable closure" warning that arises when
+/// `withObservationTracking`'s onChange recurses into a @MainActor func.
+@MainActor
+private final class ObservationScheduler<Value: Sendable>: Sendable {
+    private let continuation: AsyncStream<Value>.Continuation
+    private let access: @MainActor () -> Value
+
+    init(
+        continuation: AsyncStream<Value>.Continuation,
+        access: @escaping @MainActor () -> Value
+    ) {
+        self.continuation = continuation
+        self.access = access
+    }
+
+    func observe() {
+        let value = withObservationTracking {
+            access()
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observe() }
+        }
+        continuation.yield(value)
     }
 }
