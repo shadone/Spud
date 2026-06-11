@@ -2,14 +2,13 @@
 
 Spud (placeholder name) is a UIKit client for [Lemmy](https://join-lemmy.org), the federated link aggregator.
 
-## Workspace layout
+## Project layout
 
-The Xcode workspace lives one directory up and stitches this repo together with [LemmyKit](../LemmyKit), the OpenAPI-generated Lemmy client used by the app. **Always open `Spud.xcworkspace`**, not the bare `Spud.xcodeproj`.
+`Spud.xcodeproj` is generated from [`project.yml`](project.yml) with [XcodeGen](https://github.com/yonaskolb/XcodeGen) (run `make project`); the generated project is gitignored, so `project.yml` is the source of truth. [LemmyKit](../LemmyKit), the OpenAPI-generated Lemmy client, is consumed as a local sibling SPM package (`path: ../LemmyKit`), so the project resolves it locally — no workspace needed.
 
 ```
 info.ddenis/Spud/
-├── Spud.xcworkspace            ← open this
-├── Spud/                       ← this repo (iOS app)
+├── Spud/                       ← this repo (iOS app); open Spud.xcodeproj
 └── LemmyKit/                   ← sibling SPM package
 ```
 
@@ -27,28 +26,26 @@ The app and its extensions share keychain group `info.ddenis.Spud.shared` and ap
 
 ## Development setup
 
-### Install `mint`
+### Install tools and generate the project
 
-We use [mint](https://github.com/yonaskolb/Mint) to run Swift CLI tools (SwiftFormat, SwiftGen) at versions pinned in `Mintfile`.
+We use [mint](https://github.com/yonaskolb/Mint) to run Swift CLI tools (SwiftFormat, SwiftGen) at versions pinned in `Mintfile`, and [XcodeGen](https://github.com/yonaskolb/XcodeGen) to generate `Spud.xcodeproj` from `project.yml`.
 
 ```sh
-brew install mint
-mint bootstrap
+brew install mint xcodegen
+make bootstrap        # mint bootstrap + xcodegen generate
 ```
 
-### Install the pre-commit hook
-
-The hook keeps `Spud.xcodeproj/project.pbxproj` deterministically sorted. See [scripts/git-hooks/README.md](scripts/git-hooks/README.md):
+Regenerate the project any time `project.yml` changes or sources are added/removed:
 
 ```sh
-ln -sf ../../scripts/git-hooks/pre-commit .git/hooks/pre-commit
+make project          # xcodegen generate
 ```
 
 ### Build
 
 ```sh
-xcodebuild -workspace ../Spud.xcworkspace -scheme Spud \
-  -destination 'platform=iOS Simulator,name=iPhone 15 Pro' build
+xcodebuild -project Spud.xcodeproj -scheme Spud \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 ```
 
 ### Test
@@ -56,8 +53,8 @@ xcodebuild -workspace ../Spud.xcworkspace -scheme Spud \
 Unit + UI tests (`Spud.xctestplan`):
 
 ```sh
-xcodebuild -workspace ../Spud.xcworkspace -scheme Spud \
-  -testPlan Spud -destination 'platform=iOS Simulator,name=iPhone 15 Pro' test
+xcodebuild -project Spud.xcodeproj -scheme Spud \
+  -testPlan Spud -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
 ```
 
 Snapshot tests (`SpudSnapshots.xctestplan`) use [pointfreeco/swift-snapshot-testing](https://github.com/pointfreeco/swift-snapshot-testing). They are sensitive to simulator and orientation:
@@ -65,14 +62,14 @@ Snapshot tests (`SpudSnapshots.xctestplan`) use [pointfreeco/swift-snapshot-test
 > **Run on iPhone 14 Pro simulator in portrait orientation.** Reference images are recorded against this exact configuration.
 
 ```sh
-xcodebuild -workspace ../Spud.xcworkspace -scheme Spud \
+xcodebuild -project Spud.xcodeproj -scheme Spud \
   -testPlan SpudSnapshots \
   -destination 'platform=iOS Simulator,name=iPhone 14 Pro' test
 ```
 
 ## Notable dependencies
 
-Resolved via SPM (see `Spud.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`):
+Declared in [`project.yml`](project.yml) and resolved via SPM:
 
 - [LemmyKit](../LemmyKit) — local sibling package, OpenAPI-generated Lemmy API client
 - [Down](https://github.com/johnxnguyen/Down) — Markdown rendering

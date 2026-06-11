@@ -12,7 +12,7 @@
     "codeCoverage" : false,
     "targetForVariableExpansion" : {
       "containerPath" : "container:Spud.xcodeproj",
-      "identifier" : "92B7C8F92A3A40EB00672F64",
+      "identifier" : "6534A7E95B86555B12C74094",
       "name" : "Spud"
     }
   },
@@ -20,28 +20,28 @@
     {
       "target" : {
         "containerPath" : "container:Spud.xcodeproj",
-        "identifier" : "92B7C9122A3A40F400672F64",
+        "identifier" : "39D2C92892D4C4E5546FDC09",
         "name" : "SpudTests"
       }
     },
     {
       "target" : {
         "containerPath" : "container:Spud.xcodeproj",
-        "identifier" : "92B7C91C2A3A40F400672F64",
+        "identifier" : "CF4423C446A0C163048BA414",
         "name" : "SpudUITests"
       }
     },
     {
       "target" : {
         "containerPath" : "container:Spud.xcodeproj",
-        "identifier" : "92A226C52A7EF9A900C18FCD",
+        "identifier" : "A688B77B2A2F361231B8075E",
         "name" : "SpudDataKitTests"
       }
     },
     {
       "target" : {
         "containerPath" : "container:Spud.xcodeproj",
-        "identifier" : "92A226D92A7EFA1400C18FCD",
+        "identifier" : "62EF48AF0E264E0CA169203C",
         "name" : "SpudUtilKitTests"
       }
     }

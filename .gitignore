@@ -60,3 +60,10 @@ xcuserdata/
 **/xcshareddata/WorkspaceSettings.xcsettings
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,xcode,swiftpackagemanager
+
+### XcodeGen ###
+# The Xcode project is generated from project.yml via `xcodegen generate`
+# (or `make project`). project.yml is the source of truth; the project is
+# never committed. This overrides the "!*.xcodeproj/project.pbxproj" re-include
+# in the Xcode Patch section above.
+Spud.xcodeproj/

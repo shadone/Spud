@@ -15,7 +15,7 @@
     {
       "target" : {
         "containerPath" : "container:Spud.xcodeproj",
-        "identifier" : "925B76C82A8FFF0A00BD065A",
+        "identifier" : "662EF0C72FAB1175E08A6578",
         "name" : "SpudSnapshotTests"
       }
     }
