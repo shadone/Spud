@@ -25,6 +25,12 @@ class PostListThumbnailImageView: UIView {
         case none
     }
 
+    /// Caption for the small overlay badge (e.g. "GIF"), or `nil` to hide it.
+    var badgeText: String? {
+        get { mediaBadgeView.text }
+        set { mediaBadgeView.text = newValue }
+    }
+
     var thumbnailType: ThumbnailType = .none {
         didSet {
             imageView.image = nil
@@ -108,6 +114,8 @@ class PostListThumbnailImageView: UIView {
         return imageView
     }()
 
+    private lazy var mediaBadgeView = MediaBadgeView()
+
     // MARK: Functions
 
     init() {
@@ -117,6 +125,7 @@ class PostListThumbnailImageView: UIView {
         clipsToBounds = true
 
         addSubview(stackView)
+        addSubview(mediaBadgeView)
 
         textPlaceholderView.addSubview(textPlaceholderImageView)
         brokenView.addSubview(brokenImageView)
@@ -126,6 +135,9 @@ class PostListThumbnailImageView: UIView {
             stackView.trailingAnchor.constraint(equalTo: trailingAnchor),
             stackView.topAnchor.constraint(equalTo: topAnchor),
             stackView.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+            mediaBadgeView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
+            mediaBadgeView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
 
             textPlaceholderImageView.widthAnchor.constraint(equalToConstant: 48),
             textPlaceholderImageView.heightAnchor.constraint(equalToConstant: 48),
@@ -148,5 +160,6 @@ class PostListThumbnailImageView: UIView {
 
     func prepareForReuse() {
         thumbnailType = .none
+        badgeText = nil
     }
 }

@@ -8,6 +8,7 @@ import OSLog
 import SafariServices
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 private let logger = Logger.app
@@ -77,6 +78,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
         imageView.accessibilityIdentifier = "postImageView"
         return imageView
     }()
+
+    private lazy var mediaBadgeView = MediaBadgeView()
 
     lazy var postContentVerticalStackView: UIStackView = {
         let stackView = UIStackView()
@@ -309,6 +312,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         selectionStyle = .none
 
         postImageContainer.addSubview(postImageView)
+        postImageContainer.addSubview(mediaBadgeView)
         contentView.addSubview(mainVerticalStackView)
 
         let postImageContainerHeightConstraint = postImageContainer.heightAnchor.constraint(equalToConstant: 0)
@@ -331,6 +335,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
             postImageView.trailingAnchor.constraint(equalTo: postImageContainer.trailingAnchor),
             postImageView.topAnchor.constraint(equalTo: postImageContainer.topAnchor),
             postImageView.bottomAnchor.constraint(equalTo: postImageContainer.bottomAnchor),
+
+            mediaBadgeView.leadingAnchor.constraint(equalTo: postImageContainer.leadingAnchor, constant: 8),
+            mediaBadgeView.bottomAnchor.constraint(equalTo: postImageContainer.bottomAnchor, constant: -8),
 
             postImageContainerHeightConstraint,
         ])
@@ -366,6 +373,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         linkPreviewView.isHidden = true
         linkPreviewView.prepareForReuse()
 
+        mediaBadgeView.text = nil
         postImageContainer.isHidden = true
         postImageView.image = nil
     }
@@ -394,6 +402,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         subtitleAgeLabel.accessibilityLabel = viewModel.subtitleAgeAccessibilityLabel
 
         imageLoadTask?.cancel()
+        mediaBadgeView.text = nil
         switch viewModel.image {
         case .none:
             postImageContainer.isHidden = true
@@ -403,6 +412,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
             linkPreviewView.isHidden = true
             tappableImageUrl = imageUrl
             tappableThumbnailUrl = thumbnailUrl
+            mediaBadgeView.text = imageUrl.isAnimatedImage ? "GIF" : nil
             postImageView.isAccessibilityElement = true
             postImageView.accessibilityLabel = NSLocalizedString(
                 "Post image",
