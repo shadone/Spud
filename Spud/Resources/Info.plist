@@ -8,6 +8,8 @@
 	<false/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.social-networking</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save images from Spud to your photo library.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

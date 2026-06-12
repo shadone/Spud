@@ -381,6 +381,14 @@ class PostListViewController: UIViewController {
                 )
                 cell.configure(with: viewModel, imageService: imageService)
 
+                cell.imageTapped = { [weak self] imageUrl, thumbnailUrl, thumbnailImage in
+                    self?.presentMediaViewer(
+                        imageUrl: imageUrl,
+                        thumbnailUrl: thumbnailUrl,
+                        preloadedImage: thumbnailImage
+                    )
+                }
+
                 let general = appearance.general
                 cell.swipeActionConfiguration = .init(
                     leadingPrimaryAction: .init(
@@ -473,6 +481,23 @@ class PostListViewController: UIViewController {
             serverPostId: Components.Schemas.PostID(serverPostId),
             accountKeychainId: viewModel.accountKeychainId
         )
+    }
+
+    private func presentMediaViewer(
+        imageUrl: URL,
+        thumbnailUrl: URL?,
+        preloadedImage: UIImage?
+    ) {
+        let item = MediaItem(
+            imageUrl: imageUrl,
+            thumbnailUrl: thumbnailUrl,
+            preloadedImage: preloadedImage
+        )
+        let viewer = MediaViewerViewController.make(
+            items: [item],
+            dependencies: dependencies.own
+        )
+        present(viewer, animated: true)
     }
 
     private func donateIntent() {

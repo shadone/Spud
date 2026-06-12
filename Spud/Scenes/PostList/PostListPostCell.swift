@@ -20,6 +20,11 @@ class PostListPostCell: UITableViewCell {
 
     var swipeActionTriggered: ((SwipeActionView.ActionTrigger) -> Void)?
 
+    /// Invoked when the user taps an image thumbnail, carrying the full-size
+    /// image url, optional thumbnail url, and the already-loaded thumbnail
+    /// image (for an instant first frame in the viewer).
+    var imageTapped: ((_ imageUrl: URL, _ thumbnailUrl: URL?, _ thumbnailImage: UIImage?) -> Void)?
+
     // MARK: UI Properties
 
     lazy var mainHorizontalStackView: UIStackView = {
@@ -122,6 +127,12 @@ class PostListPostCell: UITableViewCell {
 
     private var thumbnailLoadTask: Task<Void, Never>?
 
+    /// Full-size image url + last-loaded thumbnail image for the tap-to-open
+    /// gesture. Set during `configure`; reset in `prepareForReuse`.
+    private var tappableImageUrl: URL?
+    private var tappableThumbnailUrl: URL?
+    private var loadedThumbnailImage: UIImage?
+
     // MARK: Functions
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -148,6 +159,10 @@ class PostListPostCell: UITableViewCell {
             thumbnailView.widthAnchor.constraint(equalToConstant: 64),
             thumbnailView.heightAnchor.constraint(equalToConstant: 64),
         ])
+
+        thumbnailView.isUserInteractionEnabled = true
+        let imageTap = UITapGestureRecognizer(target: self, action: #selector(thumbnailTapped))
+        thumbnailView.addGestureRecognizer(imageTap)
     }
 
     @available(*, unavailable)
@@ -162,8 +177,19 @@ class PostListPostCell: UITableViewCell {
         thumbnailLoadTask = nil
         thumbnailView.prepareForReuse()
 
+        tappableImageUrl = nil
+        tappableThumbnailUrl = nil
+        loadedThumbnailImage = nil
+
         swipeActionConfiguration = nil
         swipeActionTriggered = nil
+        imageTapped = nil
+    }
+
+    @objc
+    private func thumbnailTapped() {
+        guard let tappableImageUrl else { return }
+        imageTapped?(tappableImageUrl, tappableThumbnailUrl, loadedThumbnailImage)
     }
 
     func configure(with viewModel: PostListPostViewModel, imageService: ImageServiceType) {
@@ -171,11 +197,14 @@ class PostListPostCell: UITableViewCell {
         subtitleLabel.attributedText = viewModel.subtitle
 
         thumbnailLoadTask?.cancel()
+        tappableImageUrl = viewModel.fullImageUrl
         switch viewModel.thumbnail {
         case .text:
             thumbnailView.thumbnailType = .text
+            tappableThumbnailUrl = nil
         case let .image(thumbnailUrl):
             thumbnailView.thumbnailType = .none
+            tappableThumbnailUrl = thumbnailUrl
             thumbnailLoadTask = Task { [weak self] in
                 for await state in imageService.fetch(thumbnailUrl) {
                     if Task.isCancelled { return }
@@ -186,6 +215,7 @@ class PostListPostCell: UITableViewCell {
                     case .failure:
                         thumbnailView.thumbnailType = .imageFailure
                     case let .ready(image):
+                        loadedThumbnailImage = image
                         thumbnailView.thumbnailType = .image(image)
                     }
                 }
