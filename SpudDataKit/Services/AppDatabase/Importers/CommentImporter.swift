@@ -175,6 +175,10 @@ extension AppDatabase {
         record.numberOfDownvotes = Int64(view.counts.downvotes)
         record.isSaved = view.saved
 
+        record.isRemoved = view.comment.removed
+        record.isDistinguished = view.comment.distinguished
+        record.isDeleted = view.comment.deleted
+
         switch view.my_vote {
         case 1: record.voteStatus = 1
         case -1: record.voteStatus = 0

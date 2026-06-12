@@ -101,6 +101,19 @@ struct PostListPostViewModel {
             ))
         }
 
+        // Moderation / content-status badges. A featured (pinned) post gets a
+        // green pin; a locked post a yellow lock; a removed-by-mod or
+        // deleted-by-author post a red marker.
+        for badge in PostStatusBadge.badges(for: row) {
+            var attrs = secondaryAttributes
+            attrs[.foregroundColor] = badge.color
+            pieces.append(space)
+            pieces.append(NSAttributedString.symbol(
+                from: UIImage(systemName: badge.symbolName)!,
+                attributes: attrs
+            ))
+        }
+
         subtitle = pieces.joined()
 
         let url = row.url.flatMap { URL(string: $0) }

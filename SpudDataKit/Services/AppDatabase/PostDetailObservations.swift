@@ -30,6 +30,10 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
     /// "https://lemmy.world/c/world"). Used to derive the home instance for a
     /// community deep link. nil if the community row has no actorId.
     public let communityActorId: String?
+    /// Server-assigned community id. Used to gate moderation actions (and to
+    /// scope ban-from-community on comments under this post) against the set
+    /// of communities the current account moderates.
+    public let serverCommunityId: Int64
     public let creatorName: String
     public let creatorPersonId: Int64
     public let creatorInstanceActorId: String
@@ -38,6 +42,12 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
     /// 1 = upvoted, 0 = downvoted, nil = no vote.
     public let voteStatus: Int64?
     public let isSaved: Bool
+    /// Moderation / content-status flags driving the status badges.
+    public let isRemoved: Bool
+    public let isLocked: Bool
+    public let isFeaturedCommunity: Bool
+    public let isFeaturedLocal: Bool
+    public let isDeleted: Bool
     public let published: Date
 }
 
@@ -62,6 +72,11 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
     public let voteStatus: Int64?
     /// nil for "load more" placeholders.
     public let isSaved: Bool?
+    /// Moderation / content-status flags driving the status badges. nil for
+    /// "load more" placeholders.
+    public let isRemoved: Bool?
+    public let isDistinguished: Bool?
+    public let isDeleted: Bool?
     public let published: Date?
     public let creatorName: String?
     public let creatorPersonId: Int64?
@@ -115,7 +130,13 @@ public extension AppDatabase {
                             post.numberOfComments      AS numberOfComments,
                             post.voteStatus            AS voteStatus,
                             post.isSaved               AS isSaved,
+                            post.isRemoved             AS isRemoved,
+                            post.isLocked              AS isLocked,
+                            post.isFeaturedCommunity   AS isFeaturedCommunity,
+                            post.isFeaturedLocal       AS isFeaturedLocal,
+                            post.isDeleted             AS isDeleted,
                             post.published             AS published,
+                            community.communityId      AS serverCommunityId,
                             community.name             AS communityName,
                             community.actorId          AS communityActorId,
                             creator.name               AS creatorName,
@@ -146,6 +167,7 @@ public extension AppDatabase {
                     urlEmbedDescription: row["urlEmbedDescription"],
                     communityName: row["communityName"] ?? "",
                     communityActorId: row["communityActorId"],
+                    serverCommunityId: row["serverCommunityId"],
                     creatorName: rawCreatorName ?? "",
                     creatorPersonId: row["creatorPersonId"],
                     creatorInstanceActorId: row["creatorInstanceActorId"],
@@ -153,6 +175,11 @@ public extension AppDatabase {
                     numberOfComments: row["numberOfComments"],
                     voteStatus: row["voteStatus"],
                     isSaved: row["isSaved"],
+                    isRemoved: row["isRemoved"],
+                    isLocked: row["isLocked"],
+                    isFeaturedCommunity: row["isFeaturedCommunity"],
+                    isFeaturedLocal: row["isFeaturedLocal"],
+                    isDeleted: row["isDeleted"],
                     published: row["published"]
                 )
             }
@@ -191,6 +218,9 @@ public extension AppDatabase {
                             comment.score                  AS score,
                             comment.voteStatus             AS voteStatus,
                             comment.isSaved                AS isSaved,
+                            comment.isRemoved              AS isRemoved,
+                            comment.isDistinguished        AS isDistinguished,
+                            comment.isDeleted              AS isDeleted,
                             comment.published              AS published,
                             creator.name                   AS creatorName,
                             creator.displayName            AS creatorDisplayName,
@@ -218,6 +248,9 @@ public extension AppDatabase {
                         score: row["score"] ?? 0,
                         voteStatus: row["voteStatus"],
                         isSaved: row["isSaved"],
+                        isRemoved: row["isRemoved"],
+                        isDistinguished: row["isDistinguished"],
+                        isDeleted: row["isDeleted"],
                         published: row["published"],
                         creatorName: rawCreatorName,
                         creatorPersonId: row["creatorPersonId"],

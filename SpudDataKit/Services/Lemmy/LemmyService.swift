@@ -266,6 +266,104 @@ public protocol LemmyServiceType: Actor {
     /// `search`) so the settings screen always reflects server truth. Throws
     /// `LemmyServiceError.requiresAuthentication` when signed out.
     func fetchBlockedList() async throws -> BlockedList
+
+    // MARK: Moderation
+
+    /// Fetch the account's moderation capability from the server (via
+    /// `getSite` → `my_user`): the set of communities it moderates plus
+    /// whether it is a site admin. Transient (returned to the caller, like
+    /// `fetchBlockedList`), so mod UI always reflects server truth. A
+    /// signed-out account resolves to `.none` rather than throwing, so the
+    /// caller can gate UI uniformly without branching on auth state.
+    func fetchModerationCapability() async throws -> ModerationCapability
+
+    /// Remove (or restore) `serverPostId` as a moderator/admin. On success the
+    /// updated `PostView` is mirrored into the store. Throws
+    /// `LemmyServiceError.requiresAuthentication` when signed out.
+    func removePost(
+        serverPostId: Components.Schemas.PostID,
+        removed: Bool,
+        reason: String?
+    ) async throws
+
+    /// Lock (or unlock) `serverPostId` as a moderator/admin. Mirrors the
+    /// updated `PostView`. Throws `.requiresAuthentication` when signed out.
+    func lockPost(
+        serverPostId: Components.Schemas.PostID,
+        locked: Bool
+    ) async throws
+
+    /// Feature (pin) or unfeature `serverPostId`. `local` pins to the instance
+    /// front page (admin-only); otherwise pins to the community. Mirrors the
+    /// updated `PostView`. Throws `.requiresAuthentication` when signed out.
+    func featurePost(
+        serverPostId: Components.Schemas.PostID,
+        featured: Bool,
+        local: Bool
+    ) async throws
+
+    /// Remove (or restore) `serverCommentId` as a moderator/admin. Mirrors the
+    /// updated `CommentView`. Throws `.requiresAuthentication` when signed out.
+    func removeComment(
+        serverCommentId: Components.Schemas.CommentID,
+        removed: Bool,
+        reason: String?
+    ) async throws
+
+    /// Distinguish (or undistinguish) `serverCommentId`. Mirrors the updated
+    /// `CommentView`. Throws `.requiresAuthentication` when signed out.
+    func distinguishComment(
+        serverCommentId: Components.Schemas.CommentID,
+        distinguished: Bool
+    ) async throws
+
+    /// Ban (or unban) `serverPersonId` from `serverCommunityId`. When banning,
+    /// `removeData` also removes the person's existing content in the
+    /// community. Mirrors the updated `PersonView`. Transient otherwise. Throws
+    /// `.requiresAuthentication` when signed out.
+    func banFromCommunity(
+        serverCommunityId: Components.Schemas.CommunityID,
+        serverPersonId: Components.Schemas.PersonID,
+        ban: Bool,
+        removeData: Bool,
+        reason: String?
+    ) async throws
+}
+
+/// The current account's moderation capability, decoded from `getSite` →
+/// `my_user`: the communities it moderates and whether it is a site admin. A
+/// small Sendable value type so it can flow from the `LemmyService` actor to
+/// the main-actor UI that gates mod controls.
+public struct ModerationCapability: Sendable, Equatable {
+    /// Server-side ids of the communities the account moderates.
+    public let moderatedCommunityIds: Set<Components.Schemas.CommunityID>
+    /// Whether the account is a site admin (can moderate anywhere and feature
+    /// posts to the instance front page).
+    public let isAdmin: Bool
+
+    public init(
+        moderatedCommunityIds: Set<Components.Schemas.CommunityID>,
+        isAdmin: Bool
+    ) {
+        self.moderatedCommunityIds = moderatedCommunityIds
+        self.isAdmin = isAdmin
+    }
+
+    /// No moderation powers. The resolved capability for a signed-out account
+    /// or an account that moderates nothing and is not an admin.
+    public static let none = ModerationCapability(moderatedCommunityIds: [], isAdmin: false)
+
+    /// Whether the account can take moderator actions in `communityId` -
+    /// either because it moderates that community or because it is a site
+    /// admin (admins can moderate everywhere).
+    public func canModerate(communityId: Components.Schemas.CommunityID) -> Bool {
+        isAdmin || moderatedCommunityIds.contains(communityId)
+    }
+
+    /// Whether any moderation surface should be offered at all.
+    public var hasAnyPower: Bool {
+        isAdmin || !moderatedCommunityIds.isEmpty
+    }
 }
 
 /// The account's current block lists, decoded from `getSite` → `my_user`.
@@ -279,7 +377,9 @@ public struct BlockedList: Sendable, Equatable {
         public let handle: String
         public let avatarUrl: URL?
 
-        public var id: Components.Schemas.PersonID { serverPersonId }
+        public var id: Components.Schemas.PersonID {
+            serverPersonId
+        }
     }
 
     public struct Community: Sendable, Equatable, Identifiable {
@@ -289,7 +389,9 @@ public struct BlockedList: Sendable, Equatable {
         public let handle: String
         public let iconUrl: URL?
 
-        public var id: Components.Schemas.CommunityID { serverCommunityId }
+        public var id: Components.Schemas.CommunityID {
+            serverCommunityId
+        }
     }
 
     public let persons: [Person]
@@ -331,9 +433,9 @@ public actor LemmyService: LemmyServiceType {
 
     // MARK: Private
 
-    private let accountIsSignedOut: Bool
+    let accountIsSignedOut: Bool
     let appDatabase: AppDatabase
-    private let api: LemmyApi
+    let api: LemmyApi
 
     // MARK: Functions
 
@@ -354,7 +456,7 @@ public actor LemmyService: LemmyServiceType {
     /// Looks up the GRDB account row for this LemmyService and returns
     /// `(accountRowId, siteRowId)` - both are needed as foreign keys when
     /// upserting posts/comments/communities.
-    private func accountSiteIds() async throws -> (Int64, Int64)? {
+    func accountSiteIds() async throws -> (Int64, Int64)? {
         try await appDatabase.writer.read { db in
             guard
                 let account = try AccountRecord
@@ -1021,7 +1123,7 @@ public actor LemmyService: LemmyServiceType {
         await mirrorCommentToAppDatabase(view: response.comment_view)
     }
 
-    private func mirrorCommentToAppDatabase(
+    func mirrorCommentToAppDatabase(
         view: Components.Schemas.CommentView
     ) async {
         do {
@@ -1111,7 +1213,7 @@ public actor LemmyService: LemmyServiceType {
         await mirrorCommunityInfoToAppDatabase(view: response.community_view)
     }
 
-    private func mirrorPersonInfoToAppDatabase(
+    func mirrorPersonInfoToAppDatabase(
         view: Components.Schemas.PersonView
     ) async {
         do {
@@ -1268,7 +1370,7 @@ public actor LemmyService: LemmyServiceType {
         await mirrorPostInfoToAppDatabase(view: response.post_view)
     }
 
-    private func mirrorPostInfoToAppDatabase(
+    func mirrorPostInfoToAppDatabase(
         view: Components.Schemas.PostView
     ) async {
         do {

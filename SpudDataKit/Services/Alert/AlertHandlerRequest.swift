@@ -36,6 +36,15 @@ public enum AlertHandlerRequest: String, CustomStringConvertible {
     case reportComment
     case fetchBlockedList
 
+    // Moderation actions.
+    case removePost
+    case lockPost
+    case featurePost
+    case removeComment
+    case distinguishComment
+    case banFromCommunity
+    case fetchModerationCapability
+
     public var description: String {
         rawValue
     }

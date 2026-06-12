@@ -31,12 +31,24 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
     /// "https://lemmy.world/c/world"). Used to derive the home instance for a
     /// community deep link. nil if the community row has no actorId.
     public let communityActorId: String?
+    /// Server-assigned community id. Used to gate moderation actions against
+    /// the set of communities the current account moderates.
+    public let serverCommunityId: Int64
+    /// Server-assigned creator (post author) person id. Used to target
+    /// ban-from-community actions.
+    public let creatorPersonId: Int64
     public let score: Int64
     public let numberOfComments: Int64
     /// 1 = upvoted, 0 = downvoted, nil = no vote.
     public let voteStatus: Int64?
     public let isRead: Bool
     public let isSaved: Bool
+    /// Moderation / content-status flags driving the status badges.
+    public let isRemoved: Bool
+    public let isLocked: Bool
+    public let isFeaturedCommunity: Bool
+    public let isFeaturedLocal: Bool
+    public let isDeleted: Bool
     public let published: Date
 }
 
@@ -79,13 +91,21 @@ public extension AppDatabase {
                             post.voteStatus        AS voteStatus,
                             post.isRead            AS isRead,
                             post.isSaved           AS isSaved,
+                            post.isRemoved         AS isRemoved,
+                            post.isLocked          AS isLocked,
+                            post.isFeaturedCommunity AS isFeaturedCommunity,
+                            post.isFeaturedLocal   AS isFeaturedLocal,
+                            post.isDeleted         AS isDeleted,
                             post.published         AS published,
+                            community.communityId  AS serverCommunityId,
                             community.name         AS communityName,
-                            community.actorId      AS communityActorId
+                            community.actorId      AS communityActorId,
+                            creator.personId       AS creatorPersonId
                         FROM post
                         JOIN pageElement ON pageElement.postId = post.id
                         JOIN page        ON page.id = pageElement.pageId
                         JOIN community   ON community.id = post.communityId
+                        JOIN person      AS creator ON creator.id = post.creatorId
                         WHERE page.feedId = ?
                         ORDER BY page.position ASC, pageElement.position ASC
                     """, arguments: [feedId])
@@ -103,11 +123,18 @@ public extension AppDatabase {
                         urlEmbedDescription: row["urlEmbedDescription"],
                         communityName: row["communityName"] ?? "",
                         communityActorId: row["communityActorId"],
+                        serverCommunityId: row["serverCommunityId"],
+                        creatorPersonId: row["creatorPersonId"],
                         score: row["score"],
                         numberOfComments: row["numberOfComments"],
                         voteStatus: row["voteStatus"],
                         isRead: row["isRead"],
                         isSaved: row["isSaved"],
+                        isRemoved: row["isRemoved"],
+                        isLocked: row["isLocked"],
+                        isFeaturedCommunity: row["isFeaturedCommunity"],
+                        isFeaturedLocal: row["isFeaturedLocal"],
+                        isDeleted: row["isDeleted"],
                         published: row["published"]
                     )
                 }

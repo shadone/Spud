@@ -118,6 +118,12 @@ public extension AppDatabase {
         record.isRead = view.read
         record.isSaved = view.saved
 
+        record.isRemoved = post.removed
+        record.isLocked = post.locked
+        record.isFeaturedCommunity = post.featured_community
+        record.isFeaturedLocal = post.featured_local
+        record.isDeleted = post.deleted
+
         switch view.my_vote {
         case 1: record.voteStatus = 1
         case -1: record.voteStatus = 0
