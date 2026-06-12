@@ -932,6 +932,22 @@ extension PostListViewController: UITableViewDelegate {
         postSelected(serverPostId: serverPostId)
     }
 
+    /// The floating peek shown above the post's context menu: image, title and
+    /// full body (the feed truncates the body). Returns nil for a missing row.
+    private func postPreviewViewController(at indexPath: IndexPath) -> UIViewController? {
+        guard
+            case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath),
+            let row = rowsByServerPostId[serverPostId]
+        else { return nil }
+
+        return PostPreviewViewController(
+            row: row,
+            imageService: imageService,
+            postContentDetector: dependencies.own.postContentDetectorService,
+            textSizeAdjustment: appearanceService.postDetail.textSizeAdjustment
+        )
+    }
+
     func tableView(
         _ tableView: UITableView,
         contextMenuConfigurationForRowAt indexPath: IndexPath,
@@ -940,7 +956,7 @@ extension PostListViewController: UITableViewDelegate {
         let generalAppearance = appearanceService.general
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
-            previewProvider: nil,
+            previewProvider: { [weak self] in self?.postPreviewViewController(at: indexPath) },
             actionProvider: { [weak self] _ in
                 guard
                     case let .post(serverPostId) = self?.dataSource.itemIdentifier(for: indexPath)
