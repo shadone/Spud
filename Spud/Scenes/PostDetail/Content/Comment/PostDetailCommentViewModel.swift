@@ -117,6 +117,23 @@ struct PostDetailCommentViewModel {
                 attributes: savedAttributes
             ))
         }
+
+        // Moderation / content-status badges: removed (red), distinguished
+        // (green shield), or deleted-by-author (red).
+        for badge in CommentStatusBadge.badges(
+            isRemoved: row.isRemoved == true,
+            isDistinguished: row.isDistinguished == true,
+            isDeleted: row.isDeleted == true
+        ) {
+            var attrs = secondaryAttributes
+            attrs[.foregroundColor] = badge.color
+            subtitlePieces.append(space)
+            subtitlePieces.append(NSAttributedString.symbol(
+                from: UIImage(systemName: badge.symbolName)!,
+                attributes: attrs
+            ))
+        }
+
         subtitle = subtitlePieces.joined()
 
         if let moreChildCount = row.moreChildCount {

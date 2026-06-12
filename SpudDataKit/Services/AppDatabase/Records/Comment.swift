@@ -21,6 +21,10 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
     public var isSaved: Bool
     /// 1 = upvote, 0 = downvote, nil = no vote.
     public var voteStatus: Int64?
+    /// Moderation / content-status flags mirrored from the Lemmy comment object.
+    public var isRemoved: Bool
+    public var isDistinguished: Bool
+    public var isDeleted: Bool
     public var originalCommentUrl: String?
     public var published: Date
     public var createdAt: Date
@@ -37,6 +41,9 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
         numberOfDownvotes: Int64 = 0,
         isSaved: Bool = false,
         voteStatus: Int64? = nil,
+        isRemoved: Bool = false,
+        isDistinguished: Bool = false,
+        isDeleted: Bool = false,
         originalCommentUrl: String? = nil,
         published: Date,
         createdAt: Date = Date(),
@@ -52,6 +59,9 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
         self.numberOfDownvotes = numberOfDownvotes
         self.isSaved = isSaved
         self.voteStatus = voteStatus
+        self.isRemoved = isRemoved
+        self.isDistinguished = isDistinguished
+        self.isDeleted = isDeleted
         self.originalCommentUrl = originalCommentUrl
         self.published = published
         self.createdAt = createdAt

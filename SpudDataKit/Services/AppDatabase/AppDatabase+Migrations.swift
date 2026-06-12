@@ -303,6 +303,24 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v5_moderationStatusFields") { db in
+            // Moderation / content-status flags carried by the Lemmy post and
+            // comment objects. These drive the status badges (Removed, Locked,
+            // Featured, Distinguished) and let mod actions toggle visibly.
+            try db.alter(table: "post") { t in
+                t.add(column: "isRemoved", .boolean).notNull().defaults(to: false)
+                t.add(column: "isLocked", .boolean).notNull().defaults(to: false)
+                t.add(column: "isFeaturedCommunity", .boolean).notNull().defaults(to: false)
+                t.add(column: "isFeaturedLocal", .boolean).notNull().defaults(to: false)
+                t.add(column: "isDeleted", .boolean).notNull().defaults(to: false)
+            }
+            try db.alter(table: "comment") { t in
+                t.add(column: "isRemoved", .boolean).notNull().defaults(to: false)
+                t.add(column: "isDistinguished", .boolean).notNull().defaults(to: false)
+                t.add(column: "isDeleted", .boolean).notNull().defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }

@@ -84,6 +84,10 @@ class PostListViewController: UIViewController {
 
     private var rowsByServerPostId: [Int64: PostListRow] = [:]
     private var orderedRows: [PostListRow] = []
+    /// The backing account's moderation capability, refreshed when the feed
+    /// loads. Drives whether the post context menu shows mod actions. `.none`
+    /// until the first fetch (and for signed-out accounts).
+    private var moderationCapability: ModerationCapability = .none
     /// Set once the GRDB observation has produced its first snapshot for the
     /// current feed, so the designed empty state only shows after the initial
     /// load settles (not as a flash during first fetch).
@@ -307,12 +311,30 @@ class PostListViewController: UIViewController {
         feedChanged()
     }
 
+    /// Refreshes the backing account's moderation capability from the server.
+    /// Best-effort: a failure (or signed-out account) leaves it at `.none`,
+    /// hiding mod actions.
+    private func refreshModerationCapability() {
+        let keychainId = viewModel.accountKeychainId
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let capability = await (
+                try? accountService
+                    .lemmyService(forAccountKeychainId: keychainId)
+                    .fetchModerationCapability()
+            ) ?? .none
+            guard !Task.isCancelled else { return }
+            moderationCapability = capability
+        }
+    }
+
     private func feedChanged() {
         observationTask?.cancel()
         rowsByServerPostId.removeAll()
         orderedRows.removeAll()
         hasReceivedFirstSnapshot = false
         updateEmptyState()
+        refreshModerationCapability()
 
         applyLoadingIndicatorVisibility(hidden: !viewModel.isFetchingNextPage)
 
@@ -680,9 +702,147 @@ extension PostListViewController: UITableViewDelegate {
                     self?.sharePost(serverPostId: serverPostId)
                 }
 
-                return UIMenu(title: "", children: [upvoteAction, downvoteAction, saveAction, shareAction])
+                var children: [UIMenuElement] = [upvoteAction, downvoteAction, saveAction, shareAction]
+                // Moderation submenu, only when the account moderates this
+                // post's community (or is an admin).
+                if let modMenu = self?.postModerationMenu(serverPostId: serverPostId) {
+                    children.append(modMenu)
+                }
+                return UIMenu(title: "", children: children)
             }
         )
+    }
+
+    // MARK: Moderation
+
+    /// The moderation menu for the post at `serverPostId`, or nil when the
+    /// account cannot moderate its community. Offers Remove/Restore,
+    /// Lock/Unlock, Pin to community, and (admins) Pin to instance.
+    private func postModerationMenu(serverPostId: Int64) -> UIMenu? {
+        guard let row = rowsByServerPostId[serverPostId] else { return nil }
+        let communityId = Components.Schemas.CommunityID(row.serverCommunityId)
+        guard moderationCapability.canModerate(communityId: communityId) else { return nil }
+
+        let postId = Components.Schemas.PostID(serverPostId)
+        var children: [UIMenuElement] = []
+
+        if row.isRemoved {
+            children.append(UIAction(
+                title: NSLocalizedString("Restore", comment: "Mod action: restore a removed post"),
+                image: UIImage(systemName: "arrow.uturn.backward")
+            ) { [weak self] _ in
+                self?.performRemovePost(serverPostId: postId, removed: false)
+            })
+        } else {
+            children.append(UIAction(
+                title: NSLocalizedString("Remove", comment: "Mod action: remove a post"),
+                image: UIImage(systemName: "trash.slash"),
+                attributes: .destructive
+            ) { [weak self] _ in
+                self?.promptRemovePost(serverPostId: postId)
+            })
+        }
+
+        let locked = row.isLocked
+        children.append(UIAction(
+            title: locked
+                ? NSLocalizedString("Unlock", comment: "Mod action: unlock a post")
+                : NSLocalizedString("Lock", comment: "Mod action: lock a post"),
+            image: UIImage(systemName: locked ? "lock.open" : "lock")
+        ) { [weak self] _ in
+            self?.performLockPost(serverPostId: postId, locked: !locked)
+        })
+
+        let featuredCommunity = row.isFeaturedCommunity
+        children.append(UIAction(
+            title: featuredCommunity
+                ? NSLocalizedString("Unpin from community", comment: "Mod action: unfeature post in community")
+                : NSLocalizedString("Pin to community", comment: "Mod action: feature post in community"),
+            image: UIImage(systemName: featuredCommunity ? "pin.slash" : "pin")
+        ) { [weak self] _ in
+            self?.performFeaturePost(serverPostId: postId, featured: !featuredCommunity, local: false)
+        })
+
+        if moderationCapability.isAdmin {
+            let featuredLocal = row.isFeaturedLocal
+            children.append(UIAction(
+                title: featuredLocal
+                    ? NSLocalizedString("Unpin from instance", comment: "Admin action: unfeature post on instance")
+                    : NSLocalizedString("Pin to instance", comment: "Admin action: feature post on instance"),
+                image: UIImage(systemName: featuredLocal ? "pin.slash.fill" : "pin.fill")
+            ) { [weak self] _ in
+                self?.performFeaturePost(serverPostId: postId, featured: !featuredLocal, local: true)
+            })
+        }
+
+        return UIMenu(
+            title: NSLocalizedString("Moderation", comment: "Moderation submenu title"),
+            image: UIImage(systemName: "shield"),
+            children: children
+        )
+    }
+
+    private func promptRemovePost(serverPostId: Components.Schemas.PostID) {
+        presentModerationReasonAlert(
+            title: NSLocalizedString("Remove post", comment: "Remove post dialog title"),
+            message: NSLocalizedString("Optionally tell the author why the post was removed.", comment: "Remove post dialog message"),
+            submitTitle: NSLocalizedString("Remove", comment: "Remove alert submit button")
+        ) { [weak self] reason in
+            self?.performRemovePost(serverPostId: serverPostId, removed: true, reason: reason)
+        }
+    }
+
+    private func performRemovePost(
+        serverPostId: Components.Schemas.PostID,
+        removed: Bool,
+        reason: String? = nil
+    ) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            Haptics.tap()
+            do {
+                try await accountService
+                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                    .removePost(serverPostId: serverPostId, removed: removed, reason: reason)
+                Haptics.success()
+            } catch {
+                alertService.handle(error, for: .removePost)
+            }
+        }
+    }
+
+    private func performLockPost(serverPostId: Components.Schemas.PostID, locked: Bool) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            Haptics.tap()
+            do {
+                try await accountService
+                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                    .lockPost(serverPostId: serverPostId, locked: locked)
+                Haptics.success()
+            } catch {
+                alertService.handle(error, for: .lockPost)
+            }
+        }
+    }
+
+    private func performFeaturePost(
+        serverPostId: Components.Schemas.PostID,
+        featured: Bool,
+        local: Bool
+    ) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            Haptics.tap()
+            do {
+                try await accountService
+                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                    .featurePost(serverPostId: serverPostId, featured: featured, local: local)
+                Haptics.success()
+            } catch {
+                alertService.handle(error, for: .featurePost)
+            }
+        }
     }
 }
 

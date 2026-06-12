@@ -30,6 +30,12 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
     public var isSaved: Bool
     /// 1 = upvote, 0 = downvote, nil = no vote.
     public var voteStatus: Int64?
+    /// Moderation / content-status flags mirrored from the Lemmy post object.
+    public var isRemoved: Bool
+    public var isLocked: Bool
+    public var isFeaturedCommunity: Bool
+    public var isFeaturedLocal: Bool
+    public var isDeleted: Bool
     public var published: Date
     public var createdAt: Date
     public var updatedAt: Date
@@ -54,6 +60,11 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         isRead: Bool = false,
         isSaved: Bool = false,
         voteStatus: Int64? = nil,
+        isRemoved: Bool = false,
+        isLocked: Bool = false,
+        isFeaturedCommunity: Bool = false,
+        isFeaturedLocal: Bool = false,
+        isDeleted: Bool = false,
         published: Date,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
@@ -77,6 +88,11 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         self.isRead = isRead
         self.isSaved = isSaved
         self.voteStatus = voteStatus
+        self.isRemoved = isRemoved
+        self.isLocked = isLocked
+        self.isFeaturedCommunity = isFeaturedCommunity
+        self.isFeaturedLocal = isFeaturedLocal
+        self.isDeleted = isDeleted
         self.published = published
         self.createdAt = createdAt
         self.updatedAt = updatedAt
