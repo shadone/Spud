@@ -52,6 +52,15 @@ struct PreferencesAboutView: View {
 
             Section {
                 NavigationLink {
+                    PreferencesAcknowledgementsView()
+                } label: {
+                    Label("Acknowledgements", systemImage: "heart.text.square")
+                        .labelStyle(.titleOnly)
+                }
+            }
+
+            Section {
+                NavigationLink {
                     PreferencesLogsView()
                 } label: {
                     Text("Logs")

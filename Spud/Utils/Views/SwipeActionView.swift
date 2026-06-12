@@ -16,6 +16,9 @@ class SwipeActionView: UIView {
         struct Action {
             let image: UIImage
             let backgroundColor: UIColor
+            /// Localized, state-aware title used for the image view's
+            /// accessibility label (the swipe glyphs are otherwise unlabeled).
+            var title: String = ""
         }
 
         let leadingPrimaryAction: Action
@@ -205,9 +208,20 @@ class SwipeActionView: UIView {
 
         leadingSwipeActionImageView.image = configuration?.leadingPrimaryAction.image
         trailingSwipeActionImageView.image = configuration?.trailingPrimaryAction.image
+
+        leadingSwipeActionImageView.isAccessibilityElement = false
+        leadingSwipeActionImageView.accessibilityLabel = configuration?.leadingPrimaryAction.title
+        trailingSwipeActionImageView.isAccessibilityElement = false
+        trailingSwipeActionImageView.accessibilityLabel = configuration?.trailingPrimaryAction.title
     }
 
     private func setImageWithPopAnimation(_ image: UIImage, on imageView: UIImageView) {
+        // Honor Reduce Motion: skip the scale "pop" and just swap the image.
+        guard !UIAccessibility.isReduceMotionEnabled else {
+            imageView.image = image
+            imageView.transform = .identity
+            return
+        }
         UIView.animate(withDuration: 0.1) {
             imageView.image = image
             imageView.transform = CGAffineTransform(scaleX: 1.1, y: 1.1)
@@ -293,8 +307,13 @@ class SwipeActionView: UIView {
 
         case .ended:
             swipeActionContentContainerLeadingConstraint.constant = 0
-            UIView.animate(withDuration: 0.2) {
-                self.layoutIfNeeded()
+            // Honor Reduce Motion: snap the content back without animating.
+            if UIAccessibility.isReduceMotionEnabled {
+                layoutIfNeeded()
+            } else {
+                UIView.animate(withDuration: 0.2) {
+                    self.layoutIfNeeded()
+                }
             }
 
             let isLeadingAction = offsetX > 0

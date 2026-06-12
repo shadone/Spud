@@ -382,6 +382,17 @@ class PostDetailHeaderCell: UITableViewCellBase {
         downvoteBarButton.isSelected = viewModel.isDownvoted
         saveBarButton.isSelected = viewModel.isSaved
 
+        // State-aware VoiceOver labels for the action bar.
+        upvoteBarButton.accessibilityLabel = VoteAccessibility.upvoteButtonLabel(isUpvoted: viewModel.isUpvoted)
+        downvoteBarButton.accessibilityLabel = VoteAccessibility.downvoteButtonLabel(isDownvoted: viewModel.isDownvoted)
+        saveBarButton.accessibilityLabel = VoteAccessibility.saveButtonLabel(isSaved: viewModel.isSaved)
+
+        // The visible subtitle is an icon-and-value run; give VoiceOver a clean
+        // spoken form. The title is plain text and reads as-is.
+        subtitleScoreLabel.accessibilityLabel = viewModel.subtitleScoreAccessibilityLabel
+        subtitleCommentLabel.accessibilityLabel = viewModel.subtitleCommentsAccessibilityLabel
+        subtitleAgeLabel.accessibilityLabel = viewModel.subtitleAgeAccessibilityLabel
+
         imageLoadTask?.cancel()
         switch viewModel.image {
         case .none:
@@ -392,6 +403,16 @@ class PostDetailHeaderCell: UITableViewCellBase {
             linkPreviewView.isHidden = true
             tappableImageUrl = imageUrl
             tappableThumbnailUrl = thumbnailUrl
+            postImageView.isAccessibilityElement = true
+            postImageView.accessibilityLabel = NSLocalizedString(
+                "Post image",
+                comment: "VoiceOver label for the post's image"
+            )
+            postImageView.accessibilityHint = NSLocalizedString(
+                "Opens the full-size image",
+                comment: "VoiceOver hint for the post image"
+            )
+            postImageView.accessibilityTraits = [.image, .button]
             imageLoadTask = Task { [weak self] in
                 for await state in imageService.fetch(imageUrl, thumbnail: thumbnailUrl) {
                     if Task.isCancelled { return }

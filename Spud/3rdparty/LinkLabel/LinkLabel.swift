@@ -150,9 +150,21 @@ class LinkLabel: UILabel {
 
     // MARK: Private
 
-    private var linkAttributes: [LinkAttribute] = []
+    private var linkAttributes: [LinkAttribute] = [] {
+        didSet {
+            // The set of exposed link accessibility children changes whenever
+            // the link ranges change, so invalidate the cache.
+            cachedAccessibilityElements = nil
+        }
+    }
 
     private var standardTextAttributes: [Attribute] = []
+
+    /// Cached per-link accessibility children, rebuilt when the links or the
+    /// label bounds change. Lets repeated VoiceOver/XCUITest queries avoid
+    /// re-laying out the text on every access.
+    private var cachedAccessibilityElements: [Any]?
+    private var cachedAccessibilityElementsBounds: CGRect = .null
 
     private var highlightedLinkAttribute: LinkAttribute? {
         didSet {
@@ -322,6 +334,124 @@ class LinkLabel: UILabel {
         }
 
         super.attributedText = mutableAttributedText
+    }
+}
+
+// MARK: - Accessibility
+
+extension LinkLabel {
+    /// A label that exposes link children must be a *container*, not an
+    /// element itself — otherwise UIKit reads the whole label and never
+    /// descends to the per-link children. With no links we keep the default
+    /// element behaviour so the text is still read.
+    override var isAccessibilityElement: Bool {
+        get { linkAttributes.isEmpty }
+        set { /* computed from link state */ }
+    }
+
+    /// Each tappable link range is surfaced to VoiceOver (and XCUITest) as a
+    /// separate child element framed at that range's bounding rect, carrying
+    /// the link text as its label, the destination URL as its value, and the
+    /// `.link` trait. This both lets VoiceOver users land on and activate
+    /// individual links and lets XCUITest query a link by its text instead of
+    /// tapping a fragile coordinate offset.
+    ///
+    /// When there are no links the label behaves as a plain accessibility
+    /// element (its text is read as a whole), so we return `nil` to let UIKit
+    /// fall back to the default behaviour.
+    override var accessibilityElements: [Any]? {
+        get {
+            guard !linkAttributes.isEmpty, attributedText != nil else {
+                return nil
+            }
+            if let cachedAccessibilityElements,
+               cachedAccessibilityElementsBounds == bounds
+            {
+                return cachedAccessibilityElements
+            }
+            let elements = makeAccessibilityElements()
+            cachedAccessibilityElements = elements
+            cachedAccessibilityElementsBounds = bounds
+            return elements
+        }
+        set {
+            // The element list is computed; ignore external writes.
+        }
+    }
+
+    private func makeAccessibilityElements() -> [Any] {
+        // The whole-text element comes first so VoiceOver reads the full
+        // attributed string, then offers each link as a focusable child.
+        let textElement = UIAccessibilityElement(accessibilityContainer: self)
+        textElement.accessibilityLabel = attributedText?.string
+        textElement.accessibilityFrameInContainerSpace = bounds
+
+        var elements: [Any] = [textElement]
+
+        for linkAttribute in linkAttributes {
+            let element = UIAccessibilityElement(accessibilityContainer: self)
+
+            let linkText = (attributedText?.string as NSString?)?
+                .substring(with: clampedRange(linkAttribute.range))
+            element.accessibilityLabel = linkText
+
+            switch linkAttribute.link {
+            case let .url(url):
+                element.accessibilityValue = url.absoluteString
+            case let .string(string):
+                element.accessibilityValue = string
+            }
+
+            element.accessibilityHint = "Double tap to open link"
+            element.accessibilityTraits = [.link]
+            element.accessibilityFrameInContainerSpace = boundingRect(for: linkAttribute.range)
+
+            elements.append(element)
+        }
+
+        return elements
+    }
+
+    /// Clamps a range to the current attributed string's length, guarding
+    /// against stale ranges produced before the text was replaced.
+    private func clampedRange(_ range: NSRange) -> NSRange {
+        let length = attributedText?.length ?? 0
+        let location = max(0, min(range.location, length))
+        let maxLength = length - location
+        return NSRange(location: location, length: max(0, min(range.length, maxLength)))
+    }
+
+    /// The bounding rect (in this label's coordinate space) enclosing the glyphs
+    /// for `range`, matching the text-container geometry used by
+    /// `indexOfCharacter(at:)` so hit-test and accessibility frames agree.
+    private func boundingRect(for range: NSRange) -> CGRect {
+        guard let attributedText else { return bounds }
+
+        let layoutManager = NSLayoutManager()
+        let textContainer = NSTextContainer()
+        let textStorage = NSTextStorage(attributedString: attributedText)
+
+        layoutManager.addTextContainer(textContainer)
+        textStorage.addLayoutManager(layoutManager)
+
+        textContainer.lineFragmentPadding = 0
+        textContainer.lineBreakMode = lineBreakMode
+        textContainer.maximumNumberOfLines = numberOfLines
+        textContainer.size = bounds.size
+
+        let textBoundingBox = layoutManager.usedRect(for: textContainer)
+        let textContainerOffset = CGPoint(
+            x: (bounds.size.width - textBoundingBox.size.width) * 0.5 - textBoundingBox.origin.x,
+            y: (bounds.size.height - textBoundingBox.size.height) * 0.5 - textBoundingBox.origin.y
+        )
+
+        let glyphRange = layoutManager.glyphRange(
+            forCharacterRange: clampedRange(range),
+            actualCharacterRange: nil
+        )
+        let rect = layoutManager.boundingRect(forGlyphRange: glyphRange, in: textContainer)
+
+        return rect.offsetBy(dx: textContainerOffset.x, dy: textContainerOffset.y)
     }
 }
 

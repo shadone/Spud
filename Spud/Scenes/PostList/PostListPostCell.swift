@@ -248,6 +248,18 @@ class PostListPostCell: UITableViewCell {
         titleLabel.attributedText = viewModel.title
         subtitleLabel.attributedText = viewModel.subtitle
 
+        // VoiceOver reads the cell as a coherent statement. The cell stays a
+        // container (so the title/subtitle static texts remain queryable by
+        // XCUITest and by VoiceOver users navigating element-by-element), but
+        // we override the subtitle's spoken text — the visible subtitle is an
+        // icon-and-value run that VoiceOver would otherwise read as glyphs — and
+        // give the title element the full cell summary plus a tap hint.
+        titleLabel.accessibilityLabel = viewModel.accessibilityLabel
+        titleLabel.accessibilityHint = viewModel.accessibilityHint
+        titleLabel.accessibilityTraits = [.staticText, .button]
+
+        subtitleLabel.accessibilityLabel = viewModel.subtitleAccessibilityLabel
+
         applyDensity(viewModel.density)
         applyThumbnailPosition(viewModel.thumbnailPosition)
 
@@ -265,9 +277,22 @@ class PostListPostCell: UITableViewCell {
         switch viewModel.thumbnail {
         case .text:
             thumbnailView.thumbnailType = .text
+            thumbnailView.isAccessibilityElement = false
             tappableThumbnailUrl = nil
         case let .image(thumbnailUrl):
             thumbnailView.thumbnailType = .none
+            // A tappable image preview: expose it as an image element that
+            // opens the full-size viewer.
+            thumbnailView.isAccessibilityElement = true
+            thumbnailView.accessibilityLabel = NSLocalizedString(
+                "Post image",
+                comment: "VoiceOver label for a post's thumbnail image"
+            )
+            thumbnailView.accessibilityHint = NSLocalizedString(
+                "Opens the full-size image",
+                comment: "VoiceOver hint for a post thumbnail"
+            )
+            thumbnailView.accessibilityTraits = [.image, .button]
             tappableThumbnailUrl = thumbnailUrl
             thumbnailLoadTask = Task { [weak self] in
                 for await state in imageService.fetch(thumbnailUrl) {

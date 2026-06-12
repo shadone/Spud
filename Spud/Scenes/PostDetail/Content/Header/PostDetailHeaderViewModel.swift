@@ -36,6 +36,12 @@ struct PostDetailHeaderViewModel {
     let isSaved: Bool
     let image: HeaderImage
 
+    /// Spoken forms of the icon-and-value subtitle pieces, since the visible
+    /// labels render SF Symbols that VoiceOver cannot pronounce.
+    let subtitleScoreAccessibilityLabel: String
+    let subtitleCommentsAccessibilityLabel: String
+    let subtitleAgeAccessibilityLabel: String
+
     init(
         row: PostDetailHeaderRow,
         appearance: AppearanceServiceType,
@@ -122,6 +128,13 @@ struct PostDetailHeaderViewModel {
                 instance: communityInstance
             ).url
         }
+
+        subtitleScoreAccessibilityLabel = VoteAccessibility.scoreLabel(
+            score: row.score,
+            voteStatus: voteStatus
+        )
+        subtitleCommentsAccessibilityLabel = CommentsAccessibility.label(count: row.numberOfComments)
+        subtitleAgeAccessibilityLabel = row.published.relativeString
 
         let inString = NSAttributedString(string: "in ", attributes: secondaryAttributes)
         let communityName = NSAttributedString(string: row.communityName, attributes: communityAttributes)

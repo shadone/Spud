@@ -167,7 +167,8 @@ extension SwipeActionConfig {
             return SwipeActionView.Configuration.Action(
                 image: swipeAction.image(state: state, appearance: appearance)
                     ?? UIImage(systemName: "circle.slash")!,
-                backgroundColor: swipeAction.backgroundColor(appearance: appearance)
+                backgroundColor: swipeAction.backgroundColor(appearance: appearance),
+                title: swipeAction.title(state: state)
             )
         }
         return SwipeActionView.Configuration(
