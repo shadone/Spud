@@ -6,6 +6,7 @@
 
 import Foundation
 import SpudDataKit
+import SpudUIKit
 import UIKit
 
 class PostListPostCell: UITableViewCell {
@@ -133,6 +134,12 @@ class PostListPostCell: UITableViewCell {
     private var tappableThumbnailUrl: URL?
     private var loadedThumbnailImage: UIImage?
 
+    /// The thumbnail position applied to the current layout, so `configure`
+    /// only relays the stack when it actually changes (cheaper on reuse).
+    private var appliedThumbnailPosition: ThumbnailPosition?
+    /// The density applied to the current layout, same rationale.
+    private var appliedDensity: PostDensity?
+
     // MARK: Functions
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -181,6 +188,11 @@ class PostListPostCell: UITableViewCell {
         tappableThumbnailUrl = nil
         loadedThumbnailImage = nil
 
+        // Leave `appliedThumbnailPosition` / `appliedDensity` intact: they
+        // describe the current layout, and `configure` only relays when they
+        // change. Resetting them here would force a needless relayout on every
+        // reuse.
+
         swipeActionConfiguration = nil
         swipeActionTriggered = nil
         imageTapped = nil
@@ -192,9 +204,61 @@ class PostListPostCell: UITableViewCell {
         imageTapped?(tappableImageUrl, tappableThumbnailUrl, loadedThumbnailImage)
     }
 
+    /// Applies the post-density cell metrics: outer content margin, the gap
+    /// between thumbnail and text, and the title/subtitle spacing.
+    private func applyDensity(_ density: PostDensity) {
+        guard density != appliedDensity else { return }
+        appliedDensity = density
+
+        let margin = density.cellMargin
+        swipeActionView.setContentMargin(
+            UIEdgeInsets(top: margin, left: margin, bottom: -margin, right: -margin)
+        )
+        mainHorizontalStackView.spacing = density.horizontalSpacing
+        contentContainer.setCustomSpacing(density.titleSubtitleSpacing, after: titleLabel)
+    }
+
+    /// Relays the thumbnail to the requested side, or removes it when hidden.
+    private func applyThumbnailPosition(_ position: ThumbnailPosition) {
+        guard position != appliedThumbnailPosition else { return }
+        appliedThumbnailPosition = position
+
+        // Rebuild the horizontal stack's arranged subviews in the right order.
+        for view in mainHorizontalStackView.arrangedSubviews {
+            mainHorizontalStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+
+        switch position {
+        case .left:
+            thumbnailContainer.isHidden = false
+            mainHorizontalStackView.addArrangedSubview(thumbnailContainer)
+            mainHorizontalStackView.addArrangedSubview(contentContainer)
+        case .right:
+            thumbnailContainer.isHidden = false
+            mainHorizontalStackView.addArrangedSubview(contentContainer)
+            mainHorizontalStackView.addArrangedSubview(thumbnailContainer)
+        case .hidden:
+            thumbnailContainer.isHidden = true
+            mainHorizontalStackView.addArrangedSubview(contentContainer)
+        }
+    }
+
     func configure(with viewModel: PostListPostViewModel, imageService: ImageServiceType) {
         titleLabel.attributedText = viewModel.title
         subtitleLabel.attributedText = viewModel.subtitle
+
+        applyDensity(viewModel.density)
+        applyThumbnailPosition(viewModel.thumbnailPosition)
+
+        // A hidden thumbnail needs no image work.
+        guard viewModel.thumbnailPosition.showsThumbnail else {
+            thumbnailLoadTask?.cancel()
+            thumbnailLoadTask = nil
+            tappableImageUrl = nil
+            tappableThumbnailUrl = nil
+            return
+        }
 
         thumbnailLoadTask?.cancel()
         tappableImageUrl = viewModel.fullImageUrl

@@ -28,7 +28,7 @@ struct DependencyContainer:
     let imageService: ImageServiceType
     let schedulerService: SchedulerServiceType
     let postContentDetectorService: PostContentDetectorServiceType
-    let appearanceService: AppearanceServiceType = AppearanceService()
+    let appearanceService: AppearanceServiceType
     let appService: AppServiceType
     let alertService: AlertServiceType = AlertService()
     let preferencesService: PreferencesServiceType = PreferencesService()
@@ -57,6 +57,7 @@ struct DependencyContainer:
             alertService: alertService
         )
         postContentDetectorService = PostContentDetectorService()
+        appearanceService = AppearanceService(preferencesService: preferencesService)
         appService = AppService(preferencesService: preferencesService, appDatabase: appDatabase)
         unreadCountService = UnreadCountService(accountService: accountService)
     }

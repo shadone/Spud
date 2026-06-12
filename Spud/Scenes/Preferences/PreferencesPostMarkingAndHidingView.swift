@@ -5,36 +5,47 @@
 //
 
 import Foundation
+import SpudDataKit
 import SwiftUI
 
+/// The Post Marking & Hiding settings screen. Controls whether posts are
+/// marked read on interaction / scroll, and whether read posts are hidden from
+/// the feed (live or only at refresh). Every toggle writes through
+/// ``PreferencesViewModel`` to ``PreferencesService`` and applies live — the
+/// post list observes the same preference streams.
 struct PreferencesPostMarkingAndHidingView: View {
-    @State var markPostsRead: Bool = true
-    @State var markPostsReadOnScroll: Bool = false
+    @Bindable var viewModel: PreferencesViewModel
 
-    enum AutoHidePostsType {
-        case permanently
-        case untilNewComments
+    private var markPostsRead: Binding<Bool> {
+        .init { viewModel.markPostsRead } set: { viewModel.updateMarkPostsRead($0) }
     }
 
-    @State var autoHidePosts: AutoHidePostsType = .permanently
-    @State var autoHidePostsInCommunities: Bool = false
+    private var markPostsReadOnScroll: Binding<Bool> {
+        .init { viewModel.markPostsReadOnScroll } set: { viewModel.updateMarkPostsReadOnScroll($0) }
+    }
+
+    private var hideReadPosts: Binding<Bool> {
+        .init { viewModel.hideReadPosts } set: { viewModel.updateHideReadPosts($0) }
+    }
+
+    private var hideReadPostsMode: Binding<HideReadPostsFilter.Mode> {
+        .init { viewModel.hideReadPostsMode } set: { viewModel.updateHideReadPostsMode($0) }
+    }
 
     var body: some View {
         Form {
-            // TODO: implement the logic behind this view
-            Text("TODO: these settings are not implemented yet")
-
             Section {
                 VStack(alignment: .leading) {
-                    Toggle("Mark Posts as Read", isOn: $markPostsRead)
-                    Text("The posts that are interacted with are marked as read, for example posts that are opened or upvoted.")
+                    Toggle("Mark Posts as Read", isOn: markPostsRead)
+                    Text("Posts you interact with are marked as read — for example posts you open or upvote.")
                         .foregroundStyle(.secondary)
                         .font(.footnote)
                 }
 
                 VStack(alignment: .leading) {
-                    Toggle("Mark as Read on Scrolling", isOn: $markPostsReadOnScroll)
-                    Text("Automatically mark as read all posts that are shown in the list.")
+                    Toggle("Mark as Read on Scrolling", isOn: markPostsReadOnScroll)
+                        .disabled(!viewModel.markPostsRead)
+                    Text("Automatically mark posts read as they scroll out of view.")
                         .foregroundStyle(.secondary)
                         .font(.footnote)
                 }
@@ -43,20 +54,26 @@ struct PreferencesPostMarkingAndHidingView: View {
             }
 
             Section {
-                Picker("Hide posts…", selection: $autoHidePosts) {
-                    Text("Permanently").tag(AutoHidePostsType.permanently)
-                    Text("Until new comments").tag(AutoHidePostsType.untilNewComments)
-                }
+                Toggle("Hide Read Posts", isOn: hideReadPosts)
 
-                Toggle("Auto Hide in Communities", isOn: $autoHidePostsInCommunities)
+                if viewModel.hideReadPosts {
+                    Picker("When", selection: hideReadPostsMode) {
+                        Text("On Refresh").tag(HideReadPostsFilter.Mode.onRefresh)
+                        Text("Immediately").tag(HideReadPostsFilter.Mode.live)
+                    }
+                }
             } header: {
-                Text("Auto Hide")
+                Text("Hide Read")
             } footer: {
-                switch autoHidePosts {
-                case .permanently:
-                    Text("Automatically hides read posts.")
-                case .untilNewComments:
-                    Text("Automatically hides read posts until new comments are added.")
+                if viewModel.hideReadPosts {
+                    switch viewModel.hideReadPostsMode {
+                    case .onRefresh:
+                        Text("Read posts are removed from the feed when it next refreshes, so nothing disappears while you scroll.")
+                    case .live:
+                        Text("Read posts are removed from the feed the moment they are marked read.")
+                    }
+                } else {
+                    Text("Read posts stay in the feed.")
                 }
             }
         }
@@ -65,7 +82,7 @@ struct PreferencesPostMarkingAndHidingView: View {
 }
 
 #Preview {
-    NavigationView {
-        PreferencesPostMarkingAndHidingView()
+    NavigationStack {
+        PreferencesPostMarkingAndHidingView(viewModel: PreferencesViewModel())
     }
 }

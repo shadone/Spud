@@ -81,6 +81,20 @@ final class PreferencesViewModel {
     var appTheme: AppTheme
     var accentColor: AccentColor
 
+    // MARK: Reading / display (M8)
+
+    let allPostDensities: [PostDensity] = PostDensity.allCases
+    let allThumbnailPositions: [ThumbnailPosition] = ThumbnailPosition.allCases
+
+    var postDensity: PostDensity
+    var thumbnailPosition: ThumbnailPosition
+    var postTextScale: CGFloat
+
+    var markPostsRead: Bool
+    var markPostsReadOnScroll: Bool
+    var hideReadPosts: Bool
+    var hideReadPostsMode: HideReadPostsFilter.Mode
+
     var storageSize: String
     var storageFileUrl: URL
 
@@ -118,6 +132,14 @@ final class PreferencesViewModel {
 
         appTheme = dependencies.preferencesService.appTheme
         accentColor = dependencies.preferencesService.accentColor
+
+        postDensity = dependencies.preferencesService.postDensity
+        thumbnailPosition = dependencies.preferencesService.thumbnailPosition
+        postTextScale = dependencies.preferencesService.postTextScale
+        markPostsRead = dependencies.preferencesService.markPostsRead
+        markPostsReadOnScroll = dependencies.preferencesService.markPostsReadOnScroll
+        hideReadPosts = dependencies.preferencesService.hideReadPosts
+        hideReadPostsMode = dependencies.preferencesService.hideReadPostsMode
 
         postSwipeActions = dependencies.preferencesService.postSwipeActions
         commentSwipeActions = dependencies.preferencesService.commentSwipeActions
@@ -175,6 +197,48 @@ final class PreferencesViewModel {
                 self?.commentSwipeActions = value
             }
         })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.postDensityStream {
+                self?.postDensity = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.thumbnailPositionStream {
+                self?.thumbnailPosition = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.postTextScaleStream {
+                self?.postTextScale = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.markPostsReadStream {
+                self?.markPostsRead = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.markPostsReadOnScrollStream {
+                self?.markPostsReadOnScroll = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.hideReadPostsStream {
+                self?.hideReadPosts = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.hideReadPostsModeStream {
+                self?.hideReadPostsMode = value
+            }
+        })
     }
 
     /// Preview-only init with seed values and no service dependencies.
@@ -194,6 +258,13 @@ final class PreferencesViewModel {
         openExternalLinkAsUniversalLinkInApp = true
         appTheme = .system
         accentColor = .lemmy
+        postDensity = .comfortable
+        thumbnailPosition = .left
+        postTextScale = 0
+        markPostsRead = true
+        markPostsReadOnScroll = false
+        hideReadPosts = false
+        hideReadPostsMode = .onRefresh
         postSwipeActions = .defaultPosts
         commentSwipeActions = .defaultComments
         storageSize = "128 MB"
@@ -250,6 +321,52 @@ final class PreferencesViewModel {
         accentColor = value
         preferencesService?.accentColor = value
         Haptics.tap()
+    }
+
+    // MARK: Reading / display (M8)
+
+    func updatePostDensity(_ value: PostDensity) {
+        guard value != postDensity else { return }
+        postDensity = value
+        preferencesService?.postDensity = value
+        Haptics.tap()
+    }
+
+    func updateThumbnailPosition(_ value: ThumbnailPosition) {
+        guard value != thumbnailPosition else { return }
+        thumbnailPosition = value
+        preferencesService?.thumbnailPosition = value
+        Haptics.tap()
+    }
+
+    func updatePostTextScale(_ value: CGFloat) {
+        guard value != postTextScale else { return }
+        postTextScale = value
+        preferencesService?.postTextScale = value
+    }
+
+    func updateMarkPostsRead(_ value: Bool) {
+        guard value != markPostsRead else { return }
+        markPostsRead = value
+        preferencesService?.markPostsRead = value
+    }
+
+    func updateMarkPostsReadOnScroll(_ value: Bool) {
+        guard value != markPostsReadOnScroll else { return }
+        markPostsReadOnScroll = value
+        preferencesService?.markPostsReadOnScroll = value
+    }
+
+    func updateHideReadPosts(_ value: Bool) {
+        guard value != hideReadPosts else { return }
+        hideReadPosts = value
+        preferencesService?.hideReadPosts = value
+    }
+
+    func updateHideReadPostsMode(_ value: HideReadPostsFilter.Mode) {
+        guard value != hideReadPostsMode else { return }
+        hideReadPostsMode = value
+        preferencesService?.hideReadPostsMode = value
     }
 
     // MARK: Swipe actions

@@ -21,6 +21,10 @@ protocol HasAppearanceService {
 @MainActor
 class AppearanceService: AppearanceServiceType {
     let general = GeneralAppearance()
-    let postList: PostListAppearanceType = PostListAppearance()
+    let postList: PostListAppearanceType
     let postDetail: PostDetailAppearanceType = PostDetailAppearance()
+
+    init(preferencesService: PreferencesServiceType) {
+        postList = PostListAppearance(preferencesService: preferencesService)
+    }
 }

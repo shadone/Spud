@@ -89,7 +89,11 @@ class PostListViewController: UIViewController {
     // MARK: Private
 
     private var rowsByServerPostId: [Int64: PostListRow] = [:]
+    /// The full ordered feed snapshot from GRDB (before hide-read filtering).
     private var orderedRows: [PostListRow] = []
+    /// The rows actually rendered, after the hide-read filter. Drives the empty
+    /// state so an all-read feed shows the designed empty state when hiding.
+    private var displayedRows: [PostListRow] = []
     /// The backing account's moderation capability, refreshed when the feed
     /// loads. Drives whether the post context menu shows mod actions. `.none`
     /// until the first fetch (and for signed-out accounts).
@@ -102,11 +106,34 @@ class PostListViewController: UIViewController {
     private var titleObservationTask: Task<Void, Never>?
     private var loadingObservationTask: Task<Void, Never>?
     private var swipeActionsObservationTask: Task<Void, Never>?
+    private var displayPrefsObservationTasks: [Task<Void, Never>] = []
 
     /// The active post swipe-action config, sanitized for posts. Seeded from
     /// the preference and kept live via `swipeActionsObservationTask`; changes
     /// reconfigure visible cells.
     private var swipeActionConfig: SwipeActionConfig = .defaultPosts
+
+    // MARK: Reading / hiding state (M8)
+
+    /// Hide-read prefs, seeded from `PreferencesService` and kept live. Changes
+    /// re-apply the current snapshot through `HideReadPostsFilter`.
+    private var hideReadPosts = false
+    private var hideReadPostsMode: HideReadPostsFilter.Mode = .onRefresh
+
+    /// Mark-read prefs, seeded and kept live. Drive `scrollViewDidScroll`'s
+    /// best-effort mark-as-read.
+    private var markPostsRead = true
+    private var markPostsReadOnScroll = false
+
+    /// For `HideReadPostsFilter.Mode.onRefresh`: the server post ids that were
+    /// already read when the current feed view began, captured on the first
+    /// snapshot. Only these are hidden, so posts read mid-session don't vanish
+    /// from under the user until the next refresh.
+    private var pinnedReadIds: Set<Int64> = []
+
+    /// Server post ids already enqueued for a scroll mark-as-read, so we don't
+    /// fire the API repeatedly for the same row.
+    private var scrollMarkedReadIds: Set<Int64> = []
 
     var sortTypeBarButtonItem: UIBarButtonItem!
     var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
@@ -128,6 +155,11 @@ class PostListViewController: UIViewController {
             .postSwipeActions
             .sanitized(for: .post)
 
+        hideReadPosts = dependencies.preferencesService.hideReadPosts
+        hideReadPostsMode = dependencies.preferencesService.hideReadPostsMode
+        markPostsRead = dependencies.preferencesService.markPostsRead
+        markPostsReadOnScroll = dependencies.preferencesService.markPostsReadOnScroll
+
         setup()
         navigationItem.title = viewModel.navigationTitle
     }
@@ -142,6 +174,9 @@ class PostListViewController: UIViewController {
         titleObservationTask?.cancel()
         loadingObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
+        for task in displayPrefsObservationTasks {
+            task.cancel()
+        }
     }
 
     private func setup() {
@@ -214,6 +249,10 @@ class PostListViewController: UIViewController {
         titleObservationTask?.cancel()
         loadingObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
+        for task in displayPrefsObservationTasks {
+            task.cancel()
+        }
+        displayPrefsObservationTasks.removeAll()
 
         swipeActionsObservationTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -225,6 +264,8 @@ class PostListViewController: UIViewController {
                 reconfigureVisibleSwipeActions()
             }
         }
+
+        startDisplayAndReadingObservations()
 
         let viewModel = viewModel
         titleObservationTask = Task { @MainActor [weak self] in
@@ -239,6 +280,101 @@ class PostListViewController: UIViewController {
                 self?.applyLoadingIndicatorVisibility(hidden: !viewModel.isFetchingNextPage)
             }
         }
+    }
+
+    /// Observes the M8 reading / display preferences. Density, thumbnail
+    /// position, and text scale rebuild visible cells; hide-read and mark-read
+    /// prefs update the snapshot / scroll behaviour live, with no relaunch.
+    private func startDisplayAndReadingObservations() {
+        // Display prefs (density, thumbnail position, text scale) all rebuild
+        // visible cells. Each stream replays its current value on subscribe, so
+        // the first element is skipped (the cells already reflect it).
+        displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
+            var first = true
+            for await _ in preferencesService.postDensityStream {
+                if Task.isCancelled { break }
+                if first { first = false
+                    continue
+                }
+                reconfigureVisibleCells()
+            }
+        })
+
+        displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
+            var first = true
+            for await _ in preferencesService.thumbnailPositionStream {
+                if Task.isCancelled { break }
+                if first { first = false
+                    continue
+                }
+                reconfigureVisibleCells()
+            }
+        })
+
+        displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
+            var first = true
+            for await _ in preferencesService.postTextScaleStream {
+                if Task.isCancelled { break }
+                if first { first = false
+                    continue
+                }
+                reconfigureVisibleCells()
+            }
+        })
+
+        displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await value in preferencesService.hideReadPostsStream {
+                if Task.isCancelled { break }
+                guard value != hideReadPosts else { continue }
+                hideReadPosts = value
+                // Re-pin the read set so toggling on doesn't instantly sweep
+                // posts read earlier this session under onRefresh.
+                pinnedReadIds = HideReadPostsFilter.readIds(in: orderedRows)
+                apply(rows: orderedRows)
+            }
+        })
+
+        displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await value in preferencesService.hideReadPostsModeStream {
+                if Task.isCancelled { break }
+                guard value != hideReadPostsMode else { continue }
+                hideReadPostsMode = value
+                apply(rows: orderedRows)
+            }
+        })
+
+        displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await value in preferencesService.markPostsReadStream {
+                if Task.isCancelled { break }
+                markPostsRead = value
+            }
+        })
+
+        displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await value in preferencesService.markPostsReadOnScrollStream {
+                if Task.isCancelled { break }
+                markPostsReadOnScroll = value
+            }
+        })
+    }
+
+    /// Re-applies the diffable snapshot's currently visible items so each cell
+    /// rebuilds its view model from the updated display preferences (density,
+    /// thumbnail position, text scale).
+    private func reconfigureVisibleCells() {
+        guard dataSource != nil else { return }
+        var snapshot = dataSource.snapshot()
+        let items = snapshot.itemIdentifiers
+        guard !items.isEmpty else { return }
+        snapshot.reconfigureItems(items)
+        dataSource.apply(snapshot, animatingDifferences: false)
     }
 
     /// Tiny shim that turns an Observable property into an AsyncStream of
@@ -361,6 +497,9 @@ class PostListViewController: UIViewController {
         observationTask?.cancel()
         rowsByServerPostId.removeAll()
         orderedRows.removeAll()
+        displayedRows.removeAll()
+        pinnedReadIds.removeAll()
+        scrollMarkedReadIds.removeAll()
         hasReceivedFirstSnapshot = false
         updateEmptyState()
         refreshModerationCapability()
@@ -387,6 +526,12 @@ class PostListViewController: UIViewController {
                 if Task.isCancelled { break }
                 let isFirstSnapshot = !hasReceivedFirstSnapshot
                 hasReceivedFirstSnapshot = true
+                if isFirstSnapshot {
+                    // Pin the rows already read when this feed view began, so
+                    // `onRefresh` hide-read only hides those (posts read while
+                    // scrolling stay until the next refresh).
+                    pinnedReadIds = HideReadPostsFilter.readIds(in: rows)
+                }
                 apply(rows: rows)
                 if isFirstSnapshot {
                     viewModel.didPrepareObservation(numberOfFetchedPosts: rows.count)
@@ -397,11 +542,22 @@ class PostListViewController: UIViewController {
 
     private func apply(rows: [PostListRow]) {
         orderedRows = rows
+
+        // Filter for display per the hide-read preference. `rowsByServerPostId`
+        // still maps every row so cells resolve, but the snapshot only carries
+        // the rows that should be visible.
+        let displayed = HideReadPostsFilter.filter(
+            rows: rows,
+            enabled: hideReadPosts,
+            mode: hideReadPostsMode,
+            pinnedReadIds: pinnedReadIds
+        )
+        displayedRows = displayed
         rowsByServerPostId = Dictionary(uniqueKeysWithValues: rows.map { ($0.serverPostId, $0) })
 
         var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
         snapshot.appendSections([.posts])
-        let items = rows.map { Item.post(serverPostId: $0.serverPostId) }
+        let items = displayed.map { Item.post(serverPostId: $0.serverPostId) }
         snapshot.appendItems(items, toSection: .posts)
         snapshot.reloadItems(items)
 
@@ -440,7 +596,7 @@ class PostListViewController: UIViewController {
     /// during the initial fetch and whenever a page is loading.
     private func updateEmptyState() {
         let shouldShow = hasReceivedFirstSnapshot
-            && orderedRows.isEmpty
+            && displayedRows.isEmpty
             && !viewModel.isFetchingNextPage
 
         guard shouldShow else {
@@ -699,6 +855,48 @@ extension PostListViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         guard case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath) else { return }
         postSelected(serverPostId: serverPostId)
+    }
+
+    /// Marks a post read as it scrolls out of view, when the
+    /// mark-read-on-scroll preference is on. Best-effort: it updates the local
+    /// read state (which flows back through the GRDB observation) and fires the
+    /// server call without surfacing failures.
+    func tableView(
+        _ tableView: UITableView,
+        didEndDisplaying cell: UITableViewCell,
+        forRowAt indexPath: IndexPath
+    ) {
+        guard markPostsRead, markPostsReadOnScroll else { return }
+        // The cell has already left the data source's reach by the time this
+        // fires after a snapshot apply, so resolve the post id from the cell's
+        // last-known item rather than `itemIdentifier(for:)`.
+        guard let item = dataSource.itemIdentifier(for: indexPath),
+              case let .post(serverPostId) = item else { return }
+        markReadOnScroll(serverPostId: serverPostId)
+    }
+
+    private func markReadOnScroll(serverPostId: Int64) {
+        // Skip rows already read or already enqueued this session.
+        guard !scrollMarkedReadIds.contains(serverPostId) else { return }
+        if rowsByServerPostId[serverPostId]?.isRead == true {
+            scrollMarkedReadIds.insert(serverPostId)
+            return
+        }
+        scrollMarkedReadIds.insert(serverPostId)
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await accountService
+                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                    .markAsRead(serverPostId: Components.Schemas.PostID(serverPostId))
+            } catch {
+                // Best-effort: a failed scroll mark-read should not interrupt
+                // browsing. Allow a later retry by un-enqueuing.
+                scrollMarkedReadIds.remove(serverPostId)
+                logger.debug("Scroll mark-as-read failed: \(String(describing: error), privacy: .public)")
+            }
+        }
     }
 
     // MARK: Context Menu

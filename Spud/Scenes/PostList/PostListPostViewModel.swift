@@ -6,6 +6,7 @@
 
 import Foundation
 import SpudDataKit
+import SpudUIKit
 import UIKit
 
 @MainActor
@@ -26,12 +27,25 @@ struct PostListPostViewModel {
     /// the full-screen viewer from the list thumbnail. nil for non-image posts.
     let fullImageUrl: URL?
 
+    /// Where the cell should place the thumbnail (or whether to hide it).
+    let thumbnailPosition: ThumbnailPosition
+
+    /// Cell margin and inter-element spacing for the active density.
+    let density: PostDensity
+
     init(
         row: PostListRow,
         appearance: AppearanceServiceType,
         postContentDetector: PostContentDetectorServiceType
     ) {
+        let density = appearance.postList.postDensity
+        self.density = density
+        thumbnailPosition = appearance.postList.thumbnailPosition
+
+        // The user's text-scale override plus the active density's own
+        // adjustment (compact shaves a point).
         let textSizeAdjustment = appearance.postList.textSizeAdjustment
+            + density.relativeFontSizeAdjustment
 
         let titleAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.scaledSystemFont(
