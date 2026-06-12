@@ -118,26 +118,33 @@ final class NewPostViewController: UIViewController {
         return indicator
     }()
 
-    private lazy var bodyTextView: UITextView = {
-        let textView = UITextView()
-        textView.font = .preferredFont(forTextStyle: .body)
-        textView.adjustsFontForContentSizeCategory = true
-        textView.isScrollEnabled = false
-        textView.layer.borderColor = UIColor.separator.cgColor
-        textView.layer.borderWidth = 1
-        textView.layer.cornerRadius = 8
-        textView.textContainerInset = UIEdgeInsets(top: 10, left: 8, bottom: 10, right: 8)
-        textView.delegate = self
-        return textView
+    private lazy var bodyEditorView: MarkdownEditorView = {
+        let editor = MarkdownEditorView()
+        editor.translatesAutoresizingMaskIntoConstraints = false
+        editor.placeholder = NSLocalizedString("Body (optional, markdown)", comment: "Placeholder for the new-post body editor")
+        editor.textView.isScrollEnabled = false
+        editor.layer.borderColor = UIColor.separator.cgColor
+        editor.layer.borderWidth = 1
+        editor.layer.cornerRadius = 8
+        editor.clipsToBounds = true
+        editor.textView.textContainerInset = UIEdgeInsets(top: 10, left: 8, bottom: 10, right: 8)
+        editor.onTextChange = { [weak self] text in
+            self?.viewModel.bodyText = text
+        }
+        editor.onPreviewLinkTapped = { url in
+            UIApplication.shared.open(url)
+        }
+        return editor
     }()
 
-    private lazy var bodyPlaceholderLabel: UILabel = {
-        let label = UILabel()
-        label.text = NSLocalizedString("Body (optional, markdown)", comment: "Placeholder for the new-post body editor")
-        label.font = .preferredFont(forTextStyle: .body)
-        label.textColor = .placeholderText
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
+    private lazy var bodyModeControl: UISegmentedControl = {
+        let control = UISegmentedControl(items: [
+            NSLocalizedString("Write", comment: "New-post body write-mode segment"),
+            NSLocalizedString("Preview", comment: "New-post body preview-mode segment"),
+        ])
+        control.selectedSegmentIndex = 0
+        control.addTarget(self, action: #selector(bodyModeChanged), for: .valueChanged)
+        return control
     }()
 
     private lazy var nsfwSwitch: UISwitch = {
@@ -219,15 +226,18 @@ final class NewPostViewController: UIViewController {
         nsfwRow.axis = .horizontal
         nsfwRow.alignment = .center
 
+        let bodyHeaderRow = UIStackView(arrangedSubviews: [UIView(), bodyModeControl])
+        bodyHeaderRow.axis = .horizontal
+        bodyHeaderRow.alignment = .center
+
         stackView.addArrangedSubview(communityButton)
         stackView.addArrangedSubview(titleField)
         stackView.addArrangedSubview(postTypeControl)
         stackView.addArrangedSubview(urlField)
         stackView.addArrangedSubview(attachRow)
-        stackView.addArrangedSubview(bodyTextView)
+        stackView.addArrangedSubview(bodyHeaderRow)
+        stackView.addArrangedSubview(bodyEditorView)
         stackView.addArrangedSubview(nsfwRow)
-
-        bodyTextView.addSubview(bodyPlaceholderLabel)
 
         NSLayoutConstraint.activate([
             scrollView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
@@ -241,9 +251,7 @@ final class NewPostViewController: UIViewController {
             stackView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
             stackView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
 
-            bodyTextView.heightAnchor.constraint(greaterThanOrEqualToConstant: 140),
-            bodyPlaceholderLabel.topAnchor.constraint(equalTo: bodyTextView.topAnchor, constant: 12),
-            bodyPlaceholderLabel.leadingAnchor.constraint(equalTo: bodyTextView.leadingAnchor, constant: 12),
+            bodyEditorView.heightAnchor.constraint(greaterThanOrEqualToConstant: 140),
         ])
 
         applyPostType()
@@ -334,7 +342,8 @@ final class NewPostViewController: UIViewController {
     private func setFormEnabled(_ enabled: Bool) {
         titleField.isEnabled = enabled
         urlField.isEnabled = enabled
-        bodyTextView.isEditable = enabled
+        bodyEditorView.textView.isEditable = enabled
+        bodyModeControl.isEnabled = enabled
         postTypeControl.isEnabled = enabled
         nsfwSwitch.isEnabled = enabled
         communityButton.isEnabled = enabled
@@ -342,6 +351,11 @@ final class NewPostViewController: UIViewController {
     }
 
     // MARK: Actions
+
+    @objc
+    private func bodyModeChanged() {
+        bodyEditorView.setMode(bodyModeControl.selectedSegmentIndex == 0 ? .write : .preview)
+    }
 
     @objc
     private func titleChanged() {
@@ -402,15 +416,6 @@ final class NewPostViewController: UIViewController {
     }
 }
 
-// MARK: - UITextViewDelegate
-
-extension NewPostViewController: UITextViewDelegate {
-    func textViewDidChange(_ textView: UITextView) {
-        viewModel.bodyText = textView.text
-        bodyPlaceholderLabel.isHidden = !textView.text.isEmpty
-    }
-}
-
 // MARK: - PHPickerViewControllerDelegate
 
 extension NewPostViewController: PHPickerViewControllerDelegate {
@@ -444,8 +449,7 @@ extension NewPostViewController: PHPickerViewControllerDelegate {
     /// back into the editable fields.
     private func syncFieldsFromViewModel() {
         urlField.text = viewModel.urlText
-        bodyTextView.text = viewModel.bodyText
-        bodyPlaceholderLabel.isHidden = !viewModel.bodyText.isEmpty
+        bodyEditorView.text = viewModel.bodyText
     }
 }
 

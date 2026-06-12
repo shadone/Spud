@@ -26,15 +26,27 @@ final class ComposerViewController: UIViewController {
 
     // MARK: UI
 
-    private lazy var textView: UITextView = {
-        let textView = UITextView()
-        textView.translatesAutoresizingMaskIntoConstraints = false
-        textView.font = .preferredFont(forTextStyle: .body)
-        textView.adjustsFontForContentSizeCategory = true
-        textView.backgroundColor = .clear
-        textView.textContainerInset = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
-        textView.delegate = self
-        return textView
+    private lazy var editorView: MarkdownEditorView = {
+        let editor = MarkdownEditorView()
+        editor.translatesAutoresizingMaskIntoConstraints = false
+        editor.textView.textContainerInset = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+        editor.onTextChange = { [weak self] text in
+            self?.viewModel.bodyText = text
+        }
+        editor.onPreviewLinkTapped = { [weak self] url in
+            self?.openPreviewLink(url)
+        }
+        return editor
+    }()
+
+    private lazy var modeControl: UISegmentedControl = {
+        let control = UISegmentedControl(items: [
+            NSLocalizedString("Write", comment: "Composer write-mode segment"),
+            NSLocalizedString("Preview", comment: "Composer preview-mode segment"),
+        ])
+        control.selectedSegmentIndex = 0
+        control.addTarget(self, action: #selector(modeChanged), for: .valueChanged)
+        return control
     }()
 
     private lazy var cancelButton = UIBarButtonItem(
@@ -87,7 +99,9 @@ final class ComposerViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        textView.becomeFirstResponder()
+        if editorView.mode == .write {
+            editorView.textView.becomeFirstResponder()
+        }
     }
 
     private func setup() {
@@ -96,14 +110,28 @@ final class ComposerViewController: UIViewController {
         navigationItem.title = viewModel.navigationTitle
         navigationItem.leftBarButtonItem = cancelButton
         navigationItem.rightBarButtonItem = postButton
+        navigationItem.titleView = modeControl
 
-        view.addSubview(textView)
+        editorView.text = viewModel.bodyText
+
+        view.addSubview(editorView)
         NSLayoutConstraint.activate([
-            textView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
-            textView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            textView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            textView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
+            editorView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            editorView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            editorView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            editorView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
         ])
+    }
+
+    @objc
+    private func modeChanged() {
+        editorView.setMode(modeControl.selectedSegmentIndex == 0 ? .write : .preview)
+    }
+
+    /// Opens a link tapped in the rendered preview. The comment composer has
+    /// no AppService, so route through the system handler.
+    private func openPreviewLink(_ url: URL) {
+        UIApplication.shared.open(url)
     }
 
     private func bindViewModel() {
@@ -123,11 +151,11 @@ final class ComposerViewController: UIViewController {
     private func apply(submissionState state: ComposerSubmissionState) {
         switch state {
         case .editing:
-            textView.isEditable = true
+            editorView.textView.isEditable = true
             navigationItem.rightBarButtonItem = postButton
 
         case .submitting:
-            textView.isEditable = false
+            editorView.textView.isEditable = false
             activityIndicator.startAnimating()
             navigationItem.rightBarButtonItem = UIBarButtonItem(customView: activityIndicator)
 
@@ -136,7 +164,7 @@ final class ComposerViewController: UIViewController {
             dismiss(animated: true)
 
         case let .failed(message):
-            textView.isEditable = true
+            editorView.textView.isEditable = true
             navigationItem.rightBarButtonItem = postButton
             // Reset to editing so a retry starts clean, then surface the error
             // while keeping the draft text intact.
@@ -155,14 +183,6 @@ final class ComposerViewController: UIViewController {
     private func postTapped() {
         view.endEditing(false)
         Task { await viewModel.post() }
-    }
-}
-
-// MARK: - UITextViewDelegate
-
-extension ComposerViewController: UITextViewDelegate {
-    func textViewDidChange(_ textView: UITextView) {
-        viewModel.bodyText = textView.text
     }
 }
 
