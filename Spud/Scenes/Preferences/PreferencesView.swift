@@ -38,6 +38,18 @@ struct PreferencesView: View {
                         Label("Appearance", systemImage: "paintpalette")
                     }
 
+                    NavigationLink {
+                        PreferencesDisplayView(viewModel: viewModel)
+                    } label: {
+                        Label("Display", systemImage: "rectangle.grid.1x2")
+                    }
+
+                    NavigationLink {
+                        PreferencesPostMarkingAndHidingView(viewModel: viewModel)
+                    } label: {
+                        Label("Post Marking & Hiding", systemImage: "eye.slash")
+                    }
+
                     NavigationLink { } label: {
                         Label("Accounts", systemImage: "person")
                     }

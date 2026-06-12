@@ -54,12 +54,6 @@ struct PreferencesGeneralView: View {
     var body: some View {
         Form {
             Section {
-                NavigationLink {
-                    PreferencesPostMarkingAndHidingView()
-                } label: {
-                    Text("Mark Read / Hiding Posts")
-                }
-
                 Picker("Default Sort", selection: defaultPostSortType) {
                     ForEach(viewModel.allPostSortTypes) { sortType in
                         let item = sortType.itemForMenu

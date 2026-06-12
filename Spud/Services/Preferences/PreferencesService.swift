@@ -6,6 +6,7 @@
 
 import Foundation
 import LemmyKit
+import SpudDataKit
 import SpudUIKit
 import SpudUtilKit
 
@@ -45,6 +46,45 @@ protocol PreferencesServiceType: AnyObject {
     /// the pre-M8 hardcoded behaviour (``SwipeActionConfig/defaultComments``).
     var commentSwipeActions: SwipeActionConfig { get set }
     var commentSwipeActionsStream: AsyncStream<SwipeActionConfig> { get }
+
+    // MARK: Reading / display (M8)
+
+    /// Post-list density (comfortable / compact). Affects cell margins,
+    /// spacing, and font size. Default `.comfortable` (the pre-M8 look).
+    var postDensity: PostDensity { get set }
+    var postDensityStream: AsyncStream<PostDensity> { get }
+
+    /// Where the post-list thumbnail sits (left / right / hidden). Default
+    /// `.left` (the pre-M8 layout).
+    var thumbnailPosition: ThumbnailPosition { get set }
+    var thumbnailPositionStream: AsyncStream<ThumbnailPosition> { get }
+
+    /// A user text-scale override layered on top of Dynamic Type, in points
+    /// relative to the system body size. Default `0` (no override).
+    var postTextScale: CGFloat { get set }
+    var postTextScaleStream: AsyncStream<CGFloat> { get }
+
+    // MARK: Mark-read / hide (M8)
+
+    /// Whether posts interacted with (opened, voted) are marked read. Default
+    /// `true`.
+    var markPostsRead: Bool { get set }
+    var markPostsReadStream: AsyncStream<Bool> { get }
+
+    /// Whether posts are marked read as they scroll out of view. Default
+    /// `false`. Has no effect when ``markPostsRead`` is off.
+    var markPostsReadOnScroll: Bool { get set }
+    var markPostsReadOnScrollStream: AsyncStream<Bool> { get }
+
+    /// Whether already-read posts are hidden from the feed. Default `false`.
+    var hideReadPosts: Bool { get set }
+    var hideReadPostsStream: AsyncStream<Bool> { get }
+
+    /// When read posts are hidden — live (vanish on read) or only at refresh.
+    /// Default `.onRefresh` (less jarring). Has no effect when
+    /// ``hideReadPosts`` is off.
+    var hideReadPostsMode: HideReadPostsFilter.Mode { get set }
+    var hideReadPostsModeStream: AsyncStream<HideReadPostsFilter.Mode> { get }
 }
 
 @MainActor
@@ -104,5 +144,58 @@ class PreferencesService: PreferencesServiceType {
 
     var commentSwipeActionsStream: AsyncStream<SwipeActionConfig> {
         $commentSwipeActions
+    }
+
+    // MARK: Reading / display (M8)
+
+    @UserDefaultsBacked(key: "postDensity")
+    var postDensity: PostDensity = .comfortable
+
+    var postDensityStream: AsyncStream<PostDensity> {
+        $postDensity
+    }
+
+    @UserDefaultsBacked(key: "thumbnailPosition")
+    var thumbnailPosition: ThumbnailPosition = .left
+
+    var thumbnailPositionStream: AsyncStream<ThumbnailPosition> {
+        $thumbnailPosition
+    }
+
+    @UserDefaultsBacked(key: "postTextScale")
+    var postTextScale: CGFloat = 0
+
+    var postTextScaleStream: AsyncStream<CGFloat> {
+        $postTextScale
+    }
+
+    // MARK: Mark-read / hide (M8)
+
+    @UserDefaultsBacked(key: "markPostsRead")
+    var markPostsRead: Bool = true
+
+    var markPostsReadStream: AsyncStream<Bool> {
+        $markPostsRead
+    }
+
+    @UserDefaultsBacked(key: "markPostsReadOnScroll")
+    var markPostsReadOnScroll: Bool = false
+
+    var markPostsReadOnScrollStream: AsyncStream<Bool> {
+        $markPostsReadOnScroll
+    }
+
+    @UserDefaultsBacked(key: "hideReadPosts")
+    var hideReadPosts: Bool = false
+
+    var hideReadPostsStream: AsyncStream<Bool> {
+        $hideReadPosts
+    }
+
+    @UserDefaultsBacked(key: "hideReadPostsMode")
+    var hideReadPostsMode: HideReadPostsFilter.Mode = .onRefresh
+
+    var hideReadPostsModeStream: AsyncStream<HideReadPostsFilter.Mode> {
+        $hideReadPostsMode
     }
 }

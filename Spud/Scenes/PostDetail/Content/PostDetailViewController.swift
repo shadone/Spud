@@ -276,7 +276,7 @@ class PostDetailViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
 
-        if isFirstAppearance {
+        if isFirstAppearance, preferencesService.markPostsRead {
             Task { await markAsRead() }
         }
         isFirstAppearance = false

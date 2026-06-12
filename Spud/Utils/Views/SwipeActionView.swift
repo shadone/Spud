@@ -83,6 +83,13 @@ class SwipeActionView: UIView {
     private var leadingSwipeActionTrailingConstraint: NSLayoutConstraint!
     private var trailingSwipeActionLeadingConstraint: NSLayoutConstraint!
 
+    /// The four content-inset constraints, kept mutable so the owning cell can
+    /// retune them live when the post-density preference changes.
+    private var contentLeadingConstraint: NSLayoutConstraint!
+    private var contentTrailingConstraint: NSLayoutConstraint!
+    private var contentTopConstraint: NSLayoutConstraint!
+    private var contentBottomConstraint: NSLayoutConstraint!
+
     private enum ActionState {
         case none
         case primary
@@ -126,6 +133,15 @@ class SwipeActionView: UIView {
             .leadingAnchor.constraint(greaterThanOrEqualTo: swipeActionContentContainer.trailingAnchor, constant: 0)
         self.trailingSwipeActionLeadingConstraint = trailingSwipeActionLeadingConstraint
 
+        contentLeadingConstraint = contentView.leadingAnchor
+            .constraint(equalTo: swipeActionContentContainer.leadingAnchor, constant: margin.left)
+        contentTrailingConstraint = contentView.trailingAnchor
+            .constraint(equalTo: swipeActionContentContainer.trailingAnchor, constant: margin.right)
+        contentTopConstraint = contentView.topAnchor
+            .constraint(equalTo: swipeActionContentContainer.topAnchor, constant: margin.top)
+        contentBottomConstraint = contentView.bottomAnchor
+            .constraint(equalTo: swipeActionContentContainer.bottomAnchor, constant: margin.bottom)
+
         NSLayoutConstraint.activate([
             leadingSwipeActionView.leadingAnchor.constraint(lessThanOrEqualTo: leadingAnchor),
             leadingSwipeActionView.trailingAnchor.constraint(equalTo: swipeActionContentContainer.leadingAnchor),
@@ -145,10 +161,10 @@ class SwipeActionView: UIView {
             swipeActionContentContainer.topAnchor.constraint(equalTo: topAnchor),
             swipeActionContentContainer.bottomAnchor.constraint(equalTo: bottomAnchor),
 
-            contentView.leadingAnchor.constraint(equalTo: swipeActionContentContainer.leadingAnchor, constant: margin.left),
-            contentView.trailingAnchor.constraint(equalTo: swipeActionContentContainer.trailingAnchor, constant: margin.right),
-            contentView.topAnchor.constraint(equalTo: swipeActionContentContainer.topAnchor, constant: margin.top),
-            contentView.bottomAnchor.constraint(equalTo: swipeActionContentContainer.bottomAnchor, constant: margin.bottom),
+            contentLeadingConstraint,
+            contentTrailingConstraint,
+            contentTopConstraint,
+            contentBottomConstraint,
 
             leadingSwipeActionImageView.widthAnchor.constraint(equalToConstant: actionImageSize),
             leadingSwipeActionImageView.heightAnchor.constraint(equalToConstant: actionImageSize),
@@ -172,6 +188,16 @@ class SwipeActionView: UIView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    /// Retunes the content inset (used by the post-list cell when the density
+    /// preference changes). `bottom`/`right` follow the same negative-constant
+    /// convention as the init `margin`.
+    func setContentMargin(_ margin: UIEdgeInsets) {
+        contentLeadingConstraint.constant = margin.left
+        contentTrailingConstraint.constant = margin.right
+        contentTopConstraint.constant = margin.top
+        contentBottomConstraint.constant = margin.bottom
     }
 
     private func configurationUpdated() {
