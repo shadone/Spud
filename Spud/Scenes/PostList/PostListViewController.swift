@@ -136,6 +136,49 @@ class PostListViewController: UIViewController {
 
         setupDataSource()
         setupSortTypeMenu()
+        setupComposeButton()
+    }
+
+    /// Adds a compose entry to the nav bar on the standalone frontpage feed.
+    /// Community feeds are embedded children whose host (`CommunityViewController`)
+    /// owns the nav bar and provides its own community-prefilled "New post"
+    /// button, and saved feeds have no single community to post to.
+    private func setupComposeButton() {
+        guard case .frontpage = viewModel.feed.feedType else { return }
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "square.and.pencil"),
+            style: .plain,
+            target: self,
+            action: #selector(composeTapped)
+        )
+    }
+
+    @objc
+    private func composeTapped() {
+        let keychainId = viewModel.accountKeychainId
+        guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
+            Haptics.warning()
+            presentErrorAlert(
+                title: NSLocalizedString("Sign in to post", comment: "Title of the alert shown when a signed-out user tries to create a post"),
+                message: NSLocalizedString(
+                    "You need to be signed in to an account to create posts.",
+                    comment: "Body of the alert shown when a signed-out user tries to create a post"
+                )
+            )
+            return
+        }
+
+        Haptics.tap()
+        let composer = NewPostViewController.makeSheet(
+            serverCommunityId: nil,
+            initialCommunityName: nil,
+            accountKeychainId: keychainId,
+            dependencies: dependencies.own
+        ) { [weak self] serverPostId in
+            guard let window = self?.view.window as? MainWindow else { return }
+            window.display(serverPostId: serverPostId, accountKeychainId: keychainId)
+        }
+        present(composer, animated: true)
     }
 
     override func viewDidLoad() {

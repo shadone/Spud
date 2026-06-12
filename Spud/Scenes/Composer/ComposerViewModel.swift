@@ -21,26 +21,30 @@ enum ComposerTarget {
     case postReply(serverPostId: Components.Schemas.PostID)
     /// Start (or continue) a private message conversation with `recipientId`.
     case privateMessage(recipientId: Components.Schemas.PersonID)
+    /// Compose a brand-new post. `serverCommunityId` may be pre-filled when the
+    /// flow is entered from a community screen. The title/url/image/nsfw surface
+    /// for this case lives in `NewPostViewController`, not the comment composer.
+    case newPost(serverCommunityId: Components.Schemas.CommunityID?, initialCommunityName: String?)
 
     var serverPostId: Components.Schemas.PostID? {
         switch self {
         case let .commentReply(serverPostId, _): serverPostId
         case let .postReply(serverPostId): serverPostId
-        case .privateMessage: nil
+        case .privateMessage, .newPost: nil
         }
     }
 
     var parentCommentId: Components.Schemas.CommentID? {
         switch self {
         case let .commentReply(_, parentCommentId): parentCommentId
-        case .postReply, .privateMessage: nil
+        case .postReply, .privateMessage, .newPost: nil
         }
     }
 
     var privateMessageRecipientId: Components.Schemas.PersonID? {
         switch self {
         case let .privateMessage(recipientId): recipientId
-        case .commentReply, .postReply: nil
+        case .commentReply, .postReply, .newPost: nil
         }
     }
 }
@@ -94,6 +98,7 @@ final class ComposerViewModel {
         case .commentReply: NSLocalizedString("Reply", comment: "Composer title when replying to a comment")
         case .postReply: NSLocalizedString("Add comment", comment: "Composer title when replying to a post")
         case .privateMessage: NSLocalizedString("New message", comment: "Composer title when composing a private message")
+        case .newPost: NSLocalizedString("New post", comment: "Composer title when composing a new post")
         }
     }
 

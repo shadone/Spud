@@ -122,6 +122,28 @@ public protocol LemmyServiceType: Actor {
         parentCommentId: Components.Schemas.CommentID?
     ) async throws
 
+    /// Create a new post in `serverCommunityId` and mirror the returned
+    /// `PostView` into the persistent store so it shows up immediately.
+    /// Returns the new post's server id for navigation. Throws
+    /// `LemmyServiceError.requiresAuthentication` when signed out.
+    @discardableResult
+    func createPost(
+        serverCommunityId: Components.Schemas.CommunityID,
+        name: String,
+        url: String?,
+        body: String?,
+        nsfw: Bool
+    ) async throws -> Components.Schemas.PostID
+
+    /// Upload an image to the backing instance's pict-rs and return the
+    /// fully-qualified image url. Transient (not mirrored). Throws
+    /// `LemmyServiceError.requiresAuthentication` when signed out.
+    func uploadImage(
+        imageData: Data,
+        fileName: String,
+        mimeType: String
+    ) async throws -> URL
+
     /// Save or unsave `serverPostId` for the backing account. Throws
     /// `LemmyServiceError.requiresAuthentication` if this service is backed
     /// by a signed-out account.
@@ -774,6 +796,84 @@ public actor LemmyService: LemmyServiceType {
         }
 
         await mirrorCommentToAppDatabase(view: response.comment_view)
+    }
+
+    @discardableResult
+    public func createPost(
+        serverCommunityId: Components.Schemas.CommunityID,
+        name: String,
+        url: String?,
+        body: String?,
+        nsfw: Bool
+    ) async throws -> Components.Schemas.PostID {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Create post rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                communityId=\(serverCommunityId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Create post for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            communityId=\(serverCommunityId, privacy: .public)
+            """)
+
+        let response: Components.Schemas.PostResponse
+        do {
+            response = try await api.createPost(
+                communityID: serverCommunityId,
+                name: name,
+                url: url,
+                body: body,
+                nsfw: nsfw
+            )
+        } catch {
+            logger.error("""
+                Create post failed. communityId=\(serverCommunityId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        await mirrorPostInfoToAppDatabase(view: response.post_view)
+        return response.post_view.post.id
+    }
+
+    public func uploadImage(
+        imageData: Data,
+        fileName: String,
+        mimeType: String
+    ) async throws -> URL {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Image upload rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Upload image for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            bytes=\(imageData.count, privacy: .public)
+            """)
+
+        let uploaded: LemmyApi.UploadedImage
+        do {
+            uploaded = try await api.uploadImage(
+                imageData: imageData,
+                fileName: fileName,
+                mimeType: mimeType
+            )
+        } catch {
+            logger.error("""
+                Image upload failed. \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        return uploaded.url
     }
 
     public func setSaved(

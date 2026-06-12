@@ -117,6 +117,13 @@ class CommunityViewController: UIViewController {
     private func setup() {
         view.backgroundColor = .systemBackground
 
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "square.and.pencil"),
+            style: .plain,
+            target: self,
+            action: #selector(newPostTapped)
+        )
+
         headerView.translatesAutoresizingMaskIntoConstraints = false
         headerView.subscribeTapped = { [weak self] in
             self?.toggleSubscribed()
@@ -227,6 +234,36 @@ class CommunityViewController: UIViewController {
     }
 
     // MARK: Actions
+
+    /// Presents the new-post composer pre-filled with this community, gating on
+    /// sign-in.
+    @objc
+    private func newPostTapped() {
+        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
+            Haptics.warning()
+            presentErrorAlert(
+                title: NSLocalizedString("Sign in to post", comment: "Title of the alert shown when a signed-out user tries to create a post"),
+                message: NSLocalizedString(
+                    "You need to be signed in to an account to create posts.",
+                    comment: "Body of the alert shown when a signed-out user tries to create a post"
+                )
+            )
+            return
+        }
+
+        Haptics.tap()
+        let accountKeychainId = accountKeychainId
+        let composer = NewPostViewController.makeSheet(
+            serverCommunityId: viewModel.serverCommunityId,
+            initialCommunityName: viewModel.qualifiedName.isEmpty ? viewModel.name : viewModel.qualifiedName,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.own
+        ) { [weak self] serverPostId in
+            guard let window = self?.view.window as? MainWindow else { return }
+            window.display(serverPostId: serverPostId, accountKeychainId: accountKeychainId)
+        }
+        present(composer, animated: true)
+    }
 
     /// Toggles subscription state against the currently observed value,
     /// gating on sign-in.
