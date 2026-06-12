@@ -1,0 +1,98 @@
+# Post detail and comments
+
+- **Surfaces:** `iphone`, `ipad`
+- **Status:** shipped
+- **Related:** [Voting](voting.md), [Saving](saving.md), [Replying](replying.md), [Sharing](sharing.md), [Configurable swipe actions](swipe-actions.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+
+## What it does
+
+Opening a post shows its full content pinned at the top of the screen, with the
+threaded comment tree scrolling below it. Comments nest with colored depth rails so a
+thread stays scannable, and any comment can be collapsed — by tapping it or by a swipe —
+to fold its replies away behind a "+N hidden" badge. A floating button jumps you to the
+next top-level comment, and every comment and the post itself carry a context menu of
+actions (vote, save, reply, share, report) plus moderator and admin actions when the
+account has them.
+
+## Behavior and rules
+
+- **Pinned header + comment tree.** The post is the first row and stays at the top of the scroll; the comment tree follows it. The header renders the post title, body (markdown), the community-and-author attribution, a score / comment-count / age subtitle, and any media (image, video, or link preview), plus an inline action bar with **upvote, downvote, and save**.
+- **Navigation bar actions.** The post's toolbar carries four buttons: open in Safari, reply to the post, share, and save (the save button shows a filled bookmark when the post is saved).
+- **Threaded comments with depth rails.** A nested comment draws one colored rail per ancestor level on its leading edge, oldest ancestor first. Rail colors cycle through the active comment-ribbon theme so the same depth always reads as the same color; top-level comments draw no rail.
+- **Tap to collapse.** Tapping a comment's body area collapses it (and expands it again); a light haptic fires. Tapping a link inside the author or body text follows the link instead of collapsing. A collapsed comment hides its own body and all of its descendants, and shows a **"+N" badge** counting the hidden replies underneath it.
+- **Collapse is a view-layer filter.** The full ordered comment tree is produced once from the database; collapse only hides rows from the visible list and is never written to the server or the database. Collapse state is dropped when a comment leaves the tree, and is not persisted across reopening the post.
+- **Collapse via swipe too.** Collapse is also one of the assignable comment swipe slots, so gesture-first users can fold a thread without tapping. See [swipe-actions.md](swipe-actions.md) for the configurable swipe set.
+- **"Load more replies" rows.** Where the server truncated a deep thread, a "N more replies" placeholder row appears. It is not collapsible and carries no per-comment actions.
+- **Jump to next top-level comment.** A floating chevron button at the bottom-trailing corner scrolls to the next top-level (depth-1) comment below the current position. It appears only while there is a next top-level comment to jump to and fades out otherwise.
+- **Pull to refresh.** Pulling down refetches the comment thread for the current sort.
+- **Comment sort follows the default-sort preference.** The thread is sorted by the account's default comment sort (Hot, Top, New, Old, or Controversial). It is read once when the post opens; there is no in-screen control to change the sort for a single post.
+- **Per-comment context menu.** Long-pressing a comment offers Upvote, Downvote, Reply, Save / Unsave, and Share, then Report (only on other people's comments), then a Moderation submenu when the account can moderate.
+- **Per-post context menu.** Long-pressing the post header offers Share, then Report (only when it is not your own post), then the same Moderation submenu when applicable. The post is saved from the toolbar / header action bar, not from this menu.
+- **Moderator and admin actions are capability-gated.** The account's moderation capability is fetched from the server when the screen appears (`fetchModerationCapability`). The Moderation submenu only appears when the account moderates this post's community, or is a site admin; otherwise it is absent. A signed-out account never sees it.
+- **The post's vote / save / reply / report behaviors** are documented in their own features — see [Voting](voting.md), [Saving](saving.md), [Replying](replying.md), [Sharing](sharing.md).
+
+## Scenarios
+
+### The post stays pinned above its comments
+
+- **Given** I open a post
+- **Then** the post content shows at the top with an inline upvote / downvote / save bar
+- **And** the comment tree scrolls below it
+
+### Collapse a comment by tapping it
+
+- **Given** a comment with replies
+- **When** I tap the comment's body
+- **Then** it collapses, hiding its replies, with a light haptic
+- **And** it shows a "+N" badge counting the hidden replies
+- **When** I tap it again
+- **Then** it expands and the replies return
+
+### Tapping a link does not collapse
+
+- **Given** a comment whose text contains a link
+- **When** I tap the link
+- **Then** the link opens and the comment does not collapse
+
+### Depth rails make nesting scannable
+
+- **Given** a deeply nested reply
+- **Then** it draws one colored rail per ancestor level on its leading edge
+- **And** comments at the same depth share the same rail color
+
+### Jump to the next top-level comment
+
+- **Given** I am scrolled into a long thread with more top-level comments below
+- **Then** a floating chevron button is visible
+- **When** I tap it
+- **Then** the list scrolls to the next top-level comment
+- **And** the button hides once there is no further top-level comment below
+
+### A comment's context menu
+
+- **Given** another person's comment
+- **When** I long-press it
+- **Then** I get Upvote, Downvote, Reply, Save, Share, and Report
+- **And** Report is omitted on my own comments
+
+### Moderation actions appear only with capability
+
+- **Given** I moderate the post's community
+- **When** I long-press a comment or the post
+- **Then** a Moderation submenu is offered (Remove / Restore, and comment Distinguish or post Lock / Feature)
+- **And** an account that does not moderate the community sees no Moderation submenu
+
+### Pull to refresh the thread
+
+- **Given** an open post
+- **When** I pull down
+- **Then** the comment thread refetches for the current sort
+
+## Not supported / out of scope
+
+- **No in-screen comment-sort control.** The thread uses the account's default comment sort; there is no per-post picker to re-sort it without changing the global default. (Setting the default lives in Settings.)
+- **No edit or delete of your own comment or post** from this screen — see [Replying](replying.md).
+- Collapse state is not persisted: reopening the post starts fully expanded.
+- "Load more replies" placeholders are not collapsible and have no per-comment actions.
+- The post is saved from the toolbar or header action bar (or a swipe), not from the post's context menu.
+- Swipe-gesture configuration itself is a separate feature — see [swipe-actions.md](swipe-actions.md).

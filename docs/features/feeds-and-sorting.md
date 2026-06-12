@@ -1,0 +1,66 @@
+# Feeds and sorting
+
+- **Surfaces:** `iphone`, `ipad`
+- **Status:** shipped
+- **Related:** [feed-loading.md](feed-loading.md), [post-thumbnails.md](post-thumbnails.md), [mark-read-and-hiding.md](mark-read-and-hiding.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+
+## What it does
+
+Spud's post list shows one feed at a time: a frontpage listing (All, Local, or Subscribed), a single community's posts, or your saved posts. Every feed is sortable from a menu in the navigation bar, and the Top sort expands into a set of time ranges. The same `PostListViewController` renders all of them — the community screen and the saved feed embed or push the very same list.
+
+## Behavior and rules
+
+- **Three frontpage listing types.** A frontpage feed is one of All, Local, or Subscribed (the `ListingType` cases All / Local / Subscribed). The navigation title reflects the active listing — "All", "Local", or "Subscribed".
+- **The frontpage starts on your default listing.** On launch the post list opens a default feed whose listing type comes from your account's preferred listing, falling back to the instance's default, then to All.
+- **Switching listing type is a sidebar action.** All / Local / Subscribed are chosen from the Subscriptions sidebar, which pushes (or replaces) the post list with the selected frontpage feed. The post list itself has no in-feed listing-type switcher — its feed is fixed for the lifetime of that screen, changed only by re-selecting from the sidebar or by changing the sort.
+- **Community-scoped feed.** Opening a community shows the community screen (header plus feed); the feed below the header is the same post list, scoped to that one community by name and instance. Its navigation title reads `community@instance`.
+- **Sort menu.** Every feed carries a sort button (the `line.horizontal.3.decrease.circle` glyph) in the navigation bar. It is a single-selection menu; the active sort is checked. Changing the sort rebuilds the feed from the top under the new ordering.
+- **Sort options.** The menu offers, as a top group: Active, Hot, New, Old, Controversial, Scaled. A nested "Top" submenu offers the time ranges below. A final group offers Most Comments and New Comments.
+- **Top time ranges.** The Top submenu is single-selection and lists: Six Hours, Twelve Hours, Day, Week, Month, Three Months, Six Months, Nine Months, Year, All. (There is no "Top Hour" — the finest grain is six hours.)
+- **Sort changes feel like a new feed.** Picking a sort builds a fresh feed with the same listing/community but the chosen sort, resets pagination to the head, and the list reloads from the server.
+
+## Scenarios
+
+### The frontpage opens on your default listing
+
+- **Given** I launch the app
+- **When** the post list appears
+- **Then** it shows a frontpage feed using my account's preferred listing type (All if none is set)
+- **And** the navigation title reads "All", "Local", or "Subscribed" to match
+
+### Switch to the Local listing
+
+- **Surfaces:** `ipad`
+- **Given** the Subscriptions sidebar is visible
+- **When** I select Local
+- **Then** the post list shows the Local frontpage feed
+- **And** the navigation title reads "Local"
+
+### Open a community feed
+
+- **Given** a community
+- **When** I open it
+- **Then** the community screen shows its header above a post list scoped to that community
+- **And** the navigation title reads `name@instance`
+
+### Sort a feed by New
+
+- **Given** any feed
+- **When** I open the sort menu and choose New
+- **Then** the feed reloads ordered newest-first
+- **And** New is shown checked in the menu
+
+### Pick a Top time range
+
+- **Given** any feed
+- **When** I open the sort menu, open Top, and choose Week
+- **Then** the feed reloads showing the top posts of the past week
+- **And** the menu remembers Top → Week as the active selection
+
+## Not supported / out of scope
+
+- No multi-feed view, combined feed, or feed tabs — one feed is shown at a time.
+- The post list has no in-feed listing-type switcher; All / Local / Subscribed are selected from the Subscriptions sidebar, which on iPhone portrait has no entry point (it is a regular-width split-view surface).
+- "Moderator view" is a defined listing type but is not offered as a sidebar entry.
+- The Saved feed is its own capability and is documented separately (it appears in the Subscriptions sidebar and reuses this same post list).
+- Changing a feed's sort does not persist as the account default; the default sort is set in Settings, a separate feature.

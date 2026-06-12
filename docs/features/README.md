@@ -60,6 +60,16 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 |---|---|---|
 | [Configurable swipe actions](swipe-actions.md) | `iphone`, `ipad` | shipped |
 | [Marking posts read and hiding read posts](mark-read-and-hiding.md) | `iphone`, `ipad` | shipped |
+| [Feeds and sorting](feeds-and-sorting.md) | `iphone`, `ipad` | shipped |
+| [Feed loading and pagination](feed-loading.md) | `iphone`, `ipad` | partial — no pull-to-refresh on the feed |
+| [Post thumbnails and media badges](post-thumbnails.md) | `iphone`, `ipad` | shipped |
+| [Post peek (context-menu preview)](post-peek.md) | `iphone`, `ipad` | shipped |
+| [Post detail and comments](post-detail-and-comments.md) | `iphone`, `ipad` | shipped |
+| [Voting](voting.md) | `iphone`, `ipad` | shipped |
+| [Saving](saving.md) | `iphone`, `ipad` | shipped |
+| [Replying](replying.md) | `iphone`, `ipad` | partial — no edit/delete of own comments |
+| [Sharing](sharing.md) | `iphone`, `ipad` | shipped |
+| [Media viewer and inline video](media-viewer.md) | `iphone`, `ipad` | shipped |
 
 <!-- Add new capability docs here as they are written. -->
 
@@ -69,30 +79,30 @@ Capabilities still to convert from [`../design/FEATURES.md`](../design/FEATURES.
 into per-capability docs. Grouped as in the grid; tick when a doc lands above.
 
 **Reading & feeds**
-- [ ] Frontpage feed (All / Local / Subscribed) + sort
-- [ ] Community-scoped feed
-- [ ] Saved feed
-- [ ] Pull-to-refresh
-- [ ] Infinite scroll (cursor pagination)
-- [ ] Inline thumbnails (text / link / image / video) + media badges
-- [ ] Context-menu peek on posts
+- [x] Frontpage feed (All / Local / Subscribed) + sort
+- [x] Community-scoped feed
+- [x] Saved feed (documented in saving.md)
+- [~] Pull-to-refresh — not on the main feed; ships on inbox / profiles / post detail
+- [x] Infinite scroll (cursor pagination)
+- [x] Inline thumbnails (text / link / image / video) + media badges
+- [x] Context-menu peek on posts
 - [x] Marking posts read / hiding read posts
 - [x] Configurable swipe actions (posts)
 
 **Posts & comments**
-- [ ] Post detail (header + comment tree)
-- [ ] Upvote / downvote (post & comment)
-- [ ] Save / unsave (post & comment)
-- [ ] Threaded comment collapse + jump-to-next-top-level
-- [ ] Reply / edit / delete own comment
+- [x] Post detail (header + comment tree)
+- [x] Upvote / downvote (post & comment)
+- [x] Save / unsave (post & comment)
+- [x] Threaded comment collapse + jump-to-next-top-level
+- [~] Reply — shipped; edit / delete own comment not supported
 - [x] Configurable swipe actions (comments)
-- [ ] Comment sort
-- [ ] Share post / comment / community URL; open in Safari
+- [~] Comment sort — preference-only; no in-screen picker (noted in post-detail-and-comments.md)
+- [x] Share post / comment / community URL; open in Safari
 
 **Media**
-- [ ] Full-screen image viewer (zoom / pan / swipe-to-dismiss)
-- [ ] Multi-image gallery paging
-- [ ] Animated GIF playback; inline video
+- [x] Full-screen image viewer (zoom / pan / swipe-to-dismiss)
+- [x] Multi-image gallery paging
+- [x] Animated GIF playback; inline video
 
 **Discovery**
 - [ ] Search (posts / comments / communities / users) + inline subscribe
