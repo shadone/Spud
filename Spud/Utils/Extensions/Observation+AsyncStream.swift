@@ -21,6 +21,17 @@ enum ObservationStream {
                 continuation: continuation,
                 access: access
             )
+            // The scheduler's only inbound reference is its `[weak self]`
+            // onChange closure, so without an explicit owner it would
+            // deallocate the moment this build closure returns — emitting the
+            // initial value and then silently never observing again. Tie its
+            // lifetime to the stream: the continuation retains this
+            // onTermination handler (and thus the scheduler) until the consumer
+            // cancels or the stream finishes, at which point it is released and
+            // the weak-self onChange chain winds down.
+            continuation.onTermination = { [scheduler] _ in
+                withExtendedLifetime(scheduler) { }
+            }
             scheduler.observe()
         }
     }
