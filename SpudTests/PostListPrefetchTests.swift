@@ -128,4 +128,30 @@ final class PostListPrefetchTests: XCTestCase {
         XCTAssertEqual(thumbnail, .text)
         XCTAssertNil(fullImageUrl)
     }
+
+    func test_thumbnail_videoPost_isVideo_withPosterAndNoFullImage() throws {
+        let (thumbnail, fullImageUrl) = PostListPostViewModel.thumbnail(
+            for: row(
+                url: "https://example.test/clip.mp4",
+                thumbnailUrl: "https://example.test/poster.jpg"
+            ),
+            postContentDetector: detector
+        )
+        XCTAssertEqual(thumbnail, try .video(
+            posterUrl: XCTUnwrap(URL(string: "https://example.test/poster.jpg")),
+            videoUrl: XCTUnwrap(URL(string: "https://example.test/clip.mp4"))
+        ))
+        XCTAssertNil(fullImageUrl, "video posts do not open the image viewer")
+    }
+
+    func test_videoPost_prefetchesThePoster() {
+        let url = PostListPostViewModel.prefetchThumbnailUrl(
+            for: row(
+                url: "https://example.test/clip.mp4",
+                thumbnailUrl: "https://example.test/poster.jpg"
+            ),
+            postContentDetector: detector
+        )
+        XCTAssertEqual(url?.absoluteString, "https://example.test/poster.jpg")
+    }
 }

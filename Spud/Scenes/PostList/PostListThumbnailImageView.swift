@@ -31,6 +31,12 @@ class PostListThumbnailImageView: UIView {
         set { mediaBadgeView.text = newValue }
     }
 
+    /// Whether to overlay a centred play indicator (for video posts).
+    var showsPlayIcon: Bool {
+        get { !playIconView.isHidden }
+        set { playIconView.isHidden = !newValue }
+    }
+
     var thumbnailType: ThumbnailType = .none {
         didSet {
             imageView.image = nil
@@ -116,6 +122,20 @@ class PostListThumbnailImageView: UIView {
 
     private lazy var mediaBadgeView = MediaBadgeView()
 
+    private lazy var playIconView: UIImageView = {
+        let configuration = UIImage.SymbolConfiguration(pointSize: 28, weight: .regular)
+        let imageView = UIImageView(image: UIImage(systemName: "play.circle.fill", withConfiguration: configuration))
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.tintColor = .white
+        imageView.isHidden = true
+        // A soft shadow keeps the glyph legible over light posters.
+        imageView.layer.shadowColor = UIColor.black.cgColor
+        imageView.layer.shadowOpacity = 0.5
+        imageView.layer.shadowRadius = 3
+        imageView.layer.shadowOffset = .zero
+        return imageView
+    }()
+
     // MARK: Functions
 
     init() {
@@ -126,6 +146,7 @@ class PostListThumbnailImageView: UIView {
 
         addSubview(stackView)
         addSubview(mediaBadgeView)
+        addSubview(playIconView)
 
         textPlaceholderView.addSubview(textPlaceholderImageView)
         brokenView.addSubview(brokenImageView)
@@ -135,6 +156,9 @@ class PostListThumbnailImageView: UIView {
             stackView.trailingAnchor.constraint(equalTo: trailingAnchor),
             stackView.topAnchor.constraint(equalTo: topAnchor),
             stackView.bottomAnchor.constraint(equalTo: bottomAnchor),
+
+            playIconView.centerXAnchor.constraint(equalTo: centerXAnchor),
+            playIconView.centerYAnchor.constraint(equalTo: centerYAnchor),
 
             mediaBadgeView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 4),
             mediaBadgeView.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -4),
@@ -161,5 +185,6 @@ class PostListThumbnailImageView: UIView {
     func prepareForReuse() {
         thumbnailType = .none
         badgeText = nil
+        showsPlayIcon = false
     }
 }

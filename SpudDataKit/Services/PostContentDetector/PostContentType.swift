@@ -28,6 +28,18 @@ public enum PostContentType: Equatable, CustomDebugStringConvertible {
         public let embedDescription: String?
     }
 
+    public struct Video: Equatable {
+        /// The playable video asset (an AVFoundation-supported container).
+        public let videoUrl: URL
+        /// Optional poster image shown inline before playback.
+        public let thumbnailUrl: URL?
+
+        public init(videoUrl: URL, thumbnailUrl: URL?) {
+            self.videoUrl = videoUrl
+            self.thumbnailUrl = thumbnailUrl
+        }
+    }
+
     /// Post with title and optional body text. No external link, no image.
     ///
     /// ```json
@@ -85,6 +97,12 @@ public enum PostContentType: Equatable, CustomDebugStringConvertible {
     /// ```
     case image(Image)
 
+    /// Post links to a playable video in an AVFoundation-supported container
+    /// (mp4 / mov / m4v). Other video formats (e.g. webm, which AVFoundation
+    /// cannot decode) stay `externalLink` so they open in the browser rather
+    /// than a dead player.
+    case video(Video)
+
     /// The post contains a link to an external service (and optionally body etc).
     ///
     /// `thumbnail_url` might be absent.
@@ -109,6 +127,8 @@ public extension PostContentType {
             return "textOrEmpty"
         case .image:
             return "image"
+        case .video:
+            return "video"
         case .externalLink:
             return "externalLink"
         }

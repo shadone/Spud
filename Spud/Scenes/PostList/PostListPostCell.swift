@@ -31,6 +31,10 @@ class PostListPostCell: UITableViewCell {
     /// image (for an instant first frame in the viewer).
     var imageTapped: ((_ imageUrl: URL, _ thumbnailUrl: URL?, _ thumbnailImage: UIImage?) -> Void)?
 
+    /// Invoked when the user taps a video post's thumbnail, carrying the
+    /// playable video url.
+    var videoTapped: ((_ videoUrl: URL) -> Void)?
+
     // MARK: UI Properties
 
     lazy var mainHorizontalStackView: UIStackView = {
@@ -137,6 +141,7 @@ class PostListPostCell: UITableViewCell {
     /// gesture. Set during `configure`; reset in `prepareForReuse`.
     private var tappableImageUrl: URL?
     private var tappableThumbnailUrl: URL?
+    private var tappableVideoUrl: URL?
     private var loadedThumbnailImage: UIImage?
 
     /// The thumbnail position applied to the current layout, so `configure`
@@ -191,6 +196,7 @@ class PostListPostCell: UITableViewCell {
 
         tappableImageUrl = nil
         tappableThumbnailUrl = nil
+        tappableVideoUrl = nil
         loadedThumbnailImage = nil
 
         // Leave `appliedThumbnailPosition` / `appliedDensity` intact: they
@@ -201,12 +207,16 @@ class PostListPostCell: UITableViewCell {
         swipeActionConfiguration = nil
         swipeActionTriggered = nil
         imageTapped = nil
+        videoTapped = nil
     }
 
     @objc
     private func thumbnailTapped() {
-        guard let tappableImageUrl else { return }
-        imageTapped?(tappableImageUrl, tappableThumbnailUrl, loadedThumbnailImage)
+        if let tappableVideoUrl {
+            videoTapped?(tappableVideoUrl)
+        } else if let tappableImageUrl {
+            imageTapped?(tappableImageUrl, tappableThumbnailUrl, loadedThumbnailImage)
+        }
     }
 
     /// Applies the post-density cell metrics: outer content margin, the gap
@@ -279,6 +289,8 @@ class PostListPostCell: UITableViewCell {
 
         thumbnailLoadTask?.cancel()
         thumbnailView.badgeText = nil
+        thumbnailView.showsPlayIcon = false
+        tappableVideoUrl = nil
         switch viewModel.thumbnail {
         case .text:
             tappableImageUrl = nil
@@ -320,6 +332,30 @@ class PostListPostCell: UITableViewCell {
             thumbnailView.isUserInteractionEnabled = false
             thumbnailView.isAccessibilityElement = false
             loadThumbnail(thumbnailUrl, imageService: imageService)
+
+        case let .video(posterUrl, videoUrl):
+            tappableImageUrl = nil
+            tappableThumbnailUrl = nil
+            tappableVideoUrl = videoUrl
+            thumbnailView.showsPlayIcon = true
+            thumbnailView.isUserInteractionEnabled = true
+            thumbnailView.isAccessibilityElement = true
+            thumbnailView.accessibilityLabel = NSLocalizedString(
+                "Video",
+                comment: "VoiceOver label for a post's video thumbnail"
+            )
+            thumbnailView.accessibilityHint = NSLocalizedString(
+                "Plays the video",
+                comment: "VoiceOver hint for a post video thumbnail"
+            )
+            thumbnailView.accessibilityTraits = [.image, .button]
+            if let posterUrl {
+                thumbnailView.thumbnailType = .none
+                loadThumbnail(posterUrl, imageService: imageService)
+            } else {
+                // No poster: show the placeholder behind the play indicator.
+                thumbnailView.thumbnailType = .text
+            }
         }
     }
 

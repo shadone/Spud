@@ -27,6 +27,10 @@ class PostDetailHeaderCell: UITableViewCellBase {
     /// currently shown (for an instant first frame in the viewer).
     var imageTapped: ((_ imageUrl: URL, _ thumbnailUrl: URL?, _ currentImage: UIImage?) -> Void)?
 
+    /// Invoked when the user taps a video post's poster, carrying the playable
+    /// video url.
+    var videoTapped: ((_ videoUrl: URL) -> Void)?
+
     var upvoteTapped: (() -> Void)?
     var downvoteTapped: (() -> Void)?
     var saveTapped: (() -> Void)?
@@ -80,6 +84,19 @@ class PostDetailHeaderCell: UITableViewCellBase {
     }()
 
     private lazy var mediaBadgeView = MediaBadgeView()
+
+    private lazy var playIconView: UIImageView = {
+        let configuration = UIImage.SymbolConfiguration(pointSize: 52, weight: .regular)
+        let imageView = UIImageView(image: UIImage(systemName: "play.circle.fill", withConfiguration: configuration))
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.tintColor = .white
+        imageView.isHidden = true
+        imageView.layer.shadowColor = UIColor.black.cgColor
+        imageView.layer.shadowOpacity = 0.5
+        imageView.layer.shadowRadius = 4
+        imageView.layer.shadowOffset = .zero
+        return imageView
+    }()
 
     lazy var postContentVerticalStackView: UIStackView = {
         let stackView = UIStackView()
@@ -301,6 +318,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
     /// only for `.post` content), used by the tap-to-open-viewer gesture.
     private var tappableImageUrl: URL?
     private var tappableThumbnailUrl: URL?
+    private var tappableVideoUrl: URL?
 
     // MARK: Functions
 
@@ -313,6 +331,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
         postImageContainer.addSubview(postImageView)
         postImageContainer.addSubview(mediaBadgeView)
+        postImageContainer.addSubview(playIconView)
         contentView.addSubview(mainVerticalStackView)
 
         let postImageContainerHeightConstraint = postImageContainer.heightAnchor.constraint(equalToConstant: 0)
@@ -338,6 +357,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
             mediaBadgeView.leadingAnchor.constraint(equalTo: postImageContainer.leadingAnchor, constant: 8),
             mediaBadgeView.bottomAnchor.constraint(equalTo: postImageContainer.bottomAnchor, constant: -8),
+
+            playIconView.centerXAnchor.constraint(equalTo: postImageView.centerXAnchor),
+            playIconView.centerYAnchor.constraint(equalTo: postImageView.centerYAnchor),
 
             postImageContainerHeightConstraint,
         ])
@@ -365,16 +387,20 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
         tappableImageUrl = nil
         tappableThumbnailUrl = nil
+        tappableVideoUrl = nil
 
         linkTapped = nil
         linkTappedFromPreview = nil
         imageTapped = nil
+        videoTapped = nil
 
         linkPreviewView.isHidden = true
         linkPreviewView.prepareForReuse()
 
         mediaBadgeView.text = nil
+        playIconView.isHidden = true
         postImageContainer.isHidden = true
+        postImageContainer.backgroundColor = .clear
         postImageView.image = nil
     }
 
@@ -403,6 +429,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
         imageLoadTask?.cancel()
         mediaBadgeView.text = nil
+        playIconView.isHidden = true
+        tappableVideoUrl = nil
+        postImageContainer.backgroundColor = .clear
         switch viewModel.image {
         case .none:
             postImageContainer.isHidden = true
@@ -438,10 +467,41 @@ class PostDetailHeaderCell: UITableViewCellBase {
                 }
             }
 
+        case let .video(videoUrl, thumbnailUrl):
+            linkPreviewView.isHidden = true
+            tappableVideoUrl = videoUrl
+            playIconView.isHidden = false
+            postImageView.isAccessibilityElement = true
+            postImageView.accessibilityLabel = NSLocalizedString(
+                "Video",
+                comment: "VoiceOver label for the post's video"
+            )
+            postImageView.accessibilityHint = NSLocalizedString(
+                "Plays the video",
+                comment: "VoiceOver hint for the post video"
+            )
+            postImageView.accessibilityTraits = [.image, .button]
+            if let thumbnailUrl {
+                imageLoadTask = Task { [weak self] in
+                    for await state in imageService.fetch(thumbnailUrl) {
+                        if Task.isCancelled { return }
+                        guard let self else { return }
+                        if case let .ready(image) = state { setImage(image) }
+                    }
+                }
+            } else {
+                // No poster frame: show a neutral panel behind the play button.
+                postImageView.image = nil
+                postImageContainer.isHidden = false
+                postImageContainer.backgroundColor = .secondarySystemBackground
+                postImageContainerHeightConstraint.constant = 200
+                adjustHeightForChange()
+            }
+
         case let .linkPreview(url, thumbnailUrl):
             postImageContainer.isHidden = true
-            linkPreviewView.url = url
             linkPreviewView.isHidden = false
+            linkPreviewView.url = url
             if let thumbnailUrl {
                 imageLoadTask = Task { [weak self] in
                     for await state in imageService.fetch(thumbnailUrl) {
@@ -483,8 +543,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
     @objc
     private func postImageTapped() {
-        guard let tappableImageUrl else { return }
-        imageTapped?(tappableImageUrl, tappableThumbnailUrl, postImageView.image)
+        if let tappableVideoUrl {
+            videoTapped?(tappableVideoUrl)
+        } else if let tappableImageUrl {
+            imageTapped?(tappableImageUrl, tappableThumbnailUrl, postImageView.image)
+        }
     }
 
     @objc
