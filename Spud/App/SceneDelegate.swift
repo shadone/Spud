@@ -56,7 +56,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
     func sceneWillEnterForeground(_ scene: UIScene) {
         // Called as the scene transitions from the background to the foreground.
-        // Use this method to undo the changes made on entering the background.
+        // Refresh the inbox unread count so the badge is current when the user
+        // returns to the app.
+        window?.refreshUnreadCount()
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {

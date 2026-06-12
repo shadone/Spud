@@ -19,7 +19,8 @@ struct DependencyContainer:
     HasAppearanceService,
     HasAppService,
     HasAlertService,
-    HasPreferencesService
+    HasPreferencesService,
+    HasUnreadCountService
 {
     let appDatabase: AppDatabase
     let siteService: SiteServiceType
@@ -31,6 +32,7 @@ struct DependencyContainer:
     let appService: AppServiceType
     let alertService: AlertServiceType = AlertService()
     let preferencesService: PreferencesServiceType = PreferencesService()
+    let unreadCountService: UnreadCountServiceType
 
     // MARK: Functions
 
@@ -56,6 +58,7 @@ struct DependencyContainer:
         )
         postContentDetectorService = PostContentDetectorService()
         appService = AppService(preferencesService: preferencesService, appDatabase: appDatabase)
+        unreadCountService = UnreadCountService(accountService: accountService)
     }
 
     func start() {
