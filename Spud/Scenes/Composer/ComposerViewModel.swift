@@ -19,18 +19,28 @@ enum ComposerTarget {
     case commentReply(serverPostId: Components.Schemas.PostID, parentCommentId: Components.Schemas.CommentID)
     /// Reply to the post itself (a top-level comment).
     case postReply(serverPostId: Components.Schemas.PostID)
+    /// Start (or continue) a private message conversation with `recipientId`.
+    case privateMessage(recipientId: Components.Schemas.PersonID)
 
-    var serverPostId: Components.Schemas.PostID {
+    var serverPostId: Components.Schemas.PostID? {
         switch self {
         case let .commentReply(serverPostId, _): serverPostId
         case let .postReply(serverPostId): serverPostId
+        case .privateMessage: nil
         }
     }
 
     var parentCommentId: Components.Schemas.CommentID? {
         switch self {
         case let .commentReply(_, parentCommentId): parentCommentId
-        case .postReply: nil
+        case .postReply, .privateMessage: nil
+        }
+    }
+
+    var privateMessageRecipientId: Components.Schemas.PersonID? {
+        switch self {
+        case let .privateMessage(recipientId): recipientId
+        case .commentReply, .postReply: nil
         }
     }
 }
@@ -83,6 +93,7 @@ final class ComposerViewModel {
         switch target {
         case .commentReply: NSLocalizedString("Reply", comment: "Composer title when replying to a comment")
         case .postReply: NSLocalizedString("Add comment", comment: "Composer title when replying to a post")
+        case .privateMessage: NSLocalizedString("New message", comment: "Composer title when composing a private message")
         }
     }
 
@@ -109,18 +120,21 @@ final class ComposerViewModel {
         guard !content.isEmpty else { return }
 
         submissionState = .submitting
+        let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: accountKeychainId)
-                .createComment(
-                    serverPostId: target.serverPostId,
+            if let recipientId = target.privateMessageRecipientId {
+                try await service.sendPrivateMessage(content: content, recipientId: recipientId)
+            } else if let serverPostId = target.serverPostId {
+                try await service.createComment(
+                    serverPostId: serverPostId,
                     content: content,
                     parentCommentId: target.parentCommentId
                 )
+            }
             submissionState = .finished
         } catch {
             // Keep the existing logging behaviour, then surface to the user.
-            alertService.handle(error, for: .createComment)
+            alertService.handle(error, for: target.privateMessageRecipientId != nil ? .sendPrivateMessage : .createComment)
             submissionState = .failed(message: ErrorMessage.userFacing(for: error))
         }
     }

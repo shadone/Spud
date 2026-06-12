@@ -145,6 +145,82 @@ public protocol LemmyServiceType: Actor {
     func markAsRead(
         serverPostId: Components.Schemas.PostID
     ) async throws
+
+    // MARK: Inbox
+
+    /// Fetch one page of inbox replies. Results are transient (returned to the
+    /// caller, like `search`) rather than mirrored into the persistent store.
+    /// Throws `LemmyServiceError.requiresAuthentication` when signed out.
+    func fetchReplies(
+        unreadOnly: Bool,
+        page: Int64
+    ) async throws -> Components.Schemas.GetRepliesResponse
+
+    /// Fetch one page of inbox mentions. Transient, like `fetchReplies`.
+    func fetchMentions(
+        unreadOnly: Bool,
+        page: Int64
+    ) async throws -> Components.Schemas.GetPersonMentionsResponse
+
+    /// Fetch one page of private messages. Transient, like `fetchReplies`.
+    func fetchPrivateMessages(
+        unreadOnly: Bool,
+        page: Int64
+    ) async throws -> Components.Schemas.PrivateMessagesResponse
+
+    /// Fetch the count of unread replies, mentions, and private messages.
+    /// Throws `LemmyServiceError.requiresAuthentication` when signed out.
+    func unreadCount() async throws -> UnreadCount
+
+    /// Mark a single comment reply as read/unread.
+    func markReplyAsRead(
+        commentReplyId: Components.Schemas.CommentReplyID,
+        read: Bool
+    ) async throws
+
+    /// Mark a single person mention as read/unread.
+    func markMentionAsRead(
+        personMentionId: Components.Schemas.PersonMentionID,
+        read: Bool
+    ) async throws
+
+    /// Mark a single private message as read/unread.
+    func markPrivateMessageAsRead(
+        privateMessageId: Components.Schemas.PrivateMessageID,
+        read: Bool
+    ) async throws
+
+    /// Mark all inbox items (replies + mentions + private messages) as read.
+    func markAllInboxAsRead() async throws
+
+    /// Send a private message to `recipientId` and return the created view.
+    /// Throws `LemmyServiceError.requiresAuthentication` when signed out.
+    @discardableResult
+    func sendPrivateMessage(
+        content: String,
+        recipientId: Components.Schemas.PersonID
+    ) async throws -> Components.Schemas.PrivateMessageView
+}
+
+/// The count of unread inbox items, split by kind. A small Sendable value type
+/// so it can flow from the `LemmyService` actor to the main-actor badge.
+public struct UnreadCount: Sendable, Equatable {
+    public let replies: Int
+    public let mentions: Int
+    public let privateMessages: Int
+
+    public init(replies: Int, mentions: Int, privateMessages: Int) {
+        self.replies = replies
+        self.mentions = mentions
+        self.privateMessages = privateMessages
+    }
+
+    public static let zero = UnreadCount(replies: 0, mentions: 0, privateMessages: 0)
+
+    /// Total across all kinds; drives the tab badge.
+    public var total: Int {
+        replies + mentions + privateMessages
+    }
 }
 
 public actor LemmyService: LemmyServiceType {
@@ -863,5 +939,262 @@ public actor LemmyService: LemmyServiceType {
                 logger.error("AppDatabase setPostIsRead failed: \(String(describing: error), privacy: .public)")
             }
         }
+    }
+
+    // MARK: Inbox
+
+    public func fetchReplies(
+        unreadOnly: Bool,
+        page: Int64
+    ) async throws -> Components.Schemas.GetRepliesResponse {
+        guard !accountIsSignedOut else {
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Fetch inbox replies. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            unreadOnly=\(unreadOnly, privacy: .public) page=\(page, privacy: .public)
+            """)
+
+        do {
+            return try await api.getReplies(
+                commentSort: .New,
+                unreadOnly: unreadOnly,
+                page: page
+            )
+        } catch {
+            logger.error("""
+                Fetch inbox replies failed. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+    }
+
+    public func fetchMentions(
+        unreadOnly: Bool,
+        page: Int64
+    ) async throws -> Components.Schemas.GetPersonMentionsResponse {
+        guard !accountIsSignedOut else {
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Fetch inbox mentions. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            unreadOnly=\(unreadOnly, privacy: .public) page=\(page, privacy: .public)
+            """)
+
+        do {
+            return try await api.getPersonMentions(
+                commentSort: .New,
+                unreadOnly: unreadOnly,
+                page: page
+            )
+        } catch {
+            logger.error("""
+                Fetch inbox mentions failed. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+    }
+
+    public func fetchPrivateMessages(
+        unreadOnly: Bool,
+        page: Int64
+    ) async throws -> Components.Schemas.PrivateMessagesResponse {
+        guard !accountIsSignedOut else {
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Fetch private messages. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            unreadOnly=\(unreadOnly, privacy: .public) page=\(page, privacy: .public)
+            """)
+
+        do {
+            return try await api.getPrivateMessages(
+                unreadOnly: unreadOnly,
+                page: page
+            )
+        } catch {
+            logger.error("""
+                Fetch private messages failed. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+    }
+
+    public func unreadCount() async throws -> UnreadCount {
+        guard !accountIsSignedOut else {
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        let response: Components.Schemas.GetUnreadCountResponse
+        do {
+            response = try await api.getUnreadCount()
+        } catch {
+            logger.error("""
+                Fetch unread count failed. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        return UnreadCount(
+            replies: Int(response.replies),
+            mentions: Int(response.mentions),
+            privateMessages: Int(response.private_messages)
+        )
+    }
+
+    public func markReplyAsRead(
+        commentReplyId: Components.Schemas.CommentReplyID,
+        read: Bool
+    ) async throws {
+        guard !accountIsSignedOut else {
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Mark reply as read. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            commentReplyId=\(commentReplyId, privacy: .public) read=\(read, privacy: .public)
+            """)
+
+        do {
+            try await api.markCommentReplyAsRead(commentReplyId: commentReplyId, read: read)
+        } catch {
+            logger.error("""
+                Mark reply as read failed. commentReplyId=\(commentReplyId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+    }
+
+    public func markMentionAsRead(
+        personMentionId: Components.Schemas.PersonMentionID,
+        read: Bool
+    ) async throws {
+        guard !accountIsSignedOut else {
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Mark mention as read. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            personMentionId=\(personMentionId, privacy: .public) read=\(read, privacy: .public)
+            """)
+
+        do {
+            try await api.markPersonMentionAsRead(personMentionId: personMentionId, read: read)
+        } catch {
+            logger.error("""
+                Mark mention as read failed. personMentionId=\(personMentionId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+    }
+
+    public func markPrivateMessageAsRead(
+        privateMessageId: Components.Schemas.PrivateMessageID,
+        read: Bool
+    ) async throws {
+        guard !accountIsSignedOut else {
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Mark private message as read. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            privateMessageId=\(privateMessageId, privacy: .public) read=\(read, privacy: .public)
+            """)
+
+        do {
+            try await api.markPrivateMessageAsRead(privateMessageId: privateMessageId, read: read)
+        } catch {
+            logger.error("""
+                Mark private message as read failed. privateMessageId=\(privateMessageId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+    }
+
+    public func markAllInboxAsRead() async throws {
+        guard !accountIsSignedOut else {
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Mark all inbox as read. \
+            account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
+            """)
+
+        // Lemmy's markAllAsRead only covers replies + mentions; private
+        // messages must be marked individually. Fetch the unread messages and
+        // mark each, then call markAllAsRead for the comment-based items.
+        do {
+            let unreadMessages = try await api.getPrivateMessages(unreadOnly: true, page: 1)
+            for view in unreadMessages.private_messages where !view.private_message.read {
+                _ = try? await api.markPrivateMessageAsRead(
+                    privateMessageId: view.private_message.id,
+                    read: true
+                )
+            }
+        } catch {
+            logger.error("""
+                Mark all inbox (private messages) failed. \
+                \(String(describing: error), privacy: .public)
+                """)
+            // Non-fatal: still attempt to clear replies/mentions below.
+        }
+
+        do {
+            _ = try await api.markAllAsRead()
+        } catch {
+            logger.error("""
+                Mark all inbox (replies/mentions) failed. \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+    }
+
+    @discardableResult
+    public func sendPrivateMessage(
+        content: String,
+        recipientId: Components.Schemas.PersonID
+    ) async throws -> Components.Schemas.PrivateMessageView {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Send private message rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                recipientId=\(recipientId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Send private message. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            recipientId=\(recipientId, privacy: .public)
+            """)
+
+        let response: Components.Schemas.PrivateMessageResponse
+        do {
+            response = try await api.createPrivateMessage(content: content, recipientId: recipientId)
+        } catch {
+            logger.error("""
+                Send private message failed. recipientId=\(recipientId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        return response.private_message_view
     }
 }

@@ -11,9 +11,11 @@ import UIKit
 class MainWindow: UIWindow {
     typealias OwnDependencies =
         HasAccountService &
-        HasAppDatabase
+        HasAppDatabase &
+        HasUnreadCountService
     typealias NestedDependencies =
         AccountViewController.Dependencies &
+        InboxViewController.Dependencies &
         MainWindowSplitViewController.Dependencies &
         PreferencesViewController.Dependencies &
         SearchViewController.Dependencies
@@ -28,11 +30,20 @@ class MainWindow: UIWindow {
         dependencies.own.appDatabase
     }
 
+    private var unreadCountService: UnreadCountServiceType {
+        dependencies.own.unreadCountService
+    }
+
     // MARK: Private
+
+    /// Index of the Inbox tab in the tab bar; its `badgeValue` reflects the
+    /// observable unread count.
+    private static let inboxTabIndex = 3
 
     private let tabBarController: MainWindowTabBarController
     private var splitViewController: MainWindowSplitViewController?
     private var defaultAccountObservationTask: Task<Void, Never>?
+    private var unreadCountObservationTask: Task<Void, Never>?
     /// Keychain id of the account currently driving the tab bar — guards
     /// against rebuilds when the GRDB observation re-emits the same row.
     private var currentDefaultAccountKeychainId: String?
@@ -63,10 +74,12 @@ class MainWindow: UIWindow {
         rootViewController = tabBarController
 
         startObservingDefaultAccount()
+        startObservingUnreadCount()
     }
 
     deinit {
         defaultAccountObservationTask?.cancel()
+        unreadCountObservationTask?.cancel()
     }
 
     @available(*, unavailable)
@@ -119,22 +132,65 @@ class MainWindow: UIWindow {
         let searchNavigationController = UINavigationController(rootViewController: searchViewController)
         searchNavigationController.navigationBar.prefersLargeTitles = true
 
+        // Tab: Setup the inbox view controller
+        let inboxViewController = InboxViewController(
+            accountKeychainId: keychainId,
+            isSignedIn: isSignedIn,
+            dependencies: dependencies.nested
+        )
+        let inboxNavigationController = UINavigationController(rootViewController: inboxViewController)
+
         // Tab: Setup the preferences view controller
         let preferencesViewController = PreferencesViewController(
             defaultPostSortType: defaultPostSortType,
             dependencies: dependencies.nested
         )
 
-        // Setup the tab bar controller
+        // Setup the tab bar controller. Inbox sits at index 3 so its badge can
+        // be addressed via Self.inboxTabIndex.
         tabBarController.setViewControllers(
             [
                 splitViewController,
                 accountNavigationController,
                 searchNavigationController,
+                inboxNavigationController,
                 preferencesViewController,
             ],
             animated: false
         )
+
+        applyUnreadBadge(unreadCountService.unreadCount)
+
+        // Pull the unread count for the newly-active account.
+        let unreadCountService = unreadCountService
+        Task { await unreadCountService.refresh(accountKeychainId: keychainId) }
+    }
+
+    private func startObservingUnreadCount() {
+        unreadCountObservationTask?.cancel()
+        let unreadCountService = unreadCountService
+        unreadCountObservationTask = Task { @MainActor [weak self] in
+            for await count in ObservationStream.values(of: { unreadCountService.unreadCount }) {
+                if Task.isCancelled { break }
+                self?.applyUnreadBadge(count)
+            }
+        }
+    }
+
+    private func applyUnreadBadge(_ count: UnreadCount) {
+        guard
+            let items = tabBarController.tabBar.items,
+            items.indices.contains(Self.inboxTabIndex)
+        else { return }
+        items[Self.inboxTabIndex].badgeValue = count.total > 0 ? "\(count.total)" : nil
+    }
+
+    /// Refreshes the unread count for the active account. Called on app
+    /// foreground (and could be driven by a background-refresh task later).
+    func refreshUnreadCount() {
+        guard let keychainId = currentDefaultAccountKeychainId else { return }
+        let unreadCountService = unreadCountService
+        Task { await unreadCountService.refresh(accountKeychainId: keychainId) }
     }
 
     /// Pushes the given view controller as a detail view.

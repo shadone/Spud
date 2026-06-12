@@ -23,6 +23,11 @@ public enum AlertHandlerRequest: String, CustomStringConvertible {
     case fetchImage
     case markAsRead
     case search
+    case fetchInbox
+    case markInboxItemRead
+    case markAllInboxRead
+    case fetchUnreadCount
+    case sendPrivateMessage
 
     public var description: String {
         rawValue

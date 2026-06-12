@@ -1,0 +1,86 @@
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
+import Foundation
+import LemmyKit
+import Observation
+import OSLog
+
+private let logger = Logger.lemmyService
+
+@MainActor
+public protocol UnreadCountServiceType: AnyObject {
+    /// The latest unread count for the active account. Observable so the inbox
+    /// badge updates live. Signed-out accounts report `.zero`.
+    var unreadCount: UnreadCount { get }
+
+    /// Refresh the unread count for `accountKeychainId`. No-op (resets to
+    /// `.zero`) when the account is signed out. Failures are logged and leave
+    /// the previous count in place so a transient network error doesn't blank
+    /// the badge.
+    func refresh(accountKeychainId: String) async
+
+    /// Adjust the cached count locally after marking items read, so the badge
+    /// reflects the change immediately without waiting for a network refresh.
+    /// Clamped at zero.
+    func decrement(replies: Int, mentions: Int, privateMessages: Int)
+
+    /// Reset the cached count to zero (e.g. after "mark all read").
+    func reset()
+}
+
+@MainActor
+public protocol HasUnreadCountService {
+    var unreadCountService: UnreadCountServiceType { get }
+}
+
+/// Tracks the unread inbox count for the active account. The inbox content
+/// itself is transient (fetched per-screen, like search), but the COUNT is
+/// held here and exposed as `@Observable` state so the tab badge can update
+/// live: on app foreground, after marking items read, and after sending.
+@MainActor
+@Observable
+public final class UnreadCountService: UnreadCountServiceType {
+    public private(set) var unreadCount: UnreadCount = .zero
+
+    @ObservationIgnored
+    private let accountService: AccountServiceType
+
+    public init(accountService: AccountServiceType) {
+        self.accountService = accountService
+    }
+
+    public func refresh(accountKeychainId: String) async {
+        guard !accountKeychainId.isEmpty else { return }
+
+        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
+            unreadCount = .zero
+            return
+        }
+
+        do {
+            let count = try await accountService
+                .lemmyService(forAccountKeychainId: accountKeychainId)
+                .unreadCount()
+            unreadCount = count
+        } catch {
+            logger.error("Unread count refresh failed: \(String(describing: error), privacy: .public)")
+            // Leave the previous count in place.
+        }
+    }
+
+    public func decrement(replies: Int, mentions: Int, privateMessages: Int) {
+        unreadCount = UnreadCount(
+            replies: max(0, unreadCount.replies - replies),
+            mentions: max(0, unreadCount.mentions - mentions),
+            privateMessages: max(0, unreadCount.privateMessages - privateMessages)
+        )
+    }
+
+    public func reset() {
+        unreadCount = .zero
+    }
+}

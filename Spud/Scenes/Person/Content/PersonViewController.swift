@@ -177,6 +177,42 @@ class PersonViewController: UIViewController {
 
         let interaction = UIContextMenuInteraction(delegate: self)
         headerView.addInteraction(interaction)
+
+        configureMessageButton()
+    }
+
+    /// A "Message" button is offered when the viewer is signed in and the
+    /// profile is not their own. It opens the composer sheet targeting a new
+    /// private message to this person.
+    private func configureMessageButton() {
+        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else { return }
+        let ownPersonId = appDatabase
+            .accountOwnPersonIdsSync(forKeychainId: accountKeychainId)
+            .map { Components.Schemas.PersonID($0.serverPersonId) }
+        guard ownPersonId != viewModel.serverPersonId else { return }
+
+        let messageButton = UIBarButtonItem(
+            image: UIImage(systemName: "envelope"),
+            style: .plain,
+            target: self,
+            action: #selector(messageTapped)
+        )
+        messageButton.accessibilityLabel = NSLocalizedString(
+            "Message",
+            comment: "Person profile message button accessibility label"
+        )
+        navigationItem.rightBarButtonItem = messageButton
+    }
+
+    @objc
+    private func messageTapped() {
+        Haptics.tap()
+        let composer = ComposerViewController.makeSheet(
+            target: .privateMessage(recipientId: viewModel.serverPersonId),
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        present(composer, animated: true)
     }
 
     override func viewDidLoad() {
