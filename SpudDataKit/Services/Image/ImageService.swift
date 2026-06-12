@@ -94,12 +94,19 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
             throw ImageLoadingError.cannotDecode
         }
 
+        // Force the expensive bitmap decode now, on this background task.
+        // `UIImage(data:)` decodes lazily on first draw — which, for an image
+        // set on a cell during scroll, lands on the main thread and stutters.
+        // Decoding here keeps the scroll path hitch-free; fall back to the
+        // undecoded image if preparation is unavailable for this format.
+        let decodedImage = await image.byPreparingForDisplay() ?? image
+
         memoryCache.setObject(
-            image,
+            decodedImage,
             forKey: url as NSURL,
-            cost: Int(image.size.width * image.size.height)
+            cost: Int(decodedImage.size.width * decodedImage.size.height)
         )
 
-        return image
+        return decodedImage
     }
 }
