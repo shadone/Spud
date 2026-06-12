@@ -13,6 +13,11 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     /// Each cache entry has associated cost that is the size of the image (width \* height)
     let memoryCache: NSCache<NSURL, UIImage>
 
+    /// Separate cache for decoded animated (GIF) images. Kept apart from
+    /// `memoryCache` so a static fetch of the same URL never returns the
+    /// multi-frame image (which a `UIImageView` would auto-animate inline).
+    let animatedCache: NSCache<NSURL, UIImage>
+
     let session = URLSession.shared
 
     let alertService: AlertServiceType
@@ -27,6 +32,11 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         memoryCache.countLimit = 100
         // Approx 1GB of memory assuming 1 byte per pixel.
         memoryCache.totalCostLimit = 1024 * 1024 * 1024
+
+        animatedCache = NSCache()
+        // Animated images hold every frame, so cap the count tightly.
+        animatedCache.countLimit = 16
+        animatedCache.totalCostLimit = 1024 * 1024 * 1024
     }
 
     public func fetch(
@@ -71,7 +81,51 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         }
     }
 
-    private func loadImage(from url: URL) async throws -> UIImage {
+    /// Fetch and play an animated image (GIF). Yields the cached static frame
+    /// (if any) while decoding, then the animated image. Falls back to a static
+    /// image when the asset turns out not to be animatable.
+    public func fetchAnimatedImage(_ url: URL) -> AsyncStream<ImageLoadingState> {
+        AsyncStream { continuation in
+            let task = Task { [weak self] in
+                guard let self else {
+                    continuation.finish()
+                    return
+                }
+
+                if let cached = animatedCache.object(forKey: url as NSURL) {
+                    continuation.yield(.ready(cached))
+                    continuation.finish()
+                    return
+                }
+
+                // A static frame already loaded for the inline thumbnail gives
+                // the viewer something to paint while the GIF decodes.
+                let staticFrame = memoryCache.object(forKey: url as NSURL)
+                continuation.yield(.loading(thumbnail: staticFrame))
+
+                do {
+                    let image = try await loadAnimatedImage(from: url)
+                    if Task.isCancelled {
+                        continuation.finish()
+                        return
+                    }
+                    continuation.yield(.ready(image))
+                } catch let error as ImageLoadingError {
+                    alertService.image(error: error, for: url)
+                    continuation.yield(.failure)
+                } catch {
+                    alertService.image(error: .network(error), for: url)
+                    continuation.yield(.failure)
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// Download the bytes at `url`, mapping transport and HTTP failures to
+    /// `ImageLoadingError`.
+    private func data(from url: URL) async throws -> Data {
         // TODO: check if the image is present in URLSession cache.
 
         let (data, urlResponse): (Data, URLResponse)
@@ -90,6 +144,12 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
             throw ImageLoadingError.serverError(statusCode: statusCode)
         }
 
+        return data
+    }
+
+    private func loadImage(from url: URL) async throws -> UIImage {
+        let data = try await data(from: url)
+
         guard let image = UIImage(data: data) else {
             throw ImageLoadingError.cannotDecode
         }
@@ -107,6 +167,32 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
             cost: Int(decodedImage.size.width * decodedImage.size.height)
         )
 
+        return decodedImage
+    }
+
+    private func loadAnimatedImage(from url: URL) async throws -> UIImage {
+        let data = try await data(from: url)
+
+        if let animated = AnimatedImageDecoder.animatedImage(from: data) {
+            let frameCount = animated.images?.count ?? 1
+            animatedCache.setObject(
+                animated,
+                forKey: url as NSURL,
+                cost: Int(animated.size.width * animated.size.height) * frameCount
+            )
+            return animated
+        }
+
+        // Single frame (or an undecodable animation): treat it as a still image.
+        guard let image = UIImage(data: data) else {
+            throw ImageLoadingError.cannotDecode
+        }
+        let decodedImage = await image.byPreparingForDisplay() ?? image
+        memoryCache.setObject(
+            decodedImage,
+            forKey: url as NSURL,
+            cost: Int(decodedImage.size.width * decodedImage.size.height)
+        )
         return decodedImage
     }
 }

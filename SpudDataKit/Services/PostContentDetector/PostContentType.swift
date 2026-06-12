@@ -10,6 +10,16 @@ public enum PostContentType: Equatable, CustomDebugStringConvertible {
     public struct Image: Equatable {
         public let thumbnailUrl: URL?
         public let imageUrl: URL
+
+        /// True when the asset is an animated format (e.g. GIF). Inline views
+        /// still show a static frame; the full-screen viewer plays it.
+        public let isAnimated: Bool
+
+        public init(thumbnailUrl: URL?, imageUrl: URL, isAnimated: Bool = false) {
+            self.thumbnailUrl = thumbnailUrl
+            self.imageUrl = imageUrl
+            self.isAnimated = isAnimated
+        }
     }
 
     public struct Link: Equatable {

@@ -47,23 +47,24 @@ public class PostContentDetectorService: PostContentDetectorServiceType {
             embedTitle: embedTitle,
             embedDescription: embedDescription
         ))
-        let image = PostContentType.image(.init(
-            thumbnailUrl: thumbnailUrl,
-            imageUrl: url
-        ))
 
         let path = url.safePath
-        let hasKnownImageExtension = [
+        let matchedImageExtension = [
             ".jpg",
             ".jpeg",
             ".png",
             ".webp",
+            ".gif",
         ].first { substr in
             path.endsWith(substr)
-        } != nil
+        }
 
-        if hasKnownImageExtension {
-            return image
+        if let matchedImageExtension {
+            return .image(.init(
+                thumbnailUrl: thumbnailUrl,
+                imageUrl: url,
+                isAnimated: matchedImageExtension == ".gif"
+            ))
         }
 
         return externalLink

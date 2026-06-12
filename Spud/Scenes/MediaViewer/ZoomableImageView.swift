@@ -139,9 +139,15 @@ final class ZoomableImageView: UIView {
             activityIndicator.startAnimating()
         }
 
+        // Animated assets (GIF) are decoded through the animated path so the
+        // viewer plays them; a static image set on a UIImageView would not.
+        let stream = item.isAnimated
+            ? imageService.fetchAnimatedImage(item.imageUrl)
+            : imageService.fetch(item.imageUrl, thumbnail: item.thumbnailUrl)
+
         loadTask = Task { [weak self] in
             guard let self else { return }
-            for await state in imageService.fetch(item.imageUrl, thumbnail: item.thumbnailUrl) {
+            for await state in stream {
                 if Task.isCancelled { return }
                 switch state {
                 case let .loading(thumbnailImage):
