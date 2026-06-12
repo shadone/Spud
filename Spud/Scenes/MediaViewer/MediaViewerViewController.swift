@@ -362,10 +362,29 @@ final class MediaViewerViewController: UIViewController {
 
     @objc
     private func shareTapped() {
+        let item = items[currentIndex]
+
+        // For an animated GIF, share the original bytes (written to a temp .gif)
+        // so the recipient gets the animation, not a flattened frame.
+        if item.isAnimated {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let data = await imageService.animatedImageData(item.imageUrl),
+                   let fileURL = Self.writeTemporaryGIF(data, for: item.imageUrl)
+                {
+                    presentActivity(items: [fileURL])
+                } else if let image = currentPage?.zoomableImageView.image {
+                    presentActivity(items: [image])
+                } else {
+                    presentActivity(items: [item.imageUrl])
+                }
+            }
+            return
+        }
+
         guard let image = currentPage?.zoomableImageView.image else {
             // Nothing loaded yet — share the URL instead.
-            let url = items[currentIndex].imageUrl
-            presentActivity(items: [url])
+            presentActivity(items: [item.imageUrl])
             return
         }
         presentActivity(items: [image])
@@ -378,26 +397,49 @@ final class MediaViewerViewController: UIViewController {
         present(activityVC, animated: true)
     }
 
+    /// What `saveToPhotos` should write: a still frame, or the original GIF
+    /// bytes (so an animated post saves as an animated GIF, not a flat photo).
+    private enum SavePayload {
+        case still(UIImage)
+        case animatedGIF(Data)
+    }
+
     @objc
     private func saveTapped() {
+        let item = items[currentIndex]
+
+        if item.isAnimated {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let data = await imageService.animatedImageData(item.imageUrl) {
+                    saveToPhotos(.animatedGIF(data))
+                } else if let image = currentPage?.zoomableImageView.image {
+                    saveToPhotos(.still(image))
+                } else {
+                    Haptics.warning()
+                }
+            }
+            return
+        }
+
         guard let image = currentPage?.zoomableImageView.image else {
             Haptics.warning()
             return
         }
-        saveToPhotos(image)
+        saveToPhotos(.still(image))
     }
 
-    private func saveToPhotos(_ image: UIImage) {
+    private func saveToPhotos(_ payload: SavePayload) {
         let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
         switch status {
         case .authorized, .limited:
-            performSave(image)
+            performSave(payload)
         case .notDetermined:
             PHPhotoLibrary.requestAuthorization(for: .addOnly) { newStatus in
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     if newStatus == .authorized || newStatus == .limited {
-                        performSave(image)
+                        performSave(payload)
                     } else {
                         handleSaveDenied()
                     }
@@ -410,9 +452,14 @@ final class MediaViewerViewController: UIViewController {
         }
     }
 
-    private func performSave(_ image: UIImage) {
+    private func performSave(_ payload: SavePayload) {
         PHPhotoLibrary.shared().performChanges {
-            PHAssetChangeRequest.creationRequestForAsset(from: image)
+            switch payload {
+            case let .still(image):
+                PHAssetChangeRequest.creationRequestForAsset(from: image)
+            case let .animatedGIF(data):
+                PHAssetCreationRequest.forAsset().addResource(with: .photo, data: data, options: nil)
+            }
         } completionHandler: { success, error in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -466,6 +513,32 @@ final class MediaViewerViewController: UIViewController {
             style: .default
         ))
         present(alert, animated: true)
+    }
+
+    /// Filename for a temporary shared GIF, derived from the source URL and
+    /// guaranteed to carry a `.gif` extension so the share sheet treats the
+    /// file as an animated image. Pure (no IO) so it can be unit-tested.
+    nonisolated static func temporaryGIFFilename(for url: URL) -> String {
+        let base = url.lastPathComponent
+        if base.isEmpty {
+            return "image.gif"
+        }
+        return base.lowercased().hasSuffix(".gif") ? base : base + ".gif"
+    }
+
+    /// Persist GIF bytes to a temporary `.gif` file for sharing. Sharing the
+    /// decoded `UIImage` would flatten the animation; sharing a real `.gif`
+    /// file preserves it. Returns nil if the write fails.
+    nonisolated static func writeTemporaryGIF(_ data: Data, for url: URL) -> URL? {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(temporaryGIFFilename(for: url))
+        do {
+            try data.write(to: fileURL, options: .atomic)
+            return fileURL
+        } catch {
+            logger.error("Failed to write temporary GIF for sharing: \(String(describing: error), privacy: .public)")
+            return nil
+        }
     }
 }
 
