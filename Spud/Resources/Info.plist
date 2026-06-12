@@ -6,6 +6,52 @@
 	<string>Spud</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>CFBundleIcons</key>
+	<dict>
+		<!-- Primary icon stays in the asset catalog (ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon); -->
+		<!-- only the loose-PNG alternates are declared here. Each file basename must match the -->
+		<!-- bundle-root PNGs (AppIcon-<Name>@2x.png / @3x.png), and is what setAlternateIconName -->
+		<!-- expects (the @Nx and .png suffixes are implied). -->
+		<key>CFBundleAlternateIcons</key>
+		<dict>
+			<key>Midnight</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIcon-Midnight</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>Forest</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIcon-Forest</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>Sunset</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIcon-Sunset</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+			<key>Mono</key>
+			<dict>
+				<key>CFBundleIconFiles</key>
+				<array>
+					<string>AppIcon-Mono</string>
+				</array>
+				<key>UIPrerenderedIcon</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.social-networking</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
