@@ -158,14 +158,35 @@ public class AccountService: AccountServiceType {
 
     private let appDatabase: AppDatabase
 
+    /// Builds a `LemmyApi` for an instance url and optional credential.
+    /// Injectable so the sign-in path can be unit-tested with a stub
+    /// `ClientTransport` instead of a live instance; production wires up the
+    /// real `URLSessionTransport`-backed api.
+    private let makeApi: @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?) -> LemmyApi
+
+    /// Persists per-account credentials. Injectable so tests exercise the
+    /// sign-in flow without the shared-group keychain entitlements the test
+    /// bundle lacks; production uses `KeychainCredentialStore`.
+    private let credentialStore: CredentialStore
+
     private var lemmyServices: [String: LemmyService] = [:]
 
     // MARK: Functions
 
-    public init(
-        appDatabase: AppDatabase
+    public convenience init(appDatabase: AppDatabase) {
+        self.init(appDatabase: appDatabase) { instanceUrl, credential in
+            LemmyApi(instanceUrl: instanceUrl, credential: credential)
+        }
+    }
+
+    init(
+        appDatabase: AppDatabase,
+        credentialStore: CredentialStore = KeychainCredentialStore(),
+        makeApi: @escaping @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?) -> LemmyApi
     ) {
         self.appDatabase = appDatabase
+        self.credentialStore = credentialStore
+        self.makeApi = makeApi
     }
 
     public func defaultAccountKeychainId() -> String {
@@ -350,7 +371,7 @@ public class AccountService: AccountServiceType {
             fatalError("Failed to create URL from instance actor id '\(snapshot.actorId.actorId)'")
         }
         let credential = snapshot.isSignedOut ? nil : readCredential(forKeychainId: keychainId)
-        let api = LemmyApi(instanceUrl: url, credential: credential)
+        let api = makeApi(url, credential)
 
         logger.debug("Creating new LemmyService for \(keychainId, privacy: .sensitive(mask: .hash))")
 
@@ -373,8 +394,8 @@ public class AccountService: AccountServiceType {
             fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
         }
 
-        // Creating temporary authenticated LemmyApi object for making login request.
-        let api = LemmyApi(instanceUrl: url, credential: nil)
+        // Temporary unauthenticated api for the login request.
+        let api = makeApi(url, nil)
 
         let response: Components.Schemas.LoginResponse
         do {
@@ -422,7 +443,7 @@ public class AccountService: AccountServiceType {
         }
 
         // Temporary unauthenticated api for the registration request.
-        let api = LemmyApi(instanceUrl: url, credential: nil)
+        let api = makeApi(url, nil)
 
         let response: Components.Schemas.LoginResponse
         do {
@@ -558,6 +579,33 @@ public class AccountService: AccountServiceType {
 // MARK: Credential read/write
 
 extension AccountService {
+    private func writeCredential(_ credential: LemmyCredential, forKeychainId keychainId: String) {
+        credentialStore.setCredential(credential, forKeychainId: keychainId)
+    }
+
+    private func deleteCredential(forKeychainId keychainId: String) {
+        credentialStore.removeCredential(forKeychainId: keychainId)
+    }
+
+    private func readCredential(forKeychainId keychainId: String) -> LemmyCredential? {
+        credentialStore.credential(forKeychainId: keychainId)
+    }
+}
+
+// MARK: - CredentialStore
+
+/// Persists per-account `LemmyCredential`s. Production stores them in the
+/// shared-group keychain (so the widget and extensions can read them); tests
+/// inject an in-memory store to exercise the sign-in flow without the keychain
+/// entitlements the test bundle lacks.
+protocol CredentialStore: Sendable {
+    func credential(forKeychainId keychainId: String) -> LemmyCredential?
+    func setCredential(_ credential: LemmyCredential, forKeychainId keychainId: String)
+    func removeCredential(forKeychainId keychainId: String)
+}
+
+/// Production `CredentialStore` backed by the shared-group keychain.
+struct KeychainCredentialStore: CredentialStore {
     private static let keychainCredentialService = "J8B76VBZ57.info.ddenis.Spud.shared"
 
     /// The Keychain Shared Access Group where we store credentials.
@@ -571,7 +619,7 @@ extension AccountService {
         )
     }
 
-    private func writeCredential(_ credential: LemmyCredential, forKeychainId keychainId: String) {
+    func setCredential(_ credential: LemmyCredential, forKeychainId keychainId: String) {
         let stringValue = credential.toString()
         do {
             try keychain.set(stringValue, key: keychainId)
@@ -581,7 +629,7 @@ extension AccountService {
         }
     }
 
-    private func deleteCredential(forKeychainId keychainId: String) {
+    func removeCredential(forKeychainId keychainId: String) {
         do {
             try keychain.remove(keychainId)
             logger.debug("Removed credential from keychain")
@@ -590,7 +638,7 @@ extension AccountService {
         }
     }
 
-    private func readCredential(forKeychainId keychainId: String) -> LemmyCredential? {
+    func credential(forKeychainId keychainId: String) -> LemmyCredential? {
         do {
             guard let stringValue = try keychain.get(keychainId) else {
                 logger.debug("Did not find credential in keychain")
