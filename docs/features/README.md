@@ -70,6 +70,21 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Replying](replying.md) | `iphone`, `ipad` | partial — no edit/delete of own comments |
 | [Sharing](sharing.md) | `iphone`, `ipad` | shipped |
 | [Media viewer and inline video](media-viewer.md) | `iphone`, `ipad` | shipped |
+| [Search](search.md) | `iphone`, `ipad` | shipped |
+| [Subscriptions sidebar](subscriptions-sidebar.md) | `ipad` | shipped |
+| [Subscribe / unsubscribe](subscribe-unsubscribe.md) | `iphone`, `ipad` | shipped |
+| [Community screen](community-screen.md) | `iphone`, `ipad` | shipped |
+| [Person / user profile](person-profile.md) | `iphone`, `ipad` | shipped |
+| [Accounts and switching](accounts-and-switching.md) | `iphone`, `ipad` | shipped |
+| [Signed-out browsing](signed-out-browsing.md) | `iphone`, `ipad` | shipped |
+| [Login](login.md) | `iphone`, `ipad` | partial — no 2FA (TOTP) |
+| [Instance picker](instance-picker.md) | `iphone`, `ipad` | shipped |
+| [Registration](registration.md) | `iphone`, `ipad` | partial — no in-app captcha |
+| [Sign-in gate on write actions](sign-in-gate.md) | `iphone`, `ipad` | shipped |
+| [Inbox](inbox.md) | `iphone`, `ipad` | shipped |
+| [Marking inbox items read](inbox-mark-read.md) | `iphone`, `ipad` | shipped |
+| [Private messages](private-messages.md) | `iphone`, `ipad` | shipped |
+| [Background unread refresh](background-unread-refresh.md) | `iphone`, `ipad` | shipped |
 
 <!-- Add new capability docs here as they are written. -->
 
@@ -105,25 +120,25 @@ into per-capability docs. Grouped as in the grid; tick when a doc lands above.
 - [x] Animated GIF playback; inline video
 
 **Discovery**
-- [ ] Search (posts / comments / communities / users) + inline subscribe
-- [ ] Subscriptions sidebar
-- [ ] Subscribe / unsubscribe
-- [ ] Community screen (header + feed)
-- [ ] Person / user profile
+- [x] Search (posts / comments / communities / users) + inline subscribe
+- [x] Subscriptions sidebar (iPad / regular-width only; no iPhone-portrait entry point)
+- [x] Subscribe / unsubscribe
+- [x] Community screen (header + feed)
+- [x] Person / user profile
 
 **Account & auth**
-- [ ] Multi-account, multi-instance + account switcher
-- [ ] Signed-out browsing (bootstrap account)
-- [ ] Login (+ 2FA)
-- [ ] Instance picker (site list)
-- [ ] Registration / signup
-- [ ] Sign-in gate on write actions
+- [x] Multi-account, multi-instance + account switcher
+- [x] Signed-out browsing (bootstrap account)
+- [~] Login — shipped; 2FA (TOTP) field present but not wired up
+- [x] Instance picker (site list)
+- [~] Registration / signup — shipped; captcha-required instances not handled in-app
+- [x] Sign-in gate on write actions
 
 **Inbox & messaging**
-- [ ] Inbox (replies / mentions / messages) + unread badge
-- [ ] Mark read / mark-all-read
-- [ ] Private message threads + send DM
-- [ ] Background unread-count refresh
+- [x] Inbox (replies / mentions / messages) + unread badge
+- [x] Mark read / mark-all-read
+- [x] Private message threads + send DM
+- [x] Background unread-count refresh (foreground scene refresh; not a `BGAppRefreshTask`)
 
 **Content creation**
 - [ ] New post (text / link / image) + community picker + NSFW
