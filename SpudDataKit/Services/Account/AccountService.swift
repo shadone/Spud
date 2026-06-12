@@ -391,9 +391,12 @@ public class AccountService: AccountServiceType {
         guard let jwt = response.jwt else {
             throw AccountServiceLoginError.missingJwt
         }
-        try await storeSignedInCredential(LemmyCredential(jwt: jwt), atInstance: instance)
-        // Username and Person row land asynchronously via the next
-        // SchedulerService tick (`signedInAccountsAwaitingMyUserInfo`).
+        let keychainId = try await storeSignedInCredential(LemmyCredential(jwt: jwt), atInstance: instance)
+        // Fetch the new account's site info (which carries `MyUserInfo`, and so
+        // the account holder's own Person row) right now. Without this the row
+        // only lands on the next periodic `SchedulerService` tick — up to five
+        // minutes away — leaving the Account screen spinning until then.
+        fetchInitialSiteInfo(forAccountKeychainId: keychainId)
     }
 
     public func register(
@@ -438,7 +441,8 @@ public class AccountService: AccountServiceType {
 
         let result = AccountServiceRegisterResult(response: response)
         if case .loggedIn = result, let jwt = response.jwt {
-            try await storeSignedInCredential(LemmyCredential(jwt: jwt), atInstance: instance)
+            let keychainId = try await storeSignedInCredential(LemmyCredential(jwt: jwt), atInstance: instance)
+            fetchInitialSiteInfo(forAccountKeychainId: keychainId)
         }
         return result
     }
@@ -448,7 +452,7 @@ public class AccountService: AccountServiceType {
     private func storeSignedInCredential(
         _ credential: LemmyCredential,
         atInstance instance: InstanceActorId
-    ) async throws {
+    ) async throws -> String {
         let keychainId = UUID().uuidString
         let (_, siteId) = try await appDatabase.ensureSite(forInstance: instance)
         _ = try await appDatabase.ensureAccount(
@@ -459,6 +463,22 @@ public class AccountService: AccountServiceType {
         )
         try await appDatabase.setDefaultAccount(keychainId: keychainId)
         writeCredential(credential, forKeychainId: keychainId)
+        return keychainId
+    }
+
+    /// Kicks off the initial site/`MyUserInfo` fetch for a freshly added
+    /// signed-in account so its own Person row lands within a second, instead of
+    /// waiting for the next periodic `SchedulerService` tick (up to five minutes
+    /// away). Fire-and-forget; the scheduler remains the backstop if it fails.
+    private func fetchInitialSiteInfo(forAccountKeychainId keychainId: String) {
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await lemmyService(forAccountKeychainId: keychainId).fetchSiteInfo()
+            } catch {
+                logger.error("Initial site info fetch after sign-in failed: \(String(describing: error), privacy: .public)")
+            }
+        }
     }
 
     public func logout(forAccountKeychainId keychainId: String) {
