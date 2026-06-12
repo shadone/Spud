@@ -10,6 +10,7 @@ import OSLog
 import SafariServices
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 private let logger = Logger.app
@@ -56,6 +57,10 @@ class PostDetailViewController: UIViewController {
 
     var postContentDetector: PostContentDetectorServiceType {
         dependencies.own.postContentDetectorService
+    }
+
+    var preferencesService: PreferencesServiceType {
+        dependencies.own.preferencesService
     }
 
     // MARK: - Public
@@ -138,6 +143,12 @@ class PostDetailViewController: UIViewController {
     private var collapsedDescendantCounts: [Int64: Int] = [:]
     private var observationTask: Task<Void, Never>?
     private var commentObservationTask: Task<Void, Never>?
+    private var swipeActionsObservationTask: Task<Void, Never>?
+
+    /// The active comment swipe-action config, sanitized for comments. Seeded
+    /// from the preference and kept live via `swipeActionsObservationTask`;
+    /// changes reconfigure visible comment cells.
+    private var commentSwipeActionConfig: SwipeActionConfig = .defaultComments
 
     private var dataSource: UITableViewDiffableDataSource<Section, Item>!
     private var isFirstAppearance: Bool = true
@@ -160,6 +171,10 @@ class PostDetailViewController: UIViewController {
 
         super.init(nibName: nil, bundle: nil)
 
+        commentSwipeActionConfig = dependencies.preferencesService
+            .commentSwipeActions
+            .sanitized(for: .comment)
+
         setup()
     }
 
@@ -171,6 +186,7 @@ class PostDetailViewController: UIViewController {
     deinit {
         observationTask?.cancel()
         commentObservationTask?.cancel()
+        swipeActionsObservationTask?.cancel()
     }
 
     private func setup() {
@@ -225,7 +241,36 @@ class PostDetailViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        startSwipeActionsObservation()
         startObservations()
+    }
+
+    /// Observes the comment swipe-action preference and reconfigures visible
+    /// comment cells when it changes. Independent of the backing post/account,
+    /// so it is started once in `viewDidLoad` rather than per `setPost`.
+    private func startSwipeActionsObservation() {
+        swipeActionsObservationTask?.cancel()
+        swipeActionsObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await config in preferencesService.commentSwipeActionsStream {
+                if Task.isCancelled { break }
+                let sanitized = config.sanitized(for: .comment)
+                guard sanitized != commentSwipeActionConfig else { continue }
+                commentSwipeActionConfig = sanitized
+                reconfigureVisibleSwipeActions()
+            }
+        }
+    }
+
+    /// Reconfigures visible comment cells so they rebuild their swipe
+    /// configuration from the updated `commentSwipeActionConfig`.
+    private func reconfigureVisibleSwipeActions() {
+        guard dataSource != nil else { return }
+        var snapshot = dataSource.snapshot()
+        let commentItems = snapshot.itemIdentifiers(inSection: .comments)
+        guard !commentItems.isEmpty else { return }
+        snapshot.reconfigureItems(commentItems)
+        dataSource.apply(snapshot, animatingDifferences: false)
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -551,6 +596,51 @@ class PostDetailViewController: UIViewController {
                 .vote(serverPostId: viewModel.serverPostId, vote: action)
         } catch {
             alertService.handle(error, for: .vote)
+        }
+    }
+
+    /// The current toggle state a comment row exposes to the swipe presentation
+    /// layer (save/collapse/vote glyphs reflect it).
+    private static func swipeState(
+        for row: PostDetailCommentRow,
+        isCollapsed: Bool
+    ) -> SwipeActionState {
+        SwipeActionState(
+            isSaved: row.isSaved ?? false,
+            isUpvoted: row.voteStatus == 1,
+            isDownvoted: row.voteStatus == 0,
+            isCollapsed: isCollapsed
+        )
+    }
+
+    /// Dispatches a configured swipe action for a comment to its existing
+    /// handler. Vote / reply / save / share need a server comment id (a
+    /// "load more" placeholder has none); `.collapse` works on the element id.
+    private func performCommentSwipeAction(
+        _ action: SwipeAction,
+        elementId: Int64,
+        serverCommentId: Int64?
+    ) {
+        switch action {
+        case .none:
+            break
+        case .collapse:
+            toggleCollapse(elementId: elementId)
+        case .upvote:
+            guard let serverCommentId else { return }
+            Task { await voteOnComment(serverCommentId: serverCommentId, action: .upvote) }
+        case .downvote:
+            guard let serverCommentId else { return }
+            Task { await voteOnComment(serverCommentId: serverCommentId, action: .downvote) }
+        case .save:
+            guard let serverCommentId else { return }
+            toggleSavedOnComment(serverCommentId: serverCommentId)
+        case .reply:
+            guard let serverCommentId else { return }
+            replyToComment(serverCommentId: serverCommentId)
+        case .share:
+            guard let serverCommentId else { return }
+            shareComment(serverCommentId: serverCommentId)
         }
     }
 
@@ -1113,47 +1203,24 @@ extension PostDetailViewController {
                     self?.toggleCollapse(elementId: elementId)
                 }
 
+                // Swipe slots are user-configurable (M8). Defaults reproduce the
+                // prior vote / vote / reply / collapse layout. Collapse is also
+                // available via tap; a collapse swipe slot mirrors it for
+                // gesture-first users.
                 let general = appearance.general
-                // Swipe slots stay vote / vote / reply / collapse. Collapse is
-                // also available via tap; the deep trailing swipe mirrors it for
-                // gesture-first users. Save moves to the context menu + nav bar.
-                cell.swipeActionConfiguration = .init(
-                    leadingPrimaryAction: .init(
-                        image: general.upvoteIcon,
-                        backgroundColor: general.upvoteSwipeActionBackgroundColor
-                    ),
-                    leadingSecondaryAction: .init(
-                        image: general.downvoteIcon,
-                        backgroundColor: general.downvoteSwipeActionBackgroundColor
-                    ),
-                    trailingPrimaryAction: .init(
-                        image: UIImage(systemName: "arrowshape.turn.up.backward")!,
-                        backgroundColor: UIColor.blue
-                    ),
-                    trailingSecondaryAction: .init(
-                        image: UIImage(
-                            systemName: isCollapsed
-                                ? "arrow.up.left.and.arrow.down.right"
-                                : "arrow.down.right.and.arrow.up.left"
-                        )!,
-                        backgroundColor: UIColor.systemIndigo
-                    )
+                cell.swipeActionConfiguration = self?.commentSwipeActionConfig.viewConfiguration(
+                    state: Self.swipeState(for: row, isCollapsed: isCollapsed),
+                    appearance: general
                 )
 
-                cell.swipeActionTriggered = { [weak self] action in
-                    switch action {
-                    case .leadingPrimary:
-                        guard let serverCommentId = row.serverCommentId else { return }
-                        Task { await self?.voteOnComment(serverCommentId: serverCommentId, action: .upvote) }
-                    case .leadingSecondary:
-                        guard let serverCommentId = row.serverCommentId else { return }
-                        Task { await self?.voteOnComment(serverCommentId: serverCommentId, action: .downvote) }
-                    case .trailingPrimary:
-                        guard let serverCommentId = row.serverCommentId else { return }
-                        self?.replyToComment(serverCommentId: serverCommentId)
-                    case .trailingSecondary:
-                        self?.toggleCollapse(elementId: elementId)
-                    }
+                cell.swipeActionTriggered = { [weak self] trigger in
+                    guard let self else { return }
+                    let action = commentSwipeActionConfig.action(for: SwipeActionSlot(trigger: trigger))
+                    performCommentSwipeAction(
+                        action,
+                        elementId: elementId,
+                        serverCommentId: row.serverCommentId
+                    )
                 }
                 return cell
             }

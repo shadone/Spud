@@ -9,6 +9,7 @@ import LemmyKit
 import Observation
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import SwiftUI
 
 @MainActor
@@ -66,6 +67,12 @@ final class PreferencesViewModel {
     var openExternalLinkInSafariVCReaderMode: Bool
     var openExternalLinkAsUniversalLinkInApp: Bool
 
+    /// User-assigned swipe actions for post and comment cells (M8). Mirrored
+    /// here so the settings UI reflects external changes; writes flow back
+    /// through `preferencesService`.
+    var postSwipeActions: SwipeActionConfig
+    var commentSwipeActions: SwipeActionConfig
+
     /// The selected app appearance and accent color. Live-applied app-wide via
     /// the preference streams the window observes; mirrored here so the
     /// Appearance settings UI reflects external changes.
@@ -112,6 +119,9 @@ final class PreferencesViewModel {
         appTheme = dependencies.preferencesService.appTheme
         accentColor = dependencies.preferencesService.accentColor
 
+        postSwipeActions = dependencies.preferencesService.postSwipeActions
+        commentSwipeActions = dependencies.preferencesService.commentSwipeActions
+
         storageSize = ByteCountFormatter.string(
             fromByteCount: Int64(dependencies.appDatabase.sizeInBytes),
             countStyle: .file
@@ -153,6 +163,18 @@ final class PreferencesViewModel {
                 self?.accentColor = value
             }
         })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.postSwipeActionsStream {
+                self?.postSwipeActions = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.commentSwipeActionsStream {
+                self?.commentSwipeActions = value
+            }
+        })
     }
 
     /// Preview-only init with seed values and no service dependencies.
@@ -172,6 +194,8 @@ final class PreferencesViewModel {
         openExternalLinkAsUniversalLinkInApp = true
         appTheme = .system
         accentColor = .lemmy
+        postSwipeActions = .defaultPosts
+        commentSwipeActions = .defaultComments
         storageSize = "128 MB"
         storageFileUrl = URL(fileURLWithPath: "/tmp")
     }
@@ -225,6 +249,40 @@ final class PreferencesViewModel {
         guard value != accentColor else { return }
         accentColor = value
         preferencesService?.accentColor = value
+        Haptics.tap()
+    }
+
+    // MARK: Swipe actions
+
+    /// Assigns `action` to a single post swipe `slot` and persists the config.
+    func updatePostSwipeAction(_ action: SwipeAction, for slot: SwipeActionSlot) {
+        let updated = postSwipeActions.setting(action, for: slot)
+        guard updated != postSwipeActions else { return }
+        postSwipeActions = updated
+        preferencesService?.postSwipeActions = updated
+    }
+
+    /// Assigns `action` to a single comment swipe `slot` and persists the
+    /// config. Invalid pairings (e.g. assigning a non-comment action) are kept
+    /// as-is; the cell layer sanitizes before driving the gesture.
+    func updateCommentSwipeAction(_ action: SwipeAction, for slot: SwipeActionSlot) {
+        let updated = commentSwipeActions.setting(action, for: slot)
+        guard updated != commentSwipeActions else { return }
+        commentSwipeActions = updated
+        preferencesService?.commentSwipeActions = updated
+    }
+
+    /// Restores post swipe actions to the shipped defaults.
+    func resetPostSwipeActions() {
+        postSwipeActions = .defaultPosts
+        preferencesService?.postSwipeActions = .defaultPosts
+        Haptics.tap()
+    }
+
+    /// Restores comment swipe actions to the shipped defaults.
+    func resetCommentSwipeActions() {
+        commentSwipeActions = .defaultComments
+        preferencesService?.commentSwipeActions = .defaultComments
         Haptics.tap()
     }
 }
