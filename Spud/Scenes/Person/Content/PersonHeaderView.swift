@@ -114,7 +114,7 @@ final class PersonHeaderView: UIView {
     }
 
     private func setup() {
-        backgroundColor = .systemBackground
+        backgroundColor = Theme.background
 
         addSubview(bannerImageView)
         addSubview(avatarImageView)

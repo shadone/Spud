@@ -6,6 +6,7 @@
 
 import Foundation
 import LemmyKit
+import SpudUIKit
 import SpudUtilKit
 
 /// The namespace for types used by ``PreferencesService``.
@@ -15,6 +16,14 @@ enum Preferences { }
 protocol PreferencesServiceType: AnyObject {
     var defaultCommentSortType: Components.Schemas.CommentSortType { get set }
     var defaultCommentSortTypeStream: AsyncStream<Components.Schemas.CommentSortType> { get }
+
+    /// The selected app appearance (system / light / dark / true-black).
+    var appTheme: AppTheme { get set }
+    var appThemeStream: AsyncStream<AppTheme> { get }
+
+    /// The selected accent color.
+    var accentColor: AccentColor { get set }
+    var accentColorStream: AsyncStream<AccentColor> { get }
 
     /// Describes how to open external links from posts and comments.
     var openExternalLinks: Preferences.OpenExternalLink { get set }
@@ -40,6 +49,20 @@ class PreferencesService: PreferencesServiceType {
 
     var defaultCommentSortTypeStream: AsyncStream<Components.Schemas.CommentSortType> {
         $defaultCommentSortType
+    }
+
+    @UserDefaultsBacked(key: "appTheme")
+    var appTheme: AppTheme = .system
+
+    var appThemeStream: AsyncStream<AppTheme> {
+        $appTheme
+    }
+
+    @UserDefaultsBacked(key: "accentColor")
+    var accentColor: AccentColor = .lemmy
+
+    var accentColorStream: AsyncStream<AccentColor> {
+        $accentColor
     }
 
     @UserDefaultsBacked(key: "openExternalLinks")

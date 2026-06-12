@@ -6,6 +6,7 @@
 
 import OSLog
 import SpudDataKit
+import SpudUIKit
 import SwiftUI
 import UIKit
 
@@ -66,7 +67,7 @@ class SubscriptionsViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
 
         let contentVC = UIHostingController(rootView: SubscriptionsView(viewModel: self.viewModel))
         add(child: contentVC)

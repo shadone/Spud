@@ -171,7 +171,7 @@ class RegisterViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
         navigationItem.title = NSLocalizedString("Sign up", comment: "Sign up nav title")
 
         let stack = UIStackView(arrangedSubviews: [

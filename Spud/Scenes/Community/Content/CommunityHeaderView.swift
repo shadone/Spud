@@ -129,7 +129,7 @@ final class CommunityHeaderView: UIView {
     }
 
     private func setup() {
-        backgroundColor = .systemBackground
+        backgroundColor = Theme.background
 
         addSubview(bannerImageView)
         addSubview(iconImageView)

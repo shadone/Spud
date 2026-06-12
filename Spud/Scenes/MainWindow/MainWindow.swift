@@ -6,12 +6,14 @@
 
 import LemmyKit
 import SpudDataKit
+import SpudUIKit
 import UIKit
 
 class MainWindow: UIWindow {
     typealias OwnDependencies =
         HasAccountService &
         HasAppDatabase &
+        HasPreferencesService &
         HasUnreadCountService
     typealias NestedDependencies =
         AccountViewController.Dependencies &
@@ -34,6 +36,10 @@ class MainWindow: UIWindow {
         dependencies.own.unreadCountService
     }
 
+    private var preferencesService: PreferencesServiceType {
+        dependencies.own.preferencesService
+    }
+
     // MARK: Private
 
     /// Index of the Inbox tab in the tab bar; its `badgeValue` reflects the
@@ -44,6 +50,8 @@ class MainWindow: UIWindow {
     private var splitViewController: MainWindowSplitViewController?
     private var defaultAccountObservationTask: Task<Void, Never>?
     private var unreadCountObservationTask: Task<Void, Never>?
+    private var appThemeObservationTask: Task<Void, Never>?
+    private var accentColorObservationTask: Task<Void, Never>?
     /// Keychain id of the account currently driving the tab bar — guards
     /// against rebuilds when the GRDB observation re-emits the same row.
     private var currentDefaultAccountKeychainId: String?
@@ -73,13 +81,23 @@ class MainWindow: UIWindow {
 
         rootViewController = tabBarController
 
+        // Apply the persisted theme + accent synchronously before the window
+        // is shown so there's no flash of the wrong appearance, then keep them
+        // live via the preference streams.
+        applyTheme(preferencesService.appTheme)
+        applyAccent(preferencesService.accentColor)
+
         startObservingDefaultAccount()
         startObservingUnreadCount()
+        startObservingAppTheme()
+        startObservingAccentColor()
     }
 
     deinit {
         defaultAccountObservationTask?.cancel()
         unreadCountObservationTask?.cancel()
+        appThemeObservationTask?.cancel()
+        accentColorObservationTask?.cancel()
     }
 
     @available(*, unavailable)
@@ -184,6 +202,67 @@ class MainWindow: UIWindow {
             items.indices.contains(Self.inboxTabIndex)
         else { return }
         items[Self.inboxTabIndex].badgeValue = count.total > 0 ? "\(count.total)" : nil
+    }
+
+    // MARK: Theming
+
+    private func startObservingAppTheme() {
+        appThemeObservationTask?.cancel()
+        let preferencesService = preferencesService
+        appThemeObservationTask = Task { @MainActor [weak self] in
+            for await theme in preferencesService.appThemeStream {
+                if Task.isCancelled { break }
+                self?.applyTheme(theme)
+            }
+        }
+    }
+
+    private func startObservingAccentColor() {
+        accentColorObservationTask?.cancel()
+        let preferencesService = preferencesService
+        accentColorObservationTask = Task { @MainActor [weak self] in
+            for await accent in preferencesService.accentColorStream {
+                if Task.isCancelled { break }
+                self?.applyAccent(accent)
+            }
+        }
+    }
+
+    /// Applies the theme to this window. Sets the interface style (which
+    /// drives a trait-collection change so the theme-aware `Theme` color
+    /// providers re-resolve, swapping backgrounds to true black under OLED)
+    /// and records it on the shared `ThemeManager` so those providers see the
+    /// True-Black flag.
+    ///
+    /// Switching between standard Dark and True-Black keeps the same
+    /// `overrideUserInterfaceStyle` (`.dark`), so UIKit fires no trait change
+    /// and the dynamic `Theme` colors would not re-resolve. In that case we
+    /// nudge the window through `.unspecified` and back on the next runloop
+    /// tick to force a real trait change. Every other transition changes the
+    /// style outright and refreshes instantly.
+    private func applyTheme(_ theme: AppTheme) {
+        let newStyle = theme.userInterfaceStyle
+        let styleUnchanged = overrideUserInterfaceStyle == newStyle
+
+        ThemeManager.shared.setTheme(theme)
+
+        if styleUnchanged, newStyle == .dark {
+            // Dark <-> True-Black: same style, force re-resolution.
+            overrideUserInterfaceStyle = .unspecified
+            Task { @MainActor [weak self] in
+                self?.overrideUserInterfaceStyle = newStyle
+            }
+        } else {
+            overrideUserInterfaceStyle = newStyle
+        }
+    }
+
+    /// Applies the accent color: drives `tintColor` (which UIKit propagates to
+    /// the view hierarchy, retinting buttons/links/controls) and records it on
+    /// the shared `ThemeManager`.
+    private func applyAccent(_ accent: AccentColor) {
+        ThemeManager.shared.setAccent(accent)
+        tintColor = accent.color
     }
 
     /// Refreshes the unread count for the active account. Called on app

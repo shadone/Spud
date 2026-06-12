@@ -7,6 +7,7 @@
 import LemmyKit
 import OSLog
 import SpudDataKit
+import SpudUIKit
 import SpudUtilKit
 import UIKit
 
@@ -106,7 +107,7 @@ class PersonLoadingViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
 
         view.addSubview(stackView)
 

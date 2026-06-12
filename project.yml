@@ -194,6 +194,17 @@ targets:
     dependencies:
       - target: SpudUtilKit
 
+  SpudUIKitTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - SpudUIKitTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.SpudUIKitTests
+    dependencies:
+      - target: SpudUIKit
+
   SpudSnapshotTests:
     type: bundle.unit-test
     platform: iOS
@@ -255,6 +266,15 @@ schemes:
     test:
       targets:
         - SpudDataKitTests
+
+  SpudUIKit:
+    build:
+      targets:
+        SpudUIKit: all
+        SpudUIKitTests: [test]
+    test:
+      targets:
+        - SpudUIKitTests
 
   SpudWidgetExtension:
     build:
