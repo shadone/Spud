@@ -199,6 +199,14 @@ class LinkLabel: UILabel {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// Whether `point` (in this label's coordinate space) lands on a tappable
+    /// link range. Used by hosts that overlay their own tap gesture (e.g. the
+    /// comment-collapse tap) to defer to link taps.
+    func hasLink(at point: CGPoint) -> Bool {
+        guard !linkAttributes.isEmpty else { return false }
+        return link(atPoint: point) != nil
+    }
+
     private func link(atPoint point: CGPoint) -> LinkAttribute.Link? {
         let indexOfCharacter = indexOfCharacter(at: point)
 

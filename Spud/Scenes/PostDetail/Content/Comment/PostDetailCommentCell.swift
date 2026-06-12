@@ -13,6 +13,10 @@ class PostDetailCommentCell: UITableViewCell {
 
     var linkTapped: ((URL) -> Void)?
 
+    /// Fired when the user taps the comment body/header (but not a link or a
+    /// swipe action) to collapse or expand its thread.
+    var collapseTapped: (() -> Void)?
+
     var swipeActionConfiguration: SwipeActionView.Configuration? {
         get { swipeActionView.configuration }
         set { swipeActionView.configuration = newValue }
@@ -27,23 +31,18 @@ class PostDetailCommentCell: UITableViewCell {
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.axis = .horizontal
         stackView.spacing = 0
+        stackView.alignment = .fill
         stackView.accessibilityIdentifier = "mainHorizontalStackView"
 
         let subviews = [
-            indentationRibbonLeadingSpacerView,
-            indentationRibbonView,
+            depthRailsView,
             verticalStackView,
         ]
         for view in subviews {
             stackView.addArrangedSubview(view)
         }
 
-        stackView.setCustomSpacing(4, after: indentationRibbonView)
-
-        NSLayoutConstraint.activate([
-            indentationRibbonView.topAnchor.constraint(equalTo: stackView.topAnchor, constant: 4),
-            indentationRibbonView.bottomAnchor.constraint(equalTo: stackView.bottomAnchor, constant: -4),
-        ])
+        stackView.setCustomSpacing(8, after: depthRailsView)
 
         return stackView
     }()
@@ -74,6 +73,7 @@ class PostDetailCommentCell: UITableViewCell {
             authorLabel,
             subtitleLabel,
             spacerView,
+            collapsedBadgeLabel,
         ]
         for view in subviews {
             stackView.addArrangedSubview(view)
@@ -105,6 +105,17 @@ class PostDetailCommentCell: UITableViewCell {
         return label
     }()
 
+    /// Shows the "+N" collapsed-descendant badge when the comment is collapsed.
+    lazy var collapsedBadgeLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.backgroundColor = .clear
+        label.accessibilityIdentifier = "collapsedBadge"
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
+        return label
+    }()
+
     lazy var messageLabel: LinkLabel = {
         let label = LinkLabel()
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -116,18 +127,13 @@ class PostDetailCommentCell: UITableViewCell {
         return label
     }()
 
-    var indentationRibbonViewLeadingConstaint: NSLayoutConstraint!
-    var indentationRibbonWidthConstraint: NSLayoutConstraint!
-
-    lazy var indentationRibbonLeadingSpacerView: UIView = {
-        let view = UIView()
+    /// Draws one thin colored vertical rail per ancestor depth on the leading
+    /// edge, so thread depth is visually scannable.
+    lazy var depthRailsView: DepthRailsView = {
+        let view = DepthRailsView()
         view.translatesAutoresizingMaskIntoConstraints = false
-        return view
-    }()
-
-    lazy var indentationRibbonView: UIView = {
-        let view = UIView()
-        view.translatesAutoresizingMaskIntoConstraints = false
+        view.setContentHuggingPriority(.required, for: .horizontal)
+        view.setContentCompressionResistancePriority(.required, for: .horizontal)
         return view
     }()
 
@@ -144,6 +150,15 @@ class PostDetailCommentCell: UITableViewCell {
         return view
     }()
 
+    private lazy var collapseTapGestureRecognizer: UITapGestureRecognizer = {
+        let recognizer = UITapGestureRecognizer(
+            target: self,
+            action: #selector(handleCollapseTap(_:))
+        )
+        recognizer.delegate = self
+        return recognizer
+    }()
+
     // MARK: Functions
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -151,26 +166,16 @@ class PostDetailCommentCell: UITableViewCell {
 
         selectionStyle = .none
 
-        contentView.addSubview(indentationRibbonView)
         contentView.addSubview(swipeActionView)
 
-        let indentationRibbonViewLeadingConstaint = indentationRibbonLeadingSpacerView.widthAnchor
-            .constraint(equalToConstant: 0)
-        self.indentationRibbonViewLeadingConstaint = indentationRibbonViewLeadingConstaint
-
-        let indentationRibbonWidthConstraint = indentationRibbonView.widthAnchor
-            .constraint(equalToConstant: 2)
-        self.indentationRibbonWidthConstraint = indentationRibbonWidthConstraint
-
         NSLayoutConstraint.activate([
-            indentationRibbonViewLeadingConstaint,
-            indentationRibbonWidthConstraint,
-
             swipeActionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             swipeActionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             swipeActionView.topAnchor.constraint(equalTo: contentView.topAnchor),
             swipeActionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
         ])
+
+        contentView.addGestureRecognizer(collapseTapGestureRecognizer)
     }
 
     @available(*, unavailable)
@@ -182,6 +187,7 @@ class PostDetailCommentCell: UITableViewCell {
         super.prepareForReuse()
 
         linkTapped = nil
+        collapseTapped = nil
         swipeActionConfiguration = nil
         swipeActionTriggered = nil
     }
@@ -194,11 +200,54 @@ class PostDetailCommentCell: UITableViewCell {
         } else {
             authorLabel.attributedText = viewModel.author
             subtitleLabel.attributedText = viewModel.subtitle
-            messageLabel.attributedText = viewModel.body
+            // A collapsed comment hides its own body too, Apollo-style: only the
+            // header line (author + score + "+N") remains.
+            messageLabel.attributedText = viewModel.isCollapsed ? nil : viewModel.body
+        }
+        messageLabel.isHidden = (messageLabel.attributedText?.length ?? 0) == 0
+
+        collapsedBadgeLabel.attributedText = viewModel.collapsedBadgeText
+        collapsedBadgeLabel.isHidden = viewModel.collapsedBadgeText == nil
+
+        depthRailsView.railColors = viewModel.depthRailColors
+
+        // A "load more" placeholder is not itself collapsible.
+        collapseTapGestureRecognizer.isEnabled = !viewModel.isMore
+    }
+
+    // MARK: Collapse tap
+
+    @objc
+    private func handleCollapseTap(_ recognizer: UITapGestureRecognizer) {
+        guard recognizer.state == .ended else { return }
+
+        // Defer to the LinkLabels: if the tap landed on an actual link range,
+        // let the label handle it and do not collapse.
+        let point = recognizer.location(in: contentView)
+        if labelHasLink(authorLabel, at: point) || labelHasLink(messageLabel, at: point) {
+            return
         }
 
-        indentationRibbonViewLeadingConstaint.constant = viewModel.indentationRibbonLeadingMargin
-        indentationRibbonWidthConstraint.constant = viewModel.indentationRibbonWidth
-        indentationRibbonView.backgroundColor = viewModel.indentationRibbonColor
+        collapseTapped?()
+    }
+
+    private func labelHasLink(_ label: LinkLabel, at point: CGPoint) -> Bool {
+        guard !label.isHidden, label.window != nil else { return false }
+        let pointInLabel = contentView.convert(point, to: label)
+        guard label.bounds.contains(pointInLabel) else { return false }
+        return label.hasLink(at: pointInLabel)
+    }
+}
+
+// MARK: - UIGestureRecognizerDelegate
+
+extension PostDetailCommentCell {
+    override func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        // Coexist with the LinkLabel tap recognizers (we filter link hits in
+        // the handler) and with the swipe pan recognizer.
+        true
     }
 }

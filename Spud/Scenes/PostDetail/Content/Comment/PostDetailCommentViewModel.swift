@@ -23,15 +23,23 @@ struct PostDetailCommentViewModel {
     let subtitle: NSAttributedString
     let isMore: Bool
     let moreText: NSAttributedString?
-    let indentationRibbonWidth: CGFloat
-    let indentationRibbonLeadingMargin: CGFloat
-    let indentationRibbonColor: UIColor
 
-    private static let indentationRibbonStandardWidth: CGFloat = 2
+    /// One colored rail per ancestor depth, leading edge first. Drives the
+    /// stacked Apollo-style depth rails. Empty for top-level comments.
+    let depthRailColors: [UIColor]
+
+    /// `true` when this comment is collapsed and its subtree is hidden.
+    let isCollapsed: Bool
+
+    /// The number of descendants hidden underneath this collapsed comment, or
+    /// `nil` when the comment is expanded (no badge shown).
+    let collapsedBadgeText: NSAttributedString?
 
     init(
         row: PostDetailCommentRow,
-        appearance: AppearanceServiceType
+        appearance: AppearanceServiceType,
+        isCollapsed: Bool = false,
+        collapsedDescendantCount: Int? = nil
     ) {
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
 
@@ -123,15 +131,37 @@ struct PostDetailCommentViewModel {
         }
 
         let depth = row.depth
-        indentationRibbonWidth = depth == 1 ? 0 : Self.indentationRibbonStandardWidth
-
-        let leadingMargin: CGFloat = 4
-        indentationRibbonLeadingMargin =
-            (Self.indentationRibbonStandardWidth + 4) * CGFloat(max(0, depth - 1)) + leadingMargin
-
         let theme = appearance.postDetail.commentRibbonTheme
         let colors = theme.colors
-        let index = max(0, Int(depth - 1) % max(1, colors.count))
-        indentationRibbonColor = colors.isEmpty ? .lightGray : colors[index]
+
+        // One rail per ancestor level (depth 1 = top-level => no ancestor rail).
+        // Depth d has (d - 1) ancestor rails; each rail's hue cycles through the
+        // theme palette by its own depth so the same depth always reads as the
+        // same color, which is what makes the thread scannable.
+        let railCount = max(0, Int(depth) - 1)
+        if colors.isEmpty {
+            depthRailColors = Array(repeating: .lightGray, count: railCount)
+        } else {
+            depthRailColors = (0..<railCount).map { level in
+                colors[level % colors.count]
+            }
+        }
+
+        self.isCollapsed = isCollapsed
+        if let count = collapsedDescendantCount, count > 0 {
+            var badgeAttributes = secondaryAttributes
+            badgeAttributes[.foregroundColor] = UIColor.secondaryLabel
+            badgeAttributes[.font] = UIFont.scaledSystemFont(
+                style: .caption1,
+                relativeSize: textSizeAdjustment,
+                weight: .semibold
+            )
+            collapsedBadgeText = NSAttributedString(
+                string: "+\(count)",
+                attributes: badgeAttributes
+            )
+        } else {
+            collapsedBadgeText = nil
+        }
     }
 }
