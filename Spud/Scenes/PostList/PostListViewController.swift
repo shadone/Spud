@@ -299,6 +299,14 @@ class PostListViewController: UIViewController {
         donateIntent()
     }
 
+    /// Reloads the feed from scratch (a fresh feed key + re-fetch). Used after
+    /// an action that changes server-side filtering, such as blocking a user or
+    /// community, so the now-excluded content disappears.
+    func reloadFeed() {
+        viewModel.didClickReload()
+        feedChanged()
+    }
+
     private func feedChanged() {
         observationTask?.cancel()
         rowsByServerPostId.removeAll()

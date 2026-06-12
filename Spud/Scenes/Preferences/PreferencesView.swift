@@ -12,6 +12,16 @@ import SwiftUI
 struct PreferencesView: View {
     let viewModel: PreferencesViewModel
 
+    /// One blocked-list view model shared by both sub-screens, so they fetch
+    /// once and stay in sync. nil for signed-out accounts (which can't block)
+    /// and the preview init.
+    private let blockedListViewModel: BlockedListViewModel?
+
+    init(viewModel: PreferencesViewModel) {
+        self.viewModel = viewModel
+        blockedListViewModel = viewModel.makeBlockedListViewModel()
+    }
+
     var body: some View {
         NavigationView {
             Form {
@@ -28,6 +38,26 @@ struct PreferencesView: View {
 
                     NavigationLink { } label: {
                         Label("Accounts", systemImage: "person")
+                    }
+                }
+
+                // Safety / moderation: blocked-list management. Hidden for
+                // signed-out accounts, which can't block.
+                if !viewModel.isSignedOut, let blockedListViewModel {
+                    Section {
+                        NavigationLink {
+                            PreferencesBlockedUsersView(viewModel: blockedListViewModel)
+                        } label: {
+                            Label("Blocked Users", systemImage: "hand.raised")
+                        }
+
+                        NavigationLink {
+                            PreferencesBlockedCommunitiesView(viewModel: blockedListViewModel)
+                        } label: {
+                            Label("Blocked Communities", systemImage: "hand.raised.square")
+                        }
+                    } header: {
+                        Text("Safety")
                     }
                 }
 

@@ -41,6 +41,16 @@ final class PersonViewModel {
     var phase: PersonContentPhase = .loading
     private(set) var content = PersonContent()
 
+    // MARK: Block state (transient, sourced from getSite -> my_user)
+
+    /// Whether this person is currently blocked by the backing account.
+    /// Resolved on appear via `fetchBlockedList`; updated optimistically by
+    /// `setBlocked` and confirmed by the api response.
+    var isBlocked: Bool = false
+    /// True once the block state has been resolved from the server, so the UI
+    /// can avoid showing a stale Block/Unblock label before it is known.
+    var blockStateKnown: Bool = false
+
     // MARK: Private
 
     @ObservationIgnored
@@ -156,5 +166,43 @@ final class PersonViewModel {
     func tabChanged(_ newTab: PersonContentTab) {
         guard newTab != tab else { return }
         tab = newTab
+    }
+
+    // MARK: Block
+
+    /// Resolves whether this person is currently blocked, from the server's
+    /// `getSite` block list. Silently no-ops for signed-out accounts (which
+    /// can't block) and on failure leaves `isBlocked` at its last value.
+    func refreshBlockState() {
+        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else { return }
+        let serverPersonId = serverPersonId
+        Task { [weak self] in
+            guard let self else { return }
+            let lemmyService = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            do {
+                let blocked = try await lemmyService.fetchBlockedList()
+                if Task.isCancelled { return }
+                isBlocked = blocked.persons.contains { $0.serverPersonId == serverPersonId }
+                blockStateKnown = true
+            } catch {
+                logger.error("Refresh person block state failed: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
+    /// Blocks or unblocks this person. Mirrors `isBlocked` optimistically and
+    /// throws on failure so the caller can surface a designed error and revert.
+    func setBlocked(_ blocked: Bool) async throws {
+        let previous = isBlocked
+        isBlocked = blocked
+        do {
+            try await accountService
+                .lemmyService(forAccountKeychainId: accountKeychainId)
+                .setBlocked(serverPersonId: serverPersonId, blocked: blocked)
+            blockStateKnown = true
+        } catch {
+            isBlocked = previous
+            throw error
+        }
     }
 }

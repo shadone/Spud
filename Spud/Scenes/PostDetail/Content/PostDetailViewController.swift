@@ -605,6 +605,82 @@ class PostDetailViewController: UIViewController {
         }
     }
 
+    // MARK: - Report
+
+    /// True when `creatorPersonId` matches the backing account's own person id.
+    /// Reporting your own content is meaningless, so the "Report" action is
+    /// hidden for it.
+    private func isOwnContent(creatorPersonId: Int64?) -> Bool {
+        guard let creatorPersonId else { return false }
+        guard let own = appDatabase.accountOwnPersonIdsSync(
+            forKeychainId: viewModel.accountKeychainId
+        ) else { return false }
+        return creatorPersonId == own.serverPersonId
+    }
+
+    /// Whether the backing account can report content. Signed-out accounts get
+    /// a "Sign in to report" alert and a warning haptic.
+    private func canReportOrPresentSignInAlert() -> Bool {
+        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+            Haptics.warning()
+            presentErrorAlert(
+                title: NSLocalizedString("Sign in to report", comment: "Title of the alert shown when a signed-out user tries to report"),
+                message: NSLocalizedString(
+                    "You need to be signed in to an account to report posts and comments.",
+                    comment: "Body of the alert shown when a signed-out user tries to report"
+                )
+            )
+            return false
+        }
+        return true
+    }
+
+    private func reportPost() {
+        guard canReportOrPresentSignInAlert() else { return }
+        presentReportReasonAlert(
+            title: NSLocalizedString("Report post", comment: "Report post dialog title"),
+            message: NSLocalizedString("Tell the moderators why you're reporting this post.", comment: "Report post dialog message")
+        ) { [weak self] reason in
+            Task { await self?.submitPostReport(reason: reason) }
+        }
+    }
+
+    private func submitPostReport(reason: String) async {
+        Haptics.tap()
+        do {
+            try await accountService
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                .reportPost(serverPostId: viewModel.serverPostId, reason: reason)
+            Haptics.success()
+            presentReportSubmittedConfirmation()
+        } catch {
+            alertService.handle(error, for: .reportPost)
+        }
+    }
+
+    private func reportComment(serverCommentId: Int64) {
+        guard canReportOrPresentSignInAlert() else { return }
+        presentReportReasonAlert(
+            title: NSLocalizedString("Report comment", comment: "Report comment dialog title"),
+            message: NSLocalizedString("Tell the moderators why you're reporting this comment.", comment: "Report comment dialog message")
+        ) { [weak self] reason in
+            Task { await self?.submitCommentReport(serverCommentId: serverCommentId, reason: reason) }
+        }
+    }
+
+    private func submitCommentReport(serverCommentId: Int64, reason: String) async {
+        Haptics.tap()
+        do {
+            try await accountService
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                .reportComment(serverCommentId: Components.Schemas.CommentID(serverCommentId), reason: reason)
+            Haptics.success()
+            presentReportSubmittedConfirmation()
+        } catch {
+            alertService.handle(error, for: .reportComment)
+        }
+    }
+
     /// Reply to the post itself (a top-level comment).
     private func replyToPost() {
         presentComposer(target: .postReply(serverPostId: viewModel.serverPostId))
@@ -797,7 +873,9 @@ extension PostDetailViewController: UITableViewDelegate {
     ) -> UITargetedPreview? {
         guard let indexPath = configuration.identifier as? IndexPath else { fatalError() }
         guard let cell = tableView.cellForRow(at: indexPath) else { return nil }
-        guard let cell = cell as? PostDetailCommentCell else { fatalError() }
+        // The post header row uses the system default preview; only comment
+        // cells get the custom rounded preview.
+        guard let cell = cell as? PostDetailCommentCell else { return nil }
 
         let parameters = UIPreviewParameters()
         parameters.backgroundColor = .clear
@@ -810,6 +888,11 @@ extension PostDetailViewController: UITableViewDelegate {
         contextMenuConfigurationForRowAt indexPath: IndexPath,
         point: CGPoint
     ) -> UIContextMenuConfiguration? {
+        // Header row (the post itself): a small menu offering Share and Report.
+        if dataSource.itemIdentifier(for: indexPath) == .header {
+            return postContextMenuConfiguration(at: indexPath)
+        }
+
         guard
             indexPath.section == 1,
             case let .comment(elementId) = dataSource.itemIdentifier(for: indexPath),
@@ -818,11 +901,12 @@ extension PostDetailViewController: UITableViewDelegate {
         else { return nil }
 
         let isSaved = commentRow.isSaved ?? false
+        let isOwnComment = isOwnContent(creatorPersonId: commentRow.creatorPersonId)
         let generalAppearance = appearanceService.general
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
             previewProvider: nil,
-            actionProvider: { _ in
+            actionProvider: { [weak self] _ in
                 let upvoteAction = UIAction(
                     title: NSLocalizedString("Upvote", comment: ""),
                     image: generalAppearance.upvoteIcon
@@ -855,7 +939,50 @@ extension PostDetailViewController: UITableViewDelegate {
                 ) { [weak self] _ in
                     self?.shareComment(serverCommentId: serverCommentId)
                 }
-                return UIMenu(title: "", children: [upvoteAction, downvoteAction, replyAction, saveAction, shareAction])
+                var children: [UIMenuElement] = [upvoteAction, downvoteAction, replyAction, saveAction, shareAction]
+                // Reporting your own comment is meaningless, so only offer it
+                // on other people's content.
+                if !isOwnComment {
+                    let reportAction = UIAction(
+                        title: NSLocalizedString("Report", comment: "Context-menu action to report a comment"),
+                        image: UIImage(systemName: "flag"),
+                        attributes: .destructive
+                    ) { [weak self] _ in
+                        self?.reportComment(serverCommentId: serverCommentId)
+                    }
+                    children.append(reportAction)
+                }
+                return UIMenu(title: "", children: children)
+            }
+        )
+    }
+
+    /// Context menu for the post header row: Share, plus Report (hidden for the
+    /// account's own post). Mirrors the comment menu's structure.
+    private func postContextMenuConfiguration(at indexPath: IndexPath) -> UIContextMenuConfiguration {
+        let isOwnPost = isOwnContent(creatorPersonId: headerRow?.creatorPersonId)
+        return UIContextMenuConfiguration(
+            identifier: indexPath as NSCopying,
+            previewProvider: nil,
+            actionProvider: { [weak self] _ in
+                let shareAction = UIAction(
+                    title: NSLocalizedString("Share", comment: "Context-menu action to share a post"),
+                    image: UIImage(systemName: "square.and.arrow.up")
+                ) { [weak self] _ in
+                    self?.sharePost()
+                }
+                var children: [UIMenuElement] = [shareAction]
+                if !isOwnPost {
+                    let reportAction = UIAction(
+                        title: NSLocalizedString("Report", comment: "Context-menu action to report a post"),
+                        image: UIImage(systemName: "flag"),
+                        attributes: .destructive
+                    ) { [weak self] _ in
+                        self?.reportPost()
+                    }
+                    children.append(reportAction)
+                }
+                return UIMenu(title: "", children: children)
             }
         )
     }

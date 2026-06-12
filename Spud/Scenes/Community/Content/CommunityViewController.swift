@@ -117,12 +117,25 @@ class CommunityViewController: UIViewController {
     private func setup() {
         view.backgroundColor = .systemBackground
 
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
+        let newPostButton = UIBarButtonItem(
             image: UIImage(systemName: "square.and.pencil"),
             style: .plain,
             target: self,
             action: #selector(newPostTapped)
         )
+        let overflowButton = UIBarButtonItem(
+            image: UIImage(systemName: "ellipsis.circle"),
+            menu: UIMenu(children: [
+                UIDeferredMenuElement.uncached { [weak self] completion in
+                    completion(self?.blockMenuActions() ?? [])
+                },
+            ])
+        )
+        overflowButton.accessibilityLabel = NSLocalizedString(
+            "More",
+            comment: "Community overflow menu accessibility label"
+        )
+        navigationItem.rightBarButtonItems = [overflowButton, newPostButton]
 
         headerView.translatesAutoresizingMaskIntoConstraints = false
         headerView.subscribeTapped = { [weak self] in
@@ -158,6 +171,98 @@ class CommunityViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         startObservation()
+        // Resolve whether this community is already blocked so the menu shows
+        // the correct Block / Unblock label.
+        refreshBlockState()
+    }
+
+    /// Resolves whether this community is currently blocked, from the server's
+    /// `getSite` block list. No-op for signed-out accounts.
+    private func refreshBlockState() {
+        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else { return }
+        let serverCommunityId = viewModel.serverCommunityId
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let blocked = try await accountService
+                    .lemmyService(forAccountKeychainId: accountKeychainId)
+                    .fetchBlockedList()
+                if Task.isCancelled { return }
+                viewModel.isBlocked = blocked.communities.contains { $0.serverCommunityId == serverCommunityId }
+                viewModel.blockStateKnown = true
+            } catch {
+                logger.error("Refresh community block state failed: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
+    /// Builds the Block / Unblock action for the overflow menu, reflecting the
+    /// current `isBlocked` state.
+    private func blockMenuActions() -> [UIMenuElement] {
+        let blocked = viewModel.isBlocked
+        let blockAction = UIAction(
+            title: blocked
+                ? NSLocalizedString("Unblock community", comment: "Overflow action to unblock a community")
+                : NSLocalizedString("Block community", comment: "Overflow action to block a community"),
+            image: UIImage(systemName: blocked ? "hand.raised.slash" : "hand.raised"),
+            attributes: blocked ? [] : .destructive
+        ) { [weak self] _ in
+            self?.toggleBlockCommunity()
+        }
+        return [blockAction]
+    }
+
+    private func toggleBlockCommunity() {
+        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
+            Haptics.warning()
+            presentErrorAlert(
+                title: NSLocalizedString("Sign in to block", comment: "Title of the alert shown when a signed-out user tries to block a community"),
+                message: NSLocalizedString(
+                    "You need to be signed in to an account to block communities.",
+                    comment: "Body of the alert shown when a signed-out user tries to block a community"
+                )
+            )
+            return
+        }
+
+        let blocking = !viewModel.isBlocked
+        if blocking {
+            presentDestructiveConfirmation(
+                title: String(
+                    format: NSLocalizedString("Block %@?", comment: "Block community confirmation title"),
+                    viewModel.qualifiedName.isEmpty ? viewModel.title : viewModel.qualifiedName
+                ),
+                message: NSLocalizedString(
+                    "You won't see posts from this community. You can unblock it later.",
+                    comment: "Block community confirmation message"
+                ),
+                confirmTitle: NSLocalizedString("Block", comment: "Block community confirm button"),
+                sourceItem: navigationItem.rightBarButtonItems?.first
+            ) { [weak self] in
+                Task { await self?.applyBlockCommunity(true) }
+            }
+        } else {
+            Task { await applyBlockCommunity(false) }
+        }
+    }
+
+    private func applyBlockCommunity(_ blocked: Bool) async {
+        Haptics.tap()
+        let previous = viewModel.isBlocked
+        viewModel.isBlocked = blocked
+        do {
+            try await accountService
+                .lemmyService(forAccountKeychainId: accountKeychainId)
+                .setBlocked(serverCommunityId: viewModel.serverCommunityId, blocked: blocked)
+            viewModel.blockStateKnown = true
+            Haptics.success()
+            // The server now filters this community's posts out of feed fetches;
+            // reload the embedded feed so blocked content disappears.
+            feedViewController?.reloadFeed()
+        } catch {
+            viewModel.isBlocked = previous
+            alertService.handle(error, for: .setBlockedCommunity)
+        }
     }
 
     private func startObservation() {
@@ -339,7 +444,17 @@ extension CommunityViewController: UIContextMenuInteractionDelegate {
             ) { [weak self] _ in
                 self?.toggleSubscribed()
             }
-            return UIMenu(title: "", children: [action])
+            let blocked = viewModel.isBlocked
+            let blockAction = UIAction(
+                title: blocked
+                    ? NSLocalizedString("Unblock community", comment: "Context-menu action to unblock a community")
+                    : NSLocalizedString("Block community", comment: "Context-menu action to block a community"),
+                image: UIImage(systemName: blocked ? "hand.raised.slash" : "hand.raised"),
+                attributes: blocked ? [] : .destructive
+            ) { [weak self] _ in
+                self?.toggleBlockCommunity()
+            }
+            return UIMenu(title: "", children: [action, blockAction])
         }
     }
 }

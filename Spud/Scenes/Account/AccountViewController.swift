@@ -280,6 +280,7 @@ class AccountViewController: UIViewController {
         let sortType = accountService.defaultSortType(forAccountKeychainId: keychainId)
         let preferencesVC = PreferencesViewController(
             defaultPostSortType: sortType,
+            accountKeychainId: keychainId,
             dependencies: dependencies.nested
         )
         navigationController?.pushViewController(preferencesVC, animated: true)

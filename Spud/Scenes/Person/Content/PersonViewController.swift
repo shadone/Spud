@@ -41,6 +41,10 @@ class PersonViewController: UIViewController {
         dependencies.own.accountService
     }
 
+    var alertService: AlertServiceType {
+        dependencies.own.alertService
+    }
+
     var imageService: ImageServiceType {
         dependencies.own.imageService
     }
@@ -181,9 +185,10 @@ class PersonViewController: UIViewController {
         configureMessageButton()
     }
 
-    /// A "Message" button is offered when the viewer is signed in and the
-    /// profile is not their own. It opens the composer sheet targeting a new
-    /// private message to this person.
+    /// A "Message" button plus an overflow menu (Block / Unblock) are offered
+    /// when the viewer is signed in and the profile is not their own. The
+    /// overflow menu uses a deferred element so the Block/Unblock label always
+    /// reflects the latest `isBlocked` state.
     private func configureMessageButton() {
         guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else { return }
         let ownPersonId = appDatabase
@@ -201,7 +206,37 @@ class PersonViewController: UIViewController {
             "Message",
             comment: "Person profile message button accessibility label"
         )
-        navigationItem.rightBarButtonItem = messageButton
+
+        let overflowButton = UIBarButtonItem(
+            image: UIImage(systemName: "ellipsis.circle"),
+            menu: UIMenu(children: [
+                UIDeferredMenuElement.uncached { [weak self] completion in
+                    completion(self?.blockMenuActions() ?? [])
+                },
+            ])
+        )
+        overflowButton.accessibilityLabel = NSLocalizedString(
+            "More",
+            comment: "Person profile overflow menu accessibility label"
+        )
+
+        navigationItem.rightBarButtonItems = [overflowButton, messageButton]
+    }
+
+    /// Builds the Block / Unblock action for the overflow menu, reflecting the
+    /// current `isBlocked` state.
+    private func blockMenuActions() -> [UIMenuElement] {
+        let blocked = viewModel.isBlocked
+        let blockAction = UIAction(
+            title: blocked
+                ? NSLocalizedString("Unblock user", comment: "Overflow action to unblock a user")
+                : NSLocalizedString("Block user", comment: "Overflow action to block a user"),
+            image: UIImage(systemName: blocked ? "hand.raised.slash" : "hand.raised"),
+            attributes: blocked ? [] : .destructive
+        ) { [weak self] _ in
+            self?.toggleBlockUser()
+        }
+        return [blockAction]
     }
 
     @objc
@@ -219,6 +254,65 @@ class PersonViewController: UIViewController {
         super.viewDidLoad()
         startObservations()
         viewModel.loadContent()
+        // Resolve whether this person is already blocked so the context-menu
+        // action shows the correct Block / Unblock label.
+        if !isOwnProfile {
+            viewModel.refreshBlockState()
+        }
+    }
+
+    /// True when this profile belongs to the backing account itself - block and
+    /// message actions are suppressed for your own profile.
+    private var isOwnProfile: Bool {
+        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else { return false }
+        let ownPersonId = appDatabase
+            .accountOwnPersonIdsSync(forKeychainId: accountKeychainId)
+            .map { Components.Schemas.PersonID($0.serverPersonId) }
+        return ownPersonId == viewModel.serverPersonId
+    }
+
+    private func toggleBlockUser() {
+        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
+            Haptics.warning()
+            presentErrorAlert(
+                title: NSLocalizedString("Sign in to block", comment: "Title of the alert shown when a signed-out user tries to block"),
+                message: NSLocalizedString(
+                    "You need to be signed in to an account to block users.",
+                    comment: "Body of the alert shown when a signed-out user tries to block"
+                )
+            )
+            return
+        }
+
+        let blocking = !viewModel.isBlocked
+        if blocking {
+            presentDestructiveConfirmation(
+                title: String(
+                    format: NSLocalizedString("Block %@?", comment: "Block user confirmation title"),
+                    viewModel.handle
+                ),
+                message: NSLocalizedString(
+                    "You won't see posts or comments from this user. You can unblock them later.",
+                    comment: "Block user confirmation message"
+                ),
+                confirmTitle: NSLocalizedString("Block", comment: "Block user confirm button"),
+                sourceItem: navigationItem.rightBarButtonItem
+            ) { [weak self] in
+                Task { await self?.applyBlockUser(true) }
+            }
+        } else {
+            Task { await applyBlockUser(false) }
+        }
+    }
+
+    private func applyBlockUser(_ blocked: Bool) async {
+        Haptics.tap()
+        do {
+            try await viewModel.setBlocked(blocked)
+            Haptics.success()
+        } catch {
+            alertService.handle(error, for: .setBlockedPerson)
+        }
     }
 
     // MARK: Observation
@@ -470,7 +564,21 @@ extension PersonViewController: UIContextMenuInteractionDelegate {
                 UIPasteboard.general.string = self?.viewModel.handle
                 Haptics.tap()
             }
-            return UIMenu(title: "", children: [copyHandle])
+            var children: [UIMenuElement] = [copyHandle]
+            if !isOwnProfile {
+                let blocked = viewModel.isBlocked
+                let blockAction = UIAction(
+                    title: blocked
+                        ? NSLocalizedString("Unblock user", comment: "Context-menu action to unblock a user")
+                        : NSLocalizedString("Block user", comment: "Context-menu action to block a user"),
+                    image: UIImage(systemName: blocked ? "hand.raised.slash" : "hand.raised"),
+                    attributes: blocked ? [] : .destructive
+                ) { [weak self] _ in
+                    self?.toggleBlockUser()
+                }
+                children.append(blockAction)
+            }
+            return UIMenu(title: "", children: children)
         }
     }
 }
