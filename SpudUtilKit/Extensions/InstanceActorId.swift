@@ -11,7 +11,7 @@ import Foundation
 /// The sole purpose of this type is to ensure consistency in handling of actorIds, regardless where
 /// they come from - even if entered by a user in e.g. camel case.
 public struct InstanceActorId:
-    Equatable, CustomStringConvertible, CustomDebugStringConvertible,
+    Equatable, Hashable, CustomStringConvertible, CustomDebugStringConvertible,
     Sendable
 {
     public let host: String

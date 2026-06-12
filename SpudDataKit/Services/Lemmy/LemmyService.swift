@@ -66,6 +66,20 @@ public protocol LemmyServiceType: Actor {
         communityName: String
     ) async throws -> Components.Schemas.CommunityID
 
+    /// Run a search against the backing instance and return the decoded
+    /// results. Search results are transient (a snapshot of what matched the
+    /// query right now), so they are returned directly rather than mirrored
+    /// into the persistent feed. Navigation from a result uses the server-side
+    /// ids carried in the response, which the id-based screens resolve on
+    /// their own. Works for both signed-in and signed-out accounts.
+    func search(
+        query: String,
+        type: Components.Schemas.SearchType,
+        sort: Components.Schemas.SortType,
+        listingType: Components.Schemas.ListingType,
+        page: Int64
+    ) async throws -> Components.Schemas.SearchResponse
+
     /// Subscribe to or unsubscribe from `serverCommunityId` for the backing
     /// account. Throws `LemmyServiceError.requiresAuthentication` if this
     /// service is backed by a signed-out account.
@@ -443,6 +457,41 @@ public actor LemmyService: LemmyServiceType {
         await mirrorCommunityInfoToAppDatabase(view: response.community_view)
 
         return response.community_view.community.id
+    }
+
+    public func search(
+        query: String,
+        type: Components.Schemas.SearchType,
+        sort: Components.Schemas.SortType,
+        listingType: Components.Schemas.ListingType,
+        page: Int64
+    ) async throws -> Components.Schemas.SearchResponse {
+        logger.debug("""
+            Search. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            query=\(query, privacy: .private) type=\(type.rawValue, privacy: .public) \
+            sort=\(sort.rawValue, privacy: .public) listingType=\(listingType.rawValue, privacy: .public) \
+            page=\(page, privacy: .public)
+            """)
+
+        let response: Components.Schemas.SearchResponse
+        do {
+            response = try await api.search(
+                query: query,
+                type: type,
+                sort: sort,
+                listingType: listingType,
+                page: page
+            )
+        } catch {
+            logger.error("""
+                Search failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                type=\(type.rawValue, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        return response
     }
 
     public func setSubscribed(

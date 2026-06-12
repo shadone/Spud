@@ -15,7 +15,8 @@ class MainWindow: UIWindow {
     typealias NestedDependencies =
         AccountViewController.Dependencies &
         MainWindowSplitViewController.Dependencies &
-        PreferencesViewController.Dependencies
+        PreferencesViewController.Dependencies &
+        SearchViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
@@ -111,7 +112,12 @@ class MainWindow: UIWindow {
         let accountNavigationController = UINavigationController(rootViewController: accountViewController)
 
         // Tab: Setup the search view controller
-        let searchViewController = SearchViewController()
+        let searchViewController = SearchViewController(
+            accountKeychainId: keychainId,
+            dependencies: dependencies.nested
+        )
+        let searchNavigationController = UINavigationController(rootViewController: searchViewController)
+        searchNavigationController.navigationBar.prefersLargeTitles = true
 
         // Tab: Setup the preferences view controller
         let preferencesViewController = PreferencesViewController(
@@ -124,7 +130,7 @@ class MainWindow: UIWindow {
             [
                 splitViewController,
                 accountNavigationController,
-                searchViewController,
+                searchNavigationController,
                 preferencesViewController,
             ],
             animated: false
