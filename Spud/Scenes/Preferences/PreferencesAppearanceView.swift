@@ -57,6 +57,14 @@ struct PreferencesAppearanceView: View {
             } header: {
                 Text("Accent Color")
             }
+
+            Section {
+                NavigationLink {
+                    PreferencesAppIconView()
+                } label: {
+                    Label("App Icon", systemImage: "app.badge")
+                }
+            }
         }
         .navigationTitle("Appearance")
     }
