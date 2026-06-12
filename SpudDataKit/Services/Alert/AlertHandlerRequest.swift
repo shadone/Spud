@@ -12,6 +12,8 @@ public enum AlertHandlerRequest: String, CustomStringConvertible {
     case vote
     case save
     case createComment
+    case createPost
+    case uploadImage
     case fetchPostList
     case fetchComments
     case fetchPersonInfo
