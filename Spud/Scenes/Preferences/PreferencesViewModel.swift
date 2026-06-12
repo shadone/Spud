@@ -32,6 +32,29 @@ final class PreferencesViewModel {
         dependencies?.own.accountService
     }
 
+    /// The account these preferences apply to. Used to scope the blocked-list
+    /// management screens. Empty in the preview init.
+    @ObservationIgnored
+    let accountKeychainId: String
+
+    /// Whether the backing account is signed out (anonymous). Blocking requires
+    /// authentication, so the blocked-list section is hidden for signed-out
+    /// accounts.
+    var isSignedOut: Bool {
+        guard let accountService else { return true }
+        return accountService.isSignedOut(forAccountKeychainId: accountKeychainId)
+    }
+
+    /// Builds the view model backing the blocked-users / blocked-communities
+    /// management screens. Returns nil in the preview init (no services).
+    func makeBlockedListViewModel() -> BlockedListViewModel? {
+        guard let accountService else { return nil }
+        return BlockedListViewModel(
+            accountKeychainId: accountKeychainId,
+            accountService: accountService
+        )
+    }
+
     let allPostSortTypes: [Components.Schemas.SortType]
     let allCommentSortTypes: [Components.Schemas.CommentSortType]
 
@@ -59,9 +82,11 @@ final class PreferencesViewModel {
 
     init(
         defaultPostSortType initialDefaultPostSortType: Components.Schemas.SortType,
+        accountKeychainId: String,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
+        self.accountKeychainId = accountKeychainId
 
         allPostSortTypes = Components.Schemas.SortType.allCases
         allCommentSortTypes = Components.Schemas.CommentSortType.allCases
@@ -110,6 +135,7 @@ final class PreferencesViewModel {
     /// Mutations write back to local state only.
     init(preview: Void = ()) {
         dependencies = nil
+        accountKeychainId = ""
         externalLinkRequestedContinuation = AsyncStream<URL>.makeStream().continuation
         externalLinkRequested = AsyncStream { _ in }
 

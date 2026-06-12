@@ -222,6 +222,85 @@ public protocol LemmyServiceType: Actor {
         content: String,
         recipientId: Components.Schemas.PersonID
     ) async throws -> Components.Schemas.PrivateMessageView
+
+    // MARK: Safety (block / report)
+
+    /// Block or unblock the person `serverPersonId` for the backing account.
+    /// On success the returned `PersonView` is mirrored into the store; the
+    /// server filters blocked authors out of subsequent feed fetches, so the
+    /// caller should refresh the current feed to make blocked content
+    /// disappear. Throws `LemmyServiceError.requiresAuthentication` when signed
+    /// out.
+    func setBlocked(
+        serverPersonId: Components.Schemas.PersonID,
+        blocked: Bool
+    ) async throws
+
+    /// Block or unblock the community `serverCommunityId` for the backing
+    /// account. On success the returned `CommunityView` is mirrored into the
+    /// store; the server filters blocked communities out of subsequent feed
+    /// fetches, so the caller should refresh the current feed. Throws
+    /// `LemmyServiceError.requiresAuthentication` when signed out.
+    func setBlocked(
+        serverCommunityId: Components.Schemas.CommunityID,
+        blocked: Bool
+    ) async throws
+
+    /// Report `serverPostId` with the given `reason`. Transient (not mirrored).
+    /// Throws `LemmyServiceError.requiresAuthentication` when signed out.
+    func reportPost(
+        serverPostId: Components.Schemas.PostID,
+        reason: String
+    ) async throws
+
+    /// Report `serverCommentId` with the given `reason`. Transient (not
+    /// mirrored). Throws `LemmyServiceError.requiresAuthentication` when signed
+    /// out.
+    func reportComment(
+        serverCommentId: Components.Schemas.CommentID,
+        reason: String
+    ) async throws
+
+    /// Fetch the account's current block lists from the server (via
+    /// `getSite` → `my_user`). Transient (returned to the caller, like
+    /// `search`) so the settings screen always reflects server truth. Throws
+    /// `LemmyServiceError.requiresAuthentication` when signed out.
+    func fetchBlockedList() async throws -> BlockedList
+}
+
+/// The account's current block lists, decoded from `getSite` → `my_user`.
+/// A small Sendable value type so it can flow from the `LemmyService` actor to
+/// the main-actor settings screen.
+public struct BlockedList: Sendable, Equatable {
+    public struct Person: Sendable, Equatable, Identifiable {
+        public let serverPersonId: Components.Schemas.PersonID
+        public let name: String
+        /// `@user@instance`-style handle for display.
+        public let handle: String
+        public let avatarUrl: URL?
+
+        public var id: Components.Schemas.PersonID { serverPersonId }
+    }
+
+    public struct Community: Sendable, Equatable, Identifiable {
+        public let serverCommunityId: Components.Schemas.CommunityID
+        public let name: String
+        /// `community@instance`-style handle for display.
+        public let handle: String
+        public let iconUrl: URL?
+
+        public var id: Components.Schemas.CommunityID { serverCommunityId }
+    }
+
+    public let persons: [Person]
+    public let communities: [Community]
+
+    public init(persons: [Person], communities: [Community]) {
+        self.persons = persons
+        self.communities = communities
+    }
+
+    public static let empty = BlockedList(persons: [], communities: [])
 }
 
 /// The count of unread inbox items, split by kind. A small Sendable value type
@@ -957,6 +1036,209 @@ public actor LemmyService: LemmyServiceType {
         } catch {
             logger.error("AppDatabase upsertComment failed: \(String(describing: error), privacy: .public)")
         }
+    }
+
+    // MARK: Safety (block / report)
+
+    public func setBlocked(
+        serverPersonId: Components.Schemas.PersonID,
+        blocked: Bool
+    ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Block person rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                personId=\(serverPersonId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Set blocked=\(blocked, privacy: .public) \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            personId=\(serverPersonId, privacy: .public)
+            """)
+
+        let response: Components.Schemas.BlockPersonResponse
+        do {
+            response = try await api.blockPerson(personID: serverPersonId, block: blocked)
+        } catch {
+            logger.error("""
+                Block person failed. personId=\(serverPersonId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        // Mirror the refreshed author info. The server now filters this author's
+        // content out of subsequent feed fetches; the caller refreshes the feed.
+        await mirrorPersonInfoToAppDatabase(view: response.person_view)
+    }
+
+    public func setBlocked(
+        serverCommunityId: Components.Schemas.CommunityID,
+        blocked: Bool
+    ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Block community rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                communityId=\(serverCommunityId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Set blocked=\(blocked, privacy: .public) \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            communityId=\(serverCommunityId, privacy: .public)
+            """)
+
+        let response: Components.Schemas.BlockCommunityResponse
+        do {
+            response = try await api.blockCommunity(communityID: serverCommunityId, block: blocked)
+        } catch {
+            logger.error("""
+                Block community failed. communityId=\(serverCommunityId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        // Mirror the refreshed community info. The server now filters this
+        // community's content out of subsequent feed fetches; the caller
+        // refreshes the feed.
+        await mirrorCommunityInfoToAppDatabase(view: response.community_view)
+    }
+
+    private func mirrorPersonInfoToAppDatabase(
+        view: Components.Schemas.PersonView
+    ) async {
+        do {
+            guard let (_, siteRowId) = try await accountSiteIds() else { return }
+            try await appDatabase.upsertPerson(from: view, siteId: siteRowId)
+        } catch {
+            logger.error("AppDatabase upsertPerson failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    public func reportPost(
+        serverPostId: Components.Schemas.PostID,
+        reason: String
+    ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Report post rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                postId=\(serverPostId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Report post for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            postId=\(serverPostId, privacy: .public)
+            """)
+
+        do {
+            _ = try await api.createPostReport(postID: serverPostId, reason: reason)
+        } catch {
+            logger.error("""
+                Report post failed. postId=\(serverPostId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+    }
+
+    public func reportComment(
+        serverCommentId: Components.Schemas.CommentID,
+        reason: String
+    ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Report comment rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                commentId=\(serverCommentId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Report comment for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            commentId=\(serverCommentId, privacy: .public)
+            """)
+
+        do {
+            _ = try await api.createCommentReport(commentID: serverCommentId, reason: reason)
+        } catch {
+            logger.error("""
+                Report comment failed. commentId=\(serverCommentId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+    }
+
+    public func fetchBlockedList() async throws -> BlockedList {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Fetch blocked list rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("Fetch blocked list for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
+
+        let response: Components.Schemas.GetSiteResponse
+        do {
+            response = try await api.getSite()
+        } catch {
+            logger.error("""
+                Fetch blocked list failed. \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        guard let myUser = response.my_user else {
+            return .empty
+        }
+
+        let persons = myUser.person_blocks.map { block -> BlockedList.Person in
+            let target = block.target
+            return BlockedList.Person(
+                serverPersonId: target.id,
+                name: target.name,
+                handle: Self.handle(name: target.name, actorId: target.actor_id),
+                avatarUrl: target.avatar.flatMap(URL.init(string:))
+            )
+        }
+
+        let communities = myUser.community_blocks.map { block -> BlockedList.Community in
+            let community = block.community
+            return BlockedList.Community(
+                serverCommunityId: community.id,
+                name: community.name,
+                handle: Self.handle(name: community.name, actorId: community.actor_id),
+                iconUrl: community.icon.flatMap(URL.init(string:))
+            )
+        }
+
+        return BlockedList(persons: persons, communities: communities)
+    }
+
+    /// Builds a `name@instance` handle from a bare name and the federated
+    /// `actor_id` url (e.g. `https://lemmy.world/u/alice` -> `alice@lemmy.world`).
+    /// Falls back to the bare name if the host can't be resolved.
+    private static func handle(name: String, actorId: String) -> String {
+        guard
+            let url = URL(string: actorId),
+            let host = url.host
+        else {
+            return name
+        }
+        return "\(name)@\(host)"
     }
 
     public func fetchPostInfo(

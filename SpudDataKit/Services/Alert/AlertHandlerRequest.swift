@@ -30,6 +30,11 @@ public enum AlertHandlerRequest: String, CustomStringConvertible {
     case markAllInboxRead
     case fetchUnreadCount
     case sendPrivateMessage
+    case setBlockedPerson
+    case setBlockedCommunity
+    case reportPost
+    case reportComment
+    case fetchBlockedList
 
     public var description: String {
         rawValue

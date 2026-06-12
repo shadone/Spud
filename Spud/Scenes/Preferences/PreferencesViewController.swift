@@ -33,12 +33,14 @@ class PreferencesViewController: UIViewController {
 
     init(
         defaultPostSortType: Components.Schemas.SortType,
+        accountKeychainId: String,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
         viewModel = PreferencesViewModel(
             defaultPostSortType: defaultPostSortType,
+            accountKeychainId: accountKeychainId,
             dependencies: self.dependencies.nested
         )
         super.init(nibName: nil, bundle: nil)

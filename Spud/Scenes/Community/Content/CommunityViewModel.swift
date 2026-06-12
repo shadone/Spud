@@ -32,6 +32,14 @@ final class CommunityViewModel {
     var postsText: String = ""
     var subscribed: CommunitySubscribedState = .notSubscribed
 
+    /// Whether this community is currently blocked by the backing account.
+    /// Sourced from `getSite` -> `my_user` (blocks aren't persisted on the
+    /// community record); set by the view controller. Updated optimistically
+    /// when the user blocks/unblocks.
+    var isBlocked: Bool = false
+    /// True once the block state has been resolved from the server.
+    var blockStateKnown: Bool = false
+
     /// True once the first GRDB snapshot for this community has arrived.
     var hasLoaded = false
 
