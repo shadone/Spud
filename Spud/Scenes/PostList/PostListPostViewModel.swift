@@ -22,6 +22,10 @@ struct PostListPostViewModel {
     let thumbnail: Thumbnail
     let isSaved: Bool
 
+    /// Full-resolution image url when the post is an image post, used to open
+    /// the full-screen viewer from the list thumbnail. nil for non-image posts.
+    let fullImageUrl: URL?
+
     init(
         row: PostListRow,
         appearance: AppearanceServiceType,
@@ -111,8 +115,10 @@ struct PostListPostViewModel {
         switch contentType {
         case let .image(image):
             thumbnail = .image(thumbnailUrl: image.thumbnailUrl ?? image.imageUrl)
+            fullImageUrl = image.imageUrl
         case .externalLink, .textOrEmpty:
             thumbnail = .text
+            fullImageUrl = nil
         }
     }
 }

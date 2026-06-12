@@ -21,6 +21,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
     var linkTappedFromPreview: ((SFSafariViewController) -> Void)?
     var appService: AppServiceType?
 
+    /// Invoked when the user taps the post's main image, carrying the
+    /// full-size image url, optional thumbnail url, and whatever image is
+    /// currently shown (for an instant first frame in the viewer).
+    var imageTapped: ((_ imageUrl: URL, _ thumbnailUrl: URL?, _ currentImage: UIImage?) -> Void)?
+
     var upvoteTapped: (() -> Void)?
     var downvoteTapped: (() -> Void)?
     var saveTapped: (() -> Void)?
@@ -289,6 +294,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
     private var postImageContainerHeightConstraint: NSLayoutConstraint!
     private var imageLoadTask: Task<Void, Never>?
 
+    /// The full-size image url for the currently-configured post image (set
+    /// only for `.post` content), used by the tap-to-open-viewer gesture.
+    private var tappableImageUrl: URL?
+    private var tappableThumbnailUrl: URL?
+
     // MARK: Functions
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -328,6 +338,10 @@ class PostDetailHeaderCell: UITableViewCellBase {
         let contextMenuIteraction = UIContextMenuInteraction(delegate: self)
         linkPreviewView.addInteraction(contextMenuIteraction)
 
+        postImageView.isUserInteractionEnabled = true
+        let imageTap = UITapGestureRecognizer(target: self, action: #selector(postImageTapped))
+        postImageView.addGestureRecognizer(imageTap)
+
         prepareForReuse()
     }
 
@@ -342,8 +356,12 @@ class PostDetailHeaderCell: UITableViewCellBase {
         imageLoadTask?.cancel()
         imageLoadTask = nil
 
+        tappableImageUrl = nil
+        tappableThumbnailUrl = nil
+
         linkTapped = nil
         linkTappedFromPreview = nil
+        imageTapped = nil
 
         linkPreviewView.isHidden = true
         linkPreviewView.prepareForReuse()
@@ -372,6 +390,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
         case let .post(imageUrl, thumbnailUrl):
             linkPreviewView.isHidden = true
+            tappableImageUrl = imageUrl
+            tappableThumbnailUrl = thumbnailUrl
             imageLoadTask = Task { [weak self] in
                 for await state in imageService.fetch(imageUrl, thumbnail: thumbnailUrl) {
                     if Task.isCancelled { return }
@@ -428,6 +448,12 @@ class PostDetailHeaderCell: UITableViewCellBase {
         guard !isBeingConfigured else { return }
         tableView?.beginUpdates()
         tableView?.endUpdates()
+    }
+
+    @objc
+    private func postImageTapped() {
+        guard let tappableImageUrl else { return }
+        imageTapped?(tappableImageUrl, tappableThumbnailUrl, postImageView.image)
     }
 
     @objc

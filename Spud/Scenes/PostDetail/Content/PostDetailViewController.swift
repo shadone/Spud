@@ -319,12 +319,45 @@ class PostDetailViewController: UIViewController {
             logger.assertionFailure("unimplemented")
 
         case .none:
-            Task { await appService.open(url: url, on: self) }
+            // If the tapped markdown link points to an image, open it in the
+            // full-screen viewer rather than handing off to Safari.
+            let contentType = postContentDetector.contentTypeForUrl(
+                url: url,
+                thumbnailUrl: nil,
+                embedTitle: nil,
+                embedDescription: nil
+            )
+            if case let .image(image) = contentType {
+                presentMediaViewer(
+                    imageUrl: image.imageUrl,
+                    thumbnailUrl: image.thumbnailUrl,
+                    preloadedImage: nil
+                )
+            } else {
+                Task { await appService.open(url: url, on: self) }
+            }
         }
     }
 
     private func linkTappedFromPreview(_ safariVC: SFSafariViewController) {
         present(safariVC, animated: true)
+    }
+
+    private func presentMediaViewer(
+        imageUrl: URL,
+        thumbnailUrl: URL?,
+        preloadedImage: UIImage?
+    ) {
+        let item = MediaItem(
+            imageUrl: imageUrl,
+            thumbnailUrl: thumbnailUrl,
+            preloadedImage: preloadedImage
+        )
+        let viewer = MediaViewerViewController.make(
+            items: [item],
+            dependencies: dependencies.own
+        )
+        present(viewer, animated: true)
     }
 
     private func voteOnPost(_ action: VoteStatus.Action) async {
@@ -492,6 +525,13 @@ extension PostDetailViewController {
                 }
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
                 cell.linkTappedFromPreview = { [weak self] safariVC in self?.linkTappedFromPreview(safariVC) }
+                cell.imageTapped = { [weak self] imageUrl, thumbnailUrl, currentImage in
+                    self?.presentMediaViewer(
+                        imageUrl: imageUrl,
+                        thumbnailUrl: thumbnailUrl,
+                        preloadedImage: currentImage
+                    )
+                }
                 cell.upvoteTapped = { [weak self] in
                     Task { await self?.voteOnPost(.upvote) }
                 }
