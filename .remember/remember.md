@@ -6,10 +6,17 @@ Branch: `app-store-prep` (Spud repo). Tree clean. Build green (0 errors,
 SpudUITests — all 0 failures, ** TEST SUCCEEDED **, 2026-06-12 17:41). Goal:
 App Store release + full Apollo-bar UI/UX parity (see DESIGN.md).
 
-## Done this session — post-M8 UX & performance polish (16 commits)
+## Done this session — post-M8 UX & performance polish (17 commits)
 Closing the remaining `DESIGN.md` gaps. Each verified (build + full plan) and
 committed focused. Newest first:
 
+- `b07ebfe` test(ui): `test_CaptureScreens` renders the feed then post detail
+  full-screen as kept XCTAttachments (review end-to-end UX vs Apollo without a
+  device). Extract with `xcrun xcresulttool export attachments --path <xcresult>
+  --output-path <dir>` (needs `-resultBundlePath`). Reviewed: feed = floating
+  pill tab bar + compact info-dense rows; detail = hero image, attribution,
+  vote/save row, threaded comments with depth bars. Both Apollo-grade. Full Spud
+  plan green WITH this test (SpudUITests incl. it, all bundles 0 failures).
 - `0beb5dc` test(media): snapshot the feed thumbnail media affordances.
   `MediaUISnapshotTests` renders the thumbnail states (image, "GIF" badge, video
   play indicator, text, broken) to pinned-scale (64pt @2x) device-independent
