@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import CoreGraphics
 import Foundation
 
 public protocol ImageServiceType: AnyObject, Sendable {
@@ -17,6 +18,10 @@ public protocol ImageServiceType: AnyObject, Sendable {
     /// Fetch an animated image (e.g. GIF) for playback in the full-screen
     /// viewer, yielding a static frame first and then the animated image.
     func fetchAnimatedImage(_ url: URL) -> AsyncStream<ImageLoadingState>
+
+    /// Fetch the image at `url` downsampled so it fits a `pointSize` display
+    /// area, avoiding loading a full-resolution bitmap into a small view.
+    func fetch(_ url: URL, downsampleTo pointSize: CGSize) -> AsyncStream<ImageLoadingState>
 }
 
 public extension ImageServiceType {
@@ -27,6 +32,12 @@ public extension ImageServiceType {
     /// Default: no animation support — yield the static image. Real
     /// implementations override this to decode and play animated formats.
     func fetchAnimatedImage(_ url: URL) -> AsyncStream<ImageLoadingState> {
+        fetch(url, thumbnail: nil)
+    }
+
+    /// Default: no downsampling — yield the full-resolution image. Real
+    /// implementations override this to decode at the target size.
+    func fetch(_ url: URL, downsampleTo pointSize: CGSize) -> AsyncStream<ImageLoadingState> {
         fetch(url, thumbnail: nil)
     }
 }
