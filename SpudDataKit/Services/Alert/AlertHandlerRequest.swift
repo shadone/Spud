@@ -10,6 +10,7 @@ import Foundation
 /// Used by``AlertServiceType``.
 public enum AlertHandlerRequest: String, CustomStringConvertible {
     case vote
+    case save
     case createComment
     case fetchPostList
     case fetchComments

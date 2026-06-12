@@ -23,6 +23,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
     var upvoteTapped: (() -> Void)?
     var downvoteTapped: (() -> Void)?
+    var saveTapped: (() -> Void)?
 
     // MARK: UI Properties
 
@@ -188,6 +189,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
             upvoteBarButton,
             downvoteBarButton,
             spacer,
+            saveBarButton,
         ]
         for view in subviews {
             stackView.addArrangedSubview(view)
@@ -237,6 +239,42 @@ class PostDetailHeaderCell: UITableViewCellBase {
         let button = UIButton(configuration: configuration)
 
         button.addTarget(self, action: #selector(downvoteButtonTapped), for: .touchUpInside)
+
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: 40),
+            button.heightAnchor.constraint(equalToConstant: 40),
+        ])
+
+        return button
+    }()
+
+    lazy var saveBarButton: UIButton = {
+        var configuration = UIButton.Configuration.plain()
+        configuration.image = Design.Post.saveButton.image
+        configuration.contentInsets = .init(top: 8, leading: 8, bottom: 8, trailing: 8)
+        configuration.baseBackgroundColor = .clear
+        configuration.automaticallyUpdateForSelection = false
+
+        let button = UIButton(configuration: configuration)
+
+        button.addTarget(self, action: #selector(saveButtonTapped), for: .touchUpInside)
+
+        button.configurationUpdateHandler = { button in
+            guard var newConfiguration = button.configuration else {
+                assertionFailure()
+                return
+            }
+
+            if button.isSelected {
+                newConfiguration.image = UIImage(systemName: "bookmark.fill")
+                newConfiguration.imageColorTransformer = .init { _ in .systemYellow }
+            } else {
+                newConfiguration.image = Design.Post.saveButton.image
+                newConfiguration.imageColorTransformer = .init { $0 }
+            }
+
+            button.configuration = newConfiguration
+        }
 
         NSLayoutConstraint.activate([
             button.widthAnchor.constraint(equalToConstant: 40),
@@ -324,6 +362,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
         upvoteBarButton.isSelected = viewModel.isUpvoted
         downvoteBarButton.isSelected = viewModel.isDownvoted
+        saveBarButton.isSelected = viewModel.isSaved
 
         imageLoadTask?.cancel()
         switch viewModel.image {
@@ -399,6 +438,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
     @objc
     private func downvoteButtonTapped() {
         downvoteTapped?()
+    }
+
+    @objc
+    private func saveButtonTapped() {
+        saveTapped?()
     }
 }
 

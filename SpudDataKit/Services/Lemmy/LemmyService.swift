@@ -71,6 +71,22 @@ public protocol LemmyServiceType: Actor {
         parentCommentId: Components.Schemas.CommentID?
     ) async throws
 
+    /// Save or unsave `serverPostId` for the backing account. Throws
+    /// `LemmyServiceError.requiresAuthentication` if this service is backed
+    /// by a signed-out account.
+    func setSaved(
+        serverPostId: Components.Schemas.PostID,
+        saved: Bool
+    ) async throws
+
+    /// Save or unsave `serverCommentId` for the backing account. Throws
+    /// `LemmyServiceError.requiresAuthentication` if this service is backed
+    /// by a signed-out account.
+    func setSaved(
+        serverCommentId: Components.Schemas.CommentID,
+        saved: Bool
+    ) async throws
+
     func fetchPostInfo(
         serverPostId: Components.Schemas.PostID
     ) async throws
@@ -444,6 +460,72 @@ public actor LemmyService: LemmyServiceType {
         } catch {
             logger.error("""
                 Create comment failed. postId=\(serverPostId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        await mirrorCommentToAppDatabase(view: response.comment_view)
+    }
+
+    public func setSaved(
+        serverPostId: Components.Schemas.PostID,
+        saved: Bool
+    ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Save post rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                postId=\(serverPostId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Set saved=\(saved, privacy: .public) \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            postId=\(serverPostId, privacy: .public)
+            """)
+
+        let response: Components.Schemas.PostResponse
+        do {
+            response = try await api.savePost(postID: serverPostId, save: saved)
+        } catch {
+            logger.error("""
+                Save post failed. postId=\(serverPostId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        await mirrorPostInfoToAppDatabase(view: response.post_view)
+    }
+
+    public func setSaved(
+        serverCommentId: Components.Schemas.CommentID,
+        saved: Bool
+    ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Save comment rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                commentId=\(serverCommentId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Set saved=\(saved, privacy: .public) \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            commentId=\(serverCommentId, privacy: .public)
+            """)
+
+        let response: Components.Schemas.CommentResponse
+        do {
+            response = try await api.saveComment(commentID: serverCommentId, save: saved)
+        } catch {
+            logger.error("""
+                Save comment failed. commentId=\(serverCommentId, privacy: .public). \
                 \(String(describing: error), privacy: .public)
                 """)
             throw LemmyServiceError(from: error)

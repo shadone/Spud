@@ -116,6 +116,7 @@ public extension AppDatabase {
         record.numberOfComments = Int64(counts.comments)
 
         record.isRead = view.read
+        record.isSaved = view.saved
 
         switch view.my_vote {
         case 1: record.voteStatus = 1

@@ -33,6 +33,7 @@ struct PostDetailHeaderViewModel {
     let subtitleAge: NSAttributedString
     let isUpvoted: Bool
     let isDownvoted: Bool
+    let isSaved: Bool
     let image: HeaderImage
 
     init(
@@ -78,6 +79,7 @@ struct PostDetailHeaderViewModel {
         }()
         isUpvoted = voteStatus.isUp
         isDownvoted = voteStatus.isDown
+        isSaved = row.isSaved
 
         subtitleScore = IconValueFormatter.attributedString(
             numberOfVotesOrScore: row.score,

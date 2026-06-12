@@ -99,7 +99,17 @@ struct PostDetailCommentViewModel {
                 attributes: secondaryAttributes
             )
         }()
-        subtitle = [upvotes, space, age].joined()
+        var subtitlePieces: [NSAttributedString] = [upvotes, space, age]
+        if row.isSaved == true {
+            var savedAttributes = secondaryAttributes
+            savedAttributes[.foregroundColor] = UIColor.systemYellow
+            subtitlePieces.append(space)
+            subtitlePieces.append(NSAttributedString.symbol(
+                from: UIImage(systemName: "bookmark.fill")!,
+                attributes: savedAttributes
+            ))
+        }
+        subtitle = subtitlePieces.joined()
 
         if let moreChildCount = row.moreChildCount {
             isMore = true
