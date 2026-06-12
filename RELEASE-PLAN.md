@@ -1,8 +1,10 @@
 # Spud — Full-Parity App Store Release Plan
 
-Goal: ship Spud to the App Store as a **full-featured Lemmy client** (feature parity with
-mature clients: read, vote, comment, post, save, subscribe, search, inbox/DMs, moderation,
-push). Scope decision (2026-06-12): **Full parity** before first submission.
+Goal: ship Spud to the App Store as a **full-featured Lemmy client** (read, vote, comment, post,
+save, subscribe, search, inbox/DMs, moderation, push) whose **UI/UX is at least on par with
+Apollo for Reddit** — see `DESIGN.md` for the quality bar every feature is built to.
+Scope decision (2026-06-12): **Full parity** before first submission; **active build target:
+M1–M5 + adjacent UX-polish**, feature-by-feature, each increment verified and committed.
 
 Status baseline (verified 2026-06-12):
 
