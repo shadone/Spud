@@ -22,6 +22,11 @@ public protocol ImageServiceType: AnyObject, Sendable {
     /// Fetch the image at `url` downsampled so it fits a `pointSize` display
     /// area, avoiding loading a full-resolution bitmap into a small view.
     func fetch(_ url: URL, downsampleTo pointSize: CGSize) -> AsyncStream<ImageLoadingState>
+
+    /// Raw bytes for an animated asset (GIF), so callers can save or share the
+    /// original animation rather than a flattened frame. Returns nil when no
+    /// bytes are available.
+    func animatedImageData(_ url: URL) async -> Data?
 }
 
 public extension ImageServiceType {
@@ -39,6 +44,11 @@ public extension ImageServiceType {
     /// implementations override this to decode at the target size.
     func fetch(_ url: URL, downsampleTo pointSize: CGSize) -> AsyncStream<ImageLoadingState> {
         fetch(url, thumbnail: nil)
+    }
+
+    /// Default: no raw animated bytes available.
+    func animatedImageData(_ url: URL) async -> Data? {
+        nil
     }
 }
 

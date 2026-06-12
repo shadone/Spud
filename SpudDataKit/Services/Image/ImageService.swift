@@ -23,6 +23,11 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     /// never gets a full-resolution bitmap.
     let downsampledCache: NSCache<NSString, UIImage>
 
+    /// Raw bytes of fetched animated images, keyed by url. Lets the viewer save
+    /// or share the original GIF with its animation intact, rather than the
+    /// flattened single frame a decoded `UIImage` would yield.
+    let animatedDataCache: NSCache<NSURL, NSData>
+
     /// Pixel-per-point factor used when converting a requested point size to a
     /// downsample target. Fixed at the maximum modern screen scale so the
     /// result stays crisp on every device without a main-actor scale lookup
@@ -52,6 +57,11 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         downsampledCache = NSCache()
         downsampledCache.countLimit = 300
         downsampledCache.totalCostLimit = 256 * 1024 * 1024
+
+        animatedDataCache = NSCache()
+        animatedDataCache.countLimit = 16
+        // Raw GIF bytes can be a few MB each; cap the byte cache at ~256MB.
+        animatedDataCache.totalCostLimit = 256 * 1024 * 1024
     }
 
     public func fetch(
@@ -136,6 +146,20 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    /// Raw bytes for an animated asset, preferring the cache populated when the
+    /// viewer played it (so save/share is instant and does not re-download).
+    /// Falls back to a fetch, and returns nil when the bytes can't be obtained.
+    public func animatedImageData(_ url: URL) async -> Data? {
+        if let cached = animatedDataCache.object(forKey: url as NSURL) {
+            return cached as Data
+        }
+        guard let bytes = try? await data(from: url) else {
+            return nil
+        }
+        animatedDataCache.setObject(bytes as NSData, forKey: url as NSURL, cost: bytes.count)
+        return bytes
     }
 
     public func fetch(_ url: URL, downsampleTo pointSize: CGSize) -> AsyncStream<ImageLoadingState> {
@@ -235,6 +259,8 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
                 forKey: url as NSURL,
                 cost: Int(animated.size.width * animated.size.height) * frameCount
             )
+            // Keep the original bytes so save/share can preserve the animation.
+            animatedDataCache.setObject(data as NSData, forKey: url as NSURL, cost: data.count)
             return animated
         }
 
