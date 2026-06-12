@@ -72,12 +72,18 @@ Closing the remaining gaps to the `DESIGN.md` Apollo bar after M8 — each verif
 Follow-ups: context-menu peek on comments was considered and dropped (comments
 aren't truncated in the detail view, so there's nothing to peek).
 
-Verification note: the feed context-menu peek (`PostPreviewViewController`) and
-video *playback* are build- and unit-verified but not UI-verified — XCUITest
-cannot see context-menu preview content (rendered in a separate system view) and
-the simulator has no video-playback assertion path here. The peek's view carries
-a `postPreview` accessibility id for manual inspection. A human eyeball pass on
-both is worthwhile before submission.
+Verification note: the feed thumbnail media affordances (image, "GIF" badge,
+video play indicator, text/broken placeholders) are now rendered and reviewed
+via `MediaUISnapshotTests` (device-independent snapshots, 5 references) — both
+eyeballed and regression-locked. The context-menu peek (`PostPreviewViewController`)
+was reviewed the same way during development and renders correctly, but its
+self-sizing relies on a multi-pass label layout the system drives in production
+and a synthetic harness reproduces only flakily, so it is verified by eye rather
+than pinned; its view carries a `postPreview` accessibility id for manual
+inspection. Video *playback* and the GIF Photos save/share round-trip remain
+device-only checks (no simulator assertion path) — a human eyeball pass on those
+is worthwhile before submission. XCUITest cannot see live context-menu preview
+content (separate system view).
 
 Status baseline (verified 2026-06-12):
 

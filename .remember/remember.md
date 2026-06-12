@@ -6,10 +6,21 @@ Branch: `app-store-prep` (Spud repo). Tree clean. Build green (0 errors,
 SpudUITests — all 0 failures, ** TEST SUCCEEDED **, 2026-06-12 17:41). Goal:
 App Store release + full Apollo-bar UI/UX parity (see DESIGN.md).
 
-## Done this session — post-M8 UX & performance polish (14 commits)
+## Done this session — post-M8 UX & performance polish (16 commits)
 Closing the remaining `DESIGN.md` gaps. Each verified (build + full plan) and
 committed focused. Newest first:
 
+- `0beb5dc` test(media): snapshot the feed thumbnail media affordances.
+  `MediaUISnapshotTests` renders the thumbnail states (image, "GIF" badge, video
+  play indicator, text, broken) to pinned-scale (64pt @2x) device-independent
+  references — both eyeballed and regression-locked, 5 green. NOTE: peek
+  (`PostPreviewViewController`) snapshots were prototyped and the peek renders
+  correctly by eye (image peek = image + 2-line title + caption), but its
+  self-sizing relies on a multi-pass label layout that a synthetic harness only
+  reproduces flakily (title truncates to 1 line in the text-only case), so the
+  peek is verified by eye, not pinned. Snapshot refs are fixed-size/2x so they do
+  NOT need iPhone 14 Pro (unlike the screen-sized markdown snapshots); ran the
+  class via `-only-testing:SpudSnapshotTests/MediaUISnapshotTests` on iPhone 17 Pro.
 - `21a0414` feat(media): preserve GIF animation on save and share. Viewer kept
   saving/sharing `zoomableImageView.image` (flattened first frame).
   `ImageService.animatedImageData` vends the original GIF bytes (cached in a new
@@ -66,14 +77,18 @@ committed focused. Newest first:
   truncated in the detail view, so there's nothing to peek.
 
 ## Verification gaps (platform limitations, not bugs)
-- Context-menu peek (`PostPreviewViewController`) and video PLAYBACK are
-  build/unit-verified but NOT UI-verified: XCUITest can't see context-menu
-  preview content (separate system view — a UI test for it fails to find the
-  preview), and the sim has no playback assertion path. Both need a human eyeball.
-  The peek view has a `postPreview` accessibility id for manual inspection.
-- GIF save/share (`21a0414`): the temp-filename derivation is unit-tested, but
-  the actual Photos write and the share sheet need a device eyeball (Photos
-  add-permission + animated-GIF round-trip aren't assertable on the sim here).
+- Feed thumbnail affordances: now snapshot-verified (`MediaUISnapshotTests`, 5
+  refs) — eyeballed + regression-locked. No longer a gap.
+- Context-menu peek (`PostPreviewViewController`): visually verified by eye via a
+  prototype snapshot (renders correctly), but NOT pinned — its self-sizing needs a
+  multi-pass label layout the system drives in production and a synthetic harness
+  only reproduces flakily. XCUITest also can't see live context-menu previews
+  (separate system view). The peek view has a `postPreview` a11y id for manual
+  inspection. Snapshot-rendering the peek deterministically would need hosting it
+  the way the system does (estimated size first, then settle) — left for later.
+- Video PLAYBACK and the GIF Photos save/share round-trip: device-only checks (no
+  sim assertion path). GIF temp-filename derivation is unit-tested
+  (`MediaViewerShareTests`); the Photos write + share sheet need a device eyeball.
 
 ## Milestone state (unchanged from prior handoff)
 - M1-M6 + M8: DONE. M7 push deferred to v1.1. M9 (archive + ASC metadata +
@@ -92,3 +107,9 @@ committed focused. Newest first:
   extra sim cleared it.
 - New files need `make project` (XcodeGen) before they're in the build.
 - Format before staging: `mint run swiftformat <paths>` (pre-commit hook lints only).
+- Snapshot tests of fixed-size components (pass `as: .image(size:traits:)` with a
+  pinned `displayScale`) are device-independent — they do NOT need iPhone 14 Pro
+  and can record/verify on the booted iPhone 17 Pro via
+  `-testPlan SpudSnapshots -only-testing:SpudSnapshotTests/<Class>`. Only the
+  screen-sized VC snapshots (MarkdownSnapshotTests) are locked to iPhone 14 Pro.
+  First run with no reference records-and-fails; re-run to assert green.
