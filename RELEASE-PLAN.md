@@ -62,10 +62,15 @@ Closing the remaining gaps to the `DESIGN.md` Apollo bar after M8 — each verif
   played in the system `AVPlayerViewController`; feed/header show the poster +
   play indicator. webm stays an external link (no native AVFoundation decoder),
   so it opens in the browser instead of a dead player.
+- **feat(media)** preserve GIF animation on save and share: the viewer keeps the
+  original GIF bytes (`ImageService.animatedImageData`, cached alongside the
+  decoded animated image) and, for animated items, saves via
+  `PHAssetCreationRequest.addResource(.photo, data:)` and shares a temporary
+  `.gif` file — so an animated post saves/shares as an animated GIF, not a flat
+  first frame. `MediaViewerShareTests` locks the temp-filename `.gif` derivation.
 
-Follow-ups: save animated GIF preserving animation (viewer save currently grabs
-the first frame). Context-menu peek on comments was considered and dropped
-(comments aren't truncated in the detail view, so there's nothing to peek).
+Follow-ups: context-menu peek on comments was considered and dropped (comments
+aren't truncated in the detail view, so there's nothing to peek).
 
 Verification note: the feed context-menu peek (`PostPreviewViewController`) and
 video *playback* are build- and unit-verified but not UI-verified — XCUITest
