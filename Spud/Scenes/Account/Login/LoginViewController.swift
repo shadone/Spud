@@ -12,7 +12,8 @@ class LoginViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService
     typealias NestedDependencies =
-        LoginViewModel.Dependencies
+        LoginViewModel.Dependencies &
+        RegisterViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
@@ -211,6 +212,8 @@ class LoginViewController: UIViewController {
         let button = UIButton(configuration: config)
         button.translatesAutoresizingMaskIntoConstraints = false
 
+        button.addTarget(self, action: #selector(registerTapped), for: .touchUpInside)
+
         return button
     }()
 
@@ -351,5 +354,14 @@ class LoginViewController: UIViewController {
         Task { @MainActor in
             await viewModel.login()
         }
+    }
+
+    @objc
+    private func registerTapped() {
+        let registerViewController = RegisterViewController(
+            row: viewModel.row,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(registerViewController, animated: true)
     }
 }

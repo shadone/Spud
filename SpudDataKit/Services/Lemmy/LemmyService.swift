@@ -51,6 +51,20 @@ public protocol LemmyServiceType: Actor {
         serverPersonId: Components.Schemas.PersonID
     ) async throws
 
+    /// Fetch a person's profile together with one page of their posts and
+    /// comments. The `person_view` is mirrored into the database (so the
+    /// profile header can be observed like any other person), while the posts
+    /// and comments are returned transiently - a snapshot of the requested
+    /// page rather than rows in a persistent feed, mirroring how `search`
+    /// returns its results. Navigation from a result uses the server-side ids
+    /// carried in the response, which the id-based screens resolve on their
+    /// own. Works for both signed-in and signed-out accounts.
+    func fetchPersonContent(
+        serverPersonId: Components.Schemas.PersonID,
+        sort: Components.Schemas.SortType,
+        page: Int64
+    ) async throws -> Components.Schemas.GetPersonDetailsResponse
+
     /// Fetch the full community info (header fields, counts, subscribed state)
     /// for `serverCommunityId` and mirror it into the database. Used to
     /// populate the community screen for communities the account hasn't cached.
@@ -397,6 +411,40 @@ public actor LemmyService: LemmyServiceType {
             """)
 
         await mirrorPersonInfoToAppDatabase(personView: response.person_view)
+    }
+
+    public func fetchPersonContent(
+        serverPersonId: Components.Schemas.PersonID,
+        sort: Components.Schemas.SortType,
+        page: Int64
+    ) async throws -> Components.Schemas.GetPersonDetailsResponse {
+        logger.debug("""
+            Fetch person content. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            personId=\(serverPersonId, privacy: .public) sort=\(sort.rawValue, privacy: .public) \
+            page=\(page, privacy: .public)
+            """)
+
+        let response: Components.Schemas.GetPersonDetailsResponse
+        do {
+            response = try await api.getPersonDetails(
+                personId: serverPersonId,
+                sort: sort,
+                page: page
+            )
+        } catch {
+            logger.error("""
+                Fetch person content failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                personId=\(serverPersonId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        // Mirror the profile so the header can be observed like any other
+        // person; the posts/comments stay transient (returned to the caller).
+        await mirrorPersonInfoToAppDatabase(personView: response.person_view)
+
+        return response
     }
 
     private func mirrorPersonInfoToAppDatabase(

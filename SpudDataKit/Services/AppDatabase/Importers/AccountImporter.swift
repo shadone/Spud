@@ -133,6 +133,75 @@ public extension AppDatabase {
         }
     }
 
+    /// Deletes the account row matching `keychainId`. Returns true if a row was
+    /// removed. Synchronous: `AccountService.logout(...)` runs on MainActor in
+    /// response to a user tap and prefers to avoid hopping off to await.
+    @discardableResult
+    func deleteAccountSync(keychainId: String) throws -> Bool {
+        try writer.write { db in
+            let deleted = try AccountRecord
+                .filter(Column("accountKeychainId") == keychainId)
+                .deleteAll(db)
+            return deleted > 0
+        }
+    }
+
+    /// Synchronous: returns the keychainId of an account to fall back to after
+    /// `excludingKeychainId` is removed - the remaining default if any,
+    /// otherwise the first non-service account by id. Nil if no other account
+    /// exists.
+    func fallbackAccountKeychainIdSync(excludingKeychainId excluded: String) -> String? {
+        do {
+            return try writer.read { db in
+                try AccountRecord
+                    .filter(Column("isServiceAccount") == false)
+                    .filter(Column("accountKeychainId") != excluded)
+                    .order(sql: "isDefault DESC, isSignedOutAccountType ASC, id ASC")
+                    .fetchOne(db)?
+                    .accountKeychainId
+            }
+        } catch {
+            logger.error("Failed to resolve fallback account: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    /// The signed-in account's own person, resolved from `account.personId`.
+    /// Returns the local person row id, the server-side person id, and the home
+    /// instance actor id - everything needed to open the account holder's own
+    /// Person profile. Nil until the account's `MyUserInfo` (and thus its
+    /// person row) has been imported.
+    func accountOwnPersonIdsSync(
+        forKeychainId keychainId: String
+    ) -> (personRowId: Int64, serverPersonId: Int64, instanceActorId: String)? {
+        do {
+            return try writer.read { db in
+                guard let row = try Row.fetchOne(db, sql: """
+                        SELECT
+                            person.id        AS personRowId,
+                            person.personId  AS serverPersonId,
+                            instance.actorId AS instanceActorId
+                        FROM account
+                        JOIN person   ON person.id = account.personId
+                        JOIN site     ON site.id = account.siteId
+                        JOIN instance ON instance.id = site.instanceId
+                        WHERE account.accountKeychainId = ?
+                    """, arguments: [keychainId])
+                else {
+                    return nil
+                }
+                return (
+                    personRowId: row["personRowId"],
+                    serverPersonId: row["serverPersonId"],
+                    instanceActorId: row["instanceActorId"]
+                )
+            }
+        } catch {
+            logger.error("Failed to resolve account own person ids: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     /// Clears `isDefault` on every account row and sets it on the row
     /// matching `keychainId`. No-op if the row hasn't been imported yet.
     func setDefaultAccount(keychainId: String) async throws {

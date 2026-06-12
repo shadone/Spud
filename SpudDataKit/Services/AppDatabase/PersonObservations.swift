@@ -17,6 +17,10 @@ public struct PersonProfileRow: Sendable, Equatable, Identifiable {
     public let name: String
     public let displayName: String?
     public let instanceHostname: String
+    public let avatarUrl: String?
+    public let bannerUrl: String?
+    public let bio: String?
+    public let actorId: String?
     public let numberOfPosts: Int64
     public let numberOfComments: Int64
     public let personCreatedDate: Date?
@@ -55,6 +59,10 @@ public extension AppDatabase {
                             person.id                AS id,
                             person.name              AS name,
                             person.displayName       AS displayName,
+                            person.avatarUrl         AS avatarUrl,
+                            person.bannerUrl         AS bannerUrl,
+                            person.bio               AS bio,
+                            person.actorId           AS personActorId,
                             person.numberOfPosts     AS numberOfPosts,
                             person.numberOfComments  AS numberOfComments,
                             person.personCreatedDate AS personCreatedDate,
@@ -75,6 +83,10 @@ public extension AppDatabase {
                     name: row["name"] ?? "",
                     displayName: row["displayName"],
                     instanceHostname: host,
+                    avatarUrl: row["avatarUrl"],
+                    bannerUrl: row["bannerUrl"],
+                    bio: row["bio"],
+                    actorId: row["personActorId"],
                     numberOfPosts: row["numberOfPosts"],
                     numberOfComments: row["numberOfComments"],
                     personCreatedDate: row["personCreatedDate"]
