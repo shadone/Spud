@@ -187,4 +187,26 @@ class SpudUITests: XCTestCase {
             "Tapping the creator link should navigate away from the post detail"
         )
     }
+
+    /// Captures full-screen renders of the primary surfaces (feed, then post
+    /// detail) as test attachments, so the end-to-end UX can be reviewed against
+    /// the Apollo bar without a device. Asserts the surfaces appear; the
+    /// screenshots are kept as artifacts.
+    func test_CaptureScreens() {
+        let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
+        XCTAssertTrue(firstCell.waitForExistence(timeout: 10), "Feed should load")
+        attachScreenshot(named: "01-feed")
+
+        firstCell.tap()
+        let detailHeaderCell = app.cells["postDetailHeader"]
+        XCTAssertTrue(detailHeaderCell.waitForExistence(timeout: 10), "Post detail should open")
+        attachScreenshot(named: "02-post-detail")
+    }
+
+    private func attachScreenshot(named name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
 }
