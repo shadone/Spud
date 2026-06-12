@@ -7,6 +7,7 @@
 import Foundation
 import OSLog
 import SpudDataKit
+import SpudUIKit
 import UIKit
 
 private let logger = Logger.app
@@ -34,12 +35,29 @@ class AppCoordinator {
     }
 
     private func configureAppeareance() {
+        // Route bars through the theme-aware background token so the True-Black
+        // (OLED) theme turns them pure black while standard light/dark stay on
+        // the system materials. These are dynamic colors that re-resolve on a
+        // trait change, so the swap is live with no per-bar override code.
         let navigationBarAppearance = UINavigationBarAppearance()
         navigationBarAppearance.configureWithDefaultBackground()
+        navigationBarAppearance.backgroundColor = Theme.background
 
         UINavigationBar.appearance().standardAppearance = navigationBarAppearance
         UINavigationBar.appearance().compactAppearance = navigationBarAppearance
         UINavigationBar.appearance().scrollEdgeAppearance = navigationBarAppearance
+
+        let tabBarAppearance = UITabBarAppearance()
+        tabBarAppearance.configureWithDefaultBackground()
+        tabBarAppearance.backgroundColor = Theme.background
+
+        UITabBar.appearance().standardAppearance = tabBarAppearance
+        UITabBar.appearance().scrollEdgeAppearance = tabBarAppearance
+
+        // Plain table/collection content surfaces (feeds, detail) follow the
+        // theme background; grouped surfaces (settings) follow the grouped
+        // token so cells stay legible against the black grouped background.
+        UITableView.appearance().backgroundColor = Theme.background
     }
 
     func open(_ url: URL, in window: MainWindow) {

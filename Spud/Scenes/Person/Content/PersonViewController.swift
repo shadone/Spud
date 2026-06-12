@@ -147,7 +147,7 @@ class PersonViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
 
         headerView.translatesAutoresizingMaskIntoConstraints = false
         headerView.linkTapped = { [weak self] url in

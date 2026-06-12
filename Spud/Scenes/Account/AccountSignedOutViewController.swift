@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import SpudUIKit
 import UIKit
 
 /// The signed-out (anonymous) state of the Account tab: a clean, designed
@@ -74,7 +75,7 @@ final class AccountSignedOutViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
 
         let stack = UIStackView(arrangedSubviews: [
             iconView,

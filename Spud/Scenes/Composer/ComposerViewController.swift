@@ -8,6 +8,7 @@ import Foundation
 import LemmyKit
 import OSLog
 import SpudDataKit
+import SpudUIKit
 import UIKit
 
 private let logger = Logger.app
@@ -105,7 +106,7 @@ final class ComposerViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
 
         navigationItem.title = viewModel.navigationTitle
         navigationItem.leftBarButtonItem = cancelButton

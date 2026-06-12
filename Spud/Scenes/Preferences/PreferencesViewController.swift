@@ -7,6 +7,7 @@
 import Foundation
 import LemmyKit
 import SpudDataKit
+import SpudUIKit
 import SwiftUI
 import UIKit
 
@@ -59,7 +60,7 @@ class PreferencesViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
 
         tabBarItem.title = "Preferences"
         tabBarItem.image = UIImage(systemName: "gear")!

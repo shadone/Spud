@@ -204,7 +204,7 @@ final class NewPostViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
 
         navigationItem.title = NSLocalizedString("New post", comment: "Title of the new-post composer")
         navigationItem.leftBarButtonItem = cancelButton

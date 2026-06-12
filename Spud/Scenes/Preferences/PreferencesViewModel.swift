@@ -8,6 +8,7 @@ import Foundation
 import LemmyKit
 import Observation
 import SpudDataKit
+import SpudUIKit
 import SwiftUI
 
 @MainActor
@@ -65,6 +66,14 @@ final class PreferencesViewModel {
     var openExternalLinkInSafariVCReaderMode: Bool
     var openExternalLinkAsUniversalLinkInApp: Bool
 
+    /// The selected app appearance and accent color. Live-applied app-wide via
+    /// the preference streams the window observes; mirrored here so the
+    /// Appearance settings UI reflects external changes.
+    let allAppThemes: [AppTheme] = AppTheme.allCases
+    let allAccentColors: [AccentColor] = AccentColor.allCases
+    var appTheme: AppTheme
+    var accentColor: AccentColor
+
     var storageSize: String
     var storageFileUrl: URL
 
@@ -100,6 +109,9 @@ final class PreferencesViewModel {
         openExternalLinkAsUniversalLinkInApp =
             dependencies.preferencesService.openUniversalLinkInApp
 
+        appTheme = dependencies.preferencesService.appTheme
+        accentColor = dependencies.preferencesService.accentColor
+
         storageSize = ByteCountFormatter.string(
             fromByteCount: Int64(dependencies.appDatabase.sizeInBytes),
             countStyle: .file
@@ -129,6 +141,18 @@ final class PreferencesViewModel {
                 self?.openExternalLinkInSafariVCReaderMode = value
             }
         })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.appThemeStream {
+                self?.appTheme = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.accentColorStream {
+                self?.accentColor = value
+            }
+        })
     }
 
     /// Preview-only init with seed values and no service dependencies.
@@ -146,6 +170,8 @@ final class PreferencesViewModel {
         openExternalLink = .safariViewController
         openExternalLinkInSafariVCReaderMode = true
         openExternalLinkAsUniversalLinkInApp = true
+        appTheme = .system
+        accentColor = .lemmy
         storageSize = "128 MB"
         storageFileUrl = URL(fileURLWithPath: "/tmp")
     }
@@ -186,5 +212,19 @@ final class PreferencesViewModel {
     func updateOpenExternalLinkAsUniversalLinkInApp(_ value: Bool) {
         openExternalLinkAsUniversalLinkInApp = value
         preferencesService?.openUniversalLinkInApp = value
+    }
+
+    func updateAppTheme(_ value: AppTheme) {
+        guard value != appTheme else { return }
+        appTheme = value
+        preferencesService?.appTheme = value
+        Haptics.tap()
+    }
+
+    func updateAccentColor(_ value: AccentColor) {
+        guard value != accentColor else { return }
+        accentColor = value
+        preferencesService?.accentColor = value
+        Haptics.tap()
     }
 }

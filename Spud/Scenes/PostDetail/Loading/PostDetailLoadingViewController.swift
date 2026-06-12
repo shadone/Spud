@@ -7,6 +7,7 @@
 import LemmyKit
 import OSLog
 import SpudDataKit
+import SpudUIKit
 import UIKit
 
 class PostDetailLoadingViewController: UIViewController {
@@ -101,7 +102,7 @@ class PostDetailLoadingViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
         view.addSubview(stackView)
 
         NSLayoutConstraint.activate([

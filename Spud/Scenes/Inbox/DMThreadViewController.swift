@@ -90,7 +90,7 @@ final class DMThreadViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
         navigationItem.title = viewModel.correspondentName
 
         inputBar.sendTapped = { [weak self] text in

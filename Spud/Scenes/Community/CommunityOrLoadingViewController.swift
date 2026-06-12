@@ -7,6 +7,7 @@
 import LemmyKit
 import OSLog
 import SpudDataKit
+import SpudUIKit
 import SpudUtilKit
 import UIKit
 
@@ -85,7 +86,7 @@ class CommunityOrLoadingViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
 
         view.addSubview(loadingIndicator)
         NSLayoutConstraint.activate([

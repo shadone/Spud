@@ -146,7 +146,7 @@ final class InboxViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
         navigationItem.title = NSLocalizedString("Inbox", comment: "Inbox screen navigation title")
 
         if viewModel.isSignedIn {

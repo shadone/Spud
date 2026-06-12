@@ -115,7 +115,7 @@ class CommunityViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
 
         let newPostButton = UIBarButtonItem(
             image: UIImage(systemName: "square.and.pencil"),

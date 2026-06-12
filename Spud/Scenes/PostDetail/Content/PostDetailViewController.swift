@@ -174,7 +174,7 @@ class PostDetailViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = .systemBackground
+        view.backgroundColor = Theme.background
 
         let openInBrowser = UIBarButtonItem(
             image: UIImage(systemName: "safari")!,

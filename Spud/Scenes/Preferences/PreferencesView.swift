@@ -32,7 +32,9 @@ struct PreferencesView: View {
                         Label("General", systemImage: "gear")
                     }
 
-                    NavigationLink { } label: {
+                    NavigationLink {
+                        PreferencesAppearanceView(viewModel: viewModel)
+                    } label: {
                         Label("Appearance", systemImage: "paintpalette")
                     }
 

@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import SpudUIKit
 import UIKit
 
 /// A pinned footer of account actions shown below the signed-in profile:
@@ -57,7 +58,7 @@ final class AccountActionsFooterView: UIView {
     }
 
     private func setup() {
-        backgroundColor = .systemBackground
+        backgroundColor = Theme.background
 
         let topRow = UIStackView(arrangedSubviews: [savedButton, settingsButton])
         topRow.translatesAutoresizingMaskIntoConstraints = false

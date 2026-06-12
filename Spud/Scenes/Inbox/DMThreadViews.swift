@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import SpudUIKit
 import UIKit
 
 /// A single chat bubble. Outgoing messages align right with an accent fill;
@@ -118,7 +119,7 @@ final class DMInputBar: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         autoresizingMask = .flexibleHeight
-        backgroundColor = .systemBackground
+        backgroundColor = Theme.background
 
         let separator = UIView()
         separator.translatesAutoresizingMaskIntoConstraints = false
