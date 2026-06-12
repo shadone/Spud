@@ -305,13 +305,86 @@ class MainWindow: UIWindow {
 }
 
 extension MainWindow: UISplitViewControllerDelegate {
+    /// The post list navigation stack's base depth: `[SubscriptionsViewController,
+    /// PostListViewController]`. Anything pushed above this (a post detail and
+    /// whatever the user drilled into from it) is "detail" content that belongs
+    /// in the secondary column when the split view is expanded.
+    private static let postListBaseStackDepth = 2
+
+    /// Collapsing from two columns (regular width) to one (compact width):
+    /// e.g. rotating a Max-class iPhone back to portrait, or narrowing an iPad
+    /// multitasking split. Carry whatever post detail was visible in the
+    /// secondary column onto the (now single) compact navigation stack so it
+    /// stays on screen instead of vanishing.
     func splitViewControllerDidCollapse(_ svc: UISplitViewController) {
-        // TODO: move the navigation stack from Primary column to Compact column
-        // when collapsing i.e. transitioning to compact state and back.
-        //
-        // This happens when e.g. on iPhone when start navigating - press on a post
-        // in the PostList, we push to Primary column's NC; Then rotate the phone to landscape
-        // and suddenly Detail VC is visible - but the Primary NC still has the navigation
-        // stack that should instead be shown in the Secondary column.
+        guard let splitViewController else { return }
+        let primaryNav = splitViewController.postListNavigationController
+
+        guard
+            let secondaryNav = svc.viewController(for: .secondary) as? UINavigationController
+        else { return }
+
+        // Skip the empty placeholder; carry over any real detail content.
+        let detailViewControllers = secondaryNav.viewControllers.filter { viewController in
+            if let orEmpty = viewController as? PostDetailOrEmptyViewController {
+                return !orEmpty.isEmptyPlaceholder
+            }
+            return true
+        }
+        guard !detailViewControllers.isEmpty else { return }
+
+        secondaryNav.setViewControllers([], animated: false)
+        primaryNav.setViewControllers(
+            primaryNav.viewControllers + detailViewControllers,
+            animated: false
+        )
+    }
+
+    /// Expanding from one column (compact width) to two (regular width): the
+    /// reverse handoff. Pull the detail content that was pushed onto the compact
+    /// navigation stack back out into the secondary column, leaving the primary
+    /// column showing just the post list.
+    func splitViewControllerDidExpand(_ svc: UISplitViewController) {
+        guard let splitViewController else { return }
+        let primaryNav = splitViewController.postListNavigationController
+
+        let stack = primaryNav.viewControllers
+        guard stack.count > Self.postListBaseStackDepth else {
+            // Nothing was drilled into; ensure the secondary shows the empty state.
+            restoreEmptySecondaryColumn(in: svc)
+            return
+        }
+
+        let baseViewControllers = Array(stack.prefix(Self.postListBaseStackDepth))
+        let detailViewControllers = Array(stack.suffix(from: Self.postListBaseStackDepth))
+
+        primaryNav.setViewControllers(baseViewControllers, animated: false)
+
+        let detailNav = UINavigationController()
+        detailNav.setViewControllers(detailViewControllers, animated: false)
+        svc.setViewController(detailNav, for: .secondary)
+    }
+
+    private func restoreEmptySecondaryColumn(in svc: UISplitViewController) {
+        // Only install a fresh empty placeholder if the secondary column isn't
+        // already showing post content (avoids clobbering a valid detail).
+        if
+            let secondaryNav = svc.viewController(for: .secondary) as? UINavigationController,
+            secondaryNav.viewControllers.contains(where: { viewController in
+                if let orEmpty = viewController as? PostDetailOrEmptyViewController {
+                    return !orEmpty.isEmptyPlaceholder
+                }
+                return true
+            })
+        {
+            return
+        }
+
+        let emptyDetailViewController = PostDetailOrEmptyViewController(
+            accountKeychainId: currentDefaultAccountKeychainId ?? accountService.defaultAccountKeychainId(),
+            dependencies: dependencies.nested
+        )
+        let detailNav = UINavigationController(rootViewController: emptyDetailViewController)
+        svc.setViewController(detailNav, for: .secondary)
     }
 }
