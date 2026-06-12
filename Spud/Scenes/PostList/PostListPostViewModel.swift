@@ -46,6 +46,29 @@ struct PostListPostViewModel {
     /// VoiceOver cannot pronounce.
     let subtitleAccessibilityLabel: String
 
+    /// The thumbnail image URL a cell would load for this row, or nil when the
+    /// post renders as text/link (nothing to prefetch). Lets the feed warm the
+    /// image cache a few rows ahead of scroll without building the full view
+    /// model. Mirrors the thumbnail derivation in `init`.
+    static func prefetchThumbnailUrl(
+        for row: PostListRow,
+        postContentDetector: PostContentDetectorServiceType
+    ) -> URL? {
+        let url = row.url.flatMap { URL(string: $0) }
+        let thumbnailUrl = row.thumbnailUrl.flatMap { URL(string: $0) }
+        switch postContentDetector.contentTypeForUrl(
+            url: url,
+            thumbnailUrl: thumbnailUrl,
+            embedTitle: row.urlEmbedTitle,
+            embedDescription: row.urlEmbedDescription
+        ) {
+        case let .image(image):
+            return image.thumbnailUrl ?? image.imageUrl
+        case .externalLink, .textOrEmpty:
+            return nil
+        }
+    }
+
     init(
         row: PostListRow,
         appearance: AppearanceServiceType,

@@ -66,6 +66,7 @@ class PostListViewController: UIViewController {
         tableView.rowHeight = UITableView.automaticDimension
 
         tableView.delegate = self
+        tableView.prefetchDataSource = self
 
         tableView.register(PostListPostCell.self, forCellReuseIdentifier: PostListPostCell.reuseIdentifier)
         tableView.register(LoadingFooterCell.self, forCellReuseIdentifier: LoadingFooterCell.reuseIdentifier)
@@ -89,6 +90,9 @@ class PostListViewController: UIViewController {
     // MARK: Private
 
     private var rowsByServerPostId: [Int64: PostListRow] = [:]
+    /// In-flight thumbnail prefetch tasks keyed by server post id, so a row that
+    /// scrolls back out of the prefetch window can have its warm-up cancelled.
+    private var prefetchTasks: [Int64: Task<Void, Never>] = [:]
     /// The full ordered feed snapshot from GRDB (before hide-read filtering).
     private var orderedRows: [PostListRow] = []
     /// The rows actually rendered, after the hide-read filter. Drives the empty
@@ -1113,6 +1117,46 @@ extension PostListViewController: UITableViewDelegate {
             } catch {
                 alertService.handle(error, for: .featurePost)
             }
+        }
+    }
+}
+
+// MARK: - UITableViewDataSourcePrefetching
+
+extension PostListViewController: UITableViewDataSourcePrefetching {
+    /// Warms the image cache for image posts a few rows ahead of the visible
+    /// window, so the thumbnail is already decoded by the time the cell is
+    /// configured — no pop-in while scrolling quickly. The cell's own fetch then
+    /// resolves from the cache. Text/link posts have nothing to prefetch.
+    func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath]) {
+        let imageService = imageService
+        let postContentDetector = dependencies.own.postContentDetectorService
+        for indexPath in indexPaths {
+            guard case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath) else { continue }
+            guard prefetchTasks[serverPostId] == nil else { continue }
+            guard let row = rowsByServerPostId[serverPostId] else { continue }
+            guard let url = PostListPostViewModel.prefetchThumbnailUrl(
+                for: row,
+                postContentDetector: postContentDetector
+            ) else { continue }
+
+            prefetchTasks[serverPostId] = Task { [weak self] in
+                for await state in imageService.fetch(url) {
+                    if Task.isCancelled { break }
+                    // Stop once the fetch settles; .loading just means in flight.
+                    if case .loading = state { continue }
+                    break
+                }
+                self?.prefetchTasks[serverPostId] = nil
+            }
+        }
+    }
+
+    func tableView(_ tableView: UITableView, cancelPrefetchingForRowsAt indexPaths: [IndexPath]) {
+        for indexPath in indexPaths {
+            guard case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath) else { continue }
+            prefetchTasks[serverPostId]?.cancel()
+            prefetchTasks[serverPostId] = nil
         }
     }
 }
