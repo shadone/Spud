@@ -80,6 +80,10 @@ class SpudUITests: XCTestCase {
     }
 
     override func tearDownWithError() throws {
+        // Rotation tests can leave the simulator in landscape; reset so the
+        // portrait-assuming tests (and snapshot device) start clean.
+        XCUIDevice.shared.orientation = .portrait
+
         let allRequestUrls = app.monitoredRequestsFlushAll().map { request in
             let httpMethod = request.request!.httpMethod!
             let url = request.request!.url!.absoluteString
@@ -116,10 +120,41 @@ class SpudUITests: XCTestCase {
         XCTAssertTrue(firstComment.exists)
     }
 
-    // The attribution `LinkLabel` ("in <community> by <creator>") now exposes
-    // each link range as its own accessibility element with the `.link` trait,
-    // so XCUITest can query the creator link by its label and tap it directly
-    // instead of relying on a fragile coordinate offset.
+    /// With a post selected, flipping the size class (compact <-> regular)
+    /// must keep the detail on screen. On a Max-class iPhone, rotating to
+    /// landscape expands the split view and the detail moves from the compact
+    /// navigation stack into the secondary column; rotating back collapses it
+    /// and the detail moves back. On a non-Max device the split stays collapsed
+    /// in both orientations, so the detail simply rides the navigation stack —
+    /// the assertions hold either way. This guards the MainWindow split-view
+    /// collapse/expand handoff.
+    func test_PostDetail_SurvivesRotationHandoff() {
+        let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
+        firstCell.tap()
+
+        let detailHeaderCell = app.cells["postDetailHeader"]
+        XCTAssertTrue(
+            detailHeaderCell.waitForExistence(timeout: 5),
+            "Post detail should be visible after selecting a post"
+        )
+
+        XCUIDevice.shared.orientation = .landscapeLeft
+        XCTAssertTrue(
+            detailHeaderCell.waitForExistence(timeout: 5),
+            "Post detail should survive expanding to a two-column layout"
+        )
+
+        XCUIDevice.shared.orientation = .portrait
+        XCTAssertTrue(
+            detailHeaderCell.waitForExistence(timeout: 5),
+            "Post detail should survive collapsing back to a single column"
+        )
+    }
+
+    /// The attribution `LinkLabel` ("in <community> by <creator>") now exposes
+    /// each link range as its own accessibility element with the `.link` trait,
+    /// so XCUITest can query the creator link by its label and tap it directly
+    /// instead of relying on a fragile coordinate offset.
     func test_PostDetail_TapOnPostCreator() {
         let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
         firstCell.tap()

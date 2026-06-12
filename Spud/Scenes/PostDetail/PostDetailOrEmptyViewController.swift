@@ -28,6 +28,15 @@ class PostDetailOrEmptyViewController: UIViewController {
         currentViewController as? PostDetailViewController
     }
 
+    /// `true` while this controller is the empty placeholder shown in the
+    /// split view's secondary column before any post is selected. Used by the
+    /// split-view collapse handoff to avoid carrying the placeholder over into
+    /// the compact navigation stack.
+    var isEmptyPlaceholder: Bool {
+        if case .empty = state { return true }
+        return false
+    }
+
     func display(serverPostId: Components.Schemas.PostID) {
         state = resolveState(forServerPostId: serverPostId)
     }
