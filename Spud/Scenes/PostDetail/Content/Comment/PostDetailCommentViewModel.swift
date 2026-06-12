@@ -90,9 +90,17 @@ struct PostDetailCommentViewModel {
         }
         author = NSAttributedString(string: row.creatorName ?? "", attributes: authorAttributes)
 
-        let stylerConfig = PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment)
-        body = Down(markdownString: row.body ?? "")
-            .toAttributedString(styler: DownStyler(configuration: stylerConfig))
+        // Rendered (and cached) through `MarkdownRenderer` so a long thread does
+        // not re-parse markdown on every cell dequeue. The comment list pre-warms
+        // this cache off the main thread, so steady state is a cache hit here.
+        let bodyMarkdown = row.body ?? ""
+        body = MarkdownRenderer.shared.attributedString(
+            markdown: bodyMarkdown,
+            key: MarkdownRenderer.postBodyKey(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment),
+            makeStyler: {
+                DownStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment))
+            }
+        )
 
         let voteStatus: VoteStatus = {
             switch row.voteStatus {

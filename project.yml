@@ -178,6 +178,10 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.SpudTests
     dependencies:
       - target: Spud
+      # MarkdownRendererTests builds a DownStyler directly, so the test bundle
+      # links Down (the Spud app target also links it, but @testable import does
+      # not re-export the package's symbols to the test bundle).
+      - package: Down
 
   SpudDataKitTests:
     type: bundle.unit-test

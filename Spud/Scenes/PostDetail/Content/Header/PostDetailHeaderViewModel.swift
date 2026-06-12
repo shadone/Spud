@@ -102,9 +102,16 @@ struct PostDetailHeaderViewModel {
             attributes: secondaryAttributes
         )
 
-        let stylerConfig = PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment)
-        body = Down(markdownString: row.body ?? "")
-            .toAttributedString(styler: DownStyler(configuration: stylerConfig))
+        // Shares the cached `MarkdownRenderer` body path with comment cells; the
+        // header re-renders on every vote/save, so caching avoids re-parsing.
+        let bodyMarkdown = row.body ?? ""
+        body = MarkdownRenderer.shared.attributedString(
+            markdown: bodyMarkdown,
+            key: MarkdownRenderer.postBodyKey(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment),
+            makeStyler: {
+                DownStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment))
+            }
+        )
 
         var creatorAttributes = secondaryHighlightedAttributes
         if
