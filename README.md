@@ -17,7 +17,7 @@ info.ddenis/Spud/
 - **`Spud`** — the iOS application (UIKit, coordinators, view models)
 - **`SpudWidgetExtension`** — home-screen widget showing top posts
 - **`OpenInAppExtension`** — share/action extension to open Lemmy URLs in Spud
-- **`SpudDataKit`** — domain layer: Core Data store, Lemmy services, scheduler, image loading
+- **`SpudDataKit`** — domain layer: GRDB store, Lemmy services, scheduler, image loading
 - **`SpudUIKit`** — design tokens, color/symbol resources, SwiftGen-generated assets
 - **`SpudUtilKit`** — Foundation extensions and small utilities (`Atomic`, `UserDefaultsBacked`, `Logger`)
 - Test targets: `SpudTests`, `SpudDataKitTests`, `SpudUtilKitTests`, `SpudSnapshotTests`, `SpudUITests`
