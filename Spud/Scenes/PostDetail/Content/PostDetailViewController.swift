@@ -96,11 +96,42 @@ class PostDetailViewController: UIViewController {
         return refreshControl
     }()
 
+    /// Floating control that scrolls to the next top-level (depth-1) comment so
+    /// users can skim threads fast. Hidden when there is no next top-level
+    /// comment below the current scroll position.
+    lazy var jumpToNextButton: UIButton = {
+        var config = UIButton.Configuration.filled()
+        config.image = UIImage(systemName: "chevron.down")
+        config.cornerStyle = .capsule
+        config.baseBackgroundColor = .secondarySystemBackground
+        config.baseForegroundColor = .label
+        config.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 14, bottom: 14, trailing: 14)
+
+        let button = UIButton(configuration: config)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.accessibilityIdentifier = "jumpToNextTopComment"
+        button.accessibilityLabel = NSLocalizedString(
+            "Next top-level comment",
+            comment: "Accessibility label for the jump-to-next-comment button"
+        )
+        button.addTarget(self, action: #selector(jumpToNextTopCommentTapped), for: .touchUpInside)
+        button.layer.shadowColor = UIColor.black.cgColor
+        button.layer.shadowOpacity = 0.2
+        button.layer.shadowRadius = 6
+        button.layer.shadowOffset = CGSize(width: 0, height: 2)
+        button.alpha = 0
+        button.isHidden = true
+        return button
+    }()
+
     // MARK: - Private
 
     private var viewModel: PostDetailViewModel
     private var headerRow: PostDetailHeaderRow?
     private var commentRowsByElementId: [Int64: PostDetailCommentRow] = [:]
+    /// Per-collapsed-parent hidden-descendant counts from the last visible-tree
+    /// computation. Used to render the "+N" badge on collapsed cells.
+    private var collapsedDescendantCounts: [Int64: Int] = [:]
     private var observationTask: Task<Void, Never>?
     private var commentObservationTask: Task<Void, Never>?
 
@@ -161,11 +192,21 @@ class PostDetailViewController: UIViewController {
         navigationItem.rightBarButtonItems = [openInBrowser, replyToPost, saveBarButtonItem]
 
         view.addSubview(tableView)
+        view.addSubview(jumpToNextButton)
         NSLayoutConstraint.activate([
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.topAnchor.constraint(equalTo: view.topAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            jumpToNextButton.trailingAnchor.constraint(
+                equalTo: view.safeAreaLayoutGuide.trailingAnchor,
+                constant: -16
+            ),
+            jumpToNextButton.bottomAnchor.constraint(
+                equalTo: view.safeAreaLayoutGuide.bottomAnchor,
+                constant: -16
+            ),
         ])
 
         setupDataSource()
@@ -236,7 +277,8 @@ class PostDetailViewController: UIViewController {
             ) {
                 if Task.isCancelled { break }
                 commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
-                applySnapshot(orderedComments: rows)
+                viewModel.updateOrderedComments(rows)
+                applySnapshot()
                 if !hasReceivedFirstSnapshot {
                     hasReceivedFirstSnapshot = true
                     viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
@@ -245,19 +287,89 @@ class PostDetailViewController: UIViewController {
         }
     }
 
-    private func applySnapshot(orderedComments: [PostDetailCommentRow]? = nil) {
+    private func applySnapshot(animated: Bool = true) {
         var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
         snapshot.appendSections([.header, .comments])
         snapshot.appendItems([.header], toSection: .header)
         snapshot.reloadItems([.header])
 
-        let comments = orderedComments ?? Array(commentRowsByElementId.values)
-            .sorted { $0.position < $1.position }
-        let items = comments.map { Item.comment(elementId: $0.id) }
+        // Collapse is a pure view-layer filter over the ordered tree: hide the
+        // descendants of any collapsed comment and capture the per-parent
+        // hidden counts for the "+N" badge.
+        let visible = viewModel.visibleCommentTree()
+        collapsedDescendantCounts = visible.collapsedDescendantCounts
+
+        let items = visible.rows.map { Item.comment(elementId: $0.id) }
         snapshot.appendItems(items, toSection: .comments)
         snapshot.reloadItems(items)
 
-        dataSource.apply(snapshot, animatingDifferences: true)
+        let animate = animated && !UIAccessibility.isReduceMotionEnabled
+        dataSource.apply(snapshot, animatingDifferences: animate)
+        updateJumpButtonVisibility()
+    }
+
+    // MARK: - Collapse
+
+    /// Toggles collapse for the comment element `elementId`, re-applies the
+    /// filtered snapshot with animation, and fires a light haptic.
+    private func toggleCollapse(elementId: Int64) {
+        viewModel.toggleCollapse(elementId: elementId)
+        Haptics.tap()
+        applySnapshot(animated: true)
+    }
+
+    // MARK: - Jump to next top-level comment
+
+    /// The index path of the next visible depth-1 comment whose top is below the
+    /// current content offset (plus the top inset). Returns nil if none.
+    private func indexPathOfNextTopLevelComment() -> IndexPath? {
+        let snapshot = dataSource.snapshot()
+        guard snapshot.indexOfSection(.comments) != nil else { return nil }
+
+        // The first row whose origin sits below the current visible top edge.
+        let threshold = tableView.contentOffset.y + tableView.adjustedContentInset.top + 1
+
+        let items = snapshot.itemIdentifiers(inSection: .comments)
+        for (offset, item) in items.enumerated() {
+            guard case let .comment(elementId) = item else { continue }
+            guard commentRowsByElementId[elementId]?.depth == 1 else { continue }
+
+            let indexPath = IndexPath(row: offset, section: Section.comments.rawValue)
+            let rect = tableView.rectForRow(at: indexPath)
+            if rect.minY > threshold {
+                return indexPath
+            }
+        }
+        return nil
+    }
+
+    @objc
+    private func jumpToNextTopCommentTapped() {
+        guard let indexPath = indexPathOfNextTopLevelComment() else { return }
+        Haptics.tap()
+        tableView.scrollToRow(at: indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
+    }
+
+    /// Shows the jump button only when there is a next top-level comment to jump
+    /// to. Animated unless reduce-motion is on.
+    private func updateJumpButtonVisibility() {
+        let shouldShow = indexPathOfNextTopLevelComment() != nil
+        guard shouldShow != (jumpToNextButton.alpha > 0) else { return }
+
+        if shouldShow {
+            jumpToNextButton.isHidden = false
+        }
+        let animate = !UIAccessibility.isReduceMotionEnabled
+        let work = { self.jumpToNextButton.alpha = shouldShow ? 1 : 0 }
+        let completion = { (_: Bool) in
+            if !shouldShow { self.jumpToNextButton.isHidden = true }
+        }
+        if animate {
+            UIView.animate(withDuration: 0.2, animations: work, completion: completion)
+        } else {
+            work()
+            completion(true)
+        }
     }
 
     @objc
@@ -555,11 +667,26 @@ extension PostDetailViewController {
                     return cell
                 }
 
-                let viewModel = PostDetailCommentViewModel(row: row, appearance: appearance)
+                let isCollapsed = self?.viewModel.isCollapsed(elementId: elementId) ?? false
+                let collapsedCount = self?.collapsedDescendantCounts[elementId]
+                let viewModel = PostDetailCommentViewModel(
+                    row: row,
+                    appearance: appearance,
+                    isCollapsed: isCollapsed,
+                    collapsedDescendantCount: collapsedCount
+                )
                 cell.configure(with: viewModel)
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
+                // Tap-to-collapse is the primary collapse affordance (Apollo
+                // parity); "load more" placeholders are not collapsible.
+                cell.collapseTapped = { [weak self] in
+                    self?.toggleCollapse(elementId: elementId)
+                }
 
                 let general = appearance.general
+                // Swipe slots stay vote / vote / reply / collapse. Collapse is
+                // also available via tap; the deep trailing swipe mirrors it for
+                // gesture-first users. Save moves to the context menu + nav bar.
                 cell.swipeActionConfiguration = .init(
                     leadingPrimaryAction: .init(
                         image: general.upvoteIcon,
@@ -574,22 +701,28 @@ extension PostDetailViewController {
                         backgroundColor: UIColor.blue
                     ),
                     trailingSecondaryAction: .init(
-                        image: UIImage(systemName: (row.isSaved ?? false) ? "bookmark.slash" : "bookmark")!,
-                        backgroundColor: UIColor.systemYellow
+                        image: UIImage(
+                            systemName: isCollapsed
+                                ? "arrow.up.left.and.arrow.down.right"
+                                : "arrow.down.right.and.arrow.up.left"
+                        )!,
+                        backgroundColor: UIColor.systemIndigo
                     )
                 )
 
                 cell.swipeActionTriggered = { [weak self] action in
-                    guard let serverCommentId = row.serverCommentId else { return }
                     switch action {
                     case .leadingPrimary:
+                        guard let serverCommentId = row.serverCommentId else { return }
                         Task { await self?.voteOnComment(serverCommentId: serverCommentId, action: .upvote) }
                     case .leadingSecondary:
+                        guard let serverCommentId = row.serverCommentId else { return }
                         Task { await self?.voteOnComment(serverCommentId: serverCommentId, action: .downvote) }
                     case .trailingPrimary:
+                        guard let serverCommentId = row.serverCommentId else { return }
                         self?.replyToComment(serverCommentId: serverCommentId)
                     case .trailingSecondary:
-                        self?.toggleSavedOnComment(serverCommentId: serverCommentId)
+                        self?.toggleCollapse(elementId: elementId)
                     }
                 }
                 return cell
@@ -606,6 +739,10 @@ extension PostDetailViewController {
 // MARK: - UITableView Delegate
 
 extension PostDetailViewController: UITableViewDelegate {
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        updateJumpButtonVisibility()
+    }
+
     func tableView(
         _ tableView: UITableView,
         previewForHighlightingContextMenuWithConfiguration configuration: UIContextMenuConfiguration
