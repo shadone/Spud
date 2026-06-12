@@ -84,6 +84,10 @@ class PostListViewController: UIViewController {
 
     private var rowsByServerPostId: [Int64: PostListRow] = [:]
     private var orderedRows: [PostListRow] = []
+    /// Set once the GRDB observation has produced its first snapshot for the
+    /// current feed, so the designed empty state only shows after the initial
+    /// load settles (not as a flash during first fetch).
+    private var hasReceivedFirstSnapshot = false
     private var observationTask: Task<Void, Never>?
     private var titleObservationTask: Task<Void, Never>?
     private var loadingObservationTask: Task<Void, Never>?
@@ -256,6 +260,8 @@ class PostListViewController: UIViewController {
         observationTask?.cancel()
         rowsByServerPostId.removeAll()
         orderedRows.removeAll()
+        hasReceivedFirstSnapshot = false
+        updateEmptyState()
 
         applyLoadingIndicatorVisibility(hidden: !viewModel.isFetchingNextPage)
 
@@ -275,12 +281,12 @@ class PostListViewController: UIViewController {
                 return
             }
 
-            var hasReceivedFirstSnapshot = false
             for await rows in appDatabase.observePostListRows(feedId: feedRowId) {
                 if Task.isCancelled { break }
+                let isFirstSnapshot = !hasReceivedFirstSnapshot
+                hasReceivedFirstSnapshot = true
                 apply(rows: rows)
-                if !hasReceivedFirstSnapshot {
-                    hasReceivedFirstSnapshot = true
+                if isFirstSnapshot {
                     viewModel.didPrepareObservation(numberOfFetchedPosts: rows.count)
                 }
             }
@@ -303,6 +309,8 @@ class PostListViewController: UIViewController {
         }
 
         dataSource.apply(snapshot, animatingDifferences: true)
+
+        updateEmptyState()
     }
 
     private func applyLoadingIndicatorVisibility(hidden: Bool) {
@@ -321,6 +329,29 @@ class PostListViewController: UIViewController {
             snapshot.appendItems([.loadingIndicator], toSection: .loading)
             dataSource.apply(snapshot, animatingDifferences: true)
         }
+
+        updateEmptyState()
+    }
+
+    /// Shows a designed empty state once the feed has loaded and turned up no
+    /// posts (e.g. "No saved posts yet" for the saved feed). Stays hidden
+    /// during the initial fetch and whenever a page is loading.
+    private func updateEmptyState() {
+        let shouldShow = hasReceivedFirstSnapshot
+            && orderedRows.isEmpty
+            && !viewModel.isFetchingNextPage
+
+        guard shouldShow else {
+            contentUnavailableConfiguration = nil
+            return
+        }
+
+        let empty = viewModel.emptyState
+        var config = UIContentUnavailableConfiguration.empty()
+        config.image = UIImage(systemName: empty.symbolName)
+        config.text = empty.title
+        config.secondaryText = empty.message
+        contentUnavailableConfiguration = config
     }
 
     private func setupDataSource() {

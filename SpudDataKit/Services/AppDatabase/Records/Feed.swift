@@ -16,6 +16,9 @@ public struct FeedRecord: Codable, Sendable, Equatable, Identifiable {
     public var frontpageListingType: String?
     public var communityName: String?
     public var communityInstanceActorId: String?
+    /// True for the logged-in account's saved-posts feed (the `.saved`
+    /// FeedType). When set, the listing/community columns are nil.
+    public var savedOnly: Bool
     public var sortType: String
     public var identifierForDebugging: String?
     public var createdAt: Date
@@ -27,6 +30,7 @@ public struct FeedRecord: Codable, Sendable, Equatable, Identifiable {
         frontpageListingType: String? = nil,
         communityName: String? = nil,
         communityInstanceActorId: String? = nil,
+        savedOnly: Bool = false,
         sortType: String,
         identifierForDebugging: String? = nil,
         createdAt: Date = Date()
@@ -37,6 +41,7 @@ public struct FeedRecord: Codable, Sendable, Equatable, Identifiable {
         self.frontpageListingType = frontpageListingType
         self.communityName = communityName
         self.communityInstanceActorId = communityInstanceActorId
+        self.savedOnly = savedOnly
         self.sortType = sortType
         self.identifierForDebugging = identifierForDebugging
         self.createdAt = createdAt

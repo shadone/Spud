@@ -105,6 +105,37 @@ final class PostListViewModel {
         }
     }
 
+    /// Designed empty-state copy for the current feed. The saved feed gets a
+    /// dedicated message; everything else shares a generic one.
+    struct EmptyState {
+        let symbolName: String
+        let title: String
+        let message: String
+    }
+
+    var emptyState: EmptyState {
+        switch feed.feedType {
+        case .saved:
+            return EmptyState(
+                symbolName: "bookmark",
+                title: NSLocalizedString("No saved posts yet", comment: "Empty-state title for the saved-posts feed"),
+                message: NSLocalizedString(
+                    "Posts you save will show up here.",
+                    comment: "Empty-state message for the saved-posts feed"
+                )
+            )
+        case .frontpage, .community:
+            return EmptyState(
+                symbolName: "tray",
+                title: NSLocalizedString("No posts", comment: "Empty-state title for a post feed"),
+                message: NSLocalizedString(
+                    "There are no posts to show here.",
+                    comment: "Empty-state message for a post feed"
+                )
+            )
+        }
+    }
+
     private static func navigationTitle(for feedType: FeedType) -> String {
         switch feedType {
         case let .frontpage(listingType, _):
@@ -116,6 +147,8 @@ final class PostListViewModel {
             }
         case let .community(communityName, instance, _):
             return "\(communityName)@\(instance.hostWithPort)"
+        case .saved:
+            return NSLocalizedString("Saved", comment: "Navigation title for the saved-posts feed")
         }
     }
 }

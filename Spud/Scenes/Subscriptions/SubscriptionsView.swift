@@ -75,6 +75,28 @@ struct SubscriptionsListingView: View {
     }
 }
 
+struct SubscriptionsSavedView: View {
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "bookmark")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.orange)
+                .frame(width: 40, height: 40)
+            VStack(alignment: .leading) {
+                Text("Saved")
+                    .foregroundStyle(Color(.label))
+                Text("Posts you have saved")
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .font(.footnote)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+        .contentShape(Rectangle())
+    }
+}
+
 struct SubscriptionsCommunityIconView: View {
     @State var communityName: String
 
@@ -126,6 +148,13 @@ struct SubscriptionsView: View {
                 .onTapGesture {
                     viewModel.loadFeed(.listing(.All))
                 }
+
+            if viewModel.isSignedIn {
+                SubscriptionsSavedView()
+                    .onTapGesture {
+                        viewModel.loadFeed(.saved)
+                    }
+            }
 
             if !viewModel.followCommunities.isEmpty {
                 Section("Subscribed communities") {

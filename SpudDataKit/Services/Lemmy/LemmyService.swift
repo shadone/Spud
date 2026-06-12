@@ -174,7 +174,26 @@ public actor LemmyService: LemmyServiceType {
                     sort: sortType,
                     page: pageCursor
                 )
+
+            case let .saved(sortType):
+                guard !accountIsSignedOut else {
+                    throw LemmyServiceError.requiresAuthentication
+                }
+                logger.debug("""
+                    Fetch saved feed for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                    feedId=\(feedKey, privacy: .public) \
+                    sortType=\(sortType.rawValue, privacy: .public) \
+                    pageCursor=\(pageCursor ?? "nil", privacy: .public)
+                    """)
+                response = try await api.getPosts(
+                    type: .All,
+                    sort: sortType,
+                    filter: [.saved],
+                    page: pageCursor
+                )
             }
+        } catch let error as LemmyServiceError {
+            throw error
         } catch {
             logger.error("""
                 Fetch feed failed. \

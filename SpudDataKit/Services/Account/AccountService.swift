@@ -104,6 +104,8 @@ public extension AccountServiceType {
                     instance: instance,
                     sortType: sortType ?? oldSortType
                 )
+            case let .saved(oldSortType):
+                return .saved(sortType: sortType ?? oldSortType)
             }
         }()
         return FeedHandle(feedKey: UUID().uuidString, feedType: newFeedType)

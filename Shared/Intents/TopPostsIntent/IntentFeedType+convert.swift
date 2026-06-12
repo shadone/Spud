@@ -27,6 +27,11 @@ extension IntentFeedType {
         case .community:
             // TODO: implement browsing community intent
             return nil
+
+        case .saved:
+            // The saved feed is per-account and auth-scoped; there is no
+            // Siri intent for it.
+            return nil
         }
     }
 }

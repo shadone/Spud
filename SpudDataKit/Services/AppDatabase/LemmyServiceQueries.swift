@@ -35,6 +35,10 @@ public extension AppDatabase {
             return nil
         }
 
+        if record.savedOnly {
+            return .saved(sortType: sortType)
+        }
+
         if let listingRaw = record.frontpageListingType {
             guard let listingType = Components.Schemas.ListingType(rawValue: listingRaw) else {
                 logger.error("Unknown frontpageListingType '\(listingRaw, privacy: .public)' on feedKey \(record.feedKey, privacy: .public)")
