@@ -18,6 +18,10 @@ public enum LemmyServiceError: Error {
     /// A low level API error has occurred.
     case apiError(LemmyApiError)
 
+    /// The operation requires a signed-in account, but this service is
+    /// backed by a signed-out account.
+    case requiresAuthentication
+
     init(from error: Error) {
         if let error = error as? LemmyApiError {
             self = .apiError(error)
@@ -55,6 +59,16 @@ public protocol LemmyServiceType: Actor {
     func vote(
         serverCommentId: Components.Schemas.CommentID,
         vote action: VoteStatus.Action
+    ) async throws
+
+    /// Create a new comment on `serverPostId`. Pass `parentCommentId` to
+    /// reply to an existing comment, or `nil` to reply to the post itself.
+    /// Throws `LemmyServiceError.requiresAuthentication` if this service is
+    /// backed by a signed-out account.
+    func createComment(
+        serverPostId: Components.Schemas.PostID,
+        content: String,
+        parentCommentId: Components.Schemas.CommentID?
     ) async throws
 
     func fetchPostInfo(
@@ -397,10 +411,48 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorCommentVoteToAppDatabase(view: response.comment_view)
+        await mirrorCommentToAppDatabase(view: response.comment_view)
     }
 
-    private func mirrorCommentVoteToAppDatabase(
+    public func createComment(
+        serverPostId: Components.Schemas.PostID,
+        content: String,
+        parentCommentId: Components.Schemas.CommentID?
+    ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Create comment rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                postId=\(serverPostId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Create comment for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            postId=\(serverPostId, privacy: .public) \
+            parentCommentId=\(parentCommentId.map(String.init) ?? "nil", privacy: .public)
+            """)
+
+        let response: Components.Schemas.CommentResponse
+        do {
+            response = try await api.createComment(
+                postID: serverPostId,
+                content: content,
+                parentID: parentCommentId
+            )
+        } catch {
+            logger.error("""
+                Create comment failed. postId=\(serverPostId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        await mirrorCommentToAppDatabase(view: response.comment_view)
+    }
+
+    private func mirrorCommentToAppDatabase(
         view: Components.Schemas.CommentView
     ) async {
         do {

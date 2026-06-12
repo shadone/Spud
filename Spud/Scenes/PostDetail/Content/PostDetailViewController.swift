@@ -143,7 +143,13 @@ class PostDetailViewController: UIViewController {
             target: self,
             action: #selector(openInBrowser)
         )
-        navigationItem.rightBarButtonItem = openInBrowser
+        let replyToPost = UIBarButtonItem(
+            image: UIImage(systemName: "arrowshape.turn.up.backward")!,
+            style: .plain,
+            target: self,
+            action: #selector(replyToPostTapped)
+        )
+        navigationItem.rightBarButtonItems = [openInBrowser, replyToPost]
 
         view.addSubview(tableView)
         NSLayoutConstraint.activate([
@@ -274,6 +280,11 @@ class PostDetailViewController: UIViewController {
         }
     }
 
+    @objc
+    private func replyToPostTapped() {
+        replyToPost()
+    }
+
     private func linkTapped(_ url: URL) {
         switch url.spud {
         case let .person(personId, instance):
@@ -317,6 +328,42 @@ class PostDetailViewController: UIViewController {
         } catch {
             alertService.handle(error, for: .vote)
         }
+    }
+
+    /// Reply to the post itself (a top-level comment).
+    private func replyToPost() {
+        presentComposer(target: .postReply(serverPostId: viewModel.serverPostId))
+    }
+
+    /// Reply to the comment identified by `serverCommentId`.
+    private func replyToComment(serverCommentId: Int64) {
+        presentComposer(target: .commentReply(
+            serverPostId: viewModel.serverPostId,
+            parentCommentId: Components.Schemas.CommentID(serverCommentId)
+        ))
+    }
+
+    /// Presents the composer sheet for `target`, gating on sign-in: a
+    /// signed-out account gets a "sign in to comment" alert instead.
+    private func presentComposer(target: ComposerTarget) {
+        let keychainId = viewModel.accountKeychainId
+        guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
+            presentErrorAlert(
+                title: NSLocalizedString("Sign in to comment", comment: "Title of the alert shown when a signed-out user tries to comment"),
+                message: NSLocalizedString(
+                    "You need to be signed in to an account to post comments.",
+                    comment: "Body of the alert shown when a signed-out user tries to comment"
+                )
+            )
+            return
+        }
+
+        let composer = ComposerViewController.makeSheet(
+            target: target,
+            accountKeychainId: keychainId,
+            dependencies: dependencies.own
+        )
+        present(composer, animated: true)
     }
 }
 
@@ -414,7 +461,9 @@ extension PostDetailViewController {
                         Task { await self?.voteOnComment(serverCommentId: serverCommentId, action: .upvote) }
                     case .leadingSecondary:
                         Task { await self?.voteOnComment(serverCommentId: serverCommentId, action: .downvote) }
-                    case .trailingPrimary, .trailingSecondary:
+                    case .trailingPrimary:
+                        self?.replyToComment(serverCommentId: serverCommentId)
+                    case .trailingSecondary:
                         break
                     }
                 }
@@ -474,7 +523,13 @@ extension PostDetailViewController: UITableViewDelegate {
                 ) { [weak self] _ in
                     Task { await self?.voteOnComment(serverCommentId: serverCommentId, action: .downvote) }
                 }
-                return UIMenu(title: "", children: [upvoteAction, downvoteAction])
+                let replyAction = UIAction(
+                    title: NSLocalizedString("Reply", comment: ""),
+                    image: UIImage(systemName: "arrowshape.turn.up.backward")
+                ) { [weak self] _ in
+                    self?.replyToComment(serverCommentId: serverCommentId)
+                }
+                return UIMenu(title: "", children: [upvoteAction, downvoteAction, replyAction])
             }
         )
     }

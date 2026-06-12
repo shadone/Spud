@@ -83,12 +83,34 @@ Replaced hand/script-patched `project.pbxproj` with a declarative `project.yml`.
   over (no active perf test, no impact).
 
 ### M1 — Write foundation + spike (the spine) — ~1 week
-- [ ] JWT/auth plumbing for authenticated requests in `LemmyService`.
-- [ ] Optimistic-mutation + error-reconcile pattern; `requireSignedInAccount()` gate.
-- [ ] Shared markdown composer component (`SpudUIKit`/`Spud`).
+Auth already works (keychain `LemmyCredential{jwt}` per `accountKeychainId` →
+`LemmyApi(credential:)` → `AuthorizationMiddleware` signs every request). Mutations follow the
+existing **non-optimistic** `vote()` template: call the server, then mirror the confirmed
+response into GRDB; the GRDB observation updates the UI. No optimistic/rollback machinery.
+- [ ] **LemmyKit endpoint wrappers** — add `LemmyApi+CreateComment.swift` (then `+SavePost`,
+      `+FollowCommunity`, … per feature) following the `LemmyApi+LikePost.swift` pattern. Paired
+      LemmyKit commits; trivial now that it's a local package.
+- [ ] **`LemmyService` write methods** following `vote()`: call `api.x(...)`, then
+      `mirror…ToAppDatabase` (reuse `upsertPost`/`upsertComment`).
+- [ ] **Sign-in gate** — `accountIsSignedOut` guard + `LemmyServiceError.requiresAuthentication`;
+      UI affordance ("Sign in to comment") instead of a silent no-op.
+- [ ] **Real error surfacing** — `AlertService` currently only logs. Return write errors to the
+      view layer (or have AlertService present a `UIAlertController`); add `AlertHandlerRequest`
+      cases. Required before any write ships.
+- [ ] **Composer** (greenfield) — `UITextView` compose surface + live `Down`/`LinkLabel` markdown
+      preview, `@Observable` VM via `ObservationStream`. Reused by reply / post / edit / DM.
 - [ ] Spikes: confirm `uploadImage` multipart works through the generated client; confirm
-      `createComment`/`savePost` round-trip against a live instance.
+      `createComment` round-trips against a live instance.
 - [ ] Test fakes in `SpudDataKitTests` for the new write methods.
+
+First build — **comment-reply vertical slice: DONE 2026-06-12, verified (build + tests green).**
+Shipped: `LemmyApi+CreateComment` (LemmyKit) + test-seam init; `LemmyService.createComment`
+(sign-out guard → `requiresAuthentication` → confirm-then-mirror via unified
+`mirrorCommentToAppDatabase`); `ComposerViewController` sheet + `@Observable` VM (`ComposerTarget`
+extensible to post/edit/DM); reusable `ErrorMessage` + `presentErrorAlert`; reply wired in
+PostDetail (swipe + context menu + post-level button, sign-in gated); 2 new SpudDataKitTests.
+The spine is proven — remaining M1/M2 writes reuse this pattern.
+Follow-up (small): composer has no live markdown **preview pane** yet (surface is preview-ready).
 
 ### M2 — Core interactions — ~1.5–2 weeks
 - [ ] **Comment + reply composer** (reply to post and to comment; edit + delete own).
