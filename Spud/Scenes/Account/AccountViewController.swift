@@ -183,7 +183,9 @@ class AccountViewController: UIViewController {
 
             footer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             footer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            footer.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            // Pin to the safe area, not the raw view bottom, so the footer (and
+            // its Log out button) sits above the tab bar rather than under it.
+            footer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
         ])
     }
 
