@@ -1,6 +1,6 @@
 # Spud — Claude Code working notes
 
-Native iOS client for [Lemmy](https://join-lemmy.org). UIKit, Core Data, SPM. Bundle ID `info.ddenis.Spud`, team `J8B76VBZ57`.
+Native iOS client for [Lemmy](https://join-lemmy.org). UIKit, GRDB, SPM. Bundle ID `info.ddenis.Spud`, team `J8B76VBZ57`.
 
 Project went dormant after June 2024. Picked back up May 2026. The previous session was mid-migration to Swift strict concurrency (project flag `SWIFT_STRICT_CONCURRENCY = complete` is already set); that WIP lives in `git stash@{0}` (`pre-pickup-2026-05 strict-concurrency WIP`) but is intentionally being redone from scratch — do not pop it without asking.
 
