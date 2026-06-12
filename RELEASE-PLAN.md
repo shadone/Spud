@@ -51,12 +51,19 @@ Closing the remaining gaps to the `DESIGN.md` Apollo bar after M8 — each verif
   and a "GIF" badge (`MediaBadgeView`) on feed + header thumbnails.
 - **feat(ux)** context-menu peek on feed posts (`PostPreviewViewController`):
   long-press shows image + title + full body.
+- **feat(feed)** external-link posts show their embed thumbnail inline
+  (`Thumbnail.linkImage`) instead of a generic placeholder; tapping opens the
+  post (the embed isn't the content). Thumbnail derivation extracted to the
+  testable `PostListPostViewModel.thumbnail(for:)`.
+- **perf(images)** target-size downsampling (`ImageDownsampler` +
+  `ImageService.fetch(_:downsampleTo:)`): feed thumbnails decode straight to the
+  64pt cell size instead of loading a full-resolution bitmap.
 
 Follow-ups: save animated GIF preserving animation (viewer save currently grabs
-the first frame); target-size image downsampling (needs size plumbing through
-`ImageServiceType`); context-menu preview on comments; link-post thumbnails in
-the feed (the detail view already shows them); video (mp4/webm — webm has no
-native AVFoundation decoder).
+the first frame); video (mp4 via AVPlayer in the viewer — needs visual
+verification, and webm has no native AVFoundation decoder). Context-menu peek on
+comments was considered and dropped (comments aren't truncated in the detail
+view, so there's nothing to peek).
 
 Status baseline (verified 2026-06-12):
 
