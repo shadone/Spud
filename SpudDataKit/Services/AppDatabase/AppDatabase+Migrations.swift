@@ -284,6 +284,25 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v4_communitySubscribedAndCounts") { db in
+            try db.alter(table: "community") { t in
+                // subscribedState stores the Lemmy SubscribedType raw value
+                // ("Subscribed" / "NotSubscribed" / "Pending").
+                t.add(column: "subscribedState", .text)
+                    .notNull()
+                    .defaults(to: "NotSubscribed")
+                t.add(column: "numberOfSubscribers", .integer)
+                    .notNull()
+                    .defaults(to: 0)
+                t.add(column: "numberOfPosts", .integer)
+                    .notNull()
+                    .defaults(to: 0)
+                t.add(column: "numberOfComments", .integer)
+                    .notNull()
+                    .defaults(to: 0)
+            }
+        }
+
         return migrator
     }
 }

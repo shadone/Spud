@@ -51,6 +51,29 @@ public protocol LemmyServiceType: Actor {
         serverPersonId: Components.Schemas.PersonID
     ) async throws
 
+    /// Fetch the full community info (header fields, counts, subscribed state)
+    /// for `serverCommunityId` and mirror it into the database. Used to
+    /// populate the community screen for communities the account hasn't cached.
+    func fetchCommunityInfo(
+        serverCommunityId: Components.Schemas.CommunityID
+    ) async throws
+
+    /// Fetch the full community info by name (`gnome` for a local community or
+    /// `worldnews@lemmy.world` for a remote one) and mirror it into the
+    /// database. Returns the resolved server-side community id.
+    @discardableResult
+    func fetchCommunityInfo(
+        communityName: String
+    ) async throws -> Components.Schemas.CommunityID
+
+    /// Subscribe to or unsubscribe from `serverCommunityId` for the backing
+    /// account. Throws `LemmyServiceError.requiresAuthentication` if this
+    /// service is backed by a signed-out account.
+    func setSubscribed(
+        serverCommunityId: Components.Schemas.CommunityID,
+        subscribed: Bool
+    ) async throws
+
     func vote(
         serverPostId: Components.Schemas.PostID,
         vote action: VoteStatus.Action
@@ -370,6 +393,99 @@ public actor LemmyService: LemmyServiceType {
             try await appDatabase.upsertPerson(from: personView, siteId: siteId)
         } catch {
             logger.error("Failed to mirror person info to AppDatabase: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    public func fetchCommunityInfo(
+        serverCommunityId: Components.Schemas.CommunityID
+    ) async throws {
+        logger.debug("""
+            Fetch community info. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            communityId=\(serverCommunityId, privacy: .public)
+            """)
+
+        let response: Components.Schemas.GetCommunityResponse
+        do {
+            response = try await api.getCommunity(communityID: serverCommunityId)
+        } catch {
+            logger.error("""
+                Fetch community info failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                communityId=\(serverCommunityId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        await mirrorCommunityInfoToAppDatabase(view: response.community_view)
+    }
+
+    @discardableResult
+    public func fetchCommunityInfo(
+        communityName: String
+    ) async throws -> Components.Schemas.CommunityID {
+        logger.debug("""
+            Fetch community info. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            communityName=\(communityName, privacy: .public)
+            """)
+
+        let response: Components.Schemas.GetCommunityResponse
+        do {
+            response = try await api.getCommunity(name: communityName)
+        } catch {
+            logger.error("""
+                Fetch community info failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                communityName=\(communityName, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        await mirrorCommunityInfoToAppDatabase(view: response.community_view)
+
+        return response.community_view.community.id
+    }
+
+    public func setSubscribed(
+        serverCommunityId: Components.Schemas.CommunityID,
+        subscribed: Bool
+    ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Set subscribed rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                communityId=\(serverCommunityId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Set subscribed=\(subscribed, privacy: .public) \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            communityId=\(serverCommunityId, privacy: .public)
+            """)
+
+        let response: Components.Schemas.CommunityResponse
+        do {
+            response = try await api.followCommunity(communityID: serverCommunityId, follow: subscribed)
+        } catch {
+            logger.error("""
+                Set subscribed failed. communityId=\(serverCommunityId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        await mirrorCommunityInfoToAppDatabase(view: response.community_view)
+    }
+
+    private func mirrorCommunityInfoToAppDatabase(
+        view: Components.Schemas.CommunityView
+    ) async {
+        do {
+            guard let (accountRowId, _) = try await accountSiteIds() else { return }
+            try await appDatabase.upsertCommunity(from: view, accountId: accountRowId)
+        } catch {
+            logger.error("AppDatabase upsertCommunity failed: \(String(describing: error), privacy: .public)")
         }
     }
 

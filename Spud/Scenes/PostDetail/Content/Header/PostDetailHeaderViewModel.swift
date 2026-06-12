@@ -111,8 +111,20 @@ struct PostDetailHeaderViewModel {
             ).url
         }
 
+        var communityAttributes = secondaryHighlightedAttributes
+        if
+            let communityActorId = row.communityActorId,
+            let communityUrl = URL(string: communityActorId),
+            let communityInstance = InstanceActorId(from: communityUrl)
+        {
+            communityAttributes[.link] = URL.SpudInternalLink.community(
+                name: row.communityName,
+                instance: communityInstance
+            ).url
+        }
+
         let inString = NSAttributedString(string: "in ", attributes: secondaryAttributes)
-        let communityName = NSAttributedString(string: row.communityName, attributes: secondaryHighlightedAttributes)
+        let communityName = NSAttributedString(string: row.communityName, attributes: communityAttributes)
         let byString = NSAttributedString(string: " by ", attributes: secondaryAttributes)
         let creator = NSAttributedString(string: row.creatorName, attributes: creatorAttributes)
         attribution = [inString, communityName, byString, creator].joined()

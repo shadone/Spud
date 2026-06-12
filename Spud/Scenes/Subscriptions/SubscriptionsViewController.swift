@@ -16,7 +16,8 @@ class SubscriptionsViewController: UIViewController {
         HasAccountService &
         HasAppDatabase
     typealias NestedDependencies =
-        PostListViewController.Dependencies
+        PostListViewController.Dependencies &
+        CommunityOrLoadingViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
@@ -73,34 +74,38 @@ class SubscriptionsViewController: UIViewController {
     }
 
     private func handle(item: SubscriptionsViewItemType) {
-        let feed: FeedHandle
         switch item {
         case let .listing(listingType):
             let sortType = accountService.defaultSortType(forAccountKeychainId: accountKeychainId)
-            feed = accountService.createFeed(
+            let feed = accountService.createFeed(
                 forAccountKeychainId: accountKeychainId,
                 feedType: .frontpage(
                     listingType: listingType,
                     sortType: sortType
                 )
             )
+            display(feed: feed)
+
         case let .community(row):
-            feed = accountService.createFeed(
-                forAccountKeychainId: accountKeychainId,
-                feedType: .community(
-                    communityName: row.name,
-                    instance: row.instanceActorId,
-                    sortType: .Active
-                )
+            // Open the full community screen (header + feed), not the bare
+            // post list, so subscribe/unsubscribe and the community header are
+            // available from the sidebar too.
+            let communityVC = CommunityOrLoadingViewController(
+                communityName: row.name,
+                instance: row.instanceActorId,
+                accountKeychainId: accountKeychainId,
+                dependencies: dependencies.nested
             )
+            navigationController?.pushViewController(communityVC, animated: true)
+
         case .saved:
             let sortType = accountService.defaultSortType(forAccountKeychainId: accountKeychainId)
-            feed = accountService.createFeed(
+            let feed = accountService.createFeed(
                 forAccountKeychainId: accountKeychainId,
                 feedType: .saved(sortType: sortType)
             )
+            display(feed: feed)
         }
-        display(feed: feed)
     }
 
     private func display(feed: FeedHandle) {

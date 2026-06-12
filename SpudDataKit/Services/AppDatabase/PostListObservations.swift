@@ -24,6 +24,10 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
     public let urlEmbedTitle: String?
     public let urlEmbedDescription: String?
     public let communityName: String
+    /// The community's federation actor id (e.g.
+    /// "https://lemmy.world/c/world"). Used to derive the home instance for a
+    /// community deep link. nil if the community row has no actorId.
+    public let communityActorId: String?
     public let score: Int64
     public let numberOfComments: Int64
     /// 1 = upvoted, 0 = downvoted, nil = no vote.
@@ -72,7 +76,8 @@ public extension AppDatabase {
                             post.isRead            AS isRead,
                             post.isSaved           AS isSaved,
                             post.published         AS published,
-                            community.name         AS communityName
+                            community.name         AS communityName,
+                            community.actorId      AS communityActorId
                         FROM post
                         JOIN pageElement ON pageElement.postId = post.id
                         JOIN page        ON page.id = pageElement.pageId
@@ -92,6 +97,7 @@ public extension AppDatabase {
                         urlEmbedTitle: row["urlEmbedTitle"],
                         urlEmbedDescription: row["urlEmbedDescription"],
                         communityName: row["communityName"] ?? "",
+                        communityActorId: row["communityActorId"],
                         score: row["score"],
                         numberOfComments: row["numberOfComments"],
                         voteStatus: row["voteStatus"],

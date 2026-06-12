@@ -15,6 +15,8 @@ public enum AlertHandlerRequest: String, CustomStringConvertible {
     case fetchPostList
     case fetchComments
     case fetchPersonInfo
+    case fetchCommunityInfo
+    case setSubscribed
     case fetchSiteInfo
     case fetchPostInfo
     case login

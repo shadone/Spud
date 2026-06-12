@@ -23,6 +23,10 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
     public let urlEmbedTitle: String?
     public let urlEmbedDescription: String?
     public let communityName: String
+    /// The community's federation actor id (e.g.
+    /// "https://lemmy.world/c/world"). Used to derive the home instance for a
+    /// community deep link. nil if the community row has no actorId.
+    public let communityActorId: String?
     public let creatorName: String
     public let creatorPersonId: Int64
     public let creatorInstanceActorId: String
@@ -105,6 +109,7 @@ public extension AppDatabase {
                             post.isSaved               AS isSaved,
                             post.published             AS published,
                             community.name             AS communityName,
+                            community.actorId          AS communityActorId,
                             creator.name               AS creatorName,
                             creator.displayName        AS creatorDisplayName,
                             creator.personId           AS creatorPersonId,
@@ -131,6 +136,7 @@ public extension AppDatabase {
                     urlEmbedTitle: row["urlEmbedTitle"],
                     urlEmbedDescription: row["urlEmbedDescription"],
                     communityName: row["communityName"] ?? "",
+                    communityActorId: row["communityActorId"],
                     creatorName: rawCreatorName ?? "",
                     creatorPersonId: row["creatorPersonId"],
                     creatorInstanceActorId: row["creatorInstanceActorId"],
