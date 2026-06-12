@@ -10,6 +10,7 @@ import LemmyKit
 import Observation
 import OSLog
 import SpudDataKit
+import SpudUIKit
 import UIKit
 
 private let logger = Logger.app
@@ -364,8 +365,8 @@ class PostListViewController: UIViewController {
                         backgroundColor: UIColor.blue
                     ),
                     trailingSecondaryAction: .init(
-                        image: UIImage(systemName: "bookmark")!,
-                        backgroundColor: UIColor.green
+                        image: UIImage(systemName: row.isSaved ? "bookmark.slash" : "bookmark")!,
+                        backgroundColor: UIColor.systemYellow
                     )
                 )
 
@@ -375,8 +376,10 @@ class PostListViewController: UIViewController {
                         Task { await self?.vote(serverPostId: serverPostId, action: .upvote) }
                     case .leadingSecondary:
                         Task { await self?.vote(serverPostId: serverPostId, action: .downvote) }
-                    case .trailingPrimary, .trailingSecondary:
+                    case .trailingPrimary:
                         break
+                    case .trailingSecondary:
+                        self?.toggleSaved(serverPostId: serverPostId)
                     }
                 }
 
@@ -399,6 +402,37 @@ class PostListViewController: UIViewController {
                 .vote(serverPostId: Components.Schemas.PostID(serverPostId), vote: action)
         } catch {
             alertService.handle(error, for: .vote)
+        }
+    }
+
+    /// Toggles the saved state for `serverPostId` against its currently
+    /// observed value, gating on sign-in.
+    private func toggleSaved(serverPostId: Int64) {
+        let keychainId = viewModel.accountKeychainId
+        guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
+            Haptics.warning()
+            presentErrorAlert(
+                title: NSLocalizedString("Sign in to save", comment: "Title of the alert shown when a signed-out user tries to save a post"),
+                message: NSLocalizedString(
+                    "You need to be signed in to an account to save posts.",
+                    comment: "Body of the alert shown when a signed-out user tries to save a post"
+                )
+            )
+            return
+        }
+
+        let currentlySaved = rowsByServerPostId[serverPostId]?.isSaved ?? false
+        Task { await setSaved(serverPostId: serverPostId, saved: !currentlySaved) }
+    }
+
+    private func setSaved(serverPostId: Int64, saved: Bool) async {
+        Haptics.tap()
+        do {
+            try await accountService
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                .setSaved(serverPostId: Components.Schemas.PostID(serverPostId), saved: saved)
+        } catch {
+            alertService.handle(error, for: .save)
         }
     }
 
@@ -505,7 +539,17 @@ extension PostListViewController: UITableViewDelegate {
                     Task { await self?.vote(serverPostId: serverPostId, action: .downvote) }
                 }
 
-                return UIMenu(title: "", children: [upvoteAction, downvoteAction])
+                let isSaved = self?.rowsByServerPostId[serverPostId]?.isSaved ?? false
+                let saveAction = UIAction(
+                    title: isSaved
+                        ? NSLocalizedString("Unsave", comment: "Context-menu action to unsave a post")
+                        : NSLocalizedString("Save", comment: "Context-menu action to save a post"),
+                    image: UIImage(systemName: isSaved ? "bookmark.slash" : "bookmark")
+                ) { [weak self] _ in
+                    self?.toggleSaved(serverPostId: serverPostId)
+                }
+
+                return UIMenu(title: "", children: [upvoteAction, downvoteAction, saveAction])
             }
         )
     }

@@ -269,6 +269,15 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v2_savedFlag") { db in
+            try db.alter(table: "post") { t in
+                t.add(column: "isSaved", .boolean).notNull().defaults(to: false)
+            }
+            try db.alter(table: "comment") { t in
+                t.add(column: "isSaved", .boolean).notNull().defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }

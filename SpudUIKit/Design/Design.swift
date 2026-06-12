@@ -14,5 +14,7 @@ public extension Design {
         public static let upvoteButton = SymbolImageResource(systemName: "arrow.up")
 
         public static let downvoteButton = SymbolImageResource(systemName: "arrow.down")
+
+        public static let saveButton = SymbolImageResource(systemName: "bookmark")
     }
 }

@@ -20,6 +20,7 @@ struct PostListPostViewModel {
     let title: NSAttributedString
     let subtitle: NSAttributedString
     let thumbnail: Thumbnail
+    let isSaved: Bool
 
     init(
         row: PostListRow,
@@ -64,7 +65,7 @@ struct PostListPostViewModel {
         }()
 
         let space = NSAttributedString(string: "  ", attributes: secondaryAttributes)
-        let pieces: [NSAttributedString] = [
+        var pieces: [NSAttributedString] = [
             NSAttributedString(string: row.communityName, attributes: communityAttributes),
             space,
             IconValueFormatter.attributedString(
@@ -84,6 +85,18 @@ struct PostListPostViewModel {
                 attributes: secondaryAttributes
             ),
         ]
+
+        isSaved = row.isSaved
+        if row.isSaved {
+            var savedAttributes = secondaryAttributes
+            savedAttributes[.foregroundColor] = UIColor.systemYellow
+            pieces.append(space)
+            pieces.append(NSAttributedString.symbol(
+                from: UIImage(systemName: "bookmark.fill")!,
+                attributes: savedAttributes
+            ))
+        }
+
         subtitle = pieces.joined()
 
         let url = row.url.flatMap { URL(string: $0) }

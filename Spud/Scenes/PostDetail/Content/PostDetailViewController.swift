@@ -9,6 +9,7 @@ import LemmyKit
 import OSLog
 import SafariServices
 import SpudDataKit
+import SpudUIKit
 import UIKit
 
 private let logger = Logger.app
@@ -104,6 +105,7 @@ class PostDetailViewController: UIViewController {
 
     private var dataSource: UITableViewDiffableDataSource<Section, Item>!
     private var isFirstAppearance: Bool = true
+    private var saveBarButtonItem: UIBarButtonItem!
 
     // MARK: Functions
 
@@ -149,7 +151,13 @@ class PostDetailViewController: UIViewController {
             target: self,
             action: #selector(replyToPostTapped)
         )
-        navigationItem.rightBarButtonItems = [openInBrowser, replyToPost]
+        saveBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "bookmark")!,
+            style: .plain,
+            target: self,
+            action: #selector(toggleSavedOnPostTapped)
+        )
+        navigationItem.rightBarButtonItems = [openInBrowser, replyToPost, saveBarButtonItem]
 
         view.addSubview(tableView)
         NSLayoutConstraint.activate([
@@ -206,6 +214,7 @@ class PostDetailViewController: UIViewController {
             for await row in appDatabase.observePostDetailHeader(postRowId: postRowId) {
                 if Task.isCancelled { break }
                 headerRow = row
+                updateSaveBarButton()
                 applySnapshot()
             }
         }
@@ -330,6 +339,69 @@ class PostDetailViewController: UIViewController {
         }
     }
 
+    @objc
+    private func toggleSavedOnPostTapped() {
+        toggleSavedOnPost()
+    }
+
+    private func updateSaveBarButton() {
+        let isSaved = headerRow?.isSaved ?? false
+        saveBarButtonItem.image = UIImage(systemName: isSaved ? "bookmark.fill" : "bookmark")
+    }
+
+    /// Whether the backing account can perform save actions. Signed-out
+    /// accounts get a "Sign in to save" alert and a warning haptic.
+    private func canSaveOrPresentSignInAlert() -> Bool {
+        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+            Haptics.warning()
+            presentErrorAlert(
+                title: NSLocalizedString("Sign in to save", comment: "Title of the alert shown when a signed-out user tries to save"),
+                message: NSLocalizedString(
+                    "You need to be signed in to an account to save posts and comments.",
+                    comment: "Body of the alert shown when a signed-out user tries to save"
+                )
+            )
+            return false
+        }
+        return true
+    }
+
+    private func toggleSavedOnPost() {
+        guard canSaveOrPresentSignInAlert() else { return }
+        let currentlySaved = headerRow?.isSaved ?? false
+        Task { await setSavedOnPost(saved: !currentlySaved) }
+    }
+
+    private func setSavedOnPost(saved: Bool) async {
+        Haptics.tap()
+        do {
+            try await accountService
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                .setSaved(serverPostId: viewModel.serverPostId, saved: saved)
+        } catch {
+            alertService.handle(error, for: .save)
+        }
+    }
+
+    private func toggleSavedOnComment(serverCommentId: Int64) {
+        guard canSaveOrPresentSignInAlert() else { return }
+        let row = commentRowsByElementId.values
+            .first { $0.serverCommentId == serverCommentId }
+        let currentlySaved = (row?.isSaved ?? false) == true
+        Task { await setSavedOnComment(serverCommentId: serverCommentId, saved: !currentlySaved) }
+    }
+
+    private func setSavedOnComment(serverCommentId: Int64, saved: Bool) async {
+        Haptics.tap()
+        do {
+            try await accountService
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                .setSaved(serverCommentId: Components.Schemas.CommentID(serverCommentId), saved: saved)
+        } catch {
+            alertService.handle(error, for: .save)
+        }
+    }
+
     /// Reply to the post itself (a top-level comment).
     private func replyToPost() {
         presentComposer(target: .postReply(serverPostId: viewModel.serverPostId))
@@ -416,6 +488,9 @@ extension PostDetailViewController {
                 cell.downvoteTapped = { [weak self] in
                     Task { await self?.voteOnPost(.downvote) }
                 }
+                cell.saveTapped = { [weak self] in
+                    self?.toggleSavedOnPost()
+                }
                 cell.isBeingConfigured = false
                 return cell
 
@@ -449,8 +524,8 @@ extension PostDetailViewController {
                         backgroundColor: UIColor.blue
                     ),
                     trailingSecondaryAction: .init(
-                        image: UIImage(systemName: "bookmark")!,
-                        backgroundColor: UIColor.green
+                        image: UIImage(systemName: (row.isSaved ?? false) ? "bookmark.slash" : "bookmark")!,
+                        backgroundColor: UIColor.systemYellow
                     )
                 )
 
@@ -464,7 +539,7 @@ extension PostDetailViewController {
                     case .trailingPrimary:
                         self?.replyToComment(serverCommentId: serverCommentId)
                     case .trailingSecondary:
-                        break
+                        self?.toggleSavedOnComment(serverCommentId: serverCommentId)
                     }
                 }
                 return cell
@@ -503,9 +578,11 @@ extension PostDetailViewController: UITableViewDelegate {
         guard
             indexPath.section == 1,
             case let .comment(elementId) = dataSource.itemIdentifier(for: indexPath),
-            let serverCommentId = commentRowsByElementId[elementId]?.serverCommentId
+            let commentRow = commentRowsByElementId[elementId],
+            let serverCommentId = commentRow.serverCommentId
         else { return nil }
 
+        let isSaved = commentRow.isSaved ?? false
         let generalAppearance = appearanceService.general
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
@@ -529,7 +606,15 @@ extension PostDetailViewController: UITableViewDelegate {
                 ) { [weak self] _ in
                     self?.replyToComment(serverCommentId: serverCommentId)
                 }
-                return UIMenu(title: "", children: [upvoteAction, downvoteAction, replyAction])
+                let saveAction = UIAction(
+                    title: isSaved
+                        ? NSLocalizedString("Unsave", comment: "Context-menu action to unsave a comment")
+                        : NSLocalizedString("Save", comment: "Context-menu action to save a comment"),
+                    image: UIImage(systemName: isSaved ? "bookmark.slash" : "bookmark")
+                ) { [weak self] _ in
+                    self?.toggleSavedOnComment(serverCommentId: serverCommentId)
+                }
+                return UIMenu(title: "", children: [upvoteAction, downvoteAction, replyAction, saveAction])
             }
         )
     }

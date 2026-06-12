@@ -18,6 +18,7 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
     public var score: Int64
     public var numberOfUpvotes: Int64
     public var numberOfDownvotes: Int64
+    public var isSaved: Bool
     /// 1 = upvote, 0 = downvote, nil = no vote.
     public var voteStatus: Int64?
     public var originalCommentUrl: String?
@@ -34,6 +35,7 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
         score: Int64 = 0,
         numberOfUpvotes: Int64 = 0,
         numberOfDownvotes: Int64 = 0,
+        isSaved: Bool = false,
         voteStatus: Int64? = nil,
         originalCommentUrl: String? = nil,
         published: Date,
@@ -48,6 +50,7 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
         self.score = score
         self.numberOfUpvotes = numberOfUpvotes
         self.numberOfDownvotes = numberOfDownvotes
+        self.isSaved = isSaved
         self.voteStatus = voteStatus
         self.originalCommentUrl = originalCommentUrl
         self.published = published

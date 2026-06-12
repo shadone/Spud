@@ -30,6 +30,7 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
     public let numberOfComments: Int64
     /// 1 = upvoted, 0 = downvoted, nil = no vote.
     public let voteStatus: Int64?
+    public let isSaved: Bool
     public let published: Date
 }
 
@@ -48,6 +49,8 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
     public let score: Int64
     /// 1 = upvoted, 0 = downvoted, nil = no vote.
     public let voteStatus: Int64?
+    /// nil for "load more" placeholders.
+    public let isSaved: Bool?
     public let published: Date?
     public let creatorName: String?
     public let creatorPersonId: Int64?
@@ -99,6 +102,7 @@ public extension AppDatabase {
                             post.score                 AS score,
                             post.numberOfComments      AS numberOfComments,
                             post.voteStatus            AS voteStatus,
+                            post.isSaved               AS isSaved,
                             post.published             AS published,
                             community.name             AS communityName,
                             creator.name               AS creatorName,
@@ -133,6 +137,7 @@ public extension AppDatabase {
                     score: row["score"],
                     numberOfComments: row["numberOfComments"],
                     voteStatus: row["voteStatus"],
+                    isSaved: row["isSaved"],
                     published: row["published"]
                 )
             }
@@ -169,6 +174,7 @@ public extension AppDatabase {
                             comment.body                   AS body,
                             comment.score                  AS score,
                             comment.voteStatus             AS voteStatus,
+                            comment.isSaved                AS isSaved,
                             comment.published              AS published,
                             creator.name                   AS creatorName,
                             creator.displayName            AS creatorDisplayName,
@@ -194,6 +200,7 @@ public extension AppDatabase {
                         body: row["body"],
                         score: row["score"] ?? 0,
                         voteStatus: row["voteStatus"],
+                        isSaved: row["isSaved"],
                         published: row["published"],
                         creatorName: rawCreatorName,
                         creatorPersonId: row["creatorPersonId"],

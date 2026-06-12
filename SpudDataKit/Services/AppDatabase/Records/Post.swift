@@ -27,6 +27,7 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
     public var numberOfDownvotes: Int64
     public var numberOfComments: Int64
     public var isRead: Bool
+    public var isSaved: Bool
     /// 1 = upvote, 0 = downvote, nil = no vote.
     public var voteStatus: Int64?
     public var published: Date
@@ -51,6 +52,7 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         numberOfDownvotes: Int64 = 0,
         numberOfComments: Int64 = 0,
         isRead: Bool = false,
+        isSaved: Bool = false,
         voteStatus: Int64? = nil,
         published: Date,
         createdAt: Date = Date(),
@@ -73,6 +75,7 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         self.numberOfDownvotes = numberOfDownvotes
         self.numberOfComments = numberOfComments
         self.isRead = isRead
+        self.isSaved = isSaved
         self.voteStatus = voteStatus
         self.published = published
         self.createdAt = createdAt

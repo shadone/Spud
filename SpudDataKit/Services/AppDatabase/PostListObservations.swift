@@ -29,6 +29,7 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
     /// 1 = upvoted, 0 = downvoted, nil = no vote.
     public let voteStatus: Int64?
     public let isRead: Bool
+    public let isSaved: Bool
     public let published: Date
 }
 
@@ -69,6 +70,7 @@ public extension AppDatabase {
                             post.numberOfComments  AS numberOfComments,
                             post.voteStatus        AS voteStatus,
                             post.isRead            AS isRead,
+                            post.isSaved           AS isSaved,
                             post.published         AS published,
                             community.name         AS communityName
                         FROM post
@@ -94,6 +96,7 @@ public extension AppDatabase {
                         numberOfComments: row["numberOfComments"],
                         voteStatus: row["voteStatus"],
                         isRead: row["isRead"],
+                        isSaved: row["isSaved"],
                         published: row["published"]
                     )
                 }

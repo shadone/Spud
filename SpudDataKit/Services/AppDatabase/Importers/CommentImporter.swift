@@ -173,6 +173,7 @@ extension AppDatabase {
         record.score = Int64(view.counts.score)
         record.numberOfUpvotes = Int64(view.counts.upvotes)
         record.numberOfDownvotes = Int64(view.counts.downvotes)
+        record.isSaved = view.saved
 
         switch view.my_vote {
         case 1: record.voteStatus = 1
