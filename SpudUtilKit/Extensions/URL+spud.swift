@@ -27,6 +27,13 @@ public extension URL {
         /// - Note: the instance specifies the Lemmy instance the personId is valid for. I.e. it is **not** the persons home site.
         case post(postId: Int32, instance: InstanceActorId)
 
+        /// Identifies a Community by name, as seen from a given Instance.
+        ///
+        /// - Parameter name: the bare community name, e.g. "world".
+        /// - Parameter instance: Instance actorId the name is resolved against,
+        ///   e.g. "https://lemmy.world".
+        case community(name: String, instance: InstanceActorId)
+
         public var url: URL {
             switch self {
             case let .person(personId, instance):
@@ -46,6 +53,17 @@ public extension URL {
                     fatalError("Failed to url encode '\(self)'")
                 }
                 return URL(string: "info.ddenis.spud://internal/post?postId=\(postId)&instance=\(encodedInstance)")!
+
+            case let .community(name, instance):
+                guard
+                    let encodedName = name
+                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+                    let encodedInstance = instance.actorId
+                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                else {
+                    fatalError("Failed to url encode '\(self)'")
+                }
+                return URL(string: "info.ddenis.spud://internal/community?name=\(encodedName)&instance=\(encodedInstance)")!
             }
         }
     }
@@ -87,6 +105,19 @@ public extension URL {
             }
 
             return .post(postId: postId, instance: instance)
+        } else if components.path == "/community" {
+            guard
+                let name = components.queryItems?
+                .first(where: { $0.name == "name" })?.value,
+                let instanceString = components.queryItems?
+                .first(where: { $0.name == "instance" })?.value,
+                let instance = InstanceActorId(from: instanceString)
+            else {
+                logger.warning("Invalid internal link: \(absoluteString, privacy: .public)")
+                return nil
+            }
+
+            return .community(name: name, instance: instance)
         }
 
         logger.warning("Invalid internal link: \(absoluteString, privacy: .public)")

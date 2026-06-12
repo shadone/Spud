@@ -52,6 +52,10 @@ class AppCoordinator {
             // TODO: open PersonVC
             break
 
+        case .community:
+            // TODO: open CommunityVC
+            break
+
         case .none:
             logger.error("Received open url request for url that we can't handle: \(url.absoluteString, privacy: .public)")
         }

@@ -25,7 +25,8 @@ class PostDetailViewController: UIViewController {
         HasPostContentDetectorService &
         HasPreferencesService
     typealias NestedDependencies =
-        PersonOrLoadingViewController.Dependencies
+        PersonOrLoadingViewController.Dependencies &
+        CommunityOrLoadingViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
@@ -299,6 +300,15 @@ class PostDetailViewController: UIViewController {
         case let .person(personId, instance):
             let vc = PersonOrLoadingViewController(
                 personId: personId,
+                instance: instance,
+                accountKeychainId: viewModel.accountKeychainId,
+                dependencies: dependencies.nested
+            )
+            navigationController?.pushViewController(vc, animated: true)
+
+        case let .community(name, instance):
+            let vc = CommunityOrLoadingViewController(
+                communityName: name,
                 instance: instance,
                 accountKeychainId: viewModel.accountKeychainId,
                 dependencies: dependencies.nested

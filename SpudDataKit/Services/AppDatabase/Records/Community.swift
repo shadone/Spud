@@ -24,6 +24,12 @@ public struct CommunityRecord: Codable, Sendable, Equatable, Identifiable {
     public var isNsfw: Bool
     public var isPostingRestrictedToMods: Bool
     public var isRemoved: Bool
+    /// Lemmy `SubscribedType` raw value: "Subscribed" / "NotSubscribed" /
+    /// "Pending". Stored as text; map via ``subscribedState``.
+    public var subscribedState: String
+    public var numberOfSubscribers: Int64
+    public var numberOfPosts: Int64
+    public var numberOfComments: Int64
     public var communityCreatedDate: Date?
     public var communityUpdatedDate: Date?
     public var createdAt: Date
@@ -44,6 +50,10 @@ public struct CommunityRecord: Codable, Sendable, Equatable, Identifiable {
         isNsfw: Bool = false,
         isPostingRestrictedToMods: Bool = false,
         isRemoved: Bool = false,
+        subscribedState: String = CommunitySubscribedState.notSubscribed.rawValue,
+        numberOfSubscribers: Int64 = 0,
+        numberOfPosts: Int64 = 0,
+        numberOfComments: Int64 = 0,
         communityCreatedDate: Date? = nil,
         communityUpdatedDate: Date? = nil,
         createdAt: Date = Date(),
@@ -63,6 +73,10 @@ public struct CommunityRecord: Codable, Sendable, Equatable, Identifiable {
         self.isNsfw = isNsfw
         self.isPostingRestrictedToMods = isPostingRestrictedToMods
         self.isRemoved = isRemoved
+        self.subscribedState = subscribedState
+        self.numberOfSubscribers = numberOfSubscribers
+        self.numberOfPosts = numberOfPosts
+        self.numberOfComments = numberOfComments
         self.communityCreatedDate = communityCreatedDate
         self.communityUpdatedDate = communityUpdatedDate
         self.createdAt = createdAt
@@ -73,6 +87,39 @@ public struct CommunityRecord: Codable, Sendable, Equatable, Identifiable {
 extension CommunityRecord: FetchableRecord, MutablePersistableRecord {
     public mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
+    }
+}
+
+/// Stable mirror of LemmyKit's generated `SubscribedType`, decoupled from the
+/// OpenAPI namespace so UI / persistence code can switch over the persisted
+/// `CommunityRecord.subscribedState` text without importing LemmyKit.
+public enum CommunitySubscribedState: String, Sendable, Equatable {
+    case subscribed = "Subscribed"
+    case notSubscribed = "NotSubscribed"
+    case pending = "Pending"
+
+    /// True when the account is subscribed (or has a pending request). Used to
+    /// decide whether a community appears in the followed-communities sidebar
+    /// and how the Subscribe/Unsubscribe toggle should behave.
+    public var isSubscribed: Bool {
+        switch self {
+        case .subscribed, .pending: true
+        case .notSubscribed: false
+        }
+    }
+}
+
+public extension CommunityRecord {
+    /// Typed view of ``subscribedState``. Defaults to `.notSubscribed` if the
+    /// stored text is unrecognised.
+    var subscribed: CommunitySubscribedState {
+        CommunitySubscribedState(rawValue: subscribedState) ?? .notSubscribed
+    }
+
+    /// True when the account is subscribed (i.e. the row should appear in the
+    /// followed-communities sidebar). Pending counts as subscribed.
+    var isSubscribed: Bool {
+        subscribed.isSubscribed
     }
 }
 

@@ -151,6 +151,25 @@ public extension AppDatabase {
         return makeStream(observation: observation)
     }
 
+    /// Stream of a single community row for `accountId` identified by its
+    /// server-side `serverCommunityId`. Yields nil until the community has been
+    /// imported, and again on every change (e.g. a subscribe/unsubscribe that
+    /// updates `subscribedState`).
+    func observeCommunity(
+        forAccountId accountId: Int64,
+        serverCommunityId: Int64
+    ) -> AsyncStream<CommunityRecord?> {
+        let observation = ValueObservation
+            .tracking { db in
+                try CommunityRecord
+                    .filter(Column("accountId") == accountId)
+                    .filter(Column("communityId") == serverCommunityId)
+                    .fetchOne(db)
+            }
+            .removeDuplicates()
+        return makeStream(observation: observation)
+    }
+
     private func makeStream<Value: Sendable & Equatable>(
         observation: ValueObservation<ValueReducers.RemoveDuplicates<ValueReducers.Fetch<Value>>>
     ) -> AsyncStream<Value> {
