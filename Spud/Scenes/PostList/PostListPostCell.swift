@@ -7,6 +7,7 @@
 import Foundation
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 class PostListPostCell: UITableViewCell {
@@ -281,6 +282,9 @@ class PostListPostCell: UITableViewCell {
             tappableThumbnailUrl = nil
         case let .image(thumbnailUrl):
             thumbnailView.thumbnailType = .none
+            // The inline thumbnail shows a static frame; badge animated posts
+            // so they read as playable in the feed.
+            thumbnailView.badgeText = viewModel.fullImageUrl?.isAnimatedImage == true ? "GIF" : nil
             // A tappable image preview: expose it as an image element that
             // opens the full-size viewer.
             thumbnailView.isAccessibilityElement = true
