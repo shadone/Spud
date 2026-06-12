@@ -89,6 +89,16 @@ struct PreferencesGeneralView: View {
             }
 
             Section {
+                NavigationLink {
+                    PreferencesSwipeActionsView(viewModel: viewModel)
+                } label: {
+                    Label("Swipe Actions", systemImage: "hand.draw")
+                }
+            } header: {
+                Text("Gestures")
+            }
+
+            Section {
                 VStack(alignment: .leading) {
                     Picker("Open External Links in", selection: openExternalLinks) {
                         ForEach(Preferences.OpenExternalLink.allCases) { link in

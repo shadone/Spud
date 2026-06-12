@@ -11,6 +11,7 @@ import Observation
 import OSLog
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 private let logger = Logger.app
@@ -22,7 +23,8 @@ class PostListViewController: UIViewController {
         HasAppDatabase &
         HasAppearanceService &
         HasImageService &
-        HasPostContentDetectorService
+        HasPostContentDetectorService &
+        HasPreferencesService
     typealias NestedDependencies =
         PostDetailViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
@@ -46,6 +48,10 @@ class PostListViewController: UIViewController {
 
     var imageService: ImageServiceType {
         dependencies.own.imageService
+    }
+
+    var preferencesService: PreferencesServiceType {
+        dependencies.own.preferencesService
     }
 
     // MARK: Public
@@ -95,6 +101,12 @@ class PostListViewController: UIViewController {
     private var observationTask: Task<Void, Never>?
     private var titleObservationTask: Task<Void, Never>?
     private var loadingObservationTask: Task<Void, Never>?
+    private var swipeActionsObservationTask: Task<Void, Never>?
+
+    /// The active post swipe-action config, sanitized for posts. Seeded from
+    /// the preference and kept live via `swipeActionsObservationTask`; changes
+    /// reconfigure visible cells.
+    private var swipeActionConfig: SwipeActionConfig = .defaultPosts
 
     var sortTypeBarButtonItem: UIBarButtonItem!
     var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
@@ -112,6 +124,10 @@ class PostListViewController: UIViewController {
 
         super.init(nibName: nil, bundle: nil)
 
+        swipeActionConfig = dependencies.preferencesService
+            .postSwipeActions
+            .sanitized(for: .post)
+
         setup()
         navigationItem.title = viewModel.navigationTitle
     }
@@ -125,6 +141,7 @@ class PostListViewController: UIViewController {
         observationTask?.cancel()
         titleObservationTask?.cancel()
         loadingObservationTask?.cancel()
+        swipeActionsObservationTask?.cancel()
     }
 
     private func setup() {
@@ -196,6 +213,18 @@ class PostListViewController: UIViewController {
     private func startObservations() {
         titleObservationTask?.cancel()
         loadingObservationTask?.cancel()
+        swipeActionsObservationTask?.cancel()
+
+        swipeActionsObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await config in preferencesService.postSwipeActionsStream {
+                if Task.isCancelled { break }
+                let sanitized = config.sanitized(for: .post)
+                guard sanitized != swipeActionConfig else { continue }
+                swipeActionConfig = sanitized
+                reconfigureVisibleSwipeActions()
+            }
+        }
 
         let viewModel = viewModel
         titleObservationTask = Task { @MainActor [weak self] in
@@ -463,36 +492,15 @@ class PostListViewController: UIViewController {
                 }
 
                 let general = appearance.general
-                cell.swipeActionConfiguration = .init(
-                    leadingPrimaryAction: .init(
-                        image: general.upvoteIcon,
-                        backgroundColor: general.upvoteSwipeActionBackgroundColor
-                    ),
-                    leadingSecondaryAction: .init(
-                        image: general.downvoteIcon,
-                        backgroundColor: general.downvoteSwipeActionBackgroundColor
-                    ),
-                    trailingPrimaryAction: .init(
-                        image: UIImage(systemName: "arrowshape.turn.up.backward")!,
-                        backgroundColor: UIColor.blue
-                    ),
-                    trailingSecondaryAction: .init(
-                        image: UIImage(systemName: row.isSaved ? "bookmark.slash" : "bookmark")!,
-                        backgroundColor: UIColor.systemYellow
-                    )
+                cell.swipeActionConfiguration = self?.swipeActionConfig.viewConfiguration(
+                    state: Self.swipeState(for: row),
+                    appearance: general
                 )
 
-                cell.swipeActionTriggered = { [weak self] action in
-                    switch action {
-                    case .leadingPrimary:
-                        Task { await self?.vote(serverPostId: serverPostId, action: .upvote) }
-                    case .leadingSecondary:
-                        Task { await self?.vote(serverPostId: serverPostId, action: .downvote) }
-                    case .trailingPrimary:
-                        break
-                    case .trailingSecondary:
-                        self?.toggleSaved(serverPostId: serverPostId)
-                    }
+                cell.swipeActionTriggered = { [weak self] trigger in
+                    guard let self else { return }
+                    let action = swipeActionConfig.action(for: SwipeActionSlot(trigger: trigger))
+                    performSwipeAction(action, serverPostId: serverPostId)
                 }
 
                 return cell
@@ -504,6 +512,71 @@ class PostListViewController: UIViewController {
                 )
             }
         }
+    }
+
+    /// The current toggle state a row exposes to the swipe presentation layer,
+    /// so e.g. the save slot shows "unsave" when already saved.
+    private static func swipeState(for row: PostListRow) -> SwipeActionState {
+        SwipeActionState(
+            isSaved: row.isSaved,
+            isUpvoted: row.voteStatus == 1,
+            isDownvoted: row.voteStatus == 0
+        )
+    }
+
+    /// Dispatches a configured swipe action for a post to its existing handler.
+    /// `.none` and comment-only actions (already sanitized out for posts) are
+    /// no-ops.
+    private func performSwipeAction(_ action: SwipeAction, serverPostId: Int64) {
+        switch action {
+        case .none, .collapse:
+            break
+        case .upvote:
+            Task { await vote(serverPostId: serverPostId, action: .upvote) }
+        case .downvote:
+            Task { await vote(serverPostId: serverPostId, action: .downvote) }
+        case .save:
+            toggleSaved(serverPostId: serverPostId)
+        case .reply:
+            replyToPost(serverPostId: serverPostId)
+        case .share:
+            sharePost(serverPostId: serverPostId)
+        }
+    }
+
+    /// Re-applies the diffable snapshot's currently visible items so each cell
+    /// rebuilds its swipe configuration from the updated `swipeActionConfig`.
+    private func reconfigureVisibleSwipeActions() {
+        guard dataSource != nil else { return }
+        var snapshot = dataSource.snapshot()
+        let items = snapshot.itemIdentifiers
+        guard !items.isEmpty else { return }
+        snapshot.reconfigureItems(items)
+        dataSource.apply(snapshot, animatingDifferences: false)
+    }
+
+    /// Opens the composer to reply to the post (a top-level comment), gating on
+    /// sign-in.
+    private func replyToPost(serverPostId: Int64) {
+        let keychainId = viewModel.accountKeychainId
+        guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
+            Haptics.warning()
+            presentErrorAlert(
+                title: NSLocalizedString("Sign in to comment", comment: "Title of the alert shown when a signed-out user tries to comment"),
+                message: NSLocalizedString(
+                    "You need to be signed in to an account to post comments.",
+                    comment: "Body of the alert shown when a signed-out user tries to comment"
+                )
+            )
+            return
+        }
+        Haptics.tap()
+        let composer = ComposerViewController.makeSheet(
+            target: .postReply(serverPostId: Components.Schemas.PostID(serverPostId)),
+            accountKeychainId: keychainId,
+            dependencies: dependencies.own
+        )
+        present(composer, animated: true)
     }
 
     private func vote(serverPostId: Int64, action: VoteStatus.Action) async {

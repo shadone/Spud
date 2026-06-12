@@ -182,6 +182,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.SpudDataKitTests
     dependencies:
       - target: SpudDataKit
+      - target: SpudUtilKit
 
   SpudUtilKitTests:
     type: bundle.unit-test

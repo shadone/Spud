@@ -35,6 +35,16 @@ protocol PreferencesServiceType: AnyObject {
 
     /// When opening external link first check if it's a universal link first and then open it in the app.
     var openUniversalLinkInApp: Bool { get set }
+
+    /// The user-assigned swipe actions for post cells. Defaults reproduce the
+    /// pre-M8 hardcoded behaviour (``SwipeActionConfig/defaultPosts``).
+    var postSwipeActions: SwipeActionConfig { get set }
+    var postSwipeActionsStream: AsyncStream<SwipeActionConfig> { get }
+
+    /// The user-assigned swipe actions for comment cells. Defaults reproduce
+    /// the pre-M8 hardcoded behaviour (``SwipeActionConfig/defaultComments``).
+    var commentSwipeActions: SwipeActionConfig { get set }
+    var commentSwipeActionsStream: AsyncStream<SwipeActionConfig> { get }
 }
 
 @MainActor
@@ -81,4 +91,18 @@ class PreferencesService: PreferencesServiceType {
 
     @UserDefaultsBacked(key: "openUniversalLinkInApp")
     var openUniversalLinkInApp: Bool = true
+
+    @UserDefaultsBacked(key: "postSwipeActions")
+    var postSwipeActions: SwipeActionConfig = .defaultPosts
+
+    var postSwipeActionsStream: AsyncStream<SwipeActionConfig> {
+        $postSwipeActions
+    }
+
+    @UserDefaultsBacked(key: "commentSwipeActions")
+    var commentSwipeActions: SwipeActionConfig = .defaultComments
+
+    var commentSwipeActionsStream: AsyncStream<SwipeActionConfig> {
+        $commentSwipeActions
+    }
 }
