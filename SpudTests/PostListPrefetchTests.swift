@@ -77,4 +77,55 @@ final class PostListPrefetchTests: XCTestCase {
         )
         XCTAssertNil(url)
     }
+
+    func test_externalLinkWithEmbedThumbnail_prefetchesTheThumbnail() {
+        let url = PostListPostViewModel.prefetchThumbnailUrl(
+            for: row(
+                url: "https://example.test/article",
+                thumbnailUrl: "https://example.test/embed.jpg"
+            ),
+            postContentDetector: detector
+        )
+        XCTAssertEqual(url?.absoluteString, "https://example.test/embed.jpg")
+    }
+
+    // MARK: thumbnail kind
+
+    func test_thumbnail_imagePost_isImage() throws {
+        let (thumbnail, fullImageUrl) = PostListPostViewModel.thumbnail(
+            for: row(url: "https://example.test/cat.jpg", thumbnailUrl: nil),
+            postContentDetector: detector
+        )
+        XCTAssertEqual(thumbnail, try .image(thumbnailUrl: XCTUnwrap(URL(string: "https://example.test/cat.jpg"))))
+        XCTAssertEqual(fullImageUrl?.absoluteString, "https://example.test/cat.jpg")
+    }
+
+    func test_thumbnail_externalLinkWithEmbed_isLinkImage_andHasNoFullImage() throws {
+        let (thumbnail, fullImageUrl) = PostListPostViewModel.thumbnail(
+            for: row(
+                url: "https://example.test/article",
+                thumbnailUrl: "https://example.test/embed.jpg"
+            ),
+            postContentDetector: detector
+        )
+        XCTAssertEqual(thumbnail, try .linkImage(thumbnailUrl: XCTUnwrap(URL(string: "https://example.test/embed.jpg"))))
+        XCTAssertNil(fullImageUrl, "a link preview does not open the image viewer")
+    }
+
+    func test_thumbnail_externalLinkWithoutEmbed_isText() {
+        let (thumbnail, _) = PostListPostViewModel.thumbnail(
+            for: row(url: "https://example.test/article", thumbnailUrl: nil),
+            postContentDetector: detector
+        )
+        XCTAssertEqual(thumbnail, .text)
+    }
+
+    func test_thumbnail_textPost_isText() {
+        let (thumbnail, fullImageUrl) = PostListPostViewModel.thumbnail(
+            for: row(url: nil, thumbnailUrl: nil),
+            postContentDetector: detector
+        )
+        XCTAssertEqual(thumbnail, .text)
+        XCTAssertNil(fullImageUrl)
+    }
 }
