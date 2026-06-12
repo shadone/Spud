@@ -35,6 +35,34 @@ public protocol AccountServiceType: AnyObject {
         password: String
     ) async throws
 
+    /// Register a new account on `instance`. On a JWT-bearing response the
+    /// credential is stored and the account marked default (mirroring
+    /// `login`), returning `.loggedIn`. When the instance returns a pending
+    /// state (admin approval / email verification), no credential is stored
+    /// and the matching `.applicationPending` / `.verifyEmail` / `.pending`
+    /// result is returned for the UI to surface. Throws
+    /// `AccountServiceRegisterError` on rejection.
+    ///
+    /// `captchaUuid` / `captchaAnswer` are passed through when the instance
+    /// requires a captcha; the no-captcha path (the common case) needs neither.
+    func register(
+        atInstance instance: InstanceActorId,
+        username: String,
+        email: String?,
+        password: String,
+        passwordVerify: String,
+        showNsfw: Bool,
+        captchaUuid: String?,
+        captchaAnswer: String?,
+        answer: String?
+    ) async throws -> AccountServiceRegisterResult
+
+    /// Logs out the account matching `keychainId`: removes its keychain
+    /// credential and database row, then switches the default account to
+    /// another registered account (or the signed-out account for the same
+    /// instance). No-op for a signed-out account.
+    func logout(forAccountKeychainId keychainId: String)
+
     /// Returns the `accountKeychainId` of the account that is shown on app
     /// launch. Bootstraps a signed-out default on first launch.
     func defaultAccountKeychainId() -> String
@@ -363,8 +391,64 @@ public class AccountService: AccountServiceType {
         guard let jwt = response.jwt else {
             throw AccountServiceLoginError.missingJwt
         }
-        let credential = LemmyCredential(jwt: jwt)
+        try await storeSignedInCredential(LemmyCredential(jwt: jwt), atInstance: instance)
+        // Username and Person row land asynchronously via the next
+        // SchedulerService tick (`signedInAccountsAwaitingMyUserInfo`).
+    }
 
+    public func register(
+        atInstance instance: InstanceActorId,
+        username: String,
+        email: String?,
+        password: String,
+        passwordVerify: String,
+        showNsfw: Bool,
+        captchaUuid: String?,
+        captchaAnswer: String?,
+        answer: String?
+    ) async throws -> AccountServiceRegisterResult {
+        guard let url = instance.url else {
+            fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
+        }
+
+        // Temporary unauthenticated api for the registration request.
+        let api = LemmyApi(instanceUrl: url, credential: nil)
+
+        let response: Components.Schemas.LoginResponse
+        do {
+            response = try await api.register(
+                username: username,
+                password: password,
+                passwordVerify: passwordVerify,
+                email: email,
+                showNsfw: showNsfw,
+                captchaUuid: captchaUuid,
+                captchaAnswer: captchaAnswer,
+                answer: answer
+            )
+        } catch {
+            let error = AccountServiceRegisterError(from: error)
+            logger.error("""
+                Register failed. instance=\(instance.actorId, privacy: .public). \
+                username=\(username, privacy: .sensitive(mask: .hash))
+                \(String(describing: error), privacy: .public)
+                """)
+            throw error
+        }
+
+        let result = AccountServiceRegisterResult(response: response)
+        if case .loggedIn = result, let jwt = response.jwt {
+            try await storeSignedInCredential(LemmyCredential(jwt: jwt), atInstance: instance)
+        }
+        return result
+    }
+
+    /// Shared tail of `login` / `register`: creates the account row, marks it
+    /// default, and writes the credential to the keychain.
+    private func storeSignedInCredential(
+        _ credential: LemmyCredential,
+        atInstance instance: InstanceActorId
+    ) async throws {
         let keychainId = UUID().uuidString
         let (_, siteId) = try await appDatabase.ensureSite(forInstance: instance)
         _ = try await appDatabase.ensureAccount(
@@ -375,8 +459,37 @@ public class AccountService: AccountServiceType {
         )
         try await appDatabase.setDefaultAccount(keychainId: keychainId)
         writeCredential(credential, forKeychainId: keychainId)
-        // Username and Person row land asynchronously via the next
-        // SchedulerService tick (`signedInAccountsAwaitingMyUserInfo`).
+    }
+
+    public func logout(forAccountKeychainId keychainId: String) {
+        assert(Thread.current.isMainThread)
+
+        guard !isSignedOut(forAccountKeychainId: keychainId) else {
+            logger.debug("logout no-op for signed-out account")
+            return
+        }
+
+        // Pick the account to fall back to before removing this one.
+        let instanceActorId = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId)
+        let fallbackKeychainId = appDatabase.fallbackAccountKeychainIdSync(excludingKeychainId: keychainId)
+
+        // Drop the cached service so a stale authenticated api isn't reused.
+        lemmyServices[keychainId] = nil
+
+        deleteCredential(forKeychainId: keychainId)
+        do {
+            try appDatabase.deleteAccountSync(keychainId: keychainId)
+        } catch {
+            logger.error("logout failed to delete account row: \(error.localizedDescription, privacy: .public)")
+        }
+
+        // Switch the default to another account, or the signed-out account on
+        // the same instance, so the app is never left without a default.
+        if let fallbackKeychainId {
+            setDefaultAccount(forAccountKeychainId: fallbackKeychainId)
+        } else if let instanceActorId, let instance = InstanceActorId(from: instanceActorId) {
+            signInAsSignedOut(atInstance: instance)
+        }
     }
 }
 
@@ -403,6 +516,15 @@ extension AccountService {
             logger.debug("Saved credential into keychain")
         } catch {
             logger.error("Failed to save credential into keychain: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private func deleteCredential(forKeychainId keychainId: String) {
+        do {
+            try keychain.remove(keychainId)
+            logger.debug("Removed credential from keychain")
+        } catch {
+            logger.error("Failed to remove credential from keychain: \(error.localizedDescription, privacy: .public)")
         }
     }
 

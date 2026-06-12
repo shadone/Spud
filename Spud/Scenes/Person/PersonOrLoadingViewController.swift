@@ -89,6 +89,8 @@ class PersonOrLoadingViewController: UIViewController {
         case let .person(personRowId):
             let contentViewController = PersonViewController(
                 personRowId: personRowId,
+                serverPersonId: serverPersonId,
+                accountKeychainId: accountKeychainId,
                 dependencies: dependencies.nested
             )
             newViewController = contentViewController
