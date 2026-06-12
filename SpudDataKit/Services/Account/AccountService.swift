@@ -63,6 +63,13 @@ public protocol AccountServiceType: AnyObject {
     /// instance). No-op for a signed-out account.
     func logout(forAccountKeychainId keychainId: String)
 
+    /// Removes the account matching `keychainId` from the account list: deletes
+    /// its database row (and keychain credential, if signed in). Unlike
+    /// `logout`, this also removes signed-out accounts, and it only re-points
+    /// the default when the removed account was itself the default — so deleting
+    /// a non-active account doesn't switch the user away from the one in use.
+    func removeAccount(forAccountKeychainId keychainId: String)
+
     /// Returns the `accountKeychainId` of the account that is shown on app
     /// launch. Bootstraps a signed-out default on first launch.
     func defaultAccountKeychainId() -> String
@@ -505,6 +512,41 @@ public class AccountService: AccountServiceType {
 
         // Switch the default to another account, or the signed-out account on
         // the same instance, so the app is never left without a default.
+        if let fallbackKeychainId {
+            setDefaultAccount(forAccountKeychainId: fallbackKeychainId)
+        } else if let instanceActorId, let instance = InstanceActorId(from: instanceActorId) {
+            signInAsSignedOut(atInstance: instance)
+        }
+    }
+
+    public func removeAccount(forAccountKeychainId keychainId: String) {
+        assert(Thread.current.isMainThread)
+
+        let wasDefault = defaultAccountKeychainId() == keychainId
+
+        // Resolve a fallback before removing, in case this was the default.
+        let instanceActorId = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId)
+        let fallbackKeychainId = appDatabase.fallbackAccountKeychainIdSync(excludingKeychainId: keychainId)
+
+        // Drop the cached service so a stale authenticated api isn't reused.
+        lemmyServices[keychainId] = nil
+
+        // Signed-out accounts have no keychain credential to clear.
+        if !isSignedOut(forAccountKeychainId: keychainId) {
+            deleteCredential(forKeychainId: keychainId)
+        }
+
+        do {
+            try appDatabase.deleteAccountSync(keychainId: keychainId)
+        } catch {
+            logger.error("removeAccount failed to delete account row: \(error.localizedDescription, privacy: .public)")
+        }
+
+        // Only re-point the default when the removed account was the active one,
+        // so deleting a non-active account leaves the current selection intact.
+        // The app is never left without a default: there's a fallback, or we
+        // recreate the signed-out account for the same instance.
+        guard wasDefault else { return }
         if let fallbackKeychainId {
             setDefaultAccount(forAccountKeychainId: fallbackKeychainId)
         } else if let instanceActorId, let instance = InstanceActorId(from: instanceActorId) {
