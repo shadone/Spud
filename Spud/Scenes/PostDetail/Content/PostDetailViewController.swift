@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Down
 import Foundation
 import LemmyKit
 import OSLog
@@ -353,6 +354,16 @@ class PostDetailViewController: UIViewController {
                 if Task.isCancelled { break }
                 commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
                 viewModel.updateOrderedComments(rows)
+
+                // Parse and cache every comment body off the main thread before
+                // the cells are configured, so cell dequeue is a cache hit
+                // instead of a synchronous cmark parse on the scroll path.
+                await Self.prewarmCommentBodies(
+                    rows,
+                    textSizeAdjustment: appearanceService.postDetail.textSizeAdjustment
+                )
+                if Task.isCancelled { break }
+
                 applySnapshot()
                 if !hasReceivedFirstSnapshot {
                     hasReceivedFirstSnapshot = true
@@ -381,6 +392,33 @@ class PostDetailViewController: UIViewController {
         let animate = animated && !UIAccessibility.isReduceMotionEnabled
         dataSource.apply(snapshot, animatingDifferences: animate)
         updateJumpButtonVisibility()
+    }
+
+    /// Renders and caches every comment body into `MarkdownRenderer` off the main
+    /// thread. Declared `nonisolated async` so its body runs on the cooperative
+    /// pool (Swift 6 language mode) rather than the main actor; it captures only
+    /// `Sendable` values (the rows and the text-size adjustment). Cell dequeue
+    /// then hits the warm cache instead of parsing cmark on the scroll path.
+    private nonisolated static func prewarmCommentBodies(
+        _ rows: [PostDetailCommentRow],
+        textSizeAdjustment: CGFloat
+    ) async {
+        for row in rows {
+            if Task.isCancelled { return }
+            guard let body = row.body, !body.isEmpty else { continue }
+            MarkdownRenderer.shared.attributedString(
+                markdown: body,
+                key: MarkdownRenderer.postBodyKey(
+                    markdown: body,
+                    textSizeAdjustment: textSizeAdjustment
+                ),
+                makeStyler: {
+                    DownStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(
+                        for: textSizeAdjustment
+                    ))
+                }
+            )
+        }
     }
 
     // MARK: - Collapse
