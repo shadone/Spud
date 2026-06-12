@@ -205,13 +205,22 @@ Follow-up (small): composer has no live markdown **preview pane** yet (surface i
 
 ## Store-blocker checklist (gates first upload — from M0)
 
-- [ ] B1 App icon present (app + widget, incl. 1024).
-- [ ] B2 `SBTUITestTunnelServer` not linked into the app binary.
-- [ ] B3 `PrivacyInfo.xcprivacy` present and accurate.
-- [ ] S1 `ITSAppUsesNonExemptEncryption = NO`.
-- [ ] S2 Final name + `CFBundleDisplayName`.
-- [ ] S3 Privacy-policy URL + support URL exist (web pages).
-- [ ] S4 `LSApplicationCategoryType` set.
+- [x] B1 App icon present (app + widget, incl. 1024) + 4 selectable alternates.
+- [~] B2 `SBTUITestTunnelServer` linkage. **Runtime-safe today**: `takeOff()` is `#if DEBUG`,
+      so the embedded GCDWebServer never opens a socket in Release — no auto-reject risk from a
+      running listener. **But** the library still ships in the Release binary (verified: a
+      Release build contains ~229 SBT/GCDWebServer symbols). Root cause: SwiftPM links static
+      products wholesale and XcodeGen 2.45 can't scope a package product to one configuration
+      (`link: false` also removes the module, breaking the Debug `import`). To get it fully out
+      of the archive, pick one at M9: (a) wrap the server in a Debug-only dynamic framework the
+      app embeds only in Debug; (b) move UI-test tunneling to a mechanism that doesn't embed a
+      server in the app; or (c) drop the `import` and call `takeOff` via the Obj-C runtime with a
+      Debug-only manual `-l` link + explicit search path. See the note in `project.yml`.
+- [x] B3 `PrivacyInfo.xcprivacy` present and accurate.
+- [x] S1 `ITSAppUsesNonExemptEncryption = NO`.
+- [x] S2 Final name + `CFBundleDisplayName` (Spud).
+- [ ] S3 Privacy-policy URL + support URL exist (web pages) — needs hosted pages.
+- [x] S4 `LSApplicationCategoryType` set (social-networking).
 
 ## Cross-cutting (apply every milestone)
 
