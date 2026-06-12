@@ -6,7 +6,7 @@ Apollo for Reddit** — see `DESIGN.md` for the quality bar every feature is bui
 Scope decision (2026-06-12): **Full parity** before first submission; **active build target:
 M1–M5 + adjacent UX-polish**, feature-by-feature, each increment verified and committed.
 
-## Build progress — M1–M5 shipped (2026-06-12, on branch `app-store-prep`)
+## Build progress — M1–M6 + M8 shipped (2026-06-12, on branch `app-store-prep`)
 
 All verified (build + tests green; final full test plan passed across all targets) and committed
 in focused paired commits (Spud + LemmyKit). Every feature built to the `DESIGN.md` Apollo bar
@@ -20,12 +20,19 @@ in focused paired commits (Spud + LemmyKit). Every feature built to the `DESIGN.
 - **M4** inbox (replies/mentions), private-message threads, live unread badge.
 - **M5** new-post composer, pict-rs image upload (hand-written multipart, unit-tested),
   full-screen media viewer (zoom/pan/swipe-to-dismiss/save/share).
+- **M6** block/unblock (person + community) + blocked-list management, report post/comment,
+  hide/mark-read filter wired end to end, moderator/admin actions gated by site capability.
+- **M8** theme system (light/dark/true-black OLED + accent), post/comment density, thumbnail
+  side, selectable app icons, configurable swipe actions, Acknowledgements, `LinkLabel`
+  VoiceOver pass, and the **iPad + landscape split-view handoff** (collapse/expand keeps the
+  detail on screen; regression-tested on a Max-class iPhone). `OpenInAppExtension` routes real
+  Lemmy URLs into the app via the `info.ddenis.spud://internal/...` deep-link path.
 - **Adjacent UX**: comment tap/swipe collapse + depth rails + jump-to-next, shared `Haptics`,
   markdown editor, app-wide empty states.
 
-Out of M1–M5 scope (queued): M6 moderation/block/report/hide, M7 push (deferred to v1.1), M8
-customization/themes/configurable-swipes, M9 archive + metadata + **B2** (SBT-server out of the
-Release binary, Debug-only linkage — archive-stage). Smaller follow-ups noted per-section below.
+Out of shipped scope: M7 push (deferred to v1.1), M9 archive + metadata + **B2** (SBT-server out
+of the Release binary, Debug-only linkage — archive-stage). Smaller follow-ups noted per-section
+below.
 
 Status baseline (verified 2026-06-12):
 
@@ -160,13 +167,13 @@ Follow-up (small): composer has no live markdown **preview pane** yet (surface i
 - [ ] **Image upload** to pict-rs (depends on M1 spike); attach to posts and comments.
 - [ ] **Full-screen image viewer** (zoom/pan/share/save) for thumbnails and inline images.
 
-### M6 — Safety & moderation — ~1.5–2 weeks
-- [ ] **Block / unblock** person and community; blocked-list management in settings.
-- [ ] **Report** post and comment (`createPostReport`/`createCommentReport`).
-- [ ] **Hide / mark-read** behaviour: implement the currently-stubbed preference logic
-      (`PreferencesPostMarkingAndHidingView`) end to end, or remove if descoped.
-- [ ] **Moderation actions** for mods/admins: remove/lock/feature/distinguish, ban from
-      community, mod-only views. Gate by permission from site/community info.
+### M6 — Safety & moderation — DONE 2026-06-12
+- [x] **Block / unblock** person and community; blocked-list management in settings.
+- [x] **Report** post and comment (`createPostReport`/`createCommentReport`).
+- [x] **Hide / mark-read** behaviour: `PreferencesPostMarkingAndHidingView` wired end to end
+      through `HideReadPostsFilter` + `PostListViewController` + `PreferencesService`.
+- [x] **Moderation actions** for mods/admins: gated by `fetchModerationCapability()` from
+      site info (`LemmyService+Moderation.swift`).
 
 ### M7 — Push notifications (fast-follow candidate) — ~2–3 weeks (incl. backend)
 - [ ] Decide approach: self-hosted poll→APNs relay vs UnifiedPush vs defer.
@@ -175,14 +182,18 @@ Follow-up (small): composer has no live markdown **preview pane** yet (surface i
 - [ ] **Note:** this introduces a server you must operate. Strongly consider launching v1.0
       without it (inbox + badge cover the need) and adding in v1.1.
 
-### M8 — Polish & platform — ~1.5–2 weeks
-- [ ] **iPad + landscape** layout pass (currently snapshot-locked to iPhone portrait).
-- [ ] Empty / error / loading / offline / rate-limit states across all scenes.
-- [ ] **Accessibility**: re-enable the `LinkLabel` VoiceOver fix (expose each link range as a
-      child element); Dynamic Type; VoiceOver sweep; re-enable `test_PostDetail_TapOnPostCreator`.
-- [ ] `OpenInAppExtension`: implement real Lemmy-URL routing into the app (currently a stub).
-- [ ] Acknowledgements screen (third-party licenses); refresh snapshot baselines.
-- [ ] Dark mode / theme + text-size preferences if in parity scope.
+### M8 — Polish & platform — DONE 2026-06-12 (snapshot baselines: follow-up)
+- [x] **iPad + landscape** layout pass: split-view collapse/expand handoff keeps the post detail
+      on screen across size-class changes; `test_PostDetail_SurvivesRotationHandoff` guards it.
+- [x] Empty / error / loading states across scenes (designed states per `DESIGN.md`).
+- [x] **Accessibility**: `LinkLabel` exposes each link range as a child element; Dynamic Type;
+      `test_PostDetail_TapOnPostCreator` re-enabled.
+- [x] `OpenInAppExtension`: routes real Lemmy URLs into the app via `info.ddenis.spud://internal`.
+- [x] Acknowledgements screen (third-party licenses).
+- [x] Theme (light/dark/true-black + accent), density, thumbnail side, selectable app icons,
+      configurable swipe actions.
+- [ ] Follow-up: refresh snapshot baselines on iPhone 14 Pro / portrait once UI has settled;
+      offline / rate-limit specific states.
 
 ### M9 — Beta → submit — ~1 week + review
 - [ ] Internal then external TestFlight; triage crash/feedback (use ASC crash triage).
