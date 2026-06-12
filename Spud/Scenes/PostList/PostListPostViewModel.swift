@@ -33,6 +33,19 @@ struct PostListPostViewModel {
     /// Cell margin and inter-element spacing for the active density.
     let density: PostDensity
 
+    /// A single coherent VoiceOver label for the whole cell: title, community,
+    /// score, comments, read and saved state. Replaces the per-glyph reading of
+    /// the icon-and-value subtitle, which VoiceOver renders unintelligibly.
+    let accessibilityLabel: String
+
+    /// VoiceOver hint describing the primary tap action.
+    let accessibilityHint: String
+
+    /// Spoken form of the visible icon-and-value subtitle (community, score,
+    /// comments, age), since the visible subtitle renders SF Symbols inline that
+    /// VoiceOver cannot pronounce.
+    let subtitleAccessibilityLabel: String
+
     init(
         row: PostListRow,
         appearance: AppearanceServiceType,
@@ -147,5 +160,53 @@ struct PostListPostViewModel {
             thumbnail = .text
             fullImageUrl = nil
         }
+
+        accessibilityLabel = Self.makeAccessibilityLabel(row: row, voteStatus: voteStatus)
+        accessibilityHint = NSLocalizedString(
+            "Opens the post and its comments",
+            comment: "VoiceOver hint for a post in the list"
+        )
+
+        var subtitlePieces: [String] = [
+            row.communityName,
+            VoteAccessibility.scoreLabel(score: row.score, voteStatus: voteStatus),
+            CommentsAccessibility.label(count: row.numberOfComments),
+            row.published.relativeString,
+        ]
+        if row.isSaved {
+            subtitlePieces.append(NSLocalizedString("Saved", comment: "VoiceOver: post is saved"))
+        }
+        subtitleAccessibilityLabel = subtitlePieces.joined(separator: ", ")
+    }
+
+    /// Assembles a natural-language description of the post for VoiceOver,
+    /// ordered most-to-least important: read state, title, community, score,
+    /// comment count, saved state.
+    private static func makeAccessibilityLabel(row: PostListRow, voteStatus: VoteStatus) -> String {
+        var parts: [String] = []
+
+        if row.isRead {
+            parts.append(NSLocalizedString("Read", comment: "VoiceOver: post has been read"))
+        }
+
+        parts.append(row.title)
+        parts.append(String(
+            format: NSLocalizedString("in %@", comment: "VoiceOver: community a post belongs to"),
+            row.communityName
+        ))
+        parts.append(VoteAccessibility.scoreLabel(score: row.score, voteStatus: voteStatus))
+        parts.append(CommentsAccessibility.label(count: row.numberOfComments))
+
+        if row.isSaved {
+            parts.append(NSLocalizedString("Saved", comment: "VoiceOver: post is saved"))
+        }
+        if row.isLocked {
+            parts.append(NSLocalizedString("Locked", comment: "VoiceOver: post is locked"))
+        }
+        if row.isFeaturedCommunity || row.isFeaturedLocal {
+            parts.append(NSLocalizedString("Pinned", comment: "VoiceOver: post is pinned"))
+        }
+
+        return parts.joined(separator: ", ")
     }
 }

@@ -213,6 +213,22 @@ class PostDetailCommentCell: UITableViewCell {
 
         // A "load more" placeholder is not itself collapsible.
         collapseTapGestureRecognizer.isEnabled = !viewModel.isMore
+
+        // Accessibility: the subtitle element carries the comment metadata
+        // (score, age, depth, collapsed/moderation state) in a spoken form —
+        // the visible run is SF Symbols + numbers VoiceOver cannot pronounce.
+        // The author (a LinkLabel) and the body are read as their own elements.
+        subtitleLabel.accessibilityLabel = viewModel.subtitleAccessibilityLabel
+        // The depth rails are decorative; hide them from VoiceOver.
+        depthRailsView.isAccessibilityElement = false
+        // Surface the collapse/expand affordance on the cell so VoiceOver users
+        // can act on it without hunting for the tap target.
+        accessibilityHint = viewModel.collapseAccessibilityHint
+        if viewModel.isMore {
+            accessibilityTraits = .button
+        } else {
+            accessibilityTraits = .none
+        }
     }
 
     // MARK: Collapse tap

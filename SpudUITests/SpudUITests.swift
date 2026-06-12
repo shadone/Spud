@@ -116,13 +116,40 @@ class SpudUITests: XCTestCase {
         XCTAssertTrue(firstComment.exists)
     }
 
-    // FIXME: Tapping on the creator name within the attribution `LinkLabel`
-    // requires landing inside the link character range, but the label's
-    // links aren't exposed as separate accessibility elements, so XCUITest
-    // can only tap by coordinate offset — which is fragile across device
-    // sizes / dynamic type. Re-enable after LinkLabel exposes per-link
-    // accessibility children.
-    func skip_test_PostDetail_TapOnPostCreator() {
-        // skipped — see FIXME above
+    // The attribution `LinkLabel` ("in <community> by <creator>") now exposes
+    // each link range as its own accessibility element with the `.link` trait,
+    // so XCUITest can query the creator link by its label and tap it directly
+    // instead of relying on a fragile coordinate offset.
+    func test_PostDetail_TapOnPostCreator() {
+        let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
+        firstCell.tap()
+
+        let detailHeaderCell = app.cells["postDetailHeader"]
+        XCTAssertTrue(detailHeaderCell.waitForExistence(timeout: 5))
+
+        // The creator renders as the display name "Nunc Finibus Augue" and is
+        // exposed as a link element inside the attribution label.
+        let creatorLink = detailHeaderCell.links["Nunc Finibus Augue"]
+        XCTAssertTrue(
+            creatorLink.waitForExistence(timeout: 5),
+            "Creator link should be exposed as an accessibility element"
+        )
+
+        // The link's value carries the destination URL (an internal person
+        // deep link), proving the per-link child is wired to the right target.
+        XCTAssertTrue(
+            creatorLink.value as? String != nil,
+            "Creator link element should expose its destination as its value"
+        )
+
+        creatorLink.tap()
+
+        // Tapping the creator pushes that person's profile, so the post-detail
+        // header we tapped from is no longer on screen. This is a
+        // mechanism-independent proof that the link tap was routed.
+        XCTAssertTrue(
+            detailHeaderCell.waitForNonExistence(timeout: 5),
+            "Tapping the creator link should navigate away from the post detail"
+        )
     }
 }

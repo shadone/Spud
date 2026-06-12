@@ -35,6 +35,15 @@ struct PostDetailCommentViewModel {
     /// `nil` when the comment is expanded (no badge shown).
     let collapsedBadgeText: NSAttributedString?
 
+    /// Spoken form of the metadata line (score, age, depth, saved/moderation
+    /// and collapsed state), since the visible subtitle renders SF Symbols
+    /// inline. The author (a link) and body are read as their own elements.
+    /// nil for "load more" placeholders.
+    let subtitleAccessibilityLabel: String?
+
+    /// VoiceOver hint describing the collapse/expand tap action.
+    let collapseAccessibilityHint: String
+
     init(
         row: PostDetailCommentRow,
         appearance: AppearanceServiceType,
@@ -179,6 +188,63 @@ struct PostDetailCommentViewModel {
             )
         } else {
             collapsedBadgeText = nil
+        }
+
+        // MARK: Accessibility
+
+        if isMore {
+            subtitleAccessibilityLabel = nil
+            collapseAccessibilityHint = NSLocalizedString(
+                "Loads more replies",
+                comment: "VoiceOver hint for the load-more-replies row"
+            )
+        } else {
+            // The subtitle element carries the full comment metadata for
+            // VoiceOver — score, age, depth, collapsed and moderation state —
+            // since the visible run is icon glyphs it cannot pronounce. The
+            // author (a link) and body are read as their own elements.
+            var subtitlePieces: [String] = [
+                VoteAccessibility.scoreLabel(score: row.score, voteStatus: voteStatus),
+            ]
+            if let published = row.published {
+                subtitlePieces.append(published.relativeString)
+            }
+            if depth > 1 {
+                subtitlePieces.append(String(
+                    format: NSLocalizedString("depth %lld", comment: "VoiceOver: comment nesting depth"),
+                    depth
+                ))
+            }
+            if isCollapsed {
+                if let count = collapsedDescendantCount, count > 0 {
+                    subtitlePieces.append(String(
+                        format: NSLocalizedString(
+                            "collapsed, %lld hidden",
+                            comment: "VoiceOver: collapsed comment with hidden descendant count"
+                        ),
+                        count
+                    ))
+                } else {
+                    subtitlePieces.append(NSLocalizedString("collapsed", comment: "VoiceOver: collapsed comment"))
+                }
+            }
+            if row.isSaved == true {
+                subtitlePieces.append(NSLocalizedString("Saved", comment: "VoiceOver: comment is saved"))
+            }
+            if row.isRemoved == true {
+                subtitlePieces.append(NSLocalizedString("Removed", comment: "VoiceOver: comment removed by moderator"))
+            }
+            if row.isDeleted == true {
+                subtitlePieces.append(NSLocalizedString("Deleted", comment: "VoiceOver: comment deleted by author"))
+            }
+            if row.isDistinguished == true {
+                subtitlePieces.append(NSLocalizedString("Distinguished", comment: "VoiceOver: distinguished moderator comment"))
+            }
+            subtitleAccessibilityLabel = subtitlePieces.joined(separator: ", ")
+
+            collapseAccessibilityHint = isCollapsed
+                ? NSLocalizedString("Expands the comment thread", comment: "VoiceOver hint for a collapsed comment")
+                : NSLocalizedString("Collapses the comment thread", comment: "VoiceOver hint for an expanded comment")
         }
     }
 }
