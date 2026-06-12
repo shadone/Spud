@@ -19,6 +19,9 @@ struct PostListPostViewModel {
         /// the detail view's link preview). Tapping falls through to opening the
         /// post rather than the image viewer.
         case linkImage(thumbnailUrl: URL)
+        /// Playable video post. Show the poster (if any) with a play indicator;
+        /// tapping plays the video.
+        case video(posterUrl: URL?, videoUrl: URL)
         /// Text-only post; render the placeholder icon.
         case text
     }
@@ -72,6 +75,8 @@ struct PostListPostViewModel {
         ) {
         case let .image(image):
             return (.image(thumbnailUrl: image.thumbnailUrl ?? image.imageUrl), image.imageUrl)
+        case let .video(video):
+            return (.video(posterUrl: video.thumbnailUrl, videoUrl: video.videoUrl), nil)
         case .externalLink:
             if let thumbnailUrl {
                 return (.linkImage(thumbnailUrl: thumbnailUrl), nil)
@@ -92,6 +97,8 @@ struct PostListPostViewModel {
         switch thumbnail(for: row, postContentDetector: postContentDetector).thumbnail {
         case let .image(thumbnailUrl), let .linkImage(thumbnailUrl):
             return thumbnailUrl
+        case let .video(posterUrl, _):
+            return posterUrl
         case .text:
             return nil
         }

@@ -593,13 +593,16 @@ class PostDetailViewController: UIViewController {
                 embedTitle: nil,
                 embedDescription: nil
             )
-            if case let .image(image) = contentType {
+            switch contentType {
+            case let .image(image):
                 presentMediaViewer(
                     imageUrl: image.imageUrl,
                     thumbnailUrl: image.thumbnailUrl,
                     preloadedImage: nil
                 )
-            } else {
+            case let .video(video):
+                presentVideoPlayer(url: video.videoUrl)
+            case .externalLink, .textOrEmpty:
                 Task { await appService.open(url: url, on: self) }
             }
         }
@@ -1201,6 +1204,9 @@ extension PostDetailViewController {
                         thumbnailUrl: thumbnailUrl,
                         preloadedImage: currentImage
                     )
+                }
+                cell.videoTapped = { [weak self] videoUrl in
+                    self?.presentVideoPlayer(url: videoUrl)
                 }
                 cell.upvoteTapped = { [weak self] in
                     Task { await self?.voteOnPost(.upvote) }

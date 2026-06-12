@@ -22,6 +22,7 @@ struct PostDetailHeaderViewModel {
     enum HeaderImage: Equatable {
         case none
         case post(URL, thumbnailUrl: URL?)
+        case video(videoUrl: URL, thumbnailUrl: URL?)
         case linkPreview(url: URL, thumbnailUrl: URL?)
     }
 
@@ -161,6 +162,8 @@ struct PostDetailHeaderViewModel {
         switch contentType {
         case let .image(image):
             self.image = .post(image.imageUrl, thumbnailUrl: image.thumbnailUrl)
+        case let .video(video):
+            image = .video(videoUrl: video.videoUrl, thumbnailUrl: video.thumbnailUrl)
         case let .externalLink(link):
             image = .linkPreview(url: link.url, thumbnailUrl: thumbnailUrlValue)
         case .textOrEmpty:

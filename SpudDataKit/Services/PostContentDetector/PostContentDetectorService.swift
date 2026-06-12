@@ -67,6 +67,18 @@ public class PostContentDetectorService: PostContentDetectorServiceType {
             ))
         }
 
+        // AVFoundation-playable containers only. webm/mkv are intentionally
+        // absent — AVFoundation cannot decode them, so they stay external links.
+        let hasPlayableVideoExtension = [
+            ".mp4",
+            ".mov",
+            ".m4v",
+        ].contains { path.endsWith($0) }
+
+        if hasPlayableVideoExtension {
+            return .video(.init(videoUrl: url, thumbnailUrl: thumbnailUrl))
+        }
+
         return externalLink
     }
 }

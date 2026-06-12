@@ -651,6 +651,10 @@ class PostListViewController: UIViewController {
                     )
                 }
 
+                cell.videoTapped = { [weak self] videoUrl in
+                    self?.presentVideoPlayer(url: videoUrl)
+                }
+
                 let general = appearance.general
                 cell.swipeActionConfiguration = self?.swipeActionConfig.viewConfiguration(
                     state: Self.swipeState(for: row),

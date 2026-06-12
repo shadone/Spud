@@ -48,6 +48,36 @@ final class PostContentDetectorTests: XCTestCase {
         }
     }
 
+    func test_playableVideoExtensions_areDetectedAsVideo() {
+        for ext in ["mp4", "mov", "m4v"] {
+            let type = contentType(url: "https://example.test/clip.\(ext)")
+            guard case let .video(video) = type else {
+                return XCTFail("\(ext) should be a video, got \(type)")
+            }
+            XCTAssertEqual(video.videoUrl.absoluteString, "https://example.test/clip.\(ext)")
+        }
+    }
+
+    func test_webm_isNotVideo_soItOpensExternally() {
+        // AVFoundation can't decode webm; it must stay an external link rather
+        // than route to a dead player.
+        let type = contentType(url: "https://example.test/clip.webm")
+        guard case .externalLink = type else {
+            return XCTFail("webm should be an external link, got \(type)")
+        }
+    }
+
+    func test_videoPost_carriesPosterThumbnail() {
+        let type = contentType(
+            url: "https://example.test/clip.mp4",
+            thumbnailUrl: "https://example.test/poster.jpg"
+        )
+        guard case let .video(video) = type else {
+            return XCTFail("expected video, got \(type)")
+        }
+        XCTAssertEqual(video.thumbnailUrl?.absoluteString, "https://example.test/poster.jpg")
+    }
+
     func test_imageUrl_carriesThumbnailAndFullUrls() {
         let type = contentType(
             url: "https://example.test/full.png",

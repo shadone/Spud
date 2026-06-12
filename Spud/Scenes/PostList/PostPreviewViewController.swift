@@ -84,6 +84,8 @@ final class PostPreviewViewController: UIViewController {
         super.viewDidLoad()
 
         view.backgroundColor = .secondarySystemGroupedBackground
+        view.accessibilityIdentifier = "postPreview"
+        titleLabel.accessibilityIdentifier = "postPreviewTitle"
 
         stackView.addArrangedSubview(imageView)
         stackView.addArrangedSubview(titleLabel)
@@ -136,12 +138,21 @@ final class PostPreviewViewController: UIViewController {
     private func configureImage() {
         let url = row.url.flatMap { URL(string: $0) }
         let thumbnailUrl = row.thumbnailUrl.flatMap { URL(string: $0) }
-        guard case let .image(image) = postContentDetector.contentTypeForUrl(
+
+        // Peek the post's image, or a video's poster frame.
+        let loadUrl: URL
+        switch postContentDetector.contentTypeForUrl(
             url: url,
             thumbnailUrl: thumbnailUrl,
             embedTitle: row.urlEmbedTitle,
             embedDescription: row.urlEmbedDescription
-        ) else {
+        ) {
+        case let .image(image):
+            loadUrl = image.thumbnailUrl ?? image.imageUrl
+        case let .video(video):
+            guard let poster = video.thumbnailUrl else { return }
+            loadUrl = poster
+        case .externalLink, .textOrEmpty:
             return
         }
 
@@ -151,7 +162,6 @@ final class PostPreviewViewController: UIViewController {
         imageHeightConstraint.constant = 180
         imageHeightConstraint.isActive = true
 
-        let loadUrl = image.thumbnailUrl ?? image.imageUrl
         loadTask = Task { [weak self] in
             guard let self else { return }
             for await state in imageService.fetch(loadUrl) {
