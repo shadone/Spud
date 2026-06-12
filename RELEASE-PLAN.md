@@ -6,6 +6,27 @@ Apollo for Reddit** — see `DESIGN.md` for the quality bar every feature is bui
 Scope decision (2026-06-12): **Full parity** before first submission; **active build target:
 M1–M5 + adjacent UX-polish**, feature-by-feature, each increment verified and committed.
 
+## Build progress — M1–M5 shipped (2026-06-12, on branch `app-store-prep`)
+
+All verified (build + tests green; final full test plan passed across all targets) and committed
+in focused paired commits (Spud + LemmyKit). Every feature built to the `DESIGN.md` Apollo bar
+(haptics, sign-in gating, designed empty/error/loading states, confirm-then-mirror data path).
+
+- **M0** store-blockers (icon, privacy manifest, Info.plist keys) + **M0.5** XcodeGen migration.
+- **M1** comment replies + markdown composer (formatting toolbar + live preview).
+- **M2** save/unsave, subscribe/unsubscribe, saved feed, share posts/comments.
+- **M3** search (posts/communities/users/comments), real community screen, real Account screen,
+  Person profiles (posts/comments), registration.
+- **M4** inbox (replies/mentions), private-message threads, live unread badge.
+- **M5** new-post composer, pict-rs image upload (hand-written multipart, unit-tested),
+  full-screen media viewer (zoom/pan/swipe-to-dismiss/save/share).
+- **Adjacent UX**: comment tap/swipe collapse + depth rails + jump-to-next, shared `Haptics`,
+  markdown editor, app-wide empty states.
+
+Out of M1–M5 scope (queued): M6 moderation/block/report/hide, M7 push (deferred to v1.1), M8
+customization/themes/configurable-swipes, M9 archive + metadata + **B2** (SBT-server out of the
+Release binary, Debug-only linkage — archive-stage). Smaller follow-ups noted per-section below.
+
 Status baseline (verified 2026-06-12):
 
 - Builds clean — Xcode 26.3, iOS 18 min, Swift 6 strict concurrency, 0 errors.
