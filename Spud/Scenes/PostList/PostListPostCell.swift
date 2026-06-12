@@ -274,19 +274,27 @@ class PostListPostCell: UITableViewCell {
         }
 
         thumbnailLoadTask?.cancel()
-        tappableImageUrl = viewModel.fullImageUrl
+        thumbnailView.badgeText = nil
         switch viewModel.thumbnail {
         case .text:
+            tappableImageUrl = nil
+            tappableThumbnailUrl = nil
             thumbnailView.thumbnailType = .text
             thumbnailView.isAccessibilityElement = false
-            tappableThumbnailUrl = nil
+            // Decorative placeholder; let the tap fall through to the cell so
+            // tapping anywhere opens the post.
+            thumbnailView.isUserInteractionEnabled = false
+
         case let .image(thumbnailUrl):
+            tappableImageUrl = viewModel.fullImageUrl
+            tappableThumbnailUrl = thumbnailUrl
             thumbnailView.thumbnailType = .none
             // The inline thumbnail shows a static frame; badge animated posts
             // so they read as playable in the feed.
             thumbnailView.badgeText = viewModel.fullImageUrl?.isAnimatedImage == true ? "GIF" : nil
             // A tappable image preview: expose it as an image element that
             // opens the full-size viewer.
+            thumbnailView.isUserInteractionEnabled = true
             thumbnailView.isAccessibilityElement = true
             thumbnailView.accessibilityLabel = NSLocalizedString(
                 "Post image",
@@ -297,20 +305,35 @@ class PostListPostCell: UITableViewCell {
                 comment: "VoiceOver hint for a post thumbnail"
             )
             thumbnailView.accessibilityTraits = [.image, .button]
-            tappableThumbnailUrl = thumbnailUrl
-            thumbnailLoadTask = Task { [weak self] in
-                for await state in imageService.fetch(thumbnailUrl) {
-                    if Task.isCancelled { return }
-                    guard let self else { return }
-                    switch state {
-                    case .loading:
-                        thumbnailView.thumbnailType = .none
-                    case .failure:
-                        thumbnailView.thumbnailType = .imageFailure
-                    case let .ready(image):
-                        loadedThumbnailImage = image
-                        thumbnailView.thumbnailType = .image(image)
-                    }
+            loadThumbnail(thumbnailUrl, imageService: imageService)
+
+        case let .linkImage(thumbnailUrl):
+            tappableImageUrl = nil
+            tappableThumbnailUrl = nil
+            thumbnailView.thumbnailType = .none
+            // The embed image previews the link; tapping it falls through to the
+            // cell (opens the post), like the detail view's link preview.
+            thumbnailView.isUserInteractionEnabled = false
+            thumbnailView.isAccessibilityElement = false
+            loadThumbnail(thumbnailUrl, imageService: imageService)
+        }
+    }
+
+    /// Loads a thumbnail image into `thumbnailView`, showing the broken-image
+    /// state on failure. Shared by image and link-preview posts.
+    private func loadThumbnail(_ thumbnailUrl: URL, imageService: ImageServiceType) {
+        thumbnailLoadTask = Task { [weak self] in
+            for await state in imageService.fetch(thumbnailUrl) {
+                if Task.isCancelled { return }
+                guard let self else { return }
+                switch state {
+                case .loading:
+                    thumbnailView.thumbnailType = .none
+                case .failure:
+                    thumbnailView.thumbnailType = .imageFailure
+                case let .ready(image):
+                    loadedThumbnailImage = image
+                    thumbnailView.thumbnailType = .image(image)
                 }
             }
         }

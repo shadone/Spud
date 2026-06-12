@@ -13,7 +13,12 @@ import UIKit
 struct PostListPostViewModel {
     enum Thumbnail: Equatable {
         /// Post points to an image (or has a thumbnail) — load it via ImageService.
+        /// Tapping it opens the full-screen viewer.
         case image(thumbnailUrl: URL)
+        /// External-link post that carries an embed image — show it inline (like
+        /// the detail view's link preview). Tapping falls through to opening the
+        /// post rather than the image viewer.
+        case linkImage(thumbnailUrl: URL)
         /// Text-only post; render the placeholder icon.
         case text
     }
@@ -46,14 +51,17 @@ struct PostListPostViewModel {
     /// VoiceOver cannot pronounce.
     let subtitleAccessibilityLabel: String
 
-    /// The thumbnail image URL a cell would load for this row, or nil when the
-    /// post renders as text/link (nothing to prefetch). Lets the feed warm the
-    /// image cache a few rows ahead of scroll without building the full view
-    /// model. Mirrors the thumbnail derivation in `init`.
-    static func prefetchThumbnailUrl(
+    /// The thumbnail a cell shows for `row`, plus the full-resolution image URL
+    /// (non-nil only for image posts, used to open the viewer). Single source
+    /// for both `init` and prefetching so the feed and its pre-warm agree.
+    ///
+    /// Image posts show the image and open the viewer; external-link posts that
+    /// carry an embed image show it inline (tap opens the post); everything else
+    /// is the text placeholder.
+    static func thumbnail(
         for row: PostListRow,
         postContentDetector: PostContentDetectorServiceType
-    ) -> URL? {
+    ) -> (thumbnail: Thumbnail, fullImageUrl: URL?) {
         let url = row.url.flatMap { URL(string: $0) }
         let thumbnailUrl = row.thumbnailUrl.flatMap { URL(string: $0) }
         switch postContentDetector.contentTypeForUrl(
@@ -63,8 +71,28 @@ struct PostListPostViewModel {
             embedDescription: row.urlEmbedDescription
         ) {
         case let .image(image):
-            return image.thumbnailUrl ?? image.imageUrl
-        case .externalLink, .textOrEmpty:
+            return (.image(thumbnailUrl: image.thumbnailUrl ?? image.imageUrl), image.imageUrl)
+        case .externalLink:
+            if let thumbnailUrl {
+                return (.linkImage(thumbnailUrl: thumbnailUrl), nil)
+            }
+            return (.text, nil)
+        case .textOrEmpty:
+            return (.text, nil)
+        }
+    }
+
+    /// The thumbnail image URL a cell would load for this row, or nil when the
+    /// post renders as the text placeholder. Lets the feed warm the image cache
+    /// a few rows ahead of scroll without building the full view model.
+    static func prefetchThumbnailUrl(
+        for row: PostListRow,
+        postContentDetector: PostContentDetectorServiceType
+    ) -> URL? {
+        switch thumbnail(for: row, postContentDetector: postContentDetector).thumbnail {
+        case let .image(thumbnailUrl), let .linkImage(thumbnailUrl):
+            return thumbnailUrl
+        case .text:
             return nil
         }
     }
@@ -166,23 +194,7 @@ struct PostListPostViewModel {
 
         subtitle = pieces.joined()
 
-        let url = row.url.flatMap { URL(string: $0) }
-        let thumbnailUrl = row.thumbnailUrl.flatMap { URL(string: $0) }
-        let contentType = postContentDetector.contentTypeForUrl(
-            url: url,
-            thumbnailUrl: thumbnailUrl,
-            embedTitle: row.urlEmbedTitle,
-            embedDescription: row.urlEmbedDescription
-        )
-
-        switch contentType {
-        case let .image(image):
-            thumbnail = .image(thumbnailUrl: image.thumbnailUrl ?? image.imageUrl)
-            fullImageUrl = image.imageUrl
-        case .externalLink, .textOrEmpty:
-            thumbnail = .text
-            fullImageUrl = nil
-        }
+        (thumbnail, fullImageUrl) = Self.thumbnail(for: row, postContentDetector: postContentDetector)
 
         accessibilityLabel = Self.makeAccessibilityLabel(row: row, voteStatus: voteStatus)
         accessibilityHint = NSLocalizedString(
