@@ -34,6 +34,30 @@ Out of shipped scope: M7 push (deferred to v1.1), M9 archive + metadata + **B2**
 of the Release binary, Debug-only linkage — archive-stage). Smaller follow-ups noted per-section
 below.
 
+## Post-parity UX & performance polish (2026-06-12, branch `app-store-prep`)
+
+Closing the remaining gaps to the `DESIGN.md` Apollo bar after M8 — each verified
+(build + full `Spud` test plan green) and committed focused:
+
+- **perf(comments)** off-main markdown cache (`MarkdownRenderer`): comment and
+  post-header bodies parse off the main thread and cache, pre-warmed before the
+  diffable snapshot is applied, so long threads scroll without cmark hitches.
+- **perf(feed)** thumbnail prefetch via `UITableViewDataSourcePrefetching` — no
+  image pop-in on fast scroll.
+- **perf(images)** off-main bitmap decode (`byPreparingForDisplay`) so images
+  draw without a main-thread decode hitch.
+- **feat(media)** animated GIF playback in the full-screen viewer
+  (`AnimatedImageDecoder` + `ImageService.fetchAnimatedImage`), `.gif` detection,
+  and a "GIF" badge (`MediaBadgeView`) on feed + header thumbnails.
+- **feat(ux)** context-menu peek on feed posts (`PostPreviewViewController`):
+  long-press shows image + title + full body.
+
+Follow-ups: save animated GIF preserving animation (viewer save currently grabs
+the first frame); target-size image downsampling (needs size plumbing through
+`ImageServiceType`); context-menu preview on comments; link-post thumbnails in
+the feed (the detail view already shows them); video (mp4/webm — webm has no
+native AVFoundation decoder).
+
 Status baseline (verified 2026-06-12):
 
 - Builds clean — Xcode 26.3, iOS 18 min, Swift 6 strict concurrency, 0 errors.
