@@ -79,6 +79,13 @@ targets:
       - target: SpudWidgetExtension
       - target: OpenInAppExtension
       - package: Down
+      # B2 (archive-stage): SBTUITestTunnelServer is linked in all configs
+      # because XcodeGen 2.45 cannot scope a package product to one
+      # configuration, and SwiftPM has no "import without link". The server is
+      # runtime-inert in Release (takeOff() is #if DEBUG, so no socket is ever
+      # opened), but its code is still present in the binary. Removing it needs
+      # a Debug-only framework wrapper or a move off the SPM-linked server; see
+      # RELEASE-PLAN.md B2.
       - package: SBTUITestTunnel
         product: SBTUITestTunnelServer
 
