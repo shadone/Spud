@@ -518,6 +518,23 @@ class PostListViewController: UIViewController {
         }
     }
 
+    /// Shares the post's canonical URL. Prefers the post's `ap_id` permalink;
+    /// falls back to constructing it from the account instance.
+    private func sharePost(serverPostId: Int64) {
+        let instanceActorId = appDatabase.accountInstanceActorIdSync(
+            forKeychainId: viewModel.accountKeychainId
+        )
+        guard let url = ShareURL.forPost(
+            originalPostUrl: rowsByServerPostId[serverPostId]?.originalPostUrl,
+            serverPostId: serverPostId,
+            instanceActorId: instanceActorId
+        ) else {
+            Haptics.warning()
+            return
+        }
+        presentShareSheet(for: url)
+    }
+
     private func postSelected(serverPostId: Int64) {
         guard let window = view.window as? MainWindow else { fatalError() }
         window.display(
@@ -648,7 +665,14 @@ extension PostListViewController: UITableViewDelegate {
                     self?.toggleSaved(serverPostId: serverPostId)
                 }
 
-                return UIMenu(title: "", children: [upvoteAction, downvoteAction, saveAction])
+                let shareAction = UIAction(
+                    title: NSLocalizedString("Share", comment: "Context-menu action to share a post"),
+                    image: UIImage(systemName: "square.and.arrow.up")
+                ) { [weak self] _ in
+                    self?.sharePost(serverPostId: serverPostId)
+                }
+
+                return UIMenu(title: "", children: [upvoteAction, downvoteAction, saveAction, shareAction])
             }
         )
     }

@@ -17,6 +17,7 @@ final class CommentCollapseStateTests: XCTestCase {
             depth: depth,
             serverCommentId: more ? nil : id,
             body: more ? nil : "body \(id)",
+            originalCommentUrl: more ? nil : "https://example.test/comment/\(id)",
             score: 0,
             voteStatus: nil,
             isSaved: more ? nil : false,

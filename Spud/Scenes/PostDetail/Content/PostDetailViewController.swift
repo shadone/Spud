@@ -138,6 +138,7 @@ class PostDetailViewController: UIViewController {
     private var dataSource: UITableViewDiffableDataSource<Section, Item>!
     private var isFirstAppearance: Bool = true
     private var saveBarButtonItem: UIBarButtonItem!
+    private var shareBarButtonItem: UIBarButtonItem!
 
     // MARK: Functions
 
@@ -183,13 +184,19 @@ class PostDetailViewController: UIViewController {
             target: self,
             action: #selector(replyToPostTapped)
         )
+        shareBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "square.and.arrow.up")!,
+            style: .plain,
+            target: self,
+            action: #selector(sharePostTapped)
+        )
         saveBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "bookmark")!,
             style: .plain,
             target: self,
             action: #selector(toggleSavedOnPostTapped)
         )
-        navigationItem.rightBarButtonItems = [openInBrowser, replyToPost, saveBarButtonItem]
+        navigationItem.rightBarButtonItems = [openInBrowser, replyToPost, shareBarButtonItem, saveBarButtonItem]
 
         view.addSubview(tableView)
         view.addSubview(jumpToNextButton)
@@ -405,6 +412,47 @@ class PostDetailViewController: UIViewController {
     @objc
     private func replyToPostTapped() {
         replyToPost()
+    }
+
+    @objc
+    private func sharePostTapped() {
+        sharePost()
+    }
+
+    /// Shares the current post's canonical URL. Prefers the post's `ap_id`
+    /// permalink; falls back to constructing it from the account instance.
+    private func sharePost() {
+        let instanceActorId = appDatabase.accountInstanceActorIdSync(
+            forKeychainId: viewModel.accountKeychainId
+        )
+        guard let url = ShareURL.forPost(
+            originalPostUrl: headerRow?.originalPostUrl,
+            serverPostId: Int64(viewModel.serverPostId),
+            instanceActorId: instanceActorId
+        ) else {
+            Haptics.warning()
+            return
+        }
+        presentShareSheet(for: url, sourceItem: shareBarButtonItem)
+    }
+
+    /// Shares the comment identified by `serverCommentId`. Prefers the
+    /// comment's `ap_id` permalink; falls back to `<instance>/comment/<id>`.
+    private func shareComment(serverCommentId: Int64) {
+        let row = commentRowsByElementId.values
+            .first { $0.serverCommentId == serverCommentId }
+        let instanceActorId = appDatabase.accountInstanceActorIdSync(
+            forKeychainId: viewModel.accountKeychainId
+        )
+        guard let url = ShareURL.forComment(
+            originalCommentUrl: row?.originalCommentUrl,
+            serverCommentId: serverCommentId,
+            instanceActorId: instanceActorId
+        ) else {
+            Haptics.warning()
+            return
+        }
+        presentShareSheet(for: url)
     }
 
     private func linkTapped(_ url: URL) {
@@ -801,7 +849,13 @@ extension PostDetailViewController: UITableViewDelegate {
                 ) { [weak self] _ in
                     self?.toggleSavedOnComment(serverCommentId: serverCommentId)
                 }
-                return UIMenu(title: "", children: [upvoteAction, downvoteAction, replyAction, saveAction])
+                let shareAction = UIAction(
+                    title: NSLocalizedString("Share", comment: "Context-menu action to share a comment"),
+                    image: UIImage(systemName: "square.and.arrow.up")
+                ) { [weak self] _ in
+                    self?.shareComment(serverCommentId: serverCommentId)
+                }
+                return UIMenu(title: "", children: [upvoteAction, downvoteAction, replyAction, saveAction, shareAction])
             }
         )
     }

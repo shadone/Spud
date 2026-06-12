@@ -19,6 +19,9 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
     public let serverPostId: Int64
     public let title: String
     public let body: String?
+    /// The post's federation permalink (`post.ap_id`). The canonical URL to
+    /// share.
+    public let originalPostUrl: String
     public let url: String?
     public let thumbnailUrl: String?
     public let urlEmbedTitle: String?
@@ -66,6 +69,7 @@ public extension AppDatabase {
                             post.postId            AS serverPostId,
                             post.title             AS title,
                             post.body              AS body,
+                            post.originalPostUrl   AS originalPostUrl,
                             post.url               AS url,
                             post.thumbnailUrl      AS thumbnailUrl,
                             post.urlEmbedTitle     AS urlEmbedTitle,
@@ -92,6 +96,7 @@ public extension AppDatabase {
                         serverPostId: row["serverPostId"],
                         title: row["title"],
                         body: row["body"],
+                        originalPostUrl: row["originalPostUrl"] ?? "",
                         url: row["url"],
                         thumbnailUrl: row["thumbnailUrl"],
                         urlEmbedTitle: row["urlEmbedTitle"],

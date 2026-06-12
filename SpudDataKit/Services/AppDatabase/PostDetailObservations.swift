@@ -18,6 +18,9 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
     public let serverPostId: Int64
     public let title: String
     public let body: String?
+    /// The post's federation permalink (`post.ap_id`), e.g.
+    /// "https://lemmy.world/post/123". The canonical URL to share.
+    public let originalPostUrl: String
     public let url: String?
     public let thumbnailUrl: String?
     public let urlEmbedTitle: String?
@@ -50,6 +53,10 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
     /// "load more" placeholders.
     public let serverCommentId: Int64?
     public let body: String?
+    /// The comment's federation permalink (`comment.ap_id`), e.g.
+    /// "https://lemmy.world/comment/456". The canonical URL to share. nil for
+    /// "load more" placeholders.
+    public let originalCommentUrl: String?
     public let score: Int64
     /// 1 = upvoted, 0 = downvoted, nil = no vote.
     public let voteStatus: Int64?
@@ -99,6 +106,7 @@ public extension AppDatabase {
                             post.postId                AS serverPostId,
                             post.title                 AS title,
                             post.body                  AS body,
+                            post.originalPostUrl       AS originalPostUrl,
                             post.url                   AS url,
                             post.thumbnailUrl          AS thumbnailUrl,
                             post.urlEmbedTitle         AS urlEmbedTitle,
@@ -131,6 +139,7 @@ public extension AppDatabase {
                     serverPostId: row["serverPostId"],
                     title: row["title"],
                     body: row["body"],
+                    originalPostUrl: row["originalPostUrl"] ?? "",
                     url: row["url"],
                     thumbnailUrl: row["thumbnailUrl"],
                     urlEmbedTitle: row["urlEmbedTitle"],
@@ -178,6 +187,7 @@ public extension AppDatabase {
                             commentElement.moreParentId    AS moreParentId,
                             comment.localCommentId         AS serverCommentId,
                             comment.body                   AS body,
+                            comment.originalCommentUrl     AS originalCommentUrl,
                             comment.score                  AS score,
                             comment.voteStatus             AS voteStatus,
                             comment.isSaved                AS isSaved,
@@ -204,6 +214,7 @@ public extension AppDatabase {
                         depth: row["depth"],
                         serverCommentId: row["serverCommentId"],
                         body: row["body"],
+                        originalCommentUrl: row["originalCommentUrl"],
                         score: row["score"] ?? 0,
                         voteStatus: row["voteStatus"],
                         isSaved: row["isSaved"],
