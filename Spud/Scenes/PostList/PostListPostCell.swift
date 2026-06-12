@@ -13,6 +13,10 @@ import UIKit
 class PostListPostCell: UITableViewCell {
     static let reuseIdentifier = "PostListPostCell"
 
+    /// Side length (points) of the square feed thumbnail. Drives both the layout
+    /// constraint and the downsample target so the cache holds cell-sized images.
+    static let thumbnailDimension: CGFloat = 64
+
     // MARK: Public
 
     var swipeActionConfiguration: SwipeActionView.Configuration? {
@@ -164,8 +168,8 @@ class PostListPostCell: UITableViewCell {
             swipeActionView.topAnchor.constraint(equalTo: contentView.topAnchor),
             swipeActionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
 
-            thumbnailView.widthAnchor.constraint(equalToConstant: 64),
-            thumbnailView.heightAnchor.constraint(equalToConstant: 64),
+            thumbnailView.widthAnchor.constraint(equalToConstant: Self.thumbnailDimension),
+            thumbnailView.heightAnchor.constraint(equalToConstant: Self.thumbnailDimension),
         ])
 
         thumbnailView.isUserInteractionEnabled = true
@@ -322,8 +326,9 @@ class PostListPostCell: UITableViewCell {
     /// Loads a thumbnail image into `thumbnailView`, showing the broken-image
     /// state on failure. Shared by image and link-preview posts.
     private func loadThumbnail(_ thumbnailUrl: URL, imageService: ImageServiceType) {
+        let size = CGSize(width: Self.thumbnailDimension, height: Self.thumbnailDimension)
         thumbnailLoadTask = Task { [weak self] in
-            for await state in imageService.fetch(thumbnailUrl) {
+            for await state in imageService.fetch(thumbnailUrl, downsampleTo: size) {
                 if Task.isCancelled { return }
                 guard let self else { return }
                 switch state {

@@ -1156,8 +1156,11 @@ extension PostListViewController: UITableViewDataSourcePrefetching {
                 postContentDetector: postContentDetector
             ) else { continue }
 
+            // Match the cell's downsample target so the prefetch warms the same
+            // cache entry the cell reads.
+            let size = CGSize(width: PostListPostCell.thumbnailDimension, height: PostListPostCell.thumbnailDimension)
             prefetchTasks[serverPostId] = Task { [weak self] in
-                for await state in imageService.fetch(url) {
+                for await state in imageService.fetch(url, downsampleTo: size) {
                     if Task.isCancelled { break }
                     // Stop once the fetch settles; .loading just means in flight.
                     if case .loading = state { continue }

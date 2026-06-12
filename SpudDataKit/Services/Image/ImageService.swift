@@ -18,6 +18,17 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     /// multi-frame image (which a `UIImageView` would auto-animate inline).
     let animatedCache: NSCache<NSURL, UIImage>
 
+    /// Cache for downsampled images, keyed by url + target pixel size so the
+    /// same url at different display sizes does not collide and a small cell
+    /// never gets a full-resolution bitmap.
+    let downsampledCache: NSCache<NSString, UIImage>
+
+    /// Pixel-per-point factor used when converting a requested point size to a
+    /// downsample target. Fixed at the maximum modern screen scale so the
+    /// result stays crisp on every device without a main-actor scale lookup
+    /// from the background fetch task.
+    private let downsampleScale: CGFloat = 3
+
     let session = URLSession.shared
 
     let alertService: AlertServiceType
@@ -37,6 +48,10 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         // Animated images hold every frame, so cap the count tightly.
         animatedCache.countLimit = 16
         animatedCache.totalCostLimit = 1024 * 1024 * 1024
+
+        downsampledCache = NSCache()
+        downsampledCache.countLimit = 300
+        downsampledCache.totalCostLimit = 256 * 1024 * 1024
     }
 
     public func fetch(
@@ -105,6 +120,46 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
 
                 do {
                     let image = try await loadAnimatedImage(from: url)
+                    if Task.isCancelled {
+                        continuation.finish()
+                        return
+                    }
+                    continuation.yield(.ready(image))
+                } catch let error as ImageLoadingError {
+                    alertService.image(error: error, for: url)
+                    continuation.yield(.failure)
+                } catch {
+                    alertService.image(error: .network(error), for: url)
+                    continuation.yield(.failure)
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    public func fetch(_ url: URL, downsampleTo pointSize: CGSize) -> AsyncStream<ImageLoadingState> {
+        let maxPixelSize = max(pointSize.width, pointSize.height) * downsampleScale
+        // Capture a Sendable String, not an NSString, into the stream closure.
+        let key = "\(url.absoluteString)|\(Int(maxPixelSize.rounded()))"
+
+        return AsyncStream { continuation in
+            let task = Task { [weak self] in
+                guard let self else {
+                    continuation.finish()
+                    return
+                }
+
+                if let cached = downsampledCache.object(forKey: key as NSString) {
+                    continuation.yield(.ready(cached))
+                    continuation.finish()
+                    return
+                }
+
+                continuation.yield(.loading(thumbnail: nil))
+
+                do {
+                    let image = try await loadDownsampledImage(from: url, maxPixelSize: maxPixelSize, key: key)
                     if Task.isCancelled {
                         continuation.finish()
                         return
@@ -194,5 +249,31 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
             cost: Int(decodedImage.size.width * decodedImage.size.height)
         )
         return decodedImage
+    }
+
+    private func loadDownsampledImage(
+        from url: URL,
+        maxPixelSize: CGFloat,
+        key: String
+    ) async throws -> UIImage {
+        let data = try await data(from: url)
+
+        let image: UIImage
+        if let downsampled = ImageDownsampler.downsample(data: data, maxPixelSize: maxPixelSize) {
+            image = downsampled
+        } else if let full = UIImage(data: data) {
+            // Undecodable as a thumbnail (e.g. an unusual format): fall back to a
+            // full decode so the cell still shows something.
+            image = await full.byPreparingForDisplay() ?? full
+        } else {
+            throw ImageLoadingError.cannotDecode
+        }
+
+        downsampledCache.setObject(
+            image,
+            forKey: key as NSString,
+            cost: Int(image.size.width * image.size.height)
+        )
+        return image
     }
 }
