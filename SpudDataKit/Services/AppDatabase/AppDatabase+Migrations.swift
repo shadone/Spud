@@ -278,6 +278,12 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v3_feedSavedOnly") { db in
+            try db.alter(table: "feed") { t in
+                t.add(column: "savedOnly", .boolean).notNull().defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }

@@ -93,6 +93,12 @@ class SubscriptionsViewController: UIViewController {
                     sortType: .Active
                 )
             )
+        case .saved:
+            let sortType = accountService.defaultSortType(forAccountKeychainId: accountKeychainId)
+            feed = accountService.createFeed(
+                forAccountKeychainId: accountKeychainId,
+                feedType: .saved(sortType: sortType)
+            )
         }
         display(feed: feed)
     }

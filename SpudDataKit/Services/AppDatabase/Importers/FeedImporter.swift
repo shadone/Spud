@@ -27,6 +27,7 @@ extension AppDatabase {
         let frontpageListingType: String?
         let communityName: String?
         let communityInstanceActorId: String?
+        let savedOnly: Bool
         let sortType: String
 
         switch feedType {
@@ -34,11 +35,19 @@ extension AppDatabase {
             frontpageListingType = listingType.rawValue
             communityName = nil
             communityInstanceActorId = nil
+            savedOnly = false
             sortType = sort.rawValue
         case let .community(name, instance, sort):
             frontpageListingType = nil
             communityName = name
             communityInstanceActorId = instance.actorId
+            savedOnly = false
+            sortType = sort.rawValue
+        case let .saved(sort):
+            frontpageListingType = nil
+            communityName = nil
+            communityInstanceActorId = nil
+            savedOnly = true
             sortType = sort.rawValue
         }
 
@@ -49,6 +58,7 @@ extension AppDatabase {
             existing.frontpageListingType = frontpageListingType
             existing.communityName = communityName
             existing.communityInstanceActorId = communityInstanceActorId
+            existing.savedOnly = savedOnly
             existing.sortType = sortType
             try existing.update(db)
             return existing.id!
@@ -60,6 +70,7 @@ extension AppDatabase {
             frontpageListingType: frontpageListingType,
             communityName: communityName,
             communityInstanceActorId: communityInstanceActorId,
+            savedOnly: savedOnly,
             sortType: sortType,
             createdAt: now
         )
