@@ -616,6 +616,22 @@ class PostListViewController: UIViewController {
         }
     }
 
+    private lazy var loadingSkeletonView = FeedLoadingSkeletonView()
+
+    /// Shows the skeleton placeholder as the table background during the initial
+    /// fetch; removed once the first snapshot (or a failure) arrives.
+    private func showLoadingSkeleton() {
+        guard tableView.backgroundView !== loadingSkeletonView else { return }
+        tableView.backgroundView = loadingSkeletonView
+        loadingSkeletonView.startAnimating()
+    }
+
+    private func hideLoadingSkeleton() {
+        guard tableView.backgroundView === loadingSkeletonView else { return }
+        loadingSkeletonView.stopAnimating()
+        tableView.backgroundView = nil
+    }
+
     private func feedChanged() {
         observationTask?.cancel()
         rowsByServerPostId.removeAll()
@@ -625,6 +641,7 @@ class PostListViewController: UIViewController {
         scrollMarkedReadIds.removeAll()
         hasReceivedFirstSnapshot = false
         updateEmptyState()
+        showLoadingSkeleton()
         refreshModerationCapability()
 
         applyLoadingIndicatorVisibility(hidden: !viewModel.isFetchingNextPage)
@@ -642,6 +659,7 @@ class PostListViewController: UIViewController {
             }
 
             guard let feedRowId = appDatabase.feedRowIdSync(forFeedKey: feedKey) else {
+                hideLoadingSkeleton()
                 return
             }
 
@@ -650,6 +668,7 @@ class PostListViewController: UIViewController {
                 let isFirstSnapshot = !hasReceivedFirstSnapshot
                 hasReceivedFirstSnapshot = true
                 if isFirstSnapshot {
+                    hideLoadingSkeleton()
                     // Pin the rows already read when this feed view began, so
                     // `onRefresh` hide-read only hides those (posts read while
                     // scrolling stay until the next refresh).
