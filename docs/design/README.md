@@ -9,7 +9,6 @@ be imported as the starting point, then iterated on ahead of the code.
 | File | What it is |
 |---|---|
 | [`DESIGN-BRIEF.md`](DESIGN-BRIEF.md) | The comprehensive brief: product, audience, the Apollo-parity north-star, brand, the full **design system** (themes, accent palette, type, density, iconography, haptics, motion) as implemented in `SpudUIKit`, information architecture, every screen, interaction patterns, accessibility, performance budget |
-| [`FEATURES.md`](FEATURES.md) | The full feature list with shipped / partial / deferred status, by area |
 | [`screenshots/`](screenshots/) | 12 live screenshots of the implemented UI + a captioned index |
 
 ## Source-of-truth pointers (in the repo)
@@ -17,6 +16,7 @@ be imported as the starting point, then iterated on ahead of the code.
 - Design tokens in code: `SpudUIKit/Theme/*` (AppTheme, AccentColor, PostDensity,
   ThumbnailPosition, AppIconVariant, ThemeManager) and `SpudUIKit/{Haptics,Theme}.swift`.
 - Design north-star: [`../DESIGN.md`](../DESIGN.md).
+- Feature status & behavior: the per-capability docs under [`../features/`](../features/README.md).
 - Screens: `Spud/Scenes/*`.
 
 ## Importing into Claude Design (next step)

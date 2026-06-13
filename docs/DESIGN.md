@@ -41,4 +41,4 @@ density, iconography, screens, accessibility, and the performance budget — liv
 
 Media, compose, customization, accessibility, and the performance budget are specified in
 [`design/DESIGN-BRIEF.md`](design/DESIGN-BRIEF.md) (§5 design system, §9 accessibility, §10
-performance budget) and feature status is tracked in [`design/FEATURES.md`](design/FEATURES.md).
+performance budget) and feature status is documented per-capability under [`features/`](features/README.md).
