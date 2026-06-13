@@ -49,6 +49,7 @@ class MainWindowSplitViewController: UISplitViewController {
         let postListVC = PostListViewController(
             feed: feed,
             accountKeychainId: accountKeychainId,
+            showsQuickSwitch: true,
             dependencies: self.dependencies.nested
         )
         postListNavigationController.setViewControllers([postListVC], animated: false)
