@@ -120,6 +120,7 @@ public extension AppDatabase {
                         JOIN community   ON community.id = post.communityId
                         JOIN person      AS creator ON creator.id = post.creatorId
                         WHERE page.feedId = ?
+                          AND post.isHidden = 0
                         ORDER BY page.position ASC, pageElement.position ASC
                     """, arguments: [feedId])
 

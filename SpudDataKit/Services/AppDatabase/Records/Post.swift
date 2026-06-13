@@ -31,6 +31,9 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
     public var numberOfComments: Int64
     public var isRead: Bool
     public var isSaved: Bool
+    /// Whether the user hid this post (`PostView.hidden`). Hidden posts are
+    /// filtered out of the feed list.
+    public var isHidden: Bool
     /// 1 = upvote, 0 = downvote, nil = no vote.
     public var voteStatus: Int64?
     /// Moderation / content-status flags mirrored from the Lemmy post object.
@@ -63,6 +66,7 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         numberOfComments: Int64 = 0,
         isRead: Bool = false,
         isSaved: Bool = false,
+        isHidden: Bool = false,
         voteStatus: Int64? = nil,
         isRemoved: Bool = false,
         isLocked: Bool = false,
@@ -92,6 +96,7 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         self.numberOfComments = numberOfComments
         self.isRead = isRead
         self.isSaved = isSaved
+        self.isHidden = isHidden
         self.voteStatus = voteStatus
         self.isRemoved = isRemoved
         self.isLocked = isLocked

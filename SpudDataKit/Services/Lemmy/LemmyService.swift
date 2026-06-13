@@ -164,6 +164,14 @@ public protocol LemmyServiceType: Actor {
         serverPostId: Components.Schemas.PostID
     ) async throws
 
+    /// Hide or unhide `serverPostId` for the backing account. Hidden posts are
+    /// dropped from feed lists. Throws `LemmyServiceError.requiresAuthentication`
+    /// if this service is backed by a signed-out account.
+    func hidePost(
+        serverPostId: Components.Schemas.PostID,
+        hidden: Bool
+    ) async throws
+
     func markAsRead(
         serverPostId: Components.Schemas.PostID
     ) async throws
@@ -1384,6 +1392,50 @@ public actor LemmyService: LemmyServiceType {
             )
         } catch {
             logger.error("AppDatabase upsertPost failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    public func hidePost(
+        serverPostId: Components.Schemas.PostID,
+        hidden: Bool
+    ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Hide post rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                postId=\(serverPostId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Set hidden=\(hidden, privacy: .public) \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            postId=\(serverPostId, privacy: .public)
+            """)
+
+        let response: Components.Schemas.SuccessResponse
+        do {
+            response = try await api.hidePost(postIds: [serverPostId], hide: hidden)
+        } catch {
+            logger.error("""
+                Hide post failed. postId=\(serverPostId, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        if response.success {
+            do {
+                guard let (accountRowId, _) = try await accountSiteIds() else { return }
+                try await appDatabase.setPostIsHidden(
+                    accountId: accountRowId,
+                    serverPostId: Int64(serverPostId),
+                    isHidden: hidden
+                )
+            } catch {
+                logger.error("AppDatabase setPostIsHidden failed: \(String(describing: error), privacy: .public)")
+            }
         }
     }
 

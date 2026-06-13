@@ -32,6 +32,26 @@ public extension AppDatabase {
         }
     }
 
+    /// Sets `isHidden` on the matching post row. Silently no-ops if the post
+    /// row hasn't been imported yet.
+    func setPostIsHidden(
+        accountId: Int64,
+        serverPostId: Int64,
+        isHidden: Bool
+    ) async throws {
+        try await writer.write { db in
+            guard
+                var record = try PostRecord
+                .filter(Column("accountId") == accountId)
+                .filter(Column("postId") == serverPostId)
+                .fetchOne(db)
+            else { return }
+            record.isHidden = isHidden
+            record.updatedAt = Date()
+            try record.update(db)
+        }
+    }
+
     /// Upserts a post tied to `accountId` along with its creator and
     /// community, so all foreign keys are satisfied. Returns the resolved
     /// post row id.
@@ -118,6 +138,7 @@ public extension AppDatabase {
 
         record.isRead = view.read
         record.isSaved = view.saved
+        record.isHidden = view.hidden
 
         record.isRemoved = post.removed
         record.isLocked = post.locked
