@@ -138,9 +138,21 @@ class MainWindow: UIWindow {
         self.splitViewController = splitViewController
         splitViewController.delegate = self
 
-        // Tab: Setup the account view controller
-        let accountViewController = AccountViewController(dependencies: dependencies.nested)
-        let accountNavigationController = UINavigationController(rootViewController: accountViewController)
+        // Tab: Communities — the subscriptions / management surface promoted to
+        // a first-class tab (it was a split-view sidebar, unreachable on iPhone).
+        let communitiesViewController = SubscriptionsViewController(
+            accountKeychainId: keychainId,
+            isSignedIn: isSignedIn,
+            dependencies: dependencies.nested
+        )
+        communitiesViewController.navigationItem.title = NSLocalizedString("Communities", comment: "Communities tab title")
+        let communitiesNavigationController = UINavigationController(rootViewController: communitiesViewController)
+        communitiesNavigationController.navigationBar.prefersLargeTitles = true
+        communitiesNavigationController.tabBarItem = UITabBarItem(
+            title: NSLocalizedString("Communities", comment: "Communities tab title"),
+            image: UIImage(systemName: "person.3"),
+            selectedImage: UIImage(systemName: "person.3.fill")
+        )
 
         // Tab: Setup the search view controller
         let searchViewController = SearchViewController(
@@ -158,22 +170,20 @@ class MainWindow: UIWindow {
         )
         let inboxNavigationController = UINavigationController(rootViewController: inboxViewController)
 
-        // Tab: Setup the preferences view controller
-        let preferencesViewController = PreferencesViewController(
-            defaultPostSortType: defaultPostSortType,
-            accountKeychainId: keychainId,
-            dependencies: dependencies.nested
-        )
+        // Tab: Setup the account view controller. Settings is reached from the
+        // Account nav-bar gear now, so Preferences is no longer its own tab.
+        let accountViewController = AccountViewController(dependencies: dependencies.nested)
+        let accountNavigationController = UINavigationController(rootViewController: accountViewController)
 
-        // Setup the tab bar controller. Inbox sits at index 3 so its badge can
-        // be addressed via Self.inboxTabIndex.
+        // Tabs: Posts | Communities | Search | Inbox | Account. Inbox sits at
+        // index 3 so its badge can be addressed via Self.inboxTabIndex.
         tabBarController.setViewControllers(
             [
                 splitViewController,
-                accountNavigationController,
+                communitiesNavigationController,
                 searchNavigationController,
                 inboxNavigationController,
-                preferencesViewController,
+                accountNavigationController,
             ],
             animated: false
         )
@@ -305,11 +315,12 @@ class MainWindow: UIWindow {
 }
 
 extension MainWindow: UISplitViewControllerDelegate {
-    /// The post list navigation stack's base depth: `[SubscriptionsViewController,
-    /// PostListViewController]`. Anything pushed above this (a post detail and
-    /// whatever the user drilled into from it) is "detail" content that belongs
-    /// in the secondary column when the split view is expanded.
-    private static let postListBaseStackDepth = 2
+    /// The post list navigation stack's base depth: `[PostListViewController]`
+    /// (the feed is the root of the Posts tab now). Anything pushed above this
+    /// (a post detail and whatever the user drilled into from it) is "detail"
+    /// content that belongs in the secondary column when the split view is
+    /// expanded.
+    private static let postListBaseStackDepth = 1
 
     /// Collapsing from two columns (regular width) to one (compact width):
     /// e.g. rotating a Max-class iPhone back to portrait, or narrowing an iPad
