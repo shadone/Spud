@@ -46,6 +46,10 @@ class MainWindow: UIWindow {
     /// observable unread count.
     private static let inboxTabIndex = 3
 
+    /// Index of the Account tab; the sign-in gate routes here (it offers log-in
+    /// and sign-up) when a signed-out user chooses to authenticate.
+    private static let accountTabIndex = 4
+
     private let tabBarController: MainWindowTabBarController
     private var splitViewController: MainWindowSplitViewController?
     private var defaultAccountObservationTask: Task<Void, Never>?
@@ -212,6 +216,18 @@ class MainWindow: UIWindow {
             items.indices.contains(Self.inboxTabIndex)
         else { return }
         items[Self.inboxTabIndex].badgeValue = count.total > 0 ? "\(count.total)" : nil
+    }
+
+    /// Routes to the Account tab (its signed-out screen offers log in / sign
+    /// up) and resets it to root. Called from the sign-in gate.
+    func selectAccountTab() {
+        guard
+            let viewControllers = tabBarController.viewControllers,
+            viewControllers.indices.contains(Self.accountTabIndex)
+        else { return }
+        tabBarController.selectedIndex = Self.accountTabIndex
+        (viewControllers[Self.accountTabIndex] as? UINavigationController)?
+            .popToRootViewController(animated: false)
     }
 
     // MARK: Theming

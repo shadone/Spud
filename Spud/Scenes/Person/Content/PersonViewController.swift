@@ -273,13 +273,8 @@ class PersonViewController: UIViewController {
 
     private func toggleBlockUser() {
         guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
-            Haptics.warning()
-            presentErrorAlert(
-                title: NSLocalizedString("Sign in to block", comment: "Title of the alert shown when a signed-out user tries to block"),
-                message: NSLocalizedString(
-                    "You need to be signed in to an account to block users.",
-                    comment: "Body of the alert shown when a signed-out user tries to block"
-                )
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to block", comment: "Sign-in gate title when a signed-out user tries to block")
             )
             return
         }

@@ -315,13 +315,8 @@ class PostListViewController: UIViewController {
     private func composeTapped() {
         let keychainId = viewModel.accountKeychainId
         guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
-            Haptics.warning()
-            presentErrorAlert(
-                title: NSLocalizedString("Sign in to post", comment: "Title of the alert shown when a signed-out user tries to create a post"),
-                message: NSLocalizedString(
-                    "You need to be signed in to an account to create posts.",
-                    comment: "Body of the alert shown when a signed-out user tries to create a post"
-                )
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to post", comment: "Sign-in gate title when a signed-out user tries to create a post")
             )
             return
         }
@@ -854,13 +849,8 @@ class PostListViewController: UIViewController {
     private func replyToPost(serverPostId: Int64) {
         let keychainId = viewModel.accountKeychainId
         guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
-            Haptics.warning()
-            presentErrorAlert(
-                title: NSLocalizedString("Sign in to comment", comment: "Title of the alert shown when a signed-out user tries to comment"),
-                message: NSLocalizedString(
-                    "You need to be signed in to an account to post comments.",
-                    comment: "Body of the alert shown when a signed-out user tries to comment"
-                )
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to comment", comment: "Sign-in gate title when a signed-out user tries to comment")
             )
             return
         }
@@ -889,13 +879,8 @@ class PostListViewController: UIViewController {
     private func toggleSaved(serverPostId: Int64) {
         let keychainId = viewModel.accountKeychainId
         guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
-            Haptics.warning()
-            presentErrorAlert(
-                title: NSLocalizedString("Sign in to save", comment: "Title of the alert shown when a signed-out user tries to save a post"),
-                message: NSLocalizedString(
-                    "You need to be signed in to an account to save posts.",
-                    comment: "Body of the alert shown when a signed-out user tries to save a post"
-                )
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to save", comment: "Sign-in gate title when a signed-out user tries to save a post")
             )
             return
         }

@@ -320,15 +320,10 @@ final class SearchViewController: UIViewController {
 
     private func setSubscribed(result: SearchCommunityResult, subscribe: Bool, cell: SearchCommunityCell?) {
         guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
-            Haptics.warning()
-            presentErrorAlert(
+            presentSignInGate(
                 title: NSLocalizedString(
                     "Sign in to subscribe",
-                    comment: "Title of the alert shown when a signed-out user tries to subscribe from search"
-                ),
-                message: NSLocalizedString(
-                    "You need to be signed in to an account to subscribe to communities.",
-                    comment: "Body of the alert shown when a signed-out user tries to subscribe from search"
+                    comment: "Sign-in gate title when a signed-out user tries to subscribe from search"
                 )
             )
             return
