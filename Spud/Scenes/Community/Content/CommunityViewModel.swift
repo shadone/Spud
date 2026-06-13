@@ -25,6 +25,9 @@ final class CommunityViewModel {
     var title: String = ""
     /// Canonical "!name@instance" handle, e.g. "!world@lemmy.world".
     var qualifiedName: String = ""
+    /// The community's federation actor id (e.g. "https://lemmy.world/c/world"),
+    /// used as the key for client-local muting. nil until the record loads.
+    var actorId: String?
     var descriptionMarkdown: String?
     var iconUrl: URL?
     var bannerUrl: URL?
@@ -76,6 +79,7 @@ final class CommunityViewModel {
         name = record.name ?? ""
         title = record.title ?? record.name ?? ""
         qualifiedName = Self.qualifiedName(name: record.name, actorId: record.actorId)
+        actorId = record.actorId
         descriptionMarkdown = record.descriptionText
         iconUrl = record.iconUrl.flatMap { URL(string: $0) }
         bannerUrl = record.bannerUrl.flatMap { URL(string: $0) }
