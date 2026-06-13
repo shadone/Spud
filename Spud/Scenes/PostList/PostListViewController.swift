@@ -1005,6 +1005,71 @@ class PostListViewController: UIViewController {
         navigationController?.pushViewController(vc, animated: true)
     }
 
+    /// Reports the post, gating on sign-in. Mirrors the post-detail report
+    /// flow: a required-reason alert, then a confirmation.
+    private func reportPost(serverPostId: Int64) {
+        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to report", comment: "Sign-in gate title when a signed-out user tries to report")
+            )
+            return
+        }
+        presentReportReasonAlert(
+            title: NSLocalizedString("Report post", comment: "Report post dialog title"),
+            message: NSLocalizedString("Tell the moderators why you're reporting this post.", comment: "Report post dialog message")
+        ) { [weak self] reason in
+            Task { await self?.submitPostReport(serverPostId: serverPostId, reason: reason) }
+        }
+    }
+
+    private func submitPostReport(serverPostId: Int64, reason: String) async {
+        Haptics.tap()
+        do {
+            try await accountService
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                .reportPost(serverPostId: Components.Schemas.PostID(serverPostId), reason: reason)
+            Haptics.success()
+            presentReportSubmittedConfirmation()
+        } catch {
+            alertService.handle(error, for: .reportPost)
+        }
+    }
+
+    /// Blocks the post's author, gating on sign-in and confirming first. The
+    /// server filters blocked authors from later feed fetches, so their posts
+    /// drop out on the next refresh.
+    private func blockAuthor(serverPostId: Int64) {
+        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to block", comment: "Sign-in gate title when a signed-out user tries to block")
+            )
+            return
+        }
+        guard let row = rowsByServerPostId[serverPostId] else { return }
+        let handle = row.creatorName ?? NSLocalizedString("this user", comment: "Fallback author handle when the name is unknown")
+        presentDestructiveConfirmation(
+            title: String(format: NSLocalizedString("Block %@?", comment: "Block user confirmation title"), handle),
+            message: NSLocalizedString(
+                "You won't see posts or comments from this user. You can unblock them later.",
+                comment: "Block user confirmation message"
+            ),
+            confirmTitle: NSLocalizedString("Block", comment: "Block user confirm button"),
+            sourceView: view
+        ) { [weak self] in
+            Task { await self?.submitBlockAuthor(serverPersonId: row.creatorPersonId) }
+        }
+    }
+
+    private func submitBlockAuthor(serverPersonId: Int64) async {
+        do {
+            try await accountService
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                .setBlocked(serverPersonId: Components.Schemas.PersonID(serverPersonId), blocked: true)
+        } catch {
+            alertService.handle(error, for: .setBlockedPerson)
+        }
+    }
+
     private func vote(serverPostId: Int64, action: VoteStatus.Action) async {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
@@ -1284,11 +1349,30 @@ extension PostListViewController: UITableViewDelegate {
                     self?.viewAuthor(serverPostId: serverPostId)
                 }
 
+                let blockAction = UIAction(
+                    title: row?.creatorName.map {
+                        String(format: NSLocalizedString("Block %@", comment: "Context-menu action to block a post author; %@ is the author handle"), $0)
+                    } ?? NSLocalizedString("Block author", comment: "Context-menu action to block a post author"),
+                    image: UIImage(systemName: "hand.raised"),
+                    attributes: .destructive
+                ) { [weak self] _ in
+                    self?.blockAuthor(serverPostId: serverPostId)
+                }
+
+                let reportAction = UIAction(
+                    title: NSLocalizedString("Report", comment: "Context-menu action to report a post"),
+                    image: UIImage(systemName: "flag"),
+                    attributes: .destructive
+                ) { [weak self] _ in
+                    self?.reportPost(serverPostId: serverPostId)
+                }
+
                 // Grouped with inline submenus so each renders with a divider,
                 // matching the design's long-press menu layout.
                 let voteGroup = UIMenu(options: .displayInline, children: [upvoteAction, downvoteAction, saveAction])
                 let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction])
                 let navGroup = UIMenu(options: .displayInline, children: [visitCommunityAction, viewAuthorAction])
+                let safetyGroup = UIMenu(options: .displayInline, children: [blockAction, reportAction])
 
                 var children: [UIMenuElement] = [voteGroup, shareGroup, navGroup]
                 // Moderation submenu, only when the account moderates this
@@ -1296,6 +1380,7 @@ extension PostListViewController: UITableViewDelegate {
                 if let modMenu = self?.postModerationMenu(serverPostId: serverPostId) {
                     children.append(modMenu)
                 }
+                children.append(safetyGroup)
                 return UIMenu(title: "", children: children)
             }
         )
