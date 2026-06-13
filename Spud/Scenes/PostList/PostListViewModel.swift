@@ -21,8 +21,7 @@ private let logger = Logger.app
 @Observable
 final class PostListViewModel {
     typealias OwnDependencies =
-        HasAccountService &
-        HasAlertService
+        HasAccountService
     typealias Dependencies = OwnDependencies
 
     @ObservationIgnored
@@ -33,6 +32,15 @@ final class PostListViewModel {
     var navigationTitle: String
     var isFetchingNextPage: Bool = false
 
+    /// True after a page fetch threw. Observed by the controller, which shows
+    /// the inline error state when the feed is still empty, or a transient
+    /// alert when there are already posts on screen (a pagination failure).
+    /// Reset at the start of every fetch and on success.
+    var fetchFailed: Bool = false
+
+    @ObservationIgnored
+    private(set) var lastFetchError: Error?
+
     @ObservationIgnored
     private var nextPageCursor: String?
     @ObservationIgnored
@@ -40,10 +48,6 @@ final class PostListViewModel {
 
     private var accountService: AccountServiceType {
         dependencies.accountService
-    }
-
-    private var alertService: AlertServiceType {
-        dependencies.alertService
     }
 
     init(feed: FeedHandle, accountKeychainId: String, dependencies: Dependencies) {
@@ -104,6 +108,7 @@ final class PostListViewModel {
 
     func fetchNextPage() async {
         isFetchingNextPage = true
+        fetchFailed = false
         defer { isFetchingNextPage = false }
 
         do {
@@ -111,11 +116,29 @@ final class PostListViewModel {
                 .lemmyService(forAccountKeychainId: accountKeychainId)
                 .fetchFeed(feed, pageCursor: nextPageCursor)
             nextPageCursor = returnedCursor
+            lastFetchError = nil
             if returnedCursor == nil {
                 feedExhausted = true
             }
         } catch {
-            alertService.handle(error, for: .fetchPostList)
+            // The controller decides how to surface this: the inline error
+            // state when the feed is still empty, or an alert when there are
+            // already posts on screen.
+            lastFetchError = error
+            fetchFailed = true
+        }
+    }
+
+    /// The host of the instance this feed is served from (e.g. `lemmy.world`),
+    /// used to name the server in the feed error state. Community feeds carry
+    /// the instance directly; frontpage and saved feeds use the account's home
+    /// instance.
+    var instanceHost: String? {
+        switch feed.feedType {
+        case let .community(_, instance, _):
+            return instance.host
+        case .frontpage, .saved:
+            return accountService.instanceActorId(forAccountKeychainId: accountKeychainId)?.host
         }
     }
 
