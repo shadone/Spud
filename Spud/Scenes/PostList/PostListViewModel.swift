@@ -76,6 +76,20 @@ final class PostListViewModel {
         navigationTitle = Self.navigationTitle(for: newFeed.feedType)
     }
 
+    /// Switches this list to a different feed entirely (e.g. from the
+    /// quick-switch drawer). The controller restarts its observation via
+    /// `feedChanged()` afterwards.
+    func switchFeed(to feedType: FeedType) {
+        let newFeed = accountService.createFeed(
+            forAccountKeychainId: accountKeychainId,
+            feedType: feedType
+        )
+        feed = newFeed
+        nextPageCursor = nil
+        feedExhausted = false
+        navigationTitle = Self.navigationTitle(for: newFeed.feedType)
+    }
+
     func didScrollToBottom() {
         guard !isFetchingNextPage, !feedExhausted else { return }
         Task { await fetchNextPage() }

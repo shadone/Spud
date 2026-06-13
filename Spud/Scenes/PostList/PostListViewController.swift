@@ -142,10 +142,25 @@ class PostListViewController: UIViewController {
     var sortTypeBarButtonItem: UIBarButtonItem!
     var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
 
+    /// Whether this feed is the Posts-tab root, and so shows the tappable
+    /// quick-switch title (chevron) that opens the read-only feed drawer.
+    private let showsQuickSwitch: Bool
+
+    /// Retained because UIKit holds the transitioning delegate weakly.
+    private let drawerTransitioningDelegate = LeadingDrawerTransitioningDelegate()
+
+    private lazy var quickSwitchTitleButton: UIButton = makeQuickSwitchTitleButton()
+
     // MARK: Functions
 
-    init(feed: FeedHandle, accountKeychainId: String, dependencies: Dependencies) {
+    init(
+        feed: FeedHandle,
+        accountKeychainId: String,
+        showsQuickSwitch: Bool = false,
+        dependencies: Dependencies
+    ) {
         self.dependencies = (own: dependencies, nested: dependencies)
+        self.showsQuickSwitch = showsQuickSwitch
 
         viewModel = PostListViewModel(
             feed: feed,
@@ -165,7 +180,7 @@ class PostListViewController: UIViewController {
         markPostsReadOnScroll = dependencies.preferencesService.markPostsReadOnScroll
 
         setup()
-        navigationItem.title = viewModel.navigationTitle
+        configureTitle()
     }
 
     @available(*, unavailable)
@@ -204,13 +219,96 @@ class PostListViewController: UIViewController {
     /// owns the nav bar and provides its own community-prefilled "New post"
     /// button, and saved feeds have no single community to post to.
     private func setupComposeButton() {
-        guard case .frontpage = viewModel.feed.feedType else { return }
+        guard case .frontpage = viewModel.feed.feedType else {
+            // Saved / community feeds have no single community to post to.
+            navigationItem.leftBarButtonItem = nil
+            return
+        }
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "square.and.pencil"),
             style: .plain,
             target: self,
             action: #selector(composeTapped)
         )
+    }
+
+    // MARK: Quick-switch drawer
+
+    private func configureTitle() {
+        if showsQuickSwitch {
+            navigationItem.titleView = quickSwitchTitleButton
+        }
+        applyNavigationTitle()
+    }
+
+    private func applyNavigationTitle() {
+        if showsQuickSwitch {
+            updateQuickSwitchTitle(viewModel.navigationTitle)
+        } else {
+            navigationItem.title = viewModel.navigationTitle
+        }
+    }
+
+    private func makeQuickSwitchTitleButton() -> UIButton {
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(
+            systemName: "chevron.down",
+            withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
+        )
+        config.imagePlacement = .trailing
+        config.imagePadding = 5
+        config.baseForegroundColor = .label
+        config.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var outgoing = incoming
+            outgoing.font = .systemFont(ofSize: 17, weight: .semibold)
+            return outgoing
+        }
+        let button = UIButton(configuration: config)
+        button.addTarget(self, action: #selector(quickSwitchTapped), for: .touchUpInside)
+        button.accessibilityHint = NSLocalizedString(
+            "Opens the feed switcher",
+            comment: "Accessibility hint for the tappable feed title"
+        )
+        return button
+    }
+
+    private func updateQuickSwitchTitle(_ text: String) {
+        quickSwitchTitleButton.configuration?.title = text
+        quickSwitchTitleButton.sizeToFit()
+    }
+
+    @objc
+    private func quickSwitchTapped() {
+        Haptics.tap()
+        let keychainId = viewModel.accountKeychainId
+        let drawer = QuickSwitchDrawerViewController(
+            activeFeedType: viewModel.feed.feedType,
+            defaultSortType: accountService.defaultSortType(forAccountKeychainId: keychainId)
+        )
+        drawer.onSelectFeedType = { [weak self] feedType in
+            self?.switchFeed(to: feedType)
+        }
+        drawer.onBrowseAllCommunities = { [weak self] in
+            // Communities is tab index 1 (Posts | Communities | Search | Inbox | Account).
+            self?.tabBarController?.selectedIndex = 1
+        }
+
+        let navigationController = UINavigationController(rootViewController: drawer)
+        navigationController.modalPresentationStyle = .custom
+        navigationController.transitioningDelegate = drawerTransitioningDelegate
+        present(navigationController, animated: true)
+    }
+
+    /// Switches the feed in place (drawer selection), mirroring the sort-change
+    /// path: swap the feed, restart the observation, and refresh the chrome.
+    private func switchFeed(to feedType: FeedType) {
+        viewModel.switchFeed(to: feedType)
+        feedChanged()
+        setupComposeButton()
+        rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
+        applyNavigationTitle()
+        donateIntent()
     }
 
     @objc
@@ -275,7 +373,7 @@ class PostListViewController: UIViewController {
         titleObservationTask = Task { @MainActor [weak self] in
             for await _ in Self.values(of: { viewModel.navigationTitle }) {
                 if Task.isCancelled { break }
-                self?.navigationItem.title = viewModel.navigationTitle
+                self?.applyNavigationTitle()
             }
         }
         loadingObservationTask = Task { @MainActor [weak self] in
