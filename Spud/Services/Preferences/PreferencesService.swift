@@ -64,6 +64,11 @@ protocol PreferencesServiceType: AnyObject {
     var postTextScale: CGFloat { get set }
     var postTextScaleStream: AsyncStream<CGFloat> { get }
 
+    /// Whether the post-list cell shows the trailing up/down vote arrows.
+    /// Default `true` (the Scout compact cell shows them).
+    var showVoteButtons: Bool { get set }
+    var showVoteButtonsStream: AsyncStream<Bool> { get }
+
     // MARK: Mark-read / hide (M8)
 
     /// Whether posts interacted with (opened, voted) are marked read. Default
@@ -167,6 +172,13 @@ class PreferencesService: PreferencesServiceType {
 
     var postTextScaleStream: AsyncStream<CGFloat> {
         $postTextScale
+    }
+
+    @UserDefaultsBacked(key: "showVoteButtons")
+    var showVoteButtons: Bool = true
+
+    var showVoteButtonsStream: AsyncStream<Bool> {
+        $showVoteButtons
     }
 
     // MARK: Mark-read / hide (M8)

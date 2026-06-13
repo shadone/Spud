@@ -56,6 +56,9 @@ struct PostListPostViewModel {
     /// Where the cell should place the thumbnail (or whether to hide it).
     let thumbnailPosition: ThumbnailPosition
 
+    /// Whether the cell shows the trailing up/down vote arrows.
+    let showVoteButtons: Bool
+
     /// Cell margin and inter-element spacing for the active density.
     let density: PostDensity
 
@@ -142,6 +145,7 @@ struct PostListPostViewModel {
         let density = appearance.postList.postDensity
         self.density = density
         thumbnailPosition = appearance.postList.thumbnailPosition
+        showVoteButtons = appearance.postList.showVoteButtons
 
         // The user's text-scale override plus the active density's own
         // adjustment (compact shaves a point).

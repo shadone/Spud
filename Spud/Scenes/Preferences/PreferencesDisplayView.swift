@@ -22,6 +22,10 @@ struct PreferencesDisplayView: View {
         .init { viewModel.thumbnailPosition } set: { viewModel.updateThumbnailPosition($0) }
     }
 
+    private var showVoteButtons: Binding<Bool> {
+        .init { viewModel.showVoteButtons } set: { viewModel.updateShowVoteButtons($0) }
+    }
+
     /// The text-scale slider works in whole points from -3 to +6 relative to
     /// the system body size.
     private var postTextScale: Binding<Double> {
@@ -54,6 +58,14 @@ struct PreferencesDisplayView: View {
                 Text("Thumbnail")
             } footer: {
                 Text("Choose which side the post thumbnail sits on, or hide it entirely.")
+            }
+
+            Section {
+                Toggle(isOn: showVoteButtons) {
+                    Label("Vote Buttons", systemImage: "arrow.up.arrow.down")
+                }
+            } footer: {
+                Text("Show up and down vote arrows on each post in the feed. Swipe actions still work when hidden.")
             }
 
             Section {

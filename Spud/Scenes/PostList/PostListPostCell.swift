@@ -207,6 +207,8 @@ class PostListPostCell: UITableViewCell {
     /// The thumbnail position applied to the current layout, so `configure`
     /// only relays the stack when it actually changes (cheaper on reuse).
     private var appliedThumbnailPosition: ThumbnailPosition?
+    /// Whether the vote column is in the current layout, same rationale.
+    private var appliedShowVoteButtons: Bool?
     /// The density applied to the current layout, same rationale.
     private var appliedDensity: PostDensity?
 
@@ -335,10 +337,13 @@ class PostListPostCell: UITableViewCell {
         contentContainer.spacing = density.titleSubtitleSpacing / 2 + 1
     }
 
-    /// Relays the thumbnail to the requested side, or removes it when hidden.
-    private func applyThumbnailPosition(_ position: ThumbnailPosition) {
-        guard position != appliedThumbnailPosition else { return }
+    /// Relays the thumbnail to the requested side (or removes it when hidden)
+    /// and adds or drops the trailing vote column. Rebuilds the horizontal
+    /// stack only when the resolved layout actually changes (cheaper on reuse).
+    private func applyLayout(position: ThumbnailPosition, showVoteButtons: Bool) {
+        guard position != appliedThumbnailPosition || showVoteButtons != appliedShowVoteButtons else { return }
         appliedThumbnailPosition = position
+        appliedShowVoteButtons = showVoteButtons
 
         // Rebuild the horizontal stack's arranged subviews in the right order.
         for view in mainHorizontalStackView.arrangedSubviews {
@@ -360,8 +365,11 @@ class PostListPostCell: UITableViewCell {
             mainHorizontalStackView.addArrangedSubview(contentContainer)
         }
 
-        // The vote column always trails the content, regardless of thumbnail side.
-        mainHorizontalStackView.addArrangedSubview(voteColumn)
+        // The vote column always trails the content, regardless of thumbnail
+        // side. Dropped entirely (not just hidden) when the user turns it off.
+        if showVoteButtons {
+            mainHorizontalStackView.addArrangedSubview(voteColumn)
+        }
     }
 
     func configure(with viewModel: PostListPostViewModel, imageService: ImageServiceType) {
@@ -390,7 +398,7 @@ class PostListPostCell: UITableViewCell {
         downvoteButton.tintColor = viewModel.voteStatus == .down ? viewModel.downvoteActiveColor : .tertiaryLabel
 
         applyDensity(viewModel.density)
-        applyThumbnailPosition(viewModel.thumbnailPosition)
+        applyLayout(position: viewModel.thumbnailPosition, showVoteButtons: viewModel.showVoteButtons)
 
         // A hidden thumbnail needs no image work.
         guard viewModel.thumbnailPosition.showsThumbnail else {
