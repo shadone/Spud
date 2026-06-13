@@ -28,6 +28,9 @@ struct PostDetailCommentViewModel {
     /// stacked Apollo-style depth rails. Empty for top-level comments.
     let depthRailColors: [UIColor]
 
+    /// `true` when this comment's author is the post's author (shows an "OP" tag).
+    let isOriginalPoster: Bool
+
     /// `true` when this comment is collapsed and its subtree is hidden.
     let isCollapsed: Bool
 
@@ -47,10 +50,15 @@ struct PostDetailCommentViewModel {
     init(
         row: PostDetailCommentRow,
         appearance: AppearanceServiceType,
+        postCreatorPersonId: Int64? = nil,
         isCollapsed: Bool = false,
         collapsedDescendantCount: Int? = nil
     ) {
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
+
+        // The author is the post's author when their person ids match — drives
+        // the "OP" tag. nil ids never match (no false positive).
+        isOriginalPoster = row.creatorPersonId != nil && row.creatorPersonId == postCreatorPersonId
 
         let authorAttributesBase: [NSAttributedString.Key: Any] = [
             .font: UIFont.scaledSystemFont(
@@ -61,6 +69,16 @@ struct PostDetailCommentViewModel {
         ]
         let secondaryAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.scaledSystemFont(
+                style: .body,
+                relativeSize: -1 + textSizeAdjustment,
+                weight: .regular
+            ),
+            .foregroundColor: UIColor.secondaryLabel,
+        ]
+        // Monospaced digits for score / age so numbers stay aligned and don't
+        // jitter, matching the feed cell.
+        let monoAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.scaledMonospaceDigitSystemFont(
                 style: .body,
                 relativeSize: -1 + textSizeAdjustment,
                 weight: .regular
@@ -114,14 +132,14 @@ struct PostDetailCommentViewModel {
         let upvotes = IconValueFormatter.attributedString(
             numberOfVotesOrScore: row.score,
             voteStatus: voteStatus,
-            attributes: secondaryAttributes,
+            attributes: monoAttributes,
             appearance: appearance.general
         )
         let age: NSAttributedString = {
             guard let published = row.published else { return NSAttributedString() }
             return IconValueFormatter.attributedString(
                 relativeDate: published,
-                attributes: secondaryAttributes
+                attributes: monoAttributes
             )
         }()
         var subtitlePieces: [NSAttributedString] = [upvotes, space, age]
@@ -214,6 +232,12 @@ struct PostDetailCommentViewModel {
             var subtitlePieces: [String] = [
                 VoteAccessibility.scoreLabel(score: row.score, voteStatus: voteStatus),
             ]
+            if isOriginalPoster {
+                subtitlePieces.append(NSLocalizedString(
+                    "original poster",
+                    comment: "VoiceOver: comment written by the post's author"
+                ))
+            }
             if let published = row.published {
                 subtitlePieces.append(published.relativeString)
             }
