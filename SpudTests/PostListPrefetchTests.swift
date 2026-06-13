@@ -25,6 +25,7 @@ final class PostListPrefetchTests: XCTestCase {
             thumbnailUrl: thumbnailUrl,
             urlEmbedTitle: nil,
             urlEmbedDescription: nil,
+            altText: nil,
             communityName: "c",
             communityActorId: nil,
             serverCommunityId: 1,

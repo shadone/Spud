@@ -19,15 +19,25 @@ struct MediaItem: Equatable {
     /// header or a list thumbnail), used for an instant first frame.
     let preloadedImage: UIImage?
 
+    /// The image's description (`post.alt_text`), shown as the viewer caption.
+    /// nil when the post carries no alt text.
+    let altText: String?
+
     /// True when the full asset is an animated format (GIF) the viewer should
     /// play. Derived from the image URL's extension, mirroring the content
     /// detector.
     let isAnimated: Bool
 
-    init(imageUrl: URL, thumbnailUrl: URL? = nil, preloadedImage: UIImage? = nil) {
+    init(
+        imageUrl: URL,
+        thumbnailUrl: URL? = nil,
+        preloadedImage: UIImage? = nil,
+        altText: String? = nil
+    ) {
         self.imageUrl = imageUrl
         self.thumbnailUrl = thumbnailUrl
         self.preloadedImage = preloadedImage
+        self.altText = altText
         isAnimated = imageUrl.pathExtension.lowercased() == "gif"
     }
 }
