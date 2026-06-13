@@ -82,19 +82,24 @@ public extension AppDatabase {
     /// The set of community actor ids currently muted (and not expired) for the
     /// account that owns `feedId`. Read inside the feed's `ValueObservation` so
     /// the feed re-filters whenever a mute is added or removed.
+    ///
+    /// Mute only hides communities from aggregate frontpage feeds (All / Local /
+    /// Subscribed). A community's own feed and the saved feed are views the user
+    /// opted into explicitly, so they're never filtered (otherwise visiting a
+    /// muted community would show an empty screen).
     internal static func activeMutedCommunityActorIds(
         _ db: Database,
         feedId: Int64
     ) throws -> Set<String> {
         guard
-            let accountId = try FeedRecord
+            let feed = try FeedRecord
             .filter(Column("id") == feedId)
-            .fetchOne(db)?
-            .accountId
+            .fetchOne(db),
+            feed.frontpageListingType != nil
         else { return [] }
 
         let records = try MutedCommunityRecord
-            .filter(Column("accountId") == accountId)
+            .filter(Column("accountId") == feed.accountId)
             .fetchAll(db)
         return Set(records.lazy.filter(isActive).map(\.communityActorId))
     }
