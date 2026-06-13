@@ -113,30 +113,51 @@ final class MediaViewerViewController: UIViewController {
         return control
     }()
 
-    /// A translucent caption pill showing the current image's description
-    /// (`MediaItem.altText`), pinned above the page dots and fading with the
-    /// rest of the chrome. Hidden when the current item carries no alt text.
+    /// The collapsed alt-text affordance: a tappable "[ALT] Image description ⌃"
+    /// pill pinned above the page dots that opens the full description sheet.
+    /// Hidden when the current item carries no alt text; fades with the chrome.
     private lazy var captionContainer: UIVisualEffectView = {
         let view = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
         view.translatesAutoresizingMaskIntoConstraints = false
         view.layer.cornerRadius = 12
         view.layer.cornerCurve = .continuous
         view.clipsToBounds = true
-        // Let taps fall through to the chrome-toggle / swipe-to-dismiss gestures.
-        view.isUserInteractionEnabled = false
         view.isHidden = true
         return view
     }()
 
-    private lazy var captionLabel: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.numberOfLines = 0
-        label.textAlignment = .center
-        label.font = .scaledSystemFont(style: .footnote, relativeSize: 0, weight: .regular)
-        label.textColor = UIColor.white.withAlphaComponent(0.9)
-        return label
+    private lazy var captionStack: UIStackView = {
+        let title = UILabel()
+        title.text = Self.altPillLabel
+        title.font = .systemFont(ofSize: 13, weight: .regular)
+        title.textColor = UIColor.white.withAlphaComponent(0.88)
+
+        let chevron = UIImageView(image: UIImage(
+            systemName: "chevron.up",
+            withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
+        ))
+        chevron.tintColor = UIColor.white.withAlphaComponent(0.7)
+        chevron.setContentHuggingPriority(.required, for: .horizontal)
+
+        let stack = UIStackView(arrangedSubviews: [AltBadgeLabel(pointSize: 10.5), title, chevron])
+        stack.axis = .horizontal
+        stack.alignment = .center
+        stack.spacing = 7
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        // Touches are handled by the container's tap gesture.
+        stack.isUserInteractionEnabled = false
+        return stack
     }()
+
+    /// The current page's alt text, shown in the sheet opened from the pill.
+    private var currentAltText: String?
+
+    private static let altPillLabel = NSLocalizedString(
+        "Image description",
+        comment: "Media-viewer alt-text pill label"
+    )
+
+    private var singleTapGesture: UITapGestureRecognizer?
 
     private var topBarTopConstraint: NSLayoutConstraint!
 
@@ -215,7 +236,9 @@ final class MediaViewerViewController: UIViewController {
         view.addSubview(pageControl)
 
         view.addSubview(captionContainer)
-        captionContainer.contentView.addSubview(captionLabel)
+        captionContainer.contentView.addSubview(captionStack)
+        let pillTap = UITapGestureRecognizer(target: self, action: #selector(captionTapped))
+        captionContainer.addGestureRecognizer(pillTap)
 
         topBarTopConstraint = topBarBackgroundView.topAnchor.constraint(equalTo: view.topAnchor)
 
@@ -237,42 +260,47 @@ final class MediaViewerViewController: UIViewController {
             pageControl.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             pageControl.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8),
 
-            // Centered above the page dots, capped well short of the screen
-            // edges so a long description wraps into a tidy pill.
+            // A compact pill centered above the page dots; it stays narrow
+            // (the description itself lives in the sheet it opens), but is
+            // capped short of the edges so the fixed label never crowds them.
             captionContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             captionContainer.bottomAnchor.constraint(equalTo: pageControl.topAnchor, constant: -10),
             captionContainer.leadingAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
             captionContainer.trailingAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
-            captionContainer.widthAnchor.constraint(lessThanOrEqualToConstant: 320),
 
-            captionLabel.topAnchor.constraint(equalTo: captionContainer.contentView.topAnchor, constant: 7),
-            captionLabel.bottomAnchor.constraint(equalTo: captionContainer.contentView.bottomAnchor, constant: -7),
-            captionLabel.leadingAnchor.constraint(equalTo: captionContainer.contentView.leadingAnchor, constant: 14),
-            captionLabel.trailingAnchor.constraint(equalTo: captionContainer.contentView.trailingAnchor, constant: -14),
+            captionStack.topAnchor.constraint(equalTo: captionContainer.contentView.topAnchor, constant: 6),
+            captionStack.bottomAnchor.constraint(equalTo: captionContainer.contentView.bottomAnchor, constant: -6),
+            captionStack.leadingAnchor.constraint(equalTo: captionContainer.contentView.leadingAnchor, constant: 11),
+            captionStack.trailingAnchor.constraint(equalTo: captionContainer.contentView.trailingAnchor, constant: -11),
         ])
     }
 
-    /// Shows the current item's alt text in the caption pill, or hides the pill
-    /// when there's no description. Called on load and after each page change.
+    /// Reveals the alt-text pill for the current item (or hides it when there's
+    /// no description). Called on load and after each page change.
     private func updateCaption() {
         let description = items[currentIndex].altText?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard let description, !description.isEmpty else {
+            currentAltText = nil
             captionContainer.isHidden = true
-            captionLabel.text = nil
             captionContainer.isAccessibilityElement = false
             return
         }
-        captionLabel.text = description
+        currentAltText = description
         captionContainer.isHidden = false
         captionContainer.isAccessibilityElement = true
-        captionContainer.accessibilityLabel = String(
-            format: NSLocalizedString(
-                "Image description: %@",
-                comment: "VoiceOver label for the media viewer alt-text caption"
-            ),
-            description
+        captionContainer.accessibilityTraits = .button
+        captionContainer.accessibilityLabel = Self.altPillLabel
+        captionContainer.accessibilityHint = NSLocalizedString(
+            "Shows the full image description",
+            comment: "VoiceOver hint for the media-viewer alt-text pill"
         )
+    }
+
+    @objc
+    private func captionTapped() {
+        guard let currentAltText else { return }
+        present(AltTextSheetViewController(altText: currentAltText), animated: true)
     }
 
     private func setupGestures() {
@@ -285,6 +313,8 @@ final class MediaViewerViewController: UIViewController {
         {
             singleTap.require(toFail: doubleTap)
         }
+        singleTap.delegate = self
+        singleTapGesture = singleTap
         view.addGestureRecognizer(singleTap)
 
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
@@ -653,6 +683,21 @@ extension MediaViewerViewController: UIPageViewControllerDelegate {
 // MARK: - UIGestureRecognizerDelegate
 
 extension MediaViewerViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer,
+        shouldReceive touch: UITouch
+    ) -> Bool {
+        // A tap on the alt-text pill opens its sheet; don't also toggle the
+        // chrome out from under it.
+        if gestureRecognizer === singleTapGesture,
+           let touchView = touch.view,
+           touchView.isDescendant(of: captionContainer)
+        {
+            return false
+        }
+        return true
+    }
+
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
         // Only claim a downward, mostly-vertical drag, and only when the
