@@ -1236,6 +1236,7 @@ extension PostDetailViewController {
                 let viewModel = PostDetailCommentViewModel(
                     row: row,
                     appearance: appearance,
+                    postCreatorPersonId: self?.headerRow?.creatorPersonId,
                     isCollapsed: isCollapsed,
                     collapsedDescendantCount: collapsedCount
                 )

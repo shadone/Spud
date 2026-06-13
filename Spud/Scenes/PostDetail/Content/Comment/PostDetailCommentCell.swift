@@ -71,6 +71,7 @@ class PostDetailCommentCell: UITableViewCell {
 
         let subviews = [
             authorLabel,
+            opBadgeLabel,
             subtitleLabel,
             spacerView,
             collapsedBadgeLabel,
@@ -80,6 +81,7 @@ class PostDetailCommentCell: UITableViewCell {
         }
 
         stackView.setCustomSpacing(4, after: authorLabel)
+        stackView.setCustomSpacing(6, after: opBadgeLabel)
 
         return stackView
     }()
@@ -94,6 +96,21 @@ class PostDetailCommentCell: UITableViewCell {
         label.tapped = { [weak self] url in
             self?.linkTapped?(url)
         }
+        return label
+    }()
+
+    /// Small accent "OP" tag shown when the comment is by the post's author.
+    lazy var opBadgeLabel: PostDetailCommentCell.BadgeLabel = {
+        let label = BadgeLabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.text = NSLocalizedString("OP", comment: "Tag marking a comment by the original poster")
+        label.font = .systemFont(ofSize: 11, weight: .bold)
+        label.layer.cornerRadius = 4
+        label.clipsToBounds = true
+        label.isHidden = true
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
+        label.accessibilityIdentifier = "opBadge"
         return label
     }()
 
@@ -190,6 +207,37 @@ class PostDetailCommentCell: UITableViewCell {
         collapseTapped = nil
         swipeActionConfiguration = nil
         swipeActionTriggered = nil
+        opBadgeLabel.isHidden = true
+    }
+
+    /// The OP tag uses the app accent (the window `tintColor`), resolved here so
+    /// it re-tints when the user changes accent or interface style.
+    private func applyOPBadgeTint() {
+        let accent = tintColor ?? .systemTeal
+        opBadgeLabel.textColor = accent
+        opBadgeLabel.backgroundColor = accent.withAlphaComponent(0.16)
+    }
+
+    override func tintColorDidChange() {
+        super.tintColorDidChange()
+        applyOPBadgeTint()
+    }
+
+    /// A `UILabel` with small horizontal padding, used for the rounded "OP" pill.
+    final class BadgeLabel: UILabel {
+        private let insets = UIEdgeInsets(top: 1, left: 5, bottom: 1, right: 5)
+
+        override func drawText(in rect: CGRect) {
+            super.drawText(in: rect.inset(by: insets))
+        }
+
+        override var intrinsicContentSize: CGSize {
+            let size = super.intrinsicContentSize
+            return CGSize(
+                width: size.width + insets.left + insets.right,
+                height: size.height + insets.top + insets.bottom
+            )
+        }
     }
 
     func configure(with viewModel: PostDetailCommentViewModel) {
@@ -205,6 +253,9 @@ class PostDetailCommentCell: UITableViewCell {
             messageLabel.attributedText = viewModel.isCollapsed ? nil : viewModel.body
         }
         messageLabel.isHidden = (messageLabel.attributedText?.length ?? 0) == 0
+
+        opBadgeLabel.isHidden = viewModel.isMore || !viewModel.isOriginalPoster
+        applyOPBadgeTint()
 
         collapsedBadgeLabel.attributedText = viewModel.collapsedBadgeText
         collapsedBadgeLabel.isHidden = viewModel.collapsedBadgeText == nil
