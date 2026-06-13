@@ -19,6 +19,9 @@ protocol PostListAppearanceType: AnyObject {
 
     /// Where the thumbnail sits (left / right / hidden).
     var thumbnailPosition: ThumbnailPosition { get }
+
+    /// Whether the cell shows the trailing up/down vote arrows.
+    var showVoteButtons: Bool { get }
 }
 
 /// Resolves post-list display preferences for the cell layer. The reading /
@@ -37,9 +40,6 @@ final class PostListAppearance: PostListAppearanceType {
     @UserDefaultsBacked(key: "PostList.PreviewImageSize")
     var previewImageSize: PostListPreviewImageSize = .medium
 
-    @UserDefaultsBacked(key: "PostList.DisplayVotingButtons")
-    var displayVotingButtons: Bool = true
-
     /// Forwards to the user's text-scale preference so the cell view-model and
     /// the settings screen share one value.
     var textSizeAdjustment: CGFloat {
@@ -53,5 +53,9 @@ final class PostListAppearance: PostListAppearanceType {
 
     var thumbnailPosition: ThumbnailPosition {
         preferencesService.thumbnailPosition
+    }
+
+    var showVoteButtons: Bool {
+        preferencesService.showVoteButtons
     }
 }

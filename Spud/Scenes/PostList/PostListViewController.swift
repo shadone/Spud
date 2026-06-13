@@ -429,6 +429,18 @@ class PostListViewController: UIViewController {
 
         displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
             guard let self else { return }
+            var first = true
+            for await _ in preferencesService.showVoteButtonsStream {
+                if Task.isCancelled { break }
+                if first { first = false
+                    continue
+                }
+                reconfigureVisibleCells()
+            }
+        })
+
+        displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
             for await value in preferencesService.hideReadPostsStream {
                 if Task.isCancelled { break }
                 guard value != hideReadPosts else { continue }

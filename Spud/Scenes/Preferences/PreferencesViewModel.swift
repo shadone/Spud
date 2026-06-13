@@ -89,6 +89,7 @@ final class PreferencesViewModel {
     var postDensity: PostDensity
     var thumbnailPosition: ThumbnailPosition
     var postTextScale: CGFloat
+    var showVoteButtons: Bool
 
     var markPostsRead: Bool
     var markPostsReadOnScroll: Bool
@@ -136,6 +137,7 @@ final class PreferencesViewModel {
         postDensity = dependencies.preferencesService.postDensity
         thumbnailPosition = dependencies.preferencesService.thumbnailPosition
         postTextScale = dependencies.preferencesService.postTextScale
+        showVoteButtons = dependencies.preferencesService.showVoteButtons
         markPostsRead = dependencies.preferencesService.markPostsRead
         markPostsReadOnScroll = dependencies.preferencesService.markPostsReadOnScroll
         hideReadPosts = dependencies.preferencesService.hideReadPosts
@@ -217,6 +219,12 @@ final class PreferencesViewModel {
         })
 
         preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.showVoteButtonsStream {
+                self?.showVoteButtons = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
             for await value in preferencesService.markPostsReadStream {
                 self?.markPostsRead = value
             }
@@ -261,6 +269,7 @@ final class PreferencesViewModel {
         postDensity = .comfortable
         thumbnailPosition = .left
         postTextScale = 0
+        showVoteButtons = true
         markPostsRead = true
         markPostsReadOnScroll = false
         hideReadPosts = false
@@ -343,6 +352,13 @@ final class PreferencesViewModel {
         guard value != postTextScale else { return }
         postTextScale = value
         preferencesService?.postTextScale = value
+    }
+
+    func updateShowVoteButtons(_ value: Bool) {
+        guard value != showVoteButtons else { return }
+        showVoteButtons = value
+        preferencesService?.showVoteButtons = value
+        Haptics.tap()
     }
 
     func updateMarkPostsRead(_ value: Bool) {
