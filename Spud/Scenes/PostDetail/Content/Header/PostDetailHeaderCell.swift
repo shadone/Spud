@@ -241,8 +241,10 @@ class PostDetailHeaderCell: UITableViewCellBase {
             }
 
             if button.isSelected {
-                newConfiguration.imageColorTransformer = .init { _ in .systemRed }
-                newConfiguration.baseBackgroundColor = .systemRed
+                // The upvoted state follows the user's accent (the design tints
+                // every upvote with it), read live so it tracks accent changes.
+                newConfiguration.imageColorTransformer = .init { _ in ThemeManager.currentAccentColor }
+                newConfiguration.baseBackgroundColor = ThemeManager.currentAccentColor
             }
 
             button.configuration = newConfiguration
@@ -260,10 +262,26 @@ class PostDetailHeaderCell: UITableViewCellBase {
         var configuration = UIButton.Configuration.plain()
         configuration.image = Design.Post.downvoteButton.image
         configuration.contentInsets = .init(top: 8, leading: 8, bottom: 8, trailing: 8)
+        configuration.baseBackgroundColor = .clear
+        configuration.automaticallyUpdateForSelection = false
 
         let button = UIButton(configuration: configuration)
 
         button.addTarget(self, action: #selector(downvoteButtonTapped), for: .touchUpInside)
+
+        button.configurationUpdateHandler = { button in
+            guard var newConfiguration = button.configuration else {
+                assertionFailure()
+                return
+            }
+
+            if button.isSelected {
+                newConfiguration.imageColorTransformer = .init { _ in GeneralAppearance.downColor }
+                newConfiguration.baseBackgroundColor = GeneralAppearance.downColor
+            }
+
+            button.configuration = newConfiguration
+        }
 
         NSLayoutConstraint.activate([
             button.widthAnchor.constraint(equalToConstant: 40),

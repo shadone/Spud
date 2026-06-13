@@ -44,6 +44,16 @@ public final class ThemeManager {
         trueBlackFlag.value
     }
 
+    /// Thread-safe mirror of the active accent's resolved `UIColor`, readable
+    /// from non-isolated color resolvers — the vote tints in `GeneralAppearance`
+    /// follow the accent without hopping actors.
+    private nonisolated static let accentColorBox = AccentColorBox()
+
+    /// Non-isolated read of the current accent color. Safe from any thread.
+    public nonisolated static var currentAccentColor: UIColor {
+        accentColorBox.value
+    }
+
     private init() { }
 
     /// Updates the active theme. The caller (scene/window layer) is
@@ -58,6 +68,7 @@ public final class ThemeManager {
     /// responsible for re-applying `window.tintColor`.
     public func setAccent(_ accent: AccentColor) {
         self.accent = accent
+        Self.accentColorBox.value = accent.color
     }
 }
 
@@ -68,6 +79,26 @@ private final class TrueBlackFlag: @unchecked Sendable {
     private var _value = false
 
     var value: Bool {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return _value
+        }
+        set {
+            lock.lock()
+            _value = newValue
+            lock.unlock()
+        }
+    }
+}
+
+/// A tiny lock-guarded accent color, safe to read from any thread. Seeded with
+/// the default accent until the preferences layer pushes the persisted value.
+private final class AccentColorBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var _value: UIColor = AccentColor.lemmy.color
+
+    var value: UIColor {
         get {
             lock.lock()
             defer { lock.unlock() }
