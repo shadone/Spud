@@ -439,6 +439,20 @@ class PostListViewController: UIViewController {
             }
         })
 
+        // The upvote tint follows the accent, so a change of accent must
+        // recolor the visible vote arrows and scores.
+        displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
+            var first = true
+            for await _ in preferencesService.accentColorStream {
+                if Task.isCancelled { break }
+                if first { first = false
+                    continue
+                }
+                reconfigureVisibleCells()
+            }
+        })
+
         displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
             guard let self else { return }
             for await value in preferencesService.hideReadPostsStream {

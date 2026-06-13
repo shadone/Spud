@@ -5,15 +5,37 @@
 //
 
 import Foundation
+import SpudUIKit
 import UIKit
 
 class GeneralAppearance {
     let upvoteIcon = UIImage(systemName: "arrow.up")!
     let downvoteIcon = UIImage(systemName: "arrow.down")!
 
-    let upvoteSwipeActionBackgroundColor: UIColor = .systemRed.withAlphaComponent(0.8)
-    let downvoteSwipeActionBackgroundColor: UIColor = .systemIndigo.withAlphaComponent(0.8)
+    /// The design's "down" token (#7c8df0): the downvoted state and negative
+    /// scores. A fixed periwinkle, distinct from the accent (which drives the
+    /// upvoted state). Computed so it stays concurrency-safe (UIColor isn't
+    /// `Sendable`, so it can't be a shared `static let`).
+    static var downColor: UIColor {
+        UIColor(red: 0.486, green: 0.553, blue: 0.941, alpha: 1)
+    }
 
-    var upvoteButtonActiveColor: UIColor = .systemRed
-    var downvoteButtonActiveColor: UIColor = .systemIndigo
+    /// Upvote follows the user's accent (the design tints every upvote with the
+    /// accent); downvote uses the fixed "down" token. Both resolve live so a
+    /// change of accent is reflected without rebuilding the appearance.
+    var upvoteButtonActiveColor: UIColor {
+        ThemeManager.currentAccentColor
+    }
+
+    var downvoteButtonActiveColor: UIColor {
+        Self.downColor
+    }
+
+    var upvoteSwipeActionBackgroundColor: UIColor {
+        ThemeManager.currentAccentColor
+    }
+
+    var downvoteSwipeActionBackgroundColor: UIColor {
+        Self.downColor
+    }
 }
