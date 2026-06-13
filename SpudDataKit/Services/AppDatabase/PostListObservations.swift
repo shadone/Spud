@@ -124,8 +124,18 @@ public extension AppDatabase {
                         ORDER BY page.position ASC, pageElement.position ASC
                     """, arguments: [feedId])
 
-                return rows.map { row in
-                    PostListRow(
+                // Drop posts from communities the account has muted (a
+                // client-side, timed view concern). Reading the mute table here
+                // adds it to the observation region, so muting/unmuting
+                // re-emits the feed.
+                let mutedActorIds = try Self.activeMutedCommunityActorIds(db, feedId: feedId)
+
+                return rows.compactMap { row -> PostListRow? in
+                    let communityActorId: String? = row["communityActorId"]
+                    if let communityActorId, mutedActorIds.contains(communityActorId) {
+                        return nil
+                    }
+                    return PostListRow(
                         id: row["postRowId"],
                         serverPostId: row["serverPostId"],
                         title: row["title"],

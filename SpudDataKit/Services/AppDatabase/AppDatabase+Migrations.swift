@@ -337,6 +337,22 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v8_mutedCommunity") { db in
+            // Client-local, timed community mutes. Posts from a muted community
+            // are filtered out of the feed until `mutedUntil` (NULL = forever).
+            try db.create(table: "mutedCommunity") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("accountId", .integer)
+                    .notNull()
+                    .indexed()
+                    .references("account", onDelete: .cascade)
+                t.column("communityActorId", .text).notNull()
+                t.column("mutedUntil", .datetime)
+                t.column("createdAt", .datetime).notNull()
+                t.uniqueKey(["accountId", "communityActorId"])
+            }
+        }
+
         return migrator
     }
 }

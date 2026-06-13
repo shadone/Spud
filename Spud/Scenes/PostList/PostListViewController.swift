@@ -1094,6 +1094,59 @@ class PostListViewController: UIViewController {
         }
     }
 
+    /// How long a community mute lasts. Muting is client-local, so these are
+    /// view-side durations, not a server state.
+    private enum MuteDuration {
+        case day, week, month, forever
+
+        /// The expiry instant from now, or nil for an indefinite mute.
+        var until: Date? {
+            switch self {
+            case .day: return Date().addingTimeInterval(24 * 60 * 60)
+            case .week: return Date().addingTimeInterval(7 * 24 * 60 * 60)
+            case .month: return Date().addingTimeInterval(30 * 24 * 60 * 60)
+            case .forever: return nil
+            }
+        }
+    }
+
+    /// The "Mute <community> >" submenu offering the timed durations. Muting is
+    /// a local view concern, so it isn't sign-in gated.
+    private func makeMuteCommunityMenu(serverPostId: Int64, communityName: String) -> UIMenu {
+        let options: [(String, MuteDuration)] = [
+            (NSLocalizedString("For a day", comment: "Mute community duration"), .day),
+            (NSLocalizedString("For a week", comment: "Mute community duration"), .week),
+            (NSLocalizedString("For a month", comment: "Mute community duration"), .month),
+            (NSLocalizedString("Until I unmute", comment: "Mute community duration: forever"), .forever),
+        ]
+        let actions = options.map { label, duration in
+            UIAction(title: label) { [weak self] _ in
+                self?.muteCommunity(serverPostId: serverPostId, duration: duration)
+            }
+        }
+        return UIMenu(
+            title: String(format: NSLocalizedString("Mute %@", comment: "Context-menu action to mute a community; %@ is the community name"), communityName),
+            image: UIImage(systemName: "bell.slash"),
+            children: actions
+        )
+    }
+
+    private func muteCommunity(serverPostId: Int64, duration: MuteDuration) {
+        guard
+            let row = rowsByServerPostId[serverPostId],
+            let actorId = row.communityActorId
+        else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        appDatabase.muteCommunitySync(
+            forKeychainId: viewModel.accountKeychainId,
+            communityActorId: actorId,
+            until: duration.until
+        )
+    }
+
     private func vote(serverPostId: Int64, action: VoteStatus.Action) async {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
@@ -1403,7 +1456,11 @@ extension PostListViewController: UITableViewDelegate {
                 let voteGroup = UIMenu(options: .displayInline, children: [upvoteAction, downvoteAction, saveAction])
                 let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction])
                 let navGroup = UIMenu(options: .displayInline, children: [visitCommunityAction, viewAuthorAction])
-                let hideGroup = UIMenu(options: .displayInline, children: [hideAction])
+                var hideChildren: [UIMenuElement] = [hideAction]
+                if let self, let communityName = row?.communityName, !communityName.isEmpty, row?.communityActorId != nil {
+                    hideChildren.append(makeMuteCommunityMenu(serverPostId: serverPostId, communityName: communityName))
+                }
+                let hideGroup = UIMenu(options: .displayInline, children: hideChildren)
                 let safetyGroup = UIMenu(options: .displayInline, children: [blockAction, reportAction])
 
                 var children: [UIMenuElement] = [voteGroup, shareGroup, navGroup, hideGroup]
