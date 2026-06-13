@@ -7,6 +7,7 @@
 import Foundation
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 @MainActor
@@ -30,6 +31,23 @@ struct PostListPostViewModel {
     let subtitle: NSAttributedString
     let thumbnail: Thumbnail
     let isSaved: Bool
+
+    /// The user's current vote on the post, driving the inline vote-arrow colors.
+    let voteStatus: VoteStatus
+
+    /// Tint for the upvote arrow when the post is upvoted.
+    let upvoteActiveColor: UIColor
+
+    /// Tint for the downvote arrow when the post is downvoted.
+    let downvoteActiveColor: UIColor
+
+    /// For external-link posts, the canonical domain (e.g. "mozilla.org") shown
+    /// as a quiet line under the title; `nil` for image / video / text posts.
+    let domainText: NSAttributedString?
+
+    /// A short, single-line preview of the post's self-text body, or `nil` when
+    /// the post has no body (link / image-only posts).
+    let bodyPreview: NSAttributedString?
 
     /// Full-resolution image url when the post is an image post, used to open
     /// the full-screen viewer from the list thumbnail. nil for non-image posts.
@@ -65,6 +83,17 @@ struct PostListPostViewModel {
         for row: PostListRow,
         postContentDetector: PostContentDetectorServiceType
     ) -> (thumbnail: Thumbnail, fullImageUrl: URL?) {
+        let content = content(for: row, postContentDetector: postContentDetector)
+        return (content.thumbnail, content.fullImageUrl)
+    }
+
+    /// Resolves a row to everything the cell derives from its content type in one
+    /// pass: the thumbnail, the full-resolution image url (image posts only), and
+    /// the canonical link domain (external-link posts only).
+    static func content(
+        for row: PostListRow,
+        postContentDetector: PostContentDetectorServiceType
+    ) -> (thumbnail: Thumbnail, fullImageUrl: URL?, domain: String?) {
         let url = row.url.flatMap { URL(string: $0) }
         let thumbnailUrl = row.thumbnailUrl.flatMap { URL(string: $0) }
         switch postContentDetector.contentTypeForUrl(
@@ -74,16 +103,17 @@ struct PostListPostViewModel {
             embedDescription: row.urlEmbedDescription
         ) {
         case let .image(image):
-            return (.image(thumbnailUrl: image.thumbnailUrl ?? image.imageUrl), image.imageUrl)
+            return (.image(thumbnailUrl: image.thumbnailUrl ?? image.imageUrl), image.imageUrl, nil)
         case let .video(video):
-            return (.video(posterUrl: video.thumbnailUrl, videoUrl: video.videoUrl), nil)
+            return (.video(posterUrl: video.thumbnailUrl, videoUrl: video.videoUrl), nil, nil)
         case .externalLink:
+            let domain = url?.canonicalHost
             if let thumbnailUrl {
-                return (.linkImage(thumbnailUrl: thumbnailUrl), nil)
+                return (.linkImage(thumbnailUrl: thumbnailUrl), nil, domain)
             }
-            return (.text, nil)
+            return (.text, nil, domain)
         case .textOrEmpty:
-            return (.text, nil)
+            return (.text, nil, nil)
         }
     }
 
@@ -144,7 +174,29 @@ struct PostListPostViewModel {
             ),
             .foregroundColor: UIColor.secondaryLabel,
         ]
+        // The `@instance` handle stays quiet (tertiary) so it reads as metadata,
+        // never competing with the community name or the title.
+        let instanceAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.scaledSystemFont(
+                style: .body,
+                relativeSize: -1 + textSizeAdjustment,
+                weight: .regular
+            ),
+            .foregroundColor: UIColor.tertiaryLabel,
+        ]
+        // Score / comments / age use monospaced digits so the numbers don't
+        // jitter as they tick and columns of rows stay visually aligned.
+        let monoAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.scaledMonospaceDigitSystemFont(
+                style: .body,
+                relativeSize: -1 + textSizeAdjustment,
+                weight: .regular
+            ),
+            .foregroundColor: UIColor.secondaryLabel,
+        ]
 
+        // Spud stores votes as 1 = up, 0 = down, NULL = neutral (Lemmy's -1 is
+        // mapped to 0 at import time); see AppDatabase migrations.
         let voteStatus: VoteStatus = {
             switch row.voteStatus {
             case 1: return .up
@@ -152,26 +204,36 @@ struct PostListPostViewModel {
             default: return .neutral
             }
         }()
+        self.voteStatus = voteStatus
+        upvoteActiveColor = appearance.general.upvoteButtonActiveColor
+        downvoteActiveColor = appearance.general.downvoteButtonActiveColor
 
         let space = NSAttributedString(string: "  ", attributes: secondaryAttributes)
+
+        // "community@instance" — the name in the label color, the host quiet.
+        var handlePieces = [NSAttributedString(string: row.communityName, attributes: communityAttributes)]
+        if let instanceHost = row.communityActorId.flatMap({ InstanceActorId(from: $0)?.host }) {
+            handlePieces.append(NSAttributedString(string: "@\(instanceHost)", attributes: instanceAttributes))
+        }
+
         var pieces: [NSAttributedString] = [
-            NSAttributedString(string: row.communityName, attributes: communityAttributes),
+            handlePieces.joined(),
             space,
             IconValueFormatter.attributedString(
                 numberOfVotesOrScore: row.score,
                 voteStatus: voteStatus,
-                attributes: secondaryAttributes,
+                attributes: monoAttributes,
                 appearance: appearance.general
             ),
             space,
             IconValueFormatter.attributedString(
                 numberOfComments: row.numberOfComments,
-                attributes: secondaryAttributes
+                attributes: monoAttributes
             ),
             space,
             IconValueFormatter.attributedString(
                 relativeDate: row.published,
-                attributes: secondaryAttributes
+                attributes: monoAttributes
             ),
         ]
 
@@ -201,7 +263,22 @@ struct PostListPostViewModel {
 
         subtitle = pieces.joined()
 
-        (thumbnail, fullImageUrl) = Self.thumbnail(for: row, postContentDetector: postContentDetector)
+        let content = Self.content(for: row, postContentDetector: postContentDetector)
+        thumbnail = content.thumbnail
+        fullImageUrl = content.fullImageUrl
+        domainText = content.domain.map { NSAttributedString(string: $0, attributes: monoAttributes) }
+
+        bodyPreview = Self.bodyPreview(
+            from: row.body,
+            attributes: [
+                .font: UIFont.scaledSystemFont(
+                    style: .body,
+                    relativeSize: -2 + textSizeAdjustment,
+                    weight: .regular
+                ),
+                .foregroundColor: UIColor.secondaryLabel,
+            ]
+        )
 
         accessibilityLabel = Self.makeAccessibilityLabel(row: row, voteStatus: voteStatus)
         accessibilityHint = NSLocalizedString(
@@ -250,5 +327,21 @@ struct PostListPostViewModel {
         }
 
         return parts.joined(separator: ", ")
+    }
+
+    /// Collapses a self-text body into a single trimmed line for the feed
+    /// preview, or `nil` when there's nothing to show. Markdown is left as-is —
+    /// a cheap, fast preview that never touches the main-thread markdown
+    /// renderer; the cell clamps the result to two lines.
+    private static func bodyPreview(
+        from body: String?,
+        attributes: [NSAttributedString.Key: Any]
+    ) -> NSAttributedString? {
+        guard let body else { return nil }
+        let collapsed = body
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !collapsed.isEmpty else { return nil }
+        return NSAttributedString(string: collapsed, attributes: attributes)
     }
 }

@@ -35,6 +35,9 @@ class PostListPostCell: UITableViewCell {
     /// playable video url.
     var videoTapped: ((_ videoUrl: URL) -> Void)?
 
+    /// Invoked when the user taps one of the inline vote arrows.
+    var voteTapped: ((VoteStatus.Action) -> Void)?
+
     // MARK: UI Properties
 
     lazy var mainHorizontalStackView: UIStackView = {
@@ -91,16 +94,19 @@ class PostListPostCell: UITableViewCell {
             return view
         }()
 
+        // Order matches the Scout cell: title, then the optional link domain and
+        // self-text preview, then the metadata line. The optional rows collapse
+        // (and take their spacing with them) when hidden.
         let subviews = [
             titleLabel,
+            domainLabel,
+            bodyLabel,
             subtitleLabel,
             contentBottomSpacerView,
         ]
         for view in subviews {
             stackView.addArrangedSubview(view)
         }
-
-        stackView.setCustomSpacing(8, after: titleLabel)
 
         return stackView
     }()
@@ -113,12 +119,66 @@ class PostListPostCell: UITableViewCell {
         return label
     }()
 
+    /// The canonical link domain (e.g. "mozilla.org") for external-link posts.
+    lazy var domainLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 1
+        label.isHidden = true
+        label.accessibilityIdentifier = "domain"
+        return label
+    }()
+
+    /// A two-line preview of the post's self-text body.
+    lazy var bodyLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 2
+        label.isHidden = true
+        label.accessibilityIdentifier = "bodyPreview"
+        return label
+    }()
+
     lazy var subtitleLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.accessibilityIdentifier = "subtitle"
         return label
     }()
+
+    /// Trailing column of persistent up/down vote arrows (the Scout signature),
+    /// kept as a centered pair via equal-height flexible spacers so they never
+    /// spread apart on tall multi-line cells.
+    lazy var voteColumn: UIStackView = {
+        let topSpacer = UIView()
+        let bottomSpacer = UIView()
+        topSpacer.translatesAutoresizingMaskIntoConstraints = false
+        bottomSpacer.translatesAutoresizingMaskIntoConstraints = false
+
+        let stackView = UIStackView(arrangedSubviews: [topSpacer, upvoteButton, downvoteButton, bottomSpacer])
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .vertical
+        stackView.alignment = .center
+        stackView.spacing = 2
+        stackView.accessibilityIdentifier = "voteColumn"
+
+        NSLayoutConstraint.activate([
+            topSpacer.heightAnchor.constraint(equalTo: bottomSpacer.heightAnchor),
+        ])
+        return stackView
+    }()
+
+    lazy var upvoteButton: UIButton = makeVoteButton(
+        symbolName: "arrow.up",
+        accessibilityLabel: NSLocalizedString("Upvote", comment: "VoiceOver label for the upvote arrow in a post cell"),
+        action: #selector(upvoteButtonTapped)
+    )
+
+    lazy var downvoteButton: UIButton = makeVoteButton(
+        symbolName: "arrow.down",
+        accessibilityLabel: NSLocalizedString("Downvote", comment: "VoiceOver label for the downvote arrow in a post cell"),
+        action: #selector(downvoteButtonTapped)
+    )
 
     lazy var swipeActionView: SwipeActionView = {
         let view = SwipeActionView(
@@ -175,6 +235,8 @@ class PostListPostCell: UITableViewCell {
 
             thumbnailView.widthAnchor.constraint(equalToConstant: Self.thumbnailDimension),
             thumbnailView.heightAnchor.constraint(equalToConstant: Self.thumbnailDimension),
+
+            voteColumn.widthAnchor.constraint(equalToConstant: 34),
         ])
 
         thumbnailView.isUserInteractionEnabled = true
@@ -208,6 +270,12 @@ class PostListPostCell: UITableViewCell {
         swipeActionTriggered = nil
         imageTapped = nil
         videoTapped = nil
+        voteTapped = nil
+
+        domainLabel.attributedText = nil
+        domainLabel.isHidden = true
+        bodyLabel.attributedText = nil
+        bodyLabel.isHidden = true
     }
 
     @objc
@@ -217,6 +285,38 @@ class PostListPostCell: UITableViewCell {
         } else if let tappableImageUrl {
             imageTapped?(tappableImageUrl, tappableThumbnailUrl, loadedThumbnailImage)
         }
+    }
+
+    @objc
+    private func upvoteButtonTapped() {
+        voteTapped?(.upvote)
+    }
+
+    @objc
+    private func downvoteButtonTapped() {
+        voteTapped?(.downvote)
+    }
+
+    /// Builds one inline vote arrow. `UIButton(type: .system)` tints the template
+    /// symbol with `tintColor`, which `configure` swaps per vote state.
+    private func makeVoteButton(
+        symbolName: String,
+        accessibilityLabel: String,
+        action: Selector
+    ) -> UIButton {
+        let button = UIButton(type: .system)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.setImage(
+            UIImage(
+                systemName: symbolName,
+                withConfiguration: UIImage.SymbolConfiguration(pointSize: 18, weight: .semibold)
+            ),
+            for: .normal
+        )
+        button.tintColor = .tertiaryLabel
+        button.accessibilityLabel = accessibilityLabel
+        button.addTarget(self, action: action, for: .touchUpInside)
+        return button
     }
 
     /// Applies the post-density cell metrics: outer content margin, the gap
@@ -230,7 +330,9 @@ class PostListPostCell: UITableViewCell {
             UIEdgeInsets(top: margin, left: margin, bottom: -margin, right: -margin)
         )
         mainHorizontalStackView.spacing = density.horizontalSpacing
-        contentContainer.setCustomSpacing(density.titleSubtitleSpacing, after: titleLabel)
+        // Uniform spacing between the (collapsible) content rows. Half the
+        // title/subtitle metric reads right with the extra domain/body rows.
+        contentContainer.spacing = density.titleSubtitleSpacing / 2 + 1
     }
 
     /// Relays the thumbnail to the requested side, or removes it when hidden.
@@ -257,6 +359,9 @@ class PostListPostCell: UITableViewCell {
             thumbnailContainer.isHidden = true
             mainHorizontalStackView.addArrangedSubview(contentContainer)
         }
+
+        // The vote column always trails the content, regardless of thumbnail side.
+        mainHorizontalStackView.addArrangedSubview(voteColumn)
     }
 
     func configure(with viewModel: PostListPostViewModel, imageService: ImageServiceType) {
@@ -274,6 +379,15 @@ class PostListPostCell: UITableViewCell {
         titleLabel.accessibilityTraits = [.staticText, .button]
 
         subtitleLabel.accessibilityLabel = viewModel.subtitleAccessibilityLabel
+
+        domainLabel.attributedText = viewModel.domainText
+        domainLabel.isHidden = viewModel.domainText == nil
+
+        bodyLabel.attributedText = viewModel.bodyPreview
+        bodyLabel.isHidden = viewModel.bodyPreview == nil
+
+        upvoteButton.tintColor = viewModel.voteStatus == .up ? viewModel.upvoteActiveColor : .tertiaryLabel
+        downvoteButton.tintColor = viewModel.voteStatus == .down ? viewModel.downvoteActiveColor : .tertiaryLabel
 
         applyDensity(viewModel.density)
         applyThumbnailPosition(viewModel.thumbnailPosition)

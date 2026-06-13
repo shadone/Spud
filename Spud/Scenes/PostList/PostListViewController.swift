@@ -667,6 +667,11 @@ class PostListViewController: UIViewController {
                     performSwipeAction(action, serverPostId: serverPostId)
                 }
 
+                cell.voteTapped = { [weak self] action in
+                    guard let self else { return }
+                    Task { await self.vote(serverPostId: serverPostId, action: action) }
+                }
+
                 return cell
 
             case .loadingIndicator:
