@@ -244,7 +244,18 @@ class AccountViewController: UIViewController {
             action: #selector(accountsTapped)
         )
         switcher.accessibilityLabel = NSLocalizedString("Switch account", comment: "Account switcher button accessibility label")
-        navigationItem.rightBarButtonItem = switcher
+
+        // Settings lives here now (it used to be its own tab). Available signed
+        // in or out so guests can still reach it.
+        let settingsButton = UIBarButtonItem(
+            image: UIImage(systemName: "gearshape"),
+            style: .plain,
+            target: self,
+            action: #selector(settingsTapped)
+        )
+        settingsButton.accessibilityLabel = NSLocalizedString("Settings", comment: "Settings button accessibility label")
+
+        navigationItem.rightBarButtonItems = [settingsButton, switcher]
     }
 
     // MARK: Actions
@@ -257,6 +268,20 @@ class AccountViewController: UIViewController {
         )
         let navigationController = UINavigationController(rootViewController: accountListViewController)
         present(navigationController, animated: true)
+    }
+
+    @objc
+    private func settingsTapped() {
+        Haptics.tap()
+        let keychainId = viewModel.accountKeychainId
+        guard !keychainId.isEmpty else { return }
+        let sortType = accountService.defaultSortType(forAccountKeychainId: keychainId)
+        let preferencesViewController = PreferencesViewController(
+            defaultPostSortType: sortType,
+            accountKeychainId: keychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(preferencesViewController, animated: true)
     }
 
     private func openSaved(keychainId: String) {

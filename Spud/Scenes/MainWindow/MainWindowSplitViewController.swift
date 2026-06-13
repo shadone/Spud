@@ -38,13 +38,12 @@ class MainWindowSplitViewController: UISplitViewController {
 
         super.init(style: .doubleColumn)
 
-        // Setup the post list view controller (the primary part of split view controller)
-        let subscriptionsVC = SubscriptionsViewController(
-            accountKeychainId: accountKeychainId,
-            isSignedIn: isSignedIn,
-            dependencies: self.dependencies.nested
-        )
-
+        // The feed is the root of the Posts tab. Subscription management and
+        // community browsing now live in their own Communities tab; fast
+        // feed/community switching is handled by the quick-switch drawer opened
+        // from the feed (replacing the old subscriptions-list-as-root model,
+        // which left the list unreachable on iPhone once compose took the back
+        // button).
         let feed = accountService.createDefaultFeed(forAccountKeychainId: accountKeychainId)
 
         let postListVC = PostListViewController(
@@ -52,7 +51,7 @@ class MainWindowSplitViewController: UISplitViewController {
             accountKeychainId: accountKeychainId,
             dependencies: self.dependencies.nested
         )
-        postListNavigationController.setViewControllers([subscriptionsVC, postListVC], animated: false)
+        postListNavigationController.setViewControllers([postListVC], animated: false)
 
         // Setup the post detail (the secondary part of split view controller)
         let postDetailVC = PostDetailOrEmptyViewController(
