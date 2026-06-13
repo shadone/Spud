@@ -16,6 +16,12 @@ struct SubscriptionsCommunityRow: Equatable, Identifiable {
     let id: Int64
     let name: String
     let instanceActorId: InstanceActorId
+
+    /// The community's canonical web URL (`https://<instance>/c/<name>`), used
+    /// for the share / copy-link context-menu actions.
+    var shareURL: URL? {
+        URL(string: "https://\(instanceActorId.hostWithPort)/c/\(name)")
+    }
 }
 
 enum SubscriptionsViewItemType {

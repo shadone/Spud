@@ -8,6 +8,7 @@ import Foundation
 import LemmyKit
 import SpudDataKit
 import SwiftUI
+import UIKit
 
 private extension Components.Schemas.ListingType {
     struct ItemForSubscriptions {
@@ -116,14 +117,20 @@ struct SubscriptionsCommunityIconView: View {
 }
 
 struct SubscriptionsCommunityView: View {
-    @State var community: String
+    let row: SubscriptionsCommunityRow
 
     var body: some View {
         HStack(spacing: 16) {
-            SubscriptionsCommunityIconView(communityName: community)
-            Text(community)
-                .foregroundStyle(Color(.label))
-                .frame(maxWidth: .infinity, alignment: .leading)
+            SubscriptionsCommunityIconView(communityName: row.name)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(row.name)
+                    .foregroundStyle(Color(.label))
+                // The instance handle stays quiet, like the feed cell.
+                Text("@\(row.instanceActorId.host)")
+                    .foregroundStyle(Color(.tertiaryLabel))
+                    .font(.footnote)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .contentShape(Rectangle())
     }
@@ -134,36 +141,62 @@ struct SubscriptionsView: View {
 
     var body: some View {
         List {
-            if viewModel.isSignedIn {
-                SubscriptionsListingView(listingType: .Subscribed)
-                    .onTapGesture {
-                        viewModel.loadFeed(.listing(.Subscribed))
-                    }
-            }
-            SubscriptionsListingView(listingType: .Local)
-                .onTapGesture {
-                    viewModel.loadFeed(.listing(.Local))
+            // The standard feeds are navigation, not search results, so they
+            // step aside while the user is filtering communities.
+            if viewModel.searchText.isEmpty {
+                if viewModel.isSignedIn {
+                    SubscriptionsListingView(listingType: .Subscribed)
+                        .onTapGesture {
+                            viewModel.loadFeed(.listing(.Subscribed))
+                        }
                 }
-            SubscriptionsListingView(listingType: .All)
-                .onTapGesture {
-                    viewModel.loadFeed(.listing(.All))
-                }
-
-            if viewModel.isSignedIn {
-                SubscriptionsSavedView()
+                SubscriptionsListingView(listingType: .Local)
                     .onTapGesture {
-                        viewModel.loadFeed(.saved)
+                        viewModel.loadFeed(.listing(.Local))
                     }
+                SubscriptionsListingView(listingType: .All)
+                    .onTapGesture {
+                        viewModel.loadFeed(.listing(.All))
+                    }
+
+                if viewModel.isSignedIn {
+                    SubscriptionsSavedView()
+                        .onTapGesture {
+                            viewModel.loadFeed(.saved)
+                        }
+                }
             }
 
-            if !viewModel.followCommunities.isEmpty {
+            if !viewModel.displayedCommunities.isEmpty {
                 Section("Subscribed communities") {
-                    ForEach(viewModel.followCommunities) { community in
-                        SubscriptionsCommunityView(community: community.name)
+                    ForEach(viewModel.displayedCommunities) { community in
+                        SubscriptionsCommunityView(row: community)
                             .onTapGesture {
                                 viewModel.loadFeed(.community(community))
                             }
+                            .contextMenu {
+                                Button {
+                                    viewModel.loadFeed(.community(community))
+                                } label: {
+                                    Label("Open", systemImage: "arrow.up.forward")
+                                }
+                                if let url = community.shareURL {
+                                    Button {
+                                        UIPasteboard.general.url = url
+                                    } label: {
+                                        Label("Copy link", systemImage: "doc.on.doc")
+                                    }
+                                    ShareLink(item: url) {
+                                        Label("Share", systemImage: "square.and.arrow.up")
+                                    }
+                                }
+                            }
                     }
+                }
+            } else if !viewModel.searchText.isEmpty {
+                Section("Subscribed communities") {
+                    Text("No subscribed communities match your search.")
+                        .foregroundStyle(Color(.secondaryLabel))
                 }
             }
         }
