@@ -11,10 +11,11 @@ Each doc is two layers — a skimmable `What it does` header plus a Gherkin-styl
 correct behavior, and (later) an author deriving XCUITest scenarios.
 
 > **Relationship to `design/FEATURES.md`.** [`../design/FEATURES.md`](../design/FEATURES.md)
-> is the legacy at-a-glance status grid (shipped / partial / deferred, by area). These
-> per-capability docs supersede it as they are written: a feature with a doc here is the
-> authoritative description of that behavior. Until migration is complete, use the grid
-> as the index of what still needs a doc (see Migration backlog below).
+> is the legacy at-a-glance status grid (shipped / partial / deferred, by area). Every
+> shipped capability in that grid now has a per-capability doc here, and these docs are
+> the authoritative description of each behavior — several correct the grid where it had
+> drifted (see Migration backlog below for the per-item map and the corrections). The
+> grid is retained only as a historical index; prefer the docs here.
 
 ## How to add a feature doc
 
@@ -52,7 +53,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | `iphone` | iPhone, compact width — the primary single-column experience |
 | `ipad` | iPad, regular width — `NavigationSplitView` with a persistent detail pane |
 | `widget` | Home Screen widget (`SpudWidgetExtension`) — top posts at a glance |
-| `share-extension` | "Open in Spud" share / action extension (`OpenInAppExtension`) — routes Lemmy URLs into the app via deep link |
+| `share-extension` | "Open in Spud" Safari Web Extension (`OpenInAppExtension`) — rewrites a Lemmy post page to a deep link that opens the post in the app |
 
 ## Capabilities
 
@@ -85,13 +86,33 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Marking inbox items read](inbox-mark-read.md) | `iphone`, `ipad` | shipped |
 | [Private messages](private-messages.md) | `iphone`, `ipad` | shipped |
 | [Background unread refresh](background-unread-refresh.md) | `iphone`, `ipad` | shipped |
+| [New post](new-post.md) | `iphone`, `ipad` | shipped |
+| [Image upload](image-upload.md) | `iphone`, `ipad` | shipped |
+| [Markdown editor](markdown-editor.md) | `iphone`, `ipad` | shipped |
+| [Draft persistence](draft-persistence.md) | `iphone`, `ipad` | partial — in-memory only |
+| [Block / unblock](block-unblock.md) | `iphone`, `ipad` | shipped |
+| [Report](report.md) | `iphone`, `ipad` | shipped |
+| [Moderator / admin actions](moderation-actions.md) | `iphone`, `ipad` | shipped |
+| [Themes and accent color](themes-and-accent.md) | `iphone`, `ipad` | shipped |
+| [Display density and text size](display-density-and-text.md) | `iphone`, `ipad` | shipped |
+| [Default sort](default-sort.md) | `iphone`, `ipad` | partial — default post sort not persisted |
+| [External link handling](external-link-handling.md) | `iphone`, `ipad` | shipped |
+| [App icon](app-icon.md) | `iphone`, `ipad` | shipped — placeholder art |
+| [Acknowledgements](acknowledgements.md) | `iphone`, `ipad` | shipped |
+| [Diagnostics and backup](diagnostics-and-backup.md) | `iphone`, `ipad` | shipped |
+| [iPad split-view handoff](ipad-split-view.md) | `ipad`, `iphone` | shipped |
+| [Empty, error, and loading states](empty-error-loading-states.md) | `iphone`, `ipad` | shipped |
+| [Accessibility](accessibility.md) | `iphone`, `ipad` | shipped |
+| [Home Screen widget (top posts)](widget.md) | `widget` | shipped |
+| [Open in Spud (Safari extension)](share-extension.md) | `share-extension`, `iphone`, `ipad` | partial |
 
 <!-- Add new capability docs here as they are written. -->
 
 ## Migration backlog
 
-Capabilities still to convert from [`../design/FEATURES.md`](../design/FEATURES.md)
-into per-capability docs. Grouped as in the grid; tick when a doc lands above.
+**Migration complete** — every shipped capability from [`../design/FEATURES.md`](../design/FEATURES.md)
+now has a per-capability doc above. This section is kept as the grid-to-doc coverage map.
+Grouped as in the grid; `[x]` shipped, `[~]` partial (qualifier inline).
 
 **Reading & feeds**
 - [x] Frontpage feed (All / Local / Subscribed) + sort
@@ -141,27 +162,27 @@ into per-capability docs. Grouped as in the grid; tick when a doc lands above.
 - [x] Background unread-count refresh (foreground scene refresh; not a `BGAppRefreshTask`)
 
 **Content creation**
-- [ ] New post (text / link / image) + community picker + NSFW
-- [ ] Image upload (pict-rs)
-- [ ] Markdown editor + toolbar + live preview
-- [ ] Draft persistence
+- [x] New post (text / link / image) + community picker + NSFW
+- [x] Image upload (pict-rs)
+- [x] Markdown editor + toolbar + live preview
+- [~] Draft persistence — in-memory only; not saved across dismissal or relaunch
 
 **Safety & moderation**
-- [ ] Block / unblock person & community + blocked-list management
-- [ ] Report post / comment
-- [ ] Moderator / admin actions
+- [x] Block / unblock person & community + blocked-list management
+- [x] Report post / comment
+- [x] Moderator / admin actions
 
 **Customization & settings**
-- [ ] Themes (System / Light / Dark / True Black) + accent color
-- [ ] Post density + thumbnail position + text scale
-- [ ] Default post / comment sort
-- [ ] External-link handling
-- [ ] App icon variants (partial)
-- [ ] Acknowledgements; logs viewer + backup export
+- [x] Themes (System / Light / Dark / True Black) + accent color
+- [x] Post density + thumbnail position + text scale
+- [~] Default post / comment sort — comment sort persisted; default post sort not persisted
+- [x] External-link handling
+- [x] App icon variants — switching is wired; alternate art is placeholder (grid's "not wired" was stale)
+- [x] Acknowledgements; logs viewer + backup export
 
 **Platform**
-- [ ] iPad split-view handoff
-- [ ] Empty / error / loading states
-- [ ] Accessibility (Dynamic Type, VoiceOver, Reduce Motion)
-- [ ] Home Screen widget (top posts)
-- [ ] "Open in Spud" share / action extension
+- [x] iPad split-view handoff
+- [x] Empty / error / loading states
+- [x] Accessibility (Dynamic Type, VoiceOver, Reduce Motion)
+- [x] Home Screen widget (top posts)
+- [~] "Open in Spud" — Safari Web Extension (not a share/action extension); post URLs only

@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** partial — editing and deleting your own comment are not supported
-- **Related:** [Post detail and comments](post-detail-and-comments.md), [Voting](voting.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Post detail and comments](post-detail-and-comments.md), [Markdown editor](markdown-editor.md), [Voting](voting.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
