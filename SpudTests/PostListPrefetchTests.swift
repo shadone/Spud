@@ -30,6 +30,8 @@ final class PostListPrefetchTests: XCTestCase {
             communityActorId: nil,
             serverCommunityId: 1,
             creatorPersonId: 1,
+            creatorName: nil,
+            creatorActorId: nil,
             score: 0,
             numberOfComments: 0,
             voteStatus: nil,

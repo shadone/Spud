@@ -963,6 +963,48 @@ class PostListViewController: UIViewController {
         present(composer, animated: true)
     }
 
+    /// Pushes the post's community screen. Browsing is allowed signed-out, so
+    /// this is not gated.
+    private func visitCommunity(serverPostId: Int64) {
+        guard
+            let row = rowsByServerPostId[serverPostId],
+            let actorId = row.communityActorId,
+            let instance = InstanceActorId(from: actorId)
+        else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        let vc = CommunityOrLoadingViewController(
+            communityName: row.communityName,
+            instance: instance,
+            accountKeychainId: viewModel.accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    /// Pushes the post author's profile screen. Browsing is allowed
+    /// signed-out, so this is not gated.
+    private func viewAuthor(serverPostId: Int64) {
+        guard
+            let row = rowsByServerPostId[serverPostId],
+            let actorId = row.creatorActorId,
+            let instance = InstanceActorId(from: actorId)
+        else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        let vc = PersonOrLoadingViewController(
+            personId: Components.Schemas.PersonID(row.creatorPersonId),
+            instance: instance,
+            accountKeychainId: viewModel.accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
     private func vote(serverPostId: Int64, action: VoteStatus.Action) async {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
@@ -1207,6 +1249,13 @@ extension PostListViewController: UITableViewDelegate {
                     self?.toggleSaved(serverPostId: serverPostId)
                 }
 
+                let replyAction = UIAction(
+                    title: NSLocalizedString("Reply", comment: "Context-menu action to reply to a post"),
+                    image: UIImage(systemName: "arrowshape.turn.up.left")
+                ) { [weak self] _ in
+                    self?.replyToPost(serverPostId: serverPostId)
+                }
+
                 let shareAction = UIAction(
                     title: NSLocalizedString("Share", comment: "Context-menu action to share a post"),
                     image: UIImage(systemName: "square.and.arrow.up")
@@ -1214,7 +1263,34 @@ extension PostListViewController: UITableViewDelegate {
                     self?.sharePost(serverPostId: serverPostId)
                 }
 
-                var children: [UIMenuElement] = [upvoteAction, downvoteAction, saveAction, shareAction]
+                let row = self?.rowsByServerPostId[serverPostId]
+
+                let visitCommunityAction = UIAction(
+                    title: String(
+                        format: NSLocalizedString("Visit %@", comment: "Context-menu action to open a post's community; %@ is the community name"),
+                        row?.communityName ?? NSLocalizedString("community", comment: "Generic community noun")
+                    ),
+                    image: UIImage(systemName: "person.3")
+                ) { [weak self] _ in
+                    self?.visitCommunity(serverPostId: serverPostId)
+                }
+
+                let viewAuthorAction = UIAction(
+                    title: row?.creatorName.map {
+                        String(format: NSLocalizedString("View %@", comment: "Context-menu action to open a post author's profile; %@ is the author handle"), $0)
+                    } ?? NSLocalizedString("View author", comment: "Context-menu action to open a post author's profile"),
+                    image: UIImage(systemName: "person.crop.circle")
+                ) { [weak self] _ in
+                    self?.viewAuthor(serverPostId: serverPostId)
+                }
+
+                // Grouped with inline submenus so each renders with a divider,
+                // matching the design's long-press menu layout.
+                let voteGroup = UIMenu(options: .displayInline, children: [upvoteAction, downvoteAction, saveAction])
+                let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction])
+                let navGroup = UIMenu(options: .displayInline, children: [visitCommunityAction, viewAuthorAction])
+
+                var children: [UIMenuElement] = [voteGroup, shareGroup, navGroup]
                 // Moderation submenu, only when the account moderates this
                 // post's community (or is an admin).
                 if let modMenu = self?.postModerationMenu(serverPostId: serverPostId) {
