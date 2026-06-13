@@ -109,6 +109,7 @@ class PostListViewController: UIViewController {
     private var observationTask: Task<Void, Never>?
     private var titleObservationTask: Task<Void, Never>?
     private var loadingObservationTask: Task<Void, Never>?
+    private var fetchFailedObservationTask: Task<Void, Never>?
     private var swipeActionsObservationTask: Task<Void, Never>?
     private var displayPrefsObservationTasks: [Task<Void, Never>] = []
 
@@ -192,6 +193,7 @@ class PostListViewController: UIViewController {
         observationTask?.cancel()
         titleObservationTask?.cancel()
         loadingObservationTask?.cancel()
+        fetchFailedObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
         for task in displayPrefsObservationTasks {
             task.cancel()
@@ -345,6 +347,7 @@ class PostListViewController: UIViewController {
     private func startObservations() {
         titleObservationTask?.cancel()
         loadingObservationTask?.cancel()
+        fetchFailedObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
         for task in displayPrefsObservationTasks {
             task.cancel()
@@ -376,6 +379,29 @@ class PostListViewController: UIViewController {
                 if Task.isCancelled { break }
                 self?.applyLoadingIndicatorVisibility(hidden: !viewModel.isFetchingNextPage)
             }
+        }
+        fetchFailedObservationTask = Task { @MainActor [weak self] in
+            for await failed in Self.values(of: { viewModel.fetchFailed }) {
+                if Task.isCancelled { break }
+                self?.handleFetchFailedChange(failed)
+            }
+        }
+    }
+
+    /// A page fetch threw. With posts already on screen this was a pagination
+    /// failure, so surface a transient alert and keep the feed visible. With an
+    /// empty feed it was the initial load, so let the content-unavailable state
+    /// take over with the designed "Couldn't reach ..." error and its actions.
+    private func handleFetchFailedChange(_ failed: Bool) {
+        guard failed else {
+            updateContentUnavailableState()
+            return
+        }
+        if displayedRows.isEmpty {
+            updateContentUnavailableState()
+        } else if let error = viewModel.lastFetchError {
+            alertService.handle(error, for: .fetchPostList)
+            viewModel.fetchFailed = false
         }
     }
 
@@ -640,7 +666,10 @@ class PostListViewController: UIViewController {
         pinnedReadIds.removeAll()
         scrollMarkedReadIds.removeAll()
         hasReceivedFirstSnapshot = false
-        updateEmptyState()
+        // Clear any error carried over from the feed we're leaving so it can't
+        // flash before the new feed's fetch starts.
+        viewModel.fetchFailed = false
+        updateContentUnavailableState()
         showLoadingSkeleton()
         refreshModerationCapability()
 
@@ -710,7 +739,7 @@ class PostListViewController: UIViewController {
 
         dataSource.apply(snapshot, animatingDifferences: true)
 
-        updateEmptyState()
+        updateContentUnavailableState()
     }
 
     private func applyLoadingIndicatorVisibility(hidden: Bool) {
@@ -730,18 +759,24 @@ class PostListViewController: UIViewController {
             dataSource.apply(snapshot, animatingDifferences: true)
         }
 
-        updateEmptyState()
+        updateContentUnavailableState()
     }
 
-    /// Shows a designed empty state once the feed has loaded and turned up no
-    /// posts (e.g. "No saved posts yet" for the saved feed). Stays hidden
-    /// during the initial fetch and whenever a page is loading.
-    private func updateEmptyState() {
-        let shouldShow = hasReceivedFirstSnapshot
-            && displayedRows.isEmpty
-            && !viewModel.isFetchingNextPage
+    /// Drives the full-screen content-unavailable surface once the feed has
+    /// settled (first snapshot in, not mid-fetch) and has no posts to show:
+    /// the designed error state when the initial load failed, otherwise the
+    /// empty state (e.g. "No saved posts yet"). Hidden while posts exist or a
+    /// fetch is in flight.
+    private func updateContentUnavailableState() {
+        let isSettledAndEmpty = displayedRows.isEmpty && !viewModel.isFetchingNextPage
 
-        guard shouldShow else {
+        if viewModel.fetchFailed, isSettledAndEmpty {
+            hideLoadingSkeleton()
+            contentUnavailableConfiguration = makeErrorConfiguration()
+            return
+        }
+
+        guard hasReceivedFirstSnapshot, isSettledAndEmpty else {
             contentUnavailableConfiguration = nil
             return
         }
@@ -752,6 +787,52 @@ class PostListViewController: UIViewController {
         config.text = empty.title
         config.secondaryText = empty.message
         contentUnavailableConfiguration = config
+    }
+
+    /// The designed feed error state: a globe glyph, "Couldn't reach <host>",
+    /// a reassuring line, and Try again / Work offline actions.
+    private func makeErrorConfiguration() -> UIContentUnavailableConfiguration {
+        var config = UIContentUnavailableConfiguration.empty()
+        config.image = UIImage(systemName: "globe")
+
+        if let host = viewModel.instanceHost {
+            config.text = String(
+                format: NSLocalizedString(
+                    "Couldn't reach %@",
+                    comment: "Feed error-state title; %@ is the instance host, e.g. lemmy.world"
+                ),
+                host
+            )
+        } else {
+            config.text = NSLocalizedString(
+                "Couldn't reach the server",
+                comment: "Feed error-state title when the instance host is unknown"
+            )
+        }
+        config.secondaryText = NSLocalizedString(
+            "Check your connection and try again.",
+            comment: "Feed error-state message"
+        )
+
+        var tryAgain = UIButton.Configuration.borderedProminent()
+        tryAgain.title = NSLocalizedString("Try again", comment: "Feed error-state primary action")
+        tryAgain.baseBackgroundColor = ThemeManager.currentAccentColor
+        config.button = tryAgain
+        config.buttonProperties.primaryAction = UIAction { [weak self] _ in
+            guard let self else { return }
+            Task { await self.viewModel.fetchNextPage() }
+        }
+
+        var workOffline = UIButton.Configuration.plain()
+        workOffline.title = NSLocalizedString("Work offline", comment: "Feed error-state secondary action")
+        config.secondaryButton = workOffline
+        config.secondaryButtonProperties.primaryAction = UIAction { [weak self] _ in
+            guard let self else { return }
+            viewModel.fetchFailed = false
+            updateContentUnavailableState()
+        }
+
+        return config
     }
 
     private func setupDataSource() {

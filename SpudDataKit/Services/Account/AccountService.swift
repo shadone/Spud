@@ -97,6 +97,12 @@ public protocol AccountServiceType: AnyObject {
 
     /// The account's preferred sort type. Falls back to `.Hot` if not set.
     func defaultSortType(forAccountKeychainId keychainId: String) -> Components.Schemas.SortType
+
+    /// The actor id of the instance the account is homed on (e.g. the one
+    /// behind `lemmy.world`). Resolves account -> site -> instance. Returns
+    /// nil when the account or its instance can't be found. Used to name the
+    /// instance in feed error states.
+    func instanceActorId(forAccountKeychainId keychainId: String) -> InstanceActorId?
 }
 
 @MainActor
@@ -283,6 +289,25 @@ public class AccountService: AccountServiceType {
         } catch {
             logger.error("Failed to read defaultSortType: \(error.localizedDescription, privacy: .public)")
             return .Hot
+        }
+    }
+
+    public func instanceActorId(forAccountKeychainId keychainId: String) -> InstanceActorId? {
+        do {
+            let actorIdRaw = try appDatabase.writer.read { db -> String? in
+                try String.fetchOne(db, sql: """
+                        SELECT instance.actorId
+                        FROM account
+                        JOIN site ON site.id = account.siteId
+                        JOIN instance ON instance.id = site.instanceId
+                        WHERE account.accountKeychainId = ?
+                    """, arguments: [keychainId])
+            }
+            guard let actorIdRaw else { return nil }
+            return InstanceActorId(from: actorIdRaw)
+        } catch {
+            logger.error("Failed to read instanceActorId: \(error.localizedDescription, privacy: .public)")
+            return nil
         }
     }
 
