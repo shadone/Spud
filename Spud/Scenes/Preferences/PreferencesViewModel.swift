@@ -34,6 +34,10 @@ final class PreferencesViewModel {
         dependencies?.own.accountService
     }
 
+    private var appDatabase: AppDatabase? {
+        dependencies?.own.appDatabase
+    }
+
     /// The account these preferences apply to. Used to scope the blocked-list
     /// management screens. Empty in the preview init.
     @ObservationIgnored
@@ -49,6 +53,17 @@ final class PreferencesViewModel {
 
     /// Builds the view model backing the blocked-users / blocked-communities
     /// management screens. Returns nil in the preview init (no services).
+    /// Builds the view model backing the "Hidden & Muted" management screen.
+    /// Returns nil in the preview init (no services).
+    func makeHiddenAndMutedViewModel() -> HiddenAndMutedViewModel? {
+        guard let accountService, let appDatabase else { return nil }
+        return HiddenAndMutedViewModel(
+            accountKeychainId: accountKeychainId,
+            accountService: accountService,
+            appDatabase: appDatabase
+        )
+    }
+
     func makeBlockedListViewModel() -> BlockedListViewModel? {
         guard let accountService else { return nil }
         return BlockedListViewModel(

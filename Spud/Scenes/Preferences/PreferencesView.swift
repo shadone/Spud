@@ -17,9 +17,14 @@ struct PreferencesView: View {
     /// and the preview init.
     private let blockedListViewModel: BlockedListViewModel?
 
+    /// Backs the "Hidden & Muted" management screen. Available signed-out too
+    /// (muting is local); nil only in the preview init.
+    private let hiddenAndMutedViewModel: HiddenAndMutedViewModel?
+
     init(viewModel: PreferencesViewModel) {
         self.viewModel = viewModel
         blockedListViewModel = viewModel.makeBlockedListViewModel()
+        hiddenAndMutedViewModel = viewModel.makeHiddenAndMutedViewModel()
     }
 
     var body: some View {
@@ -48,6 +53,14 @@ struct PreferencesView: View {
                         PreferencesPostMarkingAndHidingView(viewModel: viewModel)
                     } label: {
                         Label("Post Marking & Hiding", systemImage: "eye.slash")
+                    }
+
+                    if let hiddenAndMutedViewModel {
+                        NavigationLink {
+                            PreferencesHiddenAndMutedView(viewModel: hiddenAndMutedViewModel)
+                        } label: {
+                            Label("Hidden & Muted", systemImage: "eye.slash.circle")
+                        }
                     }
 
                     NavigationLink { } label: {
