@@ -1094,33 +1094,11 @@ class PostListViewController: UIViewController {
         }
     }
 
-    /// How long a community mute lasts. Muting is client-local, so these are
-    /// view-side durations, not a server state.
-    private enum MuteDuration {
-        case day, week, month, forever
-
-        /// The expiry instant from now, or nil for an indefinite mute.
-        var until: Date? {
-            switch self {
-            case .day: return Date().addingTimeInterval(24 * 60 * 60)
-            case .week: return Date().addingTimeInterval(7 * 24 * 60 * 60)
-            case .month: return Date().addingTimeInterval(30 * 24 * 60 * 60)
-            case .forever: return nil
-            }
-        }
-    }
-
     /// The "Mute <community> >" submenu offering the timed durations. Muting is
     /// a local view concern, so it isn't sign-in gated.
     private func makeMuteCommunityMenu(serverPostId: Int64, communityName: String) -> UIMenu {
-        let options: [(String, MuteDuration)] = [
-            (NSLocalizedString("For a day", comment: "Mute community duration"), .day),
-            (NSLocalizedString("For a week", comment: "Mute community duration"), .week),
-            (NSLocalizedString("For a month", comment: "Mute community duration"), .month),
-            (NSLocalizedString("Until I unmute", comment: "Mute community duration: forever"), .forever),
-        ]
-        let actions = options.map { label, duration in
-            UIAction(title: label) { [weak self] _ in
+        let actions = MuteDuration.allCases.map { duration in
+            UIAction(title: duration.menuTitle) { [weak self] _ in
                 self?.muteCommunity(serverPostId: serverPostId, duration: duration)
             }
         }

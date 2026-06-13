@@ -127,6 +127,9 @@ class CommunityViewController: UIViewController {
             image: UIImage(systemName: "ellipsis.circle"),
             menu: UIMenu(children: [
                 UIDeferredMenuElement.uncached { [weak self] completion in
+                    completion(self?.muteMenuActions() ?? [])
+                },
+                UIDeferredMenuElement.uncached { [weak self] completion in
                     completion(self?.blockMenuActions() ?? [])
                 },
             ])
@@ -239,6 +242,55 @@ class CommunityViewController: UIViewController {
         } else {
             Task { await applyBlockCommunity(false) }
         }
+    }
+
+    /// Builds the Mute / Unmute element for the overflow menu, reflecting the
+    /// current mute state. Muting is a local view concern (not server-backed),
+    /// so it isn't sign-in gated. When unmuted, offers a timed-duration submenu;
+    /// when muted, a single Unmute action.
+    private func muteMenuActions() -> [UIMenuElement] {
+        guard let actorId = viewModel.actorId else { return [] }
+        let muted = appDatabase.isCommunityMutedSync(
+            forKeychainId: accountKeychainId,
+            communityActorId: actorId
+        )
+        if muted {
+            return [UIAction(
+                title: NSLocalizedString("Unmute community", comment: "Overflow action to unmute a community"),
+                image: UIImage(systemName: "bell")
+            ) { [weak self] _ in
+                self?.unmuteCommunity()
+            }]
+        }
+        let durationActions = MuteDuration.allCases.map { duration in
+            UIAction(title: duration.menuTitle) { [weak self] _ in
+                self?.muteCommunity(duration: duration)
+            }
+        }
+        return [UIMenu(
+            title: NSLocalizedString("Mute community", comment: "Overflow action to mute a community"),
+            image: UIImage(systemName: "bell.slash"),
+            children: durationActions
+        )]
+    }
+
+    private func muteCommunity(duration: MuteDuration) {
+        guard let actorId = viewModel.actorId else { return }
+        Haptics.tap()
+        appDatabase.muteCommunitySync(
+            forKeychainId: accountKeychainId,
+            communityActorId: actorId,
+            until: duration.until
+        )
+    }
+
+    private func unmuteCommunity() {
+        guard let actorId = viewModel.actorId else { return }
+        Haptics.tap()
+        appDatabase.unmuteCommunitySync(
+            forKeychainId: accountKeychainId,
+            communityActorId: actorId
+        )
     }
 
     private func applyBlockCommunity(_ blocked: Bool) async {
