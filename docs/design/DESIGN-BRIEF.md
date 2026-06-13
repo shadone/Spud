@@ -250,8 +250,9 @@ reply), **Media viewer**, **Login / Site picker / Register**.
 
 ## 7. Screens (implemented)
 
-Every screen below is **built and working today** unless marked otherwise. See
-`FEATURES.md` for the full feature × status matrix.
+Every screen below is **built and working today** unless marked otherwise. See the
+per-capability docs under [`../features/`](../features/README.md) for the full feature
+list and status.
 
 ### Feed & reading
 
@@ -384,8 +385,9 @@ First-class, not a finishing pass:
 
 ## 11. How this imports into Claude Design
 
-This brief + `FEATURES.md` + the `screenshots/` folder are the staging material
-for a Spud design-system project on claude.ai/design. Suggested component groups
+This brief + the per-capability [`../features/`](../features/README.md) docs + the
+`screenshots/` folder are the staging material for a Spud design-system project on
+claude.ai/design. Suggested component groups
 to build there, each mirroring the tokens in §5:
 
 - **Foundations** — Color (semantic background tokens + accent palette),

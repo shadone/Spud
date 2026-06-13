@@ -33,8 +33,8 @@ signed-in screens (`13`–`19`) were captured signed in as `ddenis@lemmy.world`.
   iPhone portrait the feed replaces the back button with the compose button (which disables
   the interactive pop gesture), re-tapping the tab doesn't pop to root, and the app is
   portrait-locked — so there's no entry point. Capture on an iPad if it's needed.
-- Still out of scope this pass (built, see `../FEATURES.md`; need more setup): Comment
-  composer, Registration, Account switcher, Blocked-lists.
+- Still out of scope this pass (built, see [`../../features/`](../../features/README.md);
+  need more setup): Comment composer, Registration, Account switcher, Blocked-lists.
 
 ## Recapture
 

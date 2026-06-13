@@ -10,12 +10,11 @@ Each doc is two layers — a skimmable `What it does` header plus a Gherkin-styl
 `Scenarios` section — so it serves a reader browsing features, an agent reasoning about
 correct behavior, and (later) an author deriving XCUITest scenarios.
 
-> **Relationship to `design/FEATURES.md`.** [`../design/FEATURES.md`](../design/FEATURES.md)
-> is the legacy at-a-glance status grid (shipped / partial / deferred, by area). Every
-> shipped capability in that grid now has a per-capability doc here, and these docs are
-> the authoritative description of each behavior — several correct the grid where it had
-> drifted (see Migration backlog below for the per-item map and the corrections). The
-> grid is retained only as a historical index; prefer the docs here.
+> **This directory is the authoritative feature index.** It replaces the former
+> `design/FEATURES.md` at-a-glance status grid, which has been removed. The
+> per-capability docs here are the source of truth for what each feature does; several
+> correct behavior the old grid had described inaccurately. The coverage map at the
+> bottom lists every capability by area and flags the partials.
 
 ## How to add a feature doc
 
@@ -108,11 +107,10 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 
 <!-- Add new capability docs here as they are written. -->
 
-## Migration backlog
+## Feature coverage by area
 
-**Migration complete** — every shipped capability from [`../design/FEATURES.md`](../design/FEATURES.md)
-now has a per-capability doc above. This section is kept as the grid-to-doc coverage map.
-Grouped as in the grid; `[x]` shipped, `[~]` partial (qualifier inline).
+Every shipped capability, grouped by area — the coverage map that replaced the legacy
+`design/FEATURES.md` grid. `[x]` shipped, `[~]` partial (qualifier inline).
 
 **Reading & feeds**
 - [x] Frontpage feed (All / Local / Subscribed) + sort
