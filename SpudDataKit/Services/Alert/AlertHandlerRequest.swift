@@ -24,6 +24,7 @@ public enum AlertHandlerRequest: String, CustomStringConvertible {
     case login
     case fetchImage
     case markAsRead
+    case hidePost
     case search
     case fetchInbox
     case markInboxItemRead

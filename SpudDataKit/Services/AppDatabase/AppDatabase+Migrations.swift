@@ -329,6 +329,14 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v7_postHidden") { db in
+            // Per-user hidden flag (`PostView.hidden`); hidden posts are
+            // filtered out of the feed list.
+            try db.alter(table: "post") { t in
+                t.add(column: "isHidden", .boolean).notNull().defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }

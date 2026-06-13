@@ -1070,6 +1070,30 @@ class PostListViewController: UIViewController {
         }
     }
 
+    /// Hides the post, gating on sign-in. The hidden flag is server-backed; on
+    /// success the GRDB observation re-emits without the row, so it drops out of
+    /// the feed.
+    private func hidePost(serverPostId: Int64) {
+        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to hide posts", comment: "Sign-in gate title when a signed-out user tries to hide a post")
+            )
+            return
+        }
+        Task { await performHidePost(serverPostId: serverPostId) }
+    }
+
+    private func performHidePost(serverPostId: Int64) async {
+        Haptics.tap()
+        do {
+            try await accountService
+                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                .hidePost(serverPostId: Components.Schemas.PostID(serverPostId), hidden: true)
+        } catch {
+            alertService.handle(error, for: .hidePost)
+        }
+    }
+
     private func vote(serverPostId: Int64, action: VoteStatus.Action) async {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
@@ -1349,6 +1373,13 @@ extension PostListViewController: UITableViewDelegate {
                     self?.viewAuthor(serverPostId: serverPostId)
                 }
 
+                let hideAction = UIAction(
+                    title: NSLocalizedString("Hide", comment: "Context-menu action to hide a post from the feed"),
+                    image: UIImage(systemName: "eye.slash")
+                ) { [weak self] _ in
+                    self?.hidePost(serverPostId: serverPostId)
+                }
+
                 let blockAction = UIAction(
                     title: row?.creatorName.map {
                         String(format: NSLocalizedString("Block %@", comment: "Context-menu action to block a post author; %@ is the author handle"), $0)
@@ -1372,9 +1403,10 @@ extension PostListViewController: UITableViewDelegate {
                 let voteGroup = UIMenu(options: .displayInline, children: [upvoteAction, downvoteAction, saveAction])
                 let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction])
                 let navGroup = UIMenu(options: .displayInline, children: [visitCommunityAction, viewAuthorAction])
+                let hideGroup = UIMenu(options: .displayInline, children: [hideAction])
                 let safetyGroup = UIMenu(options: .displayInline, children: [blockAction, reportAction])
 
-                var children: [UIMenuElement] = [voteGroup, shareGroup, navGroup]
+                var children: [UIMenuElement] = [voteGroup, shareGroup, navGroup, hideGroup]
                 // Moderation submenu, only when the account moderates this
                 // post's community (or is an admin).
                 if let modMenu = self?.postModerationMenu(serverPostId: serverPostId) {
