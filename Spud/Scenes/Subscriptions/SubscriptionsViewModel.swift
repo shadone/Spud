@@ -20,8 +20,46 @@ private let logger = Logger.app
 @MainActor
 @Observable
 final class SubscriptionsViewModel {
+    /// How the subscribed-communities list is ordered. (Topic grouping was
+    /// dropped: inferring a topic reliably needs an LLM and mis-groups.)
+    enum SortOrder: CaseIterable, Equatable {
+        case alphabetical
+        case byInstance
+    }
+
     let isSignedIn: Bool
     var followCommunities: [SubscriptionsCommunityRow] = []
+
+    /// Live filter text from the search bar.
+    var searchText: String = ""
+    /// Active ordering for the community list.
+    var sortOrder: SortOrder = .alphabetical
+
+    /// The subscribed communities after applying the search filter and the
+    /// active sort. Drives the list so search / sort stay purely client-side.
+    var displayedCommunities: [SubscriptionsCommunityRow] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let filtered = query.isEmpty
+            ? followCommunities
+            : followCommunities.filter {
+                $0.name.lowercased().contains(query)
+                    || $0.instanceActorId.host.lowercased().contains(query)
+            }
+
+        switch sortOrder {
+        case .alphabetical:
+            return filtered.sorted {
+                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
+        case .byInstance:
+            return filtered.sorted {
+                if $0.instanceActorId.host != $1.instanceActorId.host {
+                    return $0.instanceActorId.host.localizedCaseInsensitiveCompare($1.instanceActorId.host) == .orderedAscending
+                }
+                return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            }
+        }
+    }
 
     private let onFeedRequested: (SubscriptionsViewItemType) -> Void
     @ObservationIgnored

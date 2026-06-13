@@ -72,6 +72,48 @@ class SubscriptionsViewController: UIViewController {
         let contentVC = UIHostingController(rootView: SubscriptionsView(viewModel: self.viewModel))
         add(child: contentVC)
         addSubviewWithEdgeConstraints(child: contentVC)
+
+        setupNavigationChrome()
+    }
+
+    /// Search + sort live in UIKit (the nav root), driving the @Observable view
+    /// model the SwiftUI list reads from.
+    private func setupNavigationChrome() {
+        let search = UISearchController(searchResultsController: nil)
+        search.searchResultsUpdater = self
+        search.obscuresBackgroundDuringPresentation = false
+        search.searchBar.placeholder = NSLocalizedString(
+            "Search your communities",
+            comment: "Communities tab search placeholder"
+        )
+        navigationItem.searchController = search
+        navigationItem.hidesSearchBarWhenScrolling = false
+
+        rebuildSortMenu()
+    }
+
+    private func rebuildSortMenu() {
+        let alphabetical = UIAction(
+            title: NSLocalizedString("Alphabetical", comment: "Communities sort: A to Z"),
+            image: UIImage(systemName: "textformat"),
+            state: viewModel.sortOrder == .alphabetical ? .on : .off
+        ) { [weak self] _ in self?.setSortOrder(.alphabetical) }
+
+        let byInstance = UIAction(
+            title: NSLocalizedString("By instance", comment: "Communities sort: grouped by server"),
+            image: UIImage(systemName: "server.rack"),
+            state: viewModel.sortOrder == .byInstance ? .on : .off
+        ) { [weak self] _ in self?.setSortOrder(.byInstance) }
+
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "line.3.horizontal.decrease.circle"),
+            menu: UIMenu(options: .singleSelection, children: [alphabetical, byInstance])
+        )
+    }
+
+    private func setSortOrder(_ order: SubscriptionsViewModel.SortOrder) {
+        viewModel.sortOrder = order
+        rebuildSortMenu()
     }
 
     private func handle(item: SubscriptionsViewItemType) {
@@ -116,5 +158,11 @@ class SubscriptionsViewController: UIViewController {
             dependencies: dependencies.nested
         )
         navigationController?.pushViewController(postListVC, animated: true)
+    }
+}
+
+extension SubscriptionsViewController: UISearchResultsUpdating {
+    func updateSearchResults(for searchController: UISearchController) {
+        viewModel.searchText = searchController.searchBar.text ?? ""
     }
 }
