@@ -21,6 +21,9 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
     public var urlEmbedTitle: String?
     public var urlEmbedDescription: String?
     public var thumbnailUrl: String?
+    /// An optional image description (`post.alt_text`), surfaced as the caption
+    /// in the full-screen media viewer.
+    public var altText: String?
     public var originalPostUrl: String
     public var score: Int64
     public var numberOfUpvotes: Int64
@@ -52,6 +55,7 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         urlEmbedTitle: String? = nil,
         urlEmbedDescription: String? = nil,
         thumbnailUrl: String? = nil,
+        altText: String? = nil,
         originalPostUrl: String,
         score: Int64 = 0,
         numberOfUpvotes: Int64 = 0,
@@ -80,6 +84,7 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         self.urlEmbedTitle = urlEmbedTitle
         self.urlEmbedDescription = urlEmbedDescription
         self.thumbnailUrl = thumbnailUrl
+        self.altText = altText
         self.originalPostUrl = originalPostUrl
         self.score = score
         self.numberOfUpvotes = numberOfUpvotes

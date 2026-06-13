@@ -26,6 +26,9 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
     public let thumbnailUrl: String?
     public let urlEmbedTitle: String?
     public let urlEmbedDescription: String?
+    /// Optional image description (`post.alt_text`), shown as the media-viewer
+    /// caption when the post's image is opened full-screen.
+    public let altText: String?
     public let communityName: String
     /// The community's federation actor id (e.g.
     /// "https://lemmy.world/c/world"). Used to derive the home instance for a
@@ -86,6 +89,7 @@ public extension AppDatabase {
                             post.thumbnailUrl      AS thumbnailUrl,
                             post.urlEmbedTitle     AS urlEmbedTitle,
                             post.urlEmbedDescription AS urlEmbedDescription,
+                            post.altText           AS altText,
                             post.score             AS score,
                             post.numberOfComments  AS numberOfComments,
                             post.voteStatus        AS voteStatus,
@@ -121,6 +125,7 @@ public extension AppDatabase {
                         thumbnailUrl: row["thumbnailUrl"],
                         urlEmbedTitle: row["urlEmbedTitle"],
                         urlEmbedDescription: row["urlEmbedDescription"],
+                        altText: row["altText"],
                         communityName: row["communityName"] ?? "",
                         communityActorId: row["communityActorId"],
                         serverCommunityId: row["serverCommunityId"],

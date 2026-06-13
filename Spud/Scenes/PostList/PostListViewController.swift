@@ -757,7 +757,8 @@ class PostListViewController: UIViewController {
                     self?.presentMediaViewer(
                         imageUrl: imageUrl,
                         thumbnailUrl: thumbnailUrl,
-                        preloadedImage: thumbnailImage
+                        preloadedImage: thumbnailImage,
+                        altText: row.altText
                     )
                 }
 
@@ -928,12 +929,14 @@ class PostListViewController: UIViewController {
     private func presentMediaViewer(
         imageUrl: URL,
         thumbnailUrl: URL?,
-        preloadedImage: UIImage?
+        preloadedImage: UIImage?,
+        altText: String? = nil
     ) {
         let item = MediaItem(
             imageUrl: imageUrl,
             thumbnailUrl: thumbnailUrl,
-            preloadedImage: preloadedImage
+            preloadedImage: preloadedImage,
+            altText: altText
         )
         let viewer = MediaViewerViewController.make(
             items: [item],

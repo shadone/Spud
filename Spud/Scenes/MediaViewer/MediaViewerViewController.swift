@@ -113,6 +113,31 @@ final class MediaViewerViewController: UIViewController {
         return control
     }()
 
+    /// A translucent caption pill showing the current image's description
+    /// (`MediaItem.altText`), pinned above the page dots and fading with the
+    /// rest of the chrome. Hidden when the current item carries no alt text.
+    private lazy var captionContainer: UIVisualEffectView = {
+        let view = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.layer.cornerRadius = 12
+        view.layer.cornerCurve = .continuous
+        view.clipsToBounds = true
+        // Let taps fall through to the chrome-toggle / swipe-to-dismiss gestures.
+        view.isUserInteractionEnabled = false
+        view.isHidden = true
+        return view
+    }()
+
+    private lazy var captionLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 0
+        label.textAlignment = .center
+        label.font = .scaledSystemFont(style: .footnote, relativeSize: 0, weight: .regular)
+        label.textColor = UIColor.white.withAlphaComponent(0.9)
+        return label
+    }()
+
     private var topBarTopConstraint: NSLayoutConstraint!
 
     // MARK: Functions
@@ -178,6 +203,7 @@ final class MediaViewerViewController: UIViewController {
         setupTopBar()
         setupGestures()
         applyPageControlVisibility()
+        updateCaption()
     }
 
     private func setupTopBar() {
@@ -187,6 +213,9 @@ final class MediaViewerViewController: UIViewController {
         topBarBackgroundView.contentView.addSubview(saveButton)
 
         view.addSubview(pageControl)
+
+        view.addSubview(captionContainer)
+        captionContainer.contentView.addSubview(captionLabel)
 
         topBarTopConstraint = topBarBackgroundView.topAnchor.constraint(equalTo: view.topAnchor)
 
@@ -207,7 +236,43 @@ final class MediaViewerViewController: UIViewController {
 
             pageControl.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             pageControl.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -8),
+
+            // Centered above the page dots, capped well short of the screen
+            // edges so a long description wraps into a tidy pill.
+            captionContainer.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            captionContainer.bottomAnchor.constraint(equalTo: pageControl.topAnchor, constant: -10),
+            captionContainer.leadingAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
+            captionContainer.trailingAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
+            captionContainer.widthAnchor.constraint(lessThanOrEqualToConstant: 320),
+
+            captionLabel.topAnchor.constraint(equalTo: captionContainer.contentView.topAnchor, constant: 7),
+            captionLabel.bottomAnchor.constraint(equalTo: captionContainer.contentView.bottomAnchor, constant: -7),
+            captionLabel.leadingAnchor.constraint(equalTo: captionContainer.contentView.leadingAnchor, constant: 14),
+            captionLabel.trailingAnchor.constraint(equalTo: captionContainer.contentView.trailingAnchor, constant: -14),
         ])
+    }
+
+    /// Shows the current item's alt text in the caption pill, or hides the pill
+    /// when there's no description. Called on load and after each page change.
+    private func updateCaption() {
+        let description = items[currentIndex].altText?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let description, !description.isEmpty else {
+            captionContainer.isHidden = true
+            captionLabel.text = nil
+            captionContainer.isAccessibilityElement = false
+            return
+        }
+        captionLabel.text = description
+        captionContainer.isHidden = false
+        captionContainer.isAccessibilityElement = true
+        captionContainer.accessibilityLabel = String(
+            format: NSLocalizedString(
+                "Image description: %@",
+                comment: "VoiceOver label for the media viewer alt-text caption"
+            ),
+            description
+        )
     }
 
     private func setupGestures() {
@@ -258,6 +323,7 @@ final class MediaViewerViewController: UIViewController {
         let changes = { [self] in
             topBarBackgroundView.alpha = alpha
             pageControl.alpha = alpha
+            captionContainer.alpha = alpha
         }
         guard animated, !UIAccessibility.isReduceMotionEnabled else {
             changes()
@@ -580,6 +646,7 @@ extension MediaViewerViewController: UIPageViewControllerDelegate {
         guard completed, let page = currentPage else { return }
         currentIndex = page.pageIndex
         pageControl.currentPage = currentIndex
+        updateCaption()
     }
 }
 

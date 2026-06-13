@@ -106,6 +106,7 @@ public extension AppDatabase {
         record.urlEmbedTitle = post.embed_title
         record.urlEmbedDescription = post.embed_description
         record.thumbnailUrl = post.thumbnail_url
+        record.altText = post.alt_text
         record.originalPostUrl = post.ap_id
         record.published = post.published
 

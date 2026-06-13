@@ -615,12 +615,14 @@ class PostDetailViewController: UIViewController {
     private func presentMediaViewer(
         imageUrl: URL,
         thumbnailUrl: URL?,
-        preloadedImage: UIImage?
+        preloadedImage: UIImage?,
+        altText: String? = nil
     ) {
         let item = MediaItem(
             imageUrl: imageUrl,
             thumbnailUrl: thumbnailUrl,
-            preloadedImage: preloadedImage
+            preloadedImage: preloadedImage,
+            altText: altText
         )
         let viewer = MediaViewerViewController.make(
             items: [item],
@@ -1202,7 +1204,8 @@ extension PostDetailViewController {
                     self?.presentMediaViewer(
                         imageUrl: imageUrl,
                         thumbnailUrl: thumbnailUrl,
-                        preloadedImage: currentImage
+                        preloadedImage: currentImage,
+                        altText: self?.headerRow?.altText
                     )
                 }
                 cell.videoTapped = { [weak self] videoUrl in

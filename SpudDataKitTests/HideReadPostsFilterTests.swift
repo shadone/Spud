@@ -21,6 +21,7 @@ final class HideReadPostsFilterTests: XCTestCase {
             thumbnailUrl: nil,
             urlEmbedTitle: nil,
             urlEmbedDescription: nil,
+            altText: nil,
             communityName: "c",
             communityActorId: nil,
             serverCommunityId: 1,

@@ -321,6 +321,14 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v6_postAltText") { db in
+            // Optional image description (`post.alt_text`) shown as the caption
+            // in the full-screen media viewer.
+            try db.alter(table: "post") { t in
+                t.add(column: "altText", .text)
+            }
+        }
+
         return migrator
     }
 }
