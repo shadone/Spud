@@ -214,13 +214,8 @@ class CommunityViewController: UIViewController {
 
     private func toggleBlockCommunity() {
         guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
-            Haptics.warning()
-            presentErrorAlert(
-                title: NSLocalizedString("Sign in to block", comment: "Title of the alert shown when a signed-out user tries to block a community"),
-                message: NSLocalizedString(
-                    "You need to be signed in to an account to block communities.",
-                    comment: "Body of the alert shown when a signed-out user tries to block a community"
-                )
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to block", comment: "Sign-in gate title when a signed-out user tries to block a community")
             )
             return
         }
@@ -345,13 +340,8 @@ class CommunityViewController: UIViewController {
     @objc
     private func newPostTapped() {
         guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
-            Haptics.warning()
-            presentErrorAlert(
-                title: NSLocalizedString("Sign in to post", comment: "Title of the alert shown when a signed-out user tries to create a post"),
-                message: NSLocalizedString(
-                    "You need to be signed in to an account to create posts.",
-                    comment: "Body of the alert shown when a signed-out user tries to create a post"
-                )
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to post", comment: "Sign-in gate title when a signed-out user tries to create a post")
             )
             return
         }
@@ -374,13 +364,8 @@ class CommunityViewController: UIViewController {
     /// gating on sign-in.
     private func toggleSubscribed() {
         guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
-            Haptics.warning()
-            presentErrorAlert(
-                title: NSLocalizedString("Sign in to subscribe", comment: "Title of the alert shown when a signed-out user tries to subscribe to a community"),
-                message: NSLocalizedString(
-                    "You need to be signed in to an account to subscribe to communities.",
-                    comment: "Body of the alert shown when a signed-out user tries to subscribe to a community"
-                )
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to subscribe", comment: "Sign-in gate title when a signed-out user tries to subscribe to a community")
             )
             return
         }

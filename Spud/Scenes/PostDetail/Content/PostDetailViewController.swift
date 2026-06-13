@@ -712,13 +712,8 @@ class PostDetailViewController: UIViewController {
     /// accounts get a "Sign in to save" alert and a warning haptic.
     private func canSaveOrPresentSignInAlert() -> Bool {
         guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
-            Haptics.warning()
-            presentErrorAlert(
-                title: NSLocalizedString("Sign in to save", comment: "Title of the alert shown when a signed-out user tries to save"),
-                message: NSLocalizedString(
-                    "You need to be signed in to an account to save posts and comments.",
-                    comment: "Body of the alert shown when a signed-out user tries to save"
-                )
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to save", comment: "Sign-in gate title when a signed-out user tries to save")
             )
             return false
         }
@@ -778,13 +773,8 @@ class PostDetailViewController: UIViewController {
     /// a "Sign in to report" alert and a warning haptic.
     private func canReportOrPresentSignInAlert() -> Bool {
         guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
-            Haptics.warning()
-            presentErrorAlert(
-                title: NSLocalizedString("Sign in to report", comment: "Title of the alert shown when a signed-out user tries to report"),
-                message: NSLocalizedString(
-                    "You need to be signed in to an account to report posts and comments.",
-                    comment: "Body of the alert shown when a signed-out user tries to report"
-                )
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to report", comment: "Sign-in gate title when a signed-out user tries to report")
             )
             return false
         }
@@ -1138,12 +1128,8 @@ class PostDetailViewController: UIViewController {
     private func presentComposer(target: ComposerTarget) {
         let keychainId = viewModel.accountKeychainId
         guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
-            presentErrorAlert(
-                title: NSLocalizedString("Sign in to comment", comment: "Title of the alert shown when a signed-out user tries to comment"),
-                message: NSLocalizedString(
-                    "You need to be signed in to an account to post comments.",
-                    comment: "Body of the alert shown when a signed-out user tries to comment"
-                )
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to comment", comment: "Sign-in gate title when a signed-out user tries to comment")
             )
             return
         }
