@@ -38,8 +38,15 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
     /// the set of communities the current account moderates.
     public let serverCommunityId: Int64
     /// Server-assigned creator (post author) person id. Used to target
-    /// ban-from-community actions.
+    /// ban-from-community actions and to deep link to the author.
     public let creatorPersonId: Int64
+    /// The author's handle (`person.name`, e.g. "alice"). Used to label the
+    /// "View u/..." context-menu action. nil if the person row has no name.
+    public let creatorName: String?
+    /// The author's federation actor id (e.g. "https://lemmy.world/u/alice").
+    /// Used to derive the home instance for an author deep link. nil if the
+    /// person row has no actorId.
+    public let creatorActorId: String?
     public let score: Int64
     public let numberOfComments: Int64
     /// 1 = upvoted, 0 = downvoted, nil = no vote.
@@ -104,7 +111,9 @@ public extension AppDatabase {
                             community.communityId  AS serverCommunityId,
                             community.name         AS communityName,
                             community.actorId      AS communityActorId,
-                            creator.personId       AS creatorPersonId
+                            creator.personId       AS creatorPersonId,
+                            creator.name           AS creatorName,
+                            creator.actorId        AS creatorActorId
                         FROM post
                         JOIN pageElement ON pageElement.postId = post.id
                         JOIN page        ON page.id = pageElement.pageId
@@ -130,6 +139,8 @@ public extension AppDatabase {
                         communityActorId: row["communityActorId"],
                         serverCommunityId: row["serverCommunityId"],
                         creatorPersonId: row["creatorPersonId"],
+                        creatorName: row["creatorName"],
+                        creatorActorId: row["creatorActorId"],
                         score: row["score"],
                         numberOfComments: row["numberOfComments"],
                         voteStatus: row["voteStatus"],
