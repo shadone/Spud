@@ -1197,6 +1197,10 @@ extension PostDetailViewController {
                 cell.videoTapped = { [weak self] videoUrl in
                     self?.presentVideoPlayer(url: videoUrl)
                 }
+                cell.openInBrowser = { [weak self] url in
+                    guard let self else { return }
+                    Task { await appService.open(url: url, on: self) }
+                }
                 cell.upvoteTapped = { [weak self] in
                     Task { await self?.voteOnPost(.upvote) }
                 }
