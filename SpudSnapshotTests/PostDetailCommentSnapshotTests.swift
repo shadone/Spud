@@ -49,22 +49,50 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         ))
     }
 
-    func test_deleted() {
-        assertComment(viewModel: makeViewModel(
-            row: row(body: "[deleted]", isDeleted: true)
-        ))
+    func test_deletedByAuthor() {
+        // Author-deleted: the (empty) body becomes a stated placeholder and the
+        // score is hidden — the bug that motivated the state system.
+        assertComment(viewModel: makeViewModel(row: row(isDeleted: true)))
     }
 
-    func test_removed() {
-        assertComment(viewModel: makeViewModel(
-            row: row(body: "[removed by moderator]", isRemoved: true)
-        ))
+    func test_removedByModerator() {
+        assertComment(viewModel: makeViewModel(row: row(isRemoved: true)))
     }
 
     func test_distinguished() {
+        // A distinguished moderator statement: the MOD badge goes solid and the
+        // row gets an accent wash, reading authoritative rather than a warning.
         assertComment(viewModel: makeViewModel(
-            row: row(body: "Reminder: keep it civil. — Mod team", isDistinguished: true)
+            row: row(body: "Reminder: keep it civil. — Mod team", isDistinguished: true, isCreatorModerator: true)
         ))
+    }
+
+    func test_badge_moderator() {
+        assertComment(viewModel: makeViewModel(row: row(isCreatorModerator: true)))
+    }
+
+    func test_badge_admin() {
+        assertComment(viewModel: makeViewModel(row: row(isCreatorAdmin: true)))
+    }
+
+    func test_badge_bot() {
+        assertComment(viewModel: makeViewModel(row: row(isCreatorBot: true)))
+    }
+
+    func test_bannedFromCommunity() {
+        assertComment(viewModel: makeViewModel(row: row(isCreatorBannedFromCommunity: true)))
+    }
+
+    func test_siteBanned() {
+        assertComment(viewModel: makeViewModel(row: row(isCreatorSiteBanned: true)))
+    }
+
+    func test_accountDeleted() {
+        assertComment(viewModel: makeViewModel(row: row(isCreatorAccountDeleted: true)))
+    }
+
+    func test_blockedFolded() {
+        assertComment(viewModel: makeViewModel(row: row(isCreatorBlocked: true)))
     }
 
     func test_upvoted() {
@@ -212,6 +240,13 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         isRemoved: Bool? = false,
         isDistinguished: Bool? = false,
         isDeleted: Bool? = false,
+        isCreatorModerator: Bool? = false,
+        isCreatorAdmin: Bool? = false,
+        isCreatorBannedFromCommunity: Bool? = false,
+        isCreatorBlocked: Bool? = false,
+        isCreatorSiteBanned: Bool? = false,
+        isCreatorBot: Bool? = false,
+        isCreatorAccountDeleted: Bool? = false,
         creatorPersonId: Int64? = 1
     ) -> PostDetailCommentRow {
         PostDetailCommentRow(
@@ -227,6 +262,13 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
             isRemoved: isRemoved,
             isDistinguished: isDistinguished,
             isDeleted: isDeleted,
+            isCreatorModerator: isCreatorModerator,
+            isCreatorAdmin: isCreatorAdmin,
+            isCreatorBannedFromCommunity: isCreatorBannedFromCommunity,
+            isCreatorBlocked: isCreatorBlocked,
+            isCreatorSiteBanned: isCreatorSiteBanned,
+            isCreatorBot: isCreatorBot,
+            isCreatorAccountDeleted: isCreatorAccountDeleted,
             published: Date(timeIntervalSinceNow: -3 * 3600),
             creatorName: "ansel",
             creatorPersonId: creatorPersonId,
