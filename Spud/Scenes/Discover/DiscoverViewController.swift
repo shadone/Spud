@@ -52,6 +52,9 @@ class DiscoverViewController: UIViewController {
             isSignedIn: isSignedIn,
             onOpenCommunity: { [weak self] row in
                 self?.openCommunity(row)
+            },
+            onOpenPack: { [weak self] pack in
+                self?.openPack(pack)
             }
         )
 
@@ -107,6 +110,21 @@ class DiscoverViewController: UIViewController {
     private func setSort(_ sort: ExplorerCommunitySort) {
         viewModel.sort = sort
         rebuildSortMenu()
+    }
+
+    private func openPack(_ pack: ResolvedStarterPack) {
+        let accent = Color(ThemeManager.currentAccentColor)
+        let detail = PackDetailView(
+            pack: pack,
+            accent: accent,
+            onOpenCommunity: { [weak self] row in
+                self?.openCommunity(row)
+            }
+        )
+        let hosting = UIHostingController(rootView: detail)
+        hosting.navigationItem.title = pack.title
+        hosting.navigationItem.largeTitleDisplayMode = .never
+        navigationController?.pushViewController(hosting, animated: true)
     }
 
     private func openCommunity(_ row: CommunityListRow) {

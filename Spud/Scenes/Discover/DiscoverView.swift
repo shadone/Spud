@@ -44,6 +44,7 @@ struct DiscoverView: View {
                     if !viewModel.isSignedIn {
                         signedOutNote
                     }
+                    packsRail
                     rail(
                         title: "Trending now",
                         subtitle: "Most weekly activity across the network",
@@ -100,6 +101,34 @@ struct DiscoverView: View {
         .background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal, 16)
         .padding(.top, 12)
+    }
+
+    @ViewBuilder
+    private var packsRail: some View {
+        if !viewModel.starterPacks.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Starter packs")
+                        .font(.headline)
+                        .foregroundStyle(Color(.label))
+                    Text("Follow a curated bundle in one move")
+                        .font(.caption)
+                        .foregroundStyle(Color(.tertiaryLabel))
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 18)
+                .padding(.bottom, 10)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(viewModel.starterPacks) { pack in
+                            PackCard(pack: pack, accent: accent) { viewModel.openPack(pack) }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -292,10 +321,86 @@ struct CommunityHueIcon: View {
     }
 
     private var hue: Double {
-        var h: UInt64 = 5381
-        for byte in name.utf8 {
-            h = (h &* 33) &+ UInt64(byte)
-        }
-        return Double(h % 360)
+        communityHue(name)
     }
+}
+
+// MARK: - Starter pack card
+
+struct PackCard: View {
+    let pack: ResolvedStarterPack
+    let accent: Color
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 0) {
+                PackMosaic(communities: pack.communities, size: 52)
+                Text(pack.title)
+                    .font(.callout.weight(.bold))
+                    .foregroundStyle(Color(.label))
+                    .lineLimit(1)
+                    .padding(.top, 11)
+                Text(pack.blurb)
+                    .font(.caption2)
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .lineLimit(2)
+                    .frame(height: 30, alignment: .top)
+                    .padding(.top, 3)
+                Text("\(pack.communityCount) communities · \(DiscoverCommunityRow.compact(pack.totalSubscribers))")
+                    .font(.caption2)
+                    .foregroundStyle(Color(.tertiaryLabel))
+                    .padding(.top, 8)
+            }
+            .padding(14)
+            .frame(width: 200, alignment: .leading)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// A 2x2 mosaic of hue tiles drawn from a pack's first communities.
+struct PackMosaic: View {
+    let communities: [CommunityListRow]
+    var size: CGFloat = 52
+
+    var body: some View {
+        let hues = mosaicHues
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                tile(hues[0])
+                tile(hues[1])
+            }
+            HStack(spacing: 0) {
+                tile(hues[2])
+                tile(hues[3])
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: size * 0.28))
+    }
+
+    private var mosaicHues: [Double] {
+        var hues = communities.prefix(4).map { communityHue($0.name) }
+        while hues.count < 4 {
+            hues.append(hues.first ?? 200)
+        }
+        return hues
+    }
+
+    private func tile(_ hue: Double) -> some View {
+        Color(hue: hue / 360, saturation: 0.5, brightness: 0.6)
+            .frame(width: size / 2, height: size / 2)
+    }
+}
+
+/// Stable hue (0-360) from a community name, shared by the icon and the pack
+/// mosaic so the same community always reads the same colour.
+private func communityHue(_ name: String) -> Double {
+    var hash: UInt64 = 5381
+    for byte in name.utf8 {
+        hash = (hash &* 33) &+ UInt64(byte)
+    }
+    return Double(hash % 360)
 }

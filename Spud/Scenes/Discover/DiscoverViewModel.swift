@@ -31,6 +31,8 @@ final class DiscoverViewModel {
         didSet { recomputeDirectory() }
     }
 
+    /// Curated bundles a new user can follow together, with live stats.
+    private(set) var starterPacks: [ResolvedStarterPack] = []
     /// Busiest communities this week.
     private(set) var trending: [CommunityListRow] = []
     /// Small communities punching above their size.
@@ -46,16 +48,19 @@ final class DiscoverViewModel {
 
     private var allRows: [CommunityListRow] = []
     private let onOpenCommunity: (CommunityListRow) -> Void
+    private let onOpenPack: (ResolvedStarterPack) -> Void
     @ObservationIgnored
     private var observationTask: Task<Void, Never>?
 
     init(
         appDatabase: AppDatabase,
         isSignedIn: Bool,
-        onOpenCommunity: @escaping (CommunityListRow) -> Void
+        onOpenCommunity: @escaping (CommunityListRow) -> Void,
+        onOpenPack: @escaping (ResolvedStarterPack) -> Void
     ) {
         self.isSignedIn = isSignedIn
         self.onOpenCommunity = onOpenCommunity
+        self.onOpenPack = onOpenPack
 
         observationTask = Task { [weak self] in
             for await rows in appDatabase.observeExplorerCommunityListRows() {
@@ -77,7 +82,12 @@ final class DiscoverViewModel {
         onOpenCommunity(row)
     }
 
+    func openPack(_ pack: ResolvedStarterPack) {
+        onOpenPack(pack)
+    }
+
     private func recomputeRails() {
+        starterPacks = StarterPackCatalog.resolve(using: allRows)
         trending = ExplorerCommunityDirectory.trending(in: allRows, limit: 12)
         rising = ExplorerCommunityDirectory.rising(in: allRows, limit: 12)
     }
