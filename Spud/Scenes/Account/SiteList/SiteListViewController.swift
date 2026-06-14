@@ -51,9 +51,13 @@ class SiteListViewController: UIViewController {
     private var allRows: [SiteListRow] = []
     private var visibleRows: [SiteListRow] = []
     private var searchQuery: String = ""
+    private var sort: ExplorerInstanceSort = .recommended
+    private var filter = ExplorerInstanceFilter()
     private var observationTask: Task<Void, Never>?
 
     private var searchController: UISearchController!
+    private var sortBarButtonItem: UIBarButtonItem!
+    private var filterBarButtonItem: UIBarButtonItem!
 
     // MARK: Functions
 
@@ -83,6 +87,20 @@ class SiteListViewController: UIViewController {
 
         navigationItem.leftBarButtonItems = [cancelBarButtonItem]
 
+        sortBarButtonItem = UIBarButtonItem(
+            title: nil,
+            image: UIImage(systemName: "arrow.up.arrow.down"),
+            primaryAction: nil,
+            menu: makeSortMenu()
+        )
+        filterBarButtonItem = UIBarButtonItem(
+            title: nil,
+            image: UIImage(systemName: "line.3.horizontal.decrease.circle"),
+            primaryAction: nil,
+            menu: makeFilterMenu()
+        )
+        navigationItem.rightBarButtonItems = [filterBarButtonItem, sortBarButtonItem]
+
         navigationItem.title = "Choose an instance"
 
         view.backgroundColor = .white
@@ -107,6 +125,7 @@ class SiteListViewController: UIViewController {
         // Seed with the cached Explorer instance directory so the tableView is
         // populated (ranked by Explorer score) by the time it appears.
         allRows = appDatabase.explorerSiteListRowsSync()
+        refreshMenus()
         applyFilter()
     }
 
@@ -116,27 +135,85 @@ class SiteListViewController: UIViewController {
             for await rows in appDatabase.observeExplorerSiteListRows() {
                 guard let self else { return }
                 allRows = rows
+                refreshMenus()
                 applyFilter()
             }
         }
     }
 
     private func applyFilter() {
-        if searchQuery.isEmpty {
-            visibleRows = allRows
-        } else {
-            let needle = searchQuery.lowercased()
-            visibleRows = allRows.filter { row in
-                if row.hostname.lowercased().contains(needle) { return true }
-                if let description = row.descriptionText?.lowercased(),
-                   description.contains(needle)
-                {
-                    return true
-                }
-                return false
+        visibleRows = ExplorerInstanceDirectory.apply(
+            to: allRows,
+            query: searchQuery,
+            filter: filter,
+            sort: sort
+        )
+        tableView.reloadData()
+    }
+
+    private func makeSortMenu() -> UIMenu {
+        let actions = ExplorerInstanceSort.allCases.map { option in
+            UIAction(title: option.title, state: option == sort ? .on : .off) { [weak self] _ in
+                guard let self else { return }
+                sort = option
+                refreshMenus()
+                applyFilter()
             }
         }
-        tableView.reloadData()
+        return UIMenu(title: "Sort by", children: actions)
+    }
+
+    private func makeFilterMenu() -> UIMenu {
+        let registration = UIAction(
+            title: "Registration open",
+            state: filter.registrationOpenOnly ? .on : .off
+        ) { [weak self] _ in
+            guard let self else { return }
+            filter.registrationOpenOnly.toggle()
+            refreshMenus()
+            applyFilter()
+        }
+        let nsfw = UIAction(
+            title: "Hide NSFW",
+            state: filter.hideNsfw ? .on : .off
+        ) { [weak self] _ in
+            guard let self else { return }
+            filter.hideNsfw.toggle()
+            refreshMenus()
+            applyFilter()
+        }
+        let toggles = UIMenu(title: "", options: .displayInline, children: [registration, nsfw])
+
+        let anyLanguage = UIAction(
+            title: "Any language",
+            state: filter.language == nil ? .on : .off
+        ) { [weak self] _ in
+            guard let self else { return }
+            filter.language = nil
+            refreshMenus()
+            applyFilter()
+        }
+        let languageActions = ExplorerInstanceDirectory.availableLanguages(in: allRows).map { code in
+            UIAction(title: code.uppercased(), state: filter.language == code ? .on : .off) { [weak self] _ in
+                guard let self else { return }
+                filter.language = code
+                refreshMenus()
+                applyFilter()
+            }
+        }
+        let languageMenu = UIMenu(title: "Language", children: [anyLanguage] + languageActions)
+
+        return UIMenu(title: "Filter", children: [toggles, languageMenu])
+    }
+
+    private func refreshMenus() {
+        sortBarButtonItem.menu = makeSortMenu()
+        filterBarButtonItem.menu = makeFilterMenu()
+        filterBarButtonItem.image = UIImage(
+            systemName: filter.isActive
+                ? "line.3.horizontal.decrease.circle.fill"
+                : "line.3.horizontal.decrease.circle"
+        )
     }
 
     override func viewWillAppear(_ animated: Bool) {
