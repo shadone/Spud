@@ -21,13 +21,33 @@ public struct SiteListRow: Sendable, Equatable, Identifiable {
     public let descriptionText: String?
     public let iconUrl: URL?
 
+    // Directory stats (populated from the Explorer directory; zero/nil for rows
+    // built from the local `site` table). Drive sorting, filtering, and the
+    // instance detail card.
+    public let score: Double
+    public let usersTotal: Int64?
+    public let usersActiveMonth: Int64?
+    public let uptimeAllTime: Double?
+    public let isNsfw: Bool
+    public let isOpenRegistration: Bool
+    public let languageCodes: [String]
+    public let tags: [String]
+
     public init(
         id: Int64,
         instance: InstanceActorId,
         hostname: String,
         name: String?,
         descriptionText: String?,
-        iconUrl: URL?
+        iconUrl: URL?,
+        score: Double = 0,
+        usersTotal: Int64? = nil,
+        usersActiveMonth: Int64? = nil,
+        uptimeAllTime: Double? = nil,
+        isNsfw: Bool = false,
+        isOpenRegistration: Bool = false,
+        languageCodes: [String] = [],
+        tags: [String] = []
     ) {
         self.id = id
         self.instance = instance
@@ -35,6 +55,14 @@ public struct SiteListRow: Sendable, Equatable, Identifiable {
         self.name = name
         self.descriptionText = descriptionText
         self.iconUrl = iconUrl
+        self.score = score
+        self.usersTotal = usersTotal
+        self.usersActiveMonth = usersActiveMonth
+        self.uptimeAllTime = uptimeAllTime
+        self.isNsfw = isNsfw
+        self.isOpenRegistration = isOpenRegistration
+        self.languageCodes = languageCodes
+        self.tags = tags
     }
 }
 

@@ -14,9 +14,9 @@ private let logger = Logger.app
 class SiteListViewController: UIViewController {
     typealias OwnDependencies =
         HasAppDatabase &
-        HasSiteService
+        HasExplorerService
     typealias NestedDependencies =
-        LoginViewController.Dependencies &
+        InstanceDetailViewController.Dependencies &
         SiteListSiteViewModel.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
@@ -25,8 +25,8 @@ class SiteListViewController: UIViewController {
         dependencies.own.appDatabase
     }
 
-    var siteService: SiteServiceType {
-        dependencies.own.siteService
+    var explorerService: ExplorerServiceType {
+        dependencies.own.explorerService
     }
 
     // MARK: UI Properties
@@ -51,9 +51,13 @@ class SiteListViewController: UIViewController {
     private var allRows: [SiteListRow] = []
     private var visibleRows: [SiteListRow] = []
     private var searchQuery: String = ""
+    private var sort: ExplorerInstanceSort = .recommended
+    private var filter = ExplorerInstanceFilter()
     private var observationTask: Task<Void, Never>?
 
     private var searchController: UISearchController!
+    private var sortBarButtonItem: UIBarButtonItem!
+    private var filterBarButtonItem: UIBarButtonItem!
 
     // MARK: Functions
 
@@ -83,6 +87,20 @@ class SiteListViewController: UIViewController {
 
         navigationItem.leftBarButtonItems = [cancelBarButtonItem]
 
+        sortBarButtonItem = UIBarButtonItem(
+            title: nil,
+            image: UIImage(systemName: "arrow.up.arrow.down"),
+            primaryAction: nil,
+            menu: makeSortMenu()
+        )
+        filterBarButtonItem = UIBarButtonItem(
+            title: nil,
+            image: UIImage(systemName: "line.3.horizontal.decrease.circle"),
+            primaryAction: nil,
+            menu: makeFilterMenu()
+        )
+        navigationItem.rightBarButtonItems = [filterBarButtonItem, sortBarButtonItem]
+
         navigationItem.title = "Choose an instance"
 
         view.backgroundColor = .white
@@ -104,45 +122,106 @@ class SiteListViewController: UIViewController {
 
         navigationItem.searchController = searchController
 
-        // Seed with whatever's already in AppDatabase so the tableView is
-        // populated by the time it appears.
-        allRows = appDatabase.allSiteListRowsSync()
+        // Seed with the cached Explorer instance directory so the tableView is
+        // populated (ranked by Explorer score) by the time it appears.
+        allRows = appDatabase.explorerSiteListRowsSync()
+        refreshMenus()
         applyFilter()
     }
 
     private func startObserving() {
         observationTask?.cancel()
         observationTask = Task { @MainActor [weak self, appDatabase] in
-            for await rows in appDatabase.observeAllSites() {
+            for await rows in appDatabase.observeExplorerSiteListRows() {
                 guard let self else { return }
                 allRows = rows
+                refreshMenus()
                 applyFilter()
             }
         }
     }
 
     private func applyFilter() {
-        if searchQuery.isEmpty {
-            visibleRows = allRows
-        } else {
-            let needle = searchQuery.lowercased()
-            visibleRows = allRows.filter { row in
-                if row.hostname.lowercased().contains(needle) { return true }
-                if let description = row.descriptionText?.lowercased(),
-                   description.contains(needle)
-                {
-                    return true
-                }
-                return false
+        visibleRows = ExplorerInstanceDirectory.apply(
+            to: allRows,
+            query: searchQuery,
+            filter: filter,
+            sort: sort
+        )
+        tableView.reloadData()
+    }
+
+    private func makeSortMenu() -> UIMenu {
+        let actions = ExplorerInstanceSort.allCases.map { option in
+            UIAction(title: option.title, state: option == sort ? .on : .off) { [weak self] _ in
+                guard let self else { return }
+                sort = option
+                refreshMenus()
+                applyFilter()
             }
         }
-        tableView.reloadData()
+        return UIMenu(title: "Sort by", children: actions)
+    }
+
+    private func makeFilterMenu() -> UIMenu {
+        let registration = UIAction(
+            title: "Registration open",
+            state: filter.registrationOpenOnly ? .on : .off
+        ) { [weak self] _ in
+            guard let self else { return }
+            filter.registrationOpenOnly.toggle()
+            refreshMenus()
+            applyFilter()
+        }
+        let nsfw = UIAction(
+            title: "Hide NSFW",
+            state: filter.hideNsfw ? .on : .off
+        ) { [weak self] _ in
+            guard let self else { return }
+            filter.hideNsfw.toggle()
+            refreshMenus()
+            applyFilter()
+        }
+        let toggles = UIMenu(title: "", options: .displayInline, children: [registration, nsfw])
+
+        let anyLanguage = UIAction(
+            title: "Any language",
+            state: filter.language == nil ? .on : .off
+        ) { [weak self] _ in
+            guard let self else { return }
+            filter.language = nil
+            refreshMenus()
+            applyFilter()
+        }
+        let languageActions = ExplorerInstanceDirectory.availableLanguages(in: allRows).map { code in
+            UIAction(title: code.uppercased(), state: filter.language == code ? .on : .off) { [weak self] _ in
+                guard let self else { return }
+                filter.language = code
+                refreshMenus()
+                applyFilter()
+            }
+        }
+        let languageMenu = UIMenu(title: "Language", children: [anyLanguage] + languageActions)
+
+        return UIMenu(title: "Filter", children: [toggles, languageMenu])
+    }
+
+    private func refreshMenus() {
+        sortBarButtonItem.menu = makeSortMenu()
+        filterBarButtonItem.menu = makeFilterMenu()
+        filterBarButtonItem.image = UIImage(
+            systemName: filter.isActive
+                ? "line.3.horizontal.decrease.circle.fill"
+                : "line.3.horizontal.decrease.circle"
+        )
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 
-        siteService.populateSiteListWithSuggestedInstancesIfNeeded()
+        Task { [explorerService] in
+            await explorerService.refreshIfStale(maxAge: ExplorerService.defaultMaxAge)
+        }
         startObserving()
     }
 
@@ -163,11 +242,15 @@ class SiteListViewController: UIViewController {
 extension SiteListViewController: UITableViewDelegate {
     func tableView(_: UITableView, didSelectRowAt indexPath: IndexPath) {
         let row = visibleRows[indexPath.row]
-        let loginViewController = LoginViewController(
-            row: row,
-            dependencies: dependencies.nested
-        )
-        navigationController?.pushViewController(loginViewController, animated: true)
+        // Show the instance detail ("before you commit") screen. Fall back to
+        // login directly if the directory record isn't available.
+        if let record = appDatabase.explorerInstanceSync(baseurl: row.hostname) {
+            let detail = InstanceDetailViewController(record: record, dependencies: dependencies.nested)
+            navigationController?.pushViewController(detail, animated: true)
+        } else {
+            let login = LoginViewController(row: row, dependencies: dependencies.nested)
+            navigationController?.pushViewController(login, animated: true)
+        }
     }
 }
 

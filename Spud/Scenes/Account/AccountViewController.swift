@@ -35,6 +35,7 @@ class AccountViewController: UIViewController {
         HasAppDatabase &
         HasAppService &
         HasAppearanceService &
+        HasExplorerService &
         HasImageService &
         HasPostContentDetectorService &
         HasPreferencesService &

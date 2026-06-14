@@ -353,6 +353,76 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v9_explorerDirectory") { db in
+            // Global, cross-instance directory data sourced from Lemmy Explorer
+            // (data.lemmyverse.net). Separate from the per-account `instance` /
+            // `community` tables: these rows are not account-scoped and are
+            // wholesale-refreshed from the nightly crawl.
+            try db.create(table: "explorerInstance") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("baseurl", .text).notNull().unique()
+                t.column("url", .text)
+                t.column("name", .text).notNull()
+                t.column("descriptionText", .text)
+                t.column("version", .text)
+                t.column("usersTotal", .integer).notNull().defaults(to: 0)
+                t.column("usersActiveMonth", .integer).notNull().defaults(to: 0)
+                t.column("usersActiveHalfYear", .integer).notNull().defaults(to: 0)
+                t.column("numberOfCommunities", .integer).notNull().defaults(to: 0)
+                t.column("numberOfPosts", .integer).notNull().defaults(to: 0)
+                t.column("numberOfComments", .integer).notNull().defaults(to: 0)
+                t.column("uptimeAllTime", .double)
+                t.column("latency", .double)
+                t.column("uptimeStatus", .integer)
+                t.column("regMode", .integer).notNull().defaults(to: -1)
+                t.column("isOpenRegistration", .boolean).notNull().defaults(to: false)
+                t.column("isNsfw", .boolean).notNull().defaults(to: false)
+                t.column("allowsDownvotes", .boolean).notNull().defaults(to: true)
+                t.column("isPrivate", .boolean).notNull().defaults(to: false)
+                t.column("federationEnabled", .boolean).notNull().defaults(to: true)
+                t.column("score", .double).notNull().defaults(to: 0)
+                t.column("isSuspicious", .boolean).notNull().defaults(to: false)
+                t.column("iconUrl", .text)
+                t.column("bannerUrl", .text)
+                t.column("langs", .text)
+                t.column("tags", .text)
+                t.column("blocksIncoming", .integer)
+                t.column("blocksOutgoing", .integer)
+                t.column("updatedAt", .datetime).notNull()
+            }
+
+            try db.create(table: "explorerCommunity") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("url", .text).notNull().unique()
+                t.column("baseurl", .text).notNull().indexed()
+                t.column("name", .text).notNull().indexed()
+                t.column("title", .text)
+                t.column("descriptionText", .text)
+                t.column("iconUrl", .text)
+                t.column("bannerUrl", .text)
+                t.column("isNsfw", .boolean).notNull().defaults(to: false)
+                t.column("numberOfSubscribers", .integer).notNull().defaults(to: 0)
+                t.column("numberOfPosts", .integer).notNull().defaults(to: 0)
+                t.column("numberOfComments", .integer).notNull().defaults(to: 0)
+                t.column("usersActiveDay", .integer).notNull().defaults(to: 0)
+                t.column("usersActiveWeek", .integer).notNull().defaults(to: 0)
+                t.column("usersActiveMonth", .integer).notNull().defaults(to: 0)
+                t.column("usersActiveHalfYear", .integer).notNull().defaults(to: 0)
+                t.column("score", .double).notNull().defaults(to: 0)
+                t.column("isSuspicious", .boolean).notNull().defaults(to: false)
+                t.column("updatedAt", .datetime).notNull()
+            }
+
+            try db.create(table: "explorerDatasetMeta") { t in
+                t.primaryKey("datasetKey", .text)
+                t.column("lastFetchedAt", .datetime)
+                t.column("etag", .text)
+                t.column("partCount", .integer)
+                t.column("recordCount", .integer)
+                t.column("sourceUpdatedAt", .datetime)
+            }
+        }
+
         return migrator
     }
 }
