@@ -18,7 +18,8 @@ class SubscriptionsViewController: UIViewController {
         HasAppDatabase
     typealias NestedDependencies =
         PostListViewController.Dependencies &
-        CommunityOrLoadingViewController.Dependencies
+        CommunityOrLoadingViewController.Dependencies &
+        DiscoverViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
@@ -33,6 +34,7 @@ class SubscriptionsViewController: UIViewController {
     // MARK: Private
 
     private let accountKeychainId: String
+    private let isSignedIn: Bool
     private var viewModel: SubscriptionsViewModel!
 
     // MARK: Functions
@@ -44,6 +46,7 @@ class SubscriptionsViewController: UIViewController {
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
         self.accountKeychainId = accountKeychainId
+        self.isSignedIn = isSignedIn
 
         super.init(nibName: nil, bundle: nil)
 
@@ -55,6 +58,9 @@ class SubscriptionsViewController: UIViewController {
             appDatabase: appDatabase,
             onFeedRequested: { [weak self] item in
                 self?.handle(item: item)
+            },
+            onExploreRequested: { [weak self] in
+                self?.showDiscover()
             }
         )
 
@@ -114,6 +120,15 @@ class SubscriptionsViewController: UIViewController {
     private func setSortOrder(_ order: SubscriptionsViewModel.SortOrder) {
         viewModel.sortOrder = order
         rebuildSortMenu()
+    }
+
+    private func showDiscover() {
+        let discoverVC = DiscoverViewController(
+            accountKeychainId: accountKeychainId,
+            isSignedIn: isSignedIn,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(discoverVC, animated: true)
     }
 
     private func handle(item: SubscriptionsViewItemType) {

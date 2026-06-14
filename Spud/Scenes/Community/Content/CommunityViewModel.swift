@@ -35,6 +35,11 @@ final class CommunityViewModel {
     var postsText: String = ""
     var subscribed: CommunitySubscribedState = .notSubscribed
 
+    /// Activity line for the vitality strip ("N active this week  ·  M this
+    /// month"), sourced from the bundled Explorer directory. nil when the
+    /// community isn't in the directory (so the strip stays hidden).
+    var vitalityText: String?
+
     /// Whether this community is currently blocked by the backing account.
     /// Sourced from `getSite` -> `my_user` (blocks aren't persisted on the
     /// community record); set by the view controller. Updated optimistically
@@ -49,6 +54,8 @@ final class CommunityViewModel {
     let serverCommunityId: Components.Schemas.CommunityID
 
     @ObservationIgnored
+    private let appDatabase: AppDatabase
+    @ObservationIgnored
     private var observationTask: Task<Void, Never>?
 
     init(
@@ -57,6 +64,7 @@ final class CommunityViewModel {
         appDatabase: AppDatabase
     ) {
         self.serverCommunityId = serverCommunityId
+        self.appDatabase = appDatabase
 
         observationTask = Task { [weak self] in
             for await record in appDatabase.observeCommunity(
@@ -86,6 +94,26 @@ final class CommunityViewModel {
         subscribersText = CommentsFormatter.string(from: record.numberOfSubscribers)
         postsText = CommentsFormatter.string(from: record.numberOfPosts)
         subscribed = record.subscribed
+        loadVitalityIfNeeded()
+    }
+
+    /// Resolve the community's network activity from the Explorer directory once
+    /// its actor id is known. The directory is bundled and static within a
+    /// session, so a single indexed lookup is enough.
+    private func loadVitalityIfNeeded() {
+        guard vitalityText == nil, let actorId else { return }
+        guard let explorer = appDatabase.explorerCommunitySync(url: actorId) else { return }
+        let week = CommentsFormatter.string(from: explorer.usersActiveWeek)
+        let month = CommentsFormatter.string(from: explorer.usersActiveMonth)
+        let weekText = String(
+            format: NSLocalizedString("%@ active this week", comment: "Community vitality: weekly active users"),
+            week
+        )
+        let monthText = String(
+            format: NSLocalizedString("%@ this month", comment: "Community vitality: monthly active users"),
+            month
+        )
+        vitalityText = "\(weekText)  ·  \(monthText)"
     }
 
     /// Builds the "!name@instance" handle from the bare name and the

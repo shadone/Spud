@@ -136,6 +136,33 @@ struct SubscriptionsCommunityView: View {
     }
 }
 
+/// Entry point into the Discover (Community Explorer) screen, sitting above the
+/// subscribed feeds.
+struct SubscriptionsDiscoverView: View {
+    var body: some View {
+        HStack(spacing: 16) {
+            Image(systemName: "sparkle.magnifyingglass")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .foregroundStyle(.teal)
+                .frame(width: 40, height: 40)
+            VStack(alignment: .leading) {
+                Text("Discover communities")
+                    .foregroundStyle(Color(.label))
+                Text("Find new communities across the fediverse")
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .font(.footnote)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: "chevron.right")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Color(.tertiaryLabel))
+        }
+        .accessibilityElement(children: .combine)
+        .contentShape(Rectangle())
+    }
+}
+
 struct SubscriptionsView: View {
     @Bindable var viewModel: SubscriptionsViewModel
 
@@ -144,6 +171,11 @@ struct SubscriptionsView: View {
             // The standard feeds are navigation, not search results, so they
             // step aside while the user is filtering communities.
             if viewModel.searchText.isEmpty {
+                SubscriptionsDiscoverView()
+                    .onTapGesture {
+                        viewModel.explore()
+                    }
+
                 if viewModel.isSignedIn {
                     SubscriptionsListingView(listingType: .Subscribed)
                         .onTapGesture {

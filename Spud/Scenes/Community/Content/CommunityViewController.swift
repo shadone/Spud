@@ -348,6 +348,7 @@ class CommunityViewController: UIViewController {
             qualifiedName: viewModel.qualifiedName,
             subscribersText: viewModel.subscribersText,
             postsText: viewModel.postsText,
+            vitalityText: viewModel.vitalityText,
             descriptionMarkdown: viewModel.descriptionMarkdown,
             subscribed: viewModel.subscribed
         )

@@ -28,6 +28,26 @@ public extension AppDatabase {
         }) ?? []
     }
 
+    /// Top communities by Explorer score (highest first). Used by Discover.
+    func topExplorerCommunitiesSync(limit: Int = 50) -> [ExplorerCommunityRecord] {
+        (try? writer.read { db in
+            try ExplorerCommunityRecord
+                .order(ExplorerCommunityRecord.Columns.score.desc)
+                .limit(limit)
+                .fetchAll(db)
+        }) ?? []
+    }
+
+    /// Full Explorer community record for `url` (e.g.
+    /// "https://lemmy.world/c/technology"), for the community vitality strip.
+    func explorerCommunitySync(url: String) -> ExplorerCommunityRecord? {
+        try? writer.read { db in
+            try ExplorerCommunityRecord
+                .filter(ExplorerCommunityRecord.Columns.url == url)
+                .fetchOne(db)
+        }
+    }
+
     func explorerDatasetMetaSync(_ dataset: ExplorerDataset) -> ExplorerDatasetMetaRecord? {
         try? writer.read { db in
             try ExplorerDatasetMetaRecord.fetchOne(db, key: dataset.rawValue)
