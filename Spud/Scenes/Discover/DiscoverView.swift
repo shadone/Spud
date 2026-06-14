@@ -258,10 +258,15 @@ struct DiscoverCommunityRow: View {
         HStack(spacing: 12) {
             CommunityIcon(iconUrl: row.iconUrl, name: row.name, title: row.displayName, size: 40)
             VStack(alignment: .leading, spacing: 1) {
-                Text(row.displayName)
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(Color(.label))
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(row.displayName)
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(Color(.label))
+                        .lineLimit(1)
+                    if row.isNsfw {
+                        nsfwBadge
+                    }
+                }
                 Text(handle)
                     .font(.caption)
                     .foregroundStyle(Color(.tertiaryLabel))
@@ -301,8 +306,18 @@ struct DiscoverCommunityRow: View {
         "c/\(row.name)@\(row.instanceHost) · \(Self.compact(row.numberOfSubscribers)) · \(Self.compact(row.usersActiveWeek))/wk"
     }
 
+    private var nsfwBadge: some View {
+        Text("NSFW")
+            .font(.system(size: 9, weight: .heavy))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 1)
+            .background(Color(.systemRed), in: RoundedRectangle(cornerRadius: 4))
+    }
+
     private var accessibilityLabel: String {
         var parts = [row.displayName, "c/\(row.name)@\(row.instanceHost)"]
+        if row.isNsfw { parts.append("NSFW") }
         parts.append("\(Self.compact(row.numberOfSubscribers)) subscribers")
         if followState == .following { parts.append("Following") }
         if row.alsoOnServerCount > 0 { parts.append("also on \(row.alsoOnServerCount) other servers") }

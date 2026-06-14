@@ -133,6 +133,24 @@ public extension AppDatabase {
         }
     }
 
+    /// Whether the account matching `keychainId` has NSFW content enabled (the
+    /// Lemmy `local_user.show_nsfw` setting mirrored on the account row).
+    /// Defaults to false for signed-out accounts and rows not yet imported.
+    /// Synchronous one-shot read for UI bring-up.
+    func accountShowNsfwSync(forKeychainId keychainId: String) -> Bool {
+        do {
+            return try writer.read { db in
+                try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)?
+                    .showNsfw ?? false
+            }
+        } catch {
+            logger.error("Failed to resolve account showNsfw: \(String(describing: error), privacy: .public)")
+            return false
+        }
+    }
+
     /// Deletes the account row matching `keychainId`. Returns true if a row was
     /// removed. Synchronous: `AccountService.logout(...)` runs on MainActor in
     /// response to a user tap and prefers to avoid hopping off to await.

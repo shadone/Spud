@@ -103,6 +103,11 @@ final class DiscoverViewModel {
     /// Home instances the account already follows communities on.
     @ObservationIgnored
     private var followedHosts: Set<String> = []
+    /// The account's NSFW preference (Lemmy `show_nsfw`). When off, NSFW
+    /// communities are filtered out of the directory; when on, they show
+    /// (badged). Curated rails stay clean regardless.
+    @ObservationIgnored
+    private let showNsfw: Bool
 
     private var accountService: AccountServiceType {
         dependencies.accountService
@@ -128,6 +133,7 @@ final class DiscoverViewModel {
         self.onOpenPack = onOpenPack
         self.onOpenInstance = onOpenInstance
         self.onRequestSignIn = onRequestSignIn
+        showNsfw = dependencies.appDatabase.accountShowNsfwSync(forKeychainId: accountKeychainId)
 
         let appDatabase = dependencies.appDatabase
         observationTask = Task { [weak self] in
@@ -285,9 +291,10 @@ final class DiscoverViewModel {
     }
 
     private func recomputeDirectory() {
-        // Curated surfaces stay clean: NSFW and suspicious are filtered out, and
-        // same-name communities collapse to one canonical entry.
-        let filter = ExplorerCommunityFilter(hideNsfw: true, hideSuspicious: true)
+        // Suspicious communities are always excluded from the directory; NSFW is
+        // governed by the account's `show_nsfw` setting. Same-name communities
+        // collapse to one canonical entry.
+        let filter = ExplorerCommunityFilter(hideNsfw: !showNsfw, hideSuspicious: true)
         directory = ExplorerCommunityDirectory.apply(
             to: allRows,
             query: searchText,

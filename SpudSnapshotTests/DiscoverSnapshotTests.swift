@@ -75,6 +75,19 @@ final class DiscoverSnapshotTests: XCTestCase {
         )
     }
 
+    func test_communityRow_nsfw() {
+        assertDiscoverSnapshot(
+            DiscoverCommunityRow(
+                row: fixtureRow(name: "nsfwexample", title: "NSFW Example", nsfw: true),
+                accent: teal,
+                onTap: { },
+                followState: .idle,
+                onFollow: { }
+            )
+            .frame(width: 390)
+        )
+    }
+
     // MARK: - DiscoverTrendCard
 
     func test_trendCard_trending() {
@@ -178,6 +191,7 @@ final class DiscoverSnapshotTests: XCTestCase {
         week: Int64 = 8400,
         alsoOn: Int = 0,
         groupSubs: Int64 = 0,
+        nsfw: Bool = false,
         url: String? = nil
     ) -> CommunityListRow {
         CommunityListRow(
@@ -188,7 +202,7 @@ final class DiscoverSnapshotTests: XCTestCase {
             title: title,
             descriptionText: nil,
             iconUrl: nil,
-            isNsfw: false,
+            isNsfw: nsfw,
             isSuspicious: false,
             numberOfSubscribers: subs,
             numberOfPosts: 0,
