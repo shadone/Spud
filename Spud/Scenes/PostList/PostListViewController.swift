@@ -1170,7 +1170,7 @@ class PostListViewController: UIViewController {
             }
         }
         return UIMenu(
-            title: String(format: NSLocalizedString("Mute %@", comment: "Context-menu action to mute a community; %@ is the community name"), communityName),
+            title: String(format: NSLocalizedString("Mute %@", comment: "Context-menu action to mute a community; %@ is the c/ community handle"), "c/\(communityName)"),
             image: UIImage(systemName: "bell.slash"),
             children: actions
         )
@@ -1454,8 +1454,8 @@ extension PostListViewController: UITableViewDelegate {
 
                 let visitCommunityAction = UIAction(
                     title: String(
-                        format: NSLocalizedString("Visit %@", comment: "Context-menu action to open a post's community; %@ is the community name"),
-                        row?.communityName ?? NSLocalizedString("community", comment: "Generic community noun")
+                        format: NSLocalizedString("Visit %@", comment: "Context-menu action to open a post's community; %@ is the c/ community handle"),
+                        row?.communityName.map { "c/\($0)" } ?? NSLocalizedString("community", comment: "Generic community noun")
                     ),
                     image: UIImage(systemName: "person.3")
                 ) { [weak self] _ in
@@ -1464,7 +1464,7 @@ extension PostListViewController: UITableViewDelegate {
 
                 let viewAuthorAction = UIAction(
                     title: row?.creatorName.map {
-                        String(format: NSLocalizedString("View %@", comment: "Context-menu action to open a post author's profile; %@ is the author handle"), $0)
+                        String(format: NSLocalizedString("View %@", comment: "Context-menu action to open a post author's profile; %@ is the u/ author handle"), "u/\($0)")
                     } ?? NSLocalizedString("View author", comment: "Context-menu action to open a post author's profile"),
                     image: UIImage(systemName: "person.crop.circle")
                 ) { [weak self] _ in
@@ -1480,7 +1480,7 @@ extension PostListViewController: UITableViewDelegate {
 
                 let blockAction = UIAction(
                     title: row?.creatorName.map {
-                        String(format: NSLocalizedString("Block %@", comment: "Context-menu action to block a post author; %@ is the author handle"), $0)
+                        String(format: NSLocalizedString("Block %@", comment: "Context-menu action to block a post author; %@ is the u/ author handle"), "u/\($0)")
                     } ?? NSLocalizedString("Block author", comment: "Context-menu action to block a post author"),
                     image: UIImage(systemName: "hand.raised"),
                     attributes: .destructive
