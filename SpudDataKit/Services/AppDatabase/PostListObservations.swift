@@ -60,6 +60,64 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
     public let isFeaturedLocal: Bool
     public let isDeleted: Bool
     public let published: Date
+
+    public init(
+        id: Int64,
+        serverPostId: Int64,
+        title: String,
+        body: String?,
+        originalPostUrl: String,
+        url: String?,
+        thumbnailUrl: String?,
+        urlEmbedTitle: String?,
+        urlEmbedDescription: String?,
+        altText: String?,
+        communityName: String,
+        communityActorId: String?,
+        serverCommunityId: Int64,
+        creatorPersonId: Int64,
+        creatorName: String?,
+        creatorActorId: String?,
+        score: Int64,
+        numberOfComments: Int64,
+        voteStatus: Int64?,
+        isRead: Bool,
+        isSaved: Bool,
+        isRemoved: Bool,
+        isLocked: Bool,
+        isFeaturedCommunity: Bool,
+        isFeaturedLocal: Bool,
+        isDeleted: Bool,
+        published: Date
+    ) {
+        self.id = id
+        self.serverPostId = serverPostId
+        self.title = title
+        self.body = body
+        self.originalPostUrl = originalPostUrl
+        self.url = url
+        self.thumbnailUrl = thumbnailUrl
+        self.urlEmbedTitle = urlEmbedTitle
+        self.urlEmbedDescription = urlEmbedDescription
+        self.altText = altText
+        self.communityName = communityName
+        self.communityActorId = communityActorId
+        self.serverCommunityId = serverCommunityId
+        self.creatorPersonId = creatorPersonId
+        self.creatorName = creatorName
+        self.creatorActorId = creatorActorId
+        self.score = score
+        self.numberOfComments = numberOfComments
+        self.voteStatus = voteStatus
+        self.isRead = isRead
+        self.isSaved = isSaved
+        self.isRemoved = isRemoved
+        self.isLocked = isLocked
+        self.isFeaturedCommunity = isFeaturedCommunity
+        self.isFeaturedLocal = isFeaturedLocal
+        self.isDeleted = isDeleted
+        self.published = published
+    }
 }
 
 public extension AppDatabase {
