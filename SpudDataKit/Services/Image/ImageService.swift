@@ -37,6 +37,14 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     /// from the background fetch task.
     private let downsampleScale: CGFloat = 3
 
+    /// Decoded pixel sizes of images this service has loaded, keyed by absolute
+    /// url. Lets a caller reserve the right amount of space for an image before
+    /// it has (re)loaded — e.g. the post-detail header sizing its image
+    /// placeholder from the thumbnail the post list already fetched, so the image
+    /// doesn't resize the row when it finally appears.
+    private let knownSizesLock = NSLock()
+    private var knownImageSizes: [String: CGSize] = [:]
+
     let session: URLSession
 
     let alertService: AlertServiceType
@@ -98,17 +106,41 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
                 }
                 continuation.yield(.loading(thumbnail: cachedThumbnail))
 
+                // When the full image isn't cached and we don't already have a
+                // thumbnail in hand, fetch the (smaller, faster) thumbnail
+                // concurrently and yield it as a low-res preview the instant it
+                // arrives, so the caller can paint something while the full image
+                // downloads. The full-image load below cancels this once it wins;
+                // a preview that loses the race is yielded after the stream has
+                // finished (and so dropped) and is ignored by the consumer.
+                let thumbnailTask: Task<Void, Never>?
+                if cachedThumbnail == nil, let thumbnailUrl, thumbnailUrl != url {
+                    thumbnailTask = Task { [weak self] in
+                        guard
+                            let self,
+                            let thumbnail = try? await loadImage(from: thumbnailUrl),
+                            !Task.isCancelled
+                        else { return }
+                        continuation.yield(.loading(thumbnail: thumbnail))
+                    }
+                } else {
+                    thumbnailTask = nil
+                }
+
                 do {
                     let image = try await loadImage(from: url)
+                    thumbnailTask?.cancel()
                     if Task.isCancelled {
                         continuation.finish()
                         return
                     }
                     continuation.yield(.ready(image))
                 } catch let error as ImageLoadingError {
+                    thumbnailTask?.cancel()
                     alertService.image(error: error, for: url)
                     continuation.yield(.failure)
                 } catch {
+                    thumbnailTask?.cancel()
                     alertService.image(error: .network(error), for: url)
                     continuation.yield(.failure)
                 }
@@ -267,6 +299,22 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         )
     }
 
+    public func imageSize(for url: URL) -> CGSize? {
+        knownSizesLock.lock()
+        defer { knownSizesLock.unlock() }
+        return knownImageSizes[url.absoluteString]
+    }
+
+    /// Records the decoded size of an image so callers can later reserve space
+    /// for it at the right aspect ratio. Downsampled images preserve the
+    /// original aspect ratio, so recording their (smaller) size is enough.
+    private func recordImageSize(_ size: CGSize, for url: URL) {
+        guard size.width > 0, size.height > 0 else { return }
+        knownSizesLock.lock()
+        knownImageSizes[url.absoluteString] = size
+        knownSizesLock.unlock()
+    }
+
     private func loadImage(from url: URL) async throws -> UIImage {
         let data = try await data(from: url)
 
@@ -281,6 +329,7 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         // undecoded image if preparation is unavailable for this format.
         let decodedImage = await image.byPreparingForDisplay() ?? image
 
+        recordImageSize(decodedImage.size, for: url)
         memoryCache.setObject(
             decodedImage,
             forKey: url as NSURL,
@@ -295,6 +344,7 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
 
         if let animated = AnimatedImageDecoder.animatedImage(from: data) {
             let frameCount = animated.images?.count ?? 1
+            recordImageSize(animated.size, for: url)
             animatedCache.setObject(
                 animated,
                 forKey: url as NSURL,
@@ -310,6 +360,7 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
             throw ImageLoadingError.cannotDecode
         }
         let decodedImage = await image.byPreparingForDisplay() ?? image
+        recordImageSize(decodedImage.size, for: url)
         memoryCache.setObject(
             decodedImage,
             forKey: url as NSURL,
@@ -336,6 +387,7 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
             throw ImageLoadingError.cannotDecode
         }
 
+        recordImageSize(image.size, for: url)
         downsampledCache.setObject(
             image,
             forKey: key as NSString,

@@ -126,6 +126,10 @@ public extension AppDatabase {
         record.urlEmbedTitle = post.embed_title
         record.urlEmbedDescription = post.embed_description
         record.thumbnailUrl = post.thumbnail_url
+        // `image_details` (width/height) rides on the PostView, not the Post, and
+        // is only present when the instance's media service processed the image.
+        record.imageWidth = view.image_details.map { Int($0.width) }
+        record.imageHeight = view.image_details.map { Int($0.height) }
         record.altText = post.alt_text
         record.originalPostUrl = post.ap_id
         record.published = post.published

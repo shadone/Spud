@@ -21,6 +21,11 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
     public var urlEmbedTitle: String?
     public var urlEmbedDescription: String?
     public var thumbnailUrl: String?
+    /// Pixel dimensions of the post's image (`PostView.image_details`), when the
+    /// instance reports them. Used to reserve the right amount of space for the
+    /// image before it loads. nil when unknown.
+    public var imageWidth: Int?
+    public var imageHeight: Int?
     /// An optional image description (`post.alt_text`), surfaced as the caption
     /// in the full-screen media viewer.
     public var altText: String?
@@ -58,6 +63,8 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         urlEmbedTitle: String? = nil,
         urlEmbedDescription: String? = nil,
         thumbnailUrl: String? = nil,
+        imageWidth: Int? = nil,
+        imageHeight: Int? = nil,
         altText: String? = nil,
         originalPostUrl: String,
         score: Int64 = 0,
@@ -88,6 +95,8 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         self.urlEmbedTitle = urlEmbedTitle
         self.urlEmbedDescription = urlEmbedDescription
         self.thumbnailUrl = thumbnailUrl
+        self.imageWidth = imageWidth
+        self.imageHeight = imageHeight
         self.altText = altText
         self.originalPostUrl = originalPostUrl
         self.score = score

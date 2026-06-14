@@ -46,6 +46,45 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         )
     }
 
+    func test_image_loading() async {
+        await assertHeader(
+            row: row(url: imageUrl),
+            imageService: ScriptedImageService([.loadingForever])
+        )
+    }
+
+    func test_image_thumbnail() async {
+        await assertHeader(
+            row: row(url: imageUrl),
+            imageService: ScriptedImageService([.loadingThumbnail(thumbnailPhoto())])
+        )
+    }
+
+    func test_image_loading_reserved() async {
+        // The service already knows the image's size (the post list fetched its
+        // thumbnail), so the loading placeholder reserves the exact aspect-ratio
+        // height up front rather than the neutral default — the image won't
+        // resize the row when it appears.
+        await assertHeader(
+            row: row(url: imageUrl),
+            imageService: ScriptedImageService(
+                [.loadingForever],
+                knownSize: CGSize(width: 1200, height: 800)
+            )
+        )
+    }
+
+    func test_image_loading_reserved_from_metadata() async {
+        // The server reported the image's dimensions (`image_details`), so the
+        // placeholder reserves the exact height even on a cold path where the
+        // image service has nothing cached. A portrait image also exercises the
+        // max-height clamp.
+        await assertHeader(
+            row: row(url: imageUrl, imageWidth: 800, imageHeight: 1200),
+            imageService: ScriptedImageService([.loadingForever])
+        )
+    }
+
     func test_image_retrying() async {
         await assertHeader(
             row: row(url: imageUrl),
@@ -208,9 +247,22 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         }
     }
 
+    /// A small, lower-detail stand-in for a pict-rs thumbnail, with the same 3:2
+    /// aspect as `photo()` so swapping to the full image wouldn't change the
+    /// header height. A flat fill is enough to show it fills the image's place
+    /// under the spinner.
+    private func thumbnailPhoto() -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: 240, height: 160)).image { context in
+            UIColor.systemGray3.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 240, height: 160))
+        }
+    }
+
     private func row(
         url: String?,
         thumbnailUrl: String? = nil,
+        imageWidth: Int? = nil,
+        imageHeight: Int? = nil,
         urlEmbedTitle: String? = nil,
         urlEmbedDescription: String? = nil
     ) -> PostDetailHeaderRow {
@@ -222,6 +274,8 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
             originalPostUrl: "https://lemmy.world/post/1",
             url: url,
             thumbnailUrl: thumbnailUrl,
+            imageWidth: imageWidth,
+            imageHeight: imageHeight,
             urlEmbedTitle: urlEmbedTitle,
             urlEmbedDescription: urlEmbedDescription,
             altText: nil,

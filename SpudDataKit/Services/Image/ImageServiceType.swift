@@ -27,6 +27,11 @@ public protocol ImageServiceType: AnyObject, Sendable {
     /// original animation rather than a flattened frame. Returns nil when no
     /// bytes are available.
     func animatedImageData(_ url: URL) async -> Data?
+
+    /// The decoded pixel size of an image this service has already loaded at
+    /// `url`, if known. Lets callers reserve layout space at the right aspect
+    /// ratio before the image (re)appears. Returns nil when the size isn't known.
+    func imageSize(for url: URL) -> CGSize?
 }
 
 public extension ImageServiceType {
@@ -48,6 +53,11 @@ public extension ImageServiceType {
 
     /// Default: no raw animated bytes available.
     func animatedImageData(_ url: URL) async -> Data? {
+        nil
+    }
+
+    /// Default: image sizes aren't tracked, so nothing is known ahead of load.
+    func imageSize(for url: URL) -> CGSize? {
         nil
     }
 }

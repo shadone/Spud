@@ -23,6 +23,11 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
     public let originalPostUrl: String
     public let url: String?
     public let thumbnailUrl: String?
+    /// Pixel dimensions of the post's image (`PostView.image_details`), when the
+    /// instance reports them. Lets the header reserve the image's height before
+    /// it loads. nil when unknown.
+    public let imageWidth: Int?
+    public let imageHeight: Int?
     public let urlEmbedTitle: String?
     public let urlEmbedDescription: String?
     /// Optional image description (`post.alt_text`), shown as the media-viewer
@@ -61,6 +66,8 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
         originalPostUrl: String,
         url: String?,
         thumbnailUrl: String?,
+        imageWidth: Int?,
+        imageHeight: Int?,
         urlEmbedTitle: String?,
         urlEmbedDescription: String?,
         altText: String?,
@@ -88,6 +95,8 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
         self.originalPostUrl = originalPostUrl
         self.url = url
         self.thumbnailUrl = thumbnailUrl
+        self.imageWidth = imageWidth
+        self.imageHeight = imageHeight
         self.urlEmbedTitle = urlEmbedTitle
         self.urlEmbedDescription = urlEmbedDescription
         self.altText = altText
@@ -223,6 +232,8 @@ public extension AppDatabase {
                             post.originalPostUrl       AS originalPostUrl,
                             post.url                   AS url,
                             post.thumbnailUrl          AS thumbnailUrl,
+                            post.imageWidth            AS imageWidth,
+                            post.imageHeight           AS imageHeight,
                             post.urlEmbedTitle         AS urlEmbedTitle,
                             post.urlEmbedDescription   AS urlEmbedDescription,
                             post.altText               AS altText,
@@ -263,6 +274,8 @@ public extension AppDatabase {
                     originalPostUrl: row["originalPostUrl"] ?? "",
                     url: row["url"],
                     thumbnailUrl: row["thumbnailUrl"],
+                    imageWidth: row["imageWidth"],
+                    imageHeight: row["imageHeight"],
                     urlEmbedTitle: row["urlEmbedTitle"],
                     urlEmbedDescription: row["urlEmbedDescription"],
                     altText: row["altText"],

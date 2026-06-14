@@ -25,14 +25,28 @@ final class ScriptedImageService: ImageServiceType, @unchecked Sendable {
         /// Yield `.loading` and never finish — models a retry still in flight,
         /// holding the failure plate in its spinning "Loading image…" state.
         case loadingForever
+        /// Yield `.loading(thumbnail:)` carrying a preview image and never finish
+        /// — models the full image still downloading while a low-res thumbnail is
+        /// shown under the spinner.
+        case loadingThumbnail(UIImage)
     }
 
     private let responses: [Response]
+    private let knownSize: CGSize?
     private let lock = NSLock()
     private var callIndex = 0
 
-    init(_ responses: [Response]) {
+    /// - Parameter knownSize: when set, `imageSize(for:)` returns it, modelling
+    ///   an image whose size the service already knows (e.g. the post list
+    ///   fetched its thumbnail), so the header reserves the exact placeholder
+    ///   height up front.
+    init(_ responses: [Response], knownSize: CGSize? = nil) {
         self.responses = responses.isEmpty ? [.failure] : responses
+        self.knownSize = knownSize
+    }
+
+    func imageSize(for url: URL) -> CGSize? {
+        knownSize
     }
 
     func fetch(
@@ -58,6 +72,9 @@ final class ScriptedImageService: ImageServiceType, @unchecked Sendable {
                 continuation.finish()
             case .loadingForever:
                 break
+            case let .loadingThumbnail(image):
+                continuation.yield(.loading(thumbnail: image))
+                // Never finish: the full image is still "downloading".
             }
         }
     }

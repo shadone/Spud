@@ -102,6 +102,20 @@ class PostDetailHeaderCell: UITableViewCellBase {
         return imageView
     }()
 
+    /// Spins over the image panel while a post image is loading, so the panel
+    /// reads as "loading" instead of an empty gap. Sits above `postImageView`
+    /// (and any thumbnail painted into it) but ignores touches so the
+    /// tap-to-open gesture still reaches the image.
+    private lazy var loadingSpinner: UIActivityIndicatorView = {
+        let view = UIActivityIndicatorView(style: .medium)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.color = .secondaryLabel
+        view.hidesWhenStopped = true
+        view.isUserInteractionEnabled = false
+        view.isAccessibilityElement = false
+        return view
+    }()
+
     lazy var postContentVerticalStackView: UIStackView = {
         let stackView = UIStackView()
         stackView.translatesAutoresizingMaskIntoConstraints = false
@@ -336,6 +350,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
     private var postImageContainerHeightConstraint: NSLayoutConstraint!
     private var imageLoadTask: Task<Void, Never>?
 
+    /// Height reserved for the image panel while the image is still loading and
+    /// its real aspect ratio isn't known yet, so the spinner has somewhere to
+    /// sit and the panel doesn't collapse to nothing.
+    private static let imageLoadingPlaceholderHeight: CGFloat = 200
+
     /// Retained so a Retry from the failure plate can re-request the image after
     /// `configure` has returned.
     private var imageService: ImageServiceType?
@@ -350,6 +369,10 @@ class PostDetailHeaderCell: UITableViewCellBase {
     private var tappableThumbnailUrl: URL?
     private var tappableVideoUrl: URL?
 
+    /// The post image's pixel dimensions when known (from `image_details`), used
+    /// to reserve the exact image height before it loads. nil when unknown.
+    private var postImageSize: CGSize?
+
     // MARK: Functions
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -362,6 +385,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         postImageContainer.addSubview(postImageView)
         postImageContainer.addSubview(mediaBadgeView)
         postImageContainer.addSubview(playIconView)
+        postImageContainer.addSubview(loadingSpinner)
         contentView.addSubview(mainVerticalStackView)
 
         let postImageContainerHeightConstraint = postImageContainer.heightAnchor.constraint(equalToConstant: 0)
@@ -391,6 +415,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
             playIconView.centerXAnchor.constraint(equalTo: postImageView.centerXAnchor),
             playIconView.centerYAnchor.constraint(equalTo: postImageView.centerYAnchor),
 
+            loadingSpinner.centerXAnchor.constraint(equalTo: postImageContainer.centerXAnchor),
+            loadingSpinner.centerYAnchor.constraint(equalTo: postImageContainer.centerYAnchor),
+
             postImageContainerHeightConstraint,
         ])
 
@@ -418,6 +445,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         tappableImageUrl = nil
         tappableThumbnailUrl = nil
         tappableVideoUrl = nil
+        postImageSize = nil
 
         linkTapped = nil
         linkTappedFromPreview = nil
@@ -434,6 +462,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         postImageContainer.backgroundColor = .clear
         postImageView.image = nil
         postImageView.isHidden = false
+        loadingSpinner.stopAnimating()
 
         imageFailureView?.isHidden = true
         imageFailureView?.onRetry = nil
@@ -477,10 +506,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
             postImageContainer.isHidden = true
             linkPreviewView.isHidden = true
 
-        case let .post(imageUrl, thumbnailUrl):
+        case let .post(imageUrl, thumbnailUrl, imageSize):
             linkPreviewView.isHidden = true
             tappableImageUrl = imageUrl
             tappableThumbnailUrl = thumbnailUrl
+            postImageSize = imageSize
             mediaBadgeView.text = imageUrl.isAnimatedImage ? "GIF" : nil
             postImageView.isAccessibilityElement = true
             postImageView.accessibilityLabel = NSLocalizedString(
@@ -553,16 +583,37 @@ class PostDetailHeaderCell: UITableViewCellBase {
     private func loadPostImage(imageUrl: URL, thumbnailUrl: URL?) {
         guard let imageService else { return }
         imageLoadTask?.cancel()
+
+        // On a fresh load reserve a neutral panel with a spinner, so the image's
+        // arrival doesn't jump the layout from text-only to full-size and the
+        // user can see something is happening. During a retry the failure plate
+        // shows its own "Loading image…" spinner, so leave it in place.
+        let isRetrying = imageFailureView.map { !$0.isHidden } ?? false
+        if !isRetrying {
+            showImageLoadingPlaceholder(imageUrl: imageUrl, thumbnailUrl: thumbnailUrl)
+        }
+
+        // Once the full image is shown, ignore a thumbnail that lost the race and
+        // arrives late (the fetch yields them on separate tasks).
+        var fullImageShown = false
         imageLoadTask = Task { [weak self] in
             for await state in imageService.fetch(imageUrl, thumbnail: thumbnailUrl) {
                 if Task.isCancelled { return }
                 guard let self else { return }
                 switch state {
                 case let .loading(thumbnailImage):
-                    if let thumbnailImage { setImage(thumbnailImage) }
+                    guard !fullImageShown, let thumbnailImage else { break }
+                    // A low-res preview arrived before the full image: paint it
+                    // under the still-spinning indicator.
+                    setImage(thumbnailImage)
+                    setImageLoadingSpinnerVisible(true)
                 case let .ready(image):
+                    fullImageShown = true
                     setImage(image)
+                    setImageLoadingSpinnerVisible(false)
+                    postImageContainer.backgroundColor = .clear
                 case .failure:
+                    setImageLoadingSpinnerVisible(false)
                     // Keep a thumbnail if we already have one; otherwise put the
                     // failure plate in the image's place.
                     if postImageView.image == nil {
@@ -570,6 +621,53 @@ class PostDetailHeaderCell: UITableViewCellBase {
                     }
                 }
             }
+        }
+    }
+
+    /// Reserves a panel sized for the image and starts the spinner, shown from
+    /// the moment a post image starts loading until it arrives.
+    private func showImageLoadingPlaceholder(imageUrl: URL, thumbnailUrl: URL?) {
+        imageFailureView?.isHidden = true
+        postImageView.isHidden = false
+        postImageView.image = nil
+        playIconView.isHidden = true
+        postImageContainer.isHidden = false
+        postImageContainer.backgroundColor = .secondarySystemBackground
+        postImageContainerHeightConstraint.constant = reservedImageHeight(
+            imageUrl: imageUrl,
+            thumbnailUrl: thumbnailUrl
+        )
+        setImageLoadingSpinnerVisible(true)
+        adjustHeightForChange()
+    }
+
+    /// The height to reserve for the image while it loads. When the image service
+    /// has already decoded this image (or its thumbnail) — e.g. the post list
+    /// fetched the thumbnail before the user opened the post — its aspect ratio
+    /// is known, so reserve the exact final height and the image won't resize the
+    /// row when it appears. Otherwise fall back to a neutral placeholder height.
+    private func reservedImageHeight(imageUrl: URL, thumbnailUrl: URL?) -> CGFloat {
+        // Prefer the dimensions the server reported (`image_details`) — they're
+        // available even on cold paths (deep links, the widget, or before the
+        // list fetched a thumbnail). Fall back to a size the image service has
+        // already decoded, then to a neutral placeholder height.
+        let knownSize = postImageSize
+            ?? imageService?.imageSize(for: imageUrl)
+            ?? thumbnailUrl.flatMap { imageService?.imageSize(for: $0) }
+        guard let knownSize, knownSize.width > 0, knownSize.height > 0 else {
+            return Self.imageLoadingPlaceholderHeight
+        }
+        let cellWidth = tableView?.bounds.width ?? 100
+        let maxImageHeight = (tableView?.bounds.height ?? 800) * 0.6
+        let aspectRatio = knownSize.width / knownSize.height
+        return min(cellWidth / aspectRatio, maxImageHeight)
+    }
+
+    private func setImageLoadingSpinnerVisible(_ visible: Bool) {
+        if visible {
+            loadingSpinner.startAnimating()
+        } else {
+            loadingSpinner.stopAnimating()
         }
     }
 
@@ -651,8 +749,17 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
     private func adjustHeightForChange() {
         guard !isBeingConfigured else { return }
-        tableView?.beginUpdates()
-        tableView?.endUpdates()
+        // Re-measure the row height in place, but WITHOUT the default
+        // begin/endUpdates animation. An async image (or its thumbnail) arriving
+        // while the detail is being pushed would otherwise animate the header
+        // growing from its placeholder height — reading as the whole header
+        // zooming in mid-push (and twice over, as the thumbnail then the full
+        // image land). Snapping matches the deliberately non-animated
+        // applySnapshot() in PostDetailViewController, made for the same reason.
+        UIView.performWithoutAnimation {
+            tableView?.beginUpdates()
+            tableView?.endUpdates()
+        }
     }
 
     @objc

@@ -21,7 +21,10 @@ private let logger = Logger.app
 struct PostDetailHeaderViewModel {
     enum HeaderImage: Equatable {
         case none
-        case post(URL, thumbnailUrl: URL?)
+        /// `imageSize` is the image's pixel dimensions when known (from
+        /// `image_details`), so the cell can reserve the exact height before the
+        /// image loads. nil when the instance didn't report them.
+        case post(URL, thumbnailUrl: URL?, imageSize: CGSize?)
         case video(videoUrl: URL, thumbnailUrl: URL?)
         case linkPreview(url: URL, thumbnailUrl: URL?)
     }
@@ -159,9 +162,15 @@ struct PostDetailHeaderViewModel {
             embedDescription: row.urlEmbedDescription
         )
 
+        let imageSize: CGSize? = row.imageWidth.flatMap { width in
+            row.imageHeight.map { height in
+                CGSize(width: width, height: height)
+            }
+        }
+
         switch contentType {
         case let .image(image):
-            self.image = .post(image.imageUrl, thumbnailUrl: image.thumbnailUrl)
+            self.image = .post(image.imageUrl, thumbnailUrl: image.thumbnailUrl, imageSize: imageSize)
         case let .video(video):
             image = .video(videoUrl: video.videoUrl, thumbnailUrl: video.thumbnailUrl)
         case let .externalLink(link):

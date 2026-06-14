@@ -423,6 +423,17 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v10_postImageDimensions") { db in
+            // Pixel dimensions of the post's image (`PostView.image_details`),
+            // when the instance reports them. Lets the post-detail header
+            // reserve the exact image height before the image loads, so the row
+            // doesn't resize when the image appears.
+            try db.alter(table: "post") { t in
+                t.add(column: "imageWidth", .integer)
+                t.add(column: "imageHeight", .integer)
+            }
+        }
+
         return migrator
     }
 }
