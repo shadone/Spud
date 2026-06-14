@@ -62,6 +62,7 @@ final class SubscriptionsViewModel {
     }
 
     private let onFeedRequested: (SubscriptionsViewItemType) -> Void
+    private let onExploreRequested: () -> Void
     @ObservationIgnored
     private var observationTask: Task<Void, Never>?
 
@@ -69,10 +70,12 @@ final class SubscriptionsViewModel {
         accountRowId: Int64?,
         isSignedIn: Bool,
         appDatabase: AppDatabase,
-        onFeedRequested: @escaping (SubscriptionsViewItemType) -> Void
+        onFeedRequested: @escaping (SubscriptionsViewItemType) -> Void,
+        onExploreRequested: @escaping () -> Void
     ) {
         self.isSignedIn = isSignedIn
         self.onFeedRequested = onFeedRequested
+        self.onExploreRequested = onExploreRequested
 
         guard let accountRowId else { return }
 
@@ -91,6 +94,11 @@ final class SubscriptionsViewModel {
 
     func loadFeed(_ value: SubscriptionsViewItemType) {
         onFeedRequested(value)
+    }
+
+    /// Open the Discover (Community Explorer) screen.
+    func explore() {
+        onExploreRequested()
     }
 
     private static func makeRow(from record: CommunityRecord) -> SubscriptionsCommunityRow? {
