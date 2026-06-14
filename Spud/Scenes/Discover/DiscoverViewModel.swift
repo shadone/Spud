@@ -12,10 +12,10 @@ import SpudUIKit
 
 private let logger = Logger.app
 
-/// Per-community follow progress for the inline Follow control on Discover.
-/// Tracks an optimistic, session-local state — communities already subscribed
-/// before Discover opened are not pre-populated (that join is the separate
-/// "because you follow" surface), so every row starts `.idle`.
+/// Follow state for the inline Follow control on Discover, derived from the
+/// account's real subscriptions: `.following` for communities the account
+/// already follows (so the button is correct from the first render),
+/// `.inFlight` while a follow/unfollow request is running, else `.idle`.
 enum CommunityFollowState: Equatable {
     case idle
     case inFlight
@@ -75,8 +75,12 @@ final class DiscoverViewModel {
     /// When set, the same-name compare sheet is presented.
     var compareTarget: CompareTarget?
 
-    /// Inline Follow progress, keyed by ``CommunityListRow/id``.
-    private(set) var followStates: [Int64: CommunityFollowState] = [:]
+    /// Row ids with a follow/unfollow request in flight (shows the spinner).
+    private(set) var inFlightRowIds: Set<Int64> = []
+    /// Actor ids the account currently follows — the source of truth for the
+    /// "Following" state, kept live by the subscriptions observation and updated
+    /// optimistically on follow/unfollow. Also excluded from recommendations.
+    private(set) var followedUrls: Set<String> = []
 
     var isSearching: Bool {
         !searchText.trimmingCharacters(in: .whitespaces).isEmpty
@@ -96,9 +100,6 @@ final class DiscoverViewModel {
     private var observationTask: Task<Void, Never>?
     @ObservationIgnored
     private var followObservationTask: Task<Void, Never>?
-    /// Actor ids the account already follows (excluded from recommendations).
-    @ObservationIgnored
-    private var followedUrls: Set<String> = []
     /// Home instances the account already follows communities on.
     @ObservationIgnored
     private var followedHosts: Set<String> = []
@@ -195,34 +196,72 @@ final class DiscoverViewModel {
         onOpenCommunity(row)
     }
 
+    /// Follow state derived from the account's real subscriptions: an in-flight
+    /// request wins, then membership in ``followedUrls``, else idle. So a
+    /// community the account already follows correctly reads `.following`.
     func followState(for row: CommunityListRow) -> CommunityFollowState {
-        followStates[row.id] ?? .idle
+        if inFlightRowIds.contains(row.id) { return .inFlight }
+        if followedUrls.contains(row.communityUrl) { return .following }
+        return .idle
     }
 
-    /// Follow `row` in place: resolve the community by `name@instance` and
-    /// subscribe. Signed-out accounts hit the sign-in gate instead; in-flight or
-    /// already-followed rows are ignored.
-    func follow(_ row: CommunityListRow) {
+    /// Toggle following for `row`: subscribe when idle, unsubscribe when already
+    /// following. Signed-out accounts hit the sign-in gate; in-flight rows are
+    /// ignored.
+    func toggleFollow(_ row: CommunityListRow) {
         guard isSignedIn else {
             onRequestSignIn()
             return
         }
-        guard followState(for: row) == .idle else { return }
+        switch followState(for: row) {
+        case .inFlight:
+            return
+        case .idle:
+            setSubscribed(row, subscribe: true)
+        case .following:
+            setSubscribed(row, subscribe: false)
+        }
+    }
 
-        followStates[row.id] = .inFlight
+    /// Follow every community in `communities` that isn't followed yet (used by
+    /// the starter-pack "Follow all"). One sign-in gate for the whole batch.
+    func followAll(_ communities: [CommunityListRow]) {
+        guard isSignedIn else {
+            onRequestSignIn()
+            return
+        }
+        let pending = communities.filter { followState(for: $0) == .idle }
+        guard !pending.isEmpty else { return }
         Haptics.tap()
+        for row in pending {
+            setSubscribed(row, subscribe: true, haptic: false)
+        }
+    }
+
+    /// Resolve `row` by `name@instance` and (un)subscribe, updating the in-flight
+    /// and followed sets so the buttons reflect the change without waiting on the
+    /// subscriptions observation to round-trip.
+    private func setSubscribed(_ row: CommunityListRow, subscribe: Bool, haptic: Bool = true) {
+        guard !inFlightRowIds.contains(row.id) else { return }
+        inFlightRowIds.insert(row.id)
+        if haptic { Haptics.tap() }
 
         Task { [weak self] in
             guard let self else { return }
+            defer { inFlightRowIds.remove(row.id) }
             do {
                 let lemmyService = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
                 let serverCommunityId = try await lemmyService
                     .fetchCommunityInfo(communityName: "\(row.name)@\(row.instanceHost)")
                 if Task.isCancelled { return }
-                try await lemmyService.setSubscribed(serverCommunityId: serverCommunityId, subscribed: true)
-                followStates[row.id] = .following
+                try await lemmyService.setSubscribed(serverCommunityId: serverCommunityId, subscribed: subscribe)
+                if subscribe {
+                    followedUrls.insert(row.communityUrl)
+                } else {
+                    followedUrls.remove(row.communityUrl)
+                }
+                recomputeBecauseYouFollow()
             } catch {
-                followStates[row.id] = .idle
                 alertService.handle(error, for: .setSubscribed)
             }
         }

@@ -28,7 +28,7 @@ struct InstanceCommunitiesView: View {
                         accent: accent,
                         onTap: { viewModel.open(row) },
                         followState: viewModel.followState(for: row),
-                        onFollow: { viewModel.follow(row) }
+                        onFollow: { viewModel.toggleFollow(row) }
                     )
                     Divider().padding(.leading, 68)
                 }

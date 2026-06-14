@@ -88,7 +88,7 @@ struct DiscoverView: View {
                         onTap: { viewModel.open(row) },
                         onCompare: { viewModel.compare(row) },
                         followState: viewModel.followState(for: row),
-                        onFollow: { viewModel.follow(row) }
+                        onFollow: { viewModel.toggleFollow(row) }
                     )
                     Divider().padding(.leading, 68)
                 }
@@ -183,7 +183,7 @@ struct DiscoverView: View {
                                 momentum: momentum,
                                 onTap: { viewModel.open(row) },
                                 followState: viewModel.followState(for: row),
-                                onFollow: { viewModel.follow(row) }
+                                onFollow: { viewModel.toggleFollow(row) }
                             )
                         }
                     }
@@ -444,7 +444,7 @@ struct FollowButton: View {
         content
             .contentShape(Capsule())
             .onTapGesture {
-                if state == .idle { action() }
+                if state != .inFlight { action() }
             }
             .animation(.easeInOut(duration: 0.15), value: state)
     }
