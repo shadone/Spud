@@ -42,6 +42,9 @@ final class DiscoverViewModel {
     /// True until the first directory snapshot arrives.
     private(set) var isLoading = true
 
+    /// When set, the same-name compare sheet is presented.
+    var compareTarget: CompareTarget?
+
     var isSearching: Bool {
         !searchText.trimmingCharacters(in: .whitespaces).isEmpty
     }
@@ -84,6 +87,22 @@ final class DiscoverViewModel {
 
     func openPack(_ pack: ResolvedStarterPack) {
         onOpenPack(pack)
+    }
+
+    /// Present the same-name compare sheet for `row`, listing every server that
+    /// hosts a community with this name, busiest first.
+    func compare(_ row: CommunityListRow) {
+        compareTarget = CompareTarget(
+            name: row.name,
+            displayName: row.displayName,
+            variants: ExplorerCommunityDirectory.variants(of: row.name, in: allRows)
+        )
+    }
+
+    /// Dismiss the compare sheet and open the chosen variant's community page.
+    func openFromCompare(_ row: CommunityListRow) {
+        compareTarget = nil
+        onOpenCommunity(row)
     }
 
     private func recomputeRails() {

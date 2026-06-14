@@ -12,7 +12,7 @@ import SwiftUI
 /// user is searching, the rails step aside and only the filtered directory
 /// shows. Tapping a community opens its page (where Subscribe lives).
 struct DiscoverView: View {
-    let viewModel: DiscoverViewModel
+    @Bindable var viewModel: DiscoverViewModel
     /// The app-wide accent, passed from the hosting controller so it tracks the
     /// user's chosen tint.
     let accent: Color
@@ -26,6 +26,14 @@ struct DiscoverView: View {
             }
         }
         .background(Color(.systemGroupedBackground))
+        .sheet(item: $viewModel.compareTarget) { target in
+            CompareSheetView(
+                target: target,
+                accent: accent,
+                onOpenCommunity: { viewModel.openFromCompare($0) },
+                onDismiss: { viewModel.compareTarget = nil }
+            )
+        }
     }
 
     private var loading: some View {
@@ -62,7 +70,12 @@ struct DiscoverView: View {
                 directoryHeader
 
                 ForEach(shownDirectory) { row in
-                    DiscoverCommunityRow(row: row, accent: accent) { viewModel.open(row) }
+                    DiscoverCommunityRow(
+                        row: row,
+                        accent: accent,
+                        onTap: { viewModel.open(row) },
+                        onCompare: { viewModel.compare(row) }
+                    )
                     Divider().padding(.leading, 68)
                 }
 
@@ -184,52 +197,66 @@ struct DiscoverCommunityRow: View {
     let row: CommunityListRow
     let accent: Color
     let onTap: () -> Void
+    /// When set and the row collapses same-name variants, tapping the "also on N
+    /// servers" badge opens the compare sheet instead of the community.
+    var onCompare: (() -> Void)?
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                CommunityHueIcon(name: row.name, title: row.displayName, size: 40)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(row.displayName)
-                        .font(.callout.weight(.semibold))
-                        .foregroundStyle(Color(.label))
-                        .lineLimit(1)
-                    Text(handle)
-                        .font(.caption)
-                        .foregroundStyle(Color(.tertiaryLabel))
-                        .lineLimit(1)
-                    if row.alsoOnServerCount > 0 {
-                        alsoOnBadge
-                    }
-                }
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
+        HStack(spacing: 12) {
+            CommunityHueIcon(name: row.name, title: row.displayName, size: 40)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(row.displayName)
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(Color(.label))
+                    .lineLimit(1)
+                Text(handle)
+                    .font(.caption)
                     .foregroundStyle(Color(.tertiaryLabel))
+                    .lineLimit(1)
+                if row.alsoOnServerCount > 0 {
+                    alsoOnBadge
+                }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Color(.tertiaryLabel))
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .onTapGesture { onTap() }
     }
 
     private var handle: String {
         "c/\(row.name)@\(row.instanceHost) · \(Self.compact(row.numberOfSubscribers)) · \(Self.compact(row.usersActiveWeek))/wk"
     }
 
+    @ViewBuilder
     private var alsoOnBadge: some View {
-        HStack(spacing: 5) {
+        let badge = HStack(spacing: 5) {
             Image(systemName: "globe")
                 .font(.system(size: 9, weight: .semibold))
             Text("also on \(row.alsoOnServerCount) other servers · \(Self.compact(row.groupTotalSubscribers))")
                 .font(.caption2.weight(.semibold))
+            if onCompare != nil {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8, weight: .bold))
+            }
         }
         .foregroundStyle(accent)
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
         .background(accent.opacity(0.12), in: Capsule())
         .padding(.top, 4)
+
+        if let onCompare {
+            badge
+                .contentShape(Capsule())
+                .onTapGesture { onCompare() }
+        } else {
+            badge
+        }
     }
 
     static func compact(_ value: Int64) -> String {
