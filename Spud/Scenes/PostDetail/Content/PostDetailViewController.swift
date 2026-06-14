@@ -377,7 +377,13 @@ class PostDetailViewController: UIViewController {
         var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
         snapshot.appendSections([.header, .comments])
         snapshot.appendItems([.header], toSection: .header)
-        snapshot.reloadItems([.header])
+        // Refresh content in place. Reconfigure (not reload) re-runs the cell
+        // provider on the existing cells, avoiding the cross-dissolve that
+        // reloadItems animates under `animatingDifferences: true` — that fade,
+        // applied to the header and every visible comment at once, flashed the
+        // whole screen on each vote and each collapse toggle. Matches
+        // reconfigureVisibleSwipeActions() and PostListViewController.apply().
+        snapshot.reconfigureItems([.header])
 
         // Collapse is a pure view-layer filter over the ordered tree: hide the
         // descendants of any collapsed comment and capture the per-parent
@@ -387,7 +393,7 @@ class PostDetailViewController: UIViewController {
 
         let items = visible.rows.map { Item.comment(elementId: $0.id) }
         snapshot.appendItems(items, toSection: .comments)
-        snapshot.reloadItems(items)
+        snapshot.reconfigureItems(items)
 
         let animate = animated && !UIAccessibility.isReduceMotionEnabled
         dataSource.apply(snapshot, animatingDifferences: animate)
