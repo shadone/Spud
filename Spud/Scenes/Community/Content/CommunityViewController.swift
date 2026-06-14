@@ -140,7 +140,6 @@ class CommunityViewController: UIViewController {
         )
         navigationItem.rightBarButtonItems = [overflowButton, newPostButton]
 
-        headerView.translatesAutoresizingMaskIntoConstraints = false
         headerView.subscribeTapped = { [weak self] in
             self?.toggleSubscribed()
         }
@@ -148,7 +147,8 @@ class CommunityViewController: UIViewController {
             self?.linkTapped(url)
         }
 
-        view.addSubview(headerView)
+        let interaction = UIContextMenuInteraction(delegate: self)
+        headerView.addInteraction(interaction)
 
         guard let feedViewController else { return }
         add(child: feedViewController)
@@ -157,18 +157,17 @@ class CommunityViewController: UIViewController {
         view.addSubview(feedView)
 
         NSLayoutConstraint.activate([
-            headerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            headerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            headerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-
-            feedView.topAnchor.constraint(equalTo: headerView.bottomAnchor),
+            feedView.topAnchor.constraint(equalTo: view.topAnchor),
             feedView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             feedView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             feedView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
-        let interaction = UIContextMenuInteraction(delegate: self)
-        headerView.addInteraction(interaction)
+        // Host the community header inside the feed's scroll view (as its table
+        // header) so it scrolls away with the posts instead of staying pinned at
+        // the top. Headers can be tall (description, rules), so pinning would eat
+        // too much fixed space.
+        feedViewController.setScrollingHeaderView(headerView)
     }
 
     override func viewDidLoad() {
@@ -352,6 +351,9 @@ class CommunityViewController: UIViewController {
             descriptionMarkdown: viewModel.descriptionMarkdown,
             subscribed: viewModel.subscribed
         )
+        // The header's height changes once real content (description, rules,
+        // counts) is filled in; re-measure so the feed's table header tracks it.
+        feedViewController?.layoutScrollingHeaderIfNeeded()
 
         loadBannerIfNeeded(url: viewModel.bannerUrl)
         loadIconIfNeeded(url: viewModel.iconUrl)

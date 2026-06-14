@@ -74,6 +74,13 @@ class PostListViewController: UIViewController {
         return tableView
     }()
 
+    /// An optional view hosted as the table's `tableHeaderView` so it sits above
+    /// the first post and scrolls off-screen with the rows rather than floating
+    /// on top. Installed by an embedding host (e.g. `CommunityViewController`)
+    /// via `setScrollingHeaderView(_:)`. Held strongly to keep it alive while
+    /// installed; it never references back into this controller.
+    private var scrollingHeaderView: UIView?
+
     enum Section: Int, Hashable {
         case posts
         case loading
@@ -214,6 +221,52 @@ class PostListViewController: UIViewController {
         setupDataSource()
         setupSortTypeMenu()
         setupComposeButton()
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // The table width is only known after layout; (re)size the scrolling
+        // header to it. Guarded against no-op churn, so this is cheap to call
+        // every pass and handles rotation / width changes for free.
+        layoutScrollingHeaderIfNeeded()
+    }
+
+    // MARK: Scrolling header
+
+    /// Installs a view that scrolls together with the feed, pinned above the
+    /// first post (the table's `tableHeaderView`) instead of floating above the
+    /// table. Used by `CommunityViewController` to host the community header so
+    /// its potentially tall content (description, rules) scrolls with the posts
+    /// rather than occupying fixed space at the top. Pass nil to remove it.
+    func setScrollingHeaderView(_ header: UIView?) {
+        // The table positions its header by frame, so opt the view out of Auto
+        // Layout for its own frame while its subviews keep using constraints.
+        header?.translatesAutoresizingMaskIntoConstraints = true
+        scrollingHeaderView = header
+        tableView.tableHeaderView = header
+        layoutScrollingHeaderIfNeeded()
+    }
+
+    /// Re-measures the scrolling header against the current table width and
+    /// commits its height. Safe to call repeatedly: it only reassigns the
+    /// `tableHeaderView` when the resolved size actually changes. Call after the
+    /// header's content changes height (e.g. once community info loads).
+    func layoutScrollingHeaderIfNeeded() {
+        guard let header = scrollingHeaderView else { return }
+        let width = tableView.bounds.width
+        guard width > 0 else { return }
+
+        header.frame.size.width = width
+        let height = header.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+
+        guard abs(header.frame.height - height) > 0.5 else { return }
+        header.frame.size.height = height
+        // Reassigning is what makes the table adopt the new header height.
+        tableView.tableHeaderView = header
     }
 
     /// Adds a compose entry to the nav bar on the standalone frontpage feed.
