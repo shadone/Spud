@@ -217,13 +217,20 @@ public extension LemmyService {
 
         let response: Components.Schemas.BanFromCommunityResponse
         do {
-            response = try await api.banFromCommunity(
-                communityID: serverCommunityId,
-                personID: serverPersonId,
-                ban: ban,
-                removeData: ban ? removeData : nil,
-                reason: reason
-            )
+            if ban {
+                response = try await api.banFromCommunity(
+                    communityID: serverCommunityId,
+                    personID: serverPersonId,
+                    removeData: removeData,
+                    reason: reason
+                )
+            } else {
+                response = try await api.unbanFromCommunity(
+                    communityID: serverCommunityId,
+                    personID: serverPersonId,
+                    reason: reason
+                )
+            }
         } catch {
             logger.error("""
                 Ban from community failed. communityId=\(serverCommunityId, privacy: .public) \
