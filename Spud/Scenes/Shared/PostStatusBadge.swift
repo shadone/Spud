@@ -57,26 +57,3 @@ struct PostStatusBadge {
         return badges
     }
 }
-
-/// Status indicators for a comment (removed / distinguished / deleted).
-struct CommentStatusBadge {
-    let symbolName: String
-    let color: UIColor
-
-    static func badges(
-        isRemoved: Bool,
-        isDistinguished: Bool,
-        isDeleted: Bool
-    ) -> [CommentStatusBadge] {
-        var badges: [CommentStatusBadge] = []
-        if isRemoved {
-            badges.append(.init(symbolName: "trash.slash.fill", color: .systemRed))
-        } else if isDeleted {
-            badges.append(.init(symbolName: "trash.fill", color: .systemRed))
-        }
-        if isDistinguished {
-            badges.append(.init(symbolName: "shield.fill", color: .systemGreen))
-        }
-        return badges
-    }
-}
