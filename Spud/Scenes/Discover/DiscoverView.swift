@@ -283,10 +283,30 @@ struct DiscoverCommunityRow: View {
         .padding(.vertical, 10)
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { onTap() }
+        .accessibilityActions {
+            if let onFollow {
+                Button(followState == .following ? "Unfollow" : "Follow", action: onFollow)
+            }
+            if let onCompare {
+                Button("Compare across servers", action: onCompare)
+            }
+        }
     }
 
     private var handle: String {
         "c/\(row.name)@\(row.instanceHost) · \(Self.compact(row.numberOfSubscribers)) · \(Self.compact(row.usersActiveWeek))/wk"
+    }
+
+    private var accessibilityLabel: String {
+        var parts = [row.displayName, "c/\(row.name)@\(row.instanceHost)"]
+        parts.append("\(Self.compact(row.numberOfSubscribers)) subscribers")
+        if followState == .following { parts.append("Following") }
+        if row.alsoOnServerCount > 0 { parts.append("also on \(row.alsoOnServerCount) other servers") }
+        return parts.joined(separator: ", ")
     }
 
     @ViewBuilder
@@ -386,6 +406,25 @@ struct DiscoverTrendCard: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
         .contentShape(RoundedRectangle(cornerRadius: 16))
         .onTapGesture { onTap() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { onTap() }
+        .accessibilityActions {
+            if let onFollow {
+                Button(followState == .following ? "Unfollow" : "Follow", action: onFollow)
+            }
+        }
+    }
+
+    private var accessibilityLabel: String {
+        var parts = [
+            row.displayName,
+            "c/\(row.name)@\(row.instanceHost)",
+            "\(DiscoverCommunityRow.compact(row.usersActiveWeek)) active this week",
+        ]
+        if followState == .following { parts.append("Following") }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -427,14 +466,20 @@ struct InstanceCard: View {
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
         .contentShape(RoundedRectangle(cornerRadius: 16))
         .onTapGesture { onTap() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(instance.host), \(instance.communityCount) communities")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { onTap() }
     }
 }
 
 // MARK: - Follow control
 
 /// Inline Follow pill used by the directory rows and rail cards. Reflects the
-/// view model's per-community ``CommunityFollowState`` and routes taps to the
-/// supplied action only while idle (in-flight and followed are non-interactive).
+/// view model's per-community ``CommunityFollowState``; taps act unless a request
+/// is in flight (idle subscribes, followed unsubscribes). When it sits inside a
+/// combined-accessibility row the row exposes the action; this label/trait covers
+/// any standalone use.
 struct FollowButton: View {
     let state: CommunityFollowState
     let accent: Color
@@ -447,6 +492,8 @@ struct FollowButton: View {
                 if state != .inFlight { action() }
             }
             .animation(.easeInOut(duration: 0.15), value: state)
+            .accessibilityLabel(state == .following ? "Unfollow" : "Follow")
+            .accessibilityAddTraits(.isButton)
     }
 
     @ViewBuilder

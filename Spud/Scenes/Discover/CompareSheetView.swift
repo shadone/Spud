@@ -112,5 +112,16 @@ private struct VariantRow: View {
         .padding(.vertical, 12)
         .contentShape(Rectangle())
         .onTapGesture { onTap() }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { onTap() }
+    }
+
+    private var accessibilityLabel: String {
+        var parts = [row.instanceHost]
+        if rank == 0 { parts.append("most active") }
+        parts.append("\(DiscoverCommunityRow.compact(row.numberOfSubscribers)) members")
+        return parts.joined(separator: ", ")
     }
 }
