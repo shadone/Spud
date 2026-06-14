@@ -21,11 +21,16 @@ class DiscoverViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
         HasAlertService &
-        HasAppDatabase
+        HasAppDatabase &
+        HasImageService
     typealias NestedDependencies =
         CommunityOrLoadingViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
+
+    private var imageService: ImageServiceType {
+        dependencies.own.imageService
+    }
 
     // MARK: Private
 
@@ -80,7 +85,9 @@ class DiscoverViewController: UIViewController {
         navigationItem.title = NSLocalizedString("Discover", comment: "Discover screen title")
 
         let accent = Color(ThemeManager.currentAccentColor)
-        let contentVC = UIHostingController(rootView: DiscoverView(viewModel: viewModel, accent: accent))
+        let rootView = DiscoverView(viewModel: viewModel, accent: accent)
+            .environment(\.imageService, imageService)
+        let contentVC = UIHostingController(rootView: rootView)
         add(child: contentVC)
         addSubviewWithEdgeConstraints(child: contentVC)
 
@@ -130,6 +137,7 @@ class DiscoverViewController: UIViewController {
                 self?.openCommunity(row)
             }
         )
+        .environment(\.imageService, imageService)
         let hosting = UIHostingController(rootView: detail)
         hosting.navigationItem.title = pack.title
         hosting.navigationItem.largeTitleDisplayMode = .never
@@ -144,6 +152,7 @@ class DiscoverViewController: UIViewController {
             communities: viewModel.communities(onInstance: summary.host),
             accent: accent
         )
+        .environment(\.imageService, imageService)
         let hosting = UIHostingController(rootView: view)
         hosting.navigationItem.title = summary.host
         hosting.navigationItem.largeTitleDisplayMode = .never

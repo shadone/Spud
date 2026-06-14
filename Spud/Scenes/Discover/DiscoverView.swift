@@ -17,6 +17,10 @@ struct DiscoverView: View {
     /// user's chosen tint.
     let accent: Color
 
+    /// Read from the environment (set by the hosting controller) only to pass it
+    /// back into the presented compare sheet, which is a separate environment.
+    @Environment(\.imageService) private var imageService
+
     var body: some View {
         Group {
             if viewModel.isLoading {
@@ -33,6 +37,7 @@ struct DiscoverView: View {
                 onOpenCommunity: { viewModel.openFromCompare($0) },
                 onDismiss: { viewModel.compareTarget = nil }
             )
+            .environment(\.imageService, imageService)
         }
     }
 
@@ -251,7 +256,7 @@ struct DiscoverCommunityRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            CommunityHueIcon(name: row.name, title: row.displayName, size: 40)
+            CommunityIcon(iconUrl: row.iconUrl, name: row.name, title: row.displayName, size: 40)
             VStack(alignment: .leading, spacing: 1) {
                 Text(row.displayName)
                     .font(.callout.weight(.semibold))
@@ -339,7 +344,7 @@ struct DiscoverTrendCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                CommunityHueIcon(name: row.name, title: row.displayName, size: 42)
+                CommunityIcon(iconUrl: row.iconUrl, name: row.name, title: row.displayName, size: 42)
                 Spacer(minLength: 0)
                 if momentum {
                     HStack(spacing: 3) {

@@ -83,7 +83,7 @@ private struct VariantRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            CommunityHueIcon(name: row.name, title: row.displayName, size: 40)
+            CommunityIcon(iconUrl: row.iconUrl, name: row.name, title: row.displayName, size: 40)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(row.instanceHost)
