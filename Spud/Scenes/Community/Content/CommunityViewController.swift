@@ -320,7 +320,7 @@ class CommunityViewController: UIViewController {
             // of them (e.g. `subscribed` flipping after a subscribe) re-fires
             // the observation. `withObservationTracking` only re-tracks the
             // properties read inside the access closure.
-            for await _ in Self.values(of: {
+            for await _ in ObservationStream.values(of: {
                 (
                     viewModel.hasLoaded,
                     viewModel.title,
@@ -501,45 +501,5 @@ private extension AsyncStream {
     /// deallocated by the time the image task starts.
     static var never: AsyncStream<Element> {
         AsyncStream { $0.finish() }
-    }
-}
-
-private extension CommunityViewController {
-    /// Tiny shim mirroring `PostListViewController.values(of:)`: turns an
-    /// Observable property into an AsyncStream via `withObservationTracking`.
-    @MainActor
-    static func values<Value: Sendable>(
-        of access: @escaping @MainActor () -> Value
-    ) -> AsyncStream<Value> {
-        AsyncStream { continuation in
-            let scheduler = CommunityObservationScheduler<Value>(
-                continuation: continuation,
-                access: access
-            )
-            scheduler.observe()
-        }
-    }
-}
-
-@MainActor
-private final class CommunityObservationScheduler<Value: Sendable>: Sendable {
-    private let continuation: AsyncStream<Value>.Continuation
-    private let access: @MainActor () -> Value
-
-    init(
-        continuation: AsyncStream<Value>.Continuation,
-        access: @escaping @MainActor () -> Value
-    ) {
-        self.continuation = continuation
-        self.access = access
-    }
-
-    func observe() {
-        let value = withObservationTracking {
-            access()
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.observe() }
-        }
-        continuation.yield(value)
     }
 }
