@@ -33,4 +33,14 @@ public extension AppDatabase {
             try ExplorerDatasetMetaRecord.fetchOne(db, key: dataset.rawValue)
         }
     }
+
+    /// Full Explorer instance record for `baseurl` (e.g. "lemmy.world"), for the
+    /// instance detail screen.
+    func explorerInstanceSync(baseurl: String) -> ExplorerInstanceRecord? {
+        try? writer.read { db in
+            try ExplorerInstanceRecord
+                .filter(ExplorerInstanceRecord.Columns.baseurl == baseurl)
+                .fetchOne(db)
+        }
+    }
 }

@@ -52,28 +52,33 @@ public extension AppDatabase {
         let records = try ExplorerInstanceRecord
             .order(ExplorerInstanceRecord.Columns.score.desc)
             .fetchAll(db)
-        return records.compactMap { record -> SiteListRow? in
-            let actorIdString = record.url ?? "https://\(record.baseurl)"
-            guard let instance = InstanceActorId(from: actorIdString) else {
-                logger.error("Skipping unparseable explorer instance: \(record.baseurl, privacy: .public)")
-                return nil
-            }
-            return SiteListRow(
-                id: record.id ?? 0,
-                instance: instance,
-                hostname: record.baseurl,
-                name: record.name,
-                descriptionText: record.descriptionText,
-                iconUrl: record.iconUrl.flatMap(URL.init(string:)),
-                score: record.score,
-                usersTotal: record.usersTotal,
-                usersActiveMonth: record.usersActiveMonth,
-                uptimeAllTime: record.uptimeAllTime,
-                isNsfw: record.isNsfw,
-                isOpenRegistration: record.isOpenRegistration,
-                languageCodes: record.languageCodes,
-                tags: record.tagList
-            )
+        return records.compactMap(SiteListRow.init(explorerInstance:))
+    }
+}
+
+public extension SiteListRow {
+    /// Builds a picker/login row from an Explorer directory record, carrying the
+    /// directory stats. Returns nil if the instance URL can't be parsed.
+    init?(explorerInstance record: ExplorerInstanceRecord) {
+        let actorIdString = record.url ?? "https://\(record.baseurl)"
+        guard let instance = InstanceActorId(from: actorIdString) else {
+            return nil
         }
+        self.init(
+            id: record.id ?? 0,
+            instance: instance,
+            hostname: record.baseurl,
+            name: record.name,
+            descriptionText: record.descriptionText,
+            iconUrl: record.iconUrl.flatMap(URL.init(string:)),
+            score: record.score,
+            usersTotal: record.usersTotal,
+            usersActiveMonth: record.usersActiveMonth,
+            uptimeAllTime: record.uptimeAllTime,
+            isNsfw: record.isNsfw,
+            isOpenRegistration: record.isOpenRegistration,
+            languageCodes: record.languageCodes,
+            tags: record.tagList
+        )
     }
 }
