@@ -32,6 +32,9 @@ public struct CommunityListRow: Sendable, Equatable, Identifiable {
     public let usersActiveWeek: Int64
     public let usersActiveMonth: Int64
     public let score: Double
+    /// Community creation date (Lemmy `community.published`), when known. Backs
+    /// the "Newest" sort; nil rows sort last.
+    public let publishedAt: Date?
 
     /// Number of OTHER servers hosting a community with the same name; 0 when
     /// unique or when the list is not deduplicated.
@@ -56,6 +59,7 @@ public struct CommunityListRow: Sendable, Equatable, Identifiable {
         usersActiveWeek: Int64 = 0,
         usersActiveMonth: Int64 = 0,
         score: Double = 0,
+        publishedAt: Date? = nil,
         alsoOnServerCount: Int = 0,
         groupTotalSubscribers: Int64 = 0
     ) {
@@ -74,6 +78,7 @@ public struct CommunityListRow: Sendable, Equatable, Identifiable {
         self.usersActiveWeek = usersActiveWeek
         self.usersActiveMonth = usersActiveMonth
         self.score = score
+        self.publishedAt = publishedAt
         self.alsoOnServerCount = alsoOnServerCount
         self.groupTotalSubscribers = groupTotalSubscribers
     }

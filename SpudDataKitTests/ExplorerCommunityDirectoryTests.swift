@@ -20,7 +20,8 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
         posts: Int64 = 0,
         score: Double = 0,
         nsfw: Bool = false,
-        suspicious: Bool = false
+        suspicious: Bool = false,
+        published: Date? = nil
     ) -> CommunityListRow {
         nextId += 1
         return CommunityListRow(
@@ -38,7 +39,8 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
             numberOfComments: 0,
             usersActiveWeek: week,
             usersActiveMonth: month,
-            score: score
+            score: score,
+            publishedAt: published
         )
     }
 
@@ -66,6 +68,27 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
             to: rows, query: "", filter: .init(), sort: .name, dedupeSameName: false
         )
         XCTAssertEqual(sorted.map(\.name), ["alpha", "beta"])
+    }
+
+    func test_sortByNewest_mostRecentFirst_undatedLast() {
+        let day: TimeInterval = 86400
+        let rows = [
+            row("old", published: Date(timeIntervalSince1970: 1 * day)),
+            row("undated", published: nil),
+            row("new", published: Date(timeIntervalSince1970: 100 * day)),
+            row("mid", published: Date(timeIntervalSince1970: 50 * day)),
+        ]
+        let sorted = ExplorerCommunityDirectory.apply(
+            to: rows, query: "", filter: .init(), sort: .newest, dedupeSameName: false
+        )
+        XCTAssertEqual(sorted.map(\.name), ["new", "mid", "old", "undated"])
+    }
+
+    func test_sorted_reordersInPlace_withoutFiltering() {
+        let rows = [row("a", members: 10), row("b", members: 99), row("c", members: 50)]
+        let resorted = ExplorerCommunityDirectory.sorted(rows, by: .members)
+        XCTAssertEqual(resorted.map(\.name), ["b", "c", "a"])
+        XCTAssertEqual(resorted.count, rows.count, "re-sort keeps every row")
     }
 
     // MARK: - Filtering

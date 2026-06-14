@@ -434,6 +434,16 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v11_explorerCommunityPublished") { db in
+            // Community creation date (lemmyverse `published`), already present in
+            // the bundled seed bytes but previously discarded. Backs the "Newest"
+            // sort on the instance browse screen. Existing rows are null until the
+            // next seed import or runtime refresh repopulates them.
+            try db.alter(table: "explorerCommunity") { t in
+                t.add(column: "publishedAt", .datetime)
+            }
+        }
+
         return migrator
     }
 }

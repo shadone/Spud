@@ -12,6 +12,7 @@ public enum ExplorerCommunitySort: String, Sendable, CaseIterable {
     case mostActive
     case members
     case name
+    case newest
 
     public var title: String {
         switch self {
@@ -19,6 +20,7 @@ public enum ExplorerCommunitySort: String, Sendable, CaseIterable {
         case .mostActive: "Most active"
         case .members: "Members"
         case .name: "Name (A-Z)"
+        case .newest: "Newest"
         }
     }
 }
@@ -183,6 +185,16 @@ public enum ExplorerCommunityDirectory {
             .sorted { ordered($0, before: $1, by: sort) }
     }
 
+    /// Re-order an already-filtered set of rows by `sort`. Used by the instance
+    /// browse screen's inline sort control to re-sort its snapshot in place,
+    /// without re-filtering the whole directory.
+    public static func sorted(
+        _ rows: [CommunityListRow],
+        by sort: ExplorerCommunitySort
+    ) -> [CommunityListRow] {
+        rows.sorted { ordered($0, before: $1, by: sort) }
+    }
+
     /// The "Because you follow" rail: active communities the account does not yet
     /// follow, on the servers it already follows communities on. The honest
     /// snapshot-only signal — no co-subscription graph or topic model — is "more
@@ -275,6 +287,10 @@ public enum ExplorerCommunityDirectory {
             a.numberOfSubscribers > b.numberOfSubscribers
         case .name:
             a.displayName.localizedCaseInsensitiveCompare(b.displayName) == .orderedAscending
+        case .newest:
+            // Most recently created first; rows with no known creation date sort
+            // last (a stable tiebreak keeps undated rows in their prior order).
+            (a.publishedAt ?? .distantPast) > (b.publishedAt ?? .distantPast)
         }
     }
 }

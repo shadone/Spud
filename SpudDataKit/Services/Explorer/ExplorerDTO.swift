@@ -91,6 +91,9 @@ struct ExplorerCommunityDTO: Decodable {
     let nsfw: Bool?
     let score: Double?
     let isSuspicious: Bool?
+    /// Community creation date as Unix epoch milliseconds (lemmyverse top-level
+    /// `published`). Drives the "Newest" sort.
+    let published: Int64?
     let counts: Counts?
 
     struct Counts: Decodable {
@@ -170,6 +173,7 @@ extension ExplorerCommunityDTO {
             usersActiveHalfYear: Int64(counts?.usersActiveHalfYear ?? 0),
             score: score ?? 0,
             isSuspicious: isSuspicious ?? false,
+            publishedAt: published.map { Date(timeIntervalSince1970: Double($0) / 1000) },
             updatedAt: updatedAt
         )
     }

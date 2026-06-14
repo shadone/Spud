@@ -34,6 +34,9 @@ public struct ExplorerCommunityRecord: Codable, Sendable, Equatable, Identifiabl
     /// Lemmy Explorer ranking score.
     public var score: Double
     public var isSuspicious: Bool
+    /// Community creation date (Lemmy `community.published`), when known. Drives
+    /// the "Newest" sort; nil for rows seeded before this was captured.
+    public var publishedAt: Date?
     /// Stamp of the refresh that wrote this row; used to prune stale rows.
     public var updatedAt: Date
 
@@ -56,6 +59,7 @@ public struct ExplorerCommunityRecord: Codable, Sendable, Equatable, Identifiabl
         usersActiveHalfYear: Int64 = 0,
         score: Double = 0,
         isSuspicious: Bool = false,
+        publishedAt: Date? = nil,
         updatedAt: Date = Date()
     ) {
         self.id = id
@@ -76,6 +80,7 @@ public struct ExplorerCommunityRecord: Codable, Sendable, Equatable, Identifiabl
         self.usersActiveHalfYear = usersActiveHalfYear
         self.score = score
         self.isSuspicious = isSuspicious
+        self.publishedAt = publishedAt
         self.updatedAt = updatedAt
     }
 }

@@ -76,7 +76,8 @@ public extension CommunityListRow {
             numberOfComments: record.numberOfComments,
             usersActiveWeek: record.usersActiveWeek,
             usersActiveMonth: record.usersActiveMonth,
-            score: record.score
+            score: record.score,
+            publishedAt: record.publishedAt
         )
     }
 }
