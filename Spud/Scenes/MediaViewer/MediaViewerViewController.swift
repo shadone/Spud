@@ -37,7 +37,14 @@ final class MediaViewerViewController: UIViewController {
     /// dismiss) before release commits the dismissal.
     private let dismissThreshold: CGFloat = 120
 
-    private var isBarHidden = false
+    /// The chrome (top bar, page dots, alt-text pill) starts hidden so the
+    /// image fills the screen on open; a single tap reveals it.
+    private var isBarHidden = true
+
+    /// The chrome state captured when a swipe-to-dismiss pan begins, so a
+    /// cancelled swipe springs back to however the chrome was before the drag
+    /// rather than always revealing it.
+    private var barHiddenBeforePan = true
 
     // MARK: UI Properties
 
@@ -225,6 +232,9 @@ final class MediaViewerViewController: UIViewController {
         setupGestures()
         applyPageControlVisibility()
         updateCaption()
+
+        // Start with the chrome hidden; a single tap reveals it.
+        setBar(hidden: true, animated: false)
     }
 
     private func setupTopBar() {
@@ -377,6 +387,9 @@ final class MediaViewerViewController: UIViewController {
         let velocity = recognizer.velocity(in: view)
 
         switch recognizer.state {
+        case .began:
+            barHiddenBeforePan = isBarHidden
+
         case .changed:
             // Follow the finger; subtle horizontal drift allowed.
             let progress = min(1, max(0, translation.y / (view.bounds.height * 0.5)))
@@ -432,7 +445,7 @@ final class MediaViewerViewController: UIViewController {
             pageViewController.view.transform = .identity
             backgroundView.alpha = 1
         }
-        let finish = { [self] in setBar(hidden: false) }
+        let finish = { [self] in setBar(hidden: barHiddenBeforePan) }
         guard animated else {
             changes()
             finish()

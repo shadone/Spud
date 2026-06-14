@@ -84,6 +84,12 @@ final class ZoomableImageView: UIView {
     private var loadTask: Task<Void, Never>?
     private var hasLaidOutImage = false
 
+    /// The bounds size the image was last fitted to. Tracked so a change in
+    /// available size (the transient bounds during the present transition
+    /// settling to full screen, or a rotation) re-fits the image while it
+    /// isn't zoomed in.
+    private var lastLaidOutBoundsSize: CGSize = .zero
+
     // MARK: Functions
 
     init(item: MediaItem, imageService: ImageServiceType) {
@@ -171,11 +177,17 @@ final class ZoomableImageView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
 
-        // The very first time we have both a non-zero size and an image, fit
-        // it to the bounds and centre it.
-        if !hasLaidOutImage, imageView.image != nil, bounds.width > 0 {
+        guard imageView.image != nil, bounds.width > 0, bounds.height > 0 else { return }
+
+        // Fit on first layout, and re-fit when the available size changes while
+        // the user hasn't zoomed in. Otherwise just re-centre: the scroll view
+        // would pin sub-screen content to the top-left on a plain layout pass.
+        if !hasLaidOutImage || (bounds.size != lastLaidOutBoundsSize && !isZoomed) {
             hasLaidOutImage = true
+            lastLaidOutBoundsSize = bounds.size
             configureZoomScales()
+        } else {
+            centreImage()
         }
     }
 
@@ -188,10 +200,12 @@ final class ZoomableImageView: UIView {
         // Re-fit on the first image, or when swapping a thumbnail for the
         // full-resolution asset while still at minimum zoom.
         if !hadImage || (isFinal && !isZoomed) {
-            hasLaidOutImage = bounds.width > 0
-            if hasLaidOutImage {
+            if bounds.width > 0, bounds.height > 0 {
+                hasLaidOutImage = true
+                lastLaidOutBoundsSize = bounds.size
                 configureZoomScales()
             } else {
+                hasLaidOutImage = false
                 setNeedsLayout()
             }
         }
@@ -205,7 +219,16 @@ final class ZoomableImageView: UIView {
         let imageSize = image.size
         guard imageSize.width > 0, imageSize.height > 0 else { return }
 
+        // Reset to identity zoom BEFORE touching the zoom view's frame. On a
+        // reconfigure (thumbnail -> full image) the previous image left larger
+        // min/max zoom scales behind; without resetting them first, `zoomScale =
+        // 1` would clamp to the old minimum and the new fit would be computed
+        // from a corrupted zoom base — leaving the image off-centre until a
+        // pinch recomputed it.
+        scrollView.minimumZoomScale = 1
+        scrollView.maximumZoomScale = 1
         scrollView.zoomScale = 1
+
         imageView.frame = CGRect(origin: .zero, size: imageSize)
         scrollView.contentSize = imageSize
 
@@ -222,23 +245,22 @@ final class ZoomableImageView: UIView {
         centreImage()
     }
 
+    /// Centre the image by insetting the scroll view, so content smaller than
+    /// the screen sits in the middle instead of pinned to the top-left. Unlike
+    /// nudging the image view's frame origin, `contentInset` survives the
+    /// scroll view's own layout passes, so the image stays centred after the
+    /// present transition and any later re-layout.
     private func centreImage() {
+        let contentSize = scrollView.contentSize
         let boundsSize = scrollView.bounds.size
-        var frameToCenter = imageView.frame
-
-        if frameToCenter.width < boundsSize.width {
-            frameToCenter.origin.x = (boundsSize.width - frameToCenter.width) / 2
-        } else {
-            frameToCenter.origin.x = 0
-        }
-
-        if frameToCenter.height < boundsSize.height {
-            frameToCenter.origin.y = (boundsSize.height - frameToCenter.height) / 2
-        } else {
-            frameToCenter.origin.y = 0
-        }
-
-        imageView.frame = frameToCenter
+        let horizontalInset = max(0, (boundsSize.width - contentSize.width) / 2)
+        let verticalInset = max(0, (boundsSize.height - contentSize.height) / 2)
+        scrollView.contentInset = UIEdgeInsets(
+            top: verticalInset,
+            left: horizontalInset,
+            bottom: verticalInset,
+            right: horizontalInset
+        )
     }
 
     @objc
