@@ -16,7 +16,7 @@ class SiteListViewController: UIViewController {
         HasAppDatabase &
         HasExplorerService
     typealias NestedDependencies =
-        LoginViewController.Dependencies &
+        InstanceDetailViewController.Dependencies &
         SiteListSiteViewModel.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
@@ -242,11 +242,15 @@ class SiteListViewController: UIViewController {
 extension SiteListViewController: UITableViewDelegate {
     func tableView(_: UITableView, didSelectRowAt indexPath: IndexPath) {
         let row = visibleRows[indexPath.row]
-        let loginViewController = LoginViewController(
-            row: row,
-            dependencies: dependencies.nested
-        )
-        navigationController?.pushViewController(loginViewController, animated: true)
+        // Show the instance detail ("before you commit") screen. Fall back to
+        // login directly if the directory record isn't available.
+        if let record = appDatabase.explorerInstanceSync(baseurl: row.hostname) {
+            let detail = InstanceDetailViewController(record: record, dependencies: dependencies.nested)
+            navigationController?.pushViewController(detail, animated: true)
+        } else {
+            let login = LoginViewController(row: row, dependencies: dependencies.nested)
+            navigationController?.pushViewController(login, animated: true)
+        }
     }
 }
 
