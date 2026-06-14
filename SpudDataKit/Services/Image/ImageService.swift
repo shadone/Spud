@@ -5,7 +5,10 @@
 //
 
 import Foundation
+import OSLog
 import UIKit
+
+private let logger = Logger.imageService
 
 public final class ImageService: ImageServiceType, @unchecked Sendable {
     /// In-memory cache for loaded images.
@@ -34,7 +37,19 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     /// from the background fetch task.
     private let downsampleScale: CGFloat = 3
 
-    let session = URLSession.shared
+    let session: URLSession
+
+    /// User-Agent sent on every image request.
+    ///
+    /// iOS `URLSession`'s default User-Agent contains a `CFNetwork/...` token,
+    /// which some Lemmy instances' nginx denylist outright — returning a plain
+    /// `403` for every image request (pict-rs and `image_proxy` urls alike).
+    /// Sending a plain app User-Agent avoids that filter so those images load.
+    static let userAgent: String = {
+        let version = Bundle.main
+            .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        return "Spud/\(version)"
+    }()
 
     let alertService: AlertServiceType
 
@@ -42,6 +57,12 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
 
     public init(alertService: AlertServiceType) {
         self.alertService = alertService
+
+        let configuration = URLSessionConfiguration.default
+        var headers = configuration.httpAdditionalHeaders ?? [:]
+        headers["User-Agent"] = Self.userAgent
+        configuration.httpAdditionalHeaders = headers
+        session = URLSession(configuration: configuration)
 
         memoryCache = NSCache()
         // There is no science to this limit, only guesswork.
@@ -211,19 +232,48 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         do {
             (data, urlResponse) = try await session.data(from: url)
         } catch {
+            logger.error("Image transport error for \(url.absoluteString, privacy: .public): \(String(describing: error), privacy: .public)")
             throw ImageLoadingError.network(error)
         }
 
         guard let httpUrlResponse = urlResponse as? HTTPURLResponse else {
+            logger.error("Image response was not HTTP for \(url.absoluteString, privacy: .public)")
             throw ImageLoadingError.cannotDecode
         }
 
         let statusCode = httpUrlResponse.statusCode
         guard statusCode == 200 else {
+            logFailedResponse(httpUrlResponse, body: data, requestUrl: url)
             throw ImageLoadingError.serverError(statusCode: statusCode)
         }
 
         return data
+    }
+
+    /// Diagnostic dump for a non-200 image response. Logs the request url, the
+    /// status, the headers that reveal who answered (Cloudflare edge vs Lemmy vs
+    /// pict-rs), and a snippet of the body (a Cloudflare block is HTML; a Lemmy
+    /// error is JSON). Intended to identify why proxied image urls are rejected.
+    private func logFailedResponse(_ response: HTTPURLResponse, body: Data, requestUrl: URL) {
+        func header(_ name: String) -> String {
+            (response.value(forHTTPHeaderField: name)) ?? "-"
+        }
+        let bodySnippet = String(decoding: body.prefix(512), as: UTF8.self)
+            .replacingOccurrences(of: "\n", with: " ")
+        logger.error(
+            """
+            Image load failed status=\(response.statusCode, privacy: .public) \
+            url=\(requestUrl.absoluteString, privacy: .public)
+            server=\(header("Server"), privacy: .public) \
+            cf-ray=\(header("CF-Ray"), privacy: .public) \
+            cf-mitigated=\(header("cf-mitigated"), privacy: .public) \
+            content-type=\(header("Content-Type"), privacy: .public) \
+            content-length=\(header("Content-Length"), privacy: .public) \
+            retry-after=\(header("Retry-After"), privacy: .public) \
+            www-authenticate=\(header("WWW-Authenticate"), privacy: .public)
+            body[0..512]=\(bodySnippet, privacy: .public)
+            """
+        )
     }
 
     private func loadImage(from url: URL) async throws -> UIImage {
