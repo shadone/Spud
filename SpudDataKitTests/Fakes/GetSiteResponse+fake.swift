@@ -30,6 +30,7 @@ extension Components.Schemas.GetSiteResponse {
             actor_id: "https://example.com",
             last_refreshed_at: date,
             inbox_url: "https://example.com/inbox",
+            public_key: "fake-public-key",
             instance_id: 1
         )
         let localSite = Components.Schemas.LocalSite(
@@ -109,6 +110,7 @@ extension Components.Schemas.GetSiteResponse {
                 follows: [],
                 moderates: moderates.map { .init(community: $0, moderator: person) },
                 community_blocks: [],
+                instance_blocks: [],
                 person_blocks: [],
                 discussion_languages: []
             )
@@ -121,6 +123,8 @@ extension Components.Schemas.GetSiteResponse {
             my_user: myUserInfo,
             all_languages: [],
             discussion_languages: [],
+            taglines: [],
+            custom_emojis: [],
             blocked_urls: []
         )
     }
@@ -153,7 +157,8 @@ extension Components.Schemas.GetSiteResponse {
             totp_2fa_enabled: false,
             enable_keyboard_navigation: false,
             enable_animated_images: true,
-            collapse_bot_comments: false
+            collapse_bot_comments: false,
+            last_donation_notification: Date(timeIntervalSince1970: 1_685_577_784)
         )
     }
 }

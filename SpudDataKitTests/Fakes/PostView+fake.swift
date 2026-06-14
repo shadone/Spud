@@ -15,7 +15,8 @@ extension Components.Schemas.PostAggregates {
             score: 1,
             upvotes: 1,
             downvotes: 0,
-            published: post.published
+            published: post.published,
+            newest_comment_time: post.published
         )
     }
 }
