@@ -373,7 +373,13 @@ class PostDetailViewController: UIViewController {
         }
     }
 
-    private func applySnapshot(animated: Bool = true) {
+    /// Rebuilds and applies the header + comments snapshot. Defaults to
+    /// non-animated: observation-driven updates (the header's content arriving,
+    /// comments loading, votes) must land in place — animating the header row as
+    /// its content fills in makes it visibly grow from zero height when the post
+    /// opens. Only user-initiated structural changes (the collapse toggle) pass
+    /// `animated: true`, where sliding descendants in/out is the wanted affordance.
+    private func applySnapshot(animated: Bool = false) {
         var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
         snapshot.appendSections([.header, .comments])
         snapshot.appendItems([.header], toSection: .header)
