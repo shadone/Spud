@@ -1,0 +1,246 @@
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
+import SnapshotTesting
+import SpudDataKit
+import UIKit
+import XCTest
+@testable import Spud
+
+/// Snapshots of the post-detail header cell across its content and image-load
+/// states: a loaded image, the failure plate, an in-flight retry (spinner
+/// plate), a text-only post, an external-link preview, and a video poster —
+/// each in light and dark.
+///
+/// The header is rendered straight from a `PostDetailHeaderRow` fixture and a
+/// scripted image service, with no database or network: the view model is a
+/// pure transform of the row, and `ScriptedImageService` drives the image
+/// outcome deterministically. The cell is hosted on a detached stub table (so
+/// its width-based image sizing resolves) and rendered at a fixed width and
+/// pinned display scale, so the references are device-independent.
+@MainActor
+final class PostDetailHeaderSnapshotTests: XCTestCase {
+    private let lemmyTeal = UIColor(red: 0, green: 0x96 / 255, blue: 0x87 / 255, alpha: 1)
+    private let width: CGFloat = 390
+
+    /// The cell's `tableView` reference is weak; hold the stub tables so they
+    /// outlive the image-sizing that reads their width.
+    private var stubTables: [UITableView] = []
+
+    // MARK: - States
+
+    func test_image_ready() async {
+        await assertHeader(
+            row: row(url: imageUrl),
+            imageService: ScriptedImageService([.ready(photo())])
+        )
+    }
+
+    func test_image_failure() async {
+        await assertHeader(
+            row: row(url: imageUrl),
+            imageService: ScriptedImageService([.failure])
+        )
+    }
+
+    func test_image_retrying() async {
+        await assertHeader(
+            row: row(url: imageUrl),
+            imageService: ScriptedImageService([.failure, .loadingForever]),
+            driveRetry: true
+        )
+    }
+
+    func test_text() async {
+        await assertHeader(
+            row: row(url: nil),
+            imageService: ScriptedImageService([.failure])
+        )
+    }
+
+    func test_link() async {
+        await assertHeader(
+            row: row(
+                url: "https://example.com/the-quiet-web",
+                thumbnailUrl: "https://example.com/og.jpg",
+                urlEmbedTitle: "The quiet web",
+                urlEmbedDescription: "A short essay on small, personal corners of the internet."
+            ),
+            imageService: ScriptedImageService([.ready(photo())])
+        )
+    }
+
+    func test_video() async {
+        await assertHeader(
+            row: row(
+                url: "https://lemmy.world/pictrs/video/clip.mp4",
+                thumbnailUrl: "https://lemmy.world/pictrs/image/poster.jpg"
+            ),
+            imageService: ScriptedImageService([.ready(photo())])
+        )
+    }
+
+    // MARK: - Rendering
+
+    private func assertHeader(
+        row: PostDetailHeaderRow,
+        imageService: @autoclosure () -> ImageServiceType,
+        driveRetry: Bool = false,
+        testName: String = #function,
+        line: UInt = #line
+    ) async {
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let cell = await renderCell(
+                row: row,
+                imageService: imageService(),
+                driveRetry: driveRetry
+            )
+            snapshot(cell, style: style, testName: testName, line: line)
+        }
+    }
+
+    private func renderCell(
+        row: PostDetailHeaderRow,
+        imageService: ImageServiceType,
+        driveRetry: Bool
+    ) async -> PostDetailHeaderCell {
+        let cell = PostDetailHeaderCell(style: .default, reuseIdentifier: nil)
+        // Pin the accent on the snapshot root: the `.image` strategy reparents
+        // `contentView` into a fresh window, so without its own tintColor it
+        // would inherit the window's system blue instead of the brand teal that
+        // the actions and vote arrows follow at runtime.
+        cell.tintColor = lemmyTeal
+        cell.contentView.tintColor = lemmyTeal
+        // The cell is transparent and sits on the table's background at runtime;
+        // give the snapshot the same opaque backdrop so `label`-colored text
+        // stays legible (white-on-transparent would vanish in dark mode).
+        cell.contentView.backgroundColor = .systemBackground
+
+        let table = UITableView(frame: CGRect(x: 0, y: 0, width: width, height: 844))
+        stubTables.append(table)
+        cell.tableView = table
+        cell.isBeingConfigured = true
+
+        cell.configure(with: makeViewModel(row: row), imageService: imageService)
+        await settle()
+
+        if driveRetry {
+            findRetryButton(in: cell.contentView)?.sendActions(for: .primaryActionTriggered)
+            await settle()
+        }
+
+        return cell
+    }
+
+    private func snapshot(
+        _ cell: PostDetailHeaderCell,
+        style: UIUserInterfaceStyle,
+        testName: String,
+        line: UInt
+    ) {
+        cell.frame = CGRect(x: 0, y: 0, width: width, height: 2000)
+        cell.layoutIfNeeded()
+        let height = cell.contentView.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+
+        assertSnapshot(
+            matching: cell.contentView,
+            as: .image(size: CGSize(width: width, height: height), traits: traits(style)),
+            named: style == .dark ? "dark" : "light",
+            testName: testName,
+            line: line
+        )
+    }
+
+    /// Let the cell's image-load Task drain its scripted stream and apply the
+    /// resulting layout before we measure and snapshot.
+    private func settle() async {
+        try? await Task.sleep(nanoseconds: 80_000_000)
+        await Task.yield()
+    }
+
+    private func findRetryButton(in view: UIView) -> UIButton? {
+        if let button = view as? UIButton, button.accessibilityIdentifier == "imageLoadFailureRetry" {
+            return button
+        }
+        for subview in view.subviews {
+            if let found = findRetryButton(in: subview) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    private func traits(_ style: UIUserInterfaceStyle) -> UITraitCollection {
+        UITraitCollection(traitsFrom: [
+            UITraitCollection(userInterfaceStyle: style),
+            UITraitCollection(displayScale: 2),
+        ])
+    }
+
+    private func makeViewModel(row: PostDetailHeaderRow) -> PostDetailHeaderViewModel {
+        let appearance = AppearanceService(preferencesService: PreferencesService())
+        return PostDetailHeaderViewModel(
+            row: row,
+            appearance: appearance,
+            postContentDetector: PostContentDetectorService()
+        )
+    }
+
+    // MARK: - Fixtures
+
+    /// A pictrs-style image url whose extension makes the content detector
+    /// classify the post as an image.
+    private let imageUrl = "https://lemmy.world/pictrs/image/lake.jpg"
+
+    /// A landscape solid-color image standing in for a loaded photo. Fixed size
+    /// so its aspect ratio (and therefore the header's image height) is stable.
+    private func photo() -> UIImage {
+        UIGraphicsImageRenderer(size: CGSize(width: 1200, height: 800)).image { context in
+            UIColor.systemIndigo.setFill()
+            context.fill(CGRect(x: 0, y: 0, width: 1200, height: 800))
+        }
+    }
+
+    private func row(
+        url: String?,
+        thumbnailUrl: String? = nil,
+        urlEmbedTitle: String? = nil,
+        urlEmbedDescription: String? = nil
+    ) -> PostDetailHeaderRow {
+        PostDetailHeaderRow(
+            id: 1,
+            serverPostId: 1,
+            title: "A scenic mountain lake at golden hour",
+            body: "Caught this on a hike last weekend — the light only held for a couple of minutes.",
+            originalPostUrl: "https://lemmy.world/post/1",
+            url: url,
+            thumbnailUrl: thumbnailUrl,
+            urlEmbedTitle: urlEmbedTitle,
+            urlEmbedDescription: urlEmbedDescription,
+            altText: nil,
+            communityName: "photography",
+            communityActorId: "https://lemmy.world/c/photography",
+            serverCommunityId: 1,
+            creatorName: "ansel",
+            creatorPersonId: 1,
+            creatorInstanceActorId: "https://lemmy.world",
+            score: 1234,
+            numberOfComments: 56,
+            voteStatus: nil,
+            isSaved: false,
+            isRemoved: false,
+            isLocked: false,
+            isFeaturedCommunity: false,
+            isFeaturedLocal: false,
+            isDeleted: false,
+            published: Date(timeIntervalSinceNow: -5 * 3600)
+        )
+    }
+}

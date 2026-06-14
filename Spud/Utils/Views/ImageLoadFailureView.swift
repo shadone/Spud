@@ -66,6 +66,7 @@ final class ImageLoadFailureView: UIView {
             self?.onRetry?()
         })
         button.translatesAutoresizingMaskIntoConstraints = false
+        button.accessibilityIdentifier = "imageLoadFailureRetry"
         button.heightAnchor.constraint(equalToConstant: 38).isActive = true
         return button
     }()
