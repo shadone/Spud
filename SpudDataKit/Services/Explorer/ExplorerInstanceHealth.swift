@@ -49,9 +49,23 @@ public enum ExplorerInstanceHealth {
         guard let value, !value.isEmpty else {
             return HealthSignal(level: .unknown, label: "Version unknown", short: "—")
         }
-        let behind = minorValue(latest) - minorValue(value)
-        let level: HealthLevel = behind <= 0 ? .good : behind == 1 ? .ok : .bad
-        let suffix = level == .good ? "latest" : level == .ok ? "1 behind" : "outdated"
+        let current = components(value)
+        let newest = components(latest)
+        let level: HealthLevel
+        let suffix: String
+        if rank(current) >= rank(newest) {
+            // Up to date, or a newer build than our reference — not penalised.
+            level = .good
+            suffix = "latest"
+        } else if current.major == newest.major, current.minor == newest.minor {
+            // Behind only on patch releases within the same minor series.
+            level = .ok
+            suffix = "\(newest.patch - current.patch) behind"
+        } else {
+            // A whole minor (or major) version behind.
+            level = .bad
+            suffix = "outdated"
+        }
         return HealthSignal(level: level, label: "v\(value) · \(suffix)", short: "v\(value)")
     }
 
@@ -87,12 +101,21 @@ public enum ExplorerInstanceHealth {
 
     // MARK: - Private
 
-    /// Semver-ish "minor" distance: major * 1000 + minor.
-    private static func minorValue(_ version: String) -> Int {
+    /// Splits a "major.minor.patch" string into its numeric parts, defaulting
+    /// missing or non-numeric parts to 0.
+    private static func components(_ version: String) -> (major: Int, minor: Int, patch: Int) {
         let parts = version.split(separator: ".")
-        let major = parts.count > 0 ? Int(parts[0]) ?? 0 : 0
-        let minor = parts.count > 1 ? Int(parts[1]) ?? 0 : 0
-        return major * 1000 + minor
+        func part(_ index: Int) -> Int {
+            parts.count > index ? Int(parts[index]) ?? 0 : 0
+        }
+        return (part(0), part(1), part(2))
+    }
+
+    /// Orders a version for comparison. Patch-aware (unlike a minor-only
+    /// compare), so an instance a single patch behind is distinguishable from
+    /// the latest release.
+    private static func rank(_ version: (major: Int, minor: Int, patch: Int)) -> Int {
+        version.major * 1_000_000 + version.minor * 1000 + version.patch
     }
 
     private static func formatPercent(_ value: Double) -> String {
