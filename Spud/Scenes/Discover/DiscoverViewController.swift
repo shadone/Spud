@@ -54,6 +54,9 @@ class DiscoverViewController: UIViewController {
             onOpenPack: { [weak self] pack in
                 self?.openPack(pack)
             },
+            onOpenInstance: { [weak self] summary in
+                self?.openInstance(summary)
+            },
             onRequestSignIn: { [weak self] in
                 self?.presentSignInGate(
                     title: NSLocalizedString(
@@ -129,6 +132,20 @@ class DiscoverViewController: UIViewController {
         )
         let hosting = UIHostingController(rootView: detail)
         hosting.navigationItem.title = pack.title
+        hosting.navigationItem.largeTitleDisplayMode = .never
+        navigationController?.pushViewController(hosting, animated: true)
+    }
+
+    private func openInstance(_ summary: InstanceSummary) {
+        let accent = Color(ThemeManager.currentAccentColor)
+        let view = InstanceCommunitiesView(
+            viewModel: viewModel,
+            host: summary.host,
+            communities: viewModel.communities(onInstance: summary.host),
+            accent: accent
+        )
+        let hosting = UIHostingController(rootView: view)
+        hosting.navigationItem.title = summary.host
         hosting.navigationItem.largeTitleDisplayMode = .never
         navigationController?.pushViewController(hosting, animated: true)
     }

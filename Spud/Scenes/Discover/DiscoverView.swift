@@ -65,6 +65,7 @@ struct DiscoverView: View {
                         rows: viewModel.rising,
                         momentum: true
                     )
+                    instanceRail
                 }
 
                 directoryHeader
@@ -173,6 +174,36 @@ struct DiscoverView: View {
                                 followState: viewModel.followState(for: row),
                                 onFollow: { viewModel.follow(row) }
                             )
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var instanceRail: some View {
+        if !viewModel.instances.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Browse by instance")
+                        .font(.headline)
+                        .foregroundStyle(Color(.label))
+                    Text("Explore a server's communities")
+                        .font(.caption)
+                        .foregroundStyle(Color(.tertiaryLabel))
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 18)
+                .padding(.bottom, 10)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 11) {
+                        ForEach(viewModel.instances) { instance in
+                            InstanceCard(instance: instance, accent: accent) {
+                                viewModel.openInstance(instance)
+                            }
                         }
                     }
                     .padding(.horizontal, 16)
@@ -338,6 +369,47 @@ struct DiscoverTrendCard: View {
                     .frame(maxWidth: .infinity)
                     .padding(.top, 11)
             }
+        }
+        .padding(13)
+        .frame(width: 178, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .onTapGesture { onTap() }
+    }
+}
+
+// MARK: - Instance card
+
+/// A home-instance card for the "Browse by instance" rail. Letter-tile avatar
+/// over the host plus a community/member summary.
+struct InstanceCard: View {
+    let instance: InstanceSummary
+    let accent: Color
+    let onTap: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                CommunityHueIcon(name: instance.host, title: instance.host, size: 42)
+                Spacer(minLength: 0)
+                Image(systemName: "server.rack")
+                    .font(.caption)
+                    .foregroundStyle(accent)
+            }
+            .padding(.bottom, 10)
+
+            Text(instance.host)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(Color(.label))
+                .lineLimit(1)
+            Text("\(instance.communityCount) communities")
+                .font(.caption2)
+                .foregroundStyle(Color(.tertiaryLabel))
+                .padding(.top, 2)
+            Text("\(DiscoverCommunityRow.compact(instance.totalSubscribers)) members · \(DiscoverCommunityRow.compact(instance.totalActiveWeek))/wk")
+                .font(.caption2)
+                .foregroundStyle(Color(.secondaryLabel))
+                .padding(.top, 7)
         }
         .padding(13)
         .frame(width: 178, alignment: .leading)

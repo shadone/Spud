@@ -34,6 +34,31 @@ public struct ExplorerCommunityFilter: Sendable, Equatable {
     }
 }
 
+/// A home instance summarised from the community directory, for the "Browse by
+/// instance" rail. Aggregates only the curated-safe communities on that server.
+public struct InstanceSummary: Sendable, Equatable, Identifiable {
+    public let host: String
+    public let communityCount: Int
+    public let totalSubscribers: Int64
+    public let totalActiveWeek: Int64
+
+    public var id: String {
+        host
+    }
+
+    public init(
+        host: String,
+        communityCount: Int,
+        totalSubscribers: Int64,
+        totalActiveWeek: Int64
+    ) {
+        self.host = host
+        self.communityCount = communityCount
+        self.totalSubscribers = totalSubscribers
+        self.totalActiveWeek = totalActiveWeek
+    }
+}
+
 /// Pure ranking, filtering, search and same-name de-duplication over community
 /// directory rows. Lives in the data layer (no UIKit) so every discovery rule is
 /// unit-testable independently of the screens. All rankings come from the
@@ -117,6 +142,53 @@ public enum ExplorerCommunityDirectory {
         return rows
             .filter { $0.name.lowercased() == key }
             .sorted(by: busier)
+    }
+
+    /// Aggregate the curated-safe communities by home instance for the "Browse
+    /// by instance" rail, busiest-first. Suspicious and NSFW communities are
+    /// excluded from the counts (and an instance with none left drops out).
+    public static func topInstances(in rows: [CommunityListRow], limit: Int = 20) -> [InstanceSummary] {
+        var byHost: [String: (count: Int, subscribers: Int64, week: Int64)] = [:]
+        var order: [String] = []
+        for row in rows where curatedSafe(row) {
+            if byHost[row.instanceHost] == nil { order.append(row.instanceHost) }
+            var agg = byHost[row.instanceHost] ?? (count: 0, subscribers: 0, week: 0)
+            agg.count += 1
+            agg.subscribers += row.numberOfSubscribers
+            agg.week += row.usersActiveWeek
+            byHost[row.instanceHost] = agg
+        }
+        let summaries = order.map { host -> InstanceSummary in
+            let agg = byHost[host]!
+            return InstanceSummary(
+                host: host,
+                communityCount: agg.count,
+                totalSubscribers: agg.subscribers,
+                totalActiveWeek: agg.week
+            )
+        }
+        return Array(summaries.sorted(by: busierInstance).prefix(limit))
+    }
+
+    /// Every curated-safe community hosted on `host`, filtered and sorted for the
+    /// instance browse screen.
+    public static func communities(
+        onInstance host: String,
+        in rows: [CommunityListRow],
+        sort: ExplorerCommunitySort
+    ) -> [CommunityListRow] {
+        let key = host.lowercased()
+        return rows
+            .filter { curatedSafe($0) && $0.instanceHost.lowercased() == key }
+            .sorted { ordered($0, before: $1, by: sort) }
+    }
+
+    /// Ranking for the instance rail: most weekly-active server first, then most
+    /// communities, then host name for determinism.
+    private static func busierInstance(_ a: InstanceSummary, _ b: InstanceSummary) -> Bool {
+        if a.totalActiveWeek != b.totalActiveWeek { return a.totalActiveWeek > b.totalActiveWeek }
+        if a.communityCount != b.communityCount { return a.communityCount > b.communityCount }
+        return a.host.localizedCaseInsensitiveCompare(b.host) == .orderedAscending
     }
 
     // MARK: - Helpers

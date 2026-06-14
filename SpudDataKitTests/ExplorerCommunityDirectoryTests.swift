@@ -178,4 +178,57 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
         let variants = ExplorerCommunityDirectory.variants(of: "gaming", in: rows)
         XCTAssertEqual(variants.map(\.instanceHost), ["lemmy.world", "lemmy.ml"])
     }
+
+    // MARK: - Browse by instance
+
+    func test_topInstances_ranksByWeeklyActive_andAggregatesCounts() throws {
+        let rows = [
+            row("a", host: "lemmy.world", members: 100, week: 50),
+            row("b", host: "lemmy.world", members: 200, week: 80),
+            row("c", host: "beehaw.org", members: 500, week: 300),
+        ]
+        let instances = ExplorerCommunityDirectory.topInstances(in: rows, limit: 10)
+        XCTAssertEqual(instances.map(\.host), ["beehaw.org", "lemmy.world"], "busiest server first")
+
+        let world = try XCTUnwrap(instances.first { $0.host == "lemmy.world" })
+        XCTAssertEqual(world.communityCount, 2)
+        XCTAssertEqual(world.totalSubscribers, 300)
+        XCTAssertEqual(world.totalActiveWeek, 130)
+    }
+
+    func test_topInstances_excludesSuspiciousAndNsfwFromAggregation() throws {
+        let rows = [
+            row("clean", host: "x.org", members: 100, week: 50),
+            row("naughty", host: "x.org", members: 999, week: 999, nsfw: true),
+            row("spam", host: "spam.org", week: 999, suspicious: true),
+        ]
+        let instances = ExplorerCommunityDirectory.topInstances(in: rows, limit: 10)
+        XCTAssertEqual(instances.map(\.host), ["x.org"], "an instance with only unsafe communities drops out")
+
+        let safe = try XCTUnwrap(instances.first)
+        XCTAssertEqual(safe.communityCount, 1, "the NSFW community is not counted")
+        XCTAssertEqual(safe.totalSubscribers, 100)
+    }
+
+    func test_topInstances_respectsLimit() {
+        let rows = [
+            row("a", host: "h1.org", week: 100),
+            row("b", host: "h2.org", week: 90),
+            row("c", host: "h3.org", week: 80),
+        ]
+        XCTAssertEqual(ExplorerCommunityDirectory.topInstances(in: rows, limit: 2).count, 2)
+    }
+
+    func test_communitiesOnInstance_filtersToHost_excludesUnsafe_andSorts() {
+        let rows = [
+            row("a", host: "lemmy.world", week: 10),
+            row("b", host: "lemmy.world", week: 90),
+            row("c", host: "beehaw.org", week: 50),
+            row("d", host: "lemmy.world", week: 99, nsfw: true),
+        ]
+        let result = ExplorerCommunityDirectory.communities(
+            onInstance: "lemmy.world", in: rows, sort: .mostActive
+        )
+        XCTAssertEqual(result.map(\.name), ["b", "a"], "host-filtered, NSFW dropped, sorted by activity")
+    }
 }

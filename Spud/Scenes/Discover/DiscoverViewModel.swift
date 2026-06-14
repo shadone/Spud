@@ -62,6 +62,8 @@ final class DiscoverViewModel {
     private(set) var trending: [CommunityListRow] = []
     /// Small communities punching above their size.
     private(set) var rising: [CommunityListRow] = []
+    /// Liveliest home instances, for the "Browse by instance" rail.
+    private(set) var instances: [InstanceSummary] = []
     /// The filtered, sorted, de-duplicated directory.
     private(set) var directory: [CommunityListRow] = []
     /// True until the first directory snapshot arrives.
@@ -84,6 +86,8 @@ final class DiscoverViewModel {
     @ObservationIgnored
     private let onOpenPack: (ResolvedStarterPack) -> Void
     @ObservationIgnored
+    private let onOpenInstance: (InstanceSummary) -> Void
+    @ObservationIgnored
     private let onRequestSignIn: () -> Void
     @ObservationIgnored
     private var observationTask: Task<Void, Never>?
@@ -102,6 +106,7 @@ final class DiscoverViewModel {
         dependencies: Dependencies,
         onOpenCommunity: @escaping (CommunityListRow) -> Void,
         onOpenPack: @escaping (ResolvedStarterPack) -> Void,
+        onOpenInstance: @escaping (InstanceSummary) -> Void,
         onRequestSignIn: @escaping () -> Void
     ) {
         self.accountKeychainId = accountKeychainId
@@ -109,6 +114,7 @@ final class DiscoverViewModel {
         self.dependencies = dependencies
         self.onOpenCommunity = onOpenCommunity
         self.onOpenPack = onOpenPack
+        self.onOpenInstance = onOpenInstance
         self.onRequestSignIn = onRequestSignIn
 
         let appDatabase = dependencies.appDatabase
@@ -134,6 +140,16 @@ final class DiscoverViewModel {
 
     func openPack(_ pack: ResolvedStarterPack) {
         onOpenPack(pack)
+    }
+
+    func openInstance(_ summary: InstanceSummary) {
+        onOpenInstance(summary)
+    }
+
+    /// The curated-safe communities hosted on `host`, sorted by the current
+    /// directory sort. Used to populate the instance browse screen.
+    func communities(onInstance host: String) -> [CommunityListRow] {
+        ExplorerCommunityDirectory.communities(onInstance: host, in: allRows, sort: sort)
     }
 
     /// Present the same-name compare sheet for `row`, listing every server that
@@ -189,6 +205,7 @@ final class DiscoverViewModel {
         starterPacks = StarterPackCatalog.resolve(using: allRows)
         trending = ExplorerCommunityDirectory.trending(in: allRows, limit: 12)
         rising = ExplorerCommunityDirectory.rising(in: allRows, limit: 12)
+        instances = ExplorerCommunityDirectory.topInstances(in: allRows, limit: 12)
     }
 
     private func recomputeDirectory() {
