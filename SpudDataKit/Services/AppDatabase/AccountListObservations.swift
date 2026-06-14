@@ -21,6 +21,24 @@ public struct AccountListRow: Sendable, Equatable, Identifiable {
     public let instanceHostname: String
     public let nickname: String?
     public let email: String?
+
+    public init(
+        id: Int64,
+        accountKeychainId: String,
+        isDefault: Bool,
+        isSignedOutAccountType: Bool,
+        instanceHostname: String,
+        nickname: String?,
+        email: String?
+    ) {
+        self.id = id
+        self.accountKeychainId = accountKeychainId
+        self.isDefault = isDefault
+        self.isSignedOutAccountType = isSignedOutAccountType
+        self.instanceHostname = instanceHostname
+        self.nickname = nickname
+        self.email = email
+    }
 }
 
 public extension AppDatabase {
