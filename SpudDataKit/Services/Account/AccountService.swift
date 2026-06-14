@@ -70,10 +70,6 @@ public protocol AccountServiceType: AnyObject {
     /// a non-active account doesn't switch the user away from the one in use.
     func removeAccount(forAccountKeychainId keychainId: String)
 
-    /// Returns the `accountKeychainId` of the account that is shown on app
-    /// launch. Bootstraps a signed-out default on first launch.
-    func defaultAccountKeychainId() -> String
-
     /// Returns the `accountKeychainId` of the current default / first non-service
     /// account, or `nil` when none exists. Read-only: never creates an account.
     /// `MainWindow` uses `nil` to decide to show onboarding instead of the tabs.
@@ -200,24 +196,6 @@ public class AccountService: AccountServiceType {
         self.makeApi = makeApi
     }
 
-    public func defaultAccountKeychainId() -> String {
-        assert(Thread.current.isMainThread)
-        do {
-            if let keychainId = try appDatabase.writer.read({ db -> String? in
-                try AccountRecord
-                    .filter(Column("isServiceAccount") == false)
-                    .order(sql: "isDefault DESC, id ASC")
-                    .fetchOne(db)?
-                    .accountKeychainId
-            }) {
-                return keychainId
-            }
-        } catch {
-            logger.error("defaultAccountKeychainId GRDB read failed: \(error.localizedDescription, privacy: .public)")
-        }
-        return bootstrapDefaultKeychainId()
-    }
-
     public func currentDefaultAccountKeychainId() -> String? {
         assert(Thread.current.isMainThread)
         do {
@@ -231,26 +209,6 @@ public class AccountService: AccountServiceType {
         } catch {
             logger.error("currentDefaultAccountKeychainId GRDB read failed: \(error.localizedDescription, privacy: .public)")
             return nil
-        }
-    }
-
-    /// First-launch path. AppDatabase has no candidate account, so create a
-    /// signed-out one for whichever instance the seeded site list has on
-    /// hand. Returns the new account's keychainId.
-    private func bootstrapDefaultKeychainId() -> String {
-        guard let row = appDatabase.allSiteListRowsSync().first else {
-            fatalError("Cannot bootstrap default account: no sites available")
-        }
-        do {
-            let keychainId = try appDatabase.ensureSignedOutAccountKeychainId(
-                forInstance: row.instance,
-                isServiceAccount: false
-            )
-            try appDatabase.setDefaultAccountSync(keychainId: keychainId)
-            return keychainId
-        } catch {
-            logger.fault("bootstrapDefaultKeychainId failed: \(error.localizedDescription, privacy: .public)")
-            fatalError("bootstrapDefaultKeychainId failed: \(error)")
         }
     }
 
@@ -589,7 +547,7 @@ public class AccountService: AccountServiceType {
     public func removeAccount(forAccountKeychainId keychainId: String) {
         assert(Thread.current.isMainThread)
 
-        let wasDefault = defaultAccountKeychainId() == keychainId
+        let wasDefault = currentDefaultAccountKeychainId() == keychainId
 
         // Resolve a fallback before removing, in case this was the default.
         let instanceActorId = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId)

@@ -101,7 +101,11 @@ class EntryService: EntryServiceType {
         listingType: Components.Schemas.ListingType,
         sortType: Components.Schemas.SortType
     ) async -> FeedHandle {
-        let keychainId = accountService.defaultAccountKeychainId()
+        guard let keychainId = accountService.currentDefaultAccountKeychainId() else {
+            // No account on first launch (onboarding not yet complete); return a
+            // dummy handle so the subsequent GRDB read returns empty rows.
+            return FeedHandle(feedKey: UUID().uuidString, feedType: .frontpage(listingType: listingType, sortType: sortType))
+        }
         let isSignedOut = accountService.isSignedOut(forAccountKeychainId: keychainId)
 
         let listingType: Components.Schemas.ListingType = {

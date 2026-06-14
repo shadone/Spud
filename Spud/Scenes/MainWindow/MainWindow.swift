@@ -60,6 +60,10 @@ class MainWindow: UIWindow {
     /// against rebuilds when the GRDB observation re-emits the same row.
     private var currentDefaultAccountKeychainId: String?
 
+    /// The onboarding navigation controller while it is the window's root; nil
+    /// once an account exists and the tab bar is installed.
+    private var onboardingNavigationController: UINavigationController?
+
     // MARK: Functions
 
     init(
@@ -72,18 +76,20 @@ class MainWindow: UIWindow {
 
         super.init(windowScene: windowScene)
 
-        // Bootstrap synchronously: defaultAccountKeychainId() ensures one
-        // exists and is marked default, which the GRDB observation will
-        // subsequently mirror. The follow-up reads pull whatever we need
-        // straight from AppDatabase.
-        let keychainId = accountService.defaultAccountKeychainId()
-        applyDefaultAccount(
-            keychainId: keychainId,
-            isSignedIn: !accountService.isSignedOut(forAccountKeychainId: keychainId),
-            defaultPostSortType: accountService.defaultSortType(forAccountKeychainId: keychainId)
-        )
-
-        rootViewController = tabBarController
+        // Gate on account presence: an existing account builds the tab bar; a
+        // fresh install (no account) gets the onboarding flow as the root, and
+        // the default-account observation swaps in the tab bar once the flow
+        // creates the first account.
+        if let keychainId = accountService.currentDefaultAccountKeychainId() {
+            applyDefaultAccount(
+                keychainId: keychainId,
+                isSignedIn: !accountService.isSignedOut(forAccountKeychainId: keychainId),
+                defaultPostSortType: accountService.defaultSortType(forAccountKeychainId: keychainId)
+            )
+            rootViewController = tabBarController
+        } else {
+            showOnboarding()
+        }
 
         // Apply the persisted theme + accent synchronously before the window
         // is shown so there's no flash of the wrong appearance, then keep them
@@ -109,6 +115,30 @@ class MainWindow: UIWindow {
         fatalError("init(coder:) has not been implemented")
     }
 
+    private func showOnboarding() {
+        let welcomeViewController = OnboardingWelcomeViewController()
+        welcomeViewController.onGetStarted = { [weak self] in
+            guard let self else { return }
+            let siteListViewController = SiteListViewController(dependencies: dependencies.nested)
+            onboardingNavigationController?.pushViewController(siteListViewController, animated: true)
+        }
+        let navigationController = UINavigationController(rootViewController: welcomeViewController)
+        onboardingNavigationController = navigationController
+        rootViewController = navigationController
+    }
+
+    /// Cross-fade the window's root from onboarding to the (already-populated)
+    /// tab bar once the first account exists.
+    private func swapRootToTabBar() {
+        UIView.transition(
+            with: self,
+            duration: 0.3,
+            options: .transitionCrossDissolve,
+            animations: { [self] in rootViewController = tabBarController },
+            completion: { [weak self] _ in self?.onboardingNavigationController = nil }
+        )
+    }
+
     private func startObservingDefaultAccount() {
         defaultAccountObservationTask?.cancel()
         defaultAccountObservationTask = Task { @MainActor [weak self] in
@@ -122,6 +152,9 @@ class MainWindow: UIWindow {
                     isSignedIn: !record.isSignedOutAccountType,
                     defaultPostSortType: record.resolvedDefaultSortType
                 )
+                if onboardingNavigationController != nil {
+                    swapRootToTabBar()
+                }
             }
         }
     }
@@ -418,8 +451,11 @@ extension MainWindow: UISplitViewControllerDelegate {
             return
         }
 
+        guard let keychainId = currentDefaultAccountKeychainId ?? accountService.currentDefaultAccountKeychainId() else {
+            return
+        }
         let emptyDetailViewController = PostDetailOrEmptyViewController(
-            accountKeychainId: currentDefaultAccountKeychainId ?? accountService.defaultAccountKeychainId(),
+            accountKeychainId: keychainId,
             dependencies: dependencies.nested
         )
         let detailNav = UINavigationController(rootViewController: emptyDetailViewController)
