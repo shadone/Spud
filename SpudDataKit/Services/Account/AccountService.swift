@@ -477,8 +477,8 @@ public class AccountService: AccountServiceType {
                 password: password,
                 passwordVerify: passwordVerify,
                 email: email,
-                showNsfw: showNsfw,
-                captchaUuid: captchaUuid,
+                showNSFW: showNsfw,
+                captchaUUID: captchaUuid,
                 captchaAnswer: captchaAnswer,
                 answer: answer
             )

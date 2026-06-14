@@ -730,7 +730,7 @@ public actor LemmyService: LemmyServiceType {
 
         let response: Components.Schemas.GetPersonDetailsResponse
         do {
-            response = try await api.getPersonDetails(personId: serverPersonId)
+            response = try await api.getPersonDetails(personID: serverPersonId)
         } catch {
             logger.error("""
                 Fetch person info failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
@@ -762,7 +762,7 @@ public actor LemmyService: LemmyServiceType {
         let response: Components.Schemas.GetPersonDetailsResponse
         do {
             response = try await api.getPersonDetails(
-                personId: serverPersonId,
+                personID: serverPersonId,
                 sort: sort,
                 page: page
             )
@@ -947,7 +947,7 @@ public actor LemmyService: LemmyServiceType {
 
         let response: Components.Schemas.PostResponse
         do {
-            response = try await api.likePost(serverPostId, status: effectiveAction)
+            response = try await api.likePost(postID: serverPostId, status: effectiveAction)
         } catch {
             logger.error("""
                 Vote failed. postId=\(serverPostId, privacy: .public). \
@@ -985,7 +985,7 @@ public actor LemmyService: LemmyServiceType {
 
         let response: Components.Schemas.CommentResponse
         do {
-            response = try await api.likeComment(serverCommentId, status: effectiveAction)
+            response = try await api.likeComment(commentID: serverCommentId, status: effectiveAction)
         } catch {
             logger.error("""
                 Vote failed. commentId=\(serverCommentId, privacy: .public). \
@@ -1651,7 +1651,7 @@ public actor LemmyService: LemmyServiceType {
             """)
 
         do {
-            try await api.markCommentReplyAsRead(commentReplyId: commentReplyId, read: read)
+            try await api.markCommentReplyAsRead(commentReplyID: commentReplyId, read: read)
         } catch {
             logger.error("""
                 Mark reply as read failed. commentReplyId=\(commentReplyId, privacy: .public). \
@@ -1675,7 +1675,7 @@ public actor LemmyService: LemmyServiceType {
             """)
 
         do {
-            try await api.markPersonMentionAsRead(personMentionId: personMentionId, read: read)
+            try await api.markPersonMentionAsRead(personMentionID: personMentionId, read: read)
         } catch {
             logger.error("""
                 Mark mention as read failed. personMentionId=\(personMentionId, privacy: .public). \
@@ -1699,7 +1699,7 @@ public actor LemmyService: LemmyServiceType {
             """)
 
         do {
-            try await api.markPrivateMessageAsRead(privateMessageId: privateMessageId, read: read)
+            try await api.markPrivateMessageAsRead(privateMessageID: privateMessageId, read: read)
         } catch {
             logger.error("""
                 Mark private message as read failed. privateMessageId=\(privateMessageId, privacy: .public). \
@@ -1726,7 +1726,7 @@ public actor LemmyService: LemmyServiceType {
             let unreadMessages = try await api.getPrivateMessages(unreadOnly: true, page: 1)
             for view in unreadMessages.private_messages where !view.private_message.read {
                 _ = try? await api.markPrivateMessageAsRead(
-                    privateMessageId: view.private_message.id,
+                    privateMessageID: view.private_message.id,
                     read: true
                 )
             }
@@ -1770,7 +1770,7 @@ public actor LemmyService: LemmyServiceType {
 
         let response: Components.Schemas.PrivateMessageResponse
         do {
-            response = try await api.createPrivateMessage(content: content, recipientId: recipientId)
+            response = try await api.createPrivateMessage(content: content, recipientID: recipientId)
         } catch {
             logger.error("""
                 Send private message failed. recipientId=\(recipientId, privacy: .public). \
