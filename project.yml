@@ -221,7 +221,12 @@ targets:
     type: bundle.unit-test
     platform: iOS
     sources:
-      - SpudSnapshotTests
+      # Snapshot reference PNGs are read from the source tree by swift-snapshot-testing
+      # at runtime (via #file), not from the test bundle. Excluding them keeps the
+      # bundle free of duplicate basenames that collide across suites.
+      - path: SpudSnapshotTests
+        excludes:
+          - "__Snapshots__/**"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.SpudSnapshotTests
