@@ -1,1 +1,2 @@
 SpudDataKit/Resources/*.lzfse filter=lfs diff=lfs merge=lfs -text
+SpudSnapshotTests/__Snapshots__/InstanceDetailSnapshotTests/** filter=annex annex.largefiles=anything
