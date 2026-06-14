@@ -64,7 +64,15 @@ public extension AppDatabase {
                 hostname: record.baseurl,
                 name: record.name,
                 descriptionText: record.descriptionText,
-                iconUrl: record.iconUrl.flatMap(URL.init(string:))
+                iconUrl: record.iconUrl.flatMap(URL.init(string:)),
+                score: record.score,
+                usersTotal: record.usersTotal,
+                usersActiveMonth: record.usersActiveMonth,
+                uptimeAllTime: record.uptimeAllTime,
+                isNsfw: record.isNsfw,
+                isOpenRegistration: record.isOpenRegistration,
+                languageCodes: record.languageCodes,
+                tags: record.tagList
             )
         }
     }
