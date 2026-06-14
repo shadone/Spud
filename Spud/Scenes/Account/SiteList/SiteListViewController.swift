@@ -219,8 +219,15 @@ class SiteListViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 
-        Task { [explorerService] in
-            await explorerService.refreshIfStale(maxAge: ExplorerService.defaultMaxAge)
+        // The picker doesn't refresh on every appearance — that's governed by the
+        // Community Data settings. But on first launch, when the directory is still
+        // the bundled seed (possibly months old) and the user is here to log in,
+        // refresh the instance list once if stale so they choose from current
+        // servers. Later opens (adding or switching accounts) don't auto-refresh.
+        if appDatabase.explorerInstancesAreSeedOnlySync() {
+            Task { [explorerService] in
+                await explorerService.refreshIfStale(maxAge: ExplorerService.defaultMaxAge)
+            }
         }
         startObserving()
     }
