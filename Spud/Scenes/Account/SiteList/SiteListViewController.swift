@@ -14,7 +14,7 @@ private let logger = Logger.app
 class SiteListViewController: UIViewController {
     typealias OwnDependencies =
         HasAppDatabase &
-        HasSiteService
+        HasExplorerService
     typealias NestedDependencies =
         LoginViewController.Dependencies &
         SiteListSiteViewModel.Dependencies
@@ -25,8 +25,8 @@ class SiteListViewController: UIViewController {
         dependencies.own.appDatabase
     }
 
-    var siteService: SiteServiceType {
-        dependencies.own.siteService
+    var explorerService: ExplorerServiceType {
+        dependencies.own.explorerService
     }
 
     // MARK: UI Properties
@@ -104,16 +104,16 @@ class SiteListViewController: UIViewController {
 
         navigationItem.searchController = searchController
 
-        // Seed with whatever's already in AppDatabase so the tableView is
-        // populated by the time it appears.
-        allRows = appDatabase.allSiteListRowsSync()
+        // Seed with the cached Explorer instance directory so the tableView is
+        // populated (ranked by Explorer score) by the time it appears.
+        allRows = appDatabase.explorerSiteListRowsSync()
         applyFilter()
     }
 
     private func startObserving() {
         observationTask?.cancel()
         observationTask = Task { @MainActor [weak self, appDatabase] in
-            for await rows in appDatabase.observeAllSites() {
+            for await rows in appDatabase.observeExplorerSiteListRows() {
                 guard let self else { return }
                 allRows = rows
                 applyFilter()
@@ -142,7 +142,9 @@ class SiteListViewController: UIViewController {
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
 
-        siteService.populateSiteListWithSuggestedInstancesIfNeeded()
+        Task { [explorerService] in
+            await explorerService.refreshIfStale(maxAge: ExplorerService.defaultMaxAge)
+        }
         startObserving()
     }
 
