@@ -265,7 +265,7 @@ public extension AppDatabase {
                     return nil
                 }
 
-                let rawCreatorName: String? = row["creatorDisplayName"] ?? row["creatorName"]
+                let rawCreatorName = row.coalescingString("creatorDisplayName", "creatorName")
                 return PostDetailHeaderRow(
                     id: row["postRowId"],
                     serverPostId: row["serverPostId"],
@@ -351,7 +351,7 @@ public extension AppDatabase {
                     """, arguments: [postRowId, sortType])
 
                 return rows.map { row in
-                    let rawCreatorName: String? = row["creatorDisplayName"] ?? row["creatorName"]
+                    let rawCreatorName = row.coalescingString("creatorDisplayName", "creatorName")
                     return PostDetailCommentRow(
                         id: row["elementId"],
                         position: row["position"],

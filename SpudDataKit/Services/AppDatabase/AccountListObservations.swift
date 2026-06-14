@@ -69,7 +69,7 @@ public extension AppDatabase {
                 return rows.map { row in
                     let actorId: String = row["instanceActorId"]
                     let host = URL(string: actorId)?.host ?? actorId
-                    let nickname: String? = row["personDisplayName"] ?? row["personName"]
+                    let nickname = row.coalescingString("personDisplayName", "personName")
                     return AccountListRow(
                         id: row["accountId"],
                         accountKeychainId: row["accountKeychainId"],
