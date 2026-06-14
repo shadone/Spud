@@ -90,6 +90,7 @@ struct DiscoverView: View {
                         followState: viewModel.followState(for: row),
                         onFollow: { viewModel.toggleFollow(row) }
                     )
+                    .communityContextMenu(for: row, viewModel: viewModel)
                     Divider().padding(.leading, 68)
                 }
 
@@ -160,6 +161,7 @@ struct DiscoverView: View {
                         followState: viewModel.followState(for: row),
                         onFollow: { viewModel.toggleFollow(row) }
                     )
+                    .communityContextMenu(for: row, viewModel: viewModel)
                     Divider().padding(.leading, 68)
                 }
             }

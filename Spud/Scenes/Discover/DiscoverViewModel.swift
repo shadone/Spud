@@ -282,6 +282,57 @@ final class DiscoverViewModel {
         }
     }
 
+    // MARK: Context-menu actions
+
+    /// Whether `row` is currently muted for this account (client-local).
+    func isMuted(_ row: CommunityListRow) -> Bool {
+        dependencies.appDatabase.isCommunityMutedSync(
+            forKeychainId: accountKeychainId,
+            communityActorId: row.communityUrl
+        )
+    }
+
+    /// Mute `row` for `duration`. Muting is client-local (no server round-trip),
+    /// keyed by the community's actor id, so it works for any account.
+    func mute(_ row: CommunityListRow, duration: MuteDuration) {
+        Haptics.tap()
+        dependencies.appDatabase.muteCommunitySync(
+            forKeychainId: accountKeychainId,
+            communityActorId: row.communityUrl,
+            until: duration.until
+        )
+    }
+
+    func unmute(_ row: CommunityListRow) {
+        Haptics.tap()
+        dependencies.appDatabase.unmuteCommunitySync(
+            forKeychainId: accountKeychainId,
+            communityActorId: row.communityUrl
+        )
+    }
+
+    /// Block `row` on the user's instance. Like Follow, the Explorer row is first
+    /// resolved to a server community id. Signed-out accounts hit the sign-in gate.
+    func block(_ row: CommunityListRow) {
+        guard isSignedIn else {
+            onRequestSignIn()
+            return
+        }
+        Haptics.tap()
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let lemmyService = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+                let serverCommunityId = try await lemmyService
+                    .fetchCommunityInfo(communityName: "\(row.name)@\(row.instanceHost)")
+                try await lemmyService.setBlocked(serverCommunityId: serverCommunityId, blocked: true)
+                Haptics.success()
+            } catch {
+                alertService.handle(error, for: .setBlockedCommunity)
+            }
+        }
+    }
+
     /// Resolve `row` by `name@instance` and (un)subscribe, updating the in-flight
     /// and followed sets so the buttons reflect the change without waiting on the
     /// subscriptions observation to round-trip.

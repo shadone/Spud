@@ -62,6 +62,7 @@ struct InstanceCommunitiesView: View {
                         subtitleLineLimit: nil,
                         showsQualifiedHandle: false
                     )
+                    .communityContextMenu(for: row, viewModel: viewModel)
                     Divider().padding(.leading, 68)
                 }
 
