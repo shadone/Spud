@@ -13,6 +13,20 @@ import UIKit
 
 private let logger = Logger.app
 
+/// A small pill in the comment header line marking the author's role or status
+/// (OP / MOD / ADMIN / BOT / BANNED / SUSPENDED). Pure value; the cell renders it.
+struct CommentBadge: Equatable {
+    let text: String
+    /// Optional leading SF Symbol (e.g. a bot/banned glyph).
+    let symbolName: String?
+    /// OP follows the app accent (resolved in the cell); everything else uses
+    /// `color` directly.
+    let usesAccent: Bool
+    let color: UIColor
+    /// Solid fill (a distinguished moderator/admin statement) vs a tinted pill.
+    let solid: Bool
+}
+
 /// Plain-value snapshot consumed by `PostDetailCommentCell`. Built once per
 /// `PostDetailCommentRow` emission. The cell drops Combine and applies these
 /// values directly.
@@ -24,12 +38,31 @@ struct PostDetailCommentViewModel {
     let isMore: Bool
     let moreText: NSAttributedString?
 
+    /// Author role/status pills shown after the name, in order.
+    let badges: [CommentBadge]
+
     /// One colored rail per ancestor depth, leading edge first. Drives the
     /// stacked Apollo-style depth rails. Empty for top-level comments.
     let depthRailColors: [UIColor]
 
-    /// `true` when this comment's author is the post's author (shows an "OP" tag).
+    /// `true` when this comment's author is the post's author (drives the "OP"
+    /// badge and the VoiceOver hint).
     let isOriginalPoster: Bool
+
+    /// An official moderator/admin statement: the cell gives it an accent bar
+    /// and a tinted background, and any MOD/ADMIN badge renders solid.
+    let isDistinguished: Bool
+
+    /// `true` for moderator-removed comments — the cell dims the row.
+    let isDeemphasized: Bool
+
+    /// `true` when the author is blocked and not revealed: the cell collapses
+    /// the row to a "Blocked user · Show" affordance.
+    let isBlockedFolded: Bool
+
+    /// Folded blocked-row label ("Blocked user") and its reveal action label.
+    let blockedFoldedText: NSAttributedString?
+    let blockedShowText: NSAttributedString?
 
     /// `true` when this comment is collapsed and its subtree is hidden.
     let isCollapsed: Bool
@@ -52,14 +85,30 @@ struct PostDetailCommentViewModel {
         appearance: AppearanceServiceType,
         postCreatorPersonId: Int64? = nil,
         isCollapsed: Bool = false,
-        collapsedDescendantCount: Int? = nil
+        collapsedDescendantCount: Int? = nil,
+        isBlockedRevealed: Bool = false
     ) {
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
 
+        let isDeleted = row.isDeleted == true
+        let isRemoved = row.isRemoved == true
+        let distinguished = row.isDistinguished == true
+        let accountDeleted = row.isCreatorAccountDeleted == true
+        let banned = row.isCreatorBannedFromCommunity == true || row.isCreatorSiteBanned == true
+        let blocked = row.isCreatorBlocked == true
+
+        isDistinguished = distinguished
+        isDeemphasized = isRemoved
+
         // The author is the post's author when their person ids match — drives
-        // the "OP" tag. nil ids never match (no false positive).
+        // the "OP" badge. nil ids never match (no false positive).
         isOriginalPoster = row.creatorPersonId != nil && row.creatorPersonId == postCreatorPersonId
 
+        let bodyFont = UIFont.scaledSystemFont(
+            style: .body,
+            relativeSize: textSizeAdjustment,
+            weight: .regular
+        )
         let authorAttributesBase: [NSAttributedString.Key: Any] = [
             .font: UIFont.scaledSystemFont(
                 style: .body,
@@ -85,7 +134,7 @@ struct PostDetailCommentViewModel {
             ),
             .foregroundColor: UIColor.secondaryLabel,
         ]
-        let moreTextAttributes: [NSAttributedString.Key: Any] = [
+        let linkTextAttributes: [NSAttributedString.Key: Any] = [
             .font: UIFont.scaledSystemFont(
                 style: .body,
                 relativeSize: -1 + textSizeAdjustment,
@@ -94,8 +143,21 @@ struct PostDetailCommentViewModel {
             .foregroundColor: UIColor.link,
         ]
 
+        // MARK: Author name
+
         var authorAttributes = authorAttributesBase
+        if accountDeleted {
+            authorAttributes[.font] = Self.italic(authorAttributes[.font] as? UIFont)
+            authorAttributes[.foregroundColor] = UIColor.tertiaryLabel
+        }
+        if banned {
+            authorAttributes[.strikethroughStyle] = NSUnderlineStyle.single.rawValue
+            authorAttributes[.strikethroughColor] = UIColor.systemRed
+        }
+        // The author links to their profile — except an account-deleted author,
+        // which has no profile to open.
         if
+            !accountDeleted,
             let personId = row.creatorPersonId,
             let actorIdString = row.creatorInstanceActorId,
             let url = URL(string: actorIdString),
@@ -106,19 +168,81 @@ struct PostDetailCommentViewModel {
                 instance: instance
             ).url
         }
-        author = NSAttributedString(string: row.creatorName ?? "", attributes: authorAttributes)
+        let displayName = accountDeleted ? "[deleted]" : (row.creatorName ?? "")
+        author = NSAttributedString(string: displayName, attributes: authorAttributes)
 
-        // Rendered (and cached) through `MarkdownRenderer` so a long thread does
-        // not re-parse markdown on every cell dequeue. The comment list pre-warms
-        // this cache off the main thread, so steady state is a cache hit here.
-        let bodyMarkdown = row.body ?? ""
-        body = MarkdownRenderer.shared.attributedString(
-            markdown: bodyMarkdown,
-            key: MarkdownRenderer.postBodyKey(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment),
-            makeStyler: {
-                DownStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment))
-            }
-        )
+        // MARK: Badges
+
+        var badges: [CommentBadge] = []
+        if isOriginalPoster {
+            badges.append(CommentBadge(text: "OP", symbolName: nil, usesAccent: true, color: .systemTeal, solid: false))
+        }
+        if row.isCreatorModerator == true {
+            badges.append(CommentBadge(text: "MOD", symbolName: nil, usesAccent: false, color: .systemGreen, solid: distinguished))
+        }
+        if row.isCreatorAdmin == true {
+            badges.append(CommentBadge(text: "ADMIN", symbolName: nil, usesAccent: false, color: .systemIndigo, solid: distinguished))
+        }
+        if row.isCreatorBot == true {
+            badges.append(CommentBadge(text: "BOT", symbolName: "cpu", usesAccent: false, color: .systemGray, solid: false))
+        }
+        if row.isCreatorBannedFromCommunity == true {
+            badges.append(CommentBadge(text: "BANNED", symbolName: "person.fill.xmark", usesAccent: false, color: .systemRed, solid: false))
+        }
+        if row.isCreatorSiteBanned == true {
+            badges.append(CommentBadge(text: "SUSPENDED", symbolName: "person.fill.xmark", usesAccent: false, color: .systemRed, solid: false))
+        }
+        self.badges = badges
+
+        // MARK: Body / moderation placeholder
+
+        if isDeleted {
+            body = Self.placeholder(
+                symbolName: "trash",
+                text: NSLocalizedString("Comment deleted by author", comment: "Placeholder for a comment the author deleted"),
+                tint: .secondaryLabel,
+                bodyFont: bodyFont
+            )
+        } else if isRemoved {
+            body = Self.placeholder(
+                symbolName: "trash.slash",
+                text: NSLocalizedString("Removed by moderator", comment: "Placeholder for a comment a moderator removed"),
+                tint: .systemOrange,
+                bodyFont: bodyFont
+            )
+        } else {
+            // Rendered (and cached) through `MarkdownRenderer` so a long thread
+            // does not re-parse markdown on every cell dequeue. The comment list
+            // pre-warms this cache off the main thread, so steady state is a
+            // cache hit here.
+            let bodyMarkdown = row.body ?? ""
+            body = MarkdownRenderer.shared.attributedString(
+                markdown: bodyMarkdown,
+                key: MarkdownRenderer.postBodyKey(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment),
+                makeStyler: {
+                    DownStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment))
+                }
+            )
+        }
+
+        // MARK: Blocked-user fold
+
+        isBlockedFolded = blocked && !isBlockedRevealed
+        if blocked, !isBlockedRevealed {
+            blockedFoldedText = NSAttributedString(
+                string: NSLocalizedString("Blocked user", comment: "Folded row for a comment from a blocked user"),
+                attributes: secondaryAttributes
+            )
+            blockedShowText = NSAttributedString(
+                string: NSLocalizedString("Show", comment: "Reveal a blocked user's comment"),
+                attributes: linkTextAttributes
+            )
+        } else {
+            blockedFoldedText = nil
+            blockedShowText = nil
+        }
+
+        // MARK: Subtitle (score · age · saved)
 
         let voteStatus: VoteStatus = {
             switch row.voteStatus {
@@ -129,20 +253,25 @@ struct PostDetailCommentViewModel {
         }()
 
         let space = NSAttributedString(string: "  ", attributes: secondaryAttributes)
-        let upvotes = IconValueFormatter.attributedString(
-            numberOfVotesOrScore: row.score,
-            voteStatus: voteStatus,
-            attributes: monoAttributes,
-            appearance: appearance.general
-        )
-        let age: NSAttributedString = {
-            guard let published = row.published else { return NSAttributedString() }
-            return IconValueFormatter.attributedString(
+        // A deleted/removed comment has no meaningful score — hiding it is what
+        // makes the placeholder read as "gone" rather than a normal downvoted row.
+        let hideScore = isDeleted || isRemoved
+        var subtitlePieces: [NSAttributedString] = []
+        if !hideScore {
+            subtitlePieces.append(IconValueFormatter.attributedString(
+                numberOfVotesOrScore: row.score,
+                voteStatus: voteStatus,
+                attributes: monoAttributes,
+                appearance: appearance.general
+            ))
+            subtitlePieces.append(space)
+        }
+        if let published = row.published {
+            subtitlePieces.append(IconValueFormatter.attributedString(
                 relativeDate: published,
                 attributes: monoAttributes
-            )
-        }()
-        var subtitlePieces: [NSAttributedString] = [upvotes, space, age]
+            ))
+        }
         if row.isSaved == true {
             var savedAttributes = secondaryAttributes
             savedAttributes[.foregroundColor] = UIColor.systemYellow
@@ -152,23 +281,6 @@ struct PostDetailCommentViewModel {
                 attributes: savedAttributes
             ))
         }
-
-        // Moderation / content-status badges: removed (red), distinguished
-        // (green shield), or deleted-by-author (red).
-        for badge in CommentStatusBadge.badges(
-            isRemoved: row.isRemoved == true,
-            isDistinguished: row.isDistinguished == true,
-            isDeleted: row.isDeleted == true
-        ) {
-            var attrs = secondaryAttributes
-            attrs[.foregroundColor] = badge.color
-            subtitlePieces.append(space)
-            subtitlePieces.append(NSAttributedString.symbol(
-                from: UIImage(systemName: badge.symbolName)!,
-                attributes: attrs
-            ))
-        }
-
         subtitle = subtitlePieces.joined()
 
         if let moreChildCount = row.moreChildCount {
@@ -176,7 +288,7 @@ struct PostDetailCommentViewModel {
             let text: String = moreChildCount == 1
                 ? "1 more reply"
                 : "\(moreChildCount) more replies"
-            moreText = NSAttributedString(string: text, attributes: moreTextAttributes)
+            moreText = NSAttributedString(string: text, attributes: linkTextAttributes)
         } else {
             isMore = false
             moreText = nil
@@ -229,27 +341,40 @@ struct PostDetailCommentViewModel {
             // VoiceOver — score, age, depth, collapsed and moderation state —
             // since the visible run is icon glyphs it cannot pronounce. The
             // author (a link) and body are read as their own elements.
-            var subtitlePieces: [String] = [
-                VoteAccessibility.scoreLabel(score: row.score, voteStatus: voteStatus),
-            ]
+            var pieces: [String] = []
+            if !hideScore {
+                pieces.append(VoteAccessibility.scoreLabel(score: row.score, voteStatus: voteStatus))
+            }
             if isOriginalPoster {
-                subtitlePieces.append(NSLocalizedString(
-                    "original poster",
-                    comment: "VoiceOver: comment written by the post's author"
-                ))
+                pieces.append(NSLocalizedString("original poster", comment: "VoiceOver: comment written by the post's author"))
+            }
+            if row.isCreatorModerator == true {
+                pieces.append(NSLocalizedString("moderator", comment: "VoiceOver: comment by a community moderator"))
+            }
+            if row.isCreatorAdmin == true {
+                pieces.append(NSLocalizedString("admin", comment: "VoiceOver: comment by an instance admin"))
+            }
+            if row.isCreatorBot == true {
+                pieces.append(NSLocalizedString("bot account", comment: "VoiceOver: comment by a bot account"))
+            }
+            if row.isCreatorBannedFromCommunity == true {
+                pieces.append(NSLocalizedString("banned from this community", comment: "VoiceOver: author banned from the community"))
+            }
+            if row.isCreatorSiteBanned == true {
+                pieces.append(NSLocalizedString("suspended site-wide", comment: "VoiceOver: author suspended instance-wide"))
             }
             if let published = row.published {
-                subtitlePieces.append(published.relativeString)
+                pieces.append(published.relativeString)
             }
             if depth > 1 {
-                subtitlePieces.append(String(
+                pieces.append(String(
                     format: NSLocalizedString("depth %lld", comment: "VoiceOver: comment nesting depth"),
                     depth
                 ))
             }
             if isCollapsed {
                 if let count = collapsedDescendantCount, count > 0 {
-                    subtitlePieces.append(String(
+                    pieces.append(String(
                         format: NSLocalizedString(
                             "collapsed, %lld hidden",
                             comment: "VoiceOver: collapsed comment with hidden descendant count"
@@ -257,26 +382,59 @@ struct PostDetailCommentViewModel {
                         count
                     ))
                 } else {
-                    subtitlePieces.append(NSLocalizedString("collapsed", comment: "VoiceOver: collapsed comment"))
+                    pieces.append(NSLocalizedString("collapsed", comment: "VoiceOver: collapsed comment"))
                 }
             }
             if row.isSaved == true {
-                subtitlePieces.append(NSLocalizedString("Saved", comment: "VoiceOver: comment is saved"))
+                pieces.append(NSLocalizedString("Saved", comment: "VoiceOver: comment is saved"))
             }
-            if row.isRemoved == true {
-                subtitlePieces.append(NSLocalizedString("Removed", comment: "VoiceOver: comment removed by moderator"))
+            if isRemoved {
+                pieces.append(NSLocalizedString("Removed by moderator", comment: "VoiceOver: comment removed by moderator"))
             }
-            if row.isDeleted == true {
-                subtitlePieces.append(NSLocalizedString("Deleted", comment: "VoiceOver: comment deleted by author"))
+            if isDeleted {
+                pieces.append(NSLocalizedString("Deleted by author", comment: "VoiceOver: comment deleted by author"))
             }
-            if row.isDistinguished == true {
-                subtitlePieces.append(NSLocalizedString("Distinguished", comment: "VoiceOver: distinguished moderator comment"))
+            if distinguished {
+                pieces.append(NSLocalizedString("Distinguished", comment: "VoiceOver: distinguished moderator comment"))
             }
-            subtitleAccessibilityLabel = subtitlePieces.joined(separator: ", ")
+            subtitleAccessibilityLabel = pieces.joined(separator: ", ")
 
             collapseAccessibilityHint = isCollapsed
                 ? NSLocalizedString("Expands the comment thread", comment: "VoiceOver hint for a collapsed comment")
                 : NSLocalizedString("Collapses the comment thread", comment: "VoiceOver hint for an expanded comment")
         }
+    }
+
+    /// An italic variant of `font`, or `font` unchanged if the italic trait
+    /// can't be applied.
+    private static func italic(_ font: UIFont?) -> UIFont {
+        let font = font ?? .preferredFont(forTextStyle: .body)
+        guard let descriptor = font.fontDescriptor.withSymbolicTraits(.traitItalic) else {
+            return font
+        }
+        return UIFont(descriptor: descriptor, size: 0)
+    }
+
+    /// A moderation placeholder body: a leading icon and an italic label that
+    /// replaces the (empty) content of a deleted or removed comment.
+    private static func placeholder(
+        symbolName: String,
+        text: String,
+        tint: UIColor,
+        bodyFont: UIFont
+    ) -> NSAttributedString {
+        let result = NSMutableAttributedString()
+        if let image = UIImage(systemName: symbolName) {
+            result.append(NSAttributedString.symbol(
+                from: image,
+                attributes: [.font: bodyFont, .foregroundColor: tint]
+            ))
+            result.append(NSAttributedString(string: "  "))
+        }
+        result.append(NSAttributedString(
+            string: text,
+            attributes: [.font: italic(bodyFont), .foregroundColor: UIColor.secondaryLabel]
+        ))
+        return result
     }
 }

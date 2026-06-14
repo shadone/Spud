@@ -17,6 +17,9 @@ class PostDetailCommentCell: UITableViewCell {
     /// swipe action) to collapse or expand its thread.
     var collapseTapped: (() -> Void)?
 
+    /// Fired when the user taps "Show" on a folded blocked-user comment.
+    var revealBlockedTapped: (() -> Void)?
+
     var swipeActionConfiguration: SwipeActionView.Configuration? {
         get { swipeActionView.configuration }
         set { swipeActionView.configuration = newValue }
@@ -25,6 +28,16 @@ class PostDetailCommentCell: UITableViewCell {
     var swipeActionTriggered: ((SwipeActionView.ActionTrigger) -> Void)?
 
     // MARK: UI Properties
+
+    /// A faint full-bleed tint behind the row content — teal for a distinguished
+    /// (official) comment, a neutral wash for a collapsed one.
+    lazy var tintBackingView: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        return view
+    }()
 
     lazy var mainHorizontalStackView: UIStackView = {
         let stackView = UIStackView()
@@ -55,6 +68,7 @@ class PostDetailCommentCell: UITableViewCell {
 
         stackView.addArrangedSubview(headerStackView)
         stackView.addArrangedSubview(messageLabel)
+        stackView.addArrangedSubview(blockedFoldView)
 
         return stackView
     }()
@@ -64,14 +78,11 @@ class PostDetailCommentCell: UITableViewCell {
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.axis = .horizontal
         stackView.spacing = 0
-
-        let spacerView = UIView()
-        spacerView.backgroundColor = .clear
-        spacerView.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        stackView.alignment = .center
 
         let subviews = [
             authorLabel,
-            opBadgeLabel,
+            badgesStackView,
             subtitleLabel,
             spacerView,
             collapsedBadgeLabel,
@@ -80,10 +91,18 @@ class PostDetailCommentCell: UITableViewCell {
             stackView.addArrangedSubview(view)
         }
 
-        stackView.setCustomSpacing(4, after: authorLabel)
-        stackView.setCustomSpacing(6, after: opBadgeLabel)
+        stackView.setCustomSpacing(6, after: authorLabel)
+        stackView.setCustomSpacing(6, after: badgesStackView)
 
         return stackView
+    }()
+
+    /// Expands to push the metadata left and the saved/collapsed badges right.
+    private lazy var spacerView: UIView = {
+        let view = UIView()
+        view.backgroundColor = .clear
+        view.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        return view
     }()
 
     lazy var authorLabel: LinkLabel = {
@@ -93,25 +112,25 @@ class PostDetailCommentCell: UITableViewCell {
         label.accessibilityIdentifier = "author"
         label.linkTextAttributes = [:]
         label.highlightedLinkTextAttributes = [:]
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
         label.tapped = { [weak self] url in
             self?.linkTapped?(url)
         }
         return label
     }()
 
-    /// Small accent "OP" tag shown when the comment is by the post's author.
-    lazy var opBadgeLabel: PostDetailCommentCell.BadgeLabel = {
-        let label = BadgeLabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.text = NSLocalizedString("OP", comment: "Tag marking a comment by the original poster")
-        label.font = .systemFont(ofSize: 11, weight: .bold)
-        label.layer.cornerRadius = 4
-        label.clipsToBounds = true
-        label.isHidden = true
-        label.setContentHuggingPriority(.required, for: .horizontal)
-        label.setContentCompressionResistancePriority(.required, for: .horizontal)
-        label.accessibilityIdentifier = "opBadge"
-        return label
+    /// Author role/status pills (OP / MOD / ADMIN / BOT / BANNED / SUSPENDED),
+    /// rebuilt on each `configure`.
+    lazy var badgesStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .horizontal
+        stackView.spacing = 4
+        stackView.alignment = .center
+        stackView.accessibilityIdentifier = "badges"
+        stackView.setContentHuggingPriority(.required, for: .horizontal)
+        stackView.setContentCompressionResistancePriority(.required, for: .horizontal)
+        return stackView
     }()
 
     lazy var subtitleLabel: UILabel = {
@@ -141,6 +160,54 @@ class PostDetailCommentCell: UITableViewCell {
         label.tapped = { [weak self] url in
             self?.linkTapped?(url)
         }
+        return label
+    }()
+
+    /// Folded presentation for a blocked user's comment: "Blocked user … Show".
+    /// Hidden unless the row is folded.
+    lazy var blockedFoldView: UIView = {
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.isHidden = true
+        container.accessibilityIdentifier = "blockedFold"
+
+        let stack = UIStackView(arrangedSubviews: [blockedIconView, blockedLabel, blockedShowLabel])
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.axis = .horizontal
+        stack.alignment = .center
+        stack.spacing = 8
+        blockedLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        container.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: container.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+        ])
+
+        let tap = UITapGestureRecognizer(target: self, action: #selector(handleRevealBlockedTap))
+        container.addGestureRecognizer(tap)
+        return container
+    }()
+
+    private lazy var blockedIconView: UIImageView = {
+        let view = UIImageView(image: UIImage(systemName: "eye.slash"))
+        view.tintColor = .tertiaryLabel
+        view.setContentHuggingPriority(.required, for: .horizontal)
+        view.contentMode = .scaleAspectFit
+        return view
+    }()
+
+    private lazy var blockedLabel: UILabel = {
+        let label = UILabel()
+        label.accessibilityIdentifier = "blockedLabel"
+        return label
+    }()
+
+    private lazy var blockedShowLabel: UILabel = {
+        let label = UILabel()
+        label.accessibilityIdentifier = "blockedShow"
+        label.setContentHuggingPriority(.required, for: .horizontal)
         return label
     }()
 
@@ -183,9 +250,15 @@ class PostDetailCommentCell: UITableViewCell {
 
         selectionStyle = .none
 
+        contentView.addSubview(tintBackingView)
         contentView.addSubview(swipeActionView)
 
         NSLayoutConstraint.activate([
+            tintBackingView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            tintBackingView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            tintBackingView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            tintBackingView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+
             swipeActionView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
             swipeActionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             swipeActionView.topAnchor.constraint(equalTo: contentView.topAnchor),
@@ -205,25 +278,23 @@ class PostDetailCommentCell: UITableViewCell {
 
         linkTapped = nil
         collapseTapped = nil
+        revealBlockedTapped = nil
         swipeActionConfiguration = nil
         swipeActionTriggered = nil
-        opBadgeLabel.isHidden = true
+        mainHorizontalStackView.alpha = 1
+        tintBackingView.backgroundColor = .clear
+        clearBadges()
     }
 
-    /// The OP tag uses the app accent (the window `tintColor`), resolved here so
-    /// it re-tints when the user changes accent or interface style.
-    private func applyOPBadgeTint() {
-        let accent = tintColor ?? .systemTeal
-        opBadgeLabel.textColor = accent
-        opBadgeLabel.backgroundColor = accent.withAlphaComponent(0.16)
+    private func clearBadges() {
+        for view in badgesStackView.arrangedSubviews {
+            badgesStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        badgesStackView.isHidden = true
     }
 
-    override func tintColorDidChange() {
-        super.tintColorDidChange()
-        applyOPBadgeTint()
-    }
-
-    /// A `UILabel` with small horizontal padding, used for the rounded "OP" pill.
+    /// A `UILabel` with small horizontal padding, used for the rounded badge pills.
     final class BadgeLabel: UILabel {
         private let insets = UIEdgeInsets(top: 1, left: 5, bottom: 1, right: 5)
 
@@ -240,27 +311,84 @@ class PostDetailCommentCell: UITableViewCell {
         }
     }
 
+    /// Builds one rounded pill for a badge, tinting OP with the resolved accent.
+    private func makeBadgeView(_ badge: CommentBadge, accent: UIColor) -> UIView {
+        let label = BadgeLabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.layer.cornerRadius = 4
+        label.clipsToBounds = true
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        let color = badge.usesAccent ? accent : badge.color
+        let textColor: UIColor = badge.solid ? .white : color
+        label.backgroundColor = badge.solid ? color : color.withAlphaComponent(0.16)
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.systemFont(ofSize: 11, weight: .bold),
+            .foregroundColor: textColor,
+        ]
+        let text = NSMutableAttributedString()
+        if let symbolName = badge.symbolName, let image = UIImage(systemName: symbolName) {
+            text.append(NSAttributedString.symbol(from: image, attributes: attributes))
+            text.append(NSAttributedString(string: " ", attributes: attributes))
+        }
+        text.append(NSAttributedString(string: badge.text, attributes: attributes))
+        label.attributedText = text
+        return label
+    }
+
     func configure(with viewModel: PostDetailCommentViewModel) {
+        let accent = tintColor ?? .systemTeal
+
         if viewModel.isMore {
             authorLabel.attributedText = viewModel.moreText
             subtitleLabel.attributedText = nil
             messageLabel.attributedText = nil
+            clearBadges()
         } else {
             authorLabel.attributedText = viewModel.author
             subtitleLabel.attributedText = viewModel.subtitle
             // A collapsed comment hides its own body too, Apollo-style: only the
             // header line (author + score + "+N") remains.
             messageLabel.attributedText = viewModel.isCollapsed ? nil : viewModel.body
+
+            clearBadges()
+            if !viewModel.badges.isEmpty {
+                badgesStackView.isHidden = false
+                for badge in viewModel.badges {
+                    badgesStackView.addArrangedSubview(makeBadgeView(badge, accent: accent))
+                }
+            }
         }
         messageLabel.isHidden = (messageLabel.attributedText?.length ?? 0) == 0
 
-        opBadgeLabel.isHidden = viewModel.isMore || !viewModel.isOriginalPoster
-        applyOPBadgeTint()
+        // Blocked-user fold: swap the normal content for the "Blocked user · Show"
+        // affordance.
+        let folded = viewModel.isBlockedFolded && !viewModel.isMore
+        blockedFoldView.isHidden = !folded
+        headerStackView.isHidden = folded
+        if folded {
+            messageLabel.isHidden = true
+            blockedLabel.attributedText = viewModel.blockedFoldedText
+            blockedShowLabel.attributedText = viewModel.blockedShowText
+        }
 
         collapsedBadgeLabel.attributedText = viewModel.collapsedBadgeText
         collapsedBadgeLabel.isHidden = viewModel.collapsedBadgeText == nil
 
         depthRailsView.railColors = viewModel.depthRailColors
+
+        // Distinguished (official) reads as a teal-washed row; a collapsed row
+        // gets a neutral wash. Moderator-removed rows dim.
+        if viewModel.isDistinguished {
+            tintBackingView.backgroundColor = accent.withAlphaComponent(0.10)
+        } else if viewModel.isCollapsed {
+            tintBackingView.backgroundColor = UIColor.label.withAlphaComponent(0.03)
+        } else {
+            tintBackingView.backgroundColor = .clear
+        }
+        mainHorizontalStackView.alpha = viewModel.isDeemphasized ? 0.66 : 1
 
         // A "load more" placeholder is not itself collapsible.
         collapseTapGestureRecognizer.isEnabled = !viewModel.isMore
@@ -282,11 +410,21 @@ class PostDetailCommentCell: UITableViewCell {
         }
     }
 
-    // MARK: Collapse tap
+    // MARK: Taps
+
+    @objc
+    private func handleRevealBlockedTap() {
+        revealBlockedTapped?()
+    }
 
     @objc
     private func handleCollapseTap(_ recognizer: UITapGestureRecognizer) {
         guard recognizer.state == .ended else { return }
+
+        // A folded blocked row handles its own "Show" tap.
+        if !blockedFoldView.isHidden {
+            return
+        }
 
         // Defer to the LinkLabels: if the tap landed on an actual link range,
         // let the label handle it and do not collapse.

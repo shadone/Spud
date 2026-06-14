@@ -142,6 +142,8 @@ class PostDetailViewController: UIViewController {
     /// Per-collapsed-parent hidden-descendant counts from the last visible-tree
     /// computation. Used to render the "+N" badge on collapsed cells.
     private var collapsedDescendantCounts: [Int64: Int] = [:]
+    /// Comment elements whose blocked author the user chose to reveal.
+    private var revealedBlockedElementIds: Set<Int64> = []
     private var observationTask: Task<Void, Never>?
     private var commentObservationTask: Task<Void, Never>?
     private var swipeActionsObservationTask: Task<Void, Never>?
@@ -441,6 +443,17 @@ class PostDetailViewController: UIViewController {
         viewModel.toggleCollapse(elementId: elementId)
         Haptics.tap()
         applySnapshot(animated: true)
+    }
+
+    /// Reveals a folded blocked-user comment and reconfigures just that row.
+    private func revealBlocked(elementId: Int64) {
+        revealedBlockedElementIds.insert(elementId)
+        guard dataSource != nil else { return }
+        var snapshot = dataSource.snapshot()
+        let item = Item.comment(elementId: elementId)
+        guard snapshot.indexOfItem(item) != nil else { return }
+        snapshot.reconfigureItems([item])
+        dataSource.apply(snapshot, animatingDifferences: true)
     }
 
     // MARK: - Jump to next top-level comment
@@ -1238,15 +1251,20 @@ extension PostDetailViewController {
 
                 let isCollapsed = self?.viewModel.isCollapsed(elementId: elementId) ?? false
                 let collapsedCount = self?.collapsedDescendantCounts[elementId]
+                let isBlockedRevealed = self?.revealedBlockedElementIds.contains(elementId) ?? false
                 let viewModel = PostDetailCommentViewModel(
                     row: row,
                     appearance: appearance,
                     postCreatorPersonId: self?.headerRow?.creatorPersonId,
                     isCollapsed: isCollapsed,
-                    collapsedDescendantCount: collapsedCount
+                    collapsedDescendantCount: collapsedCount,
+                    isBlockedRevealed: isBlockedRevealed
                 )
                 cell.configure(with: viewModel)
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
+                cell.revealBlockedTapped = { [weak self] in
+                    self?.revealBlocked(elementId: elementId)
+                }
                 // Tap-to-collapse is the primary collapse affordance (Apollo
                 // parity); "load more" placeholders are not collapsible.
                 cell.collapseTapped = { [weak self] in
