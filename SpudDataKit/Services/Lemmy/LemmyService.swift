@@ -633,17 +633,7 @@ public actor LemmyService: LemmyServiceType {
                 postID: serverPostId,
                 type: .ModRemoveComment
             )
-
-            var reasons: [Int64: String] = [:]
-            for view in modlog.removed_comments {
-                let entry = view.mod_remove_comment
-                guard entry.removed, let reason = entry.reason, !reason.isEmpty else { continue }
-                // The modlog is newest-first; keep the most recent removal reason.
-                let commentId = Int64(entry.comment_id)
-                if reasons[commentId] == nil {
-                    reasons[commentId] = reason
-                }
-            }
+            let reasons = Self.removalReasons(from: modlog.removed_comments)
 
             try await appDatabase.mirrorCommentRemovalReasons(
                 forServerPostId: Int64(serverPostId),
@@ -653,6 +643,25 @@ public actor LemmyService: LemmyServiceType {
         } catch {
             logger.error("Fetch comment removal reasons failed: \(String(describing: error), privacy: .public)")
         }
+    }
+
+    /// Builds a `serverCommentId -> reason` map from modlog comment-removal
+    /// entries. The modlog is newest-first, so the first entry seen per comment
+    /// is the most recent removal; restores (`removed == false`) and empty
+    /// reasons are skipped.
+    static func removalReasons(
+        from removedComments: [Components.Schemas.ModRemoveCommentView]
+    ) -> [Int64: String] {
+        var reasons: [Int64: String] = [:]
+        for view in removedComments {
+            let entry = view.mod_remove_comment
+            guard entry.removed, let reason = entry.reason, !reason.isEmpty else { continue }
+            let commentId = Int64(entry.comment_id)
+            if reasons[commentId] == nil {
+                reasons[commentId] = reason
+            }
+        }
+        return reasons
     }
 
     private func mirrorCommentsToAppDatabase(
