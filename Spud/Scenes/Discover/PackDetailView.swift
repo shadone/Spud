@@ -7,13 +7,14 @@
 import SpudDataKit
 import SwiftUI
 
-/// Detail for a starter pack: a header with its mosaic and blurb, then its
-/// member communities, each opening its page (where Subscribe lives). A
-/// one-tap "Follow all" is deferred until inline follow lands.
+/// Detail for a starter pack: a header with its mosaic, blurb and a one-tap
+/// "Follow all", then its member communities — each openable and individually
+/// followable. Backed by the same ``DiscoverViewModel`` as the Discover home, so
+/// follow state stays in sync across both.
 struct PackDetailView: View {
+    @Bindable var viewModel: DiscoverViewModel
     let pack: ResolvedStarterPack
     let accent: Color
-    let onOpenCommunity: (CommunityListRow) -> Void
 
     var body: some View {
         ScrollView {
@@ -29,7 +30,13 @@ struct PackDetailView: View {
                     .padding(.bottom, 6)
 
                 ForEach(pack.communities) { row in
-                    DiscoverCommunityRow(row: row, accent: accent) { onOpenCommunity(row) }
+                    DiscoverCommunityRow(
+                        row: row,
+                        accent: accent,
+                        onTap: { viewModel.open(row) },
+                        followState: viewModel.followState(for: row),
+                        onFollow: { viewModel.toggleFollow(row) }
+                    )
                     Divider().padding(.leading, 68)
                 }
             }
@@ -55,8 +62,57 @@ struct PackDetailView: View {
             Text(pack.blurb)
                 .font(.subheadline)
                 .foregroundStyle(Color(.secondaryLabel))
+
+            followAllControl
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
+    }
+
+    @ViewBuilder
+    private var followAllControl: some View {
+        if allFollowed {
+            Label("Following all", systemImage: "checkmark.circle.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(accent)
+                .padding(.top, 2)
+        } else {
+            Button {
+                viewModel.followAll(pack.communities)
+            } label: {
+                HStack(spacing: 6) {
+                    if anyInFlight {
+                        ProgressView().controlSize(.small).tint(.white)
+                    } else {
+                        Image(systemName: "plus")
+                            .font(.subheadline.weight(.bold))
+                    }
+                    Text(followAllTitle)
+                        .font(.subheadline.weight(.semibold))
+                }
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .background(accent, in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 2)
+        }
+    }
+
+    private var followAllTitle: String {
+        let pending = pack.communities.filter { viewModel.followState(for: $0) == .idle }.count
+        return pending == pack.communities.count
+            ? "Follow all \(pack.communities.count)"
+            : "Follow \(pending) more"
+    }
+
+    private var allFollowed: Bool {
+        !pack.communities.isEmpty
+            && pack.communities.allSatisfy { viewModel.followState(for: $0) == .following }
+    }
+
+    private var anyInFlight: Bool {
+        pack.communities.contains { viewModel.followState(for: $0) == .inFlight }
     }
 }

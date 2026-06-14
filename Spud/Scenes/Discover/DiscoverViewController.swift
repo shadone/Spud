@@ -131,11 +131,9 @@ class DiscoverViewController: UIViewController {
     private func openPack(_ pack: ResolvedStarterPack) {
         let accent = Color(ThemeManager.currentAccentColor)
         let detail = PackDetailView(
+            viewModel: viewModel,
             pack: pack,
-            accent: accent,
-            onOpenCommunity: { [weak self] row in
-                self?.openCommunity(row)
-            }
+            accent: accent
         )
         .environment(\.imageService, imageService)
         let hosting = UIHostingController(rootView: detail)
