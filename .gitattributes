@@ -1,2 +1,4 @@
 SpudDataKit/Resources/*.lzfse filter=lfs diff=lfs merge=lfs -text
-SpudSnapshotTests/__Snapshots__/** filter=annex annex.largefiles=anything
+**/__Snapshots__/**/*.png filter=annex annex.largefiles=anything
+**/__Snapshots__/**/*.png linguist-generated=true
+**/__Snapshots__/**/*.png binary
