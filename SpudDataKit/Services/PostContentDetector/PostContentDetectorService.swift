@@ -48,7 +48,16 @@ public class PostContentDetectorService: PostContentDetectorServiceType {
             embedDescription: embedDescription
         ))
 
-        let path = url.safePath
+        // A Lemmy instance with image_proxy enabled rewrites image post urls to
+        // `{instance}/api/v3/image_proxy?url={original}`, whose own path has no
+        // file extension. Match the extension against the embedded original so a
+        // proxied image is still detected as an image instead of a link.
+        //
+        // The proxy `url` itself stays the imageUrl/videoUrl so the media keeps
+        // loading through the instance's proxy (the privacy-preserving path).
+        // ImageService sends a plain User-Agent so the proxy host's nginx does
+        // not 403 the request (see ImageService.userAgent).
+        let path = (url.lemmyImageProxyOriginalUrl ?? url).safePath
         let matchedImageExtension = [
             ".jpg",
             ".jpeg",

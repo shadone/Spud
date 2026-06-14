@@ -31,6 +31,10 @@ class PostDetailHeaderCell: UITableViewCellBase {
     /// video url.
     var videoTapped: ((_ videoUrl: URL) -> Void)?
 
+    /// Invoked when the user taps "Open in browser" on the image-load failure
+    /// plate, carrying the original image url to hand to the system browser.
+    var openInBrowser: ((_ url: URL) -> Void)?
+
     var upvoteTapped: (() -> Void)?
     var downvoteTapped: (() -> Void)?
     var saveTapped: (() -> Void)?
@@ -332,6 +336,14 @@ class PostDetailHeaderCell: UITableViewCellBase {
     private var postImageContainerHeightConstraint: NSLayoutConstraint!
     private var imageLoadTask: Task<Void, Never>?
 
+    /// Retained so a Retry from the failure plate can re-request the image after
+    /// `configure` has returned.
+    private var imageService: ImageServiceType?
+
+    /// The image-load failure plate, created lazily on first failure and kept
+    /// for reuse. Sits on top of `postImageView`, filling `postImageContainer`.
+    private var imageFailureView: ImageLoadFailureView?
+
     /// The full-size image url for the currently-configured post image (set
     /// only for `.post` content), used by the tap-to-open-viewer gesture.
     private var tappableImageUrl: URL?
@@ -411,6 +423,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         linkTappedFromPreview = nil
         imageTapped = nil
         videoTapped = nil
+        openInBrowser = nil
 
         linkPreviewView.isHidden = true
         linkPreviewView.prepareForReuse()
@@ -420,9 +433,16 @@ class PostDetailHeaderCell: UITableViewCellBase {
         postImageContainer.isHidden = true
         postImageContainer.backgroundColor = .clear
         postImageView.image = nil
+        postImageView.isHidden = false
+
+        imageFailureView?.isHidden = true
+        imageFailureView?.onRetry = nil
+        imageFailureView?.onOpenInBrowser = nil
+        imageFailureView?.setRetrying(false)
     }
 
     func configure(with viewModel: PostDetailHeaderViewModel, imageService: ImageServiceType) {
+        self.imageService = imageService
         titleLabel.attributedText = viewModel.title
         bodyLabel.attributedText = viewModel.body
         attributionLabel.attributedText = viewModel.attribution
@@ -450,6 +470,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
         playIconView.isHidden = true
         tappableVideoUrl = nil
         postImageContainer.backgroundColor = .clear
+        imageFailureView?.isHidden = true
+        postImageView.isHidden = false
         switch viewModel.image {
         case .none:
             postImageContainer.isHidden = true
@@ -470,20 +492,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
                 comment: "VoiceOver hint for the post image"
             )
             postImageView.accessibilityTraits = [.image, .button]
-            imageLoadTask = Task { [weak self] in
-                for await state in imageService.fetch(imageUrl, thumbnail: thumbnailUrl) {
-                    if Task.isCancelled { return }
-                    guard let self else { return }
-                    switch state {
-                    case let .loading(thumbnailImage):
-                        if let thumbnailImage { setImage(thumbnailImage) }
-                    case let .ready(image):
-                        setImage(image)
-                    case .failure:
-                        break
-                    }
-                }
-            }
+            loadPostImage(imageUrl: imageUrl, thumbnailUrl: thumbnailUrl)
 
         case let .video(videoUrl, thumbnailUrl):
             linkPreviewView.isHidden = true
@@ -539,9 +548,96 @@ class PostDetailHeaderCell: UITableViewCellBase {
         }
     }
 
-    private func setImage(_ image: UIImage) {
-        postImageView.image = image
+    /// Fetches the post image, driving the header through loading → ready /
+    /// failure. Reused by the failure plate's Retry.
+    private func loadPostImage(imageUrl: URL, thumbnailUrl: URL?) {
+        guard let imageService else { return }
+        imageLoadTask?.cancel()
+        imageLoadTask = Task { [weak self] in
+            for await state in imageService.fetch(imageUrl, thumbnail: thumbnailUrl) {
+                if Task.isCancelled { return }
+                guard let self else { return }
+                switch state {
+                case let .loading(thumbnailImage):
+                    if let thumbnailImage { setImage(thumbnailImage) }
+                case let .ready(image):
+                    setImage(image)
+                case .failure:
+                    // Keep a thumbnail if we already have one; otherwise put the
+                    // failure plate in the image's place.
+                    if postImageView.image == nil {
+                        showImageFailure(imageUrl: imageUrl, thumbnailUrl: thumbnailUrl)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Shows the failure plate in the image's place, wired to retry the same
+    /// image or hand its original url to the browser.
+    private func showImageFailure(imageUrl: URL, thumbnailUrl: URL?) {
+        let failureView = installedImageFailureView()
+        failureView.onRetry = { [weak self] in
+            guard let self else { return }
+            Haptics.tap()
+            failureView.setRetrying(true)
+            loadPostImage(imageUrl: imageUrl, thumbnailUrl: thumbnailUrl)
+        }
+        failureView.onOpenInBrowser = { [weak self] in
+            guard let self else { return }
+            // Unwrap a Lemmy image-proxy url so the browser opens the real image.
+            openInBrowser?(imageUrl.lemmyImageProxyOriginalUrl ?? imageUrl)
+        }
+        failureView.setRetrying(false)
+        failureView.isHidden = false
+
+        postImageView.isHidden = true
+        postImageView.image = nil
+        playIconView.isHidden = true
+        mediaBadgeView.text = nil
         postImageContainer.isHidden = false
+
+        let width = tableView?.bounds.width ?? bounds.width
+        let fittingHeight = failureView.systemLayoutSizeFitting(
+            CGSize(width: width, height: 0),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+        postImageContainerHeightConstraint.constant = max(ImageLoadFailureView.minimumHeight, fittingHeight)
+
+        adjustHeightForChange()
+    }
+
+    /// Lazily installs the failure plate, filling `postImageContainer` above the
+    /// image view.
+    private func installedImageFailureView() -> ImageLoadFailureView {
+        if let imageFailureView { return imageFailureView }
+        let view = ImageLoadFailureView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        postImageContainer.addSubview(view)
+        NSLayoutConstraint.activate([
+            view.leadingAnchor.constraint(equalTo: postImageContainer.leadingAnchor),
+            view.trailingAnchor.constraint(equalTo: postImageContainer.trailingAnchor),
+            view.topAnchor.constraint(equalTo: postImageContainer.topAnchor),
+            view.bottomAnchor.constraint(equalTo: postImageContainer.bottomAnchor),
+        ])
+        imageFailureView = view
+        return view
+    }
+
+    private func setImage(_ image: UIImage) {
+        let wasShowingFailure = imageFailureView.map { !$0.isHidden } ?? false
+        imageFailureView?.isHidden = true
+        postImageView.isHidden = false
+        postImageContainer.isHidden = false
+
+        if wasShowingFailure {
+            UIView.transition(with: postImageView, duration: 0.25, options: .transitionCrossDissolve) {
+                self.postImageView.image = image
+            }
+        } else {
+            postImageView.image = image
+        }
 
         let cellWidth = tableView?.bounds.width ?? 100
         let maxImageHeight = (tableView?.bounds.height ?? 800) * 0.6
