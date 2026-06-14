@@ -89,4 +89,42 @@ final class PostContentDetectorTests: XCTestCase {
         XCTAssertEqual(image.imageUrl.absoluteString, "https://example.test/full.png")
         XCTAssertEqual(image.thumbnailUrl?.absoluteString, "https://example.test/thumb.png")
     }
+
+    func test_lemmyImageProxyUrl_isDetectedAsImage() {
+        // Instances with image_proxy enabled wrap the real image url in a proxy
+        // endpoint whose path has no extension; the .png lives in the query.
+        // This is the exact url shape from feddit.nl/post/54717157 as served by a
+        // proxying home instance, which previously rendered as a link.
+        let proxyUrl = "https://lemmy.ml/api/v3/image_proxy?url=https%3A%2F%2Ffeddit.nl%2Fpictrs%2Fimage%2F5fbd8b47-33bd-45bc-9f6d-df5473ca84f0.png"
+        let type = contentType(
+            url: proxyUrl,
+            thumbnailUrl: "https://discuss.tchncs.de/pictrs/image/thumb.png"
+        )
+        guard case let .image(image) = type else {
+            return XCTFail("a proxied image url should be an image, got \(type)")
+        }
+        XCTAssertFalse(image.isAnimated)
+        // The proxy url stays the image url so it loads through the instance's
+        // proxy; ImageService's plain User-Agent keeps the proxy host from 403ing.
+        XCTAssertEqual(image.imageUrl.absoluteString, proxyUrl)
+        XCTAssertEqual(image.thumbnailUrl?.absoluteString, "https://discuss.tchncs.de/pictrs/image/thumb.png")
+    }
+
+    func test_lemmyImageProxyGifUrl_isDetectedAsAnimatedImage() {
+        let proxyUrl = "https://lemmy.ml/api/v3/image_proxy?url=https%3A%2F%2Ffeddit.nl%2Fpictrs%2Fimage%2Ffunny.gif"
+        let type = contentType(url: proxyUrl)
+        guard case let .image(image) = type else {
+            return XCTFail("a proxied gif should be an image, got \(type)")
+        }
+        XCTAssertTrue(image.isAnimated, "proxied gif should be flagged animated")
+    }
+
+    func test_imageProxyWrappingNonImage_staysExternalLink() {
+        // image_proxy only ever wraps images in practice, but if the embedded url
+        // has no image extension we must not misclassify it as an image.
+        let type = contentType(url: "https://lemmy.ml/api/v3/image_proxy?url=https%3A%2F%2Fexample.test%2Farticle")
+        guard case .externalLink = type else {
+            return XCTFail("proxy wrapping a non-image should be an external link, got \(type)")
+        }
+    }
 }
