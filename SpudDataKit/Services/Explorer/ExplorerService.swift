@@ -19,12 +19,16 @@ public enum ExplorerDataset: String, Sendable, CaseIterable {
 }
 
 public protocol ExplorerServiceType: Sendable {
-    /// Refresh the instance directory in the background if it is stale. Safe to
-    /// call repeatedly; cheap when the cache is fresh.
-    func startService()
+    /// Seed the directory from the bundle (offline), then — when `autoRefresh` is
+    /// on — refresh from the network if the cache is older than `maxAge`. Safe to
+    /// call once at launch; cheap when the cache is fresh.
+    func startService(autoRefresh: Bool, maxAge: TimeInterval)
     func refreshIfStale(maxAge: TimeInterval) async
     func refreshCommunitiesIfStale(maxAge: TimeInterval) async
     func refresh(_ dataset: ExplorerDataset) async throws
+    /// Force a full network refresh of every dataset (instances and communities).
+    /// Used by the manual "Update Now" control; throws on the first failure.
+    func refreshAll() async throws
 }
 
 @MainActor
@@ -47,18 +51,26 @@ public actor ExplorerService: ExplorerServiceType {
         self.session = session
     }
 
-    public nonisolated func startService() {
-        Task { await self.seedAndRefresh() }
+    public nonisolated func startService(autoRefresh: Bool, maxAge: TimeInterval) {
+        Task { await self.seedAndRefresh(autoRefresh: autoRefresh, maxAge: maxAge) }
     }
 
     /// First-launch path: seed instances from the bundle (instant, offline), then
-    /// refresh them from the network if stale. The much larger community set is
-    /// seeded from the bundle only — its network refresh is deferred to the
-    /// Community Explorer so launch never triggers a multi-MB download.
-    private func seedAndRefresh() async {
+    /// — when automatic updates are on — refresh them from the network if older
+    /// than `maxAge`. The much larger community set is seeded from the bundle only
+    /// — its network refresh is deferred to the Community Explorer (or a manual
+    /// ``refreshAll()``) so launch never triggers a multi-MB download.
+    private func seedAndRefresh(autoRefresh: Bool, maxAge: TimeInterval) async {
         await seedIfNeeded(.instances)
-        await refreshIfStale(maxAge: Self.defaultMaxAge)
+        if autoRefresh {
+            await refreshIfStale(maxAge: maxAge)
+        }
         await seedIfNeeded(.communities)
+    }
+
+    public func refreshAll() async throws {
+        try await refresh(.instances)
+        try await refresh(.communities)
     }
 
     /// Imports any missing bundled seeds without performing a network refresh.

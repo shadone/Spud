@@ -63,6 +63,12 @@ struct PreferencesView: View {
                         }
                     }
 
+                    NavigationLink {
+                        PreferencesCommunityDataView(viewModel: viewModel)
+                    } label: {
+                        Label("Community Data", systemImage: "arrow.down.circle")
+                    }
+
                     NavigationLink { } label: {
                         Label("Accounts", systemImage: "person")
                     }

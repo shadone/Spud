@@ -18,6 +18,7 @@ final class PreferencesViewModel {
     typealias OwnDependencies =
         HasAccountService &
         HasAppDatabase &
+        HasExplorerService &
         HasPreferencesService
     typealias NestedDependencies =
         HasVoid
@@ -36,6 +37,10 @@ final class PreferencesViewModel {
 
     private var appDatabase: AppDatabase? {
         dependencies?.own.appDatabase
+    }
+
+    private var explorerService: ExplorerServiceType? {
+        dependencies?.own.explorerService
     }
 
     /// The account these preferences apply to. Used to scope the blocked-list
@@ -114,6 +119,23 @@ final class PreferencesViewModel {
     var storageSize: String
     var storageFileUrl: URL
 
+    // MARK: Community directory (Explorer)
+
+    let allExplorerRefreshIntervals: [Preferences.ExplorerRefreshInterval] =
+        Preferences.ExplorerRefreshInterval.allCases
+
+    /// Whether the bundled community/instance directory auto-refreshes at launch.
+    var explorerAutoRefresh: Bool
+    /// How often it auto-refreshes when enabled.
+    var explorerRefreshInterval: Preferences.ExplorerRefreshInterval
+    /// When the directory was last successfully fetched from the network; nil
+    /// until the first refresh (the app ships with a bundled seed).
+    var communityDataLastUpdated: Date?
+    /// True while a manual "Update Now" fetch is in flight.
+    var isRefreshingCommunityData: Bool = false
+    /// Set when the most recent manual fetch failed (e.g. no connection).
+    var communityDataRefreshFailed: Bool = false
+
     /// Async sequence of URLs that the user tapped in the link-testing footer.
     /// The view controller drains this stream to open the URL through
     /// `AppService` honouring the current user preferences.
@@ -166,6 +188,10 @@ final class PreferencesViewModel {
             countStyle: .file
         )
         storageFileUrl = dependencies.appDatabase.storeURL ?? URL(fileURLWithPath: "/")
+
+        explorerAutoRefresh = dependencies.preferencesService.explorerAutoRefreshEnabled
+        explorerRefreshInterval = dependencies.preferencesService.explorerRefreshInterval
+        communityDataLastUpdated = dependencies.appDatabase.explorerLastFetchedAtSync()
 
         let (stream, continuation) = AsyncStream<URL>.makeStream()
         externalLinkRequested = stream
@@ -262,6 +288,18 @@ final class PreferencesViewModel {
                 self?.hideReadPostsMode = value
             }
         })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.explorerAutoRefreshEnabledStream {
+                self?.explorerAutoRefresh = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.explorerRefreshIntervalStream {
+                self?.explorerRefreshInterval = value
+            }
+        })
     }
 
     /// Preview-only init with seed values and no service dependencies.
@@ -293,6 +331,9 @@ final class PreferencesViewModel {
         commentSwipeActions = .defaultComments
         storageSize = "128 MB"
         storageFileUrl = URL(fileURLWithPath: "/tmp")
+        explorerAutoRefresh = true
+        explorerRefreshInterval = .daily
+        communityDataLastUpdated = nil
     }
 
     deinit {
@@ -432,5 +473,40 @@ final class PreferencesViewModel {
         commentSwipeActions = .defaultComments
         preferencesService?.commentSwipeActions = .defaultComments
         Haptics.tap()
+    }
+
+    // MARK: Community directory (Explorer)
+
+    func updateExplorerAutoRefresh(_ value: Bool) {
+        guard value != explorerAutoRefresh else { return }
+        explorerAutoRefresh = value
+        preferencesService?.explorerAutoRefreshEnabled = value
+    }
+
+    func updateExplorerRefreshInterval(_ value: Preferences.ExplorerRefreshInterval) {
+        guard value != explorerRefreshInterval else { return }
+        explorerRefreshInterval = value
+        preferencesService?.explorerRefreshInterval = value
+    }
+
+    /// Force a full network refresh of the community/instance directory. Updates
+    /// the "last updated" stamp on success; flags a failure otherwise. Ignored
+    /// while a refresh is already running.
+    func refreshCommunityDataNow() {
+        guard let explorerService, !isRefreshingCommunityData else { return }
+        isRefreshingCommunityData = true
+        communityDataRefreshFailed = false
+        Haptics.tap()
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { isRefreshingCommunityData = false }
+            do {
+                try await explorerService.refreshAll()
+                communityDataLastUpdated = appDatabase?.explorerLastFetchedAtSync()
+            } catch {
+                communityDataRefreshFailed = true
+            }
+        }
     }
 }

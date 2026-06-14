@@ -90,6 +90,19 @@ protocol PreferencesServiceType: AnyObject {
     /// ``hideReadPosts`` is off.
     var hideReadPostsMode: HideReadPostsFilter.Mode { get set }
     var hideReadPostsModeStream: AsyncStream<HideReadPostsFilter.Mode> { get }
+
+    // MARK: Community directory (Explorer)
+
+    /// Whether the bundled community/instance directory is refreshed from the
+    /// network automatically at launch. Default `true`. When off, the directory
+    /// only updates via the manual "Update Now" control.
+    var explorerAutoRefreshEnabled: Bool { get set }
+    var explorerAutoRefreshEnabledStream: AsyncStream<Bool> { get }
+
+    /// How often the directory is auto-refreshed when ``explorerAutoRefreshEnabled``
+    /// is on. Default `.daily`.
+    var explorerRefreshInterval: Preferences.ExplorerRefreshInterval { get set }
+    var explorerRefreshIntervalStream: AsyncStream<Preferences.ExplorerRefreshInterval> { get }
 }
 
 @MainActor
@@ -209,5 +222,21 @@ class PreferencesService: PreferencesServiceType {
 
     var hideReadPostsModeStream: AsyncStream<HideReadPostsFilter.Mode> {
         $hideReadPostsMode
+    }
+
+    // MARK: Community directory (Explorer)
+
+    @UserDefaultsBacked(key: "explorerAutoRefreshEnabled")
+    var explorerAutoRefreshEnabled: Bool = true
+
+    var explorerAutoRefreshEnabledStream: AsyncStream<Bool> {
+        $explorerAutoRefreshEnabled
+    }
+
+    @UserDefaultsBacked(key: "explorerRefreshInterval")
+    var explorerRefreshInterval: Preferences.ExplorerRefreshInterval = .daily
+
+    var explorerRefreshIntervalStream: AsyncStream<Preferences.ExplorerRefreshInterval> {
+        $explorerRefreshInterval
     }
 }

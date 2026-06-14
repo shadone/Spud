@@ -68,6 +68,9 @@ struct DependencyContainer:
     func start() {
         siteService.startService()
         schedulerService.startService()
-        explorerService.startService()
+        explorerService.startService(
+            autoRefresh: preferencesService.explorerAutoRefreshEnabled,
+            maxAge: preferencesService.explorerRefreshInterval.timeInterval
+        )
     }
 }
