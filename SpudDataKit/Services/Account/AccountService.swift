@@ -74,6 +74,11 @@ public protocol AccountServiceType: AnyObject {
     /// launch. Bootstraps a signed-out default on first launch.
     func defaultAccountKeychainId() -> String
 
+    /// Returns the `accountKeychainId` of the current default / first non-service
+    /// account, or `nil` when none exists. Read-only: never creates an account.
+    /// `MainWindow` uses `nil` to decide to show onboarding instead of the tabs.
+    func currentDefaultAccountKeychainId() -> String?
+
     /// Whether the account is the signed-out placeholder for its site. Reads
     /// `AccountRecord.isSignedOutAccountType` synchronously.
     func isSignedOut(forAccountKeychainId keychainId: String) -> Bool
@@ -211,6 +216,22 @@ public class AccountService: AccountServiceType {
             logger.error("defaultAccountKeychainId GRDB read failed: \(error.localizedDescription, privacy: .public)")
         }
         return bootstrapDefaultKeychainId()
+    }
+
+    public func currentDefaultAccountKeychainId() -> String? {
+        assert(Thread.current.isMainThread)
+        do {
+            return try appDatabase.writer.read { db -> String? in
+                try AccountRecord
+                    .filter(Column("isServiceAccount") == false)
+                    .order(sql: "isDefault DESC, id ASC")
+                    .fetchOne(db)?
+                    .accountKeychainId
+            }
+        } catch {
+            logger.error("currentDefaultAccountKeychainId GRDB read failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 
     /// First-launch path. AppDatabase has no candidate account, so create a
