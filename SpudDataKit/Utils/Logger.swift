@@ -18,4 +18,5 @@ extension Logger {
     static let postContentDetectorService = Logger(subsystem: subsystem, category: "PostContentDetectorService")
     static let alertService = Logger(subsystem: subsystem, category: "AlertService")
     static let appDatabase = Logger(subsystem: subsystem, category: "AppDatabase")
+    static let explorerService = Logger(subsystem: subsystem, category: "ExplorerService")
 }
