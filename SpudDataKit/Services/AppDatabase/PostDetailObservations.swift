@@ -144,6 +144,46 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
     /// the parent comment id. Both nil for normal rows.
     public let moreChildCount: Int64?
     public let moreParentId: Int64?
+
+    public init(
+        id: Int64,
+        position: Int64,
+        depth: Int64,
+        serverCommentId: Int64?,
+        body: String?,
+        originalCommentUrl: String?,
+        score: Int64,
+        voteStatus: Int64?,
+        isSaved: Bool?,
+        isRemoved: Bool?,
+        isDistinguished: Bool?,
+        isDeleted: Bool?,
+        published: Date?,
+        creatorName: String?,
+        creatorPersonId: Int64?,
+        creatorInstanceActorId: String?,
+        moreChildCount: Int64?,
+        moreParentId: Int64?
+    ) {
+        self.id = id
+        self.position = position
+        self.depth = depth
+        self.serverCommentId = serverCommentId
+        self.body = body
+        self.originalCommentUrl = originalCommentUrl
+        self.score = score
+        self.voteStatus = voteStatus
+        self.isSaved = isSaved
+        self.isRemoved = isRemoved
+        self.isDistinguished = isDistinguished
+        self.isDeleted = isDeleted
+        self.published = published
+        self.creatorName = creatorName
+        self.creatorPersonId = creatorPersonId
+        self.creatorInstanceActorId = creatorInstanceActorId
+        self.moreChildCount = moreChildCount
+        self.moreParentId = moreParentId
+    }
 }
 
 public extension AppDatabase {
