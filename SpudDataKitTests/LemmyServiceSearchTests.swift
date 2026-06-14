@@ -143,9 +143,9 @@ final class LemmyServiceSearchTests: XCTestCase {
 
         XCTAssertTrue(transport.didSendSearch, "search should call the search api")
 
-        XCTAssertEqual(result.communities?.count, 1)
-        XCTAssertEqual(result.communities?.first?.community.id, community.community.id)
-        XCTAssertEqual(result.communities?.first?.community.name, "world")
+        XCTAssertEqual(result.communities.count, 1)
+        XCTAssertEqual(result.communities.first?.community.id, community.community.id)
+        XCTAssertEqual(result.communities.first?.community.name, "world")
 
         XCTAssertEqual(result.users.count, 1)
         XCTAssertEqual(result.users.first?.person.id, 7)
@@ -178,7 +178,7 @@ final class LemmyServiceSearchTests: XCTestCase {
         )
 
         XCTAssertTrue(transport.didSendSearch)
-        XCTAssertEqual(result.communities?.count, 0)
+        XCTAssertEqual(result.communities.count, 0)
         XCTAssertTrue(result.users.isEmpty)
         XCTAssertTrue(result.posts.isEmpty)
         XCTAssertTrue(result.comments.isEmpty)
