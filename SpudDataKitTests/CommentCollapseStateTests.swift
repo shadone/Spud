@@ -31,6 +31,7 @@ final class CommentCollapseStateTests: XCTestCase {
             isCreatorSiteBanned: more ? nil : false,
             isCreatorBot: more ? nil : false,
             isCreatorAccountDeleted: more ? nil : false,
+            removedReason: nil,
             published: more ? nil : Date(timeIntervalSince1970: 0),
             creatorName: more ? nil : "u\(id)",
             creatorPersonId: more ? nil : id,

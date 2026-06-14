@@ -614,6 +614,45 @@ public actor LemmyService: LemmyServiceType {
             sortType: sortType,
             comments: response.comments
         )
+
+        // A removed comment carries no reason in the comment object — fetch it
+        // from the public modlog, but only when there's something to explain.
+        if response.comments.contains(where: \.comment.removed) {
+            await mirrorCommentRemovalReasons(serverPostId: serverPostId)
+        }
+    }
+
+    /// Fetches moderator removal reasons for the post's removed comments from
+    /// the public modlog and mirrors them. Best-effort: a failure here must not
+    /// break comment loading.
+    private func mirrorCommentRemovalReasons(serverPostId: Components.Schemas.PostID) async {
+        do {
+            guard let (accountRowId, _) = try await accountSiteIds() else { return }
+
+            let modlog = try await api.getModlog(
+                postID: serverPostId,
+                type: .ModRemoveComment
+            )
+
+            var reasons: [Int64: String] = [:]
+            for view in modlog.removed_comments {
+                let entry = view.mod_remove_comment
+                guard entry.removed, let reason = entry.reason, !reason.isEmpty else { continue }
+                // The modlog is newest-first; keep the most recent removal reason.
+                let commentId = Int64(entry.comment_id)
+                if reasons[commentId] == nil {
+                    reasons[commentId] = reason
+                }
+            }
+
+            try await appDatabase.mirrorCommentRemovalReasons(
+                forServerPostId: Int64(serverPostId),
+                accountId: accountRowId,
+                reasonsByServerCommentId: reasons
+            )
+        } catch {
+            logger.error("Fetch comment removal reasons failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     private func mirrorCommentsToAppDatabase(

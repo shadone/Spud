@@ -59,6 +59,12 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         assertComment(viewModel: makeViewModel(row: row(isRemoved: true)))
     }
 
+    func test_removedByModerator_withReason() {
+        assertComment(viewModel: makeViewModel(
+            row: row(isRemoved: true, removedReason: "rule 2 · be civil")
+        ))
+    }
+
     func test_distinguished() {
         // A distinguished moderator statement: the MOD badge goes solid and the
         // row gets an accent wash, reading authoritative rather than a warning.
@@ -247,6 +253,7 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         isCreatorSiteBanned: Bool? = false,
         isCreatorBot: Bool? = false,
         isCreatorAccountDeleted: Bool? = false,
+        removedReason: String? = nil,
         creatorPersonId: Int64? = 1
     ) -> PostDetailCommentRow {
         PostDetailCommentRow(
@@ -269,6 +276,7 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
             isCreatorSiteBanned: isCreatorSiteBanned,
             isCreatorBot: isCreatorBot,
             isCreatorAccountDeleted: isCreatorAccountDeleted,
+            removedReason: removedReason,
             published: Date(timeIntervalSinceNow: -3 * 3600),
             creatorName: "ansel",
             creatorPersonId: creatorPersonId,

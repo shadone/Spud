@@ -204,9 +204,14 @@ struct PostDetailCommentViewModel {
                 bodyFont: bodyFont
             )
         } else if isRemoved {
+            let removedBase = NSLocalizedString("Removed by moderator", comment: "Placeholder for a comment a moderator removed")
+            let removedText: String = {
+                guard let reason = row.removedReason, !reason.isEmpty else { return removedBase }
+                return "\(removedBase) · \(reason)"
+            }()
             body = Self.placeholder(
                 symbolName: "trash.slash",
-                text: NSLocalizedString("Removed by moderator", comment: "Placeholder for a comment a moderator removed"),
+                text: removedText,
                 tint: .systemOrange,
                 bodyFont: bodyFont
             )

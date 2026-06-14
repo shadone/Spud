@@ -455,6 +455,14 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v13_commentRemovedReason") { db in
+            // The moderator's removal reason, mirrored from the public modlog
+            // (ModRemoveComment) since the comment object itself doesn't carry it.
+            try db.alter(table: "comment") { t in
+                t.add(column: "removedReason", .text)
+            }
+        }
+
         return migrator
     }
 }

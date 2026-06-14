@@ -31,6 +31,9 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
     public var isCreatorAdmin: Bool
     public var isCreatorBannedFromCommunity: Bool
     public var isCreatorBlocked: Bool
+    /// Moderator's removal reason, mirrored from the public modlog. nil when the
+    /// comment isn't removed or the mod gave no reason.
+    public var removedReason: String?
     public var originalCommentUrl: String?
     public var published: Date
     public var createdAt: Date
@@ -54,6 +57,7 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
         isCreatorAdmin: Bool = false,
         isCreatorBannedFromCommunity: Bool = false,
         isCreatorBlocked: Bool = false,
+        removedReason: String? = nil,
         originalCommentUrl: String? = nil,
         published: Date,
         createdAt: Date = Date(),
@@ -76,6 +80,7 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
         self.isCreatorAdmin = isCreatorAdmin
         self.isCreatorBannedFromCommunity = isCreatorBannedFromCommunity
         self.isCreatorBlocked = isCreatorBlocked
+        self.removedReason = removedReason
         self.originalCommentUrl = originalCommentUrl
         self.published = published
         self.createdAt = createdAt

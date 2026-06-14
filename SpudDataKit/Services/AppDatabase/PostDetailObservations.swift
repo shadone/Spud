@@ -155,6 +155,9 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
     public let isCreatorSiteBanned: Bool?
     public let isCreatorBot: Bool?
     public let isCreatorAccountDeleted: Bool?
+    /// Moderator removal reason (mirrored from the modlog), shown on a
+    /// removed comment's placeholder. nil when absent.
+    public let removedReason: String?
     public let published: Date?
     public let creatorName: String?
     public let creatorPersonId: Int64?
@@ -184,6 +187,7 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
         isCreatorSiteBanned: Bool?,
         isCreatorBot: Bool?,
         isCreatorAccountDeleted: Bool?,
+        removedReason: String?,
         published: Date?,
         creatorName: String?,
         creatorPersonId: Int64?,
@@ -210,6 +214,7 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
         self.isCreatorSiteBanned = isCreatorSiteBanned
         self.isCreatorBot = isCreatorBot
         self.isCreatorAccountDeleted = isCreatorAccountDeleted
+        self.removedReason = removedReason
         self.published = published
         self.creatorName = creatorName
         self.creatorPersonId = creatorPersonId
@@ -363,6 +368,7 @@ public extension AppDatabase {
                             comment.isCreatorAdmin         AS isCreatorAdmin,
                             comment.isCreatorBannedFromCommunity AS isCreatorBannedFromCommunity,
                             comment.isCreatorBlocked       AS isCreatorBlocked,
+                            comment.removedReason          AS removedReason,
                             comment.published              AS published,
                             creator.name                   AS creatorName,
                             creator.displayName            AS creatorDisplayName,
@@ -403,6 +409,7 @@ public extension AppDatabase {
                         isCreatorSiteBanned: row["creatorIsSiteBanned"],
                         isCreatorBot: row["creatorIsBot"],
                         isCreatorAccountDeleted: row["creatorAccountDeleted"],
+                        removedReason: row["removedReason"],
                         published: row["published"],
                         creatorName: rawCreatorName,
                         creatorPersonId: row["creatorPersonId"],

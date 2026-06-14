@@ -11,11 +11,11 @@ import OSLog
 
 private let logger = Logger.appDatabase
 
-extension AppDatabase {
+public extension AppDatabase {
     /// Upserts a single comment row tied to its post. Used by vote/edit flows
     /// where we receive a fresh CommentView for one comment without rebuilding
     /// the whole tree. Skips silently if the post is not yet in AppDatabase.
-    public func upsertComment(
+    func upsertComment(
         from view: Components.Schemas.CommentView,
         accountId: Int64,
         siteId: Int64
@@ -45,7 +45,7 @@ extension AppDatabase {
     ///
     /// Skips the operation if the post is not yet in AppDatabase — the next
     /// `fetchFeed` or `fetchPostInfo` will land it first.
-    public func upsertComments(
+    func upsertComments(
         forServerPostId serverPostId: Int64,
         accountId: Int64,
         siteId: Int64,
@@ -117,6 +117,34 @@ extension AppDatabase {
                     try placeholder.insert(db)
                     elementPosition += 1
                 }
+            }
+        }
+    }
+
+    /// Sets the moderator removal reason (mirrored from the public modlog) on
+    /// the comments identified by their server comment id, under
+    /// `(accountId, serverPostId)`. Skips silently if the post is not mirrored.
+    func mirrorCommentRemovalReasons(
+        forServerPostId serverPostId: Int64,
+        accountId: Int64,
+        reasonsByServerCommentId: [Int64: String]
+    ) async throws {
+        guard !reasonsByServerCommentId.isEmpty else { return }
+
+        try await writer.write { db in
+            guard
+                let postRowId = try PostRecord
+                .filter(Column("accountId") == accountId)
+                .filter(Column("postId") == serverPostId)
+                .fetchOne(db)?
+                .id
+            else { return }
+
+            for (serverCommentId, reason) in reasonsByServerCommentId {
+                try db.execute(
+                    sql: "UPDATE comment SET removedReason = ? WHERE postId = ? AND localCommentId = ?",
+                    arguments: [reason, postRowId, serverCommentId]
+                )
             }
         }
     }
