@@ -228,6 +228,7 @@ targets:
         SWIFT_VERSION: "5.0"
     dependencies:
       - target: Spud
+      - target: SpudDataKit
       - package: SnapshotTesting
       - package: Down
 
