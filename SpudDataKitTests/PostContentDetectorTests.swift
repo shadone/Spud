@@ -24,7 +24,7 @@ final class PostContentDetectorTests: XCTestCase {
     }
 
     func test_imageExtensions_areDetectedAsStillImages() {
-        for ext in ["jpg", "jpeg", "png", "webp"] {
+        for ext in ["jpg", "jpeg", "png", "webp", "avif"] {
             let type = contentType(url: "https://example.test/pic.\(ext)")
             guard case let .image(image) = type else {
                 return XCTFail("\(ext) should be an image, got \(type)")
@@ -39,6 +39,18 @@ final class PostContentDetectorTests: XCTestCase {
             return XCTFail("gif should be an image, got \(type)")
         }
         XCTAssertTrue(image.isAnimated, "gif should be flagged animated")
+    }
+
+    func test_avifPost_isDetectedAsStillImage() {
+        // pict-rs on some instances (e.g. lemmy.zip) transcodes uploads to AVIF,
+        // so the post url ends in .avif. iOS decodes AVIF natively, so it must
+        // render inline as an image instead of falling through to an external
+        // link. Real-world case: lemmy.zip/post/65731968.
+        let type = contentType(url: "https://lemmy.zip/pictrs/image/717b5470-fd41-4aba-b0b3-8b7620003bfc.avif")
+        guard case let .image(image) = type else {
+            return XCTFail("an avif url should be an image, got \(type)")
+        }
+        XCTAssertFalse(image.isAnimated, "avif is treated as a still image")
     }
 
     func test_nonImageUrl_isExternalLink() {

@@ -63,6 +63,7 @@ public class PostContentDetectorService: PostContentDetectorServiceType {
             ".jpeg",
             ".png",
             ".webp",
+            ".avif",
             ".gif",
         ].first { substr in
             path.endsWith(substr)
