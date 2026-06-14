@@ -23,6 +23,24 @@ struct SearchPostResult: Hashable, Identifiable {
         serverPostId
     }
 
+    init(
+        serverPostId: Components.Schemas.PostID,
+        title: String,
+        communityName: String,
+        score: Int64,
+        numberOfComments: Int64,
+        published: Date,
+        thumbnailUrl: URL?
+    ) {
+        self.serverPostId = serverPostId
+        self.title = title
+        self.communityName = communityName
+        self.score = score
+        self.numberOfComments = numberOfComments
+        self.published = published
+        self.thumbnailUrl = thumbnailUrl
+    }
+
     init(view: Components.Schemas.PostView) {
         serverPostId = view.post.id
         title = view.post.name
@@ -52,6 +70,24 @@ struct SearchCommunityResult: Hashable, Identifiable {
 
     var isSubscribed: Bool {
         subscribed == .Subscribed
+    }
+
+    init(
+        serverCommunityId: Components.Schemas.CommunityID,
+        name: String,
+        qualifiedName: String,
+        instance: InstanceActorId,
+        subscribersText: String,
+        iconUrl: URL?,
+        subscribed: Components.Schemas.SubscribedType
+    ) {
+        self.serverCommunityId = serverCommunityId
+        self.name = name
+        self.qualifiedName = qualifiedName
+        self.instance = instance
+        self.subscribersText = subscribersText
+        self.iconUrl = iconUrl
+        self.subscribed = subscribed
     }
 
     init?(view: Components.Schemas.CommunityView) {
@@ -85,6 +121,20 @@ struct SearchUserResult: Hashable, Identifiable {
         serverPersonId
     }
 
+    init(
+        serverPersonId: Components.Schemas.PersonID,
+        name: String,
+        qualifiedName: String,
+        instance: InstanceActorId,
+        avatarUrl: URL?
+    ) {
+        self.serverPersonId = serverPersonId
+        self.name = name
+        self.qualifiedName = qualifiedName
+        self.instance = instance
+        self.avatarUrl = avatarUrl
+    }
+
     init?(view: Components.Schemas.PersonView) {
         let person = view.person
         guard
@@ -114,6 +164,24 @@ struct SearchCommentResult: Hashable, Identifiable {
 
     var id: Components.Schemas.CommentID {
         serverCommentId
+    }
+
+    init(
+        serverCommentId: Components.Schemas.CommentID,
+        serverPostId: Components.Schemas.PostID,
+        content: String,
+        postTitle: String,
+        creatorName: String,
+        score: Int64,
+        published: Date
+    ) {
+        self.serverCommentId = serverCommentId
+        self.serverPostId = serverPostId
+        self.content = content
+        self.postTitle = postTitle
+        self.creatorName = creatorName
+        self.score = score
+        self.published = published
     }
 
     init(view: Components.Schemas.CommentView) {
