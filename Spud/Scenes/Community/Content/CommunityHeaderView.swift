@@ -81,6 +81,30 @@ final class CommunityHeaderView: UIView {
         return label
     }()
 
+    /// Network-activity line (weekly / monthly active users) from the Explorer
+    /// directory. Hidden when the community isn't in the directory.
+    private lazy var vitalityLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.font = .preferredFont(forTextStyle: .footnote)
+        label.adjustsFontForContentSizeCategory = true
+        label.textColor = .secondaryLabel
+        label.numberOfLines = 1
+        label.isHidden = true
+        return label
+    }()
+
+    /// Stacks the subscriber/post counts above the vitality line so the latter
+    /// collapses cleanly when there's no Explorer data.
+    private lazy var metaStack: UIStackView = {
+        let stack = UIStackView(arrangedSubviews: [statsLabel, vitalityLabel])
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.axis = .vertical
+        stack.spacing = 3
+        stack.alignment = .leading
+        return stack
+    }()
+
     private lazy var descriptionLabel: LinkLabel = {
         let label = LinkLabel()
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -135,7 +159,7 @@ final class CommunityHeaderView: UIView {
         addSubview(iconImageView)
         addSubview(titleLabel)
         addSubview(handleLabel)
-        addSubview(statsLabel)
+        addSubview(metaStack)
         addSubview(subscribeButton)
         addSubview(descriptionLabel)
         addSubview(separator)
@@ -164,11 +188,11 @@ final class CommunityHeaderView: UIView {
             handleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
             handleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
 
-            statsLabel.topAnchor.constraint(equalTo: handleLabel.bottomAnchor, constant: 6),
-            statsLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
-            statsLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
+            metaStack.topAnchor.constraint(equalTo: handleLabel.bottomAnchor, constant: 6),
+            metaStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
+            metaStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
 
-            descriptionLabel.topAnchor.constraint(equalTo: statsLabel.bottomAnchor, constant: 12),
+            descriptionLabel.topAnchor.constraint(equalTo: metaStack.bottomAnchor, constant: 12),
             descriptionLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
             descriptionLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
 
@@ -187,6 +211,7 @@ final class CommunityHeaderView: UIView {
         qualifiedName: String,
         subscribersText: String,
         postsText: String,
+        vitalityText: String?,
         descriptionMarkdown: String?,
         subscribed: CommunitySubscribedState
     ) {
@@ -202,6 +227,9 @@ final class CommunityHeaderView: UIView {
             postsText
         )
         statsLabel.text = "\(subscribers)  ·  \(posts)"
+
+        vitalityLabel.text = vitalityText
+        vitalityLabel.isHidden = vitalityText == nil
 
         configureDescription(markdown: descriptionMarkdown)
         configureSubscribeButton(subscribed: subscribed)
