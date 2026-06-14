@@ -181,7 +181,7 @@ public class AccountService: AccountServiceType {
 
     public convenience init(appDatabase: AppDatabase) {
         self.init(appDatabase: appDatabase) { instanceUrl, credential in
-            LemmyApi(instanceUrl: instanceUrl, credential: credential)
+            LemmyApi(instanceUrl: instanceUrl, credential: credential, userAgent: AppUserAgent.value)
         }
     }
 

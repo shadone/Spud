@@ -39,18 +39,6 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
 
     let session: URLSession
 
-    /// User-Agent sent on every image request.
-    ///
-    /// iOS `URLSession`'s default User-Agent contains a `CFNetwork/...` token,
-    /// which some Lemmy instances' nginx denylist outright — returning a plain
-    /// `403` for every image request (pict-rs and `image_proxy` urls alike).
-    /// Sending a plain app User-Agent avoids that filter so those images load.
-    static let userAgent: String = {
-        let version = Bundle.main
-            .object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
-        return "Spud/\(version)"
-    }()
-
     let alertService: AlertServiceType
 
     // MARK: Functions
@@ -58,9 +46,12 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     public init(alertService: AlertServiceType) {
         self.alertService = alertService
 
+        // Send a plain `Spud/<version>` User-Agent instead of iOS' default,
+        // whose `CFNetwork/...` token some Lemmy instances' nginx denylist
+        // (returning 403 for every pict-rs / image_proxy url). See AppUserAgent.
         let configuration = URLSessionConfiguration.default
         var headers = configuration.httpAdditionalHeaders ?? [:]
-        headers["User-Agent"] = Self.userAgent
+        headers["User-Agent"] = AppUserAgent.value
         configuration.httpAdditionalHeaders = headers
         session = URLSession(configuration: configuration)
 
