@@ -179,6 +179,11 @@ extension AppDatabase {
         record.isDistinguished = view.comment.distinguished
         record.isDeleted = view.comment.deleted
 
+        record.isCreatorModerator = view.creator_is_moderator
+        record.isCreatorAdmin = view.creator_is_admin
+        record.isCreatorBannedFromCommunity = view.creator_banned_from_community
+        record.isCreatorBlocked = view.creator_blocked
+
         switch view.my_vote {
         case 1: record.voteStatus = 1
         case -1: record.voteStatus = 0

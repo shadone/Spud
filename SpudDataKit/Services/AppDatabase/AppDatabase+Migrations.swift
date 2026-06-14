@@ -444,6 +444,17 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v12_commentCreatorContext") { db in
+            // Per-comment creator context from the Lemmy `CommentView`. Drives
+            // the MOD / ADMIN / BANNED-here badges and the blocked-user fold.
+            try db.alter(table: "comment") { t in
+                t.add(column: "isCreatorModerator", .boolean).notNull().defaults(to: false)
+                t.add(column: "isCreatorAdmin", .boolean).notNull().defaults(to: false)
+                t.add(column: "isCreatorBannedFromCommunity", .boolean).notNull().defaults(to: false)
+                t.add(column: "isCreatorBlocked", .boolean).notNull().defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }

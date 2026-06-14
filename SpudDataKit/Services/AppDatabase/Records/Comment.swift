@@ -25,6 +25,12 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
     public var isRemoved: Bool
     public var isDistinguished: Bool
     public var isDeleted: Bool
+    /// Per-comment creator context carried by the Lemmy `CommentView`. Drives
+    /// the MOD / ADMIN / BANNED-here badges and the blocked-user fold.
+    public var isCreatorModerator: Bool
+    public var isCreatorAdmin: Bool
+    public var isCreatorBannedFromCommunity: Bool
+    public var isCreatorBlocked: Bool
     public var originalCommentUrl: String?
     public var published: Date
     public var createdAt: Date
@@ -44,6 +50,10 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
         isRemoved: Bool = false,
         isDistinguished: Bool = false,
         isDeleted: Bool = false,
+        isCreatorModerator: Bool = false,
+        isCreatorAdmin: Bool = false,
+        isCreatorBannedFromCommunity: Bool = false,
+        isCreatorBlocked: Bool = false,
         originalCommentUrl: String? = nil,
         published: Date,
         createdAt: Date = Date(),
@@ -62,6 +72,10 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
         self.isRemoved = isRemoved
         self.isDistinguished = isDistinguished
         self.isDeleted = isDeleted
+        self.isCreatorModerator = isCreatorModerator
+        self.isCreatorAdmin = isCreatorAdmin
+        self.isCreatorBannedFromCommunity = isCreatorBannedFromCommunity
+        self.isCreatorBlocked = isCreatorBlocked
         self.originalCommentUrl = originalCommentUrl
         self.published = published
         self.createdAt = createdAt

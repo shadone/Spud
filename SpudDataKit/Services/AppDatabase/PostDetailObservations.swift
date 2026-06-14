@@ -145,6 +145,16 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
     public let isRemoved: Bool?
     public let isDistinguished: Bool?
     public let isDeleted: Bool?
+    /// Per-comment creator context (`CommentView`) and creator-account flags
+    /// (`Person`) driving the badge row and name treatment. nil for "load
+    /// more" placeholders.
+    public let isCreatorModerator: Bool?
+    public let isCreatorAdmin: Bool?
+    public let isCreatorBannedFromCommunity: Bool?
+    public let isCreatorBlocked: Bool?
+    public let isCreatorSiteBanned: Bool?
+    public let isCreatorBot: Bool?
+    public let isCreatorAccountDeleted: Bool?
     public let published: Date?
     public let creatorName: String?
     public let creatorPersonId: Int64?
@@ -167,6 +177,13 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
         isRemoved: Bool?,
         isDistinguished: Bool?,
         isDeleted: Bool?,
+        isCreatorModerator: Bool?,
+        isCreatorAdmin: Bool?,
+        isCreatorBannedFromCommunity: Bool?,
+        isCreatorBlocked: Bool?,
+        isCreatorSiteBanned: Bool?,
+        isCreatorBot: Bool?,
+        isCreatorAccountDeleted: Bool?,
         published: Date?,
         creatorName: String?,
         creatorPersonId: Int64?,
@@ -186,6 +203,13 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
         self.isRemoved = isRemoved
         self.isDistinguished = isDistinguished
         self.isDeleted = isDeleted
+        self.isCreatorModerator = isCreatorModerator
+        self.isCreatorAdmin = isCreatorAdmin
+        self.isCreatorBannedFromCommunity = isCreatorBannedFromCommunity
+        self.isCreatorBlocked = isCreatorBlocked
+        self.isCreatorSiteBanned = isCreatorSiteBanned
+        self.isCreatorBot = isCreatorBot
+        self.isCreatorAccountDeleted = isCreatorAccountDeleted
         self.published = published
         self.creatorName = creatorName
         self.creatorPersonId = creatorPersonId
@@ -335,10 +359,17 @@ public extension AppDatabase {
                             comment.isRemoved              AS isRemoved,
                             comment.isDistinguished        AS isDistinguished,
                             comment.isDeleted              AS isDeleted,
+                            comment.isCreatorModerator     AS isCreatorModerator,
+                            comment.isCreatorAdmin         AS isCreatorAdmin,
+                            comment.isCreatorBannedFromCommunity AS isCreatorBannedFromCommunity,
+                            comment.isCreatorBlocked       AS isCreatorBlocked,
                             comment.published              AS published,
                             creator.name                   AS creatorName,
                             creator.displayName            AS creatorDisplayName,
                             creator.personId               AS creatorPersonId,
+                            creator.isBanned               AS creatorIsSiteBanned,
+                            creator.isBotAccount           AS creatorIsBot,
+                            creator.isDeleted              AS creatorAccountDeleted,
                             creatorInstance.actorId        AS creatorInstanceActorId
                         FROM commentElement
                         LEFT JOIN comment ON comment.id = commentElement.commentId
@@ -365,6 +396,13 @@ public extension AppDatabase {
                         isRemoved: row["isRemoved"],
                         isDistinguished: row["isDistinguished"],
                         isDeleted: row["isDeleted"],
+                        isCreatorModerator: row["isCreatorModerator"],
+                        isCreatorAdmin: row["isCreatorAdmin"],
+                        isCreatorBannedFromCommunity: row["isCreatorBannedFromCommunity"],
+                        isCreatorBlocked: row["isCreatorBlocked"],
+                        isCreatorSiteBanned: row["creatorIsSiteBanned"],
+                        isCreatorBot: row["creatorIsBot"],
+                        isCreatorAccountDeleted: row["creatorAccountDeleted"],
                         published: row["published"],
                         creatorName: rawCreatorName,
                         creatorPersonId: row["creatorPersonId"],
