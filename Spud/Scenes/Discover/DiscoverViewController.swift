@@ -24,7 +24,8 @@ class DiscoverViewController: UIViewController {
         HasAppDatabase &
         HasImageService
     typealias NestedDependencies =
-        CommunityOrLoadingViewController.Dependencies
+        CommunityOrLoadingViewController.Dependencies &
+        InstanceDetailViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
@@ -148,13 +149,31 @@ class DiscoverViewController: UIViewController {
             viewModel: viewModel,
             host: summary.host,
             communities: viewModel.communities(onInstance: summary.host),
-            accent: accent
+            instanceInfo: viewModel.instanceInfo(forHost: summary.host),
+            accent: accent,
+            onOpenDetail: { [weak self] in self?.openInstanceDetail(host: summary.host) }
         )
         .environment(\.imageService, imageService)
         let hosting = UIHostingController(rootView: view)
-        hosting.navigationItem.title = summary.host
+        // The host is shown prominently in the instance card, so the nav title is
+        // the generic "Browse by instance" (matching the Discover design), not the
+        // host repeated a third time.
+        hosting.navigationItem.title = "Browse by instance"
         hosting.navigationItem.largeTitleDisplayMode = .never
         navigationController?.pushViewController(hosting, animated: true)
+    }
+
+    /// Push the richer "before you commit" instance detail screen (health band,
+    /// stat grid, federation, sign-up actions) for `host`, reached by tapping the
+    /// instance lens card. No-op when the directory has no record for the host —
+    /// the lens card only offers the tap when its instance info resolved.
+    private func openInstanceDetail(host: String) {
+        guard let record = dependencies.own.appDatabase.explorerInstanceSync(baseurl: host) else {
+            logger.error("Discover: no Explorer instance record for \(host, privacy: .public)")
+            return
+        }
+        let detail = InstanceDetailViewController(record: record, dependencies: dependencies.nested)
+        navigationController?.pushViewController(detail, animated: true)
     }
 
     private func openCommunity(_ row: CommunityListRow) {

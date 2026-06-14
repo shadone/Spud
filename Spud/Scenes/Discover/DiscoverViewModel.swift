@@ -109,6 +109,10 @@ final class DiscoverViewModel {
 
     @ObservationIgnored
     private var allRows: [CommunityListRow] = []
+    /// Lazily-loaded snapshot of the Explorer instance directory, cached so the
+    /// instance info card doesn't re-read all instances on every drill-in.
+    @ObservationIgnored
+    private var explorerSiteRows: [SiteListRow]?
     @ObservationIgnored
     private let onOpenCommunity: (CommunityListRow) -> Void
     @ObservationIgnored
@@ -205,6 +209,19 @@ final class DiscoverViewModel {
     /// directory sort. Used to populate the instance browse screen.
     func communities(onInstance host: String) -> [CommunityListRow] {
         ExplorerCommunityDirectory.communities(onInstance: host, in: allRows, sort: sort)
+    }
+
+    /// Instance-level directory metadata (members, description, trust score) for
+    /// `host`, when the Explorer instance directory has a record for it. Backs the
+    /// instance info card atop the browse screen. Returns nil when the host isn't
+    /// in the instance directory — the community and instance directories are
+    /// separate datasets, so a host can appear in community rows without one.
+    /// The full instance directory is read once, lazily, and cached.
+    func instanceInfo(forHost host: String) -> SiteListRow? {
+        if explorerSiteRows == nil {
+            explorerSiteRows = dependencies.appDatabase.explorerSiteListRowsSync()
+        }
+        return explorerSiteRows?.first { $0.hostname.caseInsensitiveCompare(host) == .orderedSame }
     }
 
     /// Present the same-name compare sheet for `row`, listing every server that

@@ -333,6 +333,13 @@ struct DiscoverCommunityRow: View {
     var followState: CommunityFollowState = .idle
     /// When set, a trailing Follow control replaces the disclosure chevron.
     var onFollow: (() -> Void)?
+    /// Line limit for the handle subtitle. `1` truncates (Discover home / pack
+    /// rows stay compact); pass `nil` to let it wrap, as the instance drill-in does.
+    var subtitleLineLimit: Int? = 1
+    /// When `false`, the handle drops the `c/` prefix and `@host` suffix, leaving the
+    /// bare community name — used by the instance drill-in, where every row shares the
+    /// same host shown in the header. Defaults to the fully qualified `c/name@host`.
+    var showsQualifiedHandle: Bool = true
 
     var body: some View {
         HStack(spacing: 12) {
@@ -350,7 +357,8 @@ struct DiscoverCommunityRow: View {
                 Text(handle)
                     .font(.caption)
                     .foregroundStyle(Color(.tertiaryLabel))
-                    .lineLimit(1)
+                    .lineLimit(subtitleLineLimit)
+                    .fixedSize(horizontal: false, vertical: true)
                 if row.alsoOnServerCount > 0 {
                     alsoOnBadge
                 }
@@ -383,7 +391,8 @@ struct DiscoverCommunityRow: View {
     }
 
     private var handle: String {
-        "c/\(row.name)@\(row.instanceHost) · \(Self.compact(row.numberOfSubscribers)) · \(Self.compact(row.usersActiveWeek))/wk"
+        let lead = showsQualifiedHandle ? "c/\(row.name)@\(row.instanceHost)" : row.name
+        return "\(lead) · \(Self.compact(row.numberOfSubscribers)) · \(Self.compact(row.usersActiveWeek))/wk"
     }
 
     private var nsfwBadge: some View {
