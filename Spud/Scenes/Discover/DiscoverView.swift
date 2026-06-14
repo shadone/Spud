@@ -74,7 +74,9 @@ struct DiscoverView: View {
                         row: row,
                         accent: accent,
                         onTap: { viewModel.open(row) },
-                        onCompare: { viewModel.compare(row) }
+                        onCompare: { viewModel.compare(row) },
+                        followState: viewModel.followState(for: row),
+                        onFollow: { viewModel.follow(row) }
                     )
                     Divider().padding(.leading, 68)
                 }
@@ -163,9 +165,14 @@ struct DiscoverView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 11) {
                         ForEach(rows) { row in
-                            DiscoverTrendCard(row: row, accent: accent, momentum: momentum) {
-                                viewModel.open(row)
-                            }
+                            DiscoverTrendCard(
+                                row: row,
+                                accent: accent,
+                                momentum: momentum,
+                                onTap: { viewModel.open(row) },
+                                followState: viewModel.followState(for: row),
+                                onFollow: { viewModel.follow(row) }
+                            )
                         }
                     }
                     .padding(.horizontal, 16)
@@ -200,6 +207,10 @@ struct DiscoverCommunityRow: View {
     /// When set and the row collapses same-name variants, tapping the "also on N
     /// servers" badge opens the compare sheet instead of the community.
     var onCompare: (() -> Void)?
+    /// Inline Follow state; ignored unless `onFollow` is supplied.
+    var followState: CommunityFollowState = .idle
+    /// When set, a trailing Follow control replaces the disclosure chevron.
+    var onFollow: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -218,9 +229,13 @@ struct DiscoverCommunityRow: View {
                 }
             }
             Spacer(minLength: 0)
-            Image(systemName: "chevron.right")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Color(.tertiaryLabel))
+            if let onFollow {
+                FollowButton(state: followState, accent: accent, action: onFollow)
+            } else {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
@@ -279,47 +294,105 @@ struct DiscoverTrendCard: View {
     let accent: Color
     let momentum: Bool
     let onTap: () -> Void
+    /// Inline Follow state; ignored unless `onFollow` is supplied.
+    var followState: CommunityFollowState = .idle
+    /// When set, a Follow control is shown at the foot of the card.
+    var onFollow: (() -> Void)?
 
     var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 0) {
-                HStack {
-                    CommunityHueIcon(name: row.name, title: row.displayName, size: 42)
-                    Spacer(minLength: 0)
-                    if momentum {
-                        HStack(spacing: 3) {
-                            Image(systemName: "arrow.up.right")
-                                .font(.system(size: 9, weight: .bold))
-                            Text("active")
-                                .font(.system(size: 10, weight: .bold))
-                        }
-                        .foregroundStyle(accent)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(accent.opacity(0.12), in: Capsule())
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                CommunityHueIcon(name: row.name, title: row.displayName, size: 42)
+                Spacer(minLength: 0)
+                if momentum {
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 9, weight: .bold))
+                        Text("active")
+                            .font(.system(size: 10, weight: .bold))
                     }
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(accent.opacity(0.12), in: Capsule())
                 }
-                .padding(.bottom, 10)
-
-                Text(row.displayName)
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(Color(.label))
-                    .lineLimit(1)
-                Text("c/\(row.name)@\(row.instanceHost)")
-                    .font(.caption2)
-                    .foregroundStyle(Color(.tertiaryLabel))
-                    .lineLimit(1)
-                    .padding(.top, 2)
-                Text("\(DiscoverCommunityRow.compact(row.numberOfSubscribers)) · \(DiscoverCommunityRow.compact(row.usersActiveWeek))/wk")
-                    .font(.caption2)
-                    .foregroundStyle(Color(.secondaryLabel))
-                    .padding(.top, 7)
             }
-            .padding(13)
-            .frame(width: 178, alignment: .leading)
-            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+            .padding(.bottom, 10)
+
+            Text(row.displayName)
+                .font(.callout.weight(.semibold))
+                .foregroundStyle(Color(.label))
+                .lineLimit(1)
+            Text("c/\(row.name)@\(row.instanceHost)")
+                .font(.caption2)
+                .foregroundStyle(Color(.tertiaryLabel))
+                .lineLimit(1)
+                .padding(.top, 2)
+            Text("\(DiscoverCommunityRow.compact(row.numberOfSubscribers)) · \(DiscoverCommunityRow.compact(row.usersActiveWeek))/wk")
+                .font(.caption2)
+                .foregroundStyle(Color(.secondaryLabel))
+                .padding(.top, 7)
+
+            if let onFollow {
+                FollowButton(state: followState, accent: accent, action: onFollow)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 11)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(13)
+        .frame(width: 178, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .onTapGesture { onTap() }
+    }
+}
+
+// MARK: - Follow control
+
+/// Inline Follow pill used by the directory rows and rail cards. Reflects the
+/// view model's per-community ``CommunityFollowState`` and routes taps to the
+/// supplied action only while idle (in-flight and followed are non-interactive).
+struct FollowButton: View {
+    let state: CommunityFollowState
+    let accent: Color
+    let action: () -> Void
+
+    var body: some View {
+        content
+            .contentShape(Capsule())
+            .onTapGesture {
+                if state == .idle { action() }
+            }
+            .animation(.easeInOut(duration: 0.15), value: state)
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch state {
+        case .idle:
+            pill(text: "Follow", systemImage: "plus", filled: true)
+        case .inFlight:
+            ProgressView()
+                .controlSize(.small)
+                .tint(accent)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 6)
+        case .following:
+            pill(text: "Following", systemImage: "checkmark", filled: false)
+        }
+    }
+
+    private func pill(text: String, systemImage: String, filled: Bool) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .bold))
+            Text(text)
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(filled ? Color.white : accent)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(filled ? accent : accent.opacity(0.14), in: Capsule())
     }
 }
 

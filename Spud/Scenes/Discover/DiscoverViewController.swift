@@ -20,15 +20,12 @@ private let logger = Logger.app
 class DiscoverViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
+        HasAlertService &
         HasAppDatabase
     typealias NestedDependencies =
         CommunityOrLoadingViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
-
-    var appDatabase: AppDatabase {
-        dependencies.own.appDatabase
-    }
 
     // MARK: Private
 
@@ -48,13 +45,22 @@ class DiscoverViewController: UIViewController {
         super.init(nibName: nil, bundle: nil)
 
         viewModel = DiscoverViewModel(
-            appDatabase: appDatabase,
+            accountKeychainId: accountKeychainId,
             isSignedIn: isSignedIn,
+            dependencies: dependencies,
             onOpenCommunity: { [weak self] row in
                 self?.openCommunity(row)
             },
             onOpenPack: { [weak self] pack in
                 self?.openPack(pack)
+            },
+            onRequestSignIn: { [weak self] in
+                self?.presentSignInGate(
+                    title: NSLocalizedString(
+                        "Sign in to follow",
+                        comment: "Sign-in gate title when a signed-out user taps Follow in Discover"
+                    )
+                )
             }
         )
 
