@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import LemmyKit
 import Observation
 import OSLog
 import SpudDataKit
@@ -20,6 +21,15 @@ enum CommunityFollowState: Equatable {
     case idle
     case inFlight
     case following
+}
+
+/// State of the optional "search the live network" step, offered while the user
+/// is searching so communities missing from the bundled directory are findable.
+enum NetworkSearchPhase: Equatable {
+    case idle
+    case searching
+    case loaded
+    case failed
 }
 
 /// View model for the Discover (Community Explorer) screen. Observes the whole
@@ -48,7 +58,12 @@ final class DiscoverViewModel {
 
     /// Free-text filter from the nav-bar search controller.
     var searchText: String = "" {
-        didSet { recomputeDirectory() }
+        didSet {
+            recomputeDirectory()
+            // A new query invalidates any prior network search.
+            networkSearchPhase = .idle
+            networkResults = []
+        }
     }
 
     /// Sort applied to the "All communities" directory.
@@ -74,6 +89,12 @@ final class DiscoverViewModel {
 
     /// When set, the same-name compare sheet is presented.
     var compareTarget: CompareTarget?
+
+    /// Live Lemmy community search results (deduped against the local directory),
+    /// shown under the local matches when the user runs a network search.
+    private(set) var networkResults: [CommunityListRow] = []
+    /// Progress of the optional network search for the current query.
+    private(set) var networkSearchPhase: NetworkSearchPhase = .idle
 
     /// Row ids with a follow/unfollow request in flight (shows the spinner).
     private(set) var inFlightRowIds: Set<Int64> = []
@@ -269,6 +290,41 @@ final class DiscoverViewModel {
                 recomputeBecauseYouFollow()
             } catch {
                 alertService.handle(error, for: .setSubscribed)
+            }
+        }
+    }
+
+    /// Search the live Lemmy network for communities matching the current query,
+    /// mapping results into directory rows and dropping any already shown from the
+    /// bundled directory (and NSFW unless the account allows it).
+    func searchNetwork() {
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty, networkSearchPhase != .searching else { return }
+        networkSearchPhase = .searching
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let lemmyService = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+                let response = try await lemmyService.search(
+                    query: query,
+                    type: .Communities,
+                    sort: .TopAll,
+                    listingType: .All,
+                    page: 1
+                )
+                if Task.isCancelled { return }
+                // Drop stale results if the query changed while we were waiting.
+                guard searchText.trimmingCharacters(in: .whitespaces) == query else { return }
+
+                let localUrls = Set(directory.map(\.communityUrl))
+                networkResults = response.communities
+                    .compactMap(CommunityListRow.init(searchView:))
+                    .filter { !localUrls.contains($0.communityUrl) && (showNsfw || !$0.isNsfw) }
+                networkSearchPhase = .loaded
+            } catch {
+                networkSearchPhase = .failed
+                alertService.handle(error, for: .search)
             }
         }
     }

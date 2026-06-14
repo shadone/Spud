@@ -104,9 +104,89 @@ struct DiscoverView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 40)
                 }
+
+                if viewModel.isSearching {
+                    networkSearchSection
+                }
             }
             .padding(.bottom, 24)
         }
+    }
+
+    @ViewBuilder
+    private var networkSearchSection: some View {
+        switch viewModel.networkSearchPhase {
+        case .idle:
+            Button { viewModel.searchNetwork() } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "globe")
+                    Text("Search the network for “\(viewModel.searchText.trimmingCharacters(in: .whitespaces))”")
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(accent)
+                .padding(14)
+                .background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+
+        case .searching:
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Searching the network…")
+                    .font(.subheadline)
+                    .foregroundStyle(Color(.secondaryLabel))
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.vertical, 24)
+
+        case .loaded:
+            sectionHeader("From the network")
+            if viewModel.networkResults.isEmpty {
+                Text("No additional communities found on the network.")
+                    .font(.subheadline)
+                    .foregroundStyle(Color(.secondaryLabel))
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 24)
+            } else {
+                ForEach(viewModel.networkResults) { row in
+                    DiscoverCommunityRow(
+                        row: row,
+                        accent: accent,
+                        onTap: { viewModel.open(row) },
+                        followState: viewModel.followState(for: row),
+                        onFollow: { viewModel.toggleFollow(row) }
+                    )
+                    Divider().padding(.leading, 68)
+                }
+            }
+
+        case .failed:
+            Button { viewModel.searchNetwork() } label: {
+                Text("Network search failed. Tap to retry.")
+                    .font(.subheadline)
+                    .foregroundStyle(accent)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 24)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func sectionHeader(_ title: String) -> some View {
+        HStack {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .textCase(.uppercase)
+                .foregroundStyle(Color(.secondaryLabel))
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 20)
+        .padding(.bottom, 8)
     }
 
     /// When browsing, cap the directory so the landing stays snappy; when
