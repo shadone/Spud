@@ -211,6 +211,12 @@ class PostListPostCell: UITableViewCell {
     private var appliedShowVoteButtons: Bool?
     /// The density applied to the current layout, same rationale.
     private var appliedDensity: PostDensity?
+    /// The thumbnail image URL currently shown or loading. `reconfigureItems`
+    /// re-runs `configure` on the live on-screen cell, so this lets the image
+    /// load short-circuit when the post's thumbnail is unchanged — otherwise the
+    /// already-shown image gets torn down and re-fetched on every snapshot apply,
+    /// which read as the thumbnail "zooming in". Reset on reuse.
+    private var appliedThumbnailUrl: URL?
 
     // MARK: Functions
 
@@ -256,6 +262,7 @@ class PostListPostCell: UITableViewCell {
 
         thumbnailLoadTask?.cancel()
         thumbnailLoadTask = nil
+        appliedThumbnailUrl = nil
         thumbnailView.prepareForReuse()
 
         tappableImageUrl = nil
@@ -404,12 +411,12 @@ class PostListPostCell: UITableViewCell {
         guard viewModel.thumbnailPosition.showsThumbnail else {
             thumbnailLoadTask?.cancel()
             thumbnailLoadTask = nil
+            appliedThumbnailUrl = nil
             tappableImageUrl = nil
             tappableThumbnailUrl = nil
             return
         }
 
-        thumbnailLoadTask?.cancel()
         thumbnailView.badgeText = nil
         thumbnailView.showsPlayIcon = false
         tappableVideoUrl = nil
@@ -417,7 +424,7 @@ class PostListPostCell: UITableViewCell {
         case .text:
             tappableImageUrl = nil
             tappableThumbnailUrl = nil
-            thumbnailView.thumbnailType = .text
+            setStaticThumbnail(.text)
             thumbnailView.isAccessibilityElement = false
             // Decorative placeholder; let the tap fall through to the cell so
             // tapping anywhere opens the post.
@@ -426,7 +433,6 @@ class PostListPostCell: UITableViewCell {
         case let .image(thumbnailUrl):
             tappableImageUrl = viewModel.fullImageUrl
             tappableThumbnailUrl = thumbnailUrl
-            thumbnailView.thumbnailType = .none
             // The inline thumbnail shows a static frame; badge animated posts
             // so they read as playable in the feed.
             thumbnailView.badgeText = viewModel.fullImageUrl?.isAnimatedImage == true ? "GIF" : nil
@@ -448,7 +454,6 @@ class PostListPostCell: UITableViewCell {
         case let .linkImage(thumbnailUrl):
             tappableImageUrl = nil
             tappableThumbnailUrl = nil
-            thumbnailView.thumbnailType = .none
             // The embed image previews the link; tapping it falls through to the
             // cell (opens the post), like the detail view's link preview.
             thumbnailView.isUserInteractionEnabled = false
@@ -472,18 +477,41 @@ class PostListPostCell: UITableViewCell {
             )
             thumbnailView.accessibilityTraits = [.image, .button]
             if let posterUrl {
-                thumbnailView.thumbnailType = .none
                 loadThumbnail(posterUrl, imageService: imageService)
             } else {
                 // No poster: show the placeholder behind the play indicator.
-                thumbnailView.thumbnailType = .text
+                setStaticThumbnail(.text)
             }
         }
     }
 
+    /// Shows a non-image placeholder (text or broken), cancelling any in-flight
+    /// thumbnail load and clearing the load memo so a later image re-fetches.
+    private func setStaticThumbnail(_ type: PostListThumbnailImageView.ThumbnailType) {
+        thumbnailLoadTask?.cancel()
+        thumbnailLoadTask = nil
+        appliedThumbnailUrl = nil
+        thumbnailView.thumbnailType = type
+    }
+
     /// Loads a thumbnail image into `thumbnailView`, showing the broken-image
     /// state on failure. Shared by image and link-preview posts.
+    ///
+    /// Idempotent across `configure` calls: `reconfigureItems` re-runs the cell
+    /// provider on the *live* on-screen cell, so re-clearing the already-shown
+    /// image and re-issuing the fetch would tear the thumbnail down and rebuild
+    /// it on every snapshot apply (pagination, vote, read-state). Inside the
+    /// diffable apply's animation that read as the thumbnail "zooming in". When
+    /// the URL is unchanged we leave the existing image (or in-flight load) be.
     private func loadThumbnail(_ thumbnailUrl: URL, imageService: ImageServiceType) {
+        guard thumbnailUrl != appliedThumbnailUrl else { return }
+        appliedThumbnailUrl = thumbnailUrl
+
+        thumbnailLoadTask?.cancel()
+        // Clear only when starting a genuinely new image, so the previous post's
+        // thumbnail doesn't linger under the incoming content.
+        thumbnailView.thumbnailType = .none
+
         let size = CGSize(width: Self.thumbnailDimension, height: Self.thumbnailDimension)
         thumbnailLoadTask = Task { [weak self] in
             for await state in imageService.fetch(thumbnailUrl, downsampleTo: size) {

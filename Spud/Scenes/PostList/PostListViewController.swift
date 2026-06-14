@@ -756,7 +756,13 @@ class PostListViewController: UIViewController {
                     // scrolling stay until the next refresh).
                     pinnedReadIds = HideReadPostsFilter.readIds(in: rows)
                 }
-                apply(rows: rows)
+                // Live feed emissions never animate structurally. The first
+                // snapshot would otherwise scale every cell in from the top-left
+                // during the table's initial layout; a paginated insert would
+                // animate the appended rows' height from zero as they scroll into
+                // view. Cells whose data changed are reconfigured in place either
+                // way. The deliberate hide-read toggle still animates its removals.
+                apply(rows: rows, animatingDifferences: false)
                 if isFirstSnapshot {
                     viewModel.didPrepareObservation(numberOfFetchedPosts: rows.count)
                 }
@@ -764,7 +770,7 @@ class PostListViewController: UIViewController {
         }
     }
 
-    private func apply(rows: [PostListRow]) {
+    private func apply(rows: [PostListRow], animatingDifferences: Bool = true) {
         orderedRows = rows
 
         // Filter for display per the hide-read preference. `rowsByServerPostId`
@@ -783,14 +789,22 @@ class PostListViewController: UIViewController {
         snapshot.appendSections([.posts])
         let items = displayed.map { Item.post(serverPostId: $0.serverPostId) }
         snapshot.appendItems(items, toSection: .posts)
-        snapshot.reloadItems(items)
+        // Refresh content in place. The item identity is the serverPostId, so a
+        // GRDB emission that only changes a post's data (vote, read-state) or
+        // appends a page leaves surviving cells stale unless we tell the data
+        // source to re-run the cell provider for them. Reconfigure (not reload)
+        // does that on the existing cells, avoiding the cross-dissolve that
+        // reloadItems animates under `animatingDifferences: true` — that fade,
+        // applied to every visible cell at once, flashed the whole list on each
+        // pagination. Matches reconfigureVisibleCells()/reconfigureVisibleSwipeActions().
+        snapshot.reconfigureItems(items)
 
         if viewModel.isFetchingNextPage {
             snapshot.appendSections([.loading])
             snapshot.appendItems([.loadingIndicator], toSection: .loading)
         }
 
-        dataSource.apply(snapshot, animatingDifferences: true)
+        dataSource.apply(snapshot, animatingDifferences: animatingDifferences)
 
         updateContentUnavailableState()
     }
