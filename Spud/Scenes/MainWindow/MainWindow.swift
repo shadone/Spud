@@ -317,16 +317,27 @@ class MainWindow: UIWindow {
     }
 
     func display(serverPostId: Components.Schemas.PostID, accountKeychainId: String) {
-        // Switch to the post content tab
-        tabBarController.selectedIndex = 0
-
         let postDetailVC = PostDetailOrEmptyViewController(
             serverPostId: serverPostId,
             accountKeychainId: accountKeychainId,
             dependencies: dependencies.nested
         )
 
-        pushDetail(viewController: postDetailVC)
+        // Show the post in the tab the user is currently in, so Back returns to
+        // where they were (e.g. a community in the Communities tab) instead of
+        // hijacking the Posts tab. Only the Posts tab is a split view and needs
+        // the split-aware detail handling; every other tab is a plain navigation
+        // controller, so a normal push is correct. Fall back to the Posts tab
+        // when there is no current navigation context (e.g. a cold deep link).
+        let selected = tabBarController.selectedViewController
+        if selected === splitViewController {
+            pushDetail(viewController: postDetailVC)
+        } else if let navigationController = selected as? UINavigationController {
+            navigationController.pushViewController(postDetailVC, animated: true)
+        } else {
+            tabBarController.selectedIndex = 0
+            pushDetail(viewController: postDetailVC)
+        }
     }
 }
 
