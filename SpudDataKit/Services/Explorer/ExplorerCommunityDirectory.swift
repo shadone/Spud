@@ -183,6 +183,27 @@ public enum ExplorerCommunityDirectory {
             .sorted { ordered($0, before: $1, by: sort) }
     }
 
+    /// The "Because you follow" rail: active communities the account does not yet
+    /// follow, on the servers it already follows communities on. The honest
+    /// snapshot-only signal — no co-subscription graph or topic model — is "more
+    /// from servers you trust", ranked by recent activity. Curated-safe only,
+    /// same-name collapsed, and empty when the account follows nothing.
+    public static func becauseYouFollow(
+        in rows: [CommunityListRow],
+        followedHosts: Set<String>,
+        excludingUrls: Set<String>,
+        limit: Int = 12
+    ) -> [CommunityListRow] {
+        guard !followedHosts.isEmpty else { return [] }
+        let candidates = rows.filter {
+            curatedSafe($0)
+                && followedHosts.contains($0.instanceHost)
+                && !excludingUrls.contains($0.communityUrl)
+        }
+        let collapsed = collapseSameName(candidates)
+        return Array(collapsed.sorted { $0.usersActiveWeek > $1.usersActiveWeek }.prefix(limit))
+    }
+
     /// Ranking for the instance rail: most weekly-active server first, then most
     /// communities, then host name for determinism.
     private static func busierInstance(_ a: InstanceSummary, _ b: InstanceSummary) -> Bool {

@@ -64,6 +64,9 @@ final class DiscoverViewModel {
     private(set) var rising: [CommunityListRow] = []
     /// Liveliest home instances, for the "Browse by instance" rail.
     private(set) var instances: [InstanceSummary] = []
+    /// Active communities on the servers the account already follows, for the
+    /// signed-in "Because you follow" rail.
+    private(set) var becauseYouFollow: [CommunityListRow] = []
     /// The filtered, sorted, de-duplicated directory.
     private(set) var directory: [CommunityListRow] = []
     /// True until the first directory snapshot arrives.
@@ -91,6 +94,14 @@ final class DiscoverViewModel {
     private let onRequestSignIn: () -> Void
     @ObservationIgnored
     private var observationTask: Task<Void, Never>?
+    @ObservationIgnored
+    private var followObservationTask: Task<Void, Never>?
+    /// Actor ids the account already follows (excluded from recommendations).
+    @ObservationIgnored
+    private var followedUrls: Set<String> = []
+    /// Home instances the account already follows communities on.
+    @ObservationIgnored
+    private var followedHosts: Set<String> = []
 
     private var accountService: AccountServiceType {
         dependencies.accountService
@@ -128,10 +139,26 @@ final class DiscoverViewModel {
                 isLoading = false
             }
         }
+
+        // "Because you follow" needs the account's subscriptions; only observe
+        // them for a signed-in account that resolves to a stored row.
+        if isSignedIn, let accountRowId = appDatabase.accountRowIdSync(forKeychainId: accountKeychainId) {
+            followObservationTask = Task { [weak self] in
+                for await communities in appDatabase.observeFollowedCommunities(forAccountId: accountRowId) {
+                    if Task.isCancelled { break }
+                    guard let self else { return }
+                    let urls = communities.compactMap(\.actorId)
+                    followedUrls = Set(urls)
+                    followedHosts = Set(urls.compactMap { URL(string: $0)?.host })
+                    recomputeBecauseYouFollow()
+                }
+            }
+        }
     }
 
     deinit {
         observationTask?.cancel()
+        followObservationTask?.cancel()
     }
 
     func open(_ row: CommunityListRow) {
@@ -206,6 +233,16 @@ final class DiscoverViewModel {
         trending = ExplorerCommunityDirectory.trending(in: allRows, limit: 12)
         rising = ExplorerCommunityDirectory.rising(in: allRows, limit: 12)
         instances = ExplorerCommunityDirectory.topInstances(in: allRows, limit: 12)
+        recomputeBecauseYouFollow()
+    }
+
+    private func recomputeBecauseYouFollow() {
+        becauseYouFollow = ExplorerCommunityDirectory.becauseYouFollow(
+            in: allRows,
+            followedHosts: followedHosts,
+            excludingUrls: followedUrls,
+            limit: 12
+        )
     }
 
     private func recomputeDirectory() {

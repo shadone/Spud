@@ -65,6 +65,12 @@ struct DiscoverView: View {
                         rows: viewModel.rising,
                         momentum: true
                     )
+                    rail(
+                        title: "Because you follow",
+                        subtitle: "More from servers you're on",
+                        rows: viewModel.becauseYouFollow,
+                        momentum: false
+                    )
                     instanceRail
                 }
 

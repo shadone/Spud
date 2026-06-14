@@ -231,4 +231,43 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
         )
         XCTAssertEqual(result.map(\.name), ["b", "a"], "host-filtered, NSFW dropped, sorted by activity")
     }
+
+    // MARK: - Because you follow
+
+    func test_becauseYouFollow_recommendsSameHostNotFollowed_byActivity() {
+        let rows = [
+            row("tech", host: "lemmy.world", week: 1000),
+            row("memes", host: "lemmy.world", week: 5000),
+            row("followed", host: "lemmy.world", week: 9000),
+            row("other", host: "sopuli.xyz", week: 8000),
+        ]
+        let result = ExplorerCommunityDirectory.becauseYouFollow(
+            in: rows,
+            followedHosts: ["lemmy.world"],
+            excludingUrls: ["https://lemmy.world/c/followed"],
+            limit: 10
+        )
+        XCTAssertEqual(result.map(\.name), ["memes", "tech"], "same-host, not-followed, busiest-first")
+    }
+
+    func test_becauseYouFollow_emptyWhenNoFollowedHosts() {
+        let rows = [row("tech", host: "lemmy.world", week: 1000)]
+        XCTAssertTrue(
+            ExplorerCommunityDirectory.becauseYouFollow(
+                in: rows, followedHosts: [], excludingUrls: [], limit: 10
+            ).isEmpty
+        )
+    }
+
+    func test_becauseYouFollow_excludesSuspiciousAndNsfw() {
+        let rows = [
+            row("ok", host: "lemmy.world", week: 100),
+            row("naughty", host: "lemmy.world", week: 9000, nsfw: true),
+            row("spam", host: "lemmy.world", week: 9000, suspicious: true),
+        ]
+        let result = ExplorerCommunityDirectory.becauseYouFollow(
+            in: rows, followedHosts: ["lemmy.world"], excludingUrls: [], limit: 10
+        )
+        XCTAssertEqual(result.map(\.name), ["ok"])
+    }
 }
