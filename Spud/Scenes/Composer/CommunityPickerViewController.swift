@@ -114,7 +114,7 @@ final class CommunityPickerViewController: UITableViewController {
                     page: 1
                 )
                 if Task.isCancelled { return }
-                results = (response.communities ?? []).map { view in
+                results = response.communities.map { view in
                     NewPostCommunity(
                         id: view.community.id,
                         qualifiedName: Self.qualifiedName(for: view.community),

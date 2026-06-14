@@ -208,7 +208,7 @@ struct SearchResults {
 
     init(response: Components.Schemas.SearchResponse) {
         posts = response.posts.map(SearchPostResult.init)
-        communities = (response.communities ?? []).compactMap(SearchCommunityResult.init)
+        communities = response.communities.compactMap(SearchCommunityResult.init)
         users = response.users.compactMap(SearchUserResult.init)
         comments = response.comments.map(SearchCommentResult.init)
     }
