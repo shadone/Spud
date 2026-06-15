@@ -26,7 +26,18 @@ final class URLSpudInternalLinkTests: XCTestCase {
         XCTAssertEqual(parsed, instance)
     }
 
-    func test_existingPostCase_stillParses() throws {
+    /// The inner URL's `?`/`&` must survive being nested inside the outer
+    /// `spud://` query string — the case most likely to break round-tripping.
+    func test_objectAtURL_withQueryString_roundTrips() throws {
+        let canonical = try XCTUnwrap(URL(string: "https://beehaw.org/post/789?page=2&sort=top"))
+        let link = URL.SpudInternalLink.objectAtURL(url: canonical)
+        guard case let .objectAtURL(parsed)? = link.url.spud else {
+            return XCTFail("expected .objectAtURL, got \(String(describing: link.url.spud))")
+        }
+        XCTAssertEqual(parsed, canonical)
+    }
+
+    func test_post_roundTrips() throws {
         let instance = try XCTUnwrap(InstanceActorId(from: "https://lemmy.world"))
         let link = URL.SpudInternalLink.post(postId: 42, instance: instance)
         guard case let .post(postId, parsedInstance)? = link.url.spud else {

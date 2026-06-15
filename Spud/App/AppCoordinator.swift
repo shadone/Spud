@@ -76,7 +76,7 @@ class AppCoordinator {
 
         case .objectAtURL, .instance:
             // Wired in the federated-link routing task.
-            logger.error("Unhandled internal link in AppCoordinator: \(url.absoluteString, privacy: .public)")
+            logger.warning("Unhandled internal link in AppCoordinator: \(url.absoluteString, privacy: .public)")
 
         case .none:
             logger.error("Received open url request for url that we can't handle: \(url.absoluteString, privacy: .public)")

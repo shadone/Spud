@@ -76,9 +76,14 @@ public extension URL {
                 return URL(string: "info.ddenis.spud://internal/community?name=\(encodedName)&instance=\(encodedInstance)")!
 
             case let .objectAtURL(url):
+                // `.urlQueryAllowed` permits `&`, `=` and `?`, which would let an
+                // embedded URL's own query split the outer query on parse. Escape
+                // those sub-delimiters so the inner URL round-trips intact.
+                let queryValueAllowed = CharacterSet.urlQueryAllowed
+                    .subtracting(CharacterSet(charactersIn: "&=?+"))
                 guard
                     let encodedURL = url.absoluteString
-                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                    .addingPercentEncoding(withAllowedCharacters: queryValueAllowed)
                 else {
                     fatalError("Failed to url encode '\(self)'")
                 }
