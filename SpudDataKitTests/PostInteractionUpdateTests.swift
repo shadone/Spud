@@ -138,4 +138,12 @@ final class PostInteractionUpdateTests: XCTestCase {
         )
         XCTAssertFalse(prune)
     }
+
+    func testRecordWithNoTimestampIsNotPruned() {
+        let record = PostInteractionRecord(accountId: 1, postServerId: 9)
+        XCTAssertFalse(PostInteractionUpdate.shouldPrune(
+            record, now: t0, isSaved: false,
+            seenRetention: 1, openedRetention: 1
+        ))
+    }
 }

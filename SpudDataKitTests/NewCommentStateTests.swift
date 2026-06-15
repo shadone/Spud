@@ -96,4 +96,17 @@ final class NewCommentStateTests: XCTestCase {
         let result = NewCommentState.compute(orderedComments: rows, previousVisitAt: visit, currentAccountPersonId: nil)
         XCTAssertEqual(result.firstNewElementId, 11)
     }
+
+    func testCommentExactlyAtVisitIsNotNew() {
+        let rows = [row(id: 1, position: 1, publishedOffset: 100)] // published == visit
+        let result = NewCommentState.compute(orderedComments: rows, previousVisitAt: visit, currentAccountPersonId: nil)
+        XCTAssertEqual(result.count, 0)
+        XCTAssertFalse(result.newElementIds.contains(1))
+    }
+
+    func testEmptyInputReturnsEmptyResult() {
+        let result = NewCommentState.compute(orderedComments: [], previousVisitAt: visit, currentAccountPersonId: nil)
+        XCTAssertEqual(result.count, 0)
+        XCTAssertNil(result.firstNewElementId)
+    }
 }

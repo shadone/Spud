@@ -361,7 +361,7 @@ class PostDetailViewController: UIViewController {
         )
 
         let snapshotAndCount = appDatabase.postInteractionSnapshotSync(postRowId: postRowId)
-        Task { [appDatabase] in
+        Task { @MainActor [appDatabase] in
             try? await appDatabase.recordPostOpened(
                 accountKeychainId: keychainId,
                 serverPostId: serverPostId,
