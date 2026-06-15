@@ -212,6 +212,7 @@ class MainWindow: UIWindow {
             image: UIImage(systemName: "person.3"),
             selectedImage: UIImage(systemName: "person.3.fill")
         )
+        communitiesNavigationController.enableForwardNavigationGesture()
 
         // Tab: Setup the search view controller
         let searchViewController = SearchViewController(
@@ -220,6 +221,7 @@ class MainWindow: UIWindow {
         )
         let searchNavigationController = UINavigationController(rootViewController: searchViewController)
         searchNavigationController.navigationBar.prefersLargeTitles = true
+        searchNavigationController.enableForwardNavigationGesture()
 
         // Tab: Setup the inbox view controller
         let inboxViewController = InboxViewController(
@@ -228,11 +230,13 @@ class MainWindow: UIWindow {
             dependencies: dependencies.nested
         )
         let inboxNavigationController = UINavigationController(rootViewController: inboxViewController)
+        inboxNavigationController.enableForwardNavigationGesture()
 
         // Tab: Setup the account view controller. Settings is reached from the
         // Account nav-bar gear now, so Preferences is no longer its own tab.
         let accountViewController = AccountViewController(dependencies: dependencies.nested)
         let accountNavigationController = UINavigationController(rootViewController: accountViewController)
+        accountNavigationController.enableForwardNavigationGesture()
 
         // Tabs: Posts | Communities | Search | Inbox | Account. Inbox sits at
         // index 3 so its badge can be addressed via Self.inboxTabIndex.
@@ -367,6 +371,7 @@ class MainWindow: UIWindow {
             // we make a new navigation controller here to make UISplitVC replace the
             // detail screen instead of pushing a new PostDetail VC onto the stack.
             let navigationController = UINavigationController(rootViewController: viewController)
+            navigationController.enableForwardNavigationGesture()
             splitViewController.showDetailViewController(navigationController, sender: self)
         }
     }
@@ -455,6 +460,7 @@ extension MainWindow: UISplitViewControllerDelegate {
 
         let detailNav = UINavigationController()
         detailNav.setViewControllers(detailViewControllers, animated: false)
+        detailNav.enableForwardNavigationGesture()
         svc.setViewController(detailNav, for: .secondary)
     }
 
@@ -481,6 +487,7 @@ extension MainWindow: UISplitViewControllerDelegate {
             dependencies: dependencies.nested
         )
         let detailNav = UINavigationController(rootViewController: emptyDetailViewController)
+        detailNav.enableForwardNavigationGesture()
         svc.setViewController(detailNav, for: .secondary)
     }
 }

@@ -64,6 +64,11 @@ class MainWindowSplitViewController: UISplitViewController {
         setViewController(postListNavigationController, for: .primary)
         setViewController(postDetailNavigationController, for: .secondary)
         setViewController(postListNavigationController, for: .compact)
+
+        // Right-edge forward gesture (restore a popped screen) on both columns' stacks.
+        postListNavigationController.enableForwardNavigationGesture()
+        postDetailNavigationController.enableForwardNavigationGesture()
+
         preferredDisplayMode = .oneBesideSecondary
         preferredSplitBehavior = .tile
 
