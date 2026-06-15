@@ -86,7 +86,10 @@ final class PreferencesViewModel {
     var openExternalLink: Preferences.OpenExternalLink
     var openExternalLinkInSafariVCReaderMode: Bool
     var openExternalLinkAsUniversalLinkInApp: Bool
-    var rewriteTwitterLinksToXcancel: Bool
+
+    /// Mirrored outbound URL hygiene config. Writes flow back through
+    /// `preferencesService`; external changes arrive via its stream.
+    var urlSanitizerConfig: URLSanitizerConfig
 
     /// User-assigned swipe actions for post and comment cells (M8). Mirrored
     /// here so the settings UI reflects external changes; writes flow back
@@ -168,8 +171,7 @@ final class PreferencesViewModel {
             dependencies.preferencesService.openExternalLinksInSafariVCReaderMode
         openExternalLinkAsUniversalLinkInApp =
             dependencies.preferencesService.openUniversalLinkInApp
-        rewriteTwitterLinksToXcancel =
-            dependencies.preferencesService.rewriteTwitterLinksToXcancel
+        urlSanitizerConfig = dependencies.preferencesService.urlSanitizerConfig
 
         appTheme = dependencies.preferencesService.appTheme
         accentColor = dependencies.preferencesService.accentColor
@@ -303,6 +305,12 @@ final class PreferencesViewModel {
                 self?.explorerRefreshInterval = value
             }
         })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.urlSanitizerConfigStream {
+                self?.urlSanitizerConfig = value
+            }
+        })
     }
 
     /// Preview-only init with seed values and no service dependencies.
@@ -320,7 +328,7 @@ final class PreferencesViewModel {
         openExternalLink = .safariViewController
         openExternalLinkInSafariVCReaderMode = true
         openExternalLinkAsUniversalLinkInApp = true
-        rewriteTwitterLinksToXcancel = false
+        urlSanitizerConfig = .default
         appTheme = .system
         accentColor = .lemmy
         postDensity = .comfortable
@@ -378,9 +386,62 @@ final class PreferencesViewModel {
         preferencesService?.openUniversalLinkInApp = value
     }
 
-    func updateRewriteTwitterLinksToXcancel(_ value: Bool) {
-        rewriteTwitterLinksToXcancel = value
-        preferencesService?.rewriteTwitterLinksToXcancel = value
+    // MARK: URL hygiene
+
+    private func mutateSanitizerConfig(_ mutate: (inout URLSanitizerConfig) -> Void) {
+        var updated = urlSanitizerConfig
+        mutate(&updated)
+        guard updated != urlSanitizerConfig else { return }
+        urlSanitizerConfig = updated
+        preferencesService?.urlSanitizerConfig = updated
+    }
+
+    func updateSanitizerEnabled(_ value: Bool) {
+        mutateSanitizerConfig { $0.isEnabled = value }
+    }
+
+    func updateStripTrackingParams(_ value: Bool) {
+        mutateSanitizerConfig { $0.stripTrackingParams = value }
+    }
+
+    func updateUnwrapRedirectors(_ value: Bool) {
+        mutateSanitizerConfig { $0.unwrapRedirectors = value }
+    }
+
+    func updateUpgradeToHTTPS(_ value: Bool) {
+        mutateSanitizerConfig { $0.upgradeToHTTPS = value }
+    }
+
+    func updateDeAMP(_ value: Bool) {
+        mutateSanitizerConfig { $0.deAMP = value }
+    }
+
+    func updateRedirectToFrontEnds(_ value: Bool) {
+        mutateSanitizerConfig { $0.redirectToFrontEnds = value }
+    }
+
+    func updateFrontEndEnabled(_ service: FrontEndService, _ value: Bool) {
+        mutateSanitizerConfig { config in
+            config.frontEnds = config.frontEnds.map { entry in
+                guard entry.service == service else { return entry }
+                return FrontEndConfig(service: service, isEnabled: value, host: entry.host)
+            }
+        }
+    }
+
+    func updateFrontEndHost(_ service: FrontEndService, _ host: String) {
+        let trimmed = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        mutateSanitizerConfig { config in
+            config.frontEnds = config.frontEnds.map { entry in
+                guard entry.service == service else { return entry }
+                return FrontEndConfig(service: service, isEnabled: entry.isEnabled, host: trimmed)
+            }
+        }
+    }
+
+    func resetFrontEndHost(_ service: FrontEndService) {
+        let defaultHost = FrontEndCatalog.entry(for: service).defaultHost
+        updateFrontEndHost(service, defaultHost)
     }
 
     func updateAppTheme(_ value: AppTheme) {

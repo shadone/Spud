@@ -51,14 +51,6 @@ struct PreferencesGeneralView: View {
         }
     }
 
-    private var rewriteTwitterLinksToXcancel: Binding<Bool> {
-        .init {
-            viewModel.rewriteTwitterLinksToXcancel
-        } set: { newValue in
-            viewModel.updateRewriteTwitterLinksToXcancel(newValue)
-        }
-    }
-
     var body: some View {
         Form {
             Section {
@@ -131,11 +123,10 @@ struct PreferencesGeneralView: View {
                         .font(.footnote)
                 }
 
-                VStack(alignment: .leading) {
-                    Toggle("Open X/Twitter via xcancel.com", isOn: rewriteTwitterLinksToXcancel)
-                    Text("Rewrite twitter.com and x.com links to the xcancel.com front-end before opening.")
-                        .foregroundStyle(.secondary)
-                        .font(.footnote)
+                NavigationLink {
+                    PreferencesPrivacyView(viewModel: viewModel)
+                } label: {
+                    Label("Privacy & Link Cleaning", systemImage: "hand.raised")
                 }
             } header: {
                 Text("Links")

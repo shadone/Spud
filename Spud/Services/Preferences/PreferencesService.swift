@@ -37,9 +37,14 @@ protocol PreferencesServiceType: AnyObject {
     /// When opening external link first check if it's a universal link first and then open it in the app.
     var openUniversalLinkInApp: Bool { get set }
 
-    /// Whether tapped twitter.com / x.com links are rewritten to the
-    /// `xcancel.com` privacy front-end before opening. Default `false`.
+    /// Legacy single-toggle xcancel preference. Retained read-only for the
+    /// one-time migration into `urlSanitizerConfig`; no longer surfaced in UI.
     var rewriteTwitterLinksToXcancel: Bool { get set }
+
+    /// The outbound URL hygiene pipeline configuration. Read by `AppService`
+    /// before opening external links and edited from the Privacy settings.
+    var urlSanitizerConfig: URLSanitizerConfig { get set }
+    var urlSanitizerConfigStream: AsyncStream<URLSanitizerConfig> { get }
 
     /// The user-assigned swipe actions for post cells. Defaults reproduce the
     /// pre-M8 hardcoded behaviour (``SwipeActionConfig/defaultPosts``).
@@ -156,6 +161,26 @@ class PreferencesService: PreferencesServiceType {
 
     @UserDefaultsBacked(key: "rewriteTwitterLinksToXcancel")
     var rewriteTwitterLinksToXcancel: Bool = false
+
+    @UserDefaultsBacked(key: "urlSanitizerConfig")
+    var urlSanitizerConfig: URLSanitizerConfig = .default
+
+    var urlSanitizerConfigStream: AsyncStream<URLSanitizerConfig> {
+        $urlSanitizerConfig
+    }
+
+    @UserDefaultsBacked(key: "didMigrateXcancelToSanitizer")
+    private var didMigrateXcancelToSanitizer: Bool = false
+
+    init() {
+        if let migrated = URLSanitizerConfig.migratingFromLegacyXcancel(
+            legacyEnabled: rewriteTwitterLinksToXcancel,
+            alreadyMigrated: didMigrateXcancelToSanitizer
+        ) {
+            urlSanitizerConfig = migrated
+        }
+        didMigrateXcancelToSanitizer = true
+    }
 
     @UserDefaultsBacked(key: "postSwipeActions")
     var postSwipeActions: SwipeActionConfig = .defaultPosts
