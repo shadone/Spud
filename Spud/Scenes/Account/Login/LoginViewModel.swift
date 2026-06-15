@@ -39,9 +39,20 @@ final class LoginViewModel {
     let instanceName: String
 
     var icon: UIImage
-    var username: String = ""
-    var password: String = ""
+    var username: String = "" {
+        didSet { loginError = nil }
+    }
+
+    var password: String = "" {
+        didSet { loginError = nil }
+    }
+
     var loggedIn: Bool = false
+
+    /// User-facing error surfaced inline under the password field after a failed
+    /// login attempt. The existing alert (via `AlertService`) still fires too;
+    /// this is an additive view-layer affordance. `nil` means no error.
+    var loginError: String?
 
     var loginButtonEnabled: Bool {
         !username.isEmpty && !password.isEmpty
@@ -84,6 +95,7 @@ final class LoginViewModel {
     }
 
     func login() async {
+        loginError = nil
         do {
             try await accountService.login(
                 atInstance: row.instance,
@@ -92,6 +104,10 @@ final class LoginViewModel {
             )
             loggedIn = true
         } catch {
+            loginError = NSLocalizedString(
+                "Incorrect username or password.",
+                comment: "Inline login error shown under the password field"
+            )
             alertService.handle(error, for: .login)
         }
     }

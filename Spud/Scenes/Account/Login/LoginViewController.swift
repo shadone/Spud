@@ -6,8 +6,15 @@
 
 import Foundation
 import SpudDataKit
+import SpudUIKit
 import UIKit
 
+/// Login form for a chosen instance. Matches the Spud Design `LoginForm`
+/// mockup: an instance header card (gradient banner + avatar + host), the
+/// username / password fields, the primary "Log in" CTA, a forgot-password
+/// affordance, a "create an account" line, an "or" divider, and an outlined
+/// "browse anonymously" row. The 2FA one-time-code field is preserved but
+/// stays hidden (it is promoted to its own screen in a later slice).
 class LoginViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService
@@ -26,6 +33,8 @@ class LoginViewController: UIViewController {
     lazy var scrollView: UIScrollView = {
         let scrollView = UIScrollView()
         scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.alwaysBounceVertical = true
+        scrollView.keyboardDismissMode = .interactive
         return scrollView
     }()
 
@@ -39,181 +48,231 @@ class LoginViewController: UIViewController {
         let stackView = UIStackView()
         stackView.translatesAutoresizingMaskIntoConstraints = false
         stackView.axis = .vertical
-        stackView.alignment = .center
-        stackView.spacing = 8
+        stackView.alignment = .fill
+        stackView.spacing = 13
 
         let subviews = [
-            iconImageView,
-            instanceNameHorizontalStackView,
-            usernameTextField,
-            passwordTextField,
+            instanceHeaderCard,
+            usernameField,
+            passwordField,
             totp2faTokenTextField,
             loginButton,
             forgotPasswordButton,
-            registerVerticalStackView,
-        ]
-        for view in subviews {
-            stackView.addArrangedSubview(view)
-        }
-
-        stackView.setCustomSpacing(0, after: iconImageView)
-        stackView.setCustomSpacing(100, after: forgotPasswordButton)
-
-        return stackView
-    }()
-
-    lazy var iconImageView: UIImageView = {
-        let imageView = UIImageView()
-        imageView.translatesAutoresizingMaskIntoConstraints = false
-        imageView.contentMode = .scaleAspectFit
-        imageView.layer.cornerRadius = 32
-        imageView.clipsToBounds = true
-        return imageView
-    }()
-
-    lazy var instanceNameHorizontalStackView: UIStackView = {
-        let stackView = UIStackView()
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        stackView.axis = .horizontal
-
-        let subviews = [
-            instanceNameLabel,
-            instanceInfoButton,
-        ]
-        for view in subviews {
-            stackView.addArrangedSubview(view)
-        }
-
-        return stackView
-    }()
-
-    lazy var instanceNameLabel: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        return label
-    }()
-
-    lazy var instanceInfoButton: UIButton = {
-        var config = UIButton.Configuration.borderless()
-        config.image = UIImage(systemName: "info.circle")!
-
-        let button = UIButton(configuration: config)
-        button.translatesAutoresizingMaskIntoConstraints = false
-
-        return button
-    }()
-
-    lazy var usernameTextField: UITextField = {
-        let textField = UITextField()
-        textField.translatesAutoresizingMaskIntoConstraints = false
-        textField.placeholder = "Your Email or Username"
-        textField.borderStyle = .roundedRect
-        textField.keyboardType = .emailAddress
-        textField.textContentType = .emailAddress
-        textField.autocapitalizationType = .none
-        return textField
-    }()
-
-    lazy var passwordTextField: UITextField = {
-        let textField = UITextField()
-        textField.translatesAutoresizingMaskIntoConstraints = false
-        textField.placeholder = "Password"
-        textField.borderStyle = .roundedRect
-        textField.isSecureTextEntry = true
-        return textField
-    }()
-
-    lazy var totp2faTokenTextField: UITextField = {
-        let textField = UITextField()
-        textField.translatesAutoresizingMaskIntoConstraints = false
-        textField.placeholder = "One Time Code"
-        textField.borderStyle = .roundedRect
-        textField.keyboardType = .numberPad
-        textField.isHidden = true
-        return textField
-    }()
-
-    lazy var loginButton: UIButton = {
-        var config = UIButton.Configuration.tinted()
-        config.title = "Login"
-
-        let button = UIButton(configuration: config)
-        button.translatesAutoresizingMaskIntoConstraints = false
-
-        button.addTarget(self, action: #selector(login), for: .touchUpInside)
-
-        return button
-    }()
-
-    lazy var forgotPasswordButton: UIButton = {
-        var config = UIButton.Configuration.borderless()
-        config.title = "Forgot Password?"
-
-        let button = UIButton(configuration: config)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        button.tintColor = .secondaryLabel
-
-        return button
-    }()
-
-    lazy var registerVerticalStackView: UIStackView = {
-        let stackView = UIStackView()
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        stackView.axis = .vertical
-        stackView.alignment = .center
-
-        let subviews = [
-            dontHaveAccountLabel,
-            registerButton,
-            orLabel,
+            registerLineLabel,
+            orDividerStackView,
             anonymousButton,
         ]
         for view in subviews {
             stackView.addArrangedSubview(view)
         }
 
+        stackView.setCustomSpacing(18, after: instanceHeaderCard)
+        stackView.setCustomSpacing(6, after: passwordField)
+        stackView.setCustomSpacing(14, after: loginButton)
+        stackView.setCustomSpacing(18, after: forgotPasswordButton)
+        stackView.setCustomSpacing(20, after: registerLineLabel)
+        stackView.setCustomSpacing(14, after: orDividerStackView)
+
         return stackView
     }()
 
-    lazy var dontHaveAccountLabel: UILabel = {
+    // MARK: Instance header card
+
+    /// Rounded card holding the gradient banner, instance avatar, host name,
+    /// "Change" affordance and a blurb line.
+    lazy var instanceHeaderCard: UIView = {
+        let card = UIView()
+        card.translatesAutoresizingMaskIntoConstraints = false
+        card.backgroundColor = .secondarySystemBackground
+        card.layer.cornerRadius = 14
+        card.layer.cornerCurve = .continuous
+        card.layer.borderWidth = 0.5
+        card.layer.borderColor = UIColor.separator.cgColor
+        card.clipsToBounds = true
+        return card
+    }()
+
+    lazy var bannerView: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+
+    private let bannerGradient = CAGradientLayer()
+
+    /// The 46pt rounded-square instance avatar with a 3pt background ring,
+    /// overlapping the banner bottom. Reuses the observed `viewModel.icon`.
+    lazy var iconImageView: UIImageView = {
+        let imageView = UIImageView()
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        imageView.layer.cornerRadius = 12
+        imageView.layer.cornerCurve = .continuous
+        imageView.layer.borderWidth = 3
+        imageView.layer.borderColor = Theme.background.cgColor
+        imageView.backgroundColor = .tertiarySystemBackground
+        return imageView
+    }()
+
+    lazy var instanceNameLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
-        label.text = "Don't have an account yet?"
+        label.font = .systemFont(ofSize: 16, weight: .heavy)
+        label.textColor = .label
         return label
     }()
 
-    lazy var anonymousButton: UIButton = {
-        var config = UIButton.Configuration.borderless()
-        config.title = "Browse without an account"
+    lazy var changeButton: UIButton = {
+        var config = UIButton.Configuration.plain()
+        config.title = NSLocalizedString("Change", comment: "Change instance affordance on login")
+        config.contentInsets = .zero
+        config.attributedTitle = AttributedString(
+            NSLocalizedString("Change", comment: "Change instance affordance on login"),
+            attributes: AttributeContainer([
+                .font: UIFont.systemFont(ofSize: 13.5, weight: .semibold),
+            ])
+        )
 
         let button = UIButton(configuration: config)
         button.translatesAutoresizingMaskIntoConstraints = false
+        // No change flow yet; this is an inert visual affordance for now.
+        button.isEnabled = false
+        return button
+    }()
 
+    lazy var blurbLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.font = .systemFont(ofSize: 12.5)
+        label.textColor = .secondaryLabel
+        label.numberOfLines = 0
+        return label
+    }()
+
+    // MARK: Fields
+
+    lazy var usernameField: OnboardingLabeledField = {
+        let field = OnboardingLabeledField(
+            caption: NSLocalizedString("Username or email", comment: "Login field caption")
+        )
+        field.textField.keyboardType = .emailAddress
+        field.textField.textContentType = .emailAddress
+        field.textField.autocapitalizationType = .none
+        field.textField.autocorrectionType = .no
+        field.textField.returnKeyType = .next
+        return field
+    }()
+
+    lazy var passwordField: OnboardingLabeledField = {
+        let field = OnboardingLabeledField(
+            caption: NSLocalizedString("Password", comment: "Login field caption"),
+            isSecure: true
+        )
+        field.textField.textContentType = .password
+        field.textField.returnKeyType = .go
+        return field
+    }()
+
+    lazy var totp2faTokenTextField: UITextField = {
+        let textField = UITextField()
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        textField.placeholder = NSLocalizedString("One Time Code", comment: "")
+        textField.borderStyle = .roundedRect
+        textField.keyboardType = .numberPad
+        textField.isHidden = true
+        return textField
+    }()
+
+    lazy var loginButton: OnboardingPrimaryButton = {
+        let button = OnboardingPrimaryButton(
+            title: NSLocalizedString("Log in", comment: "Login primary CTA")
+        )
+        button.addTarget(self, action: #selector(login), for: .touchUpInside)
+        return button
+    }()
+
+    lazy var forgotPasswordButton: UIButton = {
+        var config = UIButton.Configuration.plain()
+        config.attributedTitle = AttributedString(
+            NSLocalizedString("Forgot password?", comment: "Login forgot-password affordance"),
+            attributes: AttributeContainer([
+                .font: UIFont.systemFont(ofSize: 14, weight: .semibold),
+            ])
+        )
+
+        let button = UIButton(configuration: config)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(forgotPasswordTapped), for: .touchUpInside)
+        return button
+    }()
+
+    /// "New to Spud? Create an account" — the second clause is the accent and
+    /// taps through to `registerTapped()`.
+    lazy var registerLineLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        label.isUserInteractionEnabled = true
+        label.addGestureRecognizer(
+            UITapGestureRecognizer(target: self, action: #selector(registerTapped))
+        )
+        return label
+    }()
+
+    /// hairline · "or" · hairline divider.
+    lazy var orDividerStackView: UIStackView = {
+        func hairline() -> UIView {
+            let line = UIView()
+            line.translatesAutoresizingMaskIntoConstraints = false
+            line.backgroundColor = .separator
+            line.heightAnchor.constraint(equalToConstant: 1).isActive = true
+            return line
+        }
+
+        let leadingHairline = hairline()
+        let trailingHairline = hairline()
+
+        let orLabel = UILabel()
+        orLabel.translatesAutoresizingMaskIntoConstraints = false
+        orLabel.text = NSLocalizedString("or", comment: "Login divider")
+        orLabel.font = .systemFont(ofSize: 12)
+        orLabel.textColor = .tertiaryLabel
+        orLabel.setContentHuggingPriority(.required, for: .horizontal)
+
+        let stackView = UIStackView(arrangedSubviews: [leadingHairline, orLabel, trailingHairline])
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .horizontal
+        stackView.alignment = .center
+        stackView.distribution = .fill
+        stackView.spacing = 12
+
+        // Both rules share the leftover width equally around the "or". Activated
+        // after the hairlines join the stack so they share a common ancestor.
+        leadingHairline.widthAnchor.constraint(equalTo: trailingHairline.widthAnchor).isActive = true
+        return stackView
+    }()
+
+    /// 50pt outlined "browse anonymously" row with a leading eye glyph.
+    lazy var anonymousButton: UIButton = {
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(systemName: "eye")
+        config.imagePadding = 8
+        config.baseForegroundColor = .label
+        config.background.backgroundColor = .secondarySystemBackground
+        config.background.cornerRadius = 14
+        config.background.strokeColor = .separator
+        config.background.strokeWidth = 1
+
+        let button = UIButton(configuration: config)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.tintColor = .secondaryLabel
         button.addTarget(
             self,
             action: #selector(continueWithSignedOutAccount),
             for: .touchUpInside
         )
-
-        return button
-    }()
-
-    lazy var orLabel: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.text = "or"
-        return label
-    }()
-
-    lazy var registerButton: UIButton = {
-        var config = UIButton.Configuration.borderless()
-        config.title = "Register"
-
-        let button = UIButton(configuration: config)
-        button.translatesAutoresizingMaskIntoConstraints = false
-
-        button.addTarget(self, action: #selector(registerTapped), for: .touchUpInside)
-
         return button
     }()
 
@@ -253,12 +312,15 @@ class LoginViewController: UIViewController {
             action: #selector(cancelTapped)
         )
         navigationItem.leftBarButtonItem = cancelBarButtonItem
+        navigationItem.title = NSLocalizedString("Log in", comment: "Login screen title")
 
-        view.backgroundColor = .white
+        view.backgroundColor = Theme.background
 
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
         contentView.addSubview(mainVerticalStackView)
+
+        layoutInstanceHeaderCard()
 
         NSLayoutConstraint.activate([
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -266,36 +328,108 @@ class LoginViewController: UIViewController {
             scrollView.topAnchor.constraint(equalTo: view.topAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
 
-            contentView.leadingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: scrollView.frameLayoutGuide.trailingAnchor),
-
             contentView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
             contentView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
             contentView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
             contentView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+            contentView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
 
-            mainVerticalStackView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            mainVerticalStackView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            mainVerticalStackView.widthAnchor.constraint(equalTo: scrollView.widthAnchor, multiplier: 0.8),
-            mainVerticalStackView.topAnchor.constraint(equalTo: contentView.topAnchor),
-            mainVerticalStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            mainVerticalStackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            mainVerticalStackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
+            mainVerticalStackView.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 16),
+            mainVerticalStackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -24),
 
-            iconImageView.widthAnchor.constraint(equalToConstant: 64),
-            iconImageView.heightAnchor.constraint(equalToConstant: 64),
-
-            usernameTextField.widthAnchor.constraint(equalTo: mainVerticalStackView.widthAnchor),
-            passwordTextField.widthAnchor.constraint(equalTo: usernameTextField.widthAnchor),
-            loginButton.widthAnchor.constraint(equalTo: usernameTextField.widthAnchor),
-            forgotPasswordButton.widthAnchor.constraint(equalTo: usernameTextField.widthAnchor),
-            totp2faTokenTextField.widthAnchor.constraint(equalTo: usernameTextField.widthAnchor),
+            loginButton.heightAnchor.constraint(equalToConstant: 52),
+            anonymousButton.heightAnchor.constraint(equalToConstant: 50),
         ])
 
-        usernameTextField.addTarget(self, action: #selector(usernameChanged), for: .editingChanged)
-        passwordTextField.addTarget(self, action: #selector(passwordChanged), for: .editingChanged)
+        usernameField.textField.addTarget(self, action: #selector(usernameChanged), for: .editingChanged)
+        passwordField.textField.addTarget(self, action: #selector(passwordChanged), for: .editingChanged)
+    }
+
+    private func layoutInstanceHeaderCard() {
+        bannerView.layer.insertSublayer(bannerGradient, at: 0)
+
+        instanceHeaderCard.addSubview(bannerView)
+        instanceHeaderCard.addSubview(iconImageView)
+        instanceHeaderCard.addSubview(instanceNameLabel)
+        instanceHeaderCard.addSubview(changeButton)
+        instanceHeaderCard.addSubview(blurbLabel)
+
+        NSLayoutConstraint.activate([
+            bannerView.leadingAnchor.constraint(equalTo: instanceHeaderCard.leadingAnchor),
+            bannerView.trailingAnchor.constraint(equalTo: instanceHeaderCard.trailingAnchor),
+            bannerView.topAnchor.constraint(equalTo: instanceHeaderCard.topAnchor),
+            bannerView.heightAnchor.constraint(equalToConstant: 58),
+
+            // Avatar overlaps the banner bottom by ~20pt.
+            iconImageView.widthAnchor.constraint(equalToConstant: 46),
+            iconImageView.heightAnchor.constraint(equalToConstant: 46),
+            iconImageView.leadingAnchor.constraint(equalTo: instanceHeaderCard.leadingAnchor, constant: 13),
+            iconImageView.topAnchor.constraint(equalTo: bannerView.bottomAnchor, constant: -20),
+
+            instanceNameLabel.leadingAnchor.constraint(equalTo: iconImageView.trailingAnchor, constant: 11),
+            instanceNameLabel.bottomAnchor.constraint(equalTo: iconImageView.bottomAnchor, constant: -3),
+
+            changeButton.leadingAnchor.constraint(greaterThanOrEqualTo: instanceNameLabel.trailingAnchor, constant: 8),
+            changeButton.trailingAnchor.constraint(equalTo: instanceHeaderCard.trailingAnchor, constant: -13),
+            changeButton.bottomAnchor.constraint(equalTo: iconImageView.bottomAnchor, constant: -4),
+
+            blurbLabel.leadingAnchor.constraint(equalTo: instanceHeaderCard.leadingAnchor, constant: 13),
+            blurbLabel.trailingAnchor.constraint(equalTo: instanceHeaderCard.trailingAnchor, constant: -13),
+            blurbLabel.topAnchor.constraint(equalTo: iconImageView.bottomAnchor, constant: 6),
+            blurbLabel.bottomAnchor.constraint(equalTo: instanceHeaderCard.bottomAnchor, constant: -11),
+        ])
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        bannerGradient.frame = bannerView.bounds
+        applyBannerGradientColors()
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        applyBannerGradientColors()
+        instanceHeaderCard.layer.borderColor = UIColor.separator.cgColor
+        iconImageView.layer.borderColor = Theme.background.cgColor
+    }
+
+    /// A subtle diagonal gradient derived from the app accent.
+    private func applyBannerGradientColors() {
+        let accent = view.tintColor ?? .systemBlue
+        bannerGradient.startPoint = CGPoint(x: 0, y: 0)
+        bannerGradient.endPoint = CGPoint(x: 1, y: 1)
+        bannerGradient.colors = [
+            accent.withAlphaComponent(0.55).cgColor,
+            accent.withAlphaComponent(0.2).cgColor,
+        ]
     }
 
     private func bindViewModel() {
         instanceNameLabel.text = viewModel.instanceName
+        applyBannerGradientColors()
+
+        let anonymousTitle = String(
+            format: NSLocalizedString(
+                "Browse %@ anonymously",
+                comment: "Login anonymous-browse row, %@ is the instance host"
+            ),
+            viewModel.instanceName
+        )
+        anonymousButton.configuration?.attributedTitle = AttributedString(
+            anonymousTitle,
+            attributes: AttributeContainer([
+                .font: UIFont.systemFont(ofSize: 15.5, weight: .semibold),
+            ])
+        )
+
+        let blurb = viewModel.row.descriptionText
+        if let blurb, !blurb.isEmpty {
+            blurbLabel.text = blurb
+        } else {
+            blurbLabel.text = viewModel.instanceName
+        }
 
         observationTasks.append(Task { @MainActor [weak self, viewModel] in
             for await image in ObservationStream.values(of: { viewModel.icon }) {
@@ -306,6 +440,12 @@ class LoginViewController: UIViewController {
         observationTasks.append(Task { @MainActor [weak self, viewModel] in
             for await enabled in ObservationStream.values(of: { viewModel.loginButtonEnabled }) {
                 self?.loginButton.isEnabled = enabled
+            }
+        })
+
+        observationTasks.append(Task { @MainActor [weak self, viewModel] in
+            for await error in ObservationStream.values(of: { viewModel.loginError }) {
+                self?.passwordField.errorText = error
             }
         })
 
@@ -341,19 +481,25 @@ class LoginViewController: UIViewController {
 
     @objc
     private func usernameChanged() {
-        viewModel.username = usernameTextField.text ?? ""
+        viewModel.username = usernameField.textField.text ?? ""
     }
 
     @objc
     private func passwordChanged() {
-        viewModel.password = passwordTextField.text ?? ""
+        viewModel.password = passwordField.textField.text ?? ""
     }
 
     @objc
     private func login() {
+        view.endEditing(true)
         Task { @MainActor in
             await viewModel.login()
         }
+    }
+
+    @objc
+    private func forgotPasswordTapped() {
+        // TODO: present the dedicated password-reset screen (a later slice).
     }
 
     @objc
@@ -363,5 +509,33 @@ class LoginViewController: UIViewController {
             dependencies: dependencies.nested
         )
         navigationController?.pushViewController(registerViewController, animated: true)
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        updateRegisterLine()
+    }
+
+    /// Builds the "New to Spud? Create an account" attributed line, accenting
+    /// the call-to-action clause.
+    private func updateRegisterLine() {
+        let prompt = NSLocalizedString("New to Spud? ", comment: "Login register prompt")
+        let action = NSLocalizedString("Create an account", comment: "Login register CTA")
+
+        let string = NSMutableAttributedString(
+            string: prompt,
+            attributes: [
+                .font: UIFont.systemFont(ofSize: 13.5),
+                .foregroundColor: UIColor.secondaryLabel,
+            ]
+        )
+        string.append(NSAttributedString(
+            string: action,
+            attributes: [
+                .font: UIFont.systemFont(ofSize: 13.5, weight: .bold),
+                .foregroundColor: view.tintColor ?? .systemBlue,
+            ]
+        ))
+        registerLineLabel.attributedText = string
     }
 }
