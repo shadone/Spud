@@ -48,6 +48,40 @@ final class OnboardingPrimaryButton: UIButton {
     }
 }
 
+/// The design's `GhostBtn`: a 44pt-tall, borderless button whose 15.5pt-semibold
+/// title is drawn in the app accent (`tintColor`). Used as the secondary action
+/// beneath an `OnboardingPrimaryButton`.
+final class OnboardingGhostButton: UIButton {
+    init(title: String) {
+        super.init(frame: .zero)
+
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = title
+        configuration.contentInsets = .init(top: 11, leading: 16, bottom: 11, trailing: 16)
+        self.configuration = configuration
+
+        translatesAutoresizingMaskIntoConstraints = false
+        configurationUpdateHandler = { button in
+            var updated = button.configuration
+            updated?.baseForegroundColor = button.tintColor
+            updated?.attributedTitle = AttributedString(
+                title,
+                attributes: AttributeContainer([
+                    .font: UIFont.systemFont(ofSize: 15.5, weight: .semibold),
+                ])
+            )
+            button.configuration = updated
+        }
+
+        heightAnchor.constraint(greaterThanOrEqualToConstant: 44).isActive = true
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+}
+
 /// The design's labeled `Field`: a 12pt/600 secondary caption above a 48pt-tall
 /// rounded (radius 12) container holding a `UITextField`, with a 1pt border that
 /// is `.separator` at rest, `tintColor` while first responder, and `.systemRed`

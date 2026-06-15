@@ -270,7 +270,7 @@ class LoginViewController: UIViewController {
         button.tintColor = .secondaryLabel
         button.addTarget(
             self,
-            action: #selector(continueWithSignedOutAccount),
+            action: #selector(browseAnonymouslyTapped),
             for: .touchUpInside
         )
         return button
@@ -477,6 +477,19 @@ class LoginViewController: UIViewController {
     private func continueWithSignedOutAccount() {
         accountService.signInAsSignedOut(atInstance: viewModel.row.instance)
         dismiss(animated: true)
+    }
+
+    /// Pushes the read-only confirmation screen instead of signing in
+    /// immediately, giving the user a chance to understand what anonymous
+    /// browsing means before committing.
+    @objc
+    private func browseAnonymouslyTapped() {
+        let viewController = AnonymousBrowseConfirmViewController(
+            instance: viewModel.row.instance,
+            hostname: viewModel.instanceName,
+            dependencies: dependencies.own
+        )
+        navigationController?.pushViewController(viewController, animated: true)
     }
 
     @objc
