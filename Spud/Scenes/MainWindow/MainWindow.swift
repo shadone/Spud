@@ -7,6 +7,7 @@
 import LemmyKit
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 class MainWindow: UIWindow {
@@ -76,6 +77,8 @@ class MainWindow: UIWindow {
 
         super.init(windowScene: windowScene)
 
+        seedDefaultAccountForUITestsIfRequested()
+
         // Gate on account presence: an existing account builds the tab bar; a
         // fresh install (no account) gets the onboarding flow as the root, and
         // the default-account observation swaps in the tab bar once the flow
@@ -113,6 +116,21 @@ class MainWindow: UIWindow {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    /// UI tests stub the feed for discuss.tchncs.de and expect to land on it at
+    /// launch. The production auto-bootstrap that used to create that account is
+    /// gone (onboarding now gates a fresh install), so a launch argument
+    /// recreates the precondition here — at scene-connection time, after the
+    /// test tunnel's filesystem reset — without shipping it. No-op otherwise.
+    private func seedDefaultAccountForUITestsIfRequested() {
+        guard
+            ProcessInfo.processInfo.arguments
+            .contains(AppLaunchArgument.seedSignedOutDefaultAccount.rawValue),
+            accountService.currentDefaultAccountKeychainId() == nil,
+            let instance = InstanceActorId(from: "https://discuss.tchncs.de")
+        else { return }
+        accountService.signInAsSignedOut(atInstance: instance)
     }
 
     private func showOnboarding() {

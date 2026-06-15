@@ -19,6 +19,9 @@ class SpudUITests: XCTestCase {
             SBTUITunneledApplicationLaunchOptionResetFilesystem,
             SBTUITunneledApplicationLaunchOptionDisableUITextFieldAutocomplete,
             AppLaunchArgument.staticImageService.rawValue,
+            // Onboarding gates a fresh install; seed a default account so these
+            // tests land on the feed (the old auto-bootstrap they relied on is gone).
+            AppLaunchArgument.seedSignedOutDefaultAccount.rawValue,
         ]
         app.launchTunnel(withOptions: launchOptions) {
             self.app.monitorRequests(matching: SBTRequestMatch(url: ".*"))
