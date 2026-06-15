@@ -90,33 +90,39 @@ enum LemmyURLParser {
         let link: URL.SpudInternalLink
     }
 
-    private static let communityMentionPattern =
-        #"(?<![\w@./])!([a-zA-Z0-9_]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"#
-    private static let userMentionPattern =
-        #"(?<![\w@./])@([a-zA-Z0-9_]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"#
+    // Compiled once; patterns are compile-time constants so `try!` cannot fail.
+    // `mentions(in:)` runs on every body render, so recompiling per call would
+    // be wasted work. The lookbehind excludes `!` too (symmetric with the user
+    // pattern excluding `@`) so `!!c@host` does not match.
+    private static let communityMentionRegex = try! NSRegularExpression(
+        pattern: #"(?<![\w@./!])!([a-zA-Z0-9_]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"#
+    )
+    private static let userMentionRegex = try! NSRegularExpression(
+        pattern: #"(?<![\w@./])@([a-zA-Z0-9_]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})"#
+    )
 
-    /// Finds `!community@instance` and `@user@instance` mentions in `text`.
-    /// Communities map to `.community`; users map to `.objectAtURL` of the
-    /// canonical `/u/` URL (resolved for the local person id at tap time).
+    /// Finds `!community@instance` and `@user@instance` mentions in `text`,
+    /// returned in order of appearance. Communities map to `.community`; users
+    /// map to `.objectAtURL` of the canonical `/u/` URL (resolved for the local
+    /// person id at tap time).
     static func mentions(in text: String) -> [Mention] {
         var result: [Mention] = []
-        result.append(contentsOf: matches(communityMentionPattern, in: text) { name, host in
+        result.append(contentsOf: matches(communityMentionRegex, in: text) { name, host in
             guard let instance = InstanceActorId(from: "https://\(host)") else { return nil }
             return .community(name: name, instance: instance)
         })
-        result.append(contentsOf: matches(userMentionPattern, in: text) { name, host in
+        result.append(contentsOf: matches(userMentionRegex, in: text) { name, host in
             guard let url = URL(string: "https://\(host)/u/\(name)") else { return nil }
             return .objectAtURL(url: url)
         })
-        return result
+        return result.sorted { $0.range.location < $1.range.location }
     }
 
     private static func matches(
-        _ pattern: String,
+        _ regex: NSRegularExpression,
         in text: String,
         make: (_ name: String, _ host: String) -> URL.SpudInternalLink?
     ) -> [Mention] {
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
         let full = NSRange(text.startIndex..<text.endIndex, in: text)
         return regex.matches(in: text, range: full).compactMap { match in
             guard

@@ -83,4 +83,28 @@ final class LemmyURLParserTests: XCTestCase {
         }
         XCTAssertEqual(url.absoluteString, "https://lemmy.world/u/alice")
     }
+
+    func test_mentions_returnedInTextOrder() {
+        // A user mention appears before a community mention in the text; the
+        // result must reflect appearance order, not match-pass order.
+        let mentions = LemmyURLParser.mentions(in: "@alice@a.example !tech@b.example")
+        XCTAssertEqual(mentions.count, 2)
+        guard case .objectAtURL = mentions[0].link else {
+            return XCTFail("first mention should be the user mention")
+        }
+        guard case .community = mentions[1].link else {
+            return XCTFail("second mention should be the community mention")
+        }
+        XCTAssertLessThan(mentions[0].range.location, mentions[1].range.location)
+    }
+
+    func test_communityMention_atStringStart_matches() {
+        let mentions = LemmyURLParser.mentions(in: "!tech@beehaw.org leads the line")
+        XCTAssertEqual(mentions.count, 1)
+        XCTAssertEqual(mentions[0].range.location, 0)
+    }
+
+    func test_postURL_withNonNumericId_isNil() {
+        XCTAssertNil(classify("https://lemmy.world/post/notanumber"))
+    }
 }
