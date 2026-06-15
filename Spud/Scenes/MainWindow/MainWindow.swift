@@ -20,6 +20,7 @@ class MainWindow: UIWindow {
         AccountViewController.Dependencies &
         InboxViewController.Dependencies &
         MainWindowSplitViewController.Dependencies &
+        OnboardingHomeBaseViewController.Dependencies &
         PreferencesViewController.Dependencies &
         SearchViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
@@ -137,8 +138,8 @@ class MainWindow: UIWindow {
         let welcomeViewController = OnboardingWelcomeViewController()
         welcomeViewController.onGetStarted = { [weak self] in
             guard let self else { return }
-            let siteListViewController = SiteListViewController(dependencies: dependencies.nested)
-            onboardingNavigationController?.pushViewController(siteListViewController, animated: true)
+            let homeBaseViewController = OnboardingHomeBaseViewController(dependencies: dependencies.nested)
+            onboardingNavigationController?.pushViewController(homeBaseViewController, animated: true)
         }
         let navigationController = UINavigationController(rootViewController: welcomeViewController)
         onboardingNavigationController = navigationController

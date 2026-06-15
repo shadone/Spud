@@ -200,3 +200,86 @@ extension OnboardingLabeledField: UITextFieldDelegate {
         updateBorderColor()
     }
 }
+
+/// The design's `CommunityIcon`: a rounded-square instance avatar that shows a
+/// fetched icon image, or — until the image loads / when there is none — a
+/// gradient placeholder with the host's first letter. The gradient hue is
+/// derived deterministically from the seed string so the same instance always
+/// gets the same placeholder color.
+final class OnboardingInstanceAvatar: UIView {
+    private let imageView = UIImageView()
+    private let letterLabel = UILabel()
+    private let gradientLayer = CAGradientLayer()
+    private let seed: String
+
+    /// - Parameters:
+    ///   - seed: stable string (the host name) that drives both the placeholder
+    ///     letter and its gradient hue.
+    ///   - size: the avatar's square edge length, in points.
+    ///   - cornerRadius: the continuous corner radius.
+    init(seed: String, size: CGFloat, cornerRadius: CGFloat) {
+        self.seed = seed
+        super.init(frame: .zero)
+        translatesAutoresizingMaskIntoConstraints = false
+
+        layer.cornerRadius = cornerRadius
+        layer.cornerCurve = .continuous
+        clipsToBounds = true
+
+        let hue = Self.hue(for: seed)
+        gradientLayer.colors = [
+            UIColor(hue: hue, saturation: 0.5, brightness: 0.62, alpha: 1).cgColor,
+            UIColor(hue: hue, saturation: 0.55, brightness: 0.46, alpha: 1).cgColor,
+        ]
+        gradientLayer.startPoint = CGPoint(x: 0.25, y: 0)
+        gradientLayer.endPoint = CGPoint(x: 0.75, y: 1)
+        layer.addSublayer(gradientLayer)
+
+        letterLabel.translatesAutoresizingMaskIntoConstraints = false
+        letterLabel.text = String(seed.prefix(1)).uppercased()
+        letterLabel.font = .systemFont(ofSize: size * 0.44, weight: .heavy)
+        letterLabel.textColor = .white
+        letterLabel.textAlignment = .center
+        addSubview(letterLabel)
+
+        imageView.translatesAutoresizingMaskIntoConstraints = false
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        imageView.isHidden = true
+        addSubview(imageView)
+
+        NSLayoutConstraint.activate([
+            widthAnchor.constraint(equalToConstant: size),
+            heightAnchor.constraint(equalToConstant: size),
+            letterLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
+            letterLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
+            imageView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            imageView.topAnchor.constraint(equalTo: topAnchor),
+            imageView.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    /// Reveals the fetched icon over the placeholder. Passing nil falls back to
+    /// the lettered gradient.
+    func setImage(_ image: UIImage?) {
+        imageView.image = image
+        imageView.isHidden = image == nil
+        letterLabel.isHidden = image != nil
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        gradientLayer.frame = bounds
+    }
+
+    private static func hue(for string: String) -> CGFloat {
+        let sum = string.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+        return CGFloat(sum % 360) / 360
+    }
+}
