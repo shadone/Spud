@@ -19,7 +19,6 @@ public struct RedirectorUnwrapStep: URLRewriteStep {
         "l.facebook.com": "u",
         "lm.facebook.com": "u",
         "out.reddit.com": "url",
-        "href.li": "",
         "steamcommunity.com": "url",
     ]
 
@@ -42,7 +41,7 @@ public struct RedirectorUnwrapStep: URLRewriteStep {
         }
         let baseHost = normalizedHost(host)
 
-        // href.li uses the raw query string as the target (no param name).
+        // href.li encodes the target as the raw query string (no key=value), so it is handled separately from the key-based wrappers map.
         if baseHost == "href.li" {
             guard let query = components.query else { return nil }
             return validHTTPURL(query)

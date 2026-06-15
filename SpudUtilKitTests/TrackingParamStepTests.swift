@@ -71,4 +71,11 @@ final class TrackingParamStepTests: XCTestCase {
             "https://www.amazon.com/gp/bestsellers?node=1"
         )
     }
+
+    func test_doesNotStripWhenDisabled() throws {
+        var config = URLSanitizerConfig.default
+        config.stripTrackingParams = false
+        let url = try XCTUnwrap(URL(string: "https://example.com/p?utm_source=a&id=42"))
+        XCTAssertEqual(TrackingParamStep().apply(url, config: config).absoluteString, "https://example.com/p?utm_source=a&id=42")
+    }
 }

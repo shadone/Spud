@@ -45,4 +45,35 @@ final class RedirectorUnwrapStepTests: XCTestCase {
             "https://www.google.com/url?q=javascript:alert(1)"
         )
     }
+
+    func test_unwrapsRedditOutbound() {
+        XCTAssertEqual(
+            unwrapped("https://out.reddit.com/?url=https%3A%2F%2Fexample.com%2Fx"),
+            "https://example.com/x"
+        )
+    }
+
+    func test_unwrapsSteamLinkfilter() {
+        XCTAssertEqual(
+            unwrapped("https://steamcommunity.com/linkfilter/?url=https%3A%2F%2Fexample.com"),
+            "https://example.com"
+        )
+    }
+
+    func test_unwrapsLmFacebook() {
+        XCTAssertEqual(
+            unwrapped("https://lm.facebook.com/l.php?u=https%3A%2F%2Fexample.com%2Fy"),
+            "https://example.com/y"
+        )
+    }
+
+    func test_doesNotUnwrapWhenDisabled() throws {
+        var config = URLSanitizerConfig.default
+        config.unwrapRedirectors = false
+        let url = try XCTUnwrap(URL(string: "https://www.google.com/url?q=https://example.com/article"))
+        XCTAssertEqual(
+            RedirectorUnwrapStep().apply(url, config: config).absoluteString,
+            "https://www.google.com/url?q=https://example.com/article"
+        )
+    }
 }

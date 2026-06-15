@@ -38,4 +38,11 @@ final class DeAMPStepTests: XCTestCase {
         XCTAssertEqual(deamped("https://example.com/amp/guide"), "https://example.com/amp/guide")
         XCTAssertEqual(deamped("https://amp.example.com/x"), "https://amp.example.com/x")
     }
+
+    func test_doesNotDeAmpWhenDisabled() throws {
+        var config = URLSanitizerConfig.default
+        config.deAMP = false
+        let url = try XCTUnwrap(URL(string: "https://example.com/article?amp=1"))
+        XCTAssertEqual(DeAMPStep().apply(url, config: config).absoluteString, "https://example.com/article?amp=1")
+    }
 }

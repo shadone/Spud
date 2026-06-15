@@ -33,4 +33,11 @@ final class HTTPSUpgradeStepTests: XCTestCase {
         XCTAssertEqual(upgraded("mailto:jack@example.com"), "mailto:jack@example.com")
         XCTAssertEqual(upgraded("ftp://example.com/file"), "ftp://example.com/file")
     }
+
+    func test_doesNotUpgradeWhenDisabled() throws {
+        var config = URLSanitizerConfig.default
+        config.upgradeToHTTPS = false
+        let url = try XCTUnwrap(URL(string: "http://example.com/path"))
+        XCTAssertEqual(HTTPSUpgradeStep().apply(url, config: config).absoluteString, "http://example.com/path")
+    }
 }
