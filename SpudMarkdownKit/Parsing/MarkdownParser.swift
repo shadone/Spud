@@ -15,7 +15,8 @@ public enum MarkdownParser {
         let footnoteResult = FootnoteExtractor.extract(source)
         let spoilerResult = SpoilerPreprocessor.preprocess(footnoteResult.source)
 
-        var blocks = BlockParser.document(spoilerResult.source)
+        let protectedSource = SubSupPreprocessor.protectText(spoilerResult.source)
+        var blocks = BlockParser.document(protectedSource)
         blocks = reinjectSpoilers(blocks, spoilers: spoilerResult.spoilers)
 
         if !footnoteResult.definitions.isEmpty {

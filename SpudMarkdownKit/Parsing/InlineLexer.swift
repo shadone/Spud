@@ -44,6 +44,12 @@ enum InlineLexer {
             rest.distance(from: rest.startIndex, to: upper)
         }
 
+        if let m = rest.prefixMatch(of: /\u{E010}sup:([^\u{E011}]+)\u{E011}/) {
+            return (.superscript(parse(String(m.output.1))), count(m.range.upperBound))
+        }
+        if let m = rest.prefixMatch(of: /\u{E010}sub:([^\u{E011}]+)\u{E011}/) {
+            return (.subscript(parse(String(m.output.1))), count(m.range.upperBound))
+        }
         if let m = rest.prefixMatch(of: /\[\^([\w-]+)\]/) {
             return (.footnoteReference(String(m.output.1)), count(m.range.upperBound))
         }
