@@ -129,6 +129,34 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - Subtitle wrapping
+
+    /// A long community handle pushes the subtitle past the row width, so it
+    /// wraps after the community name: the handle stays on the first line and
+    /// the fixed-width metadata block (score, comments, age) drops to the
+    /// second, kept intact rather than split or elided.
+    func test_longCommunityName_wraps() async {
+        await assertCell(
+            row(
+                url: nil,
+                communityName: "urbanphotographyandstreetscenes",
+                communityActorId: "https://feddit.someverylonghost.example/c/urbanphotographyandstreetscenes"
+            )
+        )
+    }
+
+    /// A short handle plus metadata fits on a single line, so the subtitle does
+    /// not wrap — locking the no-wrap path the long-name case can't cover.
+    func test_shortCommunityName_singleLine() async {
+        await assertCell(
+            row(
+                url: nil,
+                communityName: "art",
+                communityActorId: "https://x.io/c/art"
+            )
+        )
+    }
+
     // MARK: - Rendering
 
     private func assertCell(
@@ -235,6 +263,8 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         body: String? = nil,
         urlEmbedTitle: String? = nil,
         urlEmbedDescription: String? = nil,
+        communityName: String = "photography",
+        communityActorId: String = "https://lemmy.world/c/photography",
         voteStatus: Int64? = nil,
         isRead: Bool = false,
         isSaved: Bool = false,
@@ -255,8 +285,8 @@ final class PostListPostCellSnapshotTests: XCTestCase {
             urlEmbedTitle: urlEmbedTitle,
             urlEmbedDescription: urlEmbedDescription,
             altText: nil,
-            communityName: "photography",
-            communityActorId: "https://lemmy.world/c/photography",
+            communityName: communityName,
+            communityActorId: communityActorId,
             serverCommunityId: 1,
             creatorPersonId: 1,
             creatorName: "ansel",

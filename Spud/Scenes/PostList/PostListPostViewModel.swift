@@ -212,7 +212,16 @@ struct PostListPostViewModel {
         upvoteActiveColor = appearance.general.upvoteButtonActiveColor
         downvoteActiveColor = appearance.general.downvoteButtonActiveColor
 
-        let space = NSAttributedString(string: "  ", attributes: secondaryAttributes)
+        // The lone breaking opportunity in the subtitle: when the line is too
+        // narrow for the whole thing, it wraps here — dropping the fixed-width
+        // metadata to a second line and leaving the variable-width community
+        // handle on the first. See `PostListPostCell.subtitleLabel`.
+        let handleSpace = NSAttributedString(string: "  ", attributes: secondaryAttributes)
+        // Non-breaking double-space keeps the metadata run (score, comments,
+        // age, and any saved/badge markers) together as one unbreakable unit so
+        // it never splits across lines — the subtitle only ever wraps at
+        // `handleSpace`, after the community name.
+        let space = NSAttributedString(string: "\u{00a0}\u{00a0}", attributes: secondaryAttributes)
 
         // "community@instance" — the name in the label color, the host quiet.
         var handlePieces = [NSAttributedString(string: row.communityName, attributes: communityAttributes)]
@@ -222,7 +231,7 @@ struct PostListPostViewModel {
 
         var pieces: [NSAttributedString] = [
             handlePieces.joined(),
-            space,
+            handleSpace,
             IconValueFormatter.attributedString(
                 numberOfVotesOrScore: row.score,
                 voteStatus: voteStatus,

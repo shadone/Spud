@@ -142,6 +142,13 @@ class PostListPostCell: UITableViewCell {
     lazy var subtitleLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
+        // Wrap rather than truncate when the subtitle is too wide. The view
+        // model joins the metadata (score, comments, age, badges) with
+        // non-breaking spaces, so the only break opportunity is after the
+        // community handle — the subtitle drops the metadata to a second line
+        // instead of eliding it.
+        label.numberOfLines = 0
+        label.lineBreakMode = .byWordWrapping
         label.accessibilityIdentifier = "subtitle"
         return label
     }()
