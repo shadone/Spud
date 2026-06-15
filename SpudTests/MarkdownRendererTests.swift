@@ -5,6 +5,7 @@
 //
 
 import Down
+import SpudUtilKit
 import UIKit
 import XCTest
 @testable import Spud
@@ -187,5 +188,50 @@ final class MarkdownRendererTests: XCTestCase {
         }.value
         // The follow-up read finds the cached value.
         XCTAssertNotNil(renderer.cached(key: key))
+    }
+
+    // MARK: - Lemmy mention shorthands
+
+    func test_communityMention_isLinkifiedToInternalLink() {
+        let renderer = MarkdownRenderer()
+        let result = renderer.attributedString(
+            markdown: "join !technology@beehaw.org today",
+            key: "communityMention",
+            makeStyler: makeStyler()
+        )
+        guard
+            let link = firstLink(in: result),
+            case let .community(name, instance)? = link.spud
+        else {
+            return XCTFail("community mention should become an internal community link")
+        }
+        XCTAssertEqual(name, "technology")
+        XCTAssertEqual(instance.host, "beehaw.org")
+    }
+
+    func test_userMention_isLinkifiedToInternalLink() {
+        let renderer = MarkdownRenderer()
+        let result = renderer.attributedString(
+            markdown: "ping @alice@lemmy.world ok",
+            key: "userMention",
+            makeStyler: makeStyler()
+        )
+        guard
+            let link = firstLink(in: result),
+            case let .objectAtURL(url)? = link.spud
+        else {
+            return XCTFail("user mention should become an internal resolve link")
+        }
+        XCTAssertEqual(url.absoluteString, "https://lemmy.world/u/alice")
+    }
+
+    func test_mentionInsideInlineCode_isNotLinkified() {
+        let renderer = MarkdownRenderer()
+        let result = renderer.attributedString(
+            markdown: "type `!technology@beehaw.org` to subscribe",
+            key: "codeMention",
+            makeStyler: makeStyler()
+        )
+        XCTAssertFalse(hasAnyLink(in: result), "mentions inside code spans must not be linkified")
     }
 }

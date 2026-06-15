@@ -32,7 +32,6 @@ extension NSAttributedString {
 
         let fullRange = NSRange(location: 0, length: length)
         let matches = detector.matches(in: string, options: [], range: fullRange)
-        guard !matches.isEmpty else { return self }
 
         let result = NSMutableAttributedString(attributedString: self)
         for match in matches {
@@ -55,6 +54,30 @@ extension NSAttributedString {
             result.addAttribute(.link, value: url, range: range)
             result.addAttribute(.foregroundColor, value: linkColor, range: range)
         }
+
+        // Linkify Lemmy mention shorthands (`!c@i`, `@u@i`). These are not URLs,
+        // so NSDataDetector never sees them; they carry the instance inline and
+        // need no known-instance allowlist. Stored as the internal-scheme URL so
+        // LinkLabel routes them through `url.spud` like any other internal link.
+        for mention in LemmyURLParser.mentions(in: string) {
+            let range = mention.range
+            guard range.location < length, NSMaxRange(range) <= length else { continue }
+
+            // Don't overlap an existing link (URL autolink or explicit markdown).
+            if attribute(.link, at: range.location, effectiveRange: nil) != nil {
+                continue
+            }
+            // Don't linkify inside code spans/blocks (matches the URL pass).
+            if let font = attribute(.font, at: range.location, effectiveRange: nil) as? UIFont,
+               font.fontDescriptor.symbolicTraits.contains(.traitMonoSpace)
+            {
+                continue
+            }
+
+            result.addAttribute(.link, value: mention.link.url, range: range)
+            result.addAttribute(.foregroundColor, value: linkColor, range: range)
+        }
+
         return result
     }
 }
