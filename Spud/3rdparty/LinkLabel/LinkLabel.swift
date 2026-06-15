@@ -11,35 +11,6 @@ import UIKit
 
 private let logger = Logger.app
 
-private func < <T: Comparable>(lhs: T?, rhs: T?) -> Bool {
-    switch (lhs, rhs) {
-    case let (l?, r?):
-        return l < r
-    case (nil, _?):
-        return true
-    default:
-        return false
-    }
-}
-
-private func >= <T: Comparable>(lhs: T?, rhs: T?) -> Bool {
-    switch (lhs, rhs) {
-    case let (l?, r?):
-        return l >= r
-    default:
-        return !(lhs < rhs)
-    }
-}
-
-private func <= <T: Comparable>(lhs: T?, rhs: T?) -> Bool {
-    switch (lhs, rhs) {
-    case let (l?, r?):
-        return l <= r
-    default:
-        return !(rhs < lhs)
-    }
-}
-
 private class Attribute {
     let attributeName: NSAttributedString.Key
     let value: Any
@@ -191,10 +162,14 @@ class LinkLabel: UILabel {
 
         isUserInteractionEnabled = true
 
-        let touchGestureRecognizer = TouchGestureRecognizer(
+        // A long-press recognizer with a zero minimum duration recognizes on
+        // touch-down and keeps tracking finger movement, driving the link
+        // highlight. (Replaces a hand-rolled UIGestureRecognizer subclass.)
+        let touchGestureRecognizer = UILongPressGestureRecognizer(
             target: self,
             action: #selector(respondToLinkLabelTouched(_:))
         )
+        touchGestureRecognizer.minimumPressDuration = 0
         touchGestureRecognizer.delegate = self
         addGestureRecognizer(touchGestureRecognizer)
 
@@ -247,7 +222,7 @@ class LinkLabel: UILabel {
     }
 
     @objc
-    func respondToLinkLabelTouched(_ gestureRecognizer: TouchGestureRecognizer) {
+    func respondToLinkLabelTouched(_ gestureRecognizer: UILongPressGestureRecognizer) {
         if linkAttributes.isEmpty {
             return
         }

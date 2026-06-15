@@ -1,5 +1,5 @@
 //
-//  UITapGestureRecognizer+LabelLinks.swift
+//  UILabel+CharacterIndex.swift
 //  TwIM
 //
 //  Created by Andrew Hart on 06/08/2015.
