@@ -150,8 +150,15 @@ class PersonViewController: UIViewController {
         view.backgroundColor = Theme.background
 
         headerView.translatesAutoresizingMaskIntoConstraints = false
+        headerView.imageService = imageService
         headerView.linkTapped = { [weak self] url in
             self?.linkTapped(url)
+        }
+        // The header is an Auto Layout subview, so a taller bio (once an inline
+        // image loads) repositions the segmented control and table automatically;
+        // nudge a layout pass so the change isn't deferred to the next event.
+        headerView.onBodyImageLoaded = { [weak self] in
+            self?.view.setNeedsLayout()
         }
 
         tableView.refreshControl = refreshControl

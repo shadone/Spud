@@ -90,4 +90,21 @@ final class MarkdownRenderer: @unchecked Sendable {
     static func imageBodyKey(markdown: String, textSizeAdjustment: CGFloat) -> String {
         "imageBody.v1.\(textSizeAdjustment)\u{1}\(markdown)"
     }
+
+    /// Renders a body that may contain inline images into an attributed string
+    /// for display in a `BodyTextView`, caching under `imageBodyKey` and styling
+    /// with the image-capable `BodyImageStyler`. The single home for the
+    /// (key, styler) pairing, so a caller can never mismatch them (see
+    /// `imageBodyKey`). Used by the post-detail header, comment cells, person
+    /// bios, and community descriptions.
+    @discardableResult
+    func imageBody(markdown: String, textSizeAdjustment: CGFloat) -> NSAttributedString {
+        attributedString(
+            markdown: markdown,
+            key: Self.imageBodyKey(markdown: markdown, textSizeAdjustment: textSizeAdjustment),
+            makeStyler: {
+                BodyImageStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment))
+            }
+        )
+    }
 }

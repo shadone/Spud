@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Down
 import Foundation
 import LemmyKit
 import SpudDataKit
@@ -20,6 +19,14 @@ import UIKit
 final class PersonHeaderView: UIView {
     /// Fired when a link inside the markdown bio is tapped.
     var linkTapped: ((URL) -> Void)?
+
+    /// The image loader used for inline bio images. Set by the owning view
+    /// controller before `configure(...)`.
+    var imageService: ImageServiceType?
+
+    /// Fired when an inline bio image finishes loading and the bio's height
+    /// changes, so the host can re-lay-out around the taller header.
+    var onBodyImageLoaded: (() -> Void)?
 
     private let bannerHeight: CGFloat = 100
     private let avatarSize: CGFloat = 72
@@ -78,15 +85,16 @@ final class PersonHeaderView: UIView {
         return label
     }()
 
-    private lazy var bioLabel: LinkLabel = {
-        let label = LinkLabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.backgroundColor = .clear
-        label.numberOfLines = 0
-        label.tapped = { [weak self] url in
+    private lazy var bioLabel: BodyTextView = {
+        let view = BodyTextView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.tapped = { [weak self] url in
             self?.linkTapped?(url)
         }
-        return label
+        view.onContentSizeChange = { [weak self] in
+            self?.onBodyImageLoaded?()
+        }
+        return view
     }()
 
     private lazy var separator: UIView = {
@@ -182,10 +190,9 @@ final class PersonHeaderView: UIView {
             return
         }
         bioLabel.isHidden = false
-        let config = PostDetailAppearance.bodyStylerConfiguration(for: 0)
-        bioLabel.attributedText = Down(markdownString: markdown)
-            .toAttributedString(styler: DownStyler(configuration: config))
-            .addingAutolinks()
+        // Set the loader before the body so inline images start loading on assign.
+        bioLabel.imageService = imageService
+        bioLabel.attributedText = MarkdownRenderer.shared.imageBody(markdown: markdown, textSizeAdjustment: 0)
     }
 
     // MARK: Images

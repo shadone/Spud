@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Down
 import Foundation
 import LemmyKit
 import SpudDataKit
@@ -22,6 +21,14 @@ final class CommunityHeaderView: UIView {
     var subscribeTapped: (() -> Void)?
     /// Fired when a link inside the markdown description is tapped.
     var linkTapped: ((URL) -> Void)?
+
+    /// The image loader used for inline description images. Set by the owning
+    /// view controller before `configure(...)`.
+    var imageService: ImageServiceType?
+
+    /// Fired when an inline description image finishes loading and the header's
+    /// height changes, so the host can re-measure its scrolling table header.
+    var onBodyImageLoaded: (() -> Void)?
 
     private let bannerHeight: CGFloat = 120
     private let iconSize: CGFloat = 64
@@ -105,15 +112,16 @@ final class CommunityHeaderView: UIView {
         return stack
     }()
 
-    private lazy var descriptionLabel: LinkLabel = {
-        let label = LinkLabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.backgroundColor = .clear
-        label.numberOfLines = 0
-        label.tapped = { [weak self] url in
+    private lazy var descriptionLabel: BodyTextView = {
+        let view = BodyTextView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.tapped = { [weak self] url in
             self?.linkTapped?(url)
         }
-        return label
+        view.onContentSizeChange = { [weak self] in
+            self?.onBodyImageLoaded?()
+        }
+        return view
     }()
 
     private lazy var subscribeButton: UIButton = {
@@ -242,10 +250,9 @@ final class CommunityHeaderView: UIView {
             return
         }
         descriptionLabel.isHidden = false
-        let config = PostDetailAppearance.bodyStylerConfiguration(for: 0)
-        descriptionLabel.attributedText = Down(markdownString: markdown)
-            .toAttributedString(styler: DownStyler(configuration: config))
-            .addingAutolinks()
+        // Set the loader before the body so inline images start loading on assign.
+        descriptionLabel.imageService = imageService
+        descriptionLabel.attributedText = MarkdownRenderer.shared.imageBody(markdown: markdown, textSizeAdjustment: 0)
     }
 
     private func configureSubscribeButton(subscribed: CommunitySubscribedState) {

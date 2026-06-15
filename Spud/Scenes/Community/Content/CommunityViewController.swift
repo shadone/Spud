@@ -140,11 +140,18 @@ class CommunityViewController: UIViewController {
         )
         navigationItem.rightBarButtonItems = [overflowButton, newPostButton]
 
+        headerView.imageService = imageService
         headerView.subscribeTapped = { [weak self] in
             self?.toggleSubscribed()
         }
         headerView.linkTapped = { [weak self] url in
             self?.linkTapped(url)
+        }
+        // The header is the feed table's scrolling header, which doesn't re-measure
+        // itself; when an inline description image loads and grows the header, ask
+        // the feed to re-lay-out the header so the change is reflected.
+        headerView.onBodyImageLoaded = { [weak self] in
+            self?.feedViewController?.layoutScrollingHeaderIfNeeded()
         }
 
         let interaction = UIContextMenuInteraction(delegate: self)
