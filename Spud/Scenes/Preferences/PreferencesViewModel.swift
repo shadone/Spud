@@ -86,7 +86,6 @@ final class PreferencesViewModel {
     var openExternalLink: Preferences.OpenExternalLink
     var openExternalLinkInSafariVCReaderMode: Bool
     var openExternalLinkAsUniversalLinkInApp: Bool
-    var rewriteTwitterLinksToXcancel: Bool
 
     /// Mirrored outbound URL hygiene config. Writes flow back through
     /// `preferencesService`; external changes arrive via its stream.
@@ -172,8 +171,6 @@ final class PreferencesViewModel {
             dependencies.preferencesService.openExternalLinksInSafariVCReaderMode
         openExternalLinkAsUniversalLinkInApp =
             dependencies.preferencesService.openUniversalLinkInApp
-        rewriteTwitterLinksToXcancel =
-            dependencies.preferencesService.rewriteTwitterLinksToXcancel
         urlSanitizerConfig = dependencies.preferencesService.urlSanitizerConfig
 
         appTheme = dependencies.preferencesService.appTheme
@@ -331,7 +328,6 @@ final class PreferencesViewModel {
         openExternalLink = .safariViewController
         openExternalLinkInSafariVCReaderMode = true
         openExternalLinkAsUniversalLinkInApp = true
-        rewriteTwitterLinksToXcancel = false
         urlSanitizerConfig = .default
         appTheme = .system
         accentColor = .lemmy
@@ -388,11 +384,6 @@ final class PreferencesViewModel {
     func updateOpenExternalLinkAsUniversalLinkInApp(_ value: Bool) {
         openExternalLinkAsUniversalLinkInApp = value
         preferencesService?.openUniversalLinkInApp = value
-    }
-
-    func updateRewriteTwitterLinksToXcancel(_ value: Bool) {
-        rewriteTwitterLinksToXcancel = value
-        preferencesService?.rewriteTwitterLinksToXcancel = value
     }
 
     // MARK: URL hygiene
