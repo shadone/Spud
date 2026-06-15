@@ -87,7 +87,6 @@ final class OnboardingWelcomeViewController: UIViewController {
         textStack.axis = .vertical
         textStack.alignment = .center
         textStack.spacing = 12
-        textStack.setCustomSpacing(26, after: logoImageView)
 
         view.addSubview(logoImageView)
         view.addSubview(textStack)

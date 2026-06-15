@@ -152,7 +152,10 @@ class MainWindow: UIWindow {
             with: self,
             duration: 0.3,
             options: .transitionCrossDissolve,
-            animations: { [self] in rootViewController = tabBarController },
+            animations: { [weak self] in
+                guard let self else { return }
+                rootViewController = tabBarController
+            },
             completion: { [weak self] _ in self?.onboardingNavigationController = nil }
         )
     }
