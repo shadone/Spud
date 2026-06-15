@@ -1455,7 +1455,11 @@ extension PostListViewController: UITableViewDelegate {
                 let visitCommunityAction = UIAction(
                     title: String(
                         format: NSLocalizedString("Visit %@", comment: "Context-menu action to open a post's community; %@ is the c/ community handle"),
-                        row?.communityName.map { "c/\($0)" } ?? NSLocalizedString("community", comment: "Generic community noun")
+                        // Map over the optional `row`, not `row?.communityName`:
+                        // `communityName` is a non-optional String, so
+                        // `row?.communityName.map` would resolve to Collection.map
+                        // (over Characters) and render as an array description.
+                        row.map { "c/\($0.communityName)" } ?? NSLocalizedString("community", comment: "Generic community noun")
                     ),
                     image: UIImage(systemName: "person.3")
                 ) { [weak self] _ in
