@@ -17,7 +17,15 @@ import UIKit
 /// CTA family (`UIButton.Configuration.filled()` + large corner) so the two
 /// screens read as one flow.
 final class OnboardingPrimaryButton: UIButton {
+    /// The button's title. The `configurationUpdateHandler` re-applies this on
+    /// every update, so callers must set it here (a plain `setTitle` would be
+    /// overwritten) to change the label after init.
+    var onboardingTitle: String {
+        didSet { setNeedsUpdateConfiguration() }
+    }
+
     init(title: String) {
+        onboardingTitle = title
         super.init(frame: .zero)
 
         var configuration = UIButton.Configuration.filled()
@@ -30,6 +38,7 @@ final class OnboardingPrimaryButton: UIButton {
         configurationUpdateHandler = { button in
             var updated = button.configuration
             updated?.baseBackgroundColor = button.tintColor
+            let title = (button as? OnboardingPrimaryButton)?.onboardingTitle ?? ""
             updated?.attributedTitle = AttributedString(
                 title,
                 attributes: AttributeContainer([
