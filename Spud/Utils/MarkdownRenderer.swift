@@ -80,4 +80,14 @@ final class MarkdownRenderer: @unchecked Sendable {
     static func postBodyKey(markdown: String, textSizeAdjustment: CGFloat) -> String {
         "postBody.v1.\(textSizeAdjustment)\u{1}\(markdown)"
     }
+
+    /// Cache key for a post or comment body rendered with `BodyImageStyler` (the
+    /// image-capable path used by the post-detail header and comment cells, both
+    /// of which display into a `BodyTextView`). Kept distinct from `postBodyKey`
+    /// because the cache key does not encode the styler: an image body cached for
+    /// a plain `UILabel` surface (e.g. the post preview) must never be served to a
+    /// `BodyTextView`, or vice versa.
+    static func imageBodyKey(markdown: String, textSizeAdjustment: CGFloat) -> String {
+        "imageBody.v1.\(textSizeAdjustment)\u{1}\(markdown)"
+    }
 }
