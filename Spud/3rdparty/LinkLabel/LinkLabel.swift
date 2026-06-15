@@ -148,6 +148,8 @@ class LinkLabel: UILabel {
 
     var tapped: ((URL) -> Void)?
 
+    var longPressed: ((URL) -> Void)?
+
     // MARK: Private
 
     private var linkAttributes: [LinkAttribute] = [] {
@@ -202,6 +204,13 @@ class LinkLabel: UILabel {
         )
         tapGestureRecognizer.delegate = self
         addGestureRecognizer(tapGestureRecognizer)
+
+        let longPressGestureRecognizer = UILongPressGestureRecognizer(
+            target: self,
+            action: #selector(respondToLinkLabelLongPressed(_:))
+        )
+        longPressGestureRecognizer.delegate = self
+        addGestureRecognizer(longPressGestureRecognizer)
 
         setupAttributes()
     }
@@ -272,6 +281,20 @@ class LinkLabel: UILabel {
 
         @unknown default:
             logger.assertionFailure()
+        }
+    }
+
+    @objc
+    func respondToLinkLabelLongPressed(_ gestureRecognizer: UILongPressGestureRecognizer) {
+        guard gestureRecognizer.state == .began, !linkAttributes.isEmpty else {
+            return
+        }
+        let location = gestureRecognizer.location(in: self)
+        switch link(atPoint: location) {
+        case let .url(url):
+            longPressed?(url)
+        case .string, .none:
+            break
         }
     }
 

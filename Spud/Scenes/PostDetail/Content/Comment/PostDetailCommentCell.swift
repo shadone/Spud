@@ -12,6 +12,7 @@ class PostDetailCommentCell: UITableViewCell {
     // MARK: Public
 
     var linkTapped: ((URL) -> Void)?
+    var linkLongPressed: ((URL) -> Void)?
 
     /// Fired when the user taps the comment body/header (but not a link or a
     /// swipe action) to collapse or expand its thread.
@@ -116,6 +117,9 @@ class PostDetailCommentCell: UITableViewCell {
         label.tapped = { [weak self] url in
             self?.linkTapped?(url)
         }
+        label.longPressed = { [weak self] url in
+            self?.linkLongPressed?(url)
+        }
         return label
     }()
 
@@ -159,6 +163,9 @@ class PostDetailCommentCell: UITableViewCell {
         label.accessibilityIdentifier = "message"
         label.tapped = { [weak self] url in
             self?.linkTapped?(url)
+        }
+        label.longPressed = { [weak self] url in
+            self?.linkLongPressed?(url)
         }
         return label
     }()
@@ -277,6 +284,7 @@ class PostDetailCommentCell: UITableViewCell {
         super.prepareForReuse()
 
         linkTapped = nil
+        linkLongPressed = nil
         collapseTapped = nil
         revealBlockedTapped = nil
         swipeActionConfiguration = nil

@@ -704,6 +704,51 @@ class PostDetailViewController: UIViewController {
         }
     }
 
+    /// Long-press escape hatch for a body-text link: open in Spud, or for a web
+    /// URL also open in the browser / copy / share. Internal-scheme links (e.g.
+    /// mentions) are not browsable, so they offer in-app open only.
+    private func linkLongPressed(_ url: URL) {
+        let sheet = UIAlertController(title: url.absoluteString, message: nil, preferredStyle: .actionSheet)
+
+        if url.spud != nil {
+            // Already an internal-scheme link (e.g. a mention) — only in-app open is meaningful.
+            sheet.addAction(UIAlertAction(title: NSLocalizedString("Open in Spud", comment: ""), style: .default) { [weak self] _ in
+                self?.linkTapped(url)
+            })
+        } else {
+            // A web URL (external, or a Lemmy web link). Offer in-app open when it
+            // classifies as Lemmy content, plus the browser / copy / share hatch.
+            let isKnown: (String) -> Bool = { [appDatabase] host in
+                appDatabase.explorerInstanceSync(baseurl: host) != nil
+            }
+            if let internalLink = LemmyURLParser.classify(url: url, isKnownInstance: isKnown) {
+                sheet.addAction(UIAlertAction(title: NSLocalizedString("Open in Spud", comment: ""), style: .default) { [weak self] _ in
+                    self?.linkTapped(internalLink.url)
+                })
+            }
+            sheet.addAction(UIAlertAction(title: NSLocalizedString("Open in Browser", comment: ""), style: .default) { [weak self] _ in
+                guard let self else { return }
+                Task { await self.appService.open(url: url, on: self) }
+            })
+            sheet.addAction(UIAlertAction(title: NSLocalizedString("Copy Link", comment: ""), style: .default) { _ in
+                UIPasteboard.general.url = url
+            })
+            sheet.addAction(UIAlertAction(title: NSLocalizedString("Share", comment: ""), style: .default) { [weak self] _ in
+                self?.presentShareSheet(for: url)
+            })
+        }
+
+        sheet.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
+
+        // iPad: anchor the popover to avoid a regular-width crash.
+        if let popover = sheet.popoverPresentationController {
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
+        present(sheet, animated: true)
+    }
+
     private func linkTappedFromPreview(_ safariVC: SFSafariViewController) {
         present(safariVC, animated: true)
     }
@@ -1281,6 +1326,7 @@ extension PostDetailViewController {
                     cell.configure(with: viewModel, imageService: imageService)
                 }
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
+                cell.linkLongPressed = { [weak self] url in self?.linkLongPressed(url) }
                 cell.linkTappedFromPreview = { [weak self] safariVC in self?.linkTappedFromPreview(safariVC) }
                 cell.imageTapped = { [weak self] imageUrl, thumbnailUrl, currentImage in
                     self?.presentMediaViewer(
@@ -1333,6 +1379,7 @@ extension PostDetailViewController {
                 )
                 cell.configure(with: viewModel)
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
+                cell.linkLongPressed = { [weak self] url in self?.linkLongPressed(url) }
                 cell.revealBlockedTapped = { [weak self] in
                     self?.revealBlocked(elementId: elementId)
                 }

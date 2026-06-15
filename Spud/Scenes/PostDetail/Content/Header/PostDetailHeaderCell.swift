@@ -19,6 +19,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
     // MARK: Public
 
     var linkTapped: ((URL) -> Void)?
+    var linkLongPressed: ((URL) -> Void)?
     var linkTappedFromPreview: ((SFSafariViewController) -> Void)?
     var appService: AppServiceType?
 
@@ -155,6 +156,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
         label.tapped = { [weak self] url in
             self?.linkTapped?(url)
         }
+        label.longPressed = { [weak self] url in
+            self?.linkLongPressed?(url)
+        }
         return label
     }()
 
@@ -176,6 +180,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
         label.highlightedLinkTextAttributes = [:]
         label.tapped = { [weak self] url in
             self?.linkTapped?(url)
+        }
+        label.longPressed = { [weak self] url in
+            self?.linkLongPressed?(url)
         }
         return label
     }()
@@ -448,6 +455,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         postImageSize = nil
 
         linkTapped = nil
+        linkLongPressed = nil
         linkTappedFromPreview = nil
         imageTapped = nil
         videoTapped = nil
