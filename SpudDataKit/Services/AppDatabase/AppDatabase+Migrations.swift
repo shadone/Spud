@@ -463,6 +463,42 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v14_postInteraction") { db in
+            // Local-only interaction log: when each post was first/last seen on
+            // screen and last opened, plus a denormalized render snapshot. Never
+            // synced. `postServerId` is a plain integer (not a FK) so a row
+            // survives `post` cache eviction. Only `accountId` cascades.
+            try db.create(table: "postInteraction") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("accountId", .integer)
+                    .notNull()
+                    .references("account", onDelete: .cascade)
+                t.column("postServerId", .integer).notNull()
+                t.column("titleSnapshot", .text)
+                t.column("communityName", .text)
+                t.column("instanceHost", .text)
+                t.column("thumbnailUrl", .text)
+                t.column("author", .text)
+                t.column("firstSeenAt", .datetime)
+                t.column("lastSeenAt", .datetime)
+                t.column("seenCount", .integer).notNull().defaults(to: 0)
+                t.column("lastOpenedAt", .datetime)
+                t.column("openedCount", .integer).notNull().defaults(to: 0)
+                t.column("lastKnownCommentCount", .integer)
+                t.uniqueKey(["accountId", "postServerId"])
+            }
+            try db.create(
+                index: "postInteraction_on_lastOpenedAt",
+                on: "postInteraction",
+                columns: ["lastOpenedAt"]
+            )
+            try db.create(
+                index: "postInteraction_on_lastSeenAt",
+                on: "postInteraction",
+                columns: ["lastSeenAt"]
+            )
+        }
+
         return migrator
     }
 }

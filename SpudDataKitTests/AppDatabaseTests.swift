@@ -48,6 +48,7 @@ final class AppDatabaseTests: XCTestCase {
                 "pageElement",
                 "person",
                 "post",
+                "postInteraction",
                 "site",
             ])
         )
