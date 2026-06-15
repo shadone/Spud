@@ -116,6 +116,26 @@ public extension AppDatabase {
         }
     }
 
+    /// Async equivalent of ``accountInstanceActorIdSync(forKeychainId:)``, for
+    /// callers in an async context (e.g. an actor) where a synchronous read
+    /// would block the executor.
+    func accountInstanceActorId(forKeychainId keychainId: String) async -> String? {
+        do {
+            return try await writer.read { db in
+                try Row.fetchOne(db, sql: """
+                        SELECT instance.actorId AS actorId
+                        FROM account
+                        JOIN site     ON site.id = account.siteId
+                        JOIN instance ON instance.id = site.instanceId
+                        WHERE account.accountKeychainId = ?
+                    """, arguments: [keychainId])?["actorId"]
+            }
+        } catch {
+            logger.error("Failed to resolve account instance actorId: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     /// Returns the row id of the account row matching `keychainId`, or nil
     /// if not yet imported. Synchronous read intended for one-shot UI bring-up
     /// where blocking the caller briefly is preferable to making `init` async.

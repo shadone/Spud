@@ -849,9 +849,14 @@ public actor LemmyService: LemmyServiceType {
 
     public func resolveObject(query: String) async throws -> ResolvedLemmyObject {
         let response = try await api.resolveObject(query: query)
-        let homeInstance = appDatabase
-            .accountInstanceActorIdSync(forKeychainId: accountIdentifierForLogging)
-            .flatMap { InstanceActorId(from: $0) } ?? .invalid
+        // Resolve under the current account, so the returned ids are local to
+        // this account's home instance. Use the async read (not the *Sync
+        // variant) so we don't block the actor's executor.
+        let rawActorId = await appDatabase.accountInstanceActorId(forKeychainId: accountIdentifierForLogging)
+        let homeInstance = rawActorId.flatMap { InstanceActorId(from: $0) } ?? .invalid
+        if !homeInstance.isValid {
+            logger.warning("resolveObject: could not resolve a home instance for the current account; resolved ids will carry an invalid instance")
+        }
         return ResolvedLemmyObject(response: response, homeInstance: homeInstance)
     }
 
