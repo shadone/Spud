@@ -221,13 +221,7 @@ struct PostDetailCommentViewModel {
             // pre-warms this cache off the main thread, so steady state is a
             // cache hit here.
             let bodyMarkdown = row.body ?? ""
-            body = MarkdownRenderer.shared.attributedString(
-                markdown: bodyMarkdown,
-                key: MarkdownRenderer.imageBodyKey(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment),
-                makeStyler: {
-                    BodyImageStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment))
-                }
-            )
+            body = MarkdownRenderer.shared.imageBody(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment)
         }
 
         // MARK: Blocked-user fold

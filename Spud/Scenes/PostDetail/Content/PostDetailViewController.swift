@@ -421,18 +421,7 @@ class PostDetailViewController: UIViewController {
         for row in rows {
             if Task.isCancelled { return }
             guard let body = row.body, !body.isEmpty else { continue }
-            MarkdownRenderer.shared.attributedString(
-                markdown: body,
-                key: MarkdownRenderer.imageBodyKey(
-                    markdown: body,
-                    textSizeAdjustment: textSizeAdjustment
-                ),
-                makeStyler: {
-                    BodyImageStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(
-                        for: textSizeAdjustment
-                    ))
-                }
-            )
+            MarkdownRenderer.shared.imageBody(markdown: body, textSizeAdjustment: textSizeAdjustment)
         }
     }
 

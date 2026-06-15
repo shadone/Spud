@@ -109,13 +109,7 @@ struct PostDetailHeaderViewModel {
         // Shares the cached `MarkdownRenderer` body path with comment cells; the
         // header re-renders on every vote/save, so caching avoids re-parsing.
         let bodyMarkdown = row.body ?? ""
-        body = MarkdownRenderer.shared.attributedString(
-            markdown: bodyMarkdown,
-            key: MarkdownRenderer.imageBodyKey(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment),
-            makeStyler: {
-                BodyImageStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment))
-            }
-        )
+        body = MarkdownRenderer.shared.imageBody(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment)
 
         var creatorAttributes = secondaryHighlightedAttributes
         if
