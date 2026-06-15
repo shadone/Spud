@@ -190,6 +190,7 @@ final class MarkdownEditorView: UIView {
         previewEmptyLabel.isHidden = true
         previewLabel.attributedText = Down(markdownString: markdown)
             .toAttributedString(styler: DownStyler(configuration: stylerConfiguration))
+            .addingAutolinks()
     }
 
     // MARK: Formatting

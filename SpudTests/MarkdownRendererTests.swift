@@ -92,6 +92,90 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertEqual(k1, k3, "identical inputs must produce the same key")
     }
 
+    // MARK: - Autolinking bare URLs
+
+    /// Helper: the first `.link` value found in the rendered string, normalised
+    /// to a URL (the styler stores explicit links as `String`, the autolink pass
+    /// stores them as `URL`).
+    private func firstLink(in attributed: NSAttributedString) -> URL? {
+        var found: URL?
+        attributed.enumerateAttribute(
+            .link,
+            in: NSRange(location: 0, length: attributed.length)
+        ) { value, _, stop in
+            if let url = value as? URL {
+                found = url
+                stop.pointee = true
+            } else if let string = value as? String, let url = URL(string: string) {
+                found = url
+                stop.pointee = true
+            }
+        }
+        return found
+    }
+
+    private func hasAnyLink(in attributed: NSAttributedString) -> Bool {
+        var has = false
+        attributed.enumerateAttribute(
+            .link,
+            in: NSRange(location: 0, length: attributed.length)
+        ) { value, _, stop in
+            if value != nil {
+                has = true
+                stop.pointee = true
+            }
+        }
+        return has
+    }
+
+    func test_bareURL_inBodyText_isLinkified() {
+        let renderer = MarkdownRenderer()
+        let result = renderer.attributedString(
+            markdown: "Full video here: https://youtu.be/0ORqQPk7kjs",
+            key: "bareURL",
+            makeStyler: makeStyler()
+        )
+        XCTAssertEqual(
+            firstLink(in: result)?.absoluteString,
+            "https://youtu.be/0ORqQPk7kjs",
+            "a bare URL in post text should become a tappable link"
+        )
+    }
+
+    func test_explicitMarkdownLink_isStillLinkified() {
+        let renderer = MarkdownRenderer()
+        let result = renderer.attributedString(
+            markdown: "[watch](https://youtu.be/0ORqQPk7kjs)",
+            key: "explicitLink",
+            makeStyler: makeStyler()
+        )
+        XCTAssertEqual(result.string, "watch", "the link label, not the URL, is shown")
+        XCTAssertEqual(firstLink(in: result)?.absoluteString, "https://youtu.be/0ORqQPk7kjs")
+    }
+
+    func test_urlInsideInlineCode_isNotLinkified() {
+        let renderer = MarkdownRenderer()
+        let result = renderer.attributedString(
+            markdown: "run `curl https://example.com` to fetch",
+            key: "codeURL",
+            makeStyler: makeStyler()
+        )
+        XCTAssertFalse(
+            hasAnyLink(in: result),
+            "URLs inside code spans should not be autolinked"
+        )
+    }
+
+    func test_plainText_hasNoLink() {
+        let renderer = MarkdownRenderer()
+        let result = renderer.attributedString(
+            markdown: "just some words, no links here",
+            key: "noURL",
+            makeStyler: makeStyler()
+        )
+        XCTAssertFalse(hasAnyLink(in: result))
+    }
+
     func test_prewarmThenMainRead_isCacheHit() async {
         let renderer = MarkdownRenderer()
         let key = "concurrent"
