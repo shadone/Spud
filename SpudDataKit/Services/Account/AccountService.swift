@@ -57,6 +57,16 @@ public protocol AccountServiceType: AnyObject {
         answer: String?
     ) async throws -> AccountServiceRegisterResult
 
+    /// Requests a password-reset email for `email` from `instance`. The reset
+    /// itself is handled entirely by the server (it mails a reset link); this
+    /// just triggers it. Mirrors `login` in that it uses a temporary
+    /// unauthenticated api against the instance. Throws on a network/server
+    /// error so the caller can surface it.
+    func passwordReset(
+        atInstance instance: InstanceActorId,
+        email: String
+    ) async throws
+
     /// Logs out the account matching `keychainId`: removes its keychain
     /// credential and database row, then switches the default account to
     /// another registered account (or the signed-out account for the same
@@ -477,6 +487,29 @@ public class AccountService: AccountServiceType {
             fetchInitialSiteInfo(forAccountKeychainId: keychainId)
         }
         return result
+    }
+
+    public func passwordReset(
+        atInstance instance: InstanceActorId,
+        email: String
+    ) async throws {
+        guard let url = instance.url else {
+            fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
+        }
+
+        // Temporary unauthenticated api for the password-reset request, mirroring
+        // `login` / `register`.
+        let api = makeApi(url, nil)
+
+        do {
+            _ = try await api.passwordReset(email: email)
+        } catch {
+            logger.error("""
+                Password reset failed. instance=\(instance.actorId, privacy: .public).
+                \(String(describing: error), privacy: .public)
+                """)
+            throw error
+        }
     }
 
     /// Shared tail of `login` / `register`: creates the account row, marks it

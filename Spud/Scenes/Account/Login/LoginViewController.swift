@@ -512,7 +512,12 @@ class LoginViewController: UIViewController {
 
     @objc
     private func forgotPasswordTapped() {
-        // TODO: present the dedicated password-reset screen (a later slice).
+        let viewController = ForgotPasswordViewController(
+            hostname: viewModel.instanceName,
+            instance: viewModel.row.instance,
+            dependencies: dependencies.own
+        )
+        navigationController?.pushViewController(viewController, animated: true)
     }
 
     @objc
