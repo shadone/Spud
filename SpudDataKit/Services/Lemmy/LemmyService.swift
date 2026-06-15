@@ -336,6 +336,11 @@ public protocol LemmyServiceType: Actor {
         removeData: Bool,
         reason: String?
     ) async throws
+
+    /// Resolves a federated object (post, community, person, or comment) by its
+    /// canonical URL, under this service's account. Comments resolve to
+    /// `.comment` (deferred); unrecognised input resolves to `.unresolved`.
+    func resolveObject(query: String) async throws -> ResolvedLemmyObject
 }
 
 /// The current account's moderation capability, decoded from `getSite` →
@@ -840,6 +845,14 @@ public actor LemmyService: LemmyServiceType {
         await mirrorCommunityInfoToAppDatabase(view: response.community_view)
 
         return response.community_view.community.id
+    }
+
+    public func resolveObject(query: String) async throws -> ResolvedLemmyObject {
+        let response = try await api.resolveObject(query: query)
+        let homeInstance = appDatabase
+            .accountInstanceActorIdSync(forKeychainId: accountIdentifierForLogging)
+            .flatMap { InstanceActorId(from: $0) } ?? .invalid
+        return ResolvedLemmyObject(response: response, homeInstance: homeInstance)
     }
 
     public func search(
