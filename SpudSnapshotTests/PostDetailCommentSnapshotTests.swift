@@ -140,7 +140,7 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         // stays legible (white-on-transparent would vanish in dark mode).
         cell.contentView.backgroundColor = .systemBackground
 
-        cell.configure(with: viewModel)
+        cell.configure(with: viewModel, imageService: StaticImageService())
         return cell
     }
 

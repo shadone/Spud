@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import SpudDataKit
 import UIKit
 
 class PostDetailCommentCell: UITableViewCell {
@@ -13,6 +14,10 @@ class PostDetailCommentCell: UITableViewCell {
 
     var linkTapped: ((URL) -> Void)?
     var linkLongPressed: ((URL) -> Void)?
+
+    /// Fired when an inline image in the body finishes loading, so the host can
+    /// re-measure this row to fit the now-known image height.
+    var onBodyImageLoaded: (() -> Void)?
 
     /// Fired when the user taps the comment body/header (but not a link or a
     /// swipe action) to collapse or expand its thread.
@@ -156,18 +161,17 @@ class PostDetailCommentCell: UITableViewCell {
         return label
     }()
 
-    lazy var messageLabel: LinkLabel = {
-        let label = LinkLabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.numberOfLines = 0
-        label.accessibilityIdentifier = "message"
-        label.tapped = { [weak self] url in
+    lazy var messageLabel: BodyTextView = {
+        let view = BodyTextView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.accessibilityIdentifier = "message"
+        view.tapped = { [weak self] url in
             self?.linkTapped?(url)
         }
-        label.longPressed = { [weak self] url in
-            self?.linkLongPressed?(url)
+        view.onContentSizeChange = { [weak self] in
+            self?.onBodyImageLoaded?()
         }
-        return label
+        return view
     }()
 
     /// Folded presentation for a blocked user's comment: "Blocked user … Show".
@@ -285,12 +289,16 @@ class PostDetailCommentCell: UITableViewCell {
 
         linkTapped = nil
         linkLongPressed = nil
+        onBodyImageLoaded = nil
         collapseTapped = nil
         revealBlockedTapped = nil
         swipeActionConfiguration = nil
         swipeActionTriggered = nil
         mainHorizontalStackView.alpha = 1
         tintBackingView.backgroundColor = .clear
+        // Drop the body now so any in-flight inline-image loads are cancelled
+        // before the cell is reused for another comment.
+        messageLabel.attributedText = nil
         clearBadges()
     }
 
@@ -346,8 +354,11 @@ class PostDetailCommentCell: UITableViewCell {
         return label
     }
 
-    func configure(with viewModel: PostDetailCommentViewModel) {
+    func configure(with viewModel: PostDetailCommentViewModel, imageService: ImageServiceType) {
         let accent = tintColor ?? .systemTeal
+
+        // Set before the body so inline images can begin loading immediately.
+        messageLabel.imageService = imageService
 
         if viewModel.isMore {
             authorLabel.attributedText = viewModel.moreText
@@ -444,13 +455,23 @@ class PostDetailCommentCell: UITableViewCell {
         collapseTapped?()
     }
 
-    private func labelHasLink(_ label: LinkLabel, at point: CGPoint) -> Bool {
+    private func labelHasLink(_ label: BodyLinkHitTesting, at point: CGPoint) -> Bool {
         guard !label.isHidden, label.window != nil else { return false }
         let pointInLabel = contentView.convert(point, to: label)
         guard label.bounds.contains(pointInLabel) else { return false }
         return label.hasLink(at: pointInLabel)
     }
 }
+
+/// A view that can report whether a point lands on a tappable link or inline
+/// image, so the comment collapse-tap can defer to link/image taps. Implemented
+/// by both `LinkLabel` (author) and `BodyTextView` (body).
+protocol BodyLinkHitTesting: UIView {
+    func hasLink(at point: CGPoint) -> Bool
+}
+
+extension LinkLabel: BodyLinkHitTesting { }
+extension BodyTextView: BodyLinkHitTesting { }
 
 // MARK: - UIGestureRecognizerDelegate
 

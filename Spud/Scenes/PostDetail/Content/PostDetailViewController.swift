@@ -423,12 +423,12 @@ class PostDetailViewController: UIViewController {
             guard let body = row.body, !body.isEmpty else { continue }
             MarkdownRenderer.shared.attributedString(
                 markdown: body,
-                key: MarkdownRenderer.postBodyKey(
+                key: MarkdownRenderer.imageBodyKey(
                     markdown: body,
                     textSizeAdjustment: textSizeAdjustment
                 ),
                 makeStyler: {
-                    DownStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(
+                    BodyImageStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(
                         for: textSizeAdjustment
                     ))
                 }
@@ -1381,9 +1381,13 @@ extension PostDetailViewController {
                     collapsedDescendantCount: collapsedCount,
                     isBlockedRevealed: isBlockedRevealed
                 )
-                cell.configure(with: viewModel)
+                cell.configure(with: viewModel, imageService: imageService)
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
                 cell.linkLongPressed = { [weak self] url in self?.linkLongPressed(url) }
+                cell.onBodyImageLoaded = { [weak tableView] in
+                    // An inline body image loaded; re-measure this row to fit it.
+                    tableView?.performBatchUpdates(nil)
+                }
                 cell.revealBlockedTapped = { [weak self] in
                     self?.revealBlocked(elementId: elementId)
                 }

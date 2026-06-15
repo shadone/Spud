@@ -11,7 +11,9 @@ import UIKit
 
 /// A reusable markdown editor: a `UITextView` with a formatting-toolbar
 /// `inputAccessoryView`, plus a "Write / Preview" mode swap that renders the
-/// draft through the same `Down` + `LinkLabel` path used by comment cells.
+/// draft through `Down` into a `LinkLabel`. The preview uses the plain
+/// `DownStyler` (no inline images); post and comment bodies render through
+/// `BodyImageStyler` into a `BodyTextView` instead.
 ///
 /// The view owns no drafting state of its own beyond the live `text`; toggling
 /// to preview and back keeps the draft intact. Callers observe edits via

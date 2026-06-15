@@ -148,18 +148,20 @@ class PostDetailHeaderCell: UITableViewCellBase {
         return label
     }()
 
-    lazy var bodyLabel: LinkLabel = {
-        let label = LinkLabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.numberOfLines = 0
-        label.accessibilityIdentifier = "body"
-        label.tapped = { [weak self] url in
+    lazy var bodyLabel: BodyTextView = {
+        let view = BodyTextView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.accessibilityIdentifier = "body"
+        view.tapped = { [weak self] url in
             self?.linkTapped?(url)
         }
-        label.longPressed = { [weak self] url in
-            self?.linkLongPressed?(url)
+        // Re-measure the row when an inline body image finishes loading, the same
+        // way the post image panel does.
+        view.onContentSizeChange = { [weak self] in
+            self?.tableView?.beginUpdates()
+            self?.tableView?.endUpdates()
         }
-        return label
+        return view
     }()
 
     lazy var linkPreviewView: LinkPreviewView = {
@@ -481,6 +483,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
     func configure(with viewModel: PostDetailHeaderViewModel, imageService: ImageServiceType) {
         self.imageService = imageService
         titleLabel.attributedText = viewModel.title
+        bodyLabel.imageService = imageService
         bodyLabel.attributedText = viewModel.body
         attributionLabel.attributedText = viewModel.attribution
         subtitleScoreLabel.attributedText = viewModel.subtitleScore

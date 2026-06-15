@@ -223,9 +223,9 @@ struct PostDetailCommentViewModel {
             let bodyMarkdown = row.body ?? ""
             body = MarkdownRenderer.shared.attributedString(
                 markdown: bodyMarkdown,
-                key: MarkdownRenderer.postBodyKey(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment),
+                key: MarkdownRenderer.imageBodyKey(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment),
                 makeStyler: {
-                    DownStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment))
+                    BodyImageStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment))
                 }
             )
         }
