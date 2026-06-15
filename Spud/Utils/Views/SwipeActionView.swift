@@ -361,4 +361,34 @@ extension SwipeActionView: UIGestureRecognizerDelegate {
         let velocity = pan.velocity(in: self)
         return abs(velocity.x) > abs(velocity.y)
     }
+
+    func gestureRecognizer(
+        _: UIGestureRecognizer,
+        shouldRequireFailureOf otherGestureRecognizer: UIGestureRecognizer
+    ) -> Bool {
+        // Let edge-driven navigation win when a horizontal swipe starts on this row.
+        // Without this the row's swipe-to-action pan beats both the custom right-edge
+        // forward gesture (a UIScreenEdgePanGestureRecognizer) and the system
+        // left-edge back gesture (the nav controller's interactive-pop recognizer,
+        // which is a private class, not a public UIScreenEdgePanGestureRecognizer).
+        // Off the edges those gestures fail immediately, so mid-row swipe actions
+        // still work without perceptible delay.
+        if otherGestureRecognizer is UIScreenEdgePanGestureRecognizer {
+            return true
+        }
+        return otherGestureRecognizer === enclosingNavigationController?.interactivePopGestureRecognizer
+    }
+
+    /// Walks the responder chain to the nearest enclosing navigation controller,
+    /// used to identify the system left-edge back gesture by identity.
+    private var enclosingNavigationController: UINavigationController? {
+        var responder: UIResponder? = self
+        while let current = responder {
+            if let viewController = current as? UIViewController {
+                return viewController.navigationController
+            }
+            responder = current.next
+        }
+        return nil
+    }
 }
