@@ -28,7 +28,8 @@ class PostDetailViewController: UIViewController {
         HasPreferencesService
     typealias NestedDependencies =
         PersonOrLoadingViewController.Dependencies &
-        CommunityOrLoadingViewController.Dependencies
+        CommunityOrLoadingViewController.Dependencies &
+        InstanceDetailViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
@@ -589,50 +590,114 @@ class PostDetailViewController: UIViewController {
     private func linkTapped(_ url: URL) {
         switch url.spud {
         case let .person(personId, instance):
-            let vc = PersonOrLoadingViewController(
-                personId: personId,
-                instance: instance,
-                accountKeychainId: viewModel.accountKeychainId,
-                dependencies: dependencies.nested
-            )
-            navigationController?.pushViewController(vc, animated: true)
+            pushPerson(personId: personId, instance: instance)
 
         case let .community(name, instance):
-            let vc = CommunityOrLoadingViewController(
-                communityName: name,
-                instance: instance,
-                accountKeychainId: viewModel.accountKeychainId,
-                dependencies: dependencies.nested
-            )
-            navigationController?.pushViewController(vc, animated: true)
+            pushCommunity(name: name, instance: instance)
 
-        case .post:
-            logger.assertionFailure("unimplemented")
+        case let .post(postId, instance):
+            openPost(postId: postId, instance: instance)
 
-        case .objectAtURL, .instance:
-            break
+        case let .objectAtURL(canonicalURL):
+            Task { await resolveAndOpen(canonicalURL) }
+
+        case let .instance(instance):
+            openInstance(instance)
 
         case .none:
-            // If the tapped markdown link points to an image, open it in the
-            // full-screen viewer rather than handing off to Safari.
-            let contentType = postContentDetector.contentTypeForUrl(
-                url: url,
-                thumbnailUrl: nil,
-                embedTitle: nil,
-                embedDescription: nil
-            )
-            switch contentType {
-            case let .image(image):
-                presentMediaViewer(
-                    imageUrl: image.imageUrl,
-                    thumbnailUrl: image.thumbnailUrl,
-                    preloadedImage: nil
-                )
-            case let .video(video):
-                presentVideoPlayer(url: video.videoUrl)
-            case .externalLink, .textOrEmpty:
-                Task { await appService.open(url: url, on: self) }
+            // Not an internal link. Classify it as a Lemmy URL (known-instance
+            // gated); fall back to the existing external-link handling.
+            let isKnown: (String) -> Bool = { [appDatabase] host in
+                appDatabase.explorerInstanceSync(baseurl: host) != nil
             }
+            if let internalLink = LemmyURLParser.classify(url: url, isKnownInstance: isKnown) {
+                linkTapped(internalLink.url)
+                return
+            }
+            openExternal(url)
+        }
+    }
+
+    private func pushPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId) {
+        let vc = PersonOrLoadingViewController(
+            personId: personId,
+            instance: instance,
+            accountKeychainId: viewModel.accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    private func pushCommunity(name: String, instance: InstanceActorId) {
+        let vc = CommunityOrLoadingViewController(
+            communityName: name,
+            instance: instance,
+            accountKeychainId: viewModel.accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    /// Opens a post by its id valid for the current account, via the window's
+    /// display entry (consistent with `AppCoordinator.open`).
+    private func openPost(postId: Components.Schemas.PostID, instance _: InstanceActorId) {
+        guard let window = view.window as? MainWindow else {
+            logger.error("No MainWindow available to display post")
+            return
+        }
+        window.display(serverPostId: postId, accountKeychainId: viewModel.accountKeychainId)
+    }
+
+    /// Resolves a federated object under the current account, then routes by
+    /// type. Comments and unresolved links fall back to the browser.
+    private func resolveAndOpen(_ canonicalURL: URL) async {
+        let lemmyService = accountService.lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+        let resolved: ResolvedLemmyObject
+        do {
+            resolved = try await lemmyService.resolveObject(query: canonicalURL.absoluteString)
+        } catch {
+            logger.error("resolve_object failed for \(canonicalURL.absoluteString, privacy: .public): \(String(describing: error), privacy: .public)")
+            openExternal(canonicalURL)
+            return
+        }
+        switch resolved {
+        case let .post(postId, instance):
+            openPost(postId: postId, instance: instance)
+        case let .community(name, instance):
+            pushCommunity(name: name, instance: instance)
+        case let .person(personId, instance):
+            pushPerson(personId: personId, instance: instance)
+        case .comment, .unresolved:
+            openExternal(canonicalURL)
+        }
+    }
+
+    /// Opens the Explorer instance detail for a known instance; falls back to
+    /// the browser when the host is not in the directory.
+    private func openInstance(_ instance: InstanceActorId) {
+        guard let record = appDatabase.explorerInstanceSync(baseurl: instance.host) else {
+            if let url = instance.url { openExternal(url) }
+            return
+        }
+        let vc = InstanceDetailViewController(record: record, dependencies: dependencies.nested)
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    /// The original external-link behavior: image/video viewers or the browser.
+    private func openExternal(_ url: URL) {
+        let contentType = postContentDetector.contentTypeForUrl(
+            url: url,
+            thumbnailUrl: nil,
+            embedTitle: nil,
+            embedDescription: nil
+        )
+        switch contentType {
+        case let .image(image):
+            presentMediaViewer(imageUrl: image.imageUrl, thumbnailUrl: image.thumbnailUrl, preloadedImage: nil)
+        case let .video(video):
+            presentVideoPlayer(url: video.videoUrl)
+        case .externalLink, .textOrEmpty:
+            Task { await appService.open(url: url, on: self) }
         }
     }
 

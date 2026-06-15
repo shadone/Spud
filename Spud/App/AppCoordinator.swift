@@ -66,17 +66,27 @@ class AppCoordinator {
             let accountKeychainId = dependencies.accountService.accountKeychainId(forInstance: instance)
             window.display(serverPostId: postId, accountKeychainId: accountKeychainId)
 
-        case .person:
-            // TODO: open PersonVC
-            break
+        case let .objectAtURL(canonicalURL):
+            Task { @MainActor in
+                guard let keychainId = dependencies.accountService.currentDefaultAccountKeychainId() else {
+                    logger.error("No default account to resolve link: \(canonicalURL.absoluteString, privacy: .public)")
+                    return
+                }
+                let lemmyService = dependencies.accountService.lemmyService(forAccountKeychainId: keychainId)
+                guard
+                    let resolved = try? await lemmyService.resolveObject(query: canonicalURL.absoluteString),
+                    case let .post(postId, _) = resolved
+                else {
+                    logger.error("Could not resolve a post to display for: \(canonicalURL.absoluteString, privacy: .public)")
+                    return
+                }
+                window.display(serverPostId: postId, accountKeychainId: keychainId)
+            }
 
-        case .community:
-            // TODO: open CommunityVC
-            break
-
-        case .objectAtURL, .instance:
-            // Wired in the federated-link routing task.
-            logger.warning("Unhandled internal link in AppCoordinator: \(url.absoluteString, privacy: .public)")
+        case .person, .community, .instance:
+            // These push onto a navigation stack, which AppCoordinator does not
+            // own; body-text taps route through PostDetailViewController instead.
+            logger.error("Internal link type not handled at window level: \(url.absoluteString, privacy: .public)")
 
         case .none:
             logger.error("Received open url request for url that we can't handle: \(url.absoluteString, privacy: .public)")
