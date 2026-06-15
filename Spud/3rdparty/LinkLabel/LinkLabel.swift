@@ -289,6 +289,9 @@ class LinkLabel: UILabel {
         guard gestureRecognizer.state == .began, !linkAttributes.isEmpty else {
             return
         }
+        // Clear any touch-driven highlight before handing off so the link does
+        // not stay visually highlighted behind the presented menu.
+        highlightedLinkAttribute = nil
         let location = gestureRecognizer.location(in: self)
         switch link(atPoint: location) {
         case let .url(url):

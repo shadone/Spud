@@ -708,7 +708,11 @@ class PostDetailViewController: UIViewController {
     /// URL also open in the browser / copy / share. Internal-scheme links (e.g.
     /// mentions) are not browsable, so they offer in-app open only.
     private func linkLongPressed(_ url: URL) {
-        let sheet = UIAlertController(title: url.absoluteString, message: nil, preferredStyle: .actionSheet)
+        // Internal-scheme links (e.g. mentions) have an opaque `info.ddenis.spud://`
+        // URL that means nothing to the user, so show no title for them; web URLs
+        // show the actual destination.
+        let title: String? = url.spud == nil ? url.absoluteString : nil
+        let sheet = UIAlertController(title: title, message: nil, preferredStyle: .actionSheet)
 
         if url.spud != nil {
             // Already an internal-scheme link (e.g. a mention) — only in-app open is meaningful.
