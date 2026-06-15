@@ -599,7 +599,10 @@ class PostDetailViewController: UIViewController {
             openPost(postId: postId, instance: instance)
 
         case let .objectAtURL(canonicalURL):
-            Task { await resolveAndOpen(canonicalURL) }
+            // Don't retain the VC across the resolve round-trip; if it's popped
+            // mid-flight we skip the navigation rather than push onto a stack
+            // that's gone (matches the weak-self Task pattern used elsewhere here).
+            Task { @MainActor [weak self] in await self?.resolveAndOpen(canonicalURL) }
 
         case let .instance(instance):
             openInstance(instance)
