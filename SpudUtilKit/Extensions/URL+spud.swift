@@ -34,6 +34,16 @@ public extension URL {
         ///   e.g. "https://lemmy.world".
         case community(name: String, instance: InstanceActorId)
 
+        /// A Lemmy object identified only by its canonical ActivityPub URL.
+        ///
+        /// Used for body-text links to posts and users whose local id is not
+        /// known until resolved. The handler resolves it via `resolve_object`
+        /// under the current account, then routes by the returned object type.
+        case objectAtURL(url: URL)
+
+        /// A Lemmy instance, e.g. tapped from a bare `lemmy.world` in body text.
+        case instance(instance: InstanceActorId)
+
         public var url: URL {
             switch self {
             case let .person(personId, instance):
@@ -64,6 +74,24 @@ public extension URL {
                     fatalError("Failed to url encode '\(self)'")
                 }
                 return URL(string: "info.ddenis.spud://internal/community?name=\(encodedName)&instance=\(encodedInstance)")!
+
+            case let .objectAtURL(url):
+                guard
+                    let encodedURL = url.absoluteString
+                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                else {
+                    fatalError("Failed to url encode '\(self)'")
+                }
+                return URL(string: "info.ddenis.spud://internal/resolve?url=\(encodedURL)")!
+
+            case let .instance(instance):
+                guard
+                    let encodedInstance = instance.actorId
+                    .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)
+                else {
+                    fatalError("Failed to url encode '\(self)'")
+                }
+                return URL(string: "info.ddenis.spud://internal/instance?instance=\(encodedInstance)")!
             }
         }
     }
@@ -118,6 +146,28 @@ public extension URL {
             }
 
             return .community(name: name, instance: instance)
+        } else if components.path == "/resolve" {
+            guard
+                let urlString = components.queryItems?
+                .first(where: { $0.name == "url" })?.value,
+                let resolvedURL = URL(string: urlString)
+            else {
+                logger.warning("Invalid internal link: \(absoluteString, privacy: .public)")
+                return nil
+            }
+
+            return .objectAtURL(url: resolvedURL)
+        } else if components.path == "/instance" {
+            guard
+                let instanceString = components.queryItems?
+                .first(where: { $0.name == "instance" })?.value,
+                let instance = InstanceActorId(from: instanceString)
+            else {
+                logger.warning("Invalid internal link: \(absoluteString, privacy: .public)")
+                return nil
+            }
+
+            return .instance(instance: instance)
         }
 
         logger.warning("Invalid internal link: \(absoluteString, privacy: .public)")

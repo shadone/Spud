@@ -609,6 +609,9 @@ class PostDetailViewController: UIViewController {
         case .post:
             logger.assertionFailure("unimplemented")
 
+        case .objectAtURL, .instance:
+            break
+
         case .none:
             // If the tapped markdown link points to an image, open it in the
             // full-screen viewer rather than handing off to Safari.

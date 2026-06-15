@@ -460,7 +460,7 @@ class CommunityViewController: UIViewController {
             )
             navigationController?.pushViewController(vc, animated: true)
 
-        case .post, .none:
+        case .post, .objectAtURL, .instance, .none:
             UIApplication.shared.open(url)
         }
     }
