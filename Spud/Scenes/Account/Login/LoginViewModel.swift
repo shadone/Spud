@@ -47,6 +47,12 @@ final class LoginViewModel {
         didSet { loginError = nil }
     }
 
+    /// Two-factor (TOTP) one-time code collected by `LoginTwoFactorViewController`.
+    /// Captured here so the login flow owns it. The account-service login path
+    /// does not yet accept a token, so this is currently carried but not sent;
+    /// once the API/service gain a token parameter, `login()` should forward it.
+    var totp2faToken: String?
+
     var loggedIn: Bool = false
 
     /// User-facing error surfaced inline under the password field after a failed

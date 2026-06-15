@@ -55,8 +55,8 @@ class LoginViewController: UIViewController {
             instanceHeaderCard,
             usernameField,
             passwordField,
-            totp2faTokenTextField,
             loginButton,
+            twoFactorButton,
             forgotPasswordButton,
             registerLineLabel,
             orDividerStackView,
@@ -69,6 +69,7 @@ class LoginViewController: UIViewController {
         stackView.setCustomSpacing(18, after: instanceHeaderCard)
         stackView.setCustomSpacing(6, after: passwordField)
         stackView.setCustomSpacing(14, after: loginButton)
+        stackView.setCustomSpacing(2, after: twoFactorButton)
         stackView.setCustomSpacing(18, after: forgotPasswordButton)
         stackView.setCustomSpacing(20, after: registerLineLabel)
         stackView.setCustomSpacing(14, after: orDividerStackView)
@@ -174,14 +175,25 @@ class LoginViewController: UIViewController {
         return field
     }()
 
-    lazy var totp2faTokenTextField: UITextField = {
-        let textField = UITextField()
-        textField.translatesAutoresizingMaskIntoConstraints = false
-        textField.placeholder = NSLocalizedString("One Time Code", comment: "")
-        textField.borderStyle = .roundedRect
-        textField.keyboardType = .numberPad
-        textField.isHidden = true
-        return textField
+    /// "Have a two-factor code?" affordance shown beneath the primary CTA. Taps
+    /// through to the dedicated `LoginTwoFactorViewController` code-entry screen.
+    /// This replaces the previous always-hidden inline one-time-code field, which
+    /// was never wired to a login path (the account service / Lemmy API do not
+    /// currently accept a TOTP token), so it is a manual entry point rather than
+    /// an automatic "2FA required" trigger.
+    lazy var twoFactorButton: UIButton = {
+        var config = UIButton.Configuration.plain()
+        config.attributedTitle = AttributedString(
+            NSLocalizedString("Have a two-factor code?", comment: "Login two-factor affordance"),
+            attributes: AttributeContainer([
+                .font: UIFont.systemFont(ofSize: 14, weight: .semibold),
+            ])
+        )
+
+        let button = UIButton(configuration: config)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        button.addTarget(self, action: #selector(twoFactorTapped), for: .touchUpInside)
+        return button
     }()
 
     lazy var loginButton: OnboardingPrimaryButton = {
@@ -508,6 +520,30 @@ class LoginViewController: UIViewController {
         Task { @MainActor in
             await viewModel.login()
         }
+    }
+
+    /// Pushes the dedicated two-factor code-entry screen. On submit we pop back
+    /// and re-run the login attempt: the entered code is handed to the view model
+    /// so that once the account-service login path accepts a TOTP token it can be
+    /// forwarded. Today the service does not yet take a token, so the code is
+    /// captured and a normal login is retried (the screen is the deliverable; no
+    /// fake "2FA required" state machine is introduced).
+    @objc
+    private func twoFactorTapped() {
+        view.endEditing(true)
+        let viewController = LoginTwoFactorViewController(
+            username: viewModel.username,
+            hostname: viewModel.instanceName,
+            onSubmit: { [weak self] code in
+                guard let self else { return }
+                viewModel.totp2faToken = code
+                navigationController?.popViewController(animated: true)
+                Task { @MainActor in
+                    await self.viewModel.login()
+                }
+            }
+        )
+        navigationController?.pushViewController(viewController, animated: true)
     }
 
     @objc
