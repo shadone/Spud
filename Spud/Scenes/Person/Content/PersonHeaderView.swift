@@ -185,6 +185,7 @@ final class PersonHeaderView: UIView {
         let config = PostDetailAppearance.bodyStylerConfiguration(for: 0)
         bioLabel.attributedText = Down(markdownString: markdown)
             .toAttributedString(styler: DownStyler(configuration: config))
+            .addingAutolinks()
     }
 
     // MARK: Images

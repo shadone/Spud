@@ -245,6 +245,7 @@ final class CommunityHeaderView: UIView {
         let config = PostDetailAppearance.bodyStylerConfiguration(for: 0)
         descriptionLabel.attributedText = Down(markdownString: markdown)
             .toAttributedString(styler: DownStyler(configuration: config))
+            .addingAutolinks()
     }
 
     private func configureSubscribeButton(subscribed: CommunitySubscribedState) {

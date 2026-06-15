@@ -66,6 +66,7 @@ final class MarkdownRenderer: @unchecked Sendable {
         } else {
             rendered = Down(markdownString: markdown)
                 .toAttributedString(styler: makeStyler())
+                .addingAutolinks()
         }
 
         cache.setObject(rendered, forKey: nsKey)
