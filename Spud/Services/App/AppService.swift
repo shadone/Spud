@@ -8,6 +8,7 @@ import Foundation
 import LemmyKit
 import SafariServices
 import SpudDataKit
+import SpudUtilKit
 import UIKit
 
 @MainActor
@@ -87,12 +88,11 @@ class AppService: AppServiceType {
         }
     }
 
-    /// Applies user-configured external-link rewrites (currently the optional
-    /// twitter.com / x.com to xcancel.com redirect) before a URL is opened or
-    /// previewed. Returns the URL unchanged when no rewrite applies.
+    /// Applies the outbound URL hygiene pipeline before a URL is opened or
+    /// previewed. Returns the sanitized URL (or the original when the pipeline
+    /// is disabled or no step applies).
     private func resolvedExternalURL(_ url: URL) -> URL {
-        guard preferencesService.rewriteTwitterLinksToXcancel else { return url }
-        return url.rewritingTwitterToXcancel()
+        URLSanitizer.sanitize(url, config: preferencesService.urlSanitizerConfig)
     }
 
     private func createSafariViewController(url: URL) -> SFSafariViewController {
