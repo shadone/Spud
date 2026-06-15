@@ -358,6 +358,15 @@ class LoginViewController: UIViewController {
 
         usernameField.textField.addTarget(self, action: #selector(usernameChanged), for: .editingChanged)
         passwordField.textField.addTarget(self, action: #selector(passwordChanged), for: .editingChanged)
+
+        // Re-resolve the gradient and layer border cgColors when the interface
+        // style changes (light/dark). Replaces the deprecated
+        // traitCollectionDidChange override with the iOS 17+ registration API.
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _: UITraitCollection) in
+            self.applyBannerGradientColors()
+            self.instanceHeaderCard.layer.borderColor = UIColor.separator.cgColor
+            self.iconImageView.layer.borderColor = Theme.background.cgColor
+        }
     }
 
     private func layoutInstanceHeaderCard() {
@@ -399,13 +408,6 @@ class LoginViewController: UIViewController {
         super.viewDidLayoutSubviews()
         bannerGradient.frame = bannerView.bounds
         applyBannerGradientColors()
-    }
-
-    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
-        super.traitCollectionDidChange(previousTraitCollection)
-        applyBannerGradientColors()
-        instanceHeaderCard.layer.borderColor = UIColor.separator.cgColor
-        iconImageView.layer.borderColor = Theme.background.cgColor
     }
 
     /// A subtle diagonal gradient derived from the app accent.
