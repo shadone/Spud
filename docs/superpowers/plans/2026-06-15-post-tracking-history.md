@@ -321,15 +321,36 @@ In `SpudDataKit/Services/AppDatabase/AppDatabase+Migrations.swift`, immediately 
         }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [ ] **Step 3b: Update the existing migrator table-set test**
 
-Run the Step 2 command. Expected: PASS (2 tests).
+`SpudDataKitTests/AppDatabaseTests.swift:22` has `testMigratorCreatesAllExpectedTables()`, which asserts the exact set of app tables. Adding the new table breaks it. Add `"postInteraction"` to the expected `Set` (keep it alphabetically ordered — insert after `"person"`):
+
+```swift
+                "person",
+                "post",
+                "postInteraction",
+                "site",
+```
+
+- [ ] **Step 4: Run tests to verify they pass**
+
+Run both the new test and the migrator test:
+
+```sh
+xcodebuild -project Spud.xcodeproj -scheme Spud \
+  -only-testing:SpudDataKitTests/PostInteractionMigrationTests \
+  -only-testing:SpudDataKitTests/AppDatabaseTests \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -skipPackagePluginValidation -skipMacroValidation test
+```
+
+Expected: PASS (`PostInteractionMigrationTests` 2 tests + all `AppDatabaseTests`).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-mint run swiftformat SpudDataKit/Services/AppDatabase/AppDatabase+Migrations.swift SpudDataKitTests/PostInteractionMigrationTests.swift
-git add SpudDataKit/Services/AppDatabase/AppDatabase+Migrations.swift SpudDataKitTests/PostInteractionMigrationTests.swift
+mint run swiftformat SpudDataKit/Services/AppDatabase/AppDatabase+Migrations.swift SpudDataKitTests/PostInteractionMigrationTests.swift SpudDataKitTests/AppDatabaseTests.swift
+git add SpudDataKit/Services/AppDatabase/AppDatabase+Migrations.swift SpudDataKitTests/PostInteractionMigrationTests.swift SpudDataKitTests/AppDatabaseTests.swift
 git commit -m "feat: add v14 postInteraction migration"
 ```
 
