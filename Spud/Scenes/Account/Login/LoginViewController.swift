@@ -235,6 +235,7 @@ class LoginViewController: UIViewController {
 
     /// hairline · "or" · hairline divider.
     lazy var orDividerStackView: UIStackView = {
+        @MainActor
         func hairline() -> UIView {
             let line = UIView()
             line.translatesAutoresizingMaskIntoConstraints = false
