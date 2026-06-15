@@ -74,6 +74,11 @@ extension NSAttributedString {
                 continue
             }
 
+            // `addAttribute` replaces any prior `.link` on sub-ranges within the
+            // mention (the URL pass above may have linkified the inner `host` or
+            // `user@host` fragment), so the internal link covers the full mention
+            // span atomically — no split links. The skip check above reads `self`,
+            // whose mention prefix (`!`/`@`) the URL pass never linkifies.
             result.addAttribute(.link, value: mention.link.url, range: range)
             result.addAttribute(.foregroundColor, value: linkColor, range: range)
         }

@@ -234,4 +234,31 @@ final class MarkdownRendererTests: XCTestCase {
         )
         XCTAssertFalse(hasAnyLink(in: result), "mentions inside code spans must not be linkified")
     }
+
+    /// Both passes in one body: the mention becomes an internal link while a real
+    /// bare URL stays a plain external link (URL classification happens at tap time).
+    func test_mentionAndBareURL_coexistWithCorrectKinds() {
+        let renderer = MarkdownRenderer()
+        let result = renderer.attributedString(
+            markdown: "see !tech@beehaw.org or https://lemmy.world/post/5",
+            key: "mixedMentionAndURL",
+            makeStyler: makeStyler()
+        )
+        var links: [URL] = []
+        result.enumerateAttribute(.link, in: NSRange(location: 0, length: result.length)) { value, _, _ in
+            if let url = value as? URL {
+                links.append(url)
+            } else if let string = value as? String, let url = URL(string: string) {
+                links.append(url)
+            }
+        }
+        let communityLinks = links.filter { if case .community? = $0.spud { return true } else { return false } }
+        let externalLinks = links.filter { $0.spud == nil }
+        XCTAssertEqual(communityLinks.count, 1, "the mention should be a single internal community link")
+        XCTAssertEqual(
+            externalLinks.first?.absoluteString,
+            "https://lemmy.world/post/5",
+            "the bare URL should remain a plain external link in the rendered text"
+        )
+    }
 }
