@@ -58,7 +58,9 @@ enum InlineLexer {
             if let scalar = Emoji.map[name] {
                 return (.emoji(scalar), count(m.range.upperBound))
             }
-            return nil // unknown shortcode -> fall through to literal text
+            // Unknown shortcode: emit the whole `:name:` token literally and
+            // consume it, so its trailing colon can't open the next emoji.
+            return (.text(String(rest[m.range])), count(m.range.upperBound))
         }
         if let m = rest.prefixMatch(of: /\^([^\^\s]+)\^/) {
             return (.superscript(parse(String(m.output.1))), count(m.range.upperBound))
@@ -77,14 +79,14 @@ enum InlineLexer {
             if let url = URL(string: raw) {
                 return (.link(text: [.text(raw)], url: url), count(m.range.upperBound))
             }
-            return nil
+            return (.text(raw), count(m.range.upperBound))
         }
         if let m = rest.prefixMatch(of: /www\.[^\s)<]+[^\s).,;:!?'"<]/) {
             let raw = String(m.output)
             if let url = URL(string: "https://\(raw)") {
                 return (.link(text: [.text(raw)], url: url), count(m.range.upperBound))
             }
-            return nil
+            return (.text(raw), count(m.range.upperBound))
         }
         return nil
     }

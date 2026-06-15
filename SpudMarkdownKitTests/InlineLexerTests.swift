@@ -52,4 +52,13 @@ final class InlineLexerTests: XCTestCase {
     func test_unknownEmojiStaysLiteral() {
         XCTAssertEqual(InlineLexer.parse(":not_an_emoji:"), [.text(":not_an_emoji:")])
     }
+
+    func test_unknownShortcodeDoesNotLeakIntoNextEmoji() {
+        // ":foo:" is unknown -> stays literal; its trailing colon must NOT open
+        // ":penguin:". Expect two literal text runs, no penguin emoji.
+        XCTAssertEqual(
+            InlineLexer.parse(":foo:penguin:"),
+            [.text(":foo:"), .text("penguin:")]
+        )
+    }
 }
