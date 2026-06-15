@@ -36,6 +36,17 @@ final class BodyTextView: UITextView {
 
     private var loadTasks: [Task<Void, Never>] = []
 
+    /// Whether the current body contains any link or inline image, i.e. whether
+    /// this view should behave as an accessibility container. Recomputed whenever
+    /// a body is assigned so plain-text bodies skip the container machinery.
+    private var bodyHasAccessibilityChildren = false
+
+    /// Cached curated accessibility children, keyed by the bounds they were laid
+    /// out for. Cleared on body assignment and inline-image reflow; rebuilt when
+    /// the bounds change. Spares repeated VoiceOver/XCUITest queries a re-layout.
+    private var cachedAccessibilityElements: [UIAccessibilityElement]?
+    private var cachedAccessibilityElementsBounds: CGRect = .null
+
     // MARK: Init
 
     init() {
@@ -77,6 +88,9 @@ final class BodyTextView: UITextView {
 
     private func configureBody(_ newValue: NSAttributedString?) {
         cancelLoads()
+        cachedAccessibilityElements = nil
+        cachedAccessibilityElementsBounds = .null
+        bodyHasAccessibilityChildren = Self.hasLinkOrImage(newValue)
 
         guard let newValue, newValue.length > 0 else {
             super.attributedText = newValue
@@ -157,6 +171,9 @@ final class BodyTextView: UITextView {
         if let textLayoutManager {
             textLayoutManager.invalidateLayout(for: textLayoutManager.documentRange)
         }
+        // The attachment box resizes once the real image arrives, so the cached
+        // image accessibility frame is stale.
+        cachedAccessibilityElements = nil
         invalidateIntrinsicContentSize()
         setNeedsLayout()
         setNeedsDisplay()
@@ -191,6 +208,118 @@ final class BodyTextView: UITextView {
             return []
         }
         return selectionRects(for: textRange).map(\.rect).filter { $0.width > 0 && $0.height > 0 }
+    }
+
+    // MARK: Accessibility
+
+    private static let genericImageLabel = NSLocalizedString(
+        "Image",
+        comment: "VoiceOver label for an inline body image that has no alt text"
+    )
+    private static let linkHint = NSLocalizedString(
+        "Double tap to open link",
+        comment: "VoiceOver hint for a tappable link inside a post or comment body"
+    )
+
+    /// Whether `attributed` carries any link or inline image, i.e. whether the
+    /// body has anything worth surfacing as its own accessibility element.
+    private static func hasLinkOrImage(_ attributed: NSAttributedString?) -> Bool {
+        guard let attributed, attributed.length > 0 else { return false }
+        let range = NSRange(location: 0, length: attributed.length)
+        var found = false
+        attributed.enumerateAttribute(.attachment, in: range) { value, _, stop in
+            if value is BodyImageAttachment {
+                found = true
+                stop.pointee = true
+            }
+        }
+        if found { return true }
+        attributed.enumerateAttribute(.link, in: range) { value, _, stop in
+            if value != nil {
+                found = true
+                stop.pointee = true
+            }
+        }
+        return found
+    }
+
+    /// A body with links or inline images is exposed as an accessibility
+    /// *container*: a whole-text element followed by one focusable child per
+    /// inline image (carrying its alt text, `.image` trait) and per link
+    /// (carrying its text and destination URL, `.link` trait). A plain-text body
+    /// returns `nil` so the text view keeps its default reading behaviour.
+    override var accessibilityElements: [Any]? {
+        get {
+            guard bodyHasAccessibilityChildren, let attributed = attributedText, attributed.length > 0 else {
+                return nil
+            }
+            if let cachedAccessibilityElements, cachedAccessibilityElementsBounds == bounds {
+                return cachedAccessibilityElements
+            }
+            let elements = makeAccessibilityElements(attributed)
+            cachedAccessibilityElements = elements
+            cachedAccessibilityElementsBounds = bounds
+            return elements
+        }
+        set {
+            // The element list is computed from the body; ignore external writes.
+        }
+    }
+
+    private func makeAccessibilityElements(_ attributed: NSAttributedString) -> [UIAccessibilityElement] {
+        // The whole-text element comes first so VoiceOver can read the body in
+        // full; inline-image glyphs (U+FFFC) are stripped so they aren't spoken
+        // as noise. Each link and image is then offered as a focusable child.
+        let textElement = UIAccessibilityElement(accessibilityContainer: self)
+        textElement.accessibilityLabel = attributed.string
+            .replacingOccurrences(of: "\u{fffc}", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        textElement.accessibilityFrameInContainerSpace = bounds
+
+        var elements: [UIAccessibilityElement] = [textElement]
+        let fullRange = NSRange(location: 0, length: attributed.length)
+        let nsString = attributed.string as NSString
+
+        attributed.enumerateAttribute(.attachment, in: fullRange) { value, range, _ in
+            guard let attachment = value as? BodyImageAttachment else { return }
+            let element = UIAccessibilityElement(accessibilityContainer: self)
+            element.accessibilityLabel = attachment.altText ?? Self.genericImageLabel
+            element.accessibilityTraits = [.image]
+            element.accessibilityFrameInContainerSpace = accessibilityFrame(for: range)
+            elements.append(element)
+        }
+
+        attributed.enumerateAttribute(.link, in: fullRange) { value, range, _ in
+            guard value != nil else { return }
+            // The inline-image range also carries a `.link` (its image URL); it is
+            // already surfaced above as an image, so don't duplicate it as a link.
+            if attributed.attribute(.attachment, at: range.location, effectiveRange: nil) is BodyImageAttachment {
+                return
+            }
+            let element = UIAccessibilityElement(accessibilityContainer: self)
+            element.accessibilityLabel = nsString.substring(with: range)
+            if let url = value as? URL {
+                element.accessibilityValue = url.absoluteString
+            } else if let string = value as? String {
+                element.accessibilityValue = string
+            }
+            element.accessibilityHint = Self.linkHint
+            element.accessibilityTraits = [.link]
+            element.accessibilityFrameInContainerSpace = accessibilityFrame(for: range)
+            elements.append(element)
+        }
+
+        return elements
+    }
+
+    /// The bounding rect (in this view's coordinate space) enclosing `range`,
+    /// reusing the same TextKit geometry as link hit-testing so the focus frame
+    /// matches the tappable area. Falls back to the full bounds if `range` has no
+    /// laid-out rects yet.
+    private func accessibilityFrame(for range: NSRange) -> CGRect {
+        let rectsForRange = rects(for: range)
+        guard let first = rectsForRange.first else { return bounds }
+        return rectsForRange.dropFirst().reduce(first) { $0.union($1) }
     }
 
     // MARK: Failure placeholder
