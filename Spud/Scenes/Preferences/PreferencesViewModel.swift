@@ -86,6 +86,7 @@ final class PreferencesViewModel {
     var openExternalLink: Preferences.OpenExternalLink
     var openExternalLinkInSafariVCReaderMode: Bool
     var openExternalLinkAsUniversalLinkInApp: Bool
+    var rewriteTwitterLinksToXcancel: Bool
 
     /// User-assigned swipe actions for post and comment cells (M8). Mirrored
     /// here so the settings UI reflects external changes; writes flow back
@@ -167,6 +168,8 @@ final class PreferencesViewModel {
             dependencies.preferencesService.openExternalLinksInSafariVCReaderMode
         openExternalLinkAsUniversalLinkInApp =
             dependencies.preferencesService.openUniversalLinkInApp
+        rewriteTwitterLinksToXcancel =
+            dependencies.preferencesService.rewriteTwitterLinksToXcancel
 
         appTheme = dependencies.preferencesService.appTheme
         accentColor = dependencies.preferencesService.accentColor
@@ -317,6 +320,7 @@ final class PreferencesViewModel {
         openExternalLink = .safariViewController
         openExternalLinkInSafariVCReaderMode = true
         openExternalLinkAsUniversalLinkInApp = true
+        rewriteTwitterLinksToXcancel = false
         appTheme = .system
         accentColor = .lemmy
         postDensity = .comfortable
@@ -372,6 +376,11 @@ final class PreferencesViewModel {
     func updateOpenExternalLinkAsUniversalLinkInApp(_ value: Bool) {
         openExternalLinkAsUniversalLinkInApp = value
         preferencesService?.openUniversalLinkInApp = value
+    }
+
+    func updateRewriteTwitterLinksToXcancel(_ value: Bool) {
+        rewriteTwitterLinksToXcancel = value
+        preferencesService?.rewriteTwitterLinksToXcancel = value
     }
 
     func updateAppTheme(_ value: AppTheme) {

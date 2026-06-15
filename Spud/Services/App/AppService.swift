@@ -58,11 +58,13 @@ class AppService: AppServiceType {
     }
 
     func safariViewControllerForPreview(url: URL) -> SFSafariViewController {
-        createSafariViewController(url: url)
+        createSafariViewController(url: resolvedExternalURL(url))
     }
 
     func open(url: URL, on viewController: UIViewController) async {
         assert(url.spud == nil)
+
+        let url = resolvedExternalURL(url)
 
         func openInSafariViewController() {
             let safariVC = createSafariViewController(url: url)
@@ -83,6 +85,14 @@ class AppService: AppServiceType {
         case .browser:
             await UIApplication.shared.open(url)
         }
+    }
+
+    /// Applies user-configured external-link rewrites (currently the optional
+    /// twitter.com / x.com to xcancel.com redirect) before a URL is opened or
+    /// previewed. Returns the URL unchanged when no rewrite applies.
+    private func resolvedExternalURL(_ url: URL) -> URL {
+        guard preferencesService.rewriteTwitterLinksToXcancel else { return url }
+        return url.rewritingTwitterToXcancel()
     }
 
     private func createSafariViewController(url: URL) -> SFSafariViewController {
