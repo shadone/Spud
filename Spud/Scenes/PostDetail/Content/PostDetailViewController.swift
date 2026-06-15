@@ -330,6 +330,8 @@ class PostDetailViewController: UIViewController {
             return
         }
 
+        recordVisit(keychainId: keychainId, serverPostId: serverPostId, postRowId: postRowId)
+
         observationTask = Task { @MainActor [weak self] in
             guard let self else { return }
             for await row in appDatabase.observePostDetailHeader(postRowId: postRowId) {
@@ -341,6 +343,32 @@ class PostDetailViewController: UIViewController {
         }
 
         startCommentObservation(postRowId: postRowId)
+    }
+
+    /// Records this post-detail visit in the local interaction log and seeds
+    /// the view model's new-comment delta inputs. The prior `lastOpenedAt` is
+    /// read synchronously *before* the async write overwrites it, so the first
+    /// comment snapshot already reflects the correct "new since last visit"
+    /// set. Recording is independent of `markPostsRead` (that preference only
+    /// gates the server `markAsRead` round-trip).
+    private func recordVisit(keychainId: String, serverPostId: Int64, postRowId: Int64) {
+        viewModel.previousVisitAt = appDatabase.lastOpenedAtSync(
+            forKeychainId: keychainId,
+            serverPostId: serverPostId
+        )
+        viewModel.currentAccountPersonId = appDatabase.accountPersonServerIdSync(
+            forKeychainId: keychainId
+        )
+
+        let snapshotAndCount = appDatabase.postInteractionSnapshotSync(postRowId: postRowId)
+        Task { [appDatabase] in
+            try? await appDatabase.recordPostOpened(
+                accountKeychainId: keychainId,
+                serverPostId: serverPostId,
+                commentCount: snapshotAndCount?.commentCount,
+                snapshot: snapshotAndCount?.snapshot
+            )
+        }
     }
 
     private func startCommentObservation(postRowId: Int64) {
