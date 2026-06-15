@@ -37,6 +37,10 @@ protocol PreferencesServiceType: AnyObject {
     /// When opening external link first check if it's a universal link first and then open it in the app.
     var openUniversalLinkInApp: Bool { get set }
 
+    /// Whether tapped twitter.com / x.com links are rewritten to the
+    /// `xcancel.com` privacy front-end before opening. Default `false`.
+    var rewriteTwitterLinksToXcancel: Bool { get set }
+
     /// The user-assigned swipe actions for post cells. Defaults reproduce the
     /// pre-M8 hardcoded behaviour (``SwipeActionConfig/defaultPosts``).
     var postSwipeActions: SwipeActionConfig { get set }
@@ -149,6 +153,9 @@ class PreferencesService: PreferencesServiceType {
 
     @UserDefaultsBacked(key: "openUniversalLinkInApp")
     var openUniversalLinkInApp: Bool = true
+
+    @UserDefaultsBacked(key: "rewriteTwitterLinksToXcancel")
+    var rewriteTwitterLinksToXcancel: Bool = false
 
     @UserDefaultsBacked(key: "postSwipeActions")
     var postSwipeActions: SwipeActionConfig = .defaultPosts

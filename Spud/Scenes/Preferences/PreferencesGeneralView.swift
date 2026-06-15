@@ -51,6 +51,14 @@ struct PreferencesGeneralView: View {
         }
     }
 
+    private var rewriteTwitterLinksToXcancel: Binding<Bool> {
+        .init {
+            viewModel.rewriteTwitterLinksToXcancel
+        } set: { newValue in
+            viewModel.updateRewriteTwitterLinksToXcancel(newValue)
+        }
+    }
+
     var body: some View {
         Form {
             Section {
@@ -119,6 +127,13 @@ struct PreferencesGeneralView: View {
                 VStack(alignment: .leading) {
                     Toggle("Open in Apps", isOn: openExternalLinkAsUniversalLinkInApp)
                     Text("If an app is installed that can open handle the link (aka \"universal link\" or \"deep link\"), open in app instead of browser.")
+                        .foregroundStyle(.secondary)
+                        .font(.footnote)
+                }
+
+                VStack(alignment: .leading) {
+                    Toggle("Open X/Twitter via xcancel.com", isOn: rewriteTwitterLinksToXcancel)
+                    Text("Rewrite twitter.com and x.com links to the xcancel.com front-end before opening.")
                         .foregroundStyle(.secondary)
                         .font(.footnote)
                 }
