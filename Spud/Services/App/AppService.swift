@@ -54,8 +54,7 @@ class AppService: AppServiceType {
             let instanceUrl = URL(string: actorId)
         else { return }
         let postUrl = instanceUrl.appending(path: "post/\(serverPostId)")
-        let safariVC = SFSafariViewController(url: postUrl)
-        viewController.present(safariVC, animated: true)
+        presentSafariViewController(url: postUrl, on: viewController)
     }
 
     func safariViewControllerForPreview(url: URL) -> SFSafariViewController {
@@ -68,8 +67,7 @@ class AppService: AppServiceType {
         let url = resolvedExternalURL(url)
 
         func openInSafariViewController() {
-            let safariVC = createSafariViewController(url: url)
-            viewController.present(safariVC, animated: true)
+            presentSafariViewController(url: url, on: viewController)
         }
 
         switch preferencesService.openExternalLinks {
@@ -93,6 +91,21 @@ class AppService: AppServiceType {
     /// is disabled or no step applies).
     private func resolvedExternalURL(_ url: URL) -> URL {
         URLSanitizer.sanitize(url, config: preferencesService.urlSanitizerConfig)
+    }
+
+    /// Presents an in-app browser for `url` and records, on the presenter's
+    /// navigation controller, how to re-open it. The right-edge forward gesture
+    /// uses that to restore the link after it is dismissed (a fresh load — an
+    /// SFSafariViewController instance cannot be reused once dismissed).
+    private func presentSafariViewController(url: URL, on viewController: UIViewController) {
+        let safariVC = createSafariViewController(url: url)
+
+        viewController.navigationController?.pendingExternalLinkRestore = { [weak self, weak viewController] in
+            guard let self, let viewController else { return }
+            presentSafariViewController(url: url, on: viewController)
+        }
+
+        viewController.present(safariVC, animated: true)
     }
 
     private func createSafariViewController(url: URL) -> SFSafariViewController {

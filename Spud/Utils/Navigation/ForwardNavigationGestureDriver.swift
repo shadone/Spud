@@ -18,11 +18,21 @@ import UIKit
 /// targets weakly.
 @MainActor
 final class ForwardNavigationGestureDriver: NSObject {
+    /// What the in-progress right-edge gesture is restoring.
+    private enum GestureMode {
+        /// An interactive push of a popped view controller from the forward stack.
+        case navRestore
+        /// A re-open of the most recently dismissed in-app browser (a modal
+        /// present, so non-interactive — fires on release).
+        case modalRestore
+    }
+
     private weak var navigationController: UINavigationController?
     private var forwardStack: [UIViewController] = []
     private var lastStack: [UIViewController] = []
     private var interactionController: UIPercentDrivenInteractiveTransition?
     private var isInteracting = false
+    private var mode: GestureMode?
     private let edgePan = UIScreenEdgePanGestureRecognizer()
 
     init(navigationController: UINavigationController) {
@@ -51,31 +61,47 @@ final class ForwardNavigationGestureDriver: NSObject {
 
         switch recognizer.state {
         case .began:
-            guard let next = forwardStack.first else { return }
-            isInteracting = true
-            interactionController = UIPercentDrivenInteractiveTransition()
-            // The forward stack is mutated only by the reducer in didShow: a
-            // finished restore nets an append-push (consumed), a cancelled one
-            // nets no change (kept).
-            navigationController.pushViewController(next, animated: true)
+            if let next = forwardStack.first {
+                // Interactive push of a popped view controller. The forward stack
+                // is mutated only by the reducer in didShow: a finished restore
+                // nets an append-push (consumed), a cancelled one nets no change.
+                mode = .navRestore
+                isInteracting = true
+                interactionController = UIPercentDrivenInteractiveTransition()
+                navigationController.pushViewController(next, animated: true)
+            } else if navigationController.pendingExternalLinkRestore != nil {
+                // Nothing to push, but a dismissed in-app browser can be re-opened.
+                // This is a modal present, so it is not interactive — it fires on
+                // release if the swipe passed the threshold.
+                mode = .modalRestore
+                isInteracting = true
+            }
 
         case .changed:
-            guard isInteracting else { return }
+            guard isInteracting, mode == .navRestore else { return }
             interactionController?.update(progress)
 
         case .ended:
             guard isInteracting else { return }
             let velocityX = recognizer.velocity(in: view).x
-            if InteractiveTransitionGeometry.shouldFinish(progress: progress, velocityX: velocityX) {
-                interactionController?.finish()
-            } else {
-                interactionController?.cancel()
+            let finish = InteractiveTransitionGeometry.shouldFinish(progress: progress, velocityX: velocityX)
+            switch mode {
+            case .navRestore:
+                if finish { interactionController?.finish() } else { interactionController?.cancel() }
+            case .modalRestore:
+                if finish {
+                    let restore = navigationController.pendingExternalLinkRestore
+                    navigationController.pendingExternalLinkRestore = nil
+                    restore?()
+                }
+            case .none:
+                break
             }
             endInteraction()
 
         case .cancelled, .failed:
             guard isInteracting else { return }
-            interactionController?.cancel()
+            if mode == .navRestore { interactionController?.cancel() }
             endInteraction()
 
         default:
@@ -86,6 +112,7 @@ final class ForwardNavigationGestureDriver: NSObject {
     private func endInteraction() {
         isInteracting = false
         interactionController = nil
+        mode = nil
     }
 }
 
@@ -98,6 +125,11 @@ extension ForwardNavigationGestureDriver: UINavigationControllerDelegate {
             animated: animated
         )
         lastStack = navigationController.viewControllers
+        if animated {
+            // A real navigation happened; any "re-open the dismissed link" intent
+            // belonged to the previous context and is now stale.
+            navigationController.pendingExternalLinkRestore = nil
+        }
     }
 
     func navigationController(
@@ -124,8 +156,10 @@ extension ForwardNavigationGestureDriver: UIGestureRecognizerDelegate {
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         guard let navigationController, navigationController.transitionCoordinator == nil else { return false }
         if gestureRecognizer === edgePan {
-            // Our right-edge forward gesture: only when there is something to restore.
-            return !forwardStack.isEmpty && !isInteracting
+            // Our right-edge forward gesture: a popped controller to restore, or a
+            // dismissed in-app browser to re-open.
+            let canRestore = !forwardStack.isEmpty || navigationController.pendingExternalLinkRestore != nil
+            return canRestore && !isInteracting
         }
         // The re-vended system left-edge back gesture: keep its default condition.
         return navigationController.viewControllers.count > 1
