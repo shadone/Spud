@@ -273,6 +273,16 @@ class PostDetailCommentCell: UITableViewCell {
         return recognizer
     }()
 
+    // MARK: Private
+
+    /// The row's non-fresh resting wash color (clear, or the distinguished /
+    /// collapsed tint), captured in `configure` so the fade lands on the right
+    /// background instead of always clearing to transparent.
+    private var restingTintColor: UIColor = .clear
+    /// The fresh-comment tint, captured in `configure` from the resolved accent.
+    private var freshTintColor: UIColor = .clear
+    private var isFresh = false
+
     // MARK: Functions
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -314,7 +324,11 @@ class PostDetailCommentCell: UITableViewCell {
         swipeActionConfiguration = nil
         swipeActionTriggered = nil
         mainHorizontalStackView.alpha = 1
+        tintBackingView.layer.removeAnimation(forKey: "freshFade")
         tintBackingView.backgroundColor = .clear
+        isFresh = false
+        restingTintColor = .clear
+        freshTintColor = .clear
         newDotView.isHidden = true
         newDotView.backgroundColor = .clear
         // Drop the body now so any in-flight inline-image loads are cancelled
@@ -422,12 +436,20 @@ class PostDetailCommentCell: UITableViewCell {
         // Distinguished (official) reads as a teal-washed row; a collapsed row
         // gets a neutral wash. Moderator-removed rows dim.
         if viewModel.isDistinguished {
-            tintBackingView.backgroundColor = accent.withAlphaComponent(0.10)
+            restingTintColor = accent.withAlphaComponent(0.10)
         } else if viewModel.isCollapsed {
-            tintBackingView.backgroundColor = UIColor.label.withAlphaComponent(0.03)
+            restingTintColor = UIColor.label.withAlphaComponent(0.03)
         } else {
-            tintBackingView.backgroundColor = .clear
+            restingTintColor = .clear
         }
+        isFresh = viewModel.isNew
+        freshTintColor = accent.withAlphaComponent(
+            traitCollection.userInterfaceStyle == .dark ? 0.16 : 0.11
+        )
+        // Resting state by default; the host re-applies the fresh wash in
+        // willDisplay (so the one-time fade can run as the row appears).
+        tintBackingView.layer.removeAnimation(forKey: "freshFade")
+        tintBackingView.backgroundColor = restingTintColor
         mainHorizontalStackView.alpha = viewModel.isDeemphasized ? 0.66 : 1
 
         newDotView.isHidden = !viewModel.isNew
@@ -451,6 +473,46 @@ class PostDetailCommentCell: UITableViewCell {
         } else {
             accessibilityTraits = .none
         }
+    }
+
+    /// Applies the fresh-comment wash for this appearance. Returns `true` if it
+    /// started the one-time fade (so the host can record that this comment has
+    /// animated and not replay it).
+    @discardableResult
+    func startFreshWashIfNeeded(hasAnimated: Bool) -> Bool {
+        let state = FreshWashState.resolve(
+            isNew: isFresh,
+            hasAnimated: hasAnimated,
+            reduceMotion: UIAccessibility.isReduceMotionEnabled
+        )
+        switch state {
+        case .none:
+            tintBackingView.layer.removeAnimation(forKey: "freshFade")
+            tintBackingView.backgroundColor = restingTintColor
+            return false
+        case .staticTint:
+            tintBackingView.layer.removeAnimation(forKey: "freshFade")
+            tintBackingView.backgroundColor = freshTintColor
+            return false
+        case .fadeFromTint:
+            playFreshFade()
+            return true
+        }
+    }
+
+    /// Holds the fresh tint, then fades to the resting background — the design's
+    /// spudFreshFade (hold to 38%, fade to 100% over 4.2s, ease-out).
+    private func playFreshFade() {
+        let resting = restingTintColor.cgColor
+        let fresh = freshTintColor.cgColor
+        tintBackingView.backgroundColor = restingTintColor // model layer = end state
+
+        let animation = CAKeyframeAnimation(keyPath: "backgroundColor")
+        animation.values = [fresh, fresh, resting]
+        animation.keyTimes = [0, 0.38, 1.0]
+        animation.duration = 4.2
+        animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        tintBackingView.layer.add(animation, forKey: "freshFade")
     }
 
     // MARK: Taps

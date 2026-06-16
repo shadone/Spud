@@ -136,6 +136,9 @@ class PostDetailViewController: UIViewController {
     private var viewModel: PostDetailViewModel
     private var headerRow: PostDetailHeaderRow?
     private var commentRowsByElementId: [Int64: PostDetailCommentRow] = [:]
+    /// Element ids of new comments whose one-time fresh-wash fade has already
+    /// played this visit, so scrolling them back into view doesn't replay it.
+    private var animatedNewCommentIds: Set<Int64> = []
     /// The backing account's moderation capability, refreshed from the server
     /// on appearance. Drives whether mod actions show in the context menus.
     /// `.none` until the first fetch (and for signed-out accounts).
@@ -1450,6 +1453,23 @@ extension PostDetailViewController {
 extension PostDetailViewController: UITableViewDelegate {
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         updateJumpButtonVisibility()
+    }
+
+    func tableView(
+        _ tableView: UITableView,
+        willDisplay cell: UITableViewCell,
+        forRowAt indexPath: IndexPath
+    ) {
+        guard
+            case let .comment(elementId) = dataSource.itemIdentifier(for: indexPath),
+            let cell = cell as? PostDetailCommentCell
+        else { return }
+        let didAnimate = cell.startFreshWashIfNeeded(
+            hasAnimated: animatedNewCommentIds.contains(elementId)
+        )
+        if didAnimate {
+            animatedNewCommentIds.insert(elementId)
+        }
     }
 
     func tableView(
