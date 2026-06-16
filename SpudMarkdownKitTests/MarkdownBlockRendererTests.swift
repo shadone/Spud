@@ -1,0 +1,35 @@
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
+import UIKit
+import XCTest
+@testable import SpudMarkdownKit
+
+@MainActor
+final class MarkdownBlockRendererTests: XCTestCase {
+    private func renderer() -> MarkdownBlockRenderer {
+        MarkdownBlockRenderer(context: MarkdownContext(kind: .post))
+    }
+
+    func test_paragraphRendersProseBlockView() {
+        let view = renderer().view(for: .paragraph([.text("hi")]))
+        XCTAssertTrue(view is ProseBlockView)
+    }
+
+    func test_thematicBreakRendersThematicBreakView() {
+        XCTAssertTrue(renderer().view(for: .thematicBreak) is ThematicBreakView)
+    }
+
+    func test_blockQuoteRendersQuoteBlockView() {
+        let view = renderer().view(for: .blockQuote([.paragraph([.text("q")])]))
+        XCTAssertTrue(view is QuoteBlockView)
+    }
+
+    func test_viewsForBlocksReturnsOnePerBlock() {
+        let views = renderer().views(for: [.paragraph([.text("a")]), .thematicBreak])
+        XCTAssertEqual(views.count, 2)
+    }
+}
