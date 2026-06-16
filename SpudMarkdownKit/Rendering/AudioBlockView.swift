@@ -59,7 +59,9 @@ final class AudioBlockView: UIView {
         row.alignment = .center
         row.spacing = post ? 12 : 9
         row.isLayoutMarginsRelativeArrangement = true
-        row.layoutMargins = UIEdgeInsets(top: post ? 10 : 8, left: post ? 13 : 10, bottom: post ? 10 : 8, right: post ? 13 : 10)
+        let hPad: CGFloat = post ? 13 : 10
+        let vPad: CGFloat = post ? 10 : 8
+        row.layoutMargins = UIEdgeInsets(top: vPad, left: hPad, bottom: vPad, right: hPad)
         row.translatesAutoresizingMaskIntoConstraints = false
         addSubview(row)
         NSLayoutConstraint.activate([
@@ -69,8 +71,11 @@ final class AudioBlockView: UIView {
             row.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
 
-        isUserInteractionEnabled = true
         addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
+        isAccessibilityElement = true
+        accessibilityLabel = "Audio"
+        accessibilityHint = "Tap to play"
+        accessibilityTraits = .button
     }
 
     @available(*, unavailable)
