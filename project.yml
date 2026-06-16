@@ -42,6 +42,9 @@ packages:
   Down:
     url: https://github.com/shadone/Down
     branch: main
+  SwiftMarkdown:
+    url: https://github.com/apple/swift-markdown
+    branch: main
   SnapshotTesting:
     url: https://github.com/pointfreeco/swift-snapshot-testing
     from: 1.11.1
@@ -168,6 +171,62 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.SpudUtilKit
 
+  SpudMarkdownKit:
+    type: framework
+    platform: iOS
+    sources:
+      - SpudMarkdownKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.SpudMarkdownKit
+        DEFINES_MODULE: "YES"
+    dependencies:
+      - target: SpudUIKit
+      - target: SpudUtilKit
+      - package: SwiftMarkdown
+        product: Markdown
+
+  SpudMarkdownKitTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - SpudMarkdownKitTests
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.SpudMarkdownKitTests
+    dependencies:
+      - target: SpudMarkdownKit
+
+  SpudMarkdownKitSnapshotTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: SpudMarkdownKitSnapshotTests
+        excludes:
+          - "__Snapshots__/**"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.SpudMarkdownKitSnapshotTests
+        SWIFT_VERSION: "5.0"
+    dependencies:
+      - target: SpudMarkdownKit
+      - package: SnapshotTesting
+
+  MarkdownLab:
+    type: application
+    platform: iOS
+    sources:
+      - MarkdownLab
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.MarkdownLab
+        GENERATE_INFOPLIST_FILE: "YES"
+        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
+    dependencies:
+      - target: SpudMarkdownKit
+      - target: SpudUIKit
+      - target: SpudUtilKit
+
   SpudTests:
     type: bundle.unit-test
     platform: iOS
@@ -293,6 +352,24 @@ schemes:
     test:
       targets:
         - SpudUIKitTests
+
+  SpudMarkdownKit:
+    build:
+      targets:
+        SpudMarkdownKit: all
+        SpudMarkdownKitTests: [test]
+        SpudMarkdownKitSnapshotTests: [test]
+    test:
+      targets:
+        - SpudMarkdownKitTests
+        - SpudMarkdownKitSnapshotTests
+
+  MarkdownLab:
+    build:
+      targets:
+        MarkdownLab: all
+    run:
+      config: Debug
 
   SpudWidgetExtension:
     build:
