@@ -52,7 +52,8 @@ final class MarkdownBlockRenderer {
         case .image: return PlaceholderBlockView(label: "image")
         case .audio: return PlaceholderBlockView(label: "audio")
         case .video: return PlaceholderBlockView(label: "video")
-        case .footnotes: return PlaceholderBlockView(label: "footnotes")
+        case let .footnotes(footnotes):
+            return FootnotesBlockView(footnotes: footnotes, context: context)
         }
     }
 
