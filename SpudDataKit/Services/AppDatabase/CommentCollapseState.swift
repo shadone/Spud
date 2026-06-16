@@ -33,12 +33,20 @@ public enum CommentCollapseState {
         /// collapsed) are not included.
         public let collapsedDescendantCounts: [Int64: Int]
 
+        /// For each *collapsed and visible* comment element id, how many of its
+        /// hidden descendants are new since the user's last visit (a subset of
+        /// `collapsedDescendantCounts`). Used to render the accent "N new" pill.
+        /// A parent absent from this map hides no new descendants.
+        public let collapsedNewDescendantCounts: [Int64: Int]
+
         public init(
             rows: [PostDetailCommentRow],
-            collapsedDescendantCounts: [Int64: Int]
+            collapsedDescendantCounts: [Int64: Int],
+            collapsedNewDescendantCounts: [Int64: Int] = [:]
         ) {
             self.rows = rows
             self.collapsedDescendantCounts = collapsedDescendantCounts
+            self.collapsedNewDescendantCounts = collapsedNewDescendantCounts
         }
     }
 
@@ -49,15 +57,20 @@ public enum CommentCollapseState {
     ///     (as emitted by `observePostDetailComments`).
     ///   - collapsedIds: element ids (`PostDetailCommentRow.id`) whose subtrees
     ///     should be hidden.
+    ///   - newElementIds: element ids considered new since the user's last visit;
+    ///     used to populate `VisibleTree.collapsedNewDescendantCounts`. Defaults
+    ///     to the empty set.
     /// - Returns: the visible rows and the per-parent hidden-descendant counts.
     public static func visibleTree(
         orderedComments: [PostDetailCommentRow],
-        collapsedIds: Set<Int64>
+        collapsedIds: Set<Int64>,
+        newElementIds: Set<Int64> = []
     ) -> VisibleTree {
         var visibleRows: [PostDetailCommentRow] = []
         visibleRows.reserveCapacity(orderedComments.count)
 
         var collapsedCounts: [Int64: Int] = [:]
+        var collapsedNewCounts: [Int64: Int] = [:]
 
         // The depth of the shallowest currently-active collapsed ancestor.
         // While we are inside a collapsed subtree, every row deeper than this
@@ -87,8 +100,12 @@ public enum CommentCollapseState {
             // Every row that is a descendant of a still-open collapsed parent
             // counts toward that parent's badge, whether or not it is itself
             // hidden (descendants of nested collapsed nodes still count).
+            let rowIsNew = newElementIds.contains(row.id)
             for parent in openCollapsedParents {
                 collapsedCounts[parent.id, default: 0] += 1
+                if rowIsNew {
+                    collapsedNewCounts[parent.id, default: 0] += 1
+                }
             }
 
             // If this (visible) row is collapsed, start hiding its descendants.
@@ -97,13 +114,17 @@ public enum CommentCollapseState {
                     hidingBelowDepth = row.depth
                 }
                 openCollapsedParents.append((id: row.id, depth: row.depth))
+                // Seed so a zero-descendant collapse still appears in the total
+                // map. No parallel seed for `collapsedNewCounts`: absent = zero
+                // new (the "N new" pill is hidden when there is no key).
                 collapsedCounts[row.id] = 0
             }
         }
 
         return VisibleTree(
             rows: visibleRows,
-            collapsedDescendantCounts: collapsedCounts
+            collapsedDescendantCounts: collapsedCounts,
+            collapsedNewDescendantCounts: collapsedNewCounts
         )
     }
 
