@@ -6,13 +6,10 @@
 
 import Foundation
 import LemmyKit
-import OSLog
 import SpudDataKit
 import SpudUIKit
 import SpudUtilKit
 import UIKit
-
-private let logger = Logger.app
 
 @MainActor
 class HistoryViewController: UIViewController {
@@ -118,7 +115,6 @@ class HistoryViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        navigationItem.title = NSLocalizedString("History", comment: "History screen title")
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = false
 
@@ -181,12 +177,13 @@ class HistoryViewController: UIViewController {
         snapshot.appendSections([.posts])
         let items = serverPostIds.map { Item.post(serverPostId: $0) }
         snapshot.appendItems(items, toSection: .posts)
+        snapshot.reconfigureItems(snapshot.itemIdentifiers)
         dataSource.apply(snapshot, animatingDifferences: false)
 
         emptyStateLabel.isHidden = !serverPostIds.isEmpty
     }
 
-    func startObservation() {
+    private func startObservation() {
         observationTask?.cancel()
         observationTask = Task { @MainActor [weak self] in
             guard let self else { return }
