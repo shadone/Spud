@@ -5,6 +5,7 @@
 //
 
 import SpudMarkdownKit
+import SpudUIKit
 import SwiftUI
 
 @main
@@ -15,46 +16,63 @@ struct MarkdownLabApp: App {
 }
 
 private let defaultSample = """
-    Valve **finally** shipped SteamOS. Ping @glidergun@lemmy.world or !linux_gaming@lemmy.world. :penguin:
+    Valve **finally** shipped SteamOS, with ~~three~~ two rough edges. Ping @glidergun@lemmy.world or drop into !linux_gaming@lemmy.world. Smart quotes "work," en--dashes too.
 
-    # Heading
-    - one
-    - two
+    # H1 — Section title
+    ## H2 — Subsection
 
-    ::: spoiler Numbers
-    Locked **60 fps**.
-    :::
+    - A USB-C drive, **8 GB or larger**.
+    - The official `rufus` flasher.
 
-    Thanks.[^1]
+    1. Disable Secure Boot.
+    2. Flash the recovery image.
 
-    [^1]: Over a wired connection.
+    > Third-party support is **best-effort**.
+
+    H~2~O and E=mc^2^. See https://store.steampowered.com/steamos for details.
+
+    ---
     """
 
 struct LabView: View {
     @State private var source = defaultSample
-
-    private var dump: String {
-        BlockTreeDump.lines(MarkdownParser.parse(source)).joined(separator: "\n")
-    }
+    @State private var config = LabConfig()
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                TextEditor(text: $source)
-                    .font(.system(.body, design: .monospaced))
-                    .frame(maxHeight: 240)
-                    .border(.separator)
-                Divider()
-                ScrollView {
-                    Text(dump)
-                        .font(.system(.footnote, design: .monospaced))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                        .padding()
-                }
+        VStack(spacing: 0) {
+            TextEditor(text: $source)
+                .font(.system(.footnote, design: .monospaced))
+                .frame(height: 150)
+                .border(.separator)
+            LabControlBar(config: $config)
+                .padding(.vertical, 6)
+            Divider()
+            ScrollView {
+                MarkdownBodyHost(source: source, config: config)
+                    .id(config)
+                    .padding(16)
             }
-            .navigationTitle("MarkdownLab")
-            .navigationBarTitleDisplayMode(.inline)
         }
+        .preferredColorScheme(config.style)
+    }
+}
+
+/// Hosts the UIKit `MarkdownBodyView`. The context is baked at init from
+/// `config`; `LabView` keys this host on `config` so a toggle change recreates
+/// it. `updateUIView` handles live source edits.
+struct MarkdownBodyHost: UIViewRepresentable {
+    let source: String
+    let config: LabConfig
+
+    func makeUIView(context _: Context) -> MarkdownBodyView {
+        let view = MarkdownBodyView(
+            context: MarkdownContext(kind: config.kind, textScale: config.textScale, density: config.density)
+        )
+        view.setBlocks(MarkdownParser.parse(source))
+        return view
+    }
+
+    func updateUIView(_ uiView: MarkdownBodyView, context _: Context) {
+        uiView.setBlocks(MarkdownParser.parse(source))
     }
 }

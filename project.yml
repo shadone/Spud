@@ -225,6 +225,7 @@ targets:
     dependencies:
       - target: SpudMarkdownKit
       - target: SpudUIKit
+      - target: SpudUtilKit
 
   SpudTests:
     type: bundle.unit-test
