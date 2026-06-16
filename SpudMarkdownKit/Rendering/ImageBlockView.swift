@@ -21,6 +21,7 @@ final class ImageBlockView: UIView {
     private let context: MarkdownContext
     private let onTapImage: ((URL, String?, CGRect) -> Void)?
     private let onOpenInBrowser: ((URL) -> Void)?
+    private let onContentSizeChange: (() -> Void)?
 
     private let box = UIView()
     private var boxAspect: NSLayoutConstraint?
@@ -30,6 +31,7 @@ final class ImageBlockView: UIView {
         context: MarkdownContext,
         onTapImage: ((URL, String?, CGRect) -> Void)?,
         onOpenInBrowser: ((URL) -> Void)?,
+        onContentSizeChange: (() -> Void)?,
         loader: MarkdownImageLoader?
     ) {
         url = image.url
@@ -37,6 +39,7 @@ final class ImageBlockView: UIView {
         self.context = context
         self.onTapImage = onTapImage
         self.onOpenInBrowser = onOpenInBrowser
+        self.onContentSizeChange = onContentSizeChange
         super.init(frame: .zero)
 
         let stack = UIStackView()
@@ -80,6 +83,7 @@ final class ImageBlockView: UIView {
                 let image = await loader(capturedURL)
                 guard let self else { return }
                 apply(state: image.map(State.loaded) ?? .failed)
+                onContentSizeChange?()
             }
         }
     }

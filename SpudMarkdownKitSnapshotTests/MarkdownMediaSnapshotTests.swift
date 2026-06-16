@@ -23,13 +23,13 @@ final class MarkdownMediaSnapshotTests: XCTestCase {
         // loader: nil — state is injected synchronously below via apply(state:) for deterministic snapshots
         let loaded = ImageBlockView(
             image: MarkdownImage(url: imageURL, altText: "A teal placeholder with a caption."),
-            context: context, onTapImage: nil, onOpenInBrowser: nil, loader: nil
+            context: context, onTapImage: nil, onOpenInBrowser: nil, onContentSizeChange: nil, loader: nil
         )
         loaded.apply(state: .loaded(Self.stubImage(width: 320, height: 180)))
 
         let failed = ImageBlockView(
             image: MarkdownImage(url: imageURL, altText: "Alt text still shows when an image fails."),
-            context: context, onTapImage: nil, onOpenInBrowser: nil, loader: nil
+            context: context, onTapImage: nil, onOpenInBrowser: nil, onContentSizeChange: nil, loader: nil
         )
         failed.apply(state: .failed)
 

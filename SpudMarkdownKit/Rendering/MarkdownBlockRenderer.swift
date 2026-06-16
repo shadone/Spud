@@ -61,6 +61,7 @@ final class MarkdownBlockRenderer {
                 context: context,
                 onTapImage: onTapImage,
                 onOpenInBrowser: onTapLink,
+                onContentSizeChange: onContentSizeChange,
                 loader: imageLoader
             )
         case let .audio(url):
