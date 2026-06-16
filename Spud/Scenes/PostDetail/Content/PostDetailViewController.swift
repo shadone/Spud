@@ -93,6 +93,7 @@ class PostDetailViewController: UIViewController {
         tableView.delegate = self
         tableView.refreshControl = refreshControl
         tableView.register(PostDetailHeaderCell.self, forCellReuseIdentifier: PostDetailHeaderCell.reuseIdentifier)
+        tableView.register(PostDetailNewSinceBannerCell.self, forCellReuseIdentifier: PostDetailNewSinceBannerCell.reuseIdentifier)
         tableView.register(PostDetailCommentCell.self, forCellReuseIdentifier: PostDetailCommentCell.reuseIdentifier)
         return tableView
     }()
@@ -417,6 +418,10 @@ class PostDetailViewController: UIViewController {
         var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
         snapshot.appendSections([.header, .comments])
         snapshot.appendItems([.header], toSection: .header)
+        if viewModel.newCommentCount > 0 {
+            snapshot.appendItems([.newSinceBanner], toSection: .header)
+            snapshot.reconfigureItems([.newSinceBanner])
+        }
         // Refresh content in place. Reconfigure (not reload) re-runs the cell
         // provider on the existing cells, avoiding the cross-dissolve that
         // reloadItems animates under `animatingDifferences: true` — that fade,
@@ -505,6 +510,16 @@ class PostDetailViewController: UIViewController {
     @objc
     private func jumpToNextTopCommentTapped() {
         guard let indexPath = indexPathOfNextTopLevelComment() else { return }
+        Haptics.tap()
+        tableView.scrollToRow(at: indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
+    }
+
+    /// Scrolls to the first new comment (the banner's "Jump" action).
+    private func jumpToFirstNewComment() {
+        guard
+            let elementId = viewModel.firstNewCommentElementId,
+            let indexPath = dataSource.indexPath(for: .comment(elementId: elementId))
+        else { return }
         Haptics.tap()
         tableView.scrollToRow(at: indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
     }
@@ -1318,6 +1333,7 @@ extension PostDetailViewController {
 
     enum Item: Hashable {
         case header
+        case newSinceBanner
         case comment(elementId: Int64)
     }
 
@@ -1377,6 +1393,20 @@ extension PostDetailViewController {
                     self?.toggleSavedOnPost()
                 }
                 cell.isBeingConfigured = false
+                return cell
+
+            case .newSinceBanner:
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: PostDetailNewSinceBannerCell.reuseIdentifier,
+                    for: indexPath
+                ) as! PostDetailNewSinceBannerCell
+                let accent = self?.tableView.tintColor ?? .systemTeal
+                cell.configure(
+                    count: self?.viewModel.newCommentCount ?? 0,
+                    relativeText: self?.viewModel.previousVisitAt?.relativeString,
+                    accent: accent
+                )
+                cell.jumpTapped = { [weak self] in self?.jumpToFirstNewComment() }
                 return cell
 
             case let .comment(elementId):
