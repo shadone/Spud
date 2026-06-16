@@ -11,6 +11,8 @@ import UIKit
 /// blocks render through the same path. `onTapLink` forwards body link taps;
 /// `onContentSizeChange` lets an interactive child (a spoiler) ask the host to
 /// re-measure after it grows/shrinks.
+/// `onTapImage` / `onTapVideo` / `onTapAudio` forward media taps to the host;
+/// `imageLoader` asynchronously provides decoded images for `.image` blocks.
 @MainActor
 final class MarkdownBlockRenderer {
     let context: MarkdownContext
@@ -63,7 +65,8 @@ final class MarkdownBlockRenderer {
             )
         case let .audio(url):
             return AudioBlockView(url: url, context: context, onTap: onTapAudio)
-        case .video: return PlaceholderBlockView(label: "video")
+        case let .video(url):
+            return VideoBlockView(url: url, context: context, onTap: onTapVideo)
         case let .footnotes(footnotes):
             return FootnotesBlockView(footnotes: footnotes, context: context, renderer: self)
         }

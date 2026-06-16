@@ -41,4 +41,8 @@ final class MarkdownBlockRendererTests: XCTestCase {
     func test_audioRendersAudioBlockView() throws {
         XCTAssertTrue(try renderer().view(for: .audio(url: XCTUnwrap(URL(string: "https://example.com/a.mp3")))) is AudioBlockView)
     }
+
+    func test_videoRendersVideoBlockView() throws {
+        XCTAssertTrue(try renderer().view(for: .video(url: XCTUnwrap(URL(string: "https://example.com/a.mp4")))) is VideoBlockView)
+    }
 }
