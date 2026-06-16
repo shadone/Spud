@@ -7,6 +7,7 @@
 import Foundation
 import LemmyKit
 import SpudDataKit
+import SpudMarkdownKit
 import SpudUIKit
 import UIKit
 
@@ -19,8 +20,15 @@ import UIKit
 final class CommunityHeaderView: UIView {
     /// Fired when the Subscribe/Unsubscribe button is tapped.
     var subscribeTapped: (() -> Void)?
-    /// Fired when a link inside the markdown description is tapped.
-    var linkTapped: ((URL) -> Void)?
+    /// Fired when a link inside the markdown description is tapped (raw renderer
+    /// URL; the host resolves `spud-markdown://` mentions).
+    var onBodyLinkTapped: ((URL) -> Void)?
+    /// Fired when a loaded inline description image is tapped (zoom).
+    var onBodyImageTapped: ((_ url: URL, _ altText: String?, _ sourceRect: CGRect) -> Void)?
+    /// Fired when an inline description video tile is tapped.
+    var onBodyVideoTapped: ((URL) -> Void)?
+    /// Fired when an inline description audio tile is tapped.
+    var onBodyAudioTapped: ((URL) -> Void)?
 
     /// The image loader used for inline description images. Set by the owning
     /// view controller before `configure(...)`.
@@ -112,12 +120,12 @@ final class CommunityHeaderView: UIView {
         return stack
     }()
 
-    private lazy var descriptionLabel: BodyTextView = {
-        let view = BodyTextView()
+    private lazy var descriptionView: MarkdownBodyView = {
+        let context = MarkdownContext(kind: .post, textScale: 0, density: .comfortable)
+        let view = MarkdownBodyView(context: context)
         view.translatesAutoresizingMaskIntoConstraints = false
-        view.tapped = { [weak self] url in
-            self?.linkTapped?(url)
-        }
+        view.accessibilityIdentifier = "description"
+        view.delegate = self
         view.onContentSizeChange = { [weak self] in
             self?.onBodyImageLoaded?()
         }
@@ -169,7 +177,7 @@ final class CommunityHeaderView: UIView {
         addSubview(handleLabel)
         addSubview(metaStack)
         addSubview(subscribeButton)
-        addSubview(descriptionLabel)
+        addSubview(descriptionView)
         addSubview(separator)
 
         let margin: CGFloat = 16
@@ -200,11 +208,11 @@ final class CommunityHeaderView: UIView {
             metaStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
             metaStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
 
-            descriptionLabel.topAnchor.constraint(equalTo: metaStack.bottomAnchor, constant: 12),
-            descriptionLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
-            descriptionLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
+            descriptionView.topAnchor.constraint(equalTo: metaStack.bottomAnchor, constant: 12),
+            descriptionView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
+            descriptionView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
 
-            separator.topAnchor.constraint(equalTo: descriptionLabel.bottomAnchor, constant: 12),
+            separator.topAnchor.constraint(equalTo: descriptionView.bottomAnchor, constant: 12),
             separator.leadingAnchor.constraint(equalTo: leadingAnchor),
             separator.trailingAnchor.constraint(equalTo: trailingAnchor),
             separator.heightAnchor.constraint(equalToConstant: 1 / UIScreen.main.scale),
@@ -245,14 +253,22 @@ final class CommunityHeaderView: UIView {
 
     private func configureDescription(markdown: String?) {
         guard let markdown, !markdown.isEmpty else {
-            descriptionLabel.attributedText = NSAttributedString(string: "")
-            descriptionLabel.isHidden = true
+            descriptionView.setBlocks([])
+            descriptionView.isHidden = true
             return
         }
-        descriptionLabel.isHidden = false
-        // Set the loader before the body so inline images start loading on assign.
-        descriptionLabel.imageService = imageService
-        descriptionLabel.attributedText = MarkdownRenderer.shared.imageBody(markdown: markdown, textSizeAdjustment: 0)
+        descriptionView.isHidden = false
+        // Set the loader before the blocks so inline images start loading as the
+        // image blocks are built.
+        if let imageService {
+            descriptionView.imageLoader = { [imageService] url in
+                for await state in imageService.fetch(url) {
+                    if case let .ready(image) = state { return image }
+                }
+                return nil
+            }
+        }
+        descriptionView.setBlocks(MarkdownBlockCache.shared.blocks(for: markdown))
     }
 
     private func configureSubscribeButton(subscribed: CommunitySubscribedState) {
@@ -295,5 +311,23 @@ final class CommunityHeaderView: UIView {
     @objc
     private func subscribeButtonTapped() {
         subscribeTapped?()
+    }
+}
+
+extension CommunityHeaderView: MarkdownBodyDelegate {
+    func markdownBody(didTapLink url: URL) {
+        onBodyLinkTapped?(url)
+    }
+
+    func markdownBody(didTapImage url: URL, altText: String?, sourceRect: CGRect) {
+        onBodyImageTapped?(url, altText, sourceRect)
+    }
+
+    func markdownBody(didTapVideo url: URL) {
+        onBodyVideoTapped?(url)
+    }
+
+    func markdownBody(didTapAudio url: URL) {
+        onBodyAudioTapped?(url)
     }
 }
