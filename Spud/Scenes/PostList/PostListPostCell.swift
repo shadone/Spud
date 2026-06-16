@@ -19,6 +19,10 @@ class PostListPostCell: UITableViewCell {
 
     // MARK: Public
 
+    /// Server post id of the row this cell currently shows, used by the feed's
+    /// seen-on-screen capture in didEndDisplaying. Not part of rendering.
+    var seenTrackingServerPostId: Int64?
+
     var swipeActionConfiguration: SwipeActionView.Configuration? {
         get { swipeActionView.configuration }
         set { swipeActionView.configuration = newValue }

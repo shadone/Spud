@@ -96,6 +96,9 @@ class PostListViewController: UIViewController {
 
     // MARK: Private
 
+    private var seenDwellTracker = SeenDwellTracker(threshold: 0.5)
+    private var seenFlushTimer: Timer?
+
     private var rowsByServerPostId: [Int64: PostListRow] = [:]
     /// In-flight thumbnail prefetch tasks keyed by server post id, so a row that
     /// scrolls back out of the prefetch window can have its warm-up cancelled.
@@ -395,6 +398,21 @@ class PostListViewController: UIViewController {
         startObservations()
         feedChanged()
         donateIntent()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        seenFlushTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            Task { @MainActor in self.flushSeen() }
+        }
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        seenFlushTimer?.invalidate()
+        seenFlushTimer = nil
+        flushSeen()
     }
 
     private func startObservations() {
@@ -928,6 +946,7 @@ class PostListViewController: UIViewController {
                     postContentDetector: postContentDetector
                 )
                 cell.configure(with: viewModel, imageService: imageService)
+                cell.seenTrackingServerPostId = serverPostId
 
                 cell.imageTapped = { [weak self] imageUrl, thumbnailUrl, thumbnailImage in
                     self?.presentMediaViewer(
@@ -1273,6 +1292,32 @@ class PostListViewController: UIViewController {
         present(viewer, animated: true)
     }
 
+    private func flushSeen() {
+        let seen = seenDwellTracker.flushSeen(at: Date())
+        guard !seen.isEmpty else { return }
+        recordSeen(seen)
+    }
+
+    /// Persists "seen" for the given server post ids, building each snapshot from
+    /// the currently-loaded feed row. Fire-and-forget; failures are non-fatal.
+    private func recordSeen(_ serverPostIds: [Int64]) {
+        let keychainId = viewModel.accountKeychainId
+        let snapshots: [(Int64, PostInteractionSnapshot)] = serverPostIds.compactMap { id in
+            guard let row = rowsByServerPostId[id] else { return nil }
+            return (id, PostInteractionSnapshot(postListRow: row))
+        }
+        guard !snapshots.isEmpty else { return }
+        Task { [appDatabase] in
+            for (id, snapshot) in snapshots {
+                try? await appDatabase.recordPostSeen(
+                    accountKeychainId: keychainId,
+                    serverPostId: id,
+                    snapshot: snapshot
+                )
+            }
+        }
+    }
+
     private func donateIntent() {
         let intent = ViewTopPostsIntent()
 
@@ -1311,6 +1356,11 @@ extension PostListViewController: UITableViewDelegate {
         postSelected(serverPostId: serverPostId)
     }
 
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+        guard case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath) else { return }
+        seenDwellTracker.didAppear(serverPostId: serverPostId, at: Date())
+    }
+
     /// Marks a post read as it scrolls out of view, when the
     /// mark-read-on-scroll preference is on. Best-effort: it updates the local
     /// read state (which flows back through the GRDB observation) and fires the
@@ -1320,6 +1370,15 @@ extension PostListViewController: UITableViewDelegate {
         didEndDisplaying cell: UITableViewCell,
         forRowAt indexPath: IndexPath
     ) {
+        // Seen-on-screen capture: read the post id stamped on the cell at
+        // configure time — dataSource.itemIdentifier(for:) is unreliable here
+        // because the snapshot may have changed since the cell was displayed.
+        if let serverPostId = (cell as? PostListPostCell)?.seenTrackingServerPostId {
+            if let seen = seenDwellTracker.didDisappear(serverPostId: serverPostId, at: Date()) {
+                recordSeen([seen])
+            }
+        }
+
         guard markPostsRead, markPostsReadOnScroll else { return }
         // The cell has already left the data source's reach by the time this
         // fires after a snapshot apply, so resolve the post id from the cell's
