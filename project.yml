@@ -77,6 +77,7 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
     dependencies:
       - target: SpudDataKit
+      - target: SpudMarkdownKit
       - target: SpudUIKit
       - target: SpudUtilKit
       - target: SpudWidgetExtension
@@ -241,6 +242,10 @@ targets:
       # links Down (the Spud app target also links it, but @testable import does
       # not re-export the package's symbols to the test bundle).
       - package: Down
+      # MarkdownBlockCacheTests calls MarkdownParser directly; SpudMarkdownKit is
+      # embedded in the Spud app but the test bundle must also link it to call
+      # its public API directly (same reason Down is linked above).
+      - target: SpudMarkdownKit
 
   SpudDataKitTests:
     type: bundle.unit-test
