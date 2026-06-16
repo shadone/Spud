@@ -18,25 +18,22 @@ struct MarkdownLabApp: App {
 private let defaultSample = """
     Valve **finally** shipped SteamOS. Ping @glidergun@lemmy.world or !linux_gaming@lemmy.world.
 
-    - A USB-C drive, **8 GB or larger**.
-        - Save files sync via cloud.
-        - Screenshot your BIOS first.
-    - The official `rufus` flasher.
+    ![The Steam Deck OLED on a desk](https://example.com/photos/deck-oled.jpg)
 
-    1. Disable Secure Boot.
-    2. Flash the recovery image.
+    ![this upload is gone](https://example.com/uploads/broken-pict-rs.png)
+
+    A short clip of the boot chime:
+
+    ![boot chime](https://example.com/media/boot-chime.mp3)
+
+    And the install walkthrough:
+
+    ![install walkthrough](https://example.com/media/walkthrough.mp4)
 
     | Subsystem | Claimed | Measured |
     |:---|---:|---:|
     | Suspend | < 2s | 1.4s |
     | Battery | 6h | 5h42m |
-
-    ```bash
-    export ALSA_CARD=acp
-    pactl set-sink-volume @DEFAULT_SINK@ 140%
-    ```
-
-    > Third-party support is **best-effort**.
 
     ::: spoiler Benchmarks
     Locked **60 fps** at 800p medium.
@@ -77,15 +74,45 @@ struct MarkdownBodyHost: UIViewRepresentable {
     let source: String
     let config: LabConfig
 
-    func makeUIView(context _: Context) -> MarkdownBodyView {
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    @MainActor
+    final class Coordinator: MarkdownBodyDelegate {
+        func markdownBody(didTapLink url: URL) {
+            print("[MarkdownLab] link \(url)")
+        }
+
+        func markdownBody(didTapImage url: URL, altText: String?, sourceRect: CGRect) {
+            print("[MarkdownLab] image \(url) alt=\(altText ?? "-") rect=\(sourceRect)")
+        }
+
+        func markdownBody(didTapVideo url: URL) {
+            print("[MarkdownLab] video \(url)")
+        }
+
+        func markdownBody(didTapAudio url: URL) {
+            print("[MarkdownLab] audio \(url)")
+        }
+    }
+
+    func makeUIView(context: Context) -> MarkdownBodyView {
         let view = MarkdownBodyView(
             context: MarkdownContext(kind: config.kind, textScale: config.textScale, density: config.density)
         )
+        view.delegate = context.coordinator
+        view.imageLoader = { url in
+            // Offline synthetic image; "broken" URLs drive the failed state.
+            guard !url.absoluteString.localizedCaseInsensitiveContains("broken") else { return nil }
+            return LabImageFactory.placeholder(for: url)
+        }
         view.setBlocks(MarkdownParser.parse(source))
         return view
     }
 
-    func updateUIView(_ uiView: MarkdownBodyView, context _: Context) {
+    func updateUIView(_ uiView: MarkdownBodyView, context: Context) {
+        uiView.delegate = context.coordinator
         uiView.setBlocks(MarkdownParser.parse(source))
     }
 
