@@ -32,6 +32,7 @@ final class TableBlockView: UIView {
         grid.axis = .vertical
         grid.translatesAutoresizingMaskIntoConstraints = false
 
+        var columnCells: [[UIView]] = []
         let allRows = [table.head] + table.rows
         for (r, cells) in allRows.enumerated() {
             let isHeader = r == 0
@@ -59,11 +60,23 @@ final class TableBlockView: UIView {
                 let cellPad: CGFloat = context.kind == .post ? 10 : 7
                 label.textContainerInset = UIEdgeInsets(top: cellPad * 0.7, left: cellPad, bottom: cellPad * 0.7, right: cellPad)
                 label.widthAnchor.constraint(greaterThanOrEqualToConstant: 64).isActive = true
+                label.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+                label.setContentCompressionResistancePriority(.required, for: .horizontal)
+                if columnCells.count <= c { columnCells.append([]) }
+                columnCells[c].append(label)
                 row.addArrangedSubview(label)
                 if c < cells.count - 1 { row.addArrangedSubview(hairline(vertical: true)) }
             }
             grid.addArrangedSubview(row)
             if r < allRows.count - 1 { grid.addArrangedSubview(hairline(vertical: false)) }
+        }
+
+        // Tie each column's cells to equal width so the grid columns align
+        // across rows (independent row stacks otherwise render jagged).
+        for cells in columnCells where cells.count > 1 {
+            for cell in cells.dropFirst() {
+                cell.widthAnchor.constraint(equalTo: cells[0].widthAnchor).isActive = true
+            }
         }
 
         scroll.addSubview(grid)
