@@ -128,6 +128,37 @@ public enum CommentCollapseState {
         )
     }
 
+    /// The currently-collapsed ancestor element ids that hide `elementId` — the
+    /// set a caller must expand to make `elementId` visible. Walks the pre-order
+    /// list backward from `elementId`, collecting each strictly-shallower row (the
+    /// ancestor chain) that is in `collapsedIds`. Returns leaf-to-root order; the
+    /// caller should treat it as a set. Empty when the element is absent or has no
+    /// collapsed ancestor.
+    public static func collapsedAncestors(
+        of elementId: Int64,
+        in orderedComments: [PostDetailCommentRow],
+        collapsedIds: Set<Int64>
+    ) -> [Int64] {
+        guard let startIndex = orderedComments.firstIndex(where: { $0.id == elementId }) else {
+            return []
+        }
+        var result: [Int64] = []
+        var ancestorDepth = orderedComments[startIndex].depth
+        var index = startIndex - 1
+        while index >= 0 {
+            let row = orderedComments[index]
+            if row.depth < ancestorDepth {
+                if collapsedIds.contains(row.id) {
+                    result.append(row.id)
+                }
+                ancestorDepth = row.depth
+                if ancestorDepth <= 1 { break }
+            }
+            index -= 1
+        }
+        return result
+    }
+
     /// Returns the element ids of every descendant of `elementId` in
     /// `orderedComments`. Useful when collapsing should also drop any
     /// now-stale nested-collapse bookkeeping. Pure; order is preserved.
