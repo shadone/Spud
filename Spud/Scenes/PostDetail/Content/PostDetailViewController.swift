@@ -442,21 +442,18 @@ class PostDetailViewController: UIViewController {
         updateJumpButtonVisibility()
     }
 
-    /// Renders and caches every comment body into `MarkdownRenderer` off the main
-    /// thread. Also pre-parses the block tree into `MarkdownBlockCache` for the
-    /// new rendering path. Declared `nonisolated async` so its body runs on the
-    /// cooperative pool (Swift 6 language mode) rather than the main actor; it
-    /// captures only `Sendable` values (the rows and the text-size adjustment).
-    /// Cell dequeue then hits the warm cache instead of parsing cmark on the
-    /// scroll path.
+    /// Pre-parses every comment body's block tree into `MarkdownBlockCache` off
+    /// the main thread for the renderer path. Declared `nonisolated async` so its
+    /// body runs on the cooperative pool (Swift 6 language mode) rather than the
+    /// main actor; it captures only `Sendable` values (the rows). Cell dequeue
+    /// then hits the warm cache instead of parsing cmark on the scroll path.
     private nonisolated static func prewarmCommentBodies(
         _ rows: [PostDetailCommentRow],
-        textSizeAdjustment: CGFloat
+        textSizeAdjustment _: CGFloat
     ) async {
         for row in rows {
             if Task.isCancelled { return }
             guard let body = row.body, !body.isEmpty else { continue }
-            MarkdownRenderer.shared.imageBody(markdown: body, textSizeAdjustment: textSizeAdjustment)
             MarkdownBlockCache.shared.blocks(for: body)
         }
     }

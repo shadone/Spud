@@ -218,17 +218,12 @@ class PostDetailCommentCell: UITableViewCell {
     /// Placeholder body for deleted or removed comments (a styled attributed
     /// string with an icon + italic label). Hidden for normal comments that use
     /// `bodyView` instead.
-    lazy var messageLabel: BodyTextView = {
-        let view = BodyTextView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.accessibilityIdentifier = "message"
-        view.tapped = { [weak self] url in
-            self?.linkTapped?(url)
-        }
-        view.onContentSizeChange = { [weak self] in
-            self?.onBodyImageLoaded?()
-        }
-        return view
+    lazy var messageLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 0
+        label.accessibilityIdentifier = "message"
+        return label
     }()
 
     /// Folded presentation for a blocked user's comment: "Blocked user … Show".
@@ -502,7 +497,6 @@ class PostDetailCommentCell: UITableViewCell {
                 // Deleted or removed — use the styled placeholder in messageLabel.
                 bodyView.setBlocks([])
                 bodyView.isHidden = true
-                messageLabel.imageService = imageService
                 messageLabel.attributedText = viewModel.isCollapsed ? nil : viewModel.body
                 messageLabel.isHidden = (messageLabel.attributedText?.length ?? 0) == 0
             }
@@ -654,9 +648,7 @@ class PostDetailCommentCell: UITableViewCell {
         // actual link range, a media tile, or an interactive control (the body
         // hit-tests its own contents), let the view handle it and do not collapse.
         let point = recognizer.location(in: contentView)
-        if labelHasLink(authorLabel, at: point) || labelHasLink(messageLabel, at: point)
-            || labelHasLink(bodyView, at: point)
-        {
+        if labelHasLink(authorLabel, at: point) || labelHasLink(bodyView, at: point) {
             return
         }
 
@@ -673,14 +665,12 @@ class PostDetailCommentCell: UITableViewCell {
 
 /// A view that can report whether a point lands on a tappable link or inline
 /// image, so the comment collapse-tap can defer to link/image taps. Implemented
-/// by `LinkLabel` (author), `BodyTextView` (placeholder body), and
-/// `MarkdownBodyView` (markdown body).
+/// by `LinkLabel` (author) and `MarkdownBodyView` (markdown body).
 protocol BodyLinkHitTesting: UIView {
     func hasLink(at point: CGPoint) -> Bool
 }
 
 extension LinkLabel: BodyLinkHitTesting { }
-extension BodyTextView: BodyLinkHitTesting { }
 
 /// Reports whether a point lands on an actual tappable link, media tile, or
 /// control inside the markdown body, so the collapse-tap defers to those and
