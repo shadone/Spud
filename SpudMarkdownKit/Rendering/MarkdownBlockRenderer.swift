@@ -47,7 +47,8 @@ final class MarkdownBlockRenderer {
             return CodeBlockView(language: language, code: code, context: context)
         case let .table(table):
             return TableBlockView(table: table, context: context)
-        case .spoiler: return PlaceholderBlockView(label: "spoiler")
+        case let .spoiler(title, children):
+            return SpoilerBlockView(title: title, children: children, context: context, renderer: self)
         case .image: return PlaceholderBlockView(label: "image")
         case .audio: return PlaceholderBlockView(label: "audio")
         case .video: return PlaceholderBlockView(label: "video")
