@@ -53,14 +53,14 @@ final class VideoBlockView: UIView {
         NSLayoutConstraint.activate([
             circle.widthAnchor.constraint(equalToConstant: diameter),
             circle.heightAnchor.constraint(equalToConstant: diameter),
-            circle.centerXAnchor.constraint(equalTo: poster.centerXAnchor),
-            circle.centerYAnchor.constraint(equalTo: poster.centerYAnchor),
+            circle.centerXAnchor.constraint(equalTo: centerXAnchor),
+            circle.centerYAnchor.constraint(equalTo: centerYAnchor),
             playIcon.centerXAnchor.constraint(equalTo: circle.centerXAnchor, constant: 1),
             playIcon.centerYAnchor.constraint(equalTo: circle.centerYAnchor),
         ])
 
         // Bottom transport bar overlay.
-        let bar = makeTransportBar(post: post, smallPointSize: context.smallFont.pointSize)
+        let bar = VideoBlockView.makeTransportBar(post: post, smallPointSize: context.smallFont.pointSize)
         addSubview(bar)
         NSLayoutConstraint.activate([
             bar.leadingAnchor.constraint(equalTo: poster.leadingAnchor),
@@ -85,11 +85,12 @@ final class VideoBlockView: UIView {
         onTap?(url)
     }
 
-    private func makeTransportBar(post: Bool, smallPointSize: CGFloat) -> UIView {
+    private static func makeTransportBar(post: Bool, smallPointSize: CGFloat) -> UIView {
         let smallPlay = UIImageView(image: UIImage(systemName: "play.fill"))
         smallPlay.tintColor = .white
         smallPlay.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: post ? 15 : 13)
         smallPlay.setContentHuggingPriority(.required, for: .horizontal)
+        smallPlay.translatesAutoresizingMaskIntoConstraints = false
 
         let track = UIView()
         track.backgroundColor = UIColor.white.withAlphaComponent(0.3)
@@ -114,11 +115,13 @@ final class VideoBlockView: UIView {
         time.textColor = .white
         time.setContentHuggingPriority(.required, for: .horizontal)
         time.setContentCompressionResistancePriority(.required, for: .horizontal)
+        time.translatesAutoresizingMaskIntoConstraints = false
 
         let speaker = UIImageView(image: UIImage(systemName: "speaker.wave.2.fill"))
         speaker.tintColor = .white
         speaker.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: post ? 16 : 14)
         speaker.setContentHuggingPriority(.required, for: .horizontal)
+        speaker.translatesAutoresizingMaskIntoConstraints = false
 
         let row = UIStackView(arrangedSubviews: [smallPlay, track, time, speaker])
         row.axis = .horizontal
