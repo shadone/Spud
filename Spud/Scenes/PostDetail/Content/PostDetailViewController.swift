@@ -1528,6 +1528,24 @@ extension PostDetailViewController {
                     // An inline body image loaded; re-measure this row to fit it.
                     tableView?.performBatchUpdates(nil)
                 }
+                cell.onBodyLinkTapped = { [weak self] url in
+                    self?.linkTapped(MarkdownInternalLink.resolve(url) ?? url)
+                }
+                cell.onBodyImageTapped = { [weak self] url, altText, _ in
+                    self?.presentMediaViewer(
+                        imageUrl: url,
+                        thumbnailUrl: nil,
+                        preloadedImage: nil,
+                        altText: altText
+                    )
+                }
+                cell.onBodyVideoTapped = { [weak self] url in
+                    self?.presentVideoPlayer(url: url)
+                }
+                cell.onBodyAudioTapped = { [weak self] url in
+                    // Audio reuses the video player, which handles audio-only URLs.
+                    self?.presentVideoPlayer(url: url)
+                }
                 cell.revealBlockedTapped = { [weak self] in
                     self?.revealBlocked(elementId: elementId)
                 }

@@ -8,6 +8,7 @@ import Down
 import Foundation
 import OSLog
 import SpudDataKit
+import SpudMarkdownKit
 import SpudUtilKit
 import UIKit
 
@@ -34,6 +35,13 @@ struct CommentBadge: Equatable {
 struct PostDetailCommentViewModel {
     let author: NSAttributedString
     let body: NSAttributedString
+    /// Parsed markdown block tree for the comment body.  Empty for deleted /
+    /// removed comments (those use `body` for the styled placeholder instead).
+    let bodyBlocks: [MarkdownBlock]
+    /// The text-size preference baked into `body`; exposed so the cell can
+    /// rebuild `MarkdownBodyView` with a matching context when the preference
+    /// changes between configure calls.
+    let textSizeAdjustment: CGFloat
     let subtitle: NSAttributedString
     let isMore: Bool
     let moreText: NSAttributedString?
@@ -94,6 +102,7 @@ struct PostDetailCommentViewModel {
         isNew: Bool = false
     ) {
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
+        self.textSizeAdjustment = textSizeAdjustment
 
         let isDeleted = row.isDeleted == true
         let isRemoved = row.isRemoved == true
@@ -209,6 +218,7 @@ struct PostDetailCommentViewModel {
                 tint: .secondaryLabel,
                 bodyFont: bodyFont
             )
+            bodyBlocks = []
         } else if isRemoved {
             let removedBase = NSLocalizedString("Removed by moderator", comment: "Placeholder for a comment a moderator removed")
             let removedText: String = {
@@ -221,6 +231,7 @@ struct PostDetailCommentViewModel {
                 tint: .systemOrange,
                 bodyFont: bodyFont
             )
+            bodyBlocks = []
         } else {
             // Rendered (and cached) through `MarkdownRenderer` so a long thread
             // does not re-parse markdown on every cell dequeue. The comment list
@@ -228,6 +239,7 @@ struct PostDetailCommentViewModel {
             // cache hit here.
             let bodyMarkdown = row.body ?? ""
             body = MarkdownRenderer.shared.imageBody(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment)
+            bodyBlocks = MarkdownBlockCache.shared.blocks(for: bodyMarkdown)
         }
 
         // MARK: Blocked-user fold

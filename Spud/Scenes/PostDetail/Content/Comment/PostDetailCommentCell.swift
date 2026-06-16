@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudMarkdownKit
 import UIKit
 
 class PostDetailCommentCell: UITableViewCell {
@@ -18,6 +19,18 @@ class PostDetailCommentCell: UITableViewCell {
     /// Fired when an inline image in the body finishes loading, so the host can
     /// re-measure this row to fit the now-known image height.
     var onBodyImageLoaded: (() -> Void)?
+
+    /// Invoked when the user taps a link inside the comment body markdown.
+    var onBodyLinkTapped: ((URL) -> Void)?
+
+    /// Invoked when the user taps an inline image in the comment body markdown.
+    var onBodyImageTapped: ((_ url: URL, _ altText: String?, _ sourceRect: CGRect) -> Void)?
+
+    /// Invoked when the user taps a video link in the comment body markdown.
+    var onBodyVideoTapped: ((URL) -> Void)?
+
+    /// Invoked when the user taps an audio link in the comment body markdown.
+    var onBodyAudioTapped: ((URL) -> Void)?
 
     /// Fired when the user taps the comment body/header (but not a link or a
     /// swipe action) to collapse or expand its thread.
@@ -90,6 +103,7 @@ class PostDetailCommentCell: UITableViewCell {
         stackView.spacing = 4
 
         stackView.addArrangedSubview(headerStackView)
+        stackView.addArrangedSubview(bodyView)
         stackView.addArrangedSubview(messageLabel)
         stackView.addArrangedSubview(blockedFoldView)
 
@@ -180,6 +194,14 @@ class PostDetailCommentCell: UITableViewCell {
         return label
     }()
 
+    /// Rendered comment-body markdown view. Recreated when the text-size
+    /// preference changes, since `MarkdownBodyView` bakes the context (fonts,
+    /// spacing) at init time.
+    private(set) lazy var bodyView: MarkdownBodyView = makeBodyView(textScale: 0)
+
+    /// Placeholder body for deleted or removed comments (a styled attributed
+    /// string with an icon + italic label). Hidden for normal comments that use
+    /// `bodyView` instead.
     lazy var messageLabel: BodyTextView = {
         let view = BodyTextView()
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -275,6 +297,11 @@ class PostDetailCommentCell: UITableViewCell {
 
     // MARK: Private
 
+    /// Text-scale baked into the current `bodyView`. Compared on each configure;
+    /// when it changes a new `MarkdownBodyView` is built and swapped into the
+    /// stack view so fonts reflect the updated preference.
+    private var bodyViewTextScale: CGFloat = 0
+
     /// The row's non-fresh resting wash color (clear, or the distinguished /
     /// collapsed tint), captured in `configure` so the fade lands on the right
     /// background instead of always clearing to transparent.
@@ -284,6 +311,18 @@ class PostDetailCommentCell: UITableViewCell {
     private var isFresh = false
 
     // MARK: Functions
+
+    private func makeBodyView(textScale: CGFloat) -> MarkdownBodyView {
+        let context = MarkdownContext(kind: .comment, textScale: textScale, density: .comfortable)
+        let view = MarkdownBodyView(context: context)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.accessibilityIdentifier = "body"
+        view.delegate = self
+        view.onContentSizeChange = { [weak self] in
+            self?.onBodyImageLoaded?()
+        }
+        return view
+    }
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -319,6 +358,10 @@ class PostDetailCommentCell: UITableViewCell {
         linkTapped = nil
         linkLongPressed = nil
         onBodyImageLoaded = nil
+        onBodyLinkTapped = nil
+        onBodyImageTapped = nil
+        onBodyVideoTapped = nil
+        onBodyAudioTapped = nil
         collapseTapped = nil
         revealBlockedTapped = nil
         swipeActionConfiguration = nil
@@ -331,8 +374,11 @@ class PostDetailCommentCell: UITableViewCell {
         freshTintColor = .clear
         newDotView.isHidden = true
         newDotView.backgroundColor = .clear
-        // Drop the body now so any in-flight inline-image loads are cancelled
+        // Drop the bodies now so any in-flight inline-image loads are cancelled
         // before the cell is reused for another comment.
+        bodyView.setBlocks([])
+        bodyView.isHidden = true
+        bodyViewTextScale = 0
         messageLabel.attributedText = nil
         clearBadges()
     }
@@ -392,20 +438,56 @@ class PostDetailCommentCell: UITableViewCell {
     func configure(with viewModel: PostDetailCommentViewModel, imageService: ImageServiceType) {
         let accent = tintColor ?? .systemTeal
 
-        // Set before the body so inline images can begin loading immediately.
-        messageLabel.imageService = imageService
-
         if viewModel.isMore {
             authorLabel.attributedText = viewModel.moreText
             subtitleLabel.attributedText = nil
+            bodyView.setBlocks([])
+            bodyView.isHidden = true
             messageLabel.attributedText = nil
+            messageLabel.isHidden = true
             clearBadges()
         } else {
             authorLabel.attributedText = viewModel.author
             subtitleLabel.attributedText = viewModel.subtitle
-            // A collapsed comment hides its own body too, Apollo-style: only the
-            // header line (author + score + "+N") remains.
-            messageLabel.attributedText = viewModel.isCollapsed ? nil : viewModel.body
+
+            // Rebuild the body view when the text-scale preference changes so fonts
+            // are correct; otherwise reuse the existing instance.
+            let textScale = viewModel.textSizeAdjustment
+            if textScale != bodyViewTextScale {
+                let oldBodyView = bodyView
+                let newBodyView = makeBodyView(textScale: textScale)
+                if let idx = verticalStackView.arrangedSubviews.firstIndex(of: oldBodyView) {
+                    verticalStackView.insertArrangedSubview(newBodyView, at: idx)
+                    oldBodyView.removeFromSuperview()
+                }
+                bodyView = newBodyView
+                bodyViewTextScale = textScale
+            }
+
+            // Normal markdown: use bodyView. Deleted/removed: use messageLabel for
+            // the styled placeholder (the blocks array is empty in those cases).
+            let hasMarkdownBlocks = !viewModel.bodyBlocks.isEmpty
+            if hasMarkdownBlocks {
+                // A collapsed comment hides its own body too, Apollo-style.
+                let blocks = viewModel.isCollapsed ? [] : viewModel.bodyBlocks
+                bodyView.imageLoader = { [imageService] url in
+                    for await state in imageService.fetch(url) {
+                        if case let .ready(image) = state { return image }
+                    }
+                    return nil
+                }
+                bodyView.setBlocks(blocks)
+                bodyView.isHidden = viewModel.isCollapsed
+                messageLabel.attributedText = nil
+                messageLabel.isHidden = true
+            } else {
+                // Deleted or removed — use the styled placeholder in messageLabel.
+                bodyView.setBlocks([])
+                bodyView.isHidden = true
+                messageLabel.imageService = imageService
+                messageLabel.attributedText = viewModel.isCollapsed ? nil : viewModel.body
+                messageLabel.isHidden = (messageLabel.attributedText?.length ?? 0) == 0
+            }
 
             clearBadges()
             if !viewModel.badges.isEmpty {
@@ -415,7 +497,6 @@ class PostDetailCommentCell: UITableViewCell {
                 }
             }
         }
-        messageLabel.isHidden = (messageLabel.attributedText?.length ?? 0) == 0
 
         // Blocked-user fold: swap the normal content for the "Blocked user · Show"
         // affordance.
@@ -423,6 +504,7 @@ class PostDetailCommentCell: UITableViewCell {
         blockedFoldView.isHidden = !folded
         headerStackView.isHidden = folded
         if folded {
+            bodyView.isHidden = true
             messageLabel.isHidden = true
             blockedLabel.attributedText = viewModel.blockedFoldedText
             blockedShowLabel.attributedText = viewModel.blockedShowText
@@ -533,10 +615,13 @@ class PostDetailCommentCell: UITableViewCell {
             return
         }
 
-        // Defer to the LinkLabels: if the tap landed on an actual link range,
-        // let the label handle it and do not collapse.
+        // Defer to the LinkLabels and the markdown body: if the tap landed on an
+        // actual link range (or anywhere in the markdown body, which handles its
+        // own taps), let the view handle it and do not collapse.
         let point = recognizer.location(in: contentView)
-        if labelHasLink(authorLabel, at: point) || labelHasLink(messageLabel, at: point) {
+        if labelHasLink(authorLabel, at: point) || labelHasLink(messageLabel, at: point)
+            || labelHasLink(bodyView, at: point)
+        {
             return
         }
 
@@ -553,13 +638,43 @@ class PostDetailCommentCell: UITableViewCell {
 
 /// A view that can report whether a point lands on a tappable link or inline
 /// image, so the comment collapse-tap can defer to link/image taps. Implemented
-/// by both `LinkLabel` (author) and `BodyTextView` (body).
+/// by `LinkLabel` (author), `BodyTextView` (placeholder body), and
+/// `MarkdownBodyView` (markdown body).
 protocol BodyLinkHitTesting: UIView {
     func hasLink(at point: CGPoint) -> Bool
 }
 
 extension LinkLabel: BodyLinkHitTesting { }
 extension BodyTextView: BodyLinkHitTesting { }
+
+/// `MarkdownBodyView` handles all tap dispatch internally; any tap within its
+/// bounds should be treated as a potential link/image tap so the collapse
+/// gesture defers to it rather than triggering a collapse.
+extension MarkdownBodyView: BodyLinkHitTesting {
+    public func hasLink(at point: CGPoint) -> Bool {
+        !isHidden && bounds.contains(point)
+    }
+}
+
+// MARK: - MarkdownBodyDelegate
+
+extension PostDetailCommentCell: MarkdownBodyDelegate {
+    func markdownBody(didTapLink url: URL) {
+        onBodyLinkTapped?(url)
+    }
+
+    func markdownBody(didTapImage url: URL, altText: String?, sourceRect: CGRect) {
+        onBodyImageTapped?(url, altText, sourceRect)
+    }
+
+    func markdownBody(didTapVideo url: URL) {
+        onBodyVideoTapped?(url)
+    }
+
+    func markdownBody(didTapAudio url: URL) {
+        onBodyAudioTapped?(url)
+    }
+}
 
 // MARK: - UIGestureRecognizerDelegate
 
