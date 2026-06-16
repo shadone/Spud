@@ -83,7 +83,8 @@ final class CodeBlockView: UIView {
             body.topAnchor.constraint(equalTo: scroll.contentLayoutGuide.topAnchor, constant: vPad + 3),
             body.bottomAnchor.constraint(equalTo: scroll.contentLayoutGuide.bottomAnchor, constant: -(vPad + 3)),
             body.leadingAnchor.constraint(equalTo: scroll.contentLayoutGuide.leadingAnchor, constant: hPad),
-            body.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: hPad),
+            body.trailingAnchor.constraint(equalTo: scroll.contentLayoutGuide.trailingAnchor, constant: -hPad),
+            body.widthAnchor.constraint(greaterThanOrEqualTo: scroll.frameLayoutGuide.widthAnchor, constant: -(2 * hPad)),
             scroll.heightAnchor.constraint(equalTo: body.heightAnchor, constant: (vPad + 3) * 2),
         ])
     }
