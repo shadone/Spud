@@ -162,6 +162,7 @@ class AccountViewController: UIViewController {
         let footer = AccountActionsFooterView()
         footer.translatesAutoresizingMaskIntoConstraints = false
         footer.savedTapped = { [weak self] in self?.openSaved(keychainId: keychainId) }
+        footer.historyTapped = { [weak self] in self?.openHistory(keychainId: keychainId) }
         footer.logoutTapped = { [weak self] in self?.confirmLogout() }
         profileFooterView = footer
 
@@ -299,6 +300,15 @@ class AccountViewController: UIViewController {
         )
         postListVC.navigationItem.title = NSLocalizedString("Saved", comment: "Saved posts screen title")
         navigationController?.pushViewController(postListVC, animated: true)
+    }
+
+    private func openHistory(keychainId: String) {
+        Haptics.tap()
+        let historyVC = HistoryViewController(
+            accountKeychainId: keychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(historyVC, animated: true)
     }
 
     private func confirmLogout() {
