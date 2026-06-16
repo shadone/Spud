@@ -413,7 +413,7 @@ public class AccountService: AccountServiceType {
 
         let response: Components.Schemas.LoginResponse
         do {
-            response = try await api.login(username: username, password: password)
+            response = try await api.login(usernameOrEmail: username, password: password)
         } catch {
             let error = AccountServiceLoginError(from: error)
 
