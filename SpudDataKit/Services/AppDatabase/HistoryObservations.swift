@@ -41,7 +41,7 @@ public extension AppDatabase {
             modeWhere = "AND postInteraction.lastOpenedAt IS NOT NULL"
             orderBy = "postInteraction.lastOpenedAt DESC"
         case .seen:
-            modeWhere = ""
+            modeWhere = "" // no extra filter: every interaction with this account qualifies
             orderBy = "\(encounteredExpr) DESC"
         case .saved:
             modeWhere = "AND post.isSaved = 1"
@@ -94,6 +94,7 @@ public extension AppDatabase {
 
                 var arguments: [any DatabaseValueConvertible] = []
                 if hasSearch, let trimmed, let pattern = FTS5Pattern(matchingAllTokensIn: trimmed) {
+                    // MATCH spans all accounts; the WHERE postInteraction.accountId clause below is what enforces account isolation.
                     sql += "\nJOIN postInteractionFts ON postInteractionFts.rowid = postInteraction.id AND postInteractionFts MATCH ?"
                     arguments.append(pattern)
                 }

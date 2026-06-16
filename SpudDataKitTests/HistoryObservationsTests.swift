@@ -121,4 +121,30 @@ final class HistoryObservationsTests: XCTestCase {
         let rows = await Self.firstBatch(appDatabase.observeHistoryRows(forKeychainId: "kc-1", mode: .seen, searchQuery: "concurrency"))
         XCTAssertEqual(rows.map(\.serverPostId), [1])
     }
+
+    func testAccountIsolationIncludingSearch() async throws {
+        let t1 = Date(timeIntervalSince1970: 1_000_100)
+        let t2 = Date(timeIntervalSince1970: 1_000_200)
+        let appDatabase = try AppDatabase.inMemory()
+        try await appDatabase.writer.write { db in
+            let g1 = try Self.seedGraph(db, keychainId: "kc-1")
+            let g2 = try Self.seedGraph(db, keychainId: "kc-2")
+            // Same serverPostId and same searchable title in BOTH accounts.
+            _ = try Self.insertPost(db, accountId: g1.accountId, communityId: g1.communityId, personId: g1.personId, serverPostId: 1, title: "Swift Concurrency", isSaved: false)
+            _ = try Self.insertPost(db, accountId: g2.accountId, communityId: g2.communityId, personId: g2.personId, serverPostId: 1, title: "Swift Concurrency", isSaved: false)
+            try Self.insertInteraction(db, accountId: g1.accountId, postServerId: 1, title: "Swift Concurrency", lastOpenedAt: t1, lastSeenAt: nil)
+            try Self.insertInteraction(db, accountId: g2.accountId, postServerId: 1, title: "Swift Concurrency", lastOpenedAt: t2, lastSeenAt: nil)
+        }
+        // Plain query: account 1 sees only its own row (account 2's identical
+        // post must not leak).
+        let plain = await Self.firstBatch(appDatabase.observeHistoryRows(forKeychainId: "kc-1", mode: .read, searchQuery: nil))
+        XCTAssertEqual(plain.count, 1)
+        XCTAssertEqual(plain.first?.communityActorId, "https://kc-1.test/c/programming")
+
+        // FTS path: MATCH spans both accounts' tokens, but the accountId filter
+        // still restricts results to account 1.
+        let searched = await Self.firstBatch(appDatabase.observeHistoryRows(forKeychainId: "kc-1", mode: .seen, searchQuery: "concurrency"))
+        XCTAssertEqual(searched.count, 1)
+        XCTAssertEqual(searched.first?.communityActorId, "https://kc-1.test/c/programming")
+    }
 }
