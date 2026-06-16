@@ -94,6 +94,8 @@ final class ImageBlockView: UIView {
         box.subviews.forEach { $0.removeFromSuperview() }
         box.gestureRecognizers?.forEach { box.removeGestureRecognizer($0) }
         boxAspect?.isActive = false
+        boxAspect = nil
+        box.backgroundColor = nil
         box.layer.borderWidth = 0
         box.isUserInteractionEnabled = false
 
@@ -134,6 +136,7 @@ final class ImageBlockView: UIView {
             glyph.tintColor = context.tertiaryColor
             glyph.contentMode = .scaleAspectFit
             glyph.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: context.kind == .post ? 30 : 24)
+            glyph.isAccessibilityElement = false
             let open = UIButton(type: .system)
             open.setTitle("Open in browser", for: .normal)
             open.titleLabel?.font = .systemFont(ofSize: context.smallFont.pointSize, weight: .semibold)
@@ -180,6 +183,7 @@ final class ImageBlockView: UIView {
         let icon = UIImageView(image: UIImage(systemName: "plus.magnifyingglass"))
         icon.tintColor = .white
         icon.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: context.smallFont.pointSize, weight: .semibold)
+        icon.isAccessibilityElement = false
         let label = UILabel()
         label.text = "Tap to zoom"
         label.font = .systemFont(ofSize: context.smallFont.pointSize * 0.92, weight: .semibold)
