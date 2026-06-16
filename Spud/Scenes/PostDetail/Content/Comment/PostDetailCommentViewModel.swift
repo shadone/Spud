@@ -402,6 +402,12 @@ struct PostDetailCommentViewModel {
             if distinguished {
                 pieces.append(NSLocalizedString("Distinguished", comment: "VoiceOver: distinguished moderator comment"))
             }
+            if isNew {
+                pieces.append(NSLocalizedString(
+                    "New comment, posted after your last visit",
+                    comment: "VoiceOver: comment is new since the user's last visit"
+                ))
+            }
             subtitleAccessibilityLabel = pieces.joined(separator: ", ")
 
             collapseAccessibilityHint = isCollapsed
