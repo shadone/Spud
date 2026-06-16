@@ -616,8 +616,8 @@ class PostDetailCommentCell: UITableViewCell {
         }
 
         // Defer to the LinkLabels and the markdown body: if the tap landed on an
-        // actual link range (or anywhere in the markdown body, which handles its
-        // own taps), let the view handle it and do not collapse.
+        // actual link range, a media tile, or an interactive control (the body
+        // hit-tests its own contents), let the view handle it and do not collapse.
         let point = recognizer.location(in: contentView)
         if labelHasLink(authorLabel, at: point) || labelHasLink(messageLabel, at: point)
             || labelHasLink(bodyView, at: point)
@@ -647,12 +647,12 @@ protocol BodyLinkHitTesting: UIView {
 extension LinkLabel: BodyLinkHitTesting { }
 extension BodyTextView: BodyLinkHitTesting { }
 
-/// `MarkdownBodyView` handles all tap dispatch internally; any tap within its
-/// bounds should be treated as a potential link/image tap so the collapse
-/// gesture defers to it rather than triggering a collapse.
+/// Reports whether a point lands on an actual tappable link, media tile, or
+/// control inside the markdown body, so the collapse-tap defers to those and
+/// still collapses on plain-text taps.
 extension MarkdownBodyView: BodyLinkHitTesting {
     public func hasLink(at point: CGPoint) -> Bool {
-        !isHidden && bounds.contains(point)
+        handlesTap(at: point)
     }
 }
 

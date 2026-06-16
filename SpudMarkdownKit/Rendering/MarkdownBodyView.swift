@@ -63,4 +63,45 @@ public final class MarkdownBodyView: UIView {
             stack.addArrangedSubview(view)
         }
     }
+
+    // MARK: Tap hit-testing (for the comment collapse-tap deferral)
+
+    /// Whether `point` (in this view's own coordinate space) lands on something the
+    /// body handles itself: a link range inside prose text, a media tile
+    /// (image/audio/video), or an interactive control (e.g. a code block's copy
+    /// button). Hosts that overlay their own tap gesture (the comment collapse-tap)
+    /// call this to defer to the body's own tap handling instead of collapsing.
+    /// Plain body text and plain block chrome return `false`.
+    public func handlesTap(at point: CGPoint) -> Bool {
+        handlesTap(at: point, in: self)
+    }
+
+    /// Recursively walks `view`'s subviews looking for the first interactive
+    /// target under `point` (given in `view`'s coordinate space). Prose views are
+    /// asked via `hasLink(at:)` but never descended into (a `UITextView` has
+    /// internal subviews that would mis-fire); media tiles and controls are
+    /// always interactive; structural containers (incl. the private stack) recurse.
+    private func handlesTap(at point: CGPoint, in view: UIView) -> Bool {
+        for subview in view.subviews {
+            if subview.isHidden { continue }
+            let converted = view.convert(point, to: subview)
+            guard subview.bounds.contains(converted) else { continue }
+
+            if let prose = subview as? ProseBlockView {
+                if prose.hasLink(at: converted) { return true }
+                // Do not recurse into a UITextView's internal subviews.
+                continue
+            }
+            if subview is ImageBlockView || subview is AudioBlockView || subview is VideoBlockView {
+                return true
+            }
+            if subview is UIControl {
+                return true
+            }
+            if handlesTap(at: converted, in: subview) {
+                return true
+            }
+        }
+        return false
+    }
 }
