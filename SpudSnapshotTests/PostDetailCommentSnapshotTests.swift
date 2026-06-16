@@ -133,6 +133,22 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         ))
     }
 
+    func test_withLinkPreviews() {
+        // A bare web URL (external card) and a community shorthand (rendered as a
+        // "lemmy.world /c/news" card) each appear as a LinkPreviewView below the
+        // text — the bare, no-thumbnail style with the `safari` placeholder.
+        assertComment(viewModel: makeViewModel(
+            row: row(body: "Great read: https://example.com/research/findings — discussion lives in !news@lemmy.world")
+        ))
+    }
+
+    func test_withManyLinks_cappedAtThree() {
+        // Five links, but only the first three get cards.
+        assertComment(viewModel: makeViewModel(
+            row: row(body: "Sources: https://a.example/1 https://b.example/2 https://c.example/3 https://d.example/4 https://e.example/5")
+        ))
+    }
+
     // MARK: - Comment cell rendering
 
     private func assertComment(

@@ -42,6 +42,12 @@ struct PostDetailCommentViewModel {
     /// rebuild `MarkdownBodyView` with a matching context when the preference
     /// changes between configure calls.
     let textSizeAdjustment: CGFloat
+
+    /// Previewable links found in the comment body, rendered as `LinkPreviewView`
+    /// cards below the text. Empty for moderation placeholders (no blocks) and for
+    /// comments without previewable links.
+    let linkPreviews: [CommentLinkPreview]
+
     let subtitle: NSAttributedString
     let isMore: Bool
     let moreText: NSAttributedString?
@@ -245,6 +251,10 @@ struct PostDetailCommentViewModel {
             body = NSAttributedString()
             bodyBlocks = MarkdownBlockCache.shared.blocks(for: bodyMarkdown)
         }
+
+        // Link preview cards under the body, capped to keep long comments tidy.
+        // Empty for deleted/removed placeholders (their block tree is empty).
+        linkPreviews = bodyBlocks.commentLinkPreviews(limit: 3)
 
         // MARK: Blocked-user fold
 

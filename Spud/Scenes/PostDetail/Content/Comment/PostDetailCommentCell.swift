@@ -16,6 +16,15 @@ class PostDetailCommentCell: UITableViewCell {
     var linkTapped: ((URL) -> Void)?
     var linkLongPressed: ((URL) -> Void)?
 
+    /// Builds the context-menu configuration for a long press on a link preview
+    /// card, given that card's (tap) URL. Set by the owner, which holds the
+    /// services needed to build the menu and preview.
+    var linkPreviewContextMenu: ((URL) -> UIContextMenuConfiguration?)?
+
+    /// Commits a link preview card's context-menu preview (e.g. opens the peeked
+    /// page) when the user taps the preview.
+    var linkPreviewContextMenuCommit: ((UIContextMenuConfiguration, UIContextMenuInteractionCommitAnimating) -> Void)?
+
     /// Fired when an inline image in the body finishes loading, so the host can
     /// re-measure this row to fit the now-known image height.
     var onBodyImageLoaded: (() -> Void)?
@@ -105,8 +114,21 @@ class PostDetailCommentCell: UITableViewCell {
         stackView.addArrangedSubview(headerStackView)
         stackView.addArrangedSubview(bodyView)
         stackView.addArrangedSubview(messageLabel)
+        stackView.addArrangedSubview(linkPreviewsStackView)
         stackView.addArrangedSubview(blockedFoldView)
 
+        return stackView
+    }()
+
+    /// Holds one `LinkPreviewView` card per previewable link in the comment body,
+    /// stacked below the text. Hidden when the comment has no link cards to show.
+    lazy var linkPreviewsStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .vertical
+        stackView.spacing = 4
+        stackView.isHidden = true
+        stackView.accessibilityIdentifier = "linkPreviews"
         return stackView
     }()
 
@@ -308,6 +330,10 @@ class PostDetailCommentCell: UITableViewCell {
 
     // MARK: Private
 
+    /// Maps each rendered `LinkPreviewView` card to its tap URL, so the context
+    /// menu delegate can resolve the URL from the interaction's view.
+    private var linkPreviewTapURLs: [ObjectIdentifier: URL] = [:]
+
     /// Text-scale baked into the current `bodyView`. Compared on each configure;
     /// when it changes a new `MarkdownBodyView` is built and swapped into the
     /// stack view so fonts reflect the updated preference.
@@ -368,6 +394,8 @@ class PostDetailCommentCell: UITableViewCell {
 
         linkTapped = nil
         linkLongPressed = nil
+        linkPreviewContextMenu = nil
+        linkPreviewContextMenuCommit = nil
         onBodyImageLoaded = nil
         onBodyLinkTapped = nil
         onBodyImageTapped = nil
@@ -394,6 +422,7 @@ class PostDetailCommentCell: UITableViewCell {
         bodyView.isHidden = true
         messageLabel.attributedText = nil
         clearBadges()
+        clearLinkPreviews()
     }
 
     private func clearBadges() {
@@ -402,6 +431,38 @@ class PostDetailCommentCell: UITableViewCell {
             view.removeFromSuperview()
         }
         badgesStackView.isHidden = true
+    }
+
+    /// Rebuilds the link-preview stack from the view model. Cards are shown only
+    /// when the markdown body itself is shown (so a collapsed / folded / "load
+    /// more" / moderation-placeholder row shows none). A tap fires the link's tap
+    /// URL through `linkTapped` (not the displayed URL); a long press shows a
+    /// system context menu via `UIContextMenuInteraction`.
+    private func configureLinkPreviews(_ viewModel: PostDetailCommentViewModel) {
+        clearLinkPreviews()
+
+        guard !bodyView.isHidden, !viewModel.linkPreviews.isEmpty else { return }
+
+        linkPreviewsStackView.isHidden = false
+        for preview in viewModel.linkPreviews {
+            let view = LinkPreviewView()
+            view.translatesAutoresizingMaskIntoConstraints = false
+            view.url = preview.displayURL
+            let tapURL = preview.tapURL
+            view.tapped = { [weak self] _ in self?.linkTapped?(tapURL) }
+            view.addInteraction(UIContextMenuInteraction(delegate: self))
+            linkPreviewTapURLs[ObjectIdentifier(view)] = tapURL
+            linkPreviewsStackView.addArrangedSubview(view)
+        }
+    }
+
+    private func clearLinkPreviews() {
+        for view in linkPreviewsStackView.arrangedSubviews {
+            linkPreviewsStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        linkPreviewTapURLs.removeAll()
+        linkPreviewsStackView.isHidden = true
     }
 
     /// A `UILabel` with small horizontal padding, used for the rounded badge pills.
@@ -521,6 +582,11 @@ class PostDetailCommentCell: UITableViewCell {
             blockedLabel.attributedText = viewModel.blockedFoldedText
             blockedShowLabel.attributedText = viewModel.blockedShowText
         }
+
+        // Link preview cards follow the markdown body's visibility — shown only
+        // when `bodyView` is (i.e. not collapsed, folded, "load more", or a
+        // moderation placeholder).
+        configureLinkPreviews(viewModel)
 
         collapsedBadgeLabel.attributedText = viewModel.collapsedBadgeText
         collapsedBadgeLabel.isHidden = viewModel.collapsedBadgeText == nil
@@ -652,6 +718,15 @@ class PostDetailCommentCell: UITableViewCell {
             return
         }
 
+        // A tap on a link-preview card is handled by the card's own button; don't
+        // also collapse the thread.
+        if !linkPreviewsStackView.isHidden {
+            let pointInStack = contentView.convert(point, to: linkPreviewsStackView)
+            if linkPreviewsStackView.bounds.contains(pointInStack) {
+                return
+            }
+        }
+
         collapseTapped?()
     }
 
@@ -711,5 +786,30 @@ extension PostDetailCommentCell {
         // Coexist with the LinkLabel tap recognizers (we filter link hits in
         // the handler) and with the swipe pan recognizer.
         true
+    }
+}
+
+// MARK: - UIContextMenuInteractionDelegate
+
+extension PostDetailCommentCell: UIContextMenuInteractionDelegate {
+    func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        configurationForMenuAtLocation _: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard
+            let view = interaction.view,
+            let url = linkPreviewTapURLs[ObjectIdentifier(view)]
+        else {
+            return nil
+        }
+        return linkPreviewContextMenu?(url)
+    }
+
+    func contextMenuInteraction(
+        _: UIContextMenuInteraction,
+        willPerformPreviewActionForMenuWith configuration: UIContextMenuConfiguration,
+        animator: UIContextMenuInteractionCommitAnimating
+    ) {
+        linkPreviewContextMenuCommit?(configuration, animator)
     }
 }

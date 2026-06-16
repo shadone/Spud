@@ -911,6 +911,78 @@ class PostDetailViewController: UIViewController {
         present(safariVC, animated: true)
     }
 
+    /// The modern context menu for a long press on a comment's link preview card.
+    /// Mirrors ``linkLongPressed(_:)``'s actions: a web URL gets a Safari peek plus
+    /// open-in-Spud (when it classifies as Lemmy content) / open-in-browser / copy
+    /// / share; an internal-scheme link (e.g. a community) offers in-app open only.
+    private func linkContextMenuConfiguration(for url: URL) -> UIContextMenuConfiguration? {
+        let openInSpud = NSLocalizedString("Open in Spud", comment: "")
+
+        // Internal-scheme link (community / object / instance): only in-app open
+        // is meaningful, and there is nothing to peek in a browser.
+        if url.spud != nil {
+            return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+                UIMenu(children: [
+                    UIAction(title: openInSpud, image: UIImage(systemName: "arrow.up.forward.app")) { _ in
+                        self?.linkTapped(url)
+                    },
+                ])
+            }
+        }
+
+        // A web URL: Safari peek, plus the browser / copy / share hatch and an
+        // in-app open when it classifies as Lemmy content.
+        return UIContextMenuConfiguration(
+            identifier: nil,
+            previewProvider: { [appService] in appService.safariViewControllerForPreview(url: url) },
+            actionProvider: { [weak self] _ in
+                guard let self else { return nil }
+                var children: [UIMenuElement] = []
+
+                let isKnown: (String) -> Bool = { [appDatabase] host in
+                    appDatabase.explorerInstanceSync(baseurl: host) != nil
+                }
+                if let internalLink = LemmyURLParser.classify(url: url, isKnownInstance: isKnown) {
+                    children.append(UIAction(title: openInSpud, image: UIImage(systemName: "arrow.up.forward.app")) { _ in
+                        self.linkTapped(internalLink.url)
+                    })
+                }
+                children.append(UIAction(
+                    title: NSLocalizedString("Open in Browser", comment: ""),
+                    image: UIImage(systemName: "safari")
+                ) { [weak self] _ in
+                    guard let self else { return }
+                    Task { await self.appService.open(url: url, on: self) }
+                })
+                children.append(UIAction(
+                    title: NSLocalizedString("Copy Link", comment: ""),
+                    image: UIImage(systemName: "doc.on.doc")
+                ) { _ in
+                    UIPasteboard.general.url = url
+                })
+                children.append(UIAction(
+                    title: NSLocalizedString("Share", comment: ""),
+                    image: UIImage(systemName: "square.and.arrow.up")
+                ) { [weak self] _ in
+                    self?.presentShareSheet(for: url)
+                })
+                return UIMenu(children: children)
+            }
+        )
+    }
+
+    /// Commits a comment link preview's peek: opens the previewed Safari view
+    /// controller, matching the post header's link preview.
+    private func commitLinkPreviewContextMenu(
+        _: UIContextMenuConfiguration,
+        _ animator: UIContextMenuInteractionCommitAnimating
+    ) {
+        guard let safariVC = animator.previewViewController as? SFSafariViewController else { return }
+        animator.addCompletion { [weak self] in
+            self?.linkTappedFromPreview(safariVC)
+        }
+    }
+
     /// Thin forwarder so existing call sites stay unchanged; the logic lives in
     /// `UIViewController+MediaViewer.swift`.
     private func presentMediaViewer(
@@ -1572,6 +1644,10 @@ extension PostDetailViewController {
                 cell.configure(with: viewModel, imageService: imageService)
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
                 cell.linkLongPressed = { [weak self] url in self?.linkLongPressed(url) }
+                cell.linkPreviewContextMenu = { [weak self] url in self?.linkContextMenuConfiguration(for: url) }
+                cell.linkPreviewContextMenuCommit = { [weak self] configuration, animator in
+                    self?.commitLinkPreviewContextMenu(configuration, animator)
+                }
                 cell.onBodyImageLoaded = { [weak tableView] in
                     // An inline body image loaded; re-measure this row to fit it.
                     tableView?.performBatchUpdates(nil)
