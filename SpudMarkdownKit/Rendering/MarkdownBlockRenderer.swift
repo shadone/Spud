@@ -79,6 +79,7 @@ final class MarkdownBlockRenderer {
         paragraph.lineHeightMultiple = context.lineHeightMultiple
         m.addAttribute(.paragraphStyle, value: paragraph, range: NSRange(location: 0, length: m.length))
         view.attributedText = m
+        view.tintColor = context.accentColor
         view.onTapLink = { [weak self] url in self?.onTapLink?(url) }
         return view
     }
