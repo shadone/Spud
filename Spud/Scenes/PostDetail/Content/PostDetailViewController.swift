@@ -914,23 +914,21 @@ class PostDetailViewController: UIViewController {
         present(safariVC, animated: true)
     }
 
+    /// Thin forwarder so existing call sites stay unchanged; the logic lives in
+    /// `UIViewController+MediaViewer.swift`.
     private func presentMediaViewer(
         imageUrl: URL,
         thumbnailUrl: URL?,
         preloadedImage: UIImage?,
         altText: String? = nil
     ) {
-        let item = MediaItem(
+        presentMediaViewer(
             imageUrl: imageUrl,
             thumbnailUrl: thumbnailUrl,
             preloadedImage: preloadedImage,
-            altText: altText
-        )
-        let viewer = MediaViewerViewController.make(
-            items: [item],
+            altText: altText,
             dependencies: dependencies.own
         )
-        present(viewer, animated: true)
     }
 
     private func voteOnPost(_ action: VoteStatus.Action) async {
