@@ -88,4 +88,16 @@ struct MarkdownBodyHost: UIViewRepresentable {
     func updateUIView(_ uiView: MarkdownBodyView, context _: Context) {
         uiView.setBlocks(MarkdownParser.parse(source))
     }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: MarkdownBodyView, context _: Context) -> CGSize? {
+        let width = proposal.width ?? UIScreen.main.bounds.width
+        uiView.setNeedsLayout()
+        uiView.layoutIfNeeded()
+        let height = uiView.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+        return CGSize(width: width, height: height)
+    }
 }
