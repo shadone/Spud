@@ -37,4 +37,8 @@ final class MarkdownBlockRendererTests: XCTestCase {
         let image = try MarkdownImage(url: XCTUnwrap(URL(string: "https://example.com/a.jpg")), altText: "alt")
         XCTAssertTrue(renderer().view(for: .image(image)) is ImageBlockView)
     }
+
+    func test_audioRendersAudioBlockView() throws {
+        XCTAssertTrue(try renderer().view(for: .audio(url: XCTUnwrap(URL(string: "https://example.com/a.mp3")))) is AudioBlockView)
+    }
 }

@@ -61,7 +61,8 @@ final class MarkdownBlockRenderer {
                 onOpenInBrowser: onTapLink,
                 loader: imageLoader
             )
-        case .audio: return PlaceholderBlockView(label: "audio")
+        case let .audio(url):
+            return AudioBlockView(url: url, context: context, onTap: onTapAudio)
         case .video: return PlaceholderBlockView(label: "video")
         case let .footnotes(footnotes):
             return FootnotesBlockView(footnotes: footnotes, context: context, renderer: self)
