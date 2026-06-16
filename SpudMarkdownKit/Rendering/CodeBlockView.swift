@@ -20,6 +20,9 @@ final class CodeBlockView: UIView {
         layer.cornerRadius = context.kind == .post ? 12 : 9
         layer.borderWidth = 0.5
         layer.borderColor = UIColor.separator.cgColor
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (view: CodeBlockView, _: UITraitCollection) in
+            view.layer.borderColor = UIColor.separator.cgColor
+        }
 
         let header = UIView()
         header.translatesAutoresizingMaskIntoConstraints = false
@@ -43,6 +46,7 @@ final class CodeBlockView: UIView {
 
         let scroll = UIScrollView()
         scroll.showsHorizontalScrollIndicator = false
+        scroll.showsVerticalScrollIndicator = false
         scroll.translatesAutoresizingMaskIntoConstraints = false
         let body = UILabel()
         body.numberOfLines = 0
@@ -72,6 +76,7 @@ final class CodeBlockView: UIView {
             lang.bottomAnchor.constraint(equalTo: header.bottomAnchor, constant: -vPad),
             copy.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -hPad),
             copy.centerYAnchor.constraint(equalTo: lang.centerYAnchor),
+            lang.trailingAnchor.constraint(lessThanOrEqualTo: copy.leadingAnchor, constant: -8),
             divider.topAnchor.constraint(equalTo: header.bottomAnchor),
             divider.leadingAnchor.constraint(equalTo: leadingAnchor),
             divider.trailingAnchor.constraint(equalTo: trailingAnchor),
