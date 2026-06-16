@@ -402,6 +402,7 @@ class PostListViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        seenFlushTimer?.invalidate()
         seenFlushTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self else { return }
             Task { @MainActor in self.flushSeen() }
@@ -1373,10 +1374,10 @@ extension PostListViewController: UITableViewDelegate {
         // Seen-on-screen capture: read the post id stamped on the cell at
         // configure time — dataSource.itemIdentifier(for:) is unreliable here
         // because the snapshot may have changed since the cell was displayed.
-        if let serverPostId = (cell as? PostListPostCell)?.seenTrackingServerPostId {
-            if let seen = seenDwellTracker.didDisappear(serverPostId: serverPostId, at: Date()) {
-                recordSeen([seen])
-            }
+        if let serverPostId = (cell as? PostListPostCell)?.seenTrackingServerPostId,
+           let seen = seenDwellTracker.didDisappear(serverPostId: serverPostId, at: Date())
+        {
+            recordSeen([seen])
         }
 
         guard markPostsRead, markPostsReadOnScroll else { return }

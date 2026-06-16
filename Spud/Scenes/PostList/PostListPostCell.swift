@@ -271,6 +271,8 @@ class PostListPostCell: UITableViewCell {
     override func prepareForReuse() {
         super.prepareForReuse()
 
+        seenTrackingServerPostId = nil
+
         thumbnailLoadTask?.cancel()
         thumbnailLoadTask = nil
         appliedThumbnailUrl = nil
