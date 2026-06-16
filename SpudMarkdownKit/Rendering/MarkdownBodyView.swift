@@ -98,6 +98,11 @@ public final class MarkdownBodyView: UIView {
             if subview is UIControl {
                 return true
             }
+            // A view that installed its own tap recognizer handles the tap itself
+            // (e.g. a spoiler's disclosure header), so defer to it rather than collapse.
+            if subview.gestureRecognizers?.contains(where: { $0 is UITapGestureRecognizer }) == true {
+                return true
+            }
             if handlesTap(at: converted, in: subview) {
                 return true
             }

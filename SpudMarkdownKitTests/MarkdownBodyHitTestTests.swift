@@ -69,6 +69,17 @@ final class MarkdownBodyHitTestTests: XCTestCase {
         XCTAssertTrue(body.handlesTap(at: pointInBody))
     }
 
+    /// A collapsed spoiler installs its own tap recognizer on the disclosure
+    /// header to toggle open/closed. While collapsed the body stack is hidden, so
+    /// the spoiler block's bounds equal just the header — a tap at the body's
+    /// center lands on the header and must defer to the spoiler, not collapse the
+    /// comment thread.
+    func test_spoilerHeader_handlesTap() {
+        let blocks = MarkdownParser.parse("::: spoiler Secret\nhidden body text\n:::")
+        let body = laidOutBody(blocks)
+        XCTAssertTrue(body.handlesTap(at: center(of: body)))
+    }
+
     /// Returns the selection rect of the first `.link` range in `prose`, in the
     /// prose view's coordinate space. Mirrors `ProseBlockView.rects(for:)`.
     private func firstLinkRect(in prose: ProseBlockView) -> CGRect? {
