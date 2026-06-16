@@ -9,16 +9,23 @@ import SpudUIKit
 import UIKit
 
 /// A pinned footer of account actions shown below the signed-in profile:
-/// Saved and a destructive Log out. (Settings has its own tab.) Layout-only;
-/// the owning view controller wires the callbacks.
+/// Saved, History, and a destructive Log out. Layout-only; the owning view
+/// controller wires the callbacks.
 final class AccountActionsFooterView: UIView {
     var savedTapped: (() -> Void)?
+    var historyTapped: (() -> Void)?
     var logoutTapped: (() -> Void)?
 
     private lazy var savedButton = makeButton(
         title: NSLocalizedString("Saved", comment: "Account footer: open saved posts"),
         systemImage: "bookmark",
         action: #selector(didTapSaved)
+    )
+
+    private lazy var historyButton = makeButton(
+        title: NSLocalizedString("History", comment: "Account footer: open browsing history"),
+        systemImage: "clock.arrow.circlepath",
+        action: #selector(didTapHistory)
     )
 
     private lazy var logoutButton: UIButton = {
@@ -53,7 +60,7 @@ final class AccountActionsFooterView: UIView {
     private func setup() {
         backgroundColor = Theme.background
 
-        let stack = UIStackView(arrangedSubviews: [savedButton, logoutButton])
+        let stack = UIStackView(arrangedSubviews: [savedButton, historyButton, logoutButton])
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.axis = .vertical
         stack.spacing = 4
@@ -90,6 +97,11 @@ final class AccountActionsFooterView: UIView {
     @objc
     private func didTapSaved() {
         savedTapped?()
+    }
+
+    @objc
+    private func didTapHistory() {
+        historyTapped?()
     }
 
     @objc

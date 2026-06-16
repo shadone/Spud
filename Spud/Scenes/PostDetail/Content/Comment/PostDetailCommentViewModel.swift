@@ -67,6 +67,10 @@ struct PostDetailCommentViewModel {
     /// `true` when this comment is collapsed and its subtree is hidden.
     let isCollapsed: Bool
 
+    /// `true` when this comment is new since the user's last visit. Drives the
+    /// gutter dot and the fresh-wash treatment.
+    let isNew: Bool
+
     /// The number of descendants hidden underneath this collapsed comment, or
     /// `nil` when the comment is expanded (no badge shown).
     let collapsedBadgeText: NSAttributedString?
@@ -86,7 +90,8 @@ struct PostDetailCommentViewModel {
         postCreatorPersonId: Int64? = nil,
         isCollapsed: Bool = false,
         collapsedDescendantCount: Int? = nil,
-        isBlockedRevealed: Bool = false
+        isBlockedRevealed: Bool = false,
+        isNew: Bool = false
     ) {
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
 
@@ -99,6 +104,7 @@ struct PostDetailCommentViewModel {
 
         isDistinguished = distinguished
         isDeemphasized = isRemoved
+        self.isNew = isNew
 
         // The author is the post's author when their person ids match — drives
         // the "OP" badge. nil ids never match (no false positive).
@@ -395,6 +401,12 @@ struct PostDetailCommentViewModel {
             }
             if distinguished {
                 pieces.append(NSLocalizedString("Distinguished", comment: "VoiceOver: distinguished moderator comment"))
+            }
+            if isNew {
+                pieces.append(NSLocalizedString(
+                    "New comment, posted after your last visit",
+                    comment: "VoiceOver: comment is new since the user's last visit"
+                ))
             }
             subtitleAccessibilityLabel = pieces.joined(separator: ", ")
 

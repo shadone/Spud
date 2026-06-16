@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import SpudDataKit
 import UIKit
 
 #if DEBUG
@@ -23,6 +24,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         coordinator.start()
+
+        // Apply the local interaction-log retention policy in the background.
+        // Best-effort: a failure just leaves old rows until the next launch.
+        Task {
+            try? await AppDatabase.shared.prunePostInteractions()
+        }
+
         #if DEBUG
         SBTUITestTunnelServer.takeOff()
         #endif

@@ -27,7 +27,9 @@ final class AppDatabaseTests: XCTestCase {
             )
         }
 
-        let appTables = tableNames.filter { !$0.hasPrefix("grdb_") && !$0.hasPrefix("sqlite_") }
+        let appTables = tableNames.filter {
+            !$0.hasPrefix("grdb_") && !$0.hasPrefix("sqlite_") && !$0.hasPrefix("postInteractionFts_")
+        }
 
         XCTAssertEqual(
             Set(appTables),
@@ -48,6 +50,8 @@ final class AppDatabaseTests: XCTestCase {
                 "pageElement",
                 "person",
                 "post",
+                "postInteraction",
+                "postInteractionFts",
                 "site",
             ])
         )

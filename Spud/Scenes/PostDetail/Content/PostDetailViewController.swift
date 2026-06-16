@@ -93,6 +93,7 @@ class PostDetailViewController: UIViewController {
         tableView.delegate = self
         tableView.refreshControl = refreshControl
         tableView.register(PostDetailHeaderCell.self, forCellReuseIdentifier: PostDetailHeaderCell.reuseIdentifier)
+        tableView.register(PostDetailNewSinceBannerCell.self, forCellReuseIdentifier: PostDetailNewSinceBannerCell.reuseIdentifier)
         tableView.register(PostDetailCommentCell.self, forCellReuseIdentifier: PostDetailCommentCell.reuseIdentifier)
         return tableView
     }()
@@ -104,23 +105,13 @@ class PostDetailViewController: UIViewController {
     }()
 
     /// Floating control that scrolls to the next top-level (depth-1) comment so
-    /// users can skim threads fast. Hidden when there is no next top-level
-    /// comment below the current scroll position.
+    /// users can skim threads fast. When there are new comments it targets the
+    /// next new comment instead. Hidden when there is nothing to jump to below
+    /// the current scroll position.
     lazy var jumpToNextButton: UIButton = {
-        var config = UIButton.Configuration.filled()
-        config.image = UIImage(systemName: "chevron.down")
-        config.cornerStyle = .capsule
-        config.baseBackgroundColor = .secondarySystemBackground
-        config.baseForegroundColor = .label
-        config.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 14, bottom: 14, trailing: 14)
-
-        let button = UIButton(configuration: config)
+        let button = UIButton(configuration: UIButton.Configuration.filled())
         button.translatesAutoresizingMaskIntoConstraints = false
         button.accessibilityIdentifier = "jumpToNextTopComment"
-        button.accessibilityLabel = NSLocalizedString(
-            "Next top-level comment",
-            comment: "Accessibility label for the jump-to-next-comment button"
-        )
         button.addTarget(self, action: #selector(jumpToNextTopCommentTapped), for: .touchUpInside)
         button.layer.shadowColor = UIColor.black.cgColor
         button.layer.shadowOpacity = 0.2
@@ -128,6 +119,7 @@ class PostDetailViewController: UIViewController {
         button.layer.shadowOffset = CGSize(width: 0, height: 2)
         button.alpha = 0
         button.isHidden = true
+        applyDefaultJumpButtonStyle(to: button)
         return button
     }()
 
@@ -136,6 +128,13 @@ class PostDetailViewController: UIViewController {
     private var viewModel: PostDetailViewModel
     private var headerRow: PostDetailHeaderRow?
     private var commentRowsByElementId: [Int64: PostDetailCommentRow] = [:]
+    /// Element ids of new comments whose one-time fresh-wash fade has already
+    /// played this visit, so scrolling them back into view doesn't replay it.
+    private var animatedNewCommentIds: Set<Int64> = []
+    /// The `isNew` styling currently applied to the jump FAB, so the per-scroll
+    /// `updateJumpButtonVisibility` only rebuilds the button configuration when
+    /// the style actually flips (not on every scroll tick).
+    private var jumpButtonIsNewStyle: Bool?
     /// The backing account's moderation capability, refreshed from the server
     /// on appearance. Drives whether mod actions show in the context menus.
     /// `.none` until the first fetch (and for signed-out accounts).
@@ -330,6 +329,8 @@ class PostDetailViewController: UIViewController {
             return
         }
 
+        recordVisit(keychainId: keychainId, serverPostId: serverPostId, postRowId: postRowId)
+
         observationTask = Task { @MainActor [weak self] in
             guard let self else { return }
             for await row in appDatabase.observePostDetailHeader(postRowId: postRowId) {
@@ -341,6 +342,32 @@ class PostDetailViewController: UIViewController {
         }
 
         startCommentObservation(postRowId: postRowId)
+    }
+
+    /// Records this post-detail visit in the local interaction log and seeds
+    /// the view model's new-comment delta inputs. The prior `lastOpenedAt` is
+    /// read synchronously *before* the async write overwrites it, so the first
+    /// comment snapshot already reflects the correct "new since last visit"
+    /// set. Recording is independent of `markPostsRead` (that preference only
+    /// gates the server `markAsRead` round-trip).
+    private func recordVisit(keychainId: String, serverPostId: Int64, postRowId: Int64) {
+        viewModel.previousVisitAt = appDatabase.lastOpenedAtSync(
+            forKeychainId: keychainId,
+            serverPostId: serverPostId
+        )
+        viewModel.currentAccountPersonId = appDatabase.accountPersonServerIdSync(
+            forKeychainId: keychainId
+        )
+
+        let snapshotAndCount = appDatabase.postInteractionSnapshotSync(postRowId: postRowId)
+        Task { @MainActor [appDatabase] in
+            try? await appDatabase.recordPostOpened(
+                accountKeychainId: keychainId,
+                serverPostId: serverPostId,
+                commentCount: snapshotAndCount?.commentCount,
+                snapshot: snapshotAndCount?.snapshot
+            )
+        }
     }
 
     private func startCommentObservation(postRowId: Int64) {
@@ -386,6 +413,10 @@ class PostDetailViewController: UIViewController {
         var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
         snapshot.appendSections([.header, .comments])
         snapshot.appendItems([.header], toSection: .header)
+        if viewModel.newCommentCount > 0 {
+            snapshot.appendItems([.newSinceBanner], toSection: .header)
+            snapshot.reconfigureItems([.newSinceBanner])
+        }
         // Refresh content in place. Reconfigure (not reload) re-runs the cell
         // provider on the existing cells, avoiding the cross-dissolve that
         // reloadItems animates under `animatingDifferences: true` — that fade,
@@ -446,7 +477,7 @@ class PostDetailViewController: UIViewController {
         dataSource.apply(snapshot, animatingDifferences: true)
     }
 
-    // MARK: - Jump to next top-level comment
+    // MARK: - Jump to next top-level comment / next new comment
 
     /// The index path of the next visible depth-1 comment whose top is below the
     /// current content offset (plus the top inset). Returns nil if none.
@@ -471,22 +502,63 @@ class PostDetailViewController: UIViewController {
         return nil
     }
 
+    /// The index path of the next new comment whose top is below the current
+    /// content offset (plus the top inset). Iterates the new comments in display
+    /// order (`orderedNewCommentElementIds`), skipping any that are currently
+    /// collapsed away (no index path). Returns nil if none below.
+    private func indexPathOfNextNewComment() -> IndexPath? {
+        let threshold = tableView.contentOffset.y + tableView.adjustedContentInset.top + 1
+        for elementId in viewModel.orderedNewCommentElementIds {
+            guard let indexPath = dataSource.indexPath(for: .comment(elementId: elementId)) else { continue }
+            if tableView.rectForRow(at: indexPath).minY > threshold {
+                return indexPath
+            }
+        }
+        return nil
+    }
+
+    /// Returns the FAB's current jump target and whether it is a new-comment
+    /// target. Prefers the next new comment when any new comments exist;
+    /// otherwise falls back to the next top-level comment.
+    private func jumpTarget() -> (indexPath: IndexPath, isNew: Bool)? {
+        if viewModel.newCommentCount > 0, let next = indexPathOfNextNewComment() {
+            return (next, true)
+        }
+        if let next = indexPathOfNextTopLevelComment() {
+            return (next, false)
+        }
+        return nil
+    }
+
     @objc
     private func jumpToNextTopCommentTapped() {
-        guard let indexPath = indexPathOfNextTopLevelComment() else { return }
+        guard let target = jumpTarget() else { return }
+        Haptics.tap()
+        tableView.scrollToRow(at: target.indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
+    }
+
+    /// Scrolls to the first new comment (the banner's "Jump" action).
+    private func jumpToFirstNewComment() {
+        guard
+            let elementId = viewModel.firstNewCommentElementId,
+            let indexPath = dataSource.indexPath(for: .comment(elementId: elementId))
+        else { return }
         Haptics.tap()
         tableView.scrollToRow(at: indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
     }
 
-    /// Shows the jump button only when there is a next top-level comment to jump
-    /// to. Animated unless reduce-motion is on.
+    /// Shows the jump button when there is a next top-level or next new comment
+    /// below the current scroll position. Restyled for the new-comment case.
+    /// Animated unless reduce-motion is on.
     private func updateJumpButtonVisibility() {
-        let shouldShow = indexPathOfNextTopLevelComment() != nil
-        guard shouldShow != (jumpToNextButton.alpha > 0) else { return }
+        let target = jumpTarget()
+        let shouldShow = target != nil
 
-        if shouldShow {
-            jumpToNextButton.isHidden = false
-        }
+        // Restyle for "Next new" vs the default next-top-level affordance.
+        applyJumpButtonStyle(isNew: target?.isNew ?? false)
+
+        guard shouldShow != (jumpToNextButton.alpha > 0) else { return }
+        if shouldShow { jumpToNextButton.isHidden = false }
         let animate = !UIAccessibility.isReduceMotionEnabled
         let work = { self.jumpToNextButton.alpha = shouldShow ? 1 : 0 }
         let completion = { (_: Bool) in
@@ -497,6 +569,48 @@ class PostDetailViewController: UIViewController {
         } else {
             work()
             completion(true)
+        }
+    }
+
+    /// Styles the jump FAB for the default next-top-level affordance.
+    /// Called from both the lazy initializer and `applyJumpButtonStyle(isNew:)`.
+    private func applyDefaultJumpButtonStyle(to button: UIButton) {
+        var config = UIButton.Configuration.filled()
+        config.image = UIImage(systemName: "chevron.down")
+        config.cornerStyle = .capsule
+        config.baseBackgroundColor = .secondarySystemBackground
+        config.baseForegroundColor = .label
+        config.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 14, bottom: 14, trailing: 14)
+        button.configuration = config
+        button.accessibilityLabel = NSLocalizedString(
+            "Next top-level comment",
+            comment: "Accessibility label for the jump-to-next-comment button"
+        )
+    }
+
+    /// Styles the jump FAB: accent "Next new" label when there are new comments
+    /// to jump to, else the default next-top-level chevron.
+    private func applyJumpButtonStyle(isNew: Bool) {
+        guard isNew != jumpButtonIsNewStyle else { return }
+        jumpButtonIsNewStyle = isNew
+        let accent = tableView.tintColor ?? .systemTeal
+        if isNew {
+            var config = UIButton.Configuration.filled()
+            config.title = NSLocalizedString("Next new", comment: "Jump to the next new comment")
+            config.image = UIImage(systemName: "chevron.down")
+            config.imagePlacement = .trailing
+            config.imagePadding = 6
+            config.cornerStyle = .capsule
+            config.baseBackgroundColor = accent
+            config.baseForegroundColor = .white
+            config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16)
+            jumpToNextButton.configuration = config
+            jumpToNextButton.accessibilityLabel = NSLocalizedString(
+                "Next new comment",
+                comment: "VoiceOver: jump to the next new comment"
+            )
+        } else {
+            applyDefaultJumpButtonStyle(to: jumpToNextButton)
         }
     }
 
@@ -1287,6 +1401,7 @@ extension PostDetailViewController {
 
     enum Item: Hashable {
         case header
+        case newSinceBanner
         case comment(elementId: Int64)
     }
 
@@ -1348,6 +1463,20 @@ extension PostDetailViewController {
                 cell.isBeingConfigured = false
                 return cell
 
+            case .newSinceBanner:
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: PostDetailNewSinceBannerCell.reuseIdentifier,
+                    for: indexPath
+                ) as! PostDetailNewSinceBannerCell
+                let accent = self?.tableView.tintColor ?? .systemTeal
+                cell.configure(
+                    count: self?.viewModel.newCommentCount ?? 0,
+                    relativeText: self?.viewModel.previousVisitAt?.relativeString,
+                    accent: accent
+                )
+                cell.jumpTapped = { [weak self] in self?.jumpToFirstNewComment() }
+                return cell
+
             case let .comment(elementId):
                 let cell = tableView.dequeueReusableCell(
                     withIdentifier: PostDetailCommentCell.reuseIdentifier,
@@ -1368,7 +1497,8 @@ extension PostDetailViewController {
                     postCreatorPersonId: self?.headerRow?.creatorPersonId,
                     isCollapsed: isCollapsed,
                     collapsedDescendantCount: collapsedCount,
-                    isBlockedRevealed: isBlockedRevealed
+                    isBlockedRevealed: isBlockedRevealed,
+                    isNew: self?.viewModel.isNewComment(elementId: elementId) ?? false
                 )
                 cell.configure(with: viewModel, imageService: imageService)
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
@@ -1421,6 +1551,23 @@ extension PostDetailViewController {
 extension PostDetailViewController: UITableViewDelegate {
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         updateJumpButtonVisibility()
+    }
+
+    func tableView(
+        _ tableView: UITableView,
+        willDisplay cell: UITableViewCell,
+        forRowAt indexPath: IndexPath
+    ) {
+        guard
+            case let .comment(elementId) = dataSource.itemIdentifier(for: indexPath),
+            let cell = cell as? PostDetailCommentCell
+        else { return }
+        let didAnimate = cell.startFreshWashIfNeeded(
+            hasAnimated: animatedNewCommentIds.contains(elementId)
+        )
+        if didAnimate {
+            animatedNewCommentIds.insert(elementId)
+        }
     }
 
     func tableView(
