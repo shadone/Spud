@@ -531,7 +531,7 @@ public actor LemmyService: LemmyServiceType {
                 response = try await api.getPosts(
                     type: .All,
                     sort: sortType,
-                    filter: [.saved],
+                    filter: .saved,
                     page: pageCursor
                 )
             }
@@ -1482,7 +1482,7 @@ public actor LemmyService: LemmyServiceType {
 
         let response: Components.Schemas.SuccessResponse
         do {
-            response = try await api.hidePost(postIds: [serverPostId], hide: hidden)
+            response = try await api.hidePost(postIDs: [serverPostId], hide: hidden)
         } catch {
             logger.error("""
                 Hide post failed. postId=\(serverPostId, privacy: .public). \
@@ -1515,7 +1515,7 @@ public actor LemmyService: LemmyServiceType {
 
         let response: Components.Schemas.SuccessResponse
         do {
-            response = try await api.markPostAsRead(postIds: [serverPostId], read: true)
+            response = try await api.markPostAsRead(postIDs: [serverPostId], read: true)
         } catch {
             logger.error("""
                 Mark post as read failed. postId=\(serverPostId, privacy: .public). \
