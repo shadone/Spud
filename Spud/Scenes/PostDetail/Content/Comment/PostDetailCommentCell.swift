@@ -378,7 +378,6 @@ class PostDetailCommentCell: UITableViewCell {
         // before the cell is reused for another comment.
         bodyView.setBlocks([])
         bodyView.isHidden = true
-        bodyViewTextScale = 0
         messageLabel.attributedText = nil
         clearBadges()
     }

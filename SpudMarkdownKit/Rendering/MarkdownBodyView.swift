@@ -80,7 +80,10 @@ public final class MarkdownBodyView: UIView {
     /// target under `point` (given in `view`'s coordinate space). Prose views are
     /// asked via `hasLink(at:)` but never descended into (a `UITextView` has
     /// internal subviews that would mis-fire); media tiles and controls are
-    /// always interactive; structural containers (incl. the private stack) recurse.
+    /// always interactive; structural containers (lists, quotes, tables,
+    /// spoilers, footnotes — including the private stack) fall through to the
+    /// recursive branch, so links inside them (e.g. footnote back-link ranges
+    /// in `FootnotesBlockView`'s prose children) are still found.
     private func handlesTap(at point: CGPoint, in view: UIView) -> Bool {
         for subview in view.subviews {
             if subview.isHidden { continue }
