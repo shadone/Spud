@@ -14,6 +14,12 @@ public final class MarkdownBodyView: UIView {
     private let stack = UIStackView()
     private let renderer: MarkdownBlockRenderer
 
+    /// Host-supplied async image provider. Set this BEFORE `setBlocks(_:)` so
+    /// the image blocks pick it up as they are built.
+    public var imageLoader: MarkdownImageLoader? {
+        didSet { renderer.imageLoader = imageLoader }
+    }
+
     public init(context: MarkdownContext) {
         renderer = MarkdownBlockRenderer(context: context)
         super.init(frame: .zero)
@@ -32,6 +38,11 @@ public final class MarkdownBodyView: UIView {
             self?.setNeedsLayout()
             self?.invalidateIntrinsicContentSize()
         }
+        renderer.onTapImage = { [weak self] url, alt, rect in
+            self?.delegate?.markdownBody(didTapImage: url, altText: alt, sourceRect: rect)
+        }
+        renderer.onTapVideo = { [weak self] url in self?.delegate?.markdownBody(didTapVideo: url) }
+        renderer.onTapAudio = { [weak self] url in self?.delegate?.markdownBody(didTapAudio: url) }
     }
 
     @available(*, unavailable)

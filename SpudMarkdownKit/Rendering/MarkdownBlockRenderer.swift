@@ -16,6 +16,10 @@ final class MarkdownBlockRenderer {
     let context: MarkdownContext
     var onTapLink: ((URL) -> Void)?
     var onContentSizeChange: (() -> Void)?
+    var onTapImage: ((URL, String?, CGRect) -> Void)?
+    var onTapVideo: ((URL) -> Void)?
+    var onTapAudio: ((URL) -> Void)?
+    var imageLoader: MarkdownImageLoader?
 
     init(context: MarkdownContext) {
         self.context = context
