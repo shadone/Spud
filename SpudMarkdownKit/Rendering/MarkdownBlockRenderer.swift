@@ -32,9 +32,9 @@ final class MarkdownBlockRenderer {
         case let .heading(level, inlines):
             return prose(heading(level: level, inlines: inlines))
         case let .unorderedList(items):
-            return prose(listAttributed(items, ordered: false, start: 1))
+            return ListBlockView(items: items, ordered: false, start: 1, depth: 0, context: context, renderer: self)
         case let .orderedList(start, items):
-            return prose(listAttributed(items, ordered: true, start: start))
+            return ListBlockView(items: items, ordered: true, start: start, depth: 0, context: context, renderer: self)
         case let .blockQuote(children):
             let quote = QuoteBlockView(context: context)
             for child in children {
@@ -80,34 +80,5 @@ final class MarkdownBlockRenderer {
             ))
         }
         return m
-    }
-
-    private func listAttributed(_ items: [MarkdownListItem], ordered: Bool, start: Int) -> NSAttributedString {
-        let out = NSMutableAttributedString()
-        for (i, item) in items.enumerated() {
-            let marker = ordered ? "\(start + i)." : "\u{2022}"
-            let paragraph = NSMutableParagraphStyle()
-            paragraph.headIndent = context.listIndent
-            paragraph.firstLineHeadIndent = 0
-            paragraph.lineHeightMultiple = context.lineHeightMultiple
-            let markerStr = NSAttributedString(string: "\(marker)\t", attributes: [
-                .font: context.bodyFont, .foregroundColor: context.secondaryColor,
-                .paragraphStyle: paragraph,
-            ])
-            out.append(markerStr)
-            if case let .paragraph(inlines)? = item.blocks.first {
-                let content = NSMutableAttributedString(
-                    attributedString: InlineAttributedStringBuilder.build(inlines, context: context)
-                )
-                content.addAttribute(
-                    .paragraphStyle,
-                    value: paragraph,
-                    range: NSRange(location: 0, length: content.length)
-                )
-                out.append(content)
-            }
-            if i < items.count - 1 { out.append(NSAttributedString(string: "\n")) }
-        }
-        return out
     }
 }
