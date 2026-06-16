@@ -197,6 +197,21 @@ targets:
     dependencies:
       - target: SpudMarkdownKit
 
+  SpudMarkdownKitSnapshotTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: SpudMarkdownKitSnapshotTests
+        excludes:
+          - "__Snapshots__/**"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.SpudMarkdownKitSnapshotTests
+        SWIFT_VERSION: "5.0"
+    dependencies:
+      - target: SpudMarkdownKit
+      - package: SnapshotTesting
+
   MarkdownLab:
     type: application
     platform: iOS
@@ -342,9 +357,11 @@ schemes:
       targets:
         SpudMarkdownKit: all
         SpudMarkdownKitTests: [test]
+        SpudMarkdownKitSnapshotTests: [test]
     test:
       targets:
         - SpudMarkdownKitTests
+        - SpudMarkdownKitSnapshotTests
 
   MarkdownLab:
     build:
