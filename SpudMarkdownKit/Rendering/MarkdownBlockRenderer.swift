@@ -45,7 +45,8 @@ final class MarkdownBlockRenderer {
             return ThematicBreakView()
         case let .codeBlock(language, code):
             return CodeBlockView(language: language, code: code, context: context)
-        case .table: return PlaceholderBlockView(label: "table")
+        case let .table(table):
+            return TableBlockView(table: table, context: context)
         case .spoiler: return PlaceholderBlockView(label: "spoiler")
         case .image: return PlaceholderBlockView(label: "image")
         case .audio: return PlaceholderBlockView(label: "audio")
