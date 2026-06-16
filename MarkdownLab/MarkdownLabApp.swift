@@ -16,22 +16,35 @@ struct MarkdownLabApp: App {
 }
 
 private let defaultSample = """
-    Valve **finally** shipped SteamOS, with ~~three~~ two rough edges. Ping @glidergun@lemmy.world or drop into !linux_gaming@lemmy.world. Smart quotes "work," en--dashes too.
-
-    # H1 — Section title
-    ## H2 — Subsection
+    Valve **finally** shipped SteamOS. Ping @glidergun@lemmy.world or !linux_gaming@lemmy.world.
 
     - A USB-C drive, **8 GB or larger**.
+        - Save files sync via cloud.
+        - Screenshot your BIOS first.
     - The official `rufus` flasher.
 
     1. Disable Secure Boot.
     2. Flash the recovery image.
 
+    | Subsystem | Claimed | Measured |
+    |:---|---:|---:|
+    | Suspend | < 2s | 1.4s |
+    | Battery | 6h | 5h42m |
+
+    ```bash
+    export ALSA_CARD=acp
+    pactl set-sink-volume @DEFAULT_SINK@ 140%
+    ```
+
     > Third-party support is **best-effort**.
 
-    H~2~O and E=mc^2^. See https://store.steampowered.com/steamos for details.
+    ::: spoiler Benchmarks
+    Locked **60 fps** at 800p medium.
+    :::
 
-    ---
+    Thanks for reading.[^1]
+
+    [^1]: Re-download over a wired connection if the checksum fails.
     """
 
 struct LabView: View {
