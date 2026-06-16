@@ -191,6 +191,17 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - Long-URL prose wrapping is verified (and fixed if it was overflowing), with a snapshot locking it.
 - Full SpudMarkdownKit target green; Spud app builds. Any genuinely-broken-but-out-of-scope behavior surfaced is documented, not silently patched.
 
+## Outcome (as built)
+
+- Edge-case parser unit tests added (raw HTML literal, orphaned/dead footnotes, long-URL autolink) — 69 unit tests pass.
+- Long-URL prose wrapping VERIFIED correct (TextKit 2 breaks the URL at slashes within the column) — no fix needed; snapshot locks it.
+- **Real bug fixed:** body links / @mentions / !communities were rendering blue (UITextView tinted `.link` ranges with its default color, overriding the builder's teal). Fixed by `view.tintColor = context.accentColor` in `MarkdownBlockRenderer.prose(_:)`; re-recorded the link-bearing snapshots — all now brand teal per the spec redline.
+- Edge-case snapshot suite added (link/mention/community distinction, literal `<b>`/`:emoji:`, 3-level nested quotes, wide 6-col table horizontal clip/scroll, empty-title spoiler fallback).
+
+## Known issue — git-annex snapshot storage in worktrees (left as-is per decision)
+
+The repo's `.gitattributes` rule `**/__Snapshots__/**/*.png filter=annex` sweeps `SpudMarkdownKitSnapshotTests/__Snapshots__` into git-annex as **locked symlinks** (`../../../.git/annex/objects/...`). In a sibling git **worktree** those relative symlinks are fragile (`.git` is a pointer, not a real dir), so some structural-snapshot references fail to resolve at test time ("file doesn't exist") even though the annex content is present. 3 of 4 `MarkdownStructuralSnapshotTests` fail this way in the worktree — a storage artifact, NOT a renderer/test defect (the renderer is correct; the snapshots record fine). Decision (2026-06-16): leave the annex policy unchanged for now; revisit snapshot storage later (the durable fix is to carve `SpudMarkdownKitSnapshotTests/__Snapshots__` out of annex into regular committed PNGs, matching the original intent).
+
 ## Known limitations carried forward (unchanged)
 
 Rounded mention/community chips; footnote ref↔def smooth scroll; fence-aware preprocessors; spoiler-in-list extraction; H6 inline formatting; depth-scaled quote styling; the Phase-4 integration follow-ups (image `onContentSizeChange`, loaded-image VoiceOver element, media-tap haptics — all handled in Phase 6).
