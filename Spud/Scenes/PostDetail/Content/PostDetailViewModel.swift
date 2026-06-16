@@ -148,8 +148,25 @@ final class PostDetailViewModel {
     func visibleCommentTree() -> CommentCollapseState.VisibleTree {
         CommentCollapseState.visibleTree(
             orderedComments: orderedComments,
+            collapsedIds: collapsedElementIds,
+            newElementIds: newCommentState.newElementIds
+        )
+    }
+
+    /// Expands every currently-collapsed ancestor of `elementId` so the comment
+    /// becomes visible. Returns `true` if the collapsed set changed (the caller
+    /// rebuilds the snapshot before scrolling). Idempotent: an already-visible
+    /// target changes nothing and returns `false`.
+    @discardableResult
+    func expandAncestors(toReveal elementId: Int64) -> Bool {
+        let ancestors = CommentCollapseState.collapsedAncestors(
+            of: elementId,
+            in: orderedComments,
             collapsedIds: collapsedElementIds
         )
+        guard !ancestors.isEmpty else { return false }
+        collapsedElementIds.subtract(ancestors)
+        return true
     }
 
     func didPrepareObservation(numberOfFetchedComments: Int) {
