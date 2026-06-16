@@ -33,9 +33,9 @@ final class ProseBlockView: UITextView {
     // MARK: Link hit-testing (for the comment collapse-tap deferral)
 
     /// Whether `point` (in this view's own coordinate space) lands on a tappable
-    /// link range. Mirrors `BodyTextView.hasLink(at:)`: enumerates `.link`
-    /// attributes and tests their selection rects against `point`. Plain text
-    /// (no `.link` attribute under the point) returns `false`.
+    /// link range: enumerates `.link` attributes and tests their selection rects
+    /// against `point`. Plain text (no `.link` attribute under the point) returns
+    /// `false`.
     func hasLink(at point: CGPoint) -> Bool {
         guard let attributed = attributedText, attributed.length > 0 else { return false }
 

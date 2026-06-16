@@ -73,10 +73,11 @@ final class MarkdownRenderer: @unchecked Sendable {
         return rendered
     }
 
-    /// Cache key for a post or comment body rendered with the shared
-    /// `PostDetailAppearance` body styler. Comment cells and the post-detail
-    /// header use the same styling, so they share the namespace and a body that
-    /// appears in both is parsed once. Bump the version when the styler changes.
+    /// Cache key for a post-body preview rendered into a plain `UILabel` (the
+    /// feed-card path in `PostPreviewViewController`) with the shared
+    /// `PostDetailAppearance` body styler. The post-detail and comment bodies
+    /// render through `SpudMarkdownKit`/`MarkdownBodyView` instead. Bump the
+    /// version when the styler changes.
     static func postBodyKey(markdown: String, textSizeAdjustment: CGFloat) -> String {
         "postBody.v1.\(textSizeAdjustment)\u{1}\(markdown)"
     }
