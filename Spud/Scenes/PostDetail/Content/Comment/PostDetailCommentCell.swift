@@ -448,7 +448,6 @@ class PostDetailCommentCell: UITableViewCell {
         )
         // Resting state by default; the host re-applies the fresh wash in
         // willDisplay (so the one-time fade can run as the row appears).
-        tintBackingView.layer.removeAnimation(forKey: "freshFade")
         tintBackingView.backgroundColor = restingTintColor
         mainHorizontalStackView.alpha = viewModel.isDeemphasized ? 0.66 : 1
 
@@ -511,7 +510,10 @@ class PostDetailCommentCell: UITableViewCell {
         animation.values = [fresh, fresh, resting]
         animation.keyTimes = [0, 0.38, 1.0]
         animation.duration = 4.2
-        animation.timingFunction = CAMediaTimingFunction(name: .easeOut)
+        animation.timingFunctions = [
+            CAMediaTimingFunction(name: .linear), // hold: fresh -> fresh
+            CAMediaTimingFunction(name: .easeOut), // fade: fresh -> resting
+        ]
         tintBackingView.layer.add(animation, forKey: "freshFade")
     }
 
