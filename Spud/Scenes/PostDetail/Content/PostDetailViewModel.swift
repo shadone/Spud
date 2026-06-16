@@ -135,6 +135,14 @@ final class PostDetailViewModel {
         newCommentState.firstNewElementId
     }
 
+    /// Element ids of the new comments in display order (the order they appear
+    /// in the current tree). Powers the "Next new" jump. Empty on a first visit.
+    var orderedNewCommentElementIds: [Int64] {
+        let newIds = newCommentState.newElementIds
+        guard !newIds.isEmpty else { return [] }
+        return orderedComments.map(\.id).filter { newIds.contains($0) }
+    }
+
     /// The visible comment rows + per-parent hidden-descendant counts, given
     /// the current collapsed set. Pure; cheap to recompute on every snapshot.
     func visibleCommentTree() -> CommentCollapseState.VisibleTree {

@@ -82,4 +82,23 @@ final class PostDetailViewModelNewCommentTests: XCTestCase {
         vm.updateOrderedComments([makeRow(id: 5, publishedOffset: 300, creatorPersonId: 99)])
         XCTAssertEqual(vm.newCommentCount, 0)
     }
+
+    func testOrderedNewCommentElementIdsAreInDisplayOrderAndOnlyNew() {
+        let vm = makeViewModel()
+        vm.previousVisitAt = Date(timeIntervalSince1970: 1_000_000 + 100)
+        vm.currentAccountPersonId = nil
+        vm.updateOrderedComments([
+            makeRow(id: 10, publishedOffset: 50), // before visit -> not new
+            makeRow(id: 11, publishedOffset: 200), // new
+            makeRow(id: 12, publishedOffset: 300), // new
+        ])
+        XCTAssertEqual(vm.orderedNewCommentElementIds, [11, 12])
+    }
+
+    func testOrderedNewCommentElementIdsEmptyOnFirstVisit() {
+        let vm = makeViewModel()
+        vm.previousVisitAt = nil
+        vm.updateOrderedComments([makeRow(id: 1, publishedOffset: 500)])
+        XCTAssertEqual(vm.orderedNewCommentElementIds, [])
+    }
 }
