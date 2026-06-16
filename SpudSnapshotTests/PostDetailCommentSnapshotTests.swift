@@ -114,6 +114,14 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         ))
     }
 
+    func test_new() {
+        // isNew: true renders the teal gutter dot at the leading edge of the header.
+        assertComment(viewModel: makeViewModel(
+            row: row(),
+            isNew: true
+        ))
+    }
+
     // MARK: - Comment cell rendering
 
     private func assertComment(
@@ -171,7 +179,8 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         row: PostDetailCommentRow,
         postCreatorPersonId: Int64? = nil,
         isCollapsed: Bool = false,
-        collapsedDescendantCount: Int? = nil
+        collapsedDescendantCount: Int? = nil,
+        isNew: Bool = false
     ) -> PostDetailCommentViewModel {
         let appearance = AppearanceService(preferencesService: PreferencesService())
         return PostDetailCommentViewModel(
@@ -179,7 +188,8 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
             appearance: appearance,
             postCreatorPersonId: postCreatorPersonId,
             isCollapsed: isCollapsed,
-            collapsedDescendantCount: collapsedDescendantCount
+            collapsedDescendantCount: collapsedDescendantCount,
+            isNew: isNew
         )
     }
 

@@ -45,6 +45,23 @@ class PostDetailCommentCell: UITableViewCell {
         return view
     }()
 
+    /// A small persistent dot at the leading edge of the header line marking a
+    /// comment as new since the user's last visit. Decorative (VoiceOver gets a
+    /// spoken hint instead).
+    lazy var newDotView: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.backgroundColor = .clear
+        view.isUserInteractionEnabled = false
+        view.isAccessibilityElement = false
+        NSLayoutConstraint.activate([
+            view.widthAnchor.constraint(equalToConstant: 7),
+            view.heightAnchor.constraint(equalToConstant: 7),
+        ])
+        view.layer.cornerRadius = 3.5
+        return view
+    }()
+
     lazy var mainHorizontalStackView: UIStackView = {
         let stackView = UIStackView()
         stackView.translatesAutoresizingMaskIntoConstraints = false
@@ -87,6 +104,7 @@ class PostDetailCommentCell: UITableViewCell {
         stackView.alignment = .center
 
         let subviews = [
+            newDotView,
             authorLabel,
             badgesStackView,
             subtitleLabel,
@@ -97,6 +115,7 @@ class PostDetailCommentCell: UITableViewCell {
             stackView.addArrangedSubview(view)
         }
 
+        stackView.setCustomSpacing(6, after: newDotView)
         stackView.setCustomSpacing(6, after: authorLabel)
         stackView.setCustomSpacing(6, after: badgesStackView)
 
@@ -296,6 +315,8 @@ class PostDetailCommentCell: UITableViewCell {
         swipeActionTriggered = nil
         mainHorizontalStackView.alpha = 1
         tintBackingView.backgroundColor = .clear
+        newDotView.isHidden = true
+        newDotView.backgroundColor = .clear
         // Drop the body now so any in-flight inline-image loads are cancelled
         // before the cell is reused for another comment.
         messageLabel.attributedText = nil
@@ -408,6 +429,9 @@ class PostDetailCommentCell: UITableViewCell {
             tintBackingView.backgroundColor = .clear
         }
         mainHorizontalStackView.alpha = viewModel.isDeemphasized ? 0.66 : 1
+
+        newDotView.isHidden = !viewModel.isNew
+        newDotView.backgroundColor = viewModel.isNew ? accent : .clear
 
         // A "load more" placeholder is not itself collapsible.
         collapseTapGestureRecognizer.isEnabled = !viewModel.isMore

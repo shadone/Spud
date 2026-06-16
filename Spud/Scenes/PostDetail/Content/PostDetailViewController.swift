@@ -1396,7 +1396,8 @@ extension PostDetailViewController {
                     postCreatorPersonId: self?.headerRow?.creatorPersonId,
                     isCollapsed: isCollapsed,
                     collapsedDescendantCount: collapsedCount,
-                    isBlockedRevealed: isBlockedRevealed
+                    isBlockedRevealed: isBlockedRevealed,
+                    isNew: self?.viewModel.isNewComment(elementId: elementId) ?? false
                 )
                 cell.configure(with: viewModel, imageService: imageService)
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
