@@ -50,6 +50,7 @@ final class EdgeCaseParsingTests: XCTestCase {
             }
         }
         XCTAssertFalse(blocks.contains { hasEmphasisOrStrong($0) }, "raw HTML block must not produce emphasis/strong: \(blocks)")
+        XCTAssertTrue(blocks.isEmpty, "a block-level HTML element must be dropped entirely: \(blocks)")
     }
 
     // MARK: Case 2 — Orphaned footnote reference (ref, no definition)
