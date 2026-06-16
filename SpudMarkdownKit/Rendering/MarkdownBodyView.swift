@@ -20,6 +20,11 @@ public final class MarkdownBodyView: UIView {
         didSet { renderer.imageLoader = imageLoader }
     }
 
+    /// Called after `invalidateIntrinsicContentSize()` when an inline image load
+    /// changes the body height, giving the enclosing table cell a hook to trigger
+    /// `beginUpdates/endUpdates` and re-measure the row.
+    public var onContentSizeChange: (() -> Void)?
+
     public init(context: MarkdownContext) {
         renderer = MarkdownBlockRenderer(context: context)
         super.init(frame: .zero)
@@ -37,6 +42,7 @@ public final class MarkdownBodyView: UIView {
         renderer.onContentSizeChange = { [weak self] in
             self?.setNeedsLayout()
             self?.invalidateIntrinsicContentSize()
+            self?.onContentSizeChange?()
         }
         renderer.onTapImage = { [weak self] url, alt, rect in
             self?.delegate?.markdownBody(didTapImage: url, altText: alt, sourceRect: rect)

@@ -1463,6 +1463,23 @@ extension PostDetailViewController {
                 cell.saveTapped = { [weak self] in
                     self?.toggleSavedOnPost()
                 }
+                cell.onBodyLinkTapped = { [weak self] url in
+                    self?.linkTapped(MarkdownInternalLink.resolve(url) ?? url)
+                }
+                cell.onBodyImageTapped = { [weak self] url, altText, _ in
+                    self?.presentMediaViewer(
+                        imageUrl: url,
+                        thumbnailUrl: nil,
+                        preloadedImage: nil,
+                        altText: altText
+                    )
+                }
+                cell.onBodyVideoTapped = { [weak self] url in
+                    self?.presentVideoPlayer(url: url)
+                }
+                cell.onBodyAudioTapped = { [weak self] url in
+                    self?.presentVideoPlayer(url: url)
+                }
                 cell.isBeingConfigured = false
                 return cell
 

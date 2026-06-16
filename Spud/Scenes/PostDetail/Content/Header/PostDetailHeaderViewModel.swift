@@ -9,6 +9,7 @@ import Foundation
 import LemmyKit
 import OSLog
 import SpudDataKit
+import SpudMarkdownKit
 import SpudUtilKit
 import UIKit
 
@@ -31,6 +32,11 @@ struct PostDetailHeaderViewModel {
 
     let title: NSAttributedString
     let body: NSAttributedString
+    let bodyBlocks: [MarkdownBlock]
+    /// The text-size preference baked into `body` and used to size `bodyBlocks`.
+    /// Exposed so the cell can rebuild `MarkdownBodyView` with a matching context
+    /// when the preference changes between configure calls.
+    let textSizeAdjustment: CGFloat
     let attribution: NSAttributedString
     let subtitleScore: NSAttributedString
     let subtitleComments: NSAttributedString
@@ -52,6 +58,7 @@ struct PostDetailHeaderViewModel {
         postContentDetector: PostContentDetectorServiceType
     ) {
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
+        self.textSizeAdjustment = textSizeAdjustment
 
         let titleAttributes: [NSAttributedString.Key: Any] = [
             .foregroundColor: UIColor.label,
@@ -110,6 +117,7 @@ struct PostDetailHeaderViewModel {
         // header re-renders on every vote/save, so caching avoids re-parsing.
         let bodyMarkdown = row.body ?? ""
         body = MarkdownRenderer.shared.imageBody(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment)
+        bodyBlocks = MarkdownBlockCache.shared.blocks(for: bodyMarkdown)
 
         var creatorAttributes = secondaryHighlightedAttributes
         if

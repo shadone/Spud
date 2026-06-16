@@ -7,6 +7,7 @@
 import OSLog
 import SafariServices
 import SpudDataKit
+import SpudMarkdownKit
 import SpudUIKit
 import SpudUtilKit
 import UIKit
@@ -39,6 +40,18 @@ class PostDetailHeaderCell: UITableViewCellBase {
     var upvoteTapped: (() -> Void)?
     var downvoteTapped: (() -> Void)?
     var saveTapped: (() -> Void)?
+
+    /// Invoked when the user taps a link inside the post body markdown.
+    var onBodyLinkTapped: ((URL) -> Void)?
+
+    /// Invoked when the user taps an inline image in the post body markdown.
+    var onBodyImageTapped: ((_ url: URL, _ altText: String?, _ sourceRect: CGRect) -> Void)?
+
+    /// Invoked when the user taps a video link in the post body markdown.
+    var onBodyVideoTapped: ((URL) -> Void)?
+
+    /// Invoked when the user taps an audio link in the post body markdown.
+    var onBodyAudioTapped: ((URL) -> Void)?
 
     // MARK: UI Properties
 
@@ -128,7 +141,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         let subviews = [
             postImageContainer,
             titleLabel,
-            bodyLabel,
+            bodyView,
             linkPreviewView,
             attributionLabel,
             subtitleHorizontalStackView,
@@ -148,21 +161,10 @@ class PostDetailHeaderCell: UITableViewCellBase {
         return label
     }()
 
-    lazy var bodyLabel: BodyTextView = {
-        let view = BodyTextView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.accessibilityIdentifier = "body"
-        view.tapped = { [weak self] url in
-            self?.linkTapped?(url)
-        }
-        // Re-measure the row when an inline body image finishes loading, the same
-        // way the post image panel does.
-        view.onContentSizeChange = { [weak self] in
-            self?.tableView?.beginUpdates()
-            self?.tableView?.endUpdates()
-        }
-        return view
-    }()
+    /// Rendered post-body markdown view. Recreated when the text-size preference
+    /// changes, since `MarkdownBodyView` bakes the context (fonts, spacing) at
+    /// init time. For a typical session only one instance is ever needed.
+    private(set) lazy var bodyView: MarkdownBodyView = makeBodyView(textScale: 0)
 
     lazy var linkPreviewView: LinkPreviewView = {
         let view = LinkPreviewView()
@@ -356,6 +358,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
     // MARK: Private
 
+    /// Text-scale baked into the current `bodyView`. Compared on each configure;
+    /// when it changes a new `MarkdownBodyView` is built and swapped into the
+    /// stack view so fonts reflect the updated preference.
+    private var bodyViewTextScale: CGFloat = 0
+
     private var postImageContainerHeightConstraint: NSLayoutConstraint!
     private var imageLoadTask: Task<Void, Never>?
 
@@ -383,6 +390,18 @@ class PostDetailHeaderCell: UITableViewCellBase {
     private var postImageSize: CGSize?
 
     // MARK: Functions
+
+    private func makeBodyView(textScale: CGFloat) -> MarkdownBodyView {
+        let context = MarkdownContext(kind: .post, textScale: textScale, density: .comfortable)
+        let view = MarkdownBodyView(context: context)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.accessibilityIdentifier = "body"
+        view.delegate = self
+        view.onContentSizeChange = { [weak self] in
+            self?.adjustHeightForChange()
+        }
+        return view
+    }
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -463,6 +482,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
         videoTapped = nil
         openInBrowser = nil
 
+        onBodyLinkTapped = nil
+        onBodyImageTapped = nil
+        onBodyVideoTapped = nil
+        onBodyAudioTapped = nil
+
         linkPreviewView.isHidden = true
         linkPreviewView.prepareForReuse()
 
@@ -483,8 +507,28 @@ class PostDetailHeaderCell: UITableViewCellBase {
     func configure(with viewModel: PostDetailHeaderViewModel, imageService: ImageServiceType) {
         self.imageService = imageService
         titleLabel.attributedText = viewModel.title
-        bodyLabel.imageService = imageService
-        bodyLabel.attributedText = viewModel.body
+
+        // Rebuild the body view when the text-scale preference changes so fonts
+        // are correct; otherwise reuse the existing instance.
+        let textScale = viewModel.textSizeAdjustment
+        if textScale != bodyViewTextScale {
+            let oldBodyView = bodyView
+            let newBodyView = makeBodyView(textScale: textScale)
+            if let idx = postContentVerticalStackView.arrangedSubviews.firstIndex(of: oldBodyView) {
+                postContentVerticalStackView.insertArrangedSubview(newBodyView, at: idx)
+                oldBodyView.removeFromSuperview()
+            }
+            bodyView = newBodyView
+            bodyViewTextScale = textScale
+        }
+
+        bodyView.imageLoader = { [imageService] url in
+            for await state in imageService.fetch(url) {
+                if case let .ready(image) = state { return image }
+            }
+            return nil
+        }
+        bodyView.setBlocks(viewModel.bodyBlocks)
         attributionLabel.attributedText = viewModel.attribution
         subtitleScoreLabel.attributedText = viewModel.subtitleScore
         subtitleCommentLabel.attributedText = viewModel.subtitleComments
@@ -795,6 +839,24 @@ class PostDetailHeaderCell: UITableViewCellBase {
     @objc
     private func saveButtonTapped() {
         saveTapped?()
+    }
+}
+
+extension PostDetailHeaderCell: MarkdownBodyDelegate {
+    func markdownBody(didTapLink url: URL) {
+        onBodyLinkTapped?(url)
+    }
+
+    func markdownBody(didTapImage url: URL, altText: String?, sourceRect: CGRect) {
+        onBodyImageTapped?(url, altText, sourceRect)
+    }
+
+    func markdownBody(didTapVideo url: URL) {
+        onBodyVideoTapped?(url)
+    }
+
+    func markdownBody(didTapAudio url: URL) {
+        onBodyAudioTapped?(url)
     }
 }
 
