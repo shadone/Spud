@@ -49,6 +49,17 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         ))
     }
 
+    func test_collapsedWithNew() {
+        // A collapsed parent hiding 22 descendants, 5 of them new: "+22" plus an
+        // accent "5 new" pill (the glidergun demo node).
+        assertComment(viewModel: makeViewModel(
+            row: row(),
+            isCollapsed: true,
+            collapsedDescendantCount: 22,
+            collapsedNewDescendantCount: 5
+        ))
+    }
+
     func test_deletedByAuthor() {
         // Author-deleted: the (empty) body becomes a stated placeholder and the
         // score is hidden — the bug that motivated the state system.
@@ -180,6 +191,7 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         postCreatorPersonId: Int64? = nil,
         isCollapsed: Bool = false,
         collapsedDescendantCount: Int? = nil,
+        collapsedNewDescendantCount: Int? = nil,
         isNew: Bool = false
     ) -> PostDetailCommentViewModel {
         let appearance = AppearanceService(preferencesService: PreferencesService())
@@ -189,6 +201,7 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
             postCreatorPersonId: postCreatorPersonId,
             isCollapsed: isCollapsed,
             collapsedDescendantCount: collapsedDescendantCount,
+            collapsedNewDescendantCount: collapsedNewDescendantCount,
             isNew: isNew
         )
     }

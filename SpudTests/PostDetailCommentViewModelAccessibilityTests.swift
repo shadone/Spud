@@ -69,4 +69,32 @@ final class PostDetailCommentViewModelAccessibilityTests: XCTestCase {
             "subtitleAccessibilityLabel should not contain 'New comment' when isNew is false"
         )
     }
+
+    func testCollapsedWithNewDescendantsAddsNewClauseAndExposesCount() {
+        let appearance = AppearanceService(preferencesService: PreferencesService())
+        let vm = PostDetailCommentViewModel(
+            row: makeRow(),
+            appearance: appearance,
+            isCollapsed: true,
+            collapsedDescendantCount: 22,
+            collapsedNewDescendantCount: 5
+        )
+        let label = vm.subtitleAccessibilityLabel ?? ""
+        XCTAssertTrue(label.contains("22 hidden"), "expected hidden count in: \(label)")
+        XCTAssertTrue(label.contains("5 new"), "expected new count in: \(label)")
+        XCTAssertEqual(vm.collapsedNewDescendantCount, 5)
+    }
+
+    func testCollapsedWithZeroNewDescendantsHasNoNewCount() {
+        let appearance = AppearanceService(preferencesService: PreferencesService())
+        let vm = PostDetailCommentViewModel(
+            row: makeRow(),
+            appearance: appearance,
+            isCollapsed: true,
+            collapsedDescendantCount: 8,
+            collapsedNewDescendantCount: 0
+        )
+        XCTAssertNil(vm.collapsedNewDescendantCount)
+        XCTAssertFalse((vm.subtitleAccessibilityLabel ?? "").contains(" new"))
+    }
 }

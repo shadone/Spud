@@ -124,6 +124,7 @@ class PostDetailCommentCell: UITableViewCell {
             subtitleLabel,
             spacerView,
             collapsedBadgeLabel,
+            collapsedNewBadgeLabel,
         ]
         for view in subviews {
             stackView.addArrangedSubview(view)
@@ -132,6 +133,7 @@ class PostDetailCommentCell: UITableViewCell {
         stackView.setCustomSpacing(6, after: newDotView)
         stackView.setCustomSpacing(6, after: authorLabel)
         stackView.setCustomSpacing(6, after: badgesStackView)
+        stackView.setCustomSpacing(6, after: collapsedBadgeLabel)
 
         return stackView
     }()
@@ -189,6 +191,20 @@ class PostDetailCommentCell: UITableViewCell {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.backgroundColor = .clear
         label.accessibilityIdentifier = "collapsedBadge"
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
+        return label
+    }()
+
+    /// Accent "N new" pill shown on a collapsed comment that hides replies new
+    /// since the user's last visit, beside the "+N" hidden-count label.
+    lazy var collapsedNewBadgeLabel: BadgeLabel = {
+        let label = BadgeLabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.layer.cornerRadius = 4
+        label.clipsToBounds = true
+        label.accessibilityIdentifier = "collapsedNewBadge"
+        label.isAccessibilityElement = false
         label.setContentHuggingPriority(.required, for: .horizontal)
         label.setContentCompressionResistancePriority(.required, for: .horizontal)
         return label
@@ -374,6 +390,9 @@ class PostDetailCommentCell: UITableViewCell {
         freshTintColor = .clear
         newDotView.isHidden = true
         newDotView.backgroundColor = .clear
+        collapsedNewBadgeLabel.attributedText = nil
+        collapsedNewBadgeLabel.backgroundColor = .clear
+        collapsedNewBadgeLabel.isHidden = true
         // Drop the bodies now so any in-flight inline-image loads are cancelled
         // before the cell is reused for another comment.
         bodyView.setBlocks([])
@@ -511,6 +530,23 @@ class PostDetailCommentCell: UITableViewCell {
 
         collapsedBadgeLabel.attributedText = viewModel.collapsedBadgeText
         collapsedBadgeLabel.isHidden = viewModel.collapsedBadgeText == nil
+
+        if let newCount = viewModel.collapsedNewDescendantCount {
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.monospacedDigitSystemFont(ofSize: 11, weight: .bold),
+                .foregroundColor: UIColor.white,
+            ]
+            collapsedNewBadgeLabel.attributedText = NSAttributedString(
+                string: "\(newCount) new",
+                attributes: attributes
+            )
+            collapsedNewBadgeLabel.backgroundColor = accent
+            collapsedNewBadgeLabel.isHidden = false
+        } else {
+            collapsedNewBadgeLabel.attributedText = nil
+            collapsedNewBadgeLabel.backgroundColor = .clear
+            collapsedNewBadgeLabel.isHidden = true
+        }
 
         depthRailsView.railColors = viewModel.depthRailColors
 

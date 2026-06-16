@@ -142,6 +142,7 @@ class PostDetailViewController: UIViewController {
     /// Per-collapsed-parent hidden-descendant counts from the last visible-tree
     /// computation. Used to render the "+N" badge on collapsed cells.
     private var collapsedDescendantCounts: [Int64: Int] = [:]
+    private var collapsedNewDescendantCounts: [Int64: Int] = [:]
     /// Comment elements whose blocked author the user chose to reveal.
     private var revealedBlockedElementIds: Set<Int64> = []
     private var observationTask: Task<Void, Never>?
@@ -430,6 +431,7 @@ class PostDetailViewController: UIViewController {
         // hidden counts for the "+N" badge.
         let visible = viewModel.visibleCommentTree()
         collapsedDescendantCounts = visible.collapsedDescendantCounts
+        collapsedNewDescendantCounts = visible.collapsedNewDescendantCounts
 
         let items = visible.rows.map { Item.comment(elementId: $0.id) }
         snapshot.appendItems(items, toSection: .comments)
@@ -505,30 +507,77 @@ class PostDetailViewController: UIViewController {
         return nil
     }
 
-    /// The index path of the next new comment whose top is below the current
-    /// content offset (plus the top inset). Iterates the new comments in display
-    /// order (`orderedNewCommentElementIds`), skipping any that are currently
-    /// collapsed away (no index path). Returns nil if none below.
-    private func indexPathOfNextNewComment() -> IndexPath? {
-        let threshold = tableView.contentOffset.y + tableView.adjustedContentInset.top + 1
-        for elementId in viewModel.orderedNewCommentElementIds {
-            guard let indexPath = dataSource.indexPath(for: .comment(elementId: elementId)) else { continue }
-            if tableView.rectForRow(at: indexPath).minY > threshold {
+    /// Scrolls to the comment, first expanding any collapsed ancestors that hide
+    /// it (rebuilding the snapshot non-animated) so the row exists before the
+    /// scroll. Does not haptic — callers do.
+    private func scrollToComment(elementId: Int64) {
+        if dataSource.indexPath(for: .comment(elementId: elementId)) == nil {
+            if viewModel.expandAncestors(toReveal: elementId) {
+                applySnapshot(animated: false)
+            }
+        }
+        guard let indexPath = dataSource.indexPath(for: .comment(elementId: elementId)) else { return }
+        tableView.scrollToRow(at: indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
+    }
+
+    /// Where `elementId` currently sits on screen: its own row if visible, else
+    /// the outermost collapsed ancestor — the one still visible in the table
+    /// (inner collapsed parents are themselves hidden by it and have no index
+    /// path, so the leaf-to-root walk's first resolvable id is that outer one).
+    /// Used to position a possibly-hidden new comment for the "below the fold"
+    /// test. Returns nil only when neither resolves (should not happen for a
+    /// comment in the tree).
+    private func anchorIndexPath(forNewComment elementId: Int64) -> IndexPath? {
+        if let indexPath = dataSource.indexPath(for: .comment(elementId: elementId)) {
+            return indexPath
+        }
+        let ancestors = CommentCollapseState.collapsedAncestors(
+            of: elementId,
+            in: viewModel.orderedComments,
+            collapsedIds: viewModel.collapsedElementIds
+        )
+        for ancestorId in ancestors {
+            if let indexPath = dataSource.indexPath(for: .comment(elementId: ancestorId)) {
                 return indexPath
             }
         }
         return nil
     }
 
-    /// Returns the FAB's current jump target and whether it is a new-comment
-    /// target. Prefers the next new comment when any new comments exist;
-    /// otherwise falls back to the next top-level comment.
-    private func jumpTarget() -> (indexPath: IndexPath, isNew: Bool)? {
-        if viewModel.newCommentCount > 0, let next = indexPathOfNextNewComment() {
-            return (next, true)
+    /// The element id of the next new comment whose anchor row sits below the
+    /// current scroll position, in display order. The anchor lets a collapsed-away
+    /// new comment still count (positioned at its visible collapsed ancestor); the
+    /// jump handler expands it. Returns nil when none below.
+    private func nextNewCommentBelowFold() -> Int64? {
+        let threshold = tableView.contentOffset.y + tableView.adjustedContentInset.top + 1
+        for elementId in viewModel.orderedNewCommentElementIds {
+            guard let anchor = anchorIndexPath(forNewComment: elementId) else { continue }
+            if tableView.rectForRow(at: anchor).minY > threshold {
+                return elementId
+            }
         }
-        if let next = indexPathOfNextTopLevelComment() {
-            return (next, false)
+        return nil
+    }
+
+    /// The FAB's current jump target. A new-comment target is identified by id (it
+    /// may be collapsed away and is expanded on tap); a fallback next-top-level
+    /// target is a concrete index path.
+    private enum JumpTarget {
+        case newComment(elementId: Int64)
+        case topLevel(indexPath: IndexPath)
+
+        var isNew: Bool {
+            if case .newComment = self { return true }
+            return false
+        }
+    }
+
+    private func jumpTarget() -> JumpTarget? {
+        if viewModel.newCommentCount > 0, let elementId = nextNewCommentBelowFold() {
+            return .newComment(elementId: elementId)
+        }
+        if let indexPath = indexPathOfNextTopLevelComment() {
+            return .topLevel(indexPath: indexPath)
         }
         return nil
     }
@@ -537,17 +586,19 @@ class PostDetailViewController: UIViewController {
     private func jumpToNextTopCommentTapped() {
         guard let target = jumpTarget() else { return }
         Haptics.tap()
-        tableView.scrollToRow(at: target.indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
+        switch target {
+        case let .newComment(elementId):
+            scrollToComment(elementId: elementId)
+        case let .topLevel(indexPath):
+            tableView.scrollToRow(at: indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
+        }
     }
 
     /// Scrolls to the first new comment (the banner's "Jump" action).
     private func jumpToFirstNewComment() {
-        guard
-            let elementId = viewModel.firstNewCommentElementId,
-            let indexPath = dataSource.indexPath(for: .comment(elementId: elementId))
-        else { return }
+        guard let elementId = viewModel.firstNewCommentElementId else { return }
         Haptics.tap()
-        tableView.scrollToRow(at: indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
+        scrollToComment(elementId: elementId)
     }
 
     /// Shows the jump button when there is a next top-level or next new comment
@@ -1511,6 +1562,7 @@ extension PostDetailViewController {
 
                 let isCollapsed = self?.viewModel.isCollapsed(elementId: elementId) ?? false
                 let collapsedCount = self?.collapsedDescendantCounts[elementId]
+                let collapsedNewCount = self?.collapsedNewDescendantCounts[elementId]
                 let isBlockedRevealed = self?.revealedBlockedElementIds.contains(elementId) ?? false
                 let viewModel = PostDetailCommentViewModel(
                     row: row,
@@ -1518,6 +1570,7 @@ extension PostDetailViewController {
                     postCreatorPersonId: self?.headerRow?.creatorPersonId,
                     isCollapsed: isCollapsed,
                     collapsedDescendantCount: collapsedCount,
+                    collapsedNewDescendantCount: collapsedNewCount,
                     isBlockedRevealed: isBlockedRevealed,
                     isNew: self?.viewModel.isNewComment(elementId: elementId) ?? false
                 )
