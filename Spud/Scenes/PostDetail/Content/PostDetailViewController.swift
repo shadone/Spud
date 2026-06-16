@@ -131,6 +131,10 @@ class PostDetailViewController: UIViewController {
     /// Element ids of new comments whose one-time fresh-wash fade has already
     /// played this visit, so scrolling them back into view doesn't replay it.
     private var animatedNewCommentIds: Set<Int64> = []
+    /// The `isNew` styling currently applied to the jump FAB, so the per-scroll
+    /// `updateJumpButtonVisibility` only rebuilds the button configuration when
+    /// the style actually flips (not on every scroll tick).
+    private var jumpButtonIsNewStyle: Bool?
     /// The backing account's moderation capability, refreshed from the server
     /// on appearance. Drives whether mod actions show in the context menus.
     /// `.none` until the first fetch (and for signed-out accounts).
@@ -587,6 +591,8 @@ class PostDetailViewController: UIViewController {
     /// Styles the jump FAB: accent "Next new" label when there are new comments
     /// to jump to, else the default next-top-level chevron.
     private func applyJumpButtonStyle(isNew: Bool) {
+        guard isNew != jumpButtonIsNewStyle else { return }
+        jumpButtonIsNewStyle = isNew
         let accent = tableView.tintColor ?? .systemTeal
         if isNew {
             var config = UIButton.Configuration.filled()
