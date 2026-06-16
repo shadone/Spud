@@ -75,6 +75,11 @@ struct PostDetailCommentViewModel {
     /// `nil` when the comment is expanded (no badge shown).
     let collapsedBadgeText: NSAttributedString?
 
+    /// Count of *new* descendants hidden under this collapsed comment, for the
+    /// accent "N new" pill. nil when none (the cell renders no pill). The cell
+    /// builds the pill so the accent resolves from its `tintColor`.
+    let collapsedNewDescendantCount: Int?
+
     /// Spoken form of the metadata line (score, age, depth, saved/moderation
     /// and collapsed state), since the visible subtitle renders SF Symbols
     /// inline. The author (a link) and body are read as their own elements.
@@ -90,6 +95,7 @@ struct PostDetailCommentViewModel {
         postCreatorPersonId: Int64? = nil,
         isCollapsed: Bool = false,
         collapsedDescendantCount: Int? = nil,
+        collapsedNewDescendantCount: Int? = nil,
         isBlockedRevealed: Bool = false,
         isNew: Bool = false
     ) {
@@ -332,6 +338,11 @@ struct PostDetailCommentViewModel {
         } else {
             collapsedBadgeText = nil
         }
+        if let newCount = collapsedNewDescendantCount, newCount > 0 {
+            self.collapsedNewDescendantCount = newCount
+        } else {
+            self.collapsedNewDescendantCount = nil
+        }
 
         // MARK: Accessibility
 
@@ -388,6 +399,15 @@ struct PostDetailCommentViewModel {
                     ))
                 } else {
                     pieces.append(NSLocalizedString("collapsed", comment: "VoiceOver: collapsed comment"))
+                }
+                if let newCount = collapsedNewDescendantCount, newCount > 0 {
+                    pieces.append(String(
+                        format: NSLocalizedString(
+                            "%lld new",
+                            comment: "VoiceOver: count of new replies hidden under a collapsed comment"
+                        ),
+                        newCount
+                    ))
                 }
             }
             if row.isSaved == true {
