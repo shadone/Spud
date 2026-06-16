@@ -1477,6 +1477,7 @@ extension PostDetailViewController {
                 cell.onBodyVideoTapped = { [weak self] url in
                     self?.presentVideoPlayer(url: url)
                 }
+                // Audio reuses the video player, which handles audio-only URLs.
                 cell.onBodyAudioTapped = { [weak self] url in
                     self?.presentVideoPlayer(url: url)
                 }

@@ -487,6 +487,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
         onBodyVideoTapped = nil
         onBodyAudioTapped = nil
 
+        bodyView.setBlocks([])
+        bodyViewTextScale = 0
+
         linkPreviewView.isHidden = true
         linkPreviewView.prepareForReuse()
 
