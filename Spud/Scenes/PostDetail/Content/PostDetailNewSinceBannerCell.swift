@@ -72,9 +72,11 @@ final class PostDetailNewSinceBannerCell: UITableViewCell {
     /// `relativeText` is e.g. "2 hours ago" (may be nil).
     func configure(count: Int, relativeText: String?, accent: UIColor) {
         dotView.backgroundColor = accent
-        contentView.backgroundColor = accent.withAlphaComponent(
-            traitCollection.userInterfaceStyle == .dark ? 0.16 : 0.11
-        )
+        contentView.backgroundColor = UIColor { _ in
+            accent.withAlphaComponent(
+                UITraitCollection.current.userInterfaceStyle == .dark ? 0.16 : 0.11
+            )
+        }
         jumpButton.tintColor = accent
 
         let countText = String(
@@ -104,6 +106,12 @@ final class PostDetailNewSinceBannerCell: UITableViewCell {
         accessibilityLabel = countText + suffix
         accessibilityTraits = .button
         accessibilityHint = NSLocalizedString("Scrolls to the first new comment", comment: "VoiceOver hint for the new-comments banner")
+    }
+
+    override func accessibilityActivate() -> Bool {
+        guard jumpTapped != nil else { return false }
+        jumpTapped?()
+        return true
     }
 
     @objc
