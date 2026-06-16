@@ -144,8 +144,24 @@ class CommunityViewController: UIViewController {
         headerView.subscribeTapped = { [weak self] in
             self?.toggleSubscribed()
         }
-        headerView.linkTapped = { [weak self] url in
-            self?.linkTapped(url)
+        headerView.onBodyLinkTapped = { [weak self] url in
+            self?.linkTapped(MarkdownInternalLink.resolve(url) ?? url)
+        }
+        headerView.onBodyImageTapped = { [weak self] url, altText, _ in
+            guard let self else { return }
+            presentMediaViewer(
+                imageUrl: url,
+                thumbnailUrl: nil,
+                preloadedImage: nil,
+                altText: altText,
+                dependencies: dependencies.own
+            )
+        }
+        headerView.onBodyVideoTapped = { [weak self] url in
+            self?.presentVideoPlayer(url: url)
+        }
+        headerView.onBodyAudioTapped = { [weak self] url in
+            self?.presentVideoPlayer(url: url)
         }
         // The header is the feed table's scrolling header, which doesn't re-measure
         // itself; when an inline description image loads and grows the header, ask

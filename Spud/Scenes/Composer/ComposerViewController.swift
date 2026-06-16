@@ -18,9 +18,11 @@ private let logger = Logger.app
 final class ComposerViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
-        HasAlertService
+        HasAlertService &
+        HasImageService
     typealias Dependencies = OwnDependencies
 
+    private let dependencies: OwnDependencies
     private let viewModel: ComposerViewModel
 
     private var observationTasks: [Task<Void, Never>] = []
@@ -37,6 +39,7 @@ final class ComposerViewController: UIViewController {
         editor.onPreviewLinkTapped = { [weak self] url in
             self?.openPreviewLink(url)
         }
+        editor.imageService = dependencies.imageService
         return editor
     }()
 
@@ -72,6 +75,7 @@ final class ComposerViewController: UIViewController {
         accountKeychainId: String,
         dependencies: Dependencies
     ) {
+        self.dependencies = dependencies
         viewModel = ComposerViewModel(
             target: target,
             accountKeychainId: accountKeychainId,

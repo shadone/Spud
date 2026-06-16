@@ -73,38 +73,12 @@ final class MarkdownRenderer: @unchecked Sendable {
         return rendered
     }
 
-    /// Cache key for a post or comment body rendered with the shared
-    /// `PostDetailAppearance` body styler. Comment cells and the post-detail
-    /// header use the same styling, so they share the namespace and a body that
-    /// appears in both is parsed once. Bump the version when the styler changes.
+    /// Cache key for a post-body preview rendered into a plain `UILabel` (the
+    /// feed-card path in `PostPreviewViewController`) with the shared
+    /// `PostDetailAppearance` body styler. The post-detail and comment bodies
+    /// render through `SpudMarkdownKit`/`MarkdownBodyView` instead. Bump the
+    /// version when the styler changes.
     static func postBodyKey(markdown: String, textSizeAdjustment: CGFloat) -> String {
         "postBody.v1.\(textSizeAdjustment)\u{1}\(markdown)"
-    }
-
-    /// Cache key for a post or comment body rendered with `BodyImageStyler` (the
-    /// image-capable path used by the post-detail header and comment cells, both
-    /// of which display into a `BodyTextView`). Kept distinct from `postBodyKey`
-    /// because the cache key does not encode the styler: an image body cached for
-    /// a plain `UILabel` surface (e.g. the post preview) must never be served to a
-    /// `BodyTextView`, or vice versa.
-    static func imageBodyKey(markdown: String, textSizeAdjustment: CGFloat) -> String {
-        "imageBody.v1.\(textSizeAdjustment)\u{1}\(markdown)"
-    }
-
-    /// Renders a body that may contain inline images into an attributed string
-    /// for display in a `BodyTextView`, caching under `imageBodyKey` and styling
-    /// with the image-capable `BodyImageStyler`. The single home for the
-    /// (key, styler) pairing, so a caller can never mismatch them (see
-    /// `imageBodyKey`). Used by the post-detail header, comment cells, person
-    /// bios, and community descriptions.
-    @discardableResult
-    func imageBody(markdown: String, textSizeAdjustment: CGFloat) -> NSAttributedString {
-        attributedString(
-            markdown: markdown,
-            key: Self.imageBodyKey(markdown: markdown, textSizeAdjustment: textSizeAdjustment),
-            makeStyler: {
-                BodyImageStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment))
-            }
-        )
     }
 }

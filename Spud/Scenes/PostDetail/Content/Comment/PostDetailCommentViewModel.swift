@@ -239,12 +239,10 @@ struct PostDetailCommentViewModel {
             )
             bodyBlocks = []
         } else {
-            // Rendered (and cached) through `MarkdownRenderer` so a long thread
-            // does not re-parse markdown on every cell dequeue. The comment list
-            // pre-warms this cache off the main thread, so steady state is a
-            // cache hit here.
+            // Normal comments render through `bodyView` (MarkdownBodyView) from
+            // the parsed block tree; the legacy attributed `body` is unused here.
             let bodyMarkdown = row.body ?? ""
-            body = MarkdownRenderer.shared.imageBody(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment)
+            body = NSAttributedString()
             bodyBlocks = MarkdownBlockCache.shared.blocks(for: bodyMarkdown)
         }
 

@@ -93,52 +93,6 @@ final class MarkdownRendererTests: XCTestCase {
         XCTAssertEqual(k1, k3, "identical inputs must produce the same key")
     }
 
-    // MARK: - Image-capable body helper
-
-    /// The first inline `BodyImageAttachment` in the rendered string, if any.
-    private func attachment(in attributed: NSAttributedString) -> BodyImageAttachment? {
-        var found: BodyImageAttachment?
-        attributed.enumerateAttribute(
-            .attachment,
-            in: NSRange(location: 0, length: attributed.length)
-        ) { value, _, stop in
-            if let attachment = value as? BodyImageAttachment {
-                found = attachment
-                stop.pointee = true
-            }
-        }
-        return found
-    }
-
-    func test_imageBody_rendersMarkdownImageAsAttachment() {
-        let renderer = MarkdownRenderer()
-        let result = renderer.imageBody(
-            markdown: "![a chart](https://example.com/chart.png)",
-            textSizeAdjustment: 0
-        )
-        guard let attachment = attachment(in: result) else {
-            return XCTFail("an image body must render the markdown image as a BodyImageAttachment")
-        }
-        XCTAssertEqual(attachment.imageURL.absoluteString, "https://example.com/chart.png")
-    }
-
-    func test_imageBody_plainText_hasNoAttachment() {
-        let renderer = MarkdownRenderer()
-        let result = renderer.imageBody(markdown: "just some words", textSizeAdjustment: 0)
-        XCTAssertNil(attachment(in: result), "plain text must not produce an image attachment")
-        XCTAssertTrue(result.string.contains("just some words"))
-    }
-
-    func test_imageBody_isCachedUnderImageBodyKey() {
-        let renderer = MarkdownRenderer()
-        let markdown = "![](https://example.com/pic.jpg)"
-        let rendered = renderer.imageBody(markdown: markdown, textSizeAdjustment: 0)
-        let cached = renderer.cached(
-            key: MarkdownRenderer.imageBodyKey(markdown: markdown, textSizeAdjustment: 0)
-        )
-        XCTAssertTrue(cached === rendered, "imageBody must cache under imageBodyKey")
-    }
-
     // MARK: - Autolinking bare URLs
 
     /// Helper: the first `.link` value found in the rendered string, normalised

@@ -7,6 +7,7 @@
 import Foundation
 import LemmyKit
 import SpudDataKit
+import SpudMarkdownKit
 import SpudUIKit
 import UIKit
 
@@ -17,8 +18,15 @@ import UIKit
 /// Layout-only; the owning view controller drives it via `configure(...)`,
 /// loads images, and wires the bio-link callback.
 final class PersonHeaderView: UIView {
-    /// Fired when a link inside the markdown bio is tapped.
-    var linkTapped: ((URL) -> Void)?
+    /// Fired when a link inside the markdown bio is tapped (raw renderer URL;
+    /// the host resolves `spud-markdown://` mentions).
+    var onBodyLinkTapped: ((URL) -> Void)?
+    /// Fired when a loaded inline bio image is tapped (zoom).
+    var onBodyImageTapped: ((_ url: URL, _ altText: String?, _ sourceRect: CGRect) -> Void)?
+    /// Fired when an inline bio video tile is tapped.
+    var onBodyVideoTapped: ((URL) -> Void)?
+    /// Fired when an inline bio audio tile is tapped.
+    var onBodyAudioTapped: ((URL) -> Void)?
 
     /// The image loader used for inline bio images. Set by the owning view
     /// controller before `configure(...)`.
@@ -85,12 +93,12 @@ final class PersonHeaderView: UIView {
         return label
     }()
 
-    private lazy var bioLabel: BodyTextView = {
-        let view = BodyTextView()
+    private lazy var bodyView: MarkdownBodyView = {
+        let context = MarkdownContext(kind: .post, textScale: 0, density: .comfortable)
+        let view = MarkdownBodyView(context: context)
         view.translatesAutoresizingMaskIntoConstraints = false
-        view.tapped = { [weak self] url in
-            self?.linkTapped?(url)
-        }
+        view.accessibilityIdentifier = "bio"
+        view.delegate = self
         view.onContentSizeChange = { [weak self] in
             self?.onBodyImageLoaded?()
         }
@@ -129,7 +137,7 @@ final class PersonHeaderView: UIView {
         addSubview(titleLabel)
         addSubview(handleLabel)
         addSubview(statsLabel)
-        addSubview(bioLabel)
+        addSubview(bodyView)
         addSubview(separator)
 
         let margin: CGFloat = 16
@@ -157,11 +165,11 @@ final class PersonHeaderView: UIView {
             statsLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
             statsLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
 
-            bioLabel.topAnchor.constraint(equalTo: statsLabel.bottomAnchor, constant: 12),
-            bioLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
-            bioLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
+            bodyView.topAnchor.constraint(equalTo: statsLabel.bottomAnchor, constant: 12),
+            bodyView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
+            bodyView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
 
-            separator.topAnchor.constraint(equalTo: bioLabel.bottomAnchor, constant: 12),
+            separator.topAnchor.constraint(equalTo: bodyView.bottomAnchor, constant: 12),
             separator.leadingAnchor.constraint(equalTo: leadingAnchor),
             separator.trailingAnchor.constraint(equalTo: trailingAnchor),
             separator.heightAnchor.constraint(equalToConstant: 1 / UIScreen.main.scale),
@@ -185,14 +193,22 @@ final class PersonHeaderView: UIView {
 
     private func configureBio(markdown: String?) {
         guard let markdown, !markdown.isEmpty else {
-            bioLabel.attributedText = NSAttributedString(string: "")
-            bioLabel.isHidden = true
+            bodyView.setBlocks([])
+            bodyView.isHidden = true
             return
         }
-        bioLabel.isHidden = false
-        // Set the loader before the body so inline images start loading on assign.
-        bioLabel.imageService = imageService
-        bioLabel.attributedText = MarkdownRenderer.shared.imageBody(markdown: markdown, textSizeAdjustment: 0)
+        bodyView.isHidden = false
+        // Set the loader before the blocks so inline images start loading as the
+        // image blocks are built.
+        if let imageService {
+            bodyView.imageLoader = { [imageService] url in
+                for await state in imageService.fetch(url) {
+                    if case let .ready(image) = state { return image }
+                }
+                return nil
+            }
+        }
+        bodyView.setBlocks(MarkdownBlockCache.shared.blocks(for: markdown))
     }
 
     // MARK: Images
@@ -204,5 +220,23 @@ final class PersonHeaderView: UIView {
     func setAvatarImage(_ image: UIImage?) {
         guard let image else { return }
         avatarImageView.image = image
+    }
+}
+
+extension PersonHeaderView: MarkdownBodyDelegate {
+    func markdownBody(didTapLink url: URL) {
+        onBodyLinkTapped?(url)
+    }
+
+    func markdownBody(didTapImage url: URL, altText: String?, sourceRect: CGRect) {
+        onBodyImageTapped?(url, altText, sourceRect)
+    }
+
+    func markdownBody(didTapVideo url: URL) {
+        onBodyVideoTapped?(url)
+    }
+
+    func markdownBody(didTapAudio url: URL) {
+        onBodyAudioTapped?(url)
     }
 }
