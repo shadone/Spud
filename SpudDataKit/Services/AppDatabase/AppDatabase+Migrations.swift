@@ -499,6 +499,21 @@ extension AppDatabase {
             )
         }
 
+        migrator.registerMigration("v15_postInteractionFts") { db in
+            // Full-text index over the interaction snapshot, for History search.
+            // `synchronize(withTable:)` creates the INSERT/UPDATE/DELETE triggers
+            // that keep the FTS index in lockstep with `postInteraction` and
+            // backfills any existing rows. External-content FTS5 (content rows
+            // live in `postInteraction`; the index stores only the tokens).
+            try db.create(virtualTable: "postInteractionFts", using: FTS5()) { t in
+                t.synchronize(withTable: "postInteraction")
+                t.tokenizer = .unicode61()
+                t.column("titleSnapshot")
+                t.column("communityName")
+                t.column("author")
+            }
+        }
+
         return migrator
     }
 }
