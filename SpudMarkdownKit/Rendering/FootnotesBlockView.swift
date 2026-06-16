@@ -9,7 +9,7 @@ import UIKit
 /// The footnotes section at the end of a body: a divider, a small uppercase
 /// "Footnotes" header, and the numbered notes (each with a return affordance).
 final class FootnotesBlockView: UIView {
-    init(footnotes: [MarkdownFootnote], context: MarkdownContext) {
+    init(footnotes: [MarkdownFootnote], context: MarkdownContext, renderer: MarkdownBlockRenderer) {
         super.init(frame: .zero)
         let stack = UIStackView()
         stack.axis = .vertical
@@ -35,7 +35,6 @@ final class FootnotesBlockView: UIView {
         stack.addArrangedSubview(header)
 
         for note in footnotes {
-            let label = ProseBlockView()
             let m = NSMutableAttributedString(string: "\(note.label). ", attributes: [
                 .font: context.smallFont.withTraits(.traitBold), .foregroundColor: context.secondaryColor,
             ])
@@ -43,8 +42,7 @@ final class FootnotesBlockView: UIView {
             m.append(NSAttributedString(string: " \u{21A9}", attributes: [
                 .font: context.smallFont, .foregroundColor: context.accentColor,
             ]))
-            label.attributedText = m
-            stack.addArrangedSubview(label)
+            stack.addArrangedSubview(renderer.prose(m))
         }
     }
 

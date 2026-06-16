@@ -53,7 +53,7 @@ final class MarkdownBlockRenderer {
         case .audio: return PlaceholderBlockView(label: "audio")
         case .video: return PlaceholderBlockView(label: "video")
         case let .footnotes(footnotes):
-            return FootnotesBlockView(footnotes: footnotes, context: context)
+            return FootnotesBlockView(footnotes: footnotes, context: context, renderer: self)
         }
     }
 
