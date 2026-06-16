@@ -32,4 +32,9 @@ final class MarkdownBlockRendererTests: XCTestCase {
         let views = renderer().views(for: [.paragraph([.text("a")]), .thematicBreak])
         XCTAssertEqual(views.count, 2)
     }
+
+    func test_imageRendersImageBlockView() throws {
+        let image = try MarkdownImage(url: XCTUnwrap(URL(string: "https://example.com/a.jpg")), altText: "alt")
+        XCTAssertTrue(renderer().view(for: .image(image)) is ImageBlockView)
+    }
 }

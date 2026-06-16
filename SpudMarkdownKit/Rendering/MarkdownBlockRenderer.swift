@@ -53,7 +53,14 @@ final class MarkdownBlockRenderer {
             return TableBlockView(table: table, context: context)
         case let .spoiler(title, children):
             return SpoilerBlockView(title: title, children: children, context: context, renderer: self)
-        case .image: return PlaceholderBlockView(label: "image")
+        case let .image(image):
+            return ImageBlockView(
+                image: image,
+                context: context,
+                onTapImage: onTapImage,
+                onOpenInBrowser: onTapLink,
+                loader: imageLoader
+            )
         case .audio: return PlaceholderBlockView(label: "audio")
         case .video: return PlaceholderBlockView(label: "video")
         case let .footnotes(footnotes):
