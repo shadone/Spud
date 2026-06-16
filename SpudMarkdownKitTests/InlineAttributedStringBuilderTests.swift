@@ -60,4 +60,13 @@ final class InlineAttributedStringBuilderTests: XCTestCase {
         XCTAssertNotNil(offset)
         XCTAssertGreaterThan(offset ?? 0, 0)
     }
+
+    func test_mentionWithUnsafeCharactersDoesNotCrash() {
+        // A name with a space would crash a force-unwrapped URL(string:) — it must
+        // not, and the link must still be a valid spud-markdown URL.
+        let s = build([.mention(name: "alice smith", instance: "lemmy.world")])
+        let url = s.attribute(.link, at: s.length - 1, effectiveRange: nil) as? URL
+        XCTAssertEqual(url?.scheme, "spud-markdown")
+        XCTAssertEqual(url?.host, "mention")
+    }
 }

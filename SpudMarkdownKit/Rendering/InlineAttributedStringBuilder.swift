@@ -22,11 +22,25 @@ enum InlineAttributedStringBuilder {
 
     /// Internal destination URLs for mentions/communities (host decodes).
     static func mentionURL(name: String, instance: String) -> URL {
-        URL(string: "spud-markdown://mention?name=\(name)&instance=\(instance)")!
+        internalURL(host: "mention", name: name, instance: instance)
     }
 
     static func communityURL(name: String, instance: String) -> URL {
-        URL(string: "spud-markdown://community?name=\(name)&instance=\(instance)")!
+        internalURL(host: "community", name: name, instance: instance)
+    }
+
+    /// Builds a `spud-markdown://<host>?name=…&instance=…` URL, percent-encoding
+    /// the query values. The scheme/host are literals, so `components.url` is
+    /// non-nil; the fallback keeps this total without a force-unwrap on input.
+    private static func internalURL(host: String, name: String, instance: String) -> URL {
+        var components = URLComponents()
+        components.scheme = "spud-markdown"
+        components.host = host
+        components.queryItems = [
+            URLQueryItem(name: "name", value: name),
+            URLQueryItem(name: "instance", value: instance),
+        ]
+        return components.url ?? URL(string: "spud-markdown://\(host)")!
     }
 
     private static func render(
@@ -124,7 +138,7 @@ enum InlineAttributedStringBuilder {
             return NSAttributedString(string: "[\(label)]", attributes: [
                 .font: small,
                 .foregroundColor: context.accentColor,
-                .baselineOffset: baseFont.pointSize * 0.3,
+                .baselineOffset: small.pointSize * 0.3,
             ])
         }
     }
