@@ -47,9 +47,14 @@ final class SpoilerBlockView: UIView {
             titleLabel.font = .italicSystemFont(ofSize: context.bodyFont.pointSize)
             titleLabel.textColor = context.secondaryColor
         } else {
-            titleLabel.attributedText = InlineAttributedStringBuilder.build(title, context: context)
-            titleLabel.font = context.bodyFont.withTraits(.traitBold)
-            titleLabel.textColor = context.labelColor
+            let attributed = NSMutableAttributedString(
+                attributedString: InlineAttributedStringBuilder.build(title, context: context)
+            )
+            attributed.addAttributes(
+                [.font: context.bodyFont.withTraits(.traitBold), .foregroundColor: context.labelColor],
+                range: NSRange(location: 0, length: attributed.length)
+            )
+            titleLabel.attributedText = attributed
         }
         header.addArrangedSubview(chevron)
         header.addArrangedSubview(titleLabel)
