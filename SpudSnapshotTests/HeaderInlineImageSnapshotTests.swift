@@ -30,8 +30,7 @@ private final class StubImageService: ImageServiceType, @unchecked Sendable {
 
 /// Renders a person bio and a community description that each embed an inline
 /// markdown image, verifying both header views route through the image-capable
-/// `BodyTextView` path (rather than the old plain-`Down` `LinkLabel`, which
-/// dropped images).
+/// `MarkdownBodyView` path and surface the image as a media tile.
 @MainActor
 final class HeaderInlineImageSnapshotTests: XCTestCase {
     private let width: CGFloat = 390
