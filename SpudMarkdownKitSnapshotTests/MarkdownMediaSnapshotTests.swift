@@ -20,6 +20,7 @@ final class MarkdownMediaSnapshotTests: XCTestCase {
         let audio = AudioBlockView(url: audioURL, context: context, onTap: nil)
         let video = VideoBlockView(url: videoURL, context: context, onTap: nil)
 
+        // loader: nil — state is injected synchronously below via apply(state:) for deterministic snapshots
         let loaded = ImageBlockView(
             image: MarkdownImage(url: imageURL, altText: "A teal placeholder with a caption."),
             context: context, onTapImage: nil, onOpenInBrowser: nil, loader: nil

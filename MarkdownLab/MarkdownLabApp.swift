@@ -113,6 +113,7 @@ struct MarkdownBodyHost: UIViewRepresentable {
 
     func updateUIView(_ uiView: MarkdownBodyView, context: Context) {
         uiView.delegate = context.coordinator
+        // imageLoader persists from makeUIView (set on the view, retained by the renderer); only the source changes here.
         uiView.setBlocks(MarkdownParser.parse(source))
     }
 
