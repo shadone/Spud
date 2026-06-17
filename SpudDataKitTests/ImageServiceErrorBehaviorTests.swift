@@ -20,8 +20,8 @@ final class SpyAlertService: AlertServiceType, @unchecked Sendable {
 }
 
 final class ImageServiceErrorBehaviorTests: XCTestCase {
-    func test_transportFailure_yieldsFailure_andAlerts() async {
-        let url = URL(string: "https://example.com/x.png")!
+    func test_transportFailure_yieldsFailure_andAlerts() async throws {
+        let url = try XCTUnwrap(URL(string: "https://example.com/x.png"))
         let alert = SpyAlertService()
         let pipeline = ImagePipeline { config in
             config.dataLoader = StubDataLoader(result: .failure(URLError(.timedOut)))
