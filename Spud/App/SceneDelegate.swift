@@ -38,6 +38,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             AppCoordinator.shared.open(url, in: window)
         }
 
+        if let activity = connectionOptions.userActivities.first {
+            routeContinuedActivity(activity, in: window)
+        }
+
         window.makeKeyAndVisible()
     }
 
@@ -72,6 +76,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Keep the Spotlight community index current with any subscription
         // changes made while we were away.
         CommunitySpotlightIndexer.reindex(appDatabase: AppCoordinator.shared.dependencies.appDatabase)
+        ContentSpotlightIndexer.reindex(appDatabase: AppCoordinator.shared.dependencies.appDatabase)
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {
@@ -98,6 +103,24 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             return
         }
 
+        AppCoordinator.shared.open(url, in: window)
+    }
+
+    func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+        guard let window else {
+            logger.assertionFailure("Huh, no window?")
+            return
+        }
+        routeContinuedActivity(userActivity, in: window)
+    }
+
+    /// Decodes a continued NSUserActivity (our own Handoff activities or a Spotlight
+    /// item tap) into a routing URL and opens it like any deep link.
+    private func routeContinuedActivity(_ userActivity: NSUserActivity, in window: MainWindow) {
+        guard let url = SpudUserActivity.routingURL(from: userActivity) else {
+            logger.debug("Ignoring continued activity \(userActivity.activityType, privacy: .public)")
+            return
+        }
         AppCoordinator.shared.open(url, in: window)
     }
 }

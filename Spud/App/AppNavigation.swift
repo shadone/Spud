@@ -16,6 +16,7 @@ enum AppNavigation: Equatable {
     case newPost
     case inbox
     case community(name: String, instance: InstanceActorId)
+    case savedFeed(sort: Components.Schemas.SortType?)
 }
 
 /// The navigation surface the router drives. `MainWindow` conforms; tests use a
@@ -27,4 +28,5 @@ protocol AppNavigating: AnyObject {
     func presentNewPost()
     func selectInbox()
     func display(communityName: String, instance: InstanceActorId, accountKeychainId: String)
+    func selectSavedFeed(sort: Components.Schemas.SortType?)
 }

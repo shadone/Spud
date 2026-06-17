@@ -24,6 +24,7 @@ struct OpenCommunityAppIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         AppCoordinator.shared.navigate(.community(name: community.name, instance: community.instance))
+        _ = try? await IntentDonationManager.shared.donate(intent: self)
         return .result()
     }
 }

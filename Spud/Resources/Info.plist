@@ -71,7 +71,9 @@
 	</array>
 	<key>NSUserActivityTypes</key>
 	<array>
-		<string>ViewTopPostsIntent</string>
+		<string>info.ddenis.Spud.viewPost</string>
+		<string>info.ddenis.Spud.viewCommunity</string>
+		<string>info.ddenis.Spud.viewPerson</string>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>

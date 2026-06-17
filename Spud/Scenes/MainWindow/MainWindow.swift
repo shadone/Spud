@@ -190,6 +190,8 @@ class MainWindow: UIWindow {
 
         // Keep the Spotlight community index current for this account.
         CommunitySpotlightIndexer.reindex(appDatabase: appDatabase)
+        // Keep the Spotlight saved + history content index current too.
+        ContentSpotlightIndexer.reindex(appDatabase: appDatabase)
 
         // Tab: Setup the split view controller
         let splitViewController = MainWindowSplitViewController(
@@ -441,6 +443,13 @@ extension MainWindow: AppNavigating {
             listingType: adjustedListing(listing),
             sortType: sort ?? .Hot
         ))
+    }
+
+    func selectSavedFeed(sort: Components.Schemas.SortType?) {
+        tabBarController.selectedIndex = 0
+        let postListVC = splitViewController?.postListNavigationController
+            .viewControllers.first as? PostListViewController
+        postListVC?.showFeed(.saved(sortType: sort ?? .Hot))
     }
 
     func selectSearch(query: String) {
