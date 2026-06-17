@@ -68,6 +68,16 @@ final class InstanceExploreViewModel {
             return
         }
 
+        // Synchronous cache-first reads so the initial layout shows seeded data
+        // without waiting for the async network refresh.
+        let cachedAdmins = appDatabase.siteAdminsSync(forInstanceActorId: instance)
+        adminsState = cachedAdmins.isEmpty
+            ? (record.isSuspicious ? .anonymous : .unavailable)
+            : .admins(cachedAdmins)
+        if let value = appDatabase.siteSidebarSync(forInstanceActorId: instance), !value.isEmpty {
+            sidebar = value
+        }
+
         let accountService = accountService
         let appDatabase = appDatabase
         let isSuspicious = record.isSuspicious

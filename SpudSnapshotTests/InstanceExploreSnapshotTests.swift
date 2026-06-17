@@ -10,23 +10,17 @@ import UIKit
 import XCTest
 @testable import Spud
 
-/// Screen snapshots of the Explorer instance detail (feature #4) across the
-/// design's state matrix — open / application / closed / NSFW / suspicious /
-/// tiny (unknown uptime) / missing (graceful degradation) — in light and dark.
+/// Screen snapshots of the in-app `InstanceExploreViewController` (post-login
+/// instance browse). Covers: populated state (world), suspicious/anonymous admins,
+/// missing/unavailable admins + communities, and a sidebar variant.
 ///
-/// Rendered at a pinned `ViewImageConfig` (iPhone 13 Pro size/scale/safe-area),
-/// so the references are device-independent — they record and verify identically
-/// on any simulator. Records are deterministic: instance icons/banners are left
-/// nil so the placeholder marks render without any async image loading.
-/// Admins and communities are seeded into the in-memory DB before the VC is
-/// constructed so the synchronous cache-first render captures them at snapshot time.
+/// Rendered at a pinned `ViewImageConfig` (iPhone 13 Pro size/scale/safe-area).
+/// Admins, communities and sidebar are seeded into the in-memory DB before the
+/// VC is constructed so the synchronous cache-first render captures them.
 @MainActor
-final class InstanceDetailSnapshotTests: XCTestCase {
-    /// A minimal dependency container. The detail view controller stores
-    /// these services; lightweight real implementations + an in-memory
-    /// account service + an in-memory database suffice for snapshots.
+final class InstanceExploreSnapshotTests: XCTestCase {
     @MainActor
-    struct SnapshotDependencies: HasVoid, HasImageService, HasAccountService, HasAlertService, HasAppDatabase {
+    private struct SnapshotDependencies: HasVoid, HasImageService, HasAccountService, HasAlertService, HasAppDatabase {
         let imageService: ImageServiceType
         let accountService: AccountServiceType
         let alertService: AlertServiceType
@@ -45,16 +39,6 @@ final class InstanceDetailSnapshotTests: XCTestCase {
 
     // MARK: - DB seeding
 
-    /// Seeds instance + site + admins + communities into the in-memory DB for
-    /// the given fixture record, so the synchronous cache-first render in
-    /// `loadSecondaryData()` shows populated data at snapshot time.
-    ///
-    /// - Parameters:
-    ///   - record: The fixture whose `baseurl` / `url` identify the instance.
-    ///   - database: The in-memory `AppDatabase` to seed.
-    ///   - adminCount: Number of admin rows to insert (0 → anonymous/unavailable state).
-    ///   - communityCount: Number of community directory rows to insert (0 → unavailable).
-    ///   - sidebar: Optional sidebar markdown (only seeded for explore tests).
     private func seed(
         _ record: ExplorerInstanceRecord,
         into database: AppDatabase,
@@ -107,13 +91,27 @@ final class InstanceDetailSnapshotTests: XCTestCase {
         _ record: ExplorerInstanceRecord,
         adminCount: Int = 3,
         communityCount: Int = 3,
+        sidebar: String? = nil,
         testName: String = #function,
         line: UInt = #line
     ) throws {
         for style in [UIUserInterfaceStyle.light, .dark] {
             let dependencies = try makeDependencies()
-            try seed(record, into: dependencies.appDatabase, adminCount: adminCount, communityCount: communityCount)
-            let viewController = InstanceDetailViewController(record: record, dependencies: dependencies)
+            try seed(
+                record,
+                into: dependencies.appDatabase,
+                adminCount: adminCount,
+                communityCount: communityCount,
+                sidebar: sidebar
+            )
+            // Use a placeholder keychainId — the explore VC only uses it for
+            // the join-gate check (isSignedOut), which won't fire in a snapshot.
+            let accountKeychainId = "snapshot-signed-out"
+            let viewController = InstanceExploreViewController(
+                record: record,
+                accountKeychainId: accountKeychainId,
+                dependencies: dependencies
+            )
             let navigationController = UINavigationController(rootViewController: viewController)
             assertSnapshot(
                 matching: navigationController,
@@ -127,42 +125,41 @@ final class InstanceDetailSnapshotTests: XCTestCase {
 
     // MARK: - States
 
-    func test_open() throws {
+    func test_world_populated() throws {
         try assertScreens(Fixtures.world)
     }
 
-    func test_application() throws {
-        try assertScreens(Fixtures.beehaw)
+    func test_world_withSidebar() throws {
+        let sidebar = """
+        ## Welcome to Lemmy World
+
+        The largest general-purpose Lemmy server. Join us for news, tech, culture and more.
+
+        **Rules:** Be kind. No spam. Follow Lemmy's [Code of Conduct](https://join-lemmy.org/docs/code_of_conduct.html).
+        """
+        try assertScreens(Fixtures.world, sidebar: sidebar)
     }
 
-    func test_closed() throws {
-        try assertScreens(Fixtures.hexbear)
-    }
-
-    func test_nsfw() throws {
-        try assertScreens(Fixtures.nsfw)
-    }
-
-    func test_suspicious() throws {
-        // Suspicious instance: 0 admins → .anonymous state
+    func test_suspicious_anonymousAdmins() throws {
+        // Suspicious + 0 admins → .anonymous state
         try assertScreens(Fixtures.suspicious, adminCount: 0, communityCount: 2)
     }
 
-    func test_tiny_unknownUptime() throws {
-        try assertScreens(Fixtures.tiny, adminCount: 1, communityCount: 2)
-    }
-
-    func test_missing_gracefulDegradation() throws {
-        // Missing: 0 admins (unavailable) + 0 communities (unavailable)
+    func test_missing_unavailable() throws {
+        // 0 admins → .unavailable, 0 communities → unavailable card
         try assertScreens(Fixtures.missing, adminCount: 0, communityCount: 0)
     }
 
-    // MARK: - Fixtures (mirror the Spud Design instance-detail fixtures)
+    func test_beehaw_populated() throws {
+        try assertScreens(Fixtures.beehaw)
+    }
 
-    enum Fixtures {
+    // MARK: - Fixtures
+
+    private enum Fixtures {
         static let world = ExplorerInstanceRecord(
             baseurl: "lemmy.world", url: "https://lemmy.world", name: "Lemmy World",
-            descriptionText: "The largest general-purpose Lemmy server. Big, fast and well-moderated — a safe all-rounder if you are not sure where to land.",
+            descriptionText: "The largest general-purpose Lemmy server.",
             version: "0.19.5",
             usersTotal: 1_200_000, usersActiveMonth: 58000, usersActiveHalfYear: 184_000,
             numberOfCommunities: 32000, numberOfPosts: 4_800_000,
@@ -175,7 +172,7 @@ final class InstanceDetailSnapshotTests: XCTestCase {
 
         static let beehaw = ExplorerInstanceRecord(
             baseurl: "beehaw.org", url: "https://beehaw.org", name: "Beehaw",
-            descriptionText: "Small, kind and carefully curated. Joining needs a short application — they read every one to keep the garden tidy.",
+            descriptionText: "Small, kind and carefully curated.",
             version: "0.19.3",
             usersTotal: 92000, usersActiveMonth: 4100, usersActiveHalfYear: 15000,
             numberOfCommunities: 180, numberOfPosts: 210_000,
@@ -186,35 +183,9 @@ final class InstanceDetailSnapshotTests: XCTestCase {
             blocksIncoming: 51, blocksOutgoing: 128
         )
 
-        static let hexbear = ExplorerInstanceRecord(
-            baseurl: "hexbear.net", url: "https://hexbear.net", name: "Hexbear",
-            descriptionText: "A large, opinionated community with a strong house style. Registrations are currently closed to new members.",
-            version: "0.19.5",
-            usersTotal: 64000, usersActiveMonth: 6200, usersActiveHalfYear: 19000,
-            numberOfCommunities: 95, numberOfPosts: 900_000,
-            uptimeAllTime: 98.4, latency: 210,
-            regMode: 0, isOpenRegistration: false, isNsfw: false,
-            score: 0.71, isSuspicious: false,
-            langs: "en", tags: "Politics,Culture",
-            blocksIncoming: 240, blocksOutgoing: 60
-        )
-
-        static let nsfw = ExplorerInstanceRecord(
-            baseurl: "lemmynsfw.com", url: "https://lemmynsfw.com", name: "Lemmynsfw",
-            descriptionText: "An adults-only server for NSFW communities. You must be 18+ and have NSFW content enabled to take part.",
-            version: "0.19.5",
-            usersTotal: 140_000, usersActiveMonth: 12000, usersActiveHalfYear: 38000,
-            numberOfCommunities: 420, numberOfPosts: 600_000,
-            uptimeAllTime: 99.2, latency: 160,
-            regMode: 2, isOpenRegistration: true, isNsfw: true,
-            score: 0.80, isSuspicious: false,
-            langs: "en", tags: "NSFW,Adult",
-            blocksIncoming: 30, blocksOutgoing: 12
-        )
-
         static let suspicious = ExplorerInstanceRecord(
             baseurl: "lemy-xyz.top", url: "https://lemy-xyz.top", name: "Lemy XYZ",
-            descriptionText: "Recently registered, anonymous operator. Federates aggressively and is blocked by a large share of the network.",
+            descriptionText: "Recently registered, anonymous operator.",
             version: "0.18.1",
             usersTotal: 54000, usersActiveMonth: 900, usersActiveHalfYear: 2100,
             numberOfCommunities: 2100, numberOfPosts: 88000,
@@ -223,19 +194,6 @@ final class InstanceDetailSnapshotTests: XCTestCase {
             score: 0.22, isSuspicious: true,
             langs: "en", tags: "Unknown",
             blocksIncoming: 412, blocksOutgoing: 9
-        )
-
-        static let tiny = ExplorerInstanceRecord(
-            baseurl: "spud.cafe", url: "https://spud.cafe", name: "Spud Cafe",
-            descriptionText: "A cozy little corner run by one admin.",
-            version: "0.19.4",
-            usersTotal: 312, usersActiveMonth: 47, usersActiveHalfYear: 120,
-            numberOfCommunities: 12, numberOfPosts: 1400,
-            uptimeAllTime: nil, latency: nil,
-            regMode: 2, isOpenRegistration: true, isNsfw: false,
-            score: 0.58, isSuspicious: false,
-            langs: "en", tags: "Hobby",
-            blocksIncoming: 0, blocksOutgoing: 2
         )
 
         static let missing = ExplorerInstanceRecord(

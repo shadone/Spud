@@ -84,8 +84,22 @@ final class InstanceExploreViewController: UIViewController {
             bannerUrl: record.bannerUrl,
             imageService: imageService
         )
-        bindViewModel()
         viewModel.load()
+        // Apply the synchronous cache-first state from the VM before binding
+        // async observation streams — snapshot tests capture this initial layout.
+        applyCachedViewModelState()
+        bindViewModel()
+    }
+
+    // MARK: Cache-first initial render
+
+    private func applyCachedViewModelState() {
+        adminsView.update(viewModel.adminsState)
+        renderCommunities()
+        if let sidebar = viewModel.sidebar, !sidebar.isEmpty {
+            aboutServerView.configure(sidebar: sidebar, imageService: imageService)
+            aboutServerView.isHidden = false
+        }
     }
 
     // MARK: Setup

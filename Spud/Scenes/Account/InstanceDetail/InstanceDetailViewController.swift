@@ -643,6 +643,11 @@ final class InstanceDetailViewController: UIViewController {
         let comms = ExplorerCommunityDirectory.communities(onInstance: record.baseurl, in: allRows, sort: .members)
         renderCommunities(into: communitiesContainer, comms: comms)
 
+        // Synchronous cache-first render so the initial layout shows seeded data
+        // without waiting for the async network refresh.
+        let cachedAdmins = appDatabase.siteAdminsSync(forInstanceActorId: instance)
+        adminsView.update(Self.adminsState(cachedAdmins, isSuspicious: record.isSuspicious))
+
         let keychainId = accountService.accountForSignedOut(forInstance: instance, isServiceAccount: true)
         let service = accountService.lemmyService(forAccountKeychainId: keychainId)
         let appDatabase = appDatabase
