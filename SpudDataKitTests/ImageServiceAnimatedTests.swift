@@ -9,8 +9,8 @@ import XCTest
 @testable import SpudDataKit
 
 final class ImageServiceAnimatedTests: XCTestCase {
-    func test_animatedImageData_returnsOriginalBytes() async {
-        let url = URL(string: "https://example.com/a.gif")!
+    func test_animatedImageData_returnsOriginalBytes() async throws {
+        let url = try XCTUnwrap(URL(string: "https://example.com/a.gif"))
         let bytes = ImageFixture.pngData() // any non-empty bytes; we assert round-trip
         let pipeline = ImagePipeline { config in
             config.dataLoader = StubDataLoader(result: .success((bytes, ImageFixture.httpResponse(url))))

@@ -12,7 +12,9 @@ import XCTest
 /// A Nuke `DataLoading` stub that returns canned bytes (or an error) synchronously.
 final class StubDataLoader: DataLoading, @unchecked Sendable {
     let result: Result<(Data, URLResponse), Error>
-    init(result: Result<(Data, URLResponse), Error>) { self.result = result }
+    init(result: Result<(Data, URLResponse), Error>) {
+        self.result = result
+    }
 
     func loadData(
         with request: URLRequest,
@@ -30,7 +32,7 @@ final class StubDataLoader: DataLoading, @unchecked Sendable {
     }
 }
 
-struct StubCancellable: Nuke.Cancellable { func cancel() {} }
+struct StubCancellable: Nuke.Cancellable { func cancel() { } }
 
 enum ImageFixture {
     /// A 8x8 red PNG, valid for decoding.
@@ -58,8 +60,8 @@ final class ImageServiceDownsampleTests: XCTestCase {
         return ImageService(alertService: AlertService(), pipeline: pipeline)
     }
 
-    func test_downsample_yieldsReadyImage() async {
-        let url = URL(string: "https://example.com/a.png")!
+    func test_downsample_yieldsReadyImage() async throws {
+        let url = try XCTUnwrap(URL(string: "https://example.com/a.png"))
         let loader = StubDataLoader(result: .success((ImageFixture.pngData(), ImageFixture.httpResponse(url))))
         let service = makeService(loader: loader)
 

@@ -66,11 +66,15 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     public func fetchAnimatedImage(_ url: URL) -> AsyncStream<ImageLoadingState> {
         AsyncStream { continuation in
             let task = Task { [weak self] in
-                guard let self else { continuation.finish(); return }
+                guard let self else { continuation.finish()
+                    return
+                }
                 continuation.yield(.loading(thumbnail: nil))
                 do {
                     let (data, _) = try await pipeline.data(for: ImageRequest(url: url))
-                    if Task.isCancelled { continuation.finish(); return }
+                    if Task.isCancelled { continuation.finish()
+                        return
+                    }
                     if let animated = AnimatedImageDecoder.animatedImage(from: data) {
                         recordImageSize(animated.size, for: url)
                         continuation.yield(.ready(animated))
@@ -84,7 +88,8 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
                     }
                 } catch {
                     if Task.isCancelled || error.isImageLoadingCancellation {
-                        continuation.finish(); return
+                        continuation.finish()
+                        return
                     }
                     let mapped = (error as? ImagePipeline.Error).map(ImageService.imageLoadingError(from:)) ?? .network(error)
                     alertService.image(error: mapped, for: url)
@@ -121,16 +126,21 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     private func makeStream(for request: ImageRequest, url: URL) -> AsyncStream<ImageLoadingState> {
         AsyncStream { continuation in
             let task = Task { [weak self] in
-                guard let self else { continuation.finish(); return }
+                guard let self else { continuation.finish()
+                    return
+                }
                 continuation.yield(.loading(thumbnail: nil))
                 do {
                     let image = try await pipeline.image(for: request)
-                    if Task.isCancelled { continuation.finish(); return }
+                    if Task.isCancelled { continuation.finish()
+                        return
+                    }
                     recordImageSize(image.size, for: url)
                     continuation.yield(.ready(image))
                 } catch {
                     if Task.isCancelled || error.isImageLoadingCancellation {
-                        continuation.finish(); return
+                        continuation.finish()
+                        return
                     }
                     let mapped = (error as? ImagePipeline.Error).map(ImageService.imageLoadingError(from:)) ?? .network(error)
                     alertService.image(error: mapped, for: url)
