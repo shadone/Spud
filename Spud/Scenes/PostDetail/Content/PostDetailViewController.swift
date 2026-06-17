@@ -1066,7 +1066,7 @@ class PostDetailViewController: UIViewController {
     /// Whether the backing account can perform save actions. Signed-out
     /// accounts get a "Sign in to save" alert and a warning haptic.
     private func canSaveOrPresentSignInAlert() -> Bool {
-        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to save", comment: "Sign-in gate title when a signed-out user tries to save")
             )
@@ -1125,7 +1125,7 @@ class PostDetailViewController: UIViewController {
     /// Whether the backing account can report content. Signed-out accounts get
     /// a "Sign in to report" alert and a warning haptic.
     private func canReportOrPresentSignInAlert() -> Bool {
-        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to report", comment: "Sign-in gate title when a signed-out user tries to report")
             )
@@ -1472,7 +1472,7 @@ class PostDetailViewController: UIViewController {
     /// signed-out account gets a "sign in to comment" alert instead.
     private func presentComposer(target: ComposerTarget) {
         let keychainId = viewModel.accountKeychainId
-        guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to comment", comment: "Sign-in gate title when a signed-out user tries to comment")
             )
@@ -1602,7 +1602,7 @@ class PostDetailViewController: UIViewController {
 
     /// Blocks the post's author, gating on sign-in and confirming first.
     private func blockAuthor() {
-        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to block", comment: "Sign-in gate title when a signed-out user tries to block")
             )

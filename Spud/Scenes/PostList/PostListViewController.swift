@@ -384,7 +384,7 @@ class PostListViewController: UIViewController {
     @objc
     private func composeTapped() {
         let keychainId = viewModel.accountKeychainId
-        guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to post", comment: "Sign-in gate title when a signed-out user tries to create a post")
             )
@@ -1063,7 +1063,7 @@ class PostListViewController: UIViewController {
     /// sign-in.
     private func replyToPost(serverPostId: Int64) {
         let keychainId = viewModel.accountKeychainId
-        guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to comment", comment: "Sign-in gate title when a signed-out user tries to comment")
             )
@@ -1123,7 +1123,7 @@ class PostListViewController: UIViewController {
     /// Reports the post, gating on sign-in. Mirrors the post-detail report
     /// flow: a required-reason alert, then a confirmation.
     private func reportPost(serverPostId: Int64) {
-        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to report", comment: "Sign-in gate title when a signed-out user tries to report")
             )
@@ -1153,7 +1153,7 @@ class PostListViewController: UIViewController {
     /// server filters blocked authors from later feed fetches, so their posts
     /// drop out on the next refresh.
     private func blockAuthor(serverPostId: Int64) {
-        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to block", comment: "Sign-in gate title when a signed-out user tries to block")
             )
@@ -1187,7 +1187,7 @@ class PostListViewController: UIViewController {
     /// success the GRDB observation re-emits without the row, so it drops out of
     /// the feed.
     private func hidePost(serverPostId: Int64) {
-        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to hide posts", comment: "Sign-in gate title when a signed-out user tries to hide a post")
             )
@@ -1250,8 +1250,7 @@ class PostListViewController: UIViewController {
     /// Toggles the saved state for `serverPostId` against its currently
     /// observed value, gating on sign-in.
     private func toggleSaved(serverPostId: Int64) {
-        let keychainId = viewModel.accountKeychainId
-        guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to save", comment: "Sign-in gate title when a signed-out user tries to save a post")
             )

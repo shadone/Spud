@@ -143,7 +143,7 @@ final class PostListViewModel {
         case let .community(_, instance, _):
             return instance.host
         case .frontpage, .saved:
-            return accountService.instanceActorId(forAccountKeychainId: accountKeychainId)?.host
+            return accountScope.instanceActorId?.host
         }
     }
 

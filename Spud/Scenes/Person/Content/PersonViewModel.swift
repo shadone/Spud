@@ -56,15 +56,11 @@ final class PersonViewModel {
     @ObservationIgnored
     let serverPersonId: Components.Schemas.PersonID
     @ObservationIgnored
-    private let accountScope: AccountScope
+    let accountScope: AccountScope
     @ObservationIgnored
     private let accountService: AccountServiceType
     @ObservationIgnored
     private let sortType: Components.Schemas.SortType
-
-    private var accountKeychainId: String {
-        accountScope.accountKeychainId
-    }
 
     @ObservationIgnored
     private var observationTask: Task<Void, Never>?
@@ -178,7 +174,7 @@ final class PersonViewModel {
     /// `getSite` block list. Silently no-ops for signed-out accounts (which
     /// can't block) and on failure leaves `isBlocked` at its last value.
     func refreshBlockState() {
-        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else { return }
+        guard !accountScope.isSignedOut else { return }
         let serverPersonId = serverPersonId
         Task { [weak self] in
             guard let self else { return }

@@ -216,7 +216,7 @@ class PersonViewController: UIViewController {
     /// overflow menu uses a deferred element so the Block/Unblock label always
     /// reflects the latest `isBlocked` state.
     private func configureMessageButton() {
-        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else { return }
+        guard !viewModel.accountScope.isSignedOut else { return }
         let ownPersonId = appDatabase
             .accountOwnPersonIdsSync(forKeychainId: accountKeychainId)
             .map { Components.Schemas.PersonID($0.serverPersonId) }
@@ -314,7 +314,7 @@ class PersonViewController: UIViewController {
     /// True when this profile belongs to the backing account itself - block and
     /// message actions are suppressed for your own profile.
     private var isOwnProfile: Bool {
-        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else { return false }
+        guard !viewModel.accountScope.isSignedOut else { return false }
         let ownPersonId = appDatabase
             .accountOwnPersonIdsSync(forKeychainId: accountKeychainId)
             .map { Components.Schemas.PersonID($0.serverPersonId) }
@@ -322,7 +322,7 @@ class PersonViewController: UIViewController {
     }
 
     private func toggleBlockUser() {
-        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to block", comment: "Sign-in gate title when a signed-out user tries to block")
             )

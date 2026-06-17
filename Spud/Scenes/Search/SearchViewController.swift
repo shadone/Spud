@@ -326,7 +326,7 @@ final class SearchViewController: UIViewController {
     // MARK: Actions
 
     private func setSubscribed(result: SearchCommunityResult, subscribe: Bool, cell: SearchCommunityCell?) {
-        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString(
                     "Sign in to subscribe",
