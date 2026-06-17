@@ -43,8 +43,8 @@ class CommunityViewController: UIViewController {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var accountService: AccountServiceType {
-        dependencies.own.accountService
+    private var accountScope: AccountScope {
+        dependencies.own.accountService.scope(forAccountKeychainId: accountKeychainId)
     }
 
     var alertService: AlertServiceType {
@@ -230,13 +230,12 @@ class CommunityViewController: UIViewController {
     /// Resolves whether this community is currently blocked, from the server's
     /// `getSite` block list. No-op for signed-out accounts.
     private func refreshBlockState() {
-        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else { return }
+        guard !accountScope.isSignedOut else { return }
         let serverCommunityId = viewModel.serverCommunityId
         Task { [weak self] in
             guard let self else { return }
             do {
-                let blocked = try await dependencies.own.accountService
-                    .scope(forAccountKeychainId: accountKeychainId)
+                let blocked = try await accountScope
                     .lemmyService
                     .fetchBlockedList()
                 if Task.isCancelled { return }
@@ -265,7 +264,7 @@ class CommunityViewController: UIViewController {
     }
 
     private func toggleBlockCommunity() {
-        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
+        guard !accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to block", comment: "Sign-in gate title when a signed-out user tries to block a community")
             )
@@ -347,8 +346,7 @@ class CommunityViewController: UIViewController {
         let previous = viewModel.isBlocked
         viewModel.isBlocked = blocked
         do {
-            try await dependencies.own.accountService
-                .scope(forAccountKeychainId: accountKeychainId)
+            try await accountScope
                 .lemmyService
                 .setBlocked(serverCommunityId: viewModel.serverCommunityId, blocked: blocked)
             viewModel.blockStateKnown = true
@@ -445,7 +443,7 @@ class CommunityViewController: UIViewController {
     /// sign-in.
     @objc
     private func newPostTapped() {
-        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
+        guard !accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to post", comment: "Sign-in gate title when a signed-out user tries to create a post")
             )
@@ -469,7 +467,7 @@ class CommunityViewController: UIViewController {
     /// Toggles subscription state against the currently observed value,
     /// gating on sign-in.
     private func toggleSubscribed() {
-        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
+        guard !accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to subscribe", comment: "Sign-in gate title when a signed-out user tries to subscribe to a community")
             )
@@ -483,8 +481,7 @@ class CommunityViewController: UIViewController {
     private func setSubscribed(_ subscribed: Bool) async {
         Haptics.tap()
         do {
-            try await dependencies.own.accountService
-                .scope(forAccountKeychainId: accountKeychainId)
+            try await accountScope
                 .lemmyService
                 .setSubscribed(serverCommunityId: viewModel.serverCommunityId, subscribed: subscribed)
         } catch {
