@@ -44,5 +44,13 @@ struct SpudAppShortcuts: AppShortcutsProvider {
             shortTitle: "Inbox",
             systemImageName: "tray"
         )
+        AppShortcut(
+            intent: OpenCommunityAppIntent(),
+            phrases: [
+                "Open \(\.$community) in \(.applicationName)",
+            ],
+            shortTitle: "Open Community",
+            systemImageName: "person.3"
+        )
     }
 }
