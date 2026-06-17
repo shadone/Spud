@@ -163,6 +163,9 @@ class CommunityViewController: UIViewController {
         headerView.onBodyAudioTapped = { [weak self] url in
             self?.presentVideoPlayer(url: url)
         }
+        headerView.onInstanceTapped = { [weak self] in
+            self?.openInstanceDetail()
+        }
         // The header is the feed table's scrolling header, which doesn't re-measure
         // itself; when an inline description image loads and grows the header, ask
         // the feed to re-lay-out the header so the change is reflected.
@@ -461,6 +464,24 @@ class CommunityViewController: UIViewController {
         } catch {
             alertService.handle(error, for: .setSubscribed)
         }
+    }
+
+    private func openInstanceDetail() {
+        guard
+            let actorId = viewModel.actorId,
+            let url = URL(string: actorId),
+            let host = url.host
+        else { return }
+        guard let record = appDatabase.explorerInstanceSync(baseurl: host) else {
+            if let instanceURL = URL(string: "https://\(host)") { UIApplication.shared.open(instanceURL) }
+            return
+        }
+        let vc = InstanceExploreViewController(
+            record: record,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
     }
 
     private func linkTapped(_ url: URL) {
