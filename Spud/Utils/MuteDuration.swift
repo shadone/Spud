@@ -8,7 +8,7 @@ import Foundation
 
 /// How long a community mute lasts. Muting is a client-local view concern, so
 /// these are view-side durations rather than a server state. Used to build the
-/// mute duration submenu in the feed and community screens.
+/// mute duration submenu in the feed, community, and post detail screens.
 enum MuteDuration: CaseIterable {
     case day, week, month, forever
 
