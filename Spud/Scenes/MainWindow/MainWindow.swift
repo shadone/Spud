@@ -190,6 +190,8 @@ class MainWindow: UIWindow {
 
         // Keep the Spotlight community index current for this account.
         CommunitySpotlightIndexer.reindex(appDatabase: appDatabase)
+        // Keep the Spotlight saved + history content index current too.
+        ContentSpotlightIndexer.reindex(appDatabase: appDatabase)
 
         // Tab: Setup the split view controller
         let splitViewController = MainWindowSplitViewController(

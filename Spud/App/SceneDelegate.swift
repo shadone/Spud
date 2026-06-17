@@ -76,6 +76,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Keep the Spotlight community index current with any subscription
         // changes made while we were away.
         CommunitySpotlightIndexer.reindex(appDatabase: AppCoordinator.shared.dependencies.appDatabase)
+        ContentSpotlightIndexer.reindex(appDatabase: AppCoordinator.shared.dependencies.appDatabase)
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {
