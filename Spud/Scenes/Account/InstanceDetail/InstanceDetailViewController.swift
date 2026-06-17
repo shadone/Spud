@@ -645,11 +645,14 @@ final class InstanceDetailViewController: UIViewController {
 
         let keychainId = accountService.accountForSignedOut(forInstance: instance, isServiceAccount: true)
         let service = accountService.lemmyService(forAccountKeychainId: keychainId)
-        observationTasks.append(Task { [weak self] in
+        let appDatabase = appDatabase
+        let isSuspicious = record.isSuspicious
+        observationTasks.append(Task { @MainActor [weak self] in
             try? await service.fetchSiteInfo()
-            guard let self else { return }
             for await admins in appDatabase.observeSiteAdmins(forInstanceActorId: instance) {
-                adminsView.update(Self.adminsState(admins, isSuspicious: record.isSuspicious))
+                if Task.isCancelled { break }
+                guard let self else { break }
+                adminsView.update(Self.adminsState(admins, isSuspicious: isSuspicious))
             }
         })
     }
