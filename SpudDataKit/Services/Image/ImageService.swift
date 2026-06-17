@@ -233,11 +233,16 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
                         return
                     }
                     continuation.yield(.ready(image))
-                } catch let error as ImageLoadingError {
-                    alertService.image(error: error, for: url)
-                    continuation.yield(.failure)
                 } catch {
-                    alertService.image(error: .network(error), for: url)
+                    // A cancelled request is expected teardown (the consumer dropped the
+                    // stream, so onTermination cancelled this task), not a failure to
+                    // surface. Exit quietly without alerting or yielding .failure.
+                    if Task.isCancelled || error.isImageLoadingCancellation {
+                        continuation.finish()
+                        return
+                    }
+                    let imageError = (error as? ImageLoadingError) ?? .network(error)
+                    alertService.image(error: imageError, for: url)
                     continuation.yield(.failure)
                 }
                 continuation.finish()
@@ -255,7 +260,15 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         do {
             (data, urlResponse) = try await session.data(from: url)
         } catch {
-            logger.error("Image transport error for \(url.absoluteString, privacy: .public): \(String(describing: error), privacy: .public)")
+            // A cancelled request (URLError.cancelled / -999, or task teardown when a
+            // cell scrolls off-screen or a newer fetch supersedes this one) is expected,
+            // not a transport failure. Logging it as an error floods the log during normal
+            // scrolling and buries genuine failures, so demote it to debug.
+            if error.isImageLoadingCancellation {
+                logger.debug("Image request cancelled for \(url.absoluteString, privacy: .public)")
+            } else {
+                logger.error("Image transport error for \(url.absoluteString, privacy: .public): \(String(describing: error), privacy: .public)")
+            }
             throw ImageLoadingError.network(error)
         }
 
@@ -394,5 +407,20 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
             cost: Int(image.size.width * image.size.height)
         )
         return image
+    }
+}
+
+private extension Error {
+    /// Whether this error represents a cancelled image request rather than a real
+    /// transport failure: a Swift task cancellation, `URLSession` reporting
+    /// `URLError.cancelled` (`NSURLErrorCancelled`, code -999), or either of those
+    /// wrapped in `ImageLoadingError.network`.
+    var isImageLoadingCancellation: Bool {
+        if self is CancellationError { return true }
+        if (self as? URLError)?.code == .cancelled { return true }
+        if let imageError = self as? ImageLoadingError, case let .network(underlying) = imageError {
+            return underlying.isImageLoadingCancellation
+        }
+        return false
     }
 }
