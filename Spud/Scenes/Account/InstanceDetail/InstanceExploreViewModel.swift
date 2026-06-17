@@ -36,7 +36,7 @@ final class InstanceExploreViewModel {
         accountService.isSignedOut(forAccountKeychainId: accountKeychainId)
     }
 
-    private var tasks: [Task<Void, Never>] = []
+    private nonisolated(unsafe) var tasks: [Task<Void, Never>] = []
 
     init(
         record: ExplorerInstanceRecord,
@@ -101,6 +101,10 @@ final class InstanceExploreViewModel {
                 }
             }
         })
+    }
+
+    deinit {
+        tasks.forEach { $0.cancel() }
     }
 
     func cancelLoad() {

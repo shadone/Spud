@@ -431,10 +431,11 @@ final class InstanceExploreViewController: UIViewController {
         observationTasks.append(Task { @MainActor [weak self] in
             for await sidebar in ObservationStream.values(of: { viewModel.sidebar }) {
                 if Task.isCancelled { break }
+                guard let self else { break }
                 guard let sidebar, !sidebar.isEmpty else { continue }
-                if self?.aboutServerView.isHidden == true {
-                    self?.aboutServerView.configure(sidebar: sidebar, imageService: self?.imageService)
-                    self?.aboutServerView.isHidden = false
+                if aboutServerView.isHidden {
+                    aboutServerView.configure(sidebar: sidebar, imageService: imageService)
+                    aboutServerView.isHidden = false
                 }
             }
         })
@@ -442,14 +443,16 @@ final class InstanceExploreViewController: UIViewController {
         observationTasks.append(Task { @MainActor [weak self] in
             for await adminsState in ObservationStream.values(of: { viewModel.adminsState }) {
                 if Task.isCancelled { break }
-                self?.adminsView.update(adminsState)
+                guard let self else { break }
+                adminsView.update(adminsState)
             }
         })
 
         observationTasks.append(Task { @MainActor [weak self] in
             for await _ in ObservationStream.values(of: { viewModel.communities.count }) {
                 if Task.isCancelled { break }
-                self?.renderCommunities()
+                guard let self else { break }
+                renderCommunities()
             }
         })
     }
