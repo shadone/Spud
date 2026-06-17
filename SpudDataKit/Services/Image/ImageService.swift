@@ -27,6 +27,7 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     private var knownImageSizes: [String: CGSize] = [:]
 
     private let pipeline: ImagePipeline
+    private let signposter = ImageLoadingSignposter()
 
     /// Name for this process's on-disk image cache. Each process (app, widget,
     /// extension) gets its own directory; we do not share an App-Group cache
@@ -71,7 +72,9 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
                 }
                 continuation.yield(.loading(thumbnail: nil))
                 do {
-                    let (data, _) = try await pipeline.data(for: ImageRequest(url: url))
+                    let (data, _) = try await signposter.interval("fetchAnimated", url: url) {
+                        try await self.pipeline.data(for: ImageRequest(url: url))
+                    }
                     if Task.isCancelled { continuation.finish()
                         return
                     }
@@ -131,7 +134,9 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
                 }
                 continuation.yield(.loading(thumbnail: nil))
                 do {
-                    let image = try await pipeline.image(for: request)
+                    let image = try await signposter.interval("fetch", url: url) {
+                        try await self.pipeline.image(for: request)
+                    }
                     if Task.isCancelled { continuation.finish()
                         return
                     }
