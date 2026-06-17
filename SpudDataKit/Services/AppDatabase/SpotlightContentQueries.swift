@@ -45,7 +45,7 @@ public extension AppDatabase {
             return rows.map { row in
                 IndexableContentRow(
                     serverPostId: row["serverPostId"],
-                    title: row["title"] ?? "",
+                    title: row["title"],
                     originalPostUrl: row["originalPostUrl"],
                     thumbnailUrl: row["thumbnailUrl"],
                     communityName: row["communityName"]
