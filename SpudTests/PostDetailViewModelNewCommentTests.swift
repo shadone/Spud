@@ -7,6 +7,7 @@
 import Foundation
 import LemmyKit
 import SpudDataKit
+import SpudUtilKit
 import XCTest
 @testable import Spud
 
@@ -45,10 +46,15 @@ final class PostDetailViewModelNewCommentTests: XCTestCase {
     }
 
     private func makeViewModel() -> PostDetailViewModel {
-        PostDetailViewModel(
+        let dependencies = TestDependencies()
+        let keychainId = dependencies.accountService.accountForSignedOut(
+            forInstance: InstanceActorId(from: "https://example.test")!,
+            isServiceAccount: false
+        )
+        return PostDetailViewModel(
             serverPostId: 1,
-            accountKeychainId: "kc-1",
-            dependencies: TestDependencies()
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: keychainId),
+            dependencies: dependencies
         )
     }
 

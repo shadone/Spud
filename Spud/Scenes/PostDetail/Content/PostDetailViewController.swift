@@ -76,7 +76,7 @@ class PostDetailViewController: UIViewController {
 
         viewModel = PostDetailViewModel(
             serverPostId: serverPostId,
-            accountKeychainId: accountKeychainId,
+            accountScope: dependencies.own.accountService.scope(forAccountKeychainId: accountKeychainId),
             dependencies: dependencies.own
         )
 
@@ -167,7 +167,7 @@ class PostDetailViewController: UIViewController {
         self.dependencies = (own: dependencies, nested: dependencies)
         viewModel = PostDetailViewModel(
             serverPostId: serverPostId,
-            accountKeychainId: accountKeychainId,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             dependencies: dependencies
         )
 
@@ -299,8 +299,7 @@ class PostDetailViewController: UIViewController {
 
     private func markAsRead() async {
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .markAsRead(serverPostId: viewModel.serverPostId)
         } catch {
             alertService.handle(error, for: .markAsRead)
@@ -311,12 +310,10 @@ class PostDetailViewController: UIViewController {
     /// Best-effort: a failure (or signed-out account) leaves the capability at
     /// `.none`, simply hiding mod actions.
     private func refreshModerationCapability() {
-        let keychainId = viewModel.accountKeychainId
         Task { @MainActor [weak self] in
             guard let self else { return }
             let capability = await (
-                try? accountService
-                    .lemmyService(forAccountKeychainId: keychainId)
+                try? viewModel.accountScope.lemmyService
                     .fetchModerationCapability()
             ) ?? .none
             guard !Task.isCancelled else { return }
@@ -685,8 +682,7 @@ class PostDetailViewController: UIViewController {
 
     private func reloadAsync() async {
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .fetchComments(
                     serverPostId: viewModel.serverPostId,
                     sortType: viewModel.commentSortType
@@ -810,7 +806,7 @@ class PostDetailViewController: UIViewController {
     /// Resolves a federated object under the current account, then routes by
     /// type. Comments and unresolved links fall back to the browser.
     private func resolveAndOpen(_ canonicalURL: URL) async {
-        let lemmyService = accountService.lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+        let lemmyService = viewModel.accountScope.lemmyService
         let resolved: ResolvedLemmyObject
         do {
             resolved = try await lemmyService.resolveObject(query: canonicalURL.absoluteString)
@@ -1005,8 +1001,7 @@ class PostDetailViewController: UIViewController {
     private func voteOnPost(_ action: VoteStatus.Action) async {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .vote(serverPostId: viewModel.serverPostId, vote: action)
         } catch {
             alertService.handle(error, for: .vote)
@@ -1061,8 +1056,7 @@ class PostDetailViewController: UIViewController {
     private func voteOnComment(serverCommentId: Int64, action: VoteStatus.Action) async {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .vote(serverCommentId: Components.Schemas.CommentID(serverCommentId), vote: action)
         } catch {
             alertService.handle(error, for: .vote)
@@ -1090,8 +1084,7 @@ class PostDetailViewController: UIViewController {
     private func setSavedOnPost(saved: Bool) async {
         Haptics.tap()
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .setSaved(serverPostId: viewModel.serverPostId, saved: saved)
         } catch {
             alertService.handle(error, for: .save)
@@ -1109,8 +1102,7 @@ class PostDetailViewController: UIViewController {
     private func setSavedOnComment(serverCommentId: Int64, saved: Bool) async {
         Haptics.tap()
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .setSaved(serverCommentId: Components.Schemas.CommentID(serverCommentId), saved: saved)
         } catch {
             alertService.handle(error, for: .save)
@@ -1155,8 +1147,7 @@ class PostDetailViewController: UIViewController {
     private func submitPostReport(reason: String) async {
         Haptics.tap()
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .reportPost(serverPostId: viewModel.serverPostId, reason: reason)
             Haptics.success()
             presentReportSubmittedConfirmation()
@@ -1178,8 +1169,7 @@ class PostDetailViewController: UIViewController {
     private func submitCommentReport(serverCommentId: Int64, reason: String) async {
         Haptics.tap()
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .reportComment(serverCommentId: Components.Schemas.CommentID(serverCommentId), reason: reason)
             Haptics.success()
             presentReportSubmittedConfirmation()
@@ -1341,8 +1331,7 @@ class PostDetailViewController: UIViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                try await viewModel.accountScope.lemmyService
                     .removePost(serverPostId: serverPostId, removed: removed, reason: reason)
                 Haptics.success()
             } catch {
@@ -1356,8 +1345,7 @@ class PostDetailViewController: UIViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                try await viewModel.accountScope.lemmyService
                     .lockPost(serverPostId: serverPostId, locked: locked)
                 Haptics.success()
             } catch {
@@ -1375,8 +1363,7 @@ class PostDetailViewController: UIViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                try await viewModel.accountScope.lemmyService
                     .featurePost(serverPostId: serverPostId, featured: featured, local: local)
                 Haptics.success()
             } catch {
@@ -1404,8 +1391,7 @@ class PostDetailViewController: UIViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                try await viewModel.accountScope.lemmyService
                     .removeComment(serverCommentId: Components.Schemas.CommentID(serverCommentId), removed: removed, reason: reason)
                 Haptics.success()
             } catch {
@@ -1419,8 +1405,7 @@ class PostDetailViewController: UIViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                try await viewModel.accountScope.lemmyService
                     .distinguishComment(serverCommentId: Components.Schemas.CommentID(serverCommentId), distinguished: distinguished)
                 Haptics.success()
             } catch {
@@ -1455,8 +1440,7 @@ class PostDetailViewController: UIViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                try await viewModel.accountScope.lemmyService
                     .banFromCommunity(
                         serverCommunityId: communityId,
                         serverPersonId: serverPersonId,
@@ -1640,8 +1624,7 @@ class PostDetailViewController: UIViewController {
 
     private func submitBlockAuthor(serverPersonId: Int64) async {
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .setBlocked(serverPersonId: Components.Schemas.PersonID(serverPersonId), blocked: true)
         } catch {
             alertService.handle(error, for: .setBlockedPerson)

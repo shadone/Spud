@@ -20,10 +20,6 @@ class PostDetailLoadingViewController: UIViewController {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    private var accountService: AccountServiceType {
-        dependencies.own.accountService
-    }
-
     private var alertService: AlertServiceType {
         dependencies.own.alertService
     }
@@ -132,8 +128,9 @@ class PostDetailLoadingViewController: UIViewController {
 
     private func fetchPostInfo() async {
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: accountKeychainId)
+            try await dependencies.own.accountService
+                .scope(forAccountKeychainId: accountKeychainId)
+                .lemmyService
                 .fetchPostInfo(serverPostId: serverPostId)
         } catch {
             alertService.handle(error, for: .fetchPostInfo)
