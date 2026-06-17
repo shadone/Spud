@@ -427,10 +427,10 @@ extension Error {
     }
 }
 
-private extension ImageService {
+extension ImageService {
     /// Maps a Nuke pipeline error onto the app's `ImageLoadingError` so callers
     /// (and `AlertService`) see the same error vocabulary they did before Nuke.
-    func imageLoadingError(from nukeError: ImagePipeline.Error) -> ImageLoadingError {
+    static func imageLoadingError(from nukeError: ImagePipeline.Error) -> ImageLoadingError {
         switch nukeError {
         case let .dataLoadingFailed(error):
             return .network(error)
