@@ -104,7 +104,7 @@ class AppCoordinator {
                 Haptics.warning()
                 return
             }
-            let lemmyService = dependencies.accountService.lemmyService(forAccountKeychainId: keychainId)
+            let lemmyService = dependencies.accountService.scope(forAccountKeychainId: keychainId).lemmyService
             let resolved = try? await lemmyService.resolveObject(query: canonicalURL.absoluteString)
             switch resolved {
             case let .post(postId, _):
