@@ -30,6 +30,9 @@ settings:
 packages:
   LemmyKit:
     path: ../LemmyKit
+  Nuke:
+    url: https://github.com/kean/Nuke
+    from: 13.0.0
   GRDB:
     url: https://github.com/groue/GRDB.swift
     from: 7.0.0
@@ -136,6 +139,8 @@ targets:
       - package: GRDB
       - package: KeychainAccess
       - package: SemVer
+      - package: Nuke
+        product: Nuke
 
   SpudUIKit:
     type: framework
@@ -250,6 +255,8 @@ targets:
     dependencies:
       - target: SpudDataKit
       - target: SpudUtilKit
+      - package: Nuke
+        product: Nuke
 
   SpudUtilKitTests:
     type: bundle.unit-test
