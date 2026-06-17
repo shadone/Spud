@@ -121,6 +121,18 @@ targets:
         excludes:
           # Node-only helper tests; never bundle them into the appex.
           - "Resources/__tests__/**"
+          # Re-added below as folder references. A flattened group drops the
+          # directory structure, so the manifest's `_locales/<locale>/` and
+          # `images/<icon>` subpaths break (default_locale + icons fail to load).
+          - "Resources/_locales/**"
+          - "Resources/images/**"
+      # Folder references preserve the subdirectory structure Safari needs.
+      - path: OpenInAppExtension/Resources/_locales
+        type: folder
+        buildPhase: resources
+      - path: OpenInAppExtension/Resources/images
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.Spud.OpenInAppExtension
