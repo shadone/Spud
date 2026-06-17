@@ -30,6 +30,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         )
         self.window = window
 
+        // Register the window as the live navigation surface and replay any
+        // navigation an App Intent requested before the UI was ready.
+        AppCoordinator.shared.setActiveWindow(window)
+
         if let url = connectionOptions.urlContexts.first?.url {
             AppCoordinator.shared.open(url, in: window)
         }
@@ -42,11 +46,16 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // This occurs shortly after the scene enters the background, or when its session is discarded.
         // Release any resources associated with this scene that can be re-created the next time the scene connects.
         // The scene may re-connect later, as its session was not necessarily discarded (see `application:didDiscardSceneSessions` instead).
+        AppCoordinator.shared.setActiveWindow(nil)
     }
 
     func sceneDidBecomeActive(_ scene: UIScene) {
         // Called when the scene has moved from an inactive state to an active state.
-        // Use this method to restart any tasks that were paused (or not yet started) when the scene was inactive.
+        // Re-register as the active navigation surface and drain any pending
+        // App Intent navigation queued while the app was inactive.
+        if let window {
+            AppCoordinator.shared.setActiveWindow(window)
+        }
     }
 
     func sceneWillResignActive(_ scene: UIScene) {
