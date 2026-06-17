@@ -33,6 +33,28 @@ final class MarkdownParserTests: XCTestCase {
         XCTAssertEqual(MarkdownParser.parse("Hello world"), [.paragraph([.text("Hello world")])])
     }
 
+    func test_spoilerInsideListItemBecomesSpoilerBlock() {
+        let source = "- first\n- second\n\n  ::: spoiler More\n  details\n  :::"
+        let blocks = MarkdownParser.parse(source)
+        let listItemSpoiler = blocks.contains { block in
+            guard case let .unorderedList(items) = block else { return false }
+            return items.contains { item in
+                item.blocks.contains { if case .spoiler = $0 { return true }
+                    return false
+                }
+            }
+        }
+        XCTAssertTrue(listItemSpoiler, "spoiler should be reinjected inside the list item, got: \(blocks)")
+        XCTAssertFalse("\(blocks)".contains("spoiler:0"), "sentinel leaked as literal text: \(blocks)")
+    }
+
+    func test_fencedCodeKeepsMarkdownTokensLiteral() {
+        let source = "```\n[^1]: not a note\n::: spoiler x\nH~2~O x^2^\n```"
+        XCTAssertEqual(MarkdownParser.parse(source), [
+            .codeBlock(language: nil, code: "[^1]: not a note\n::: spoiler x\nH~2~O x^2^"),
+        ])
+    }
+
     func test_kitchenSinkStructuralShape() {
         let blocks = MarkdownParser.parse(KitchenSink.post)
 

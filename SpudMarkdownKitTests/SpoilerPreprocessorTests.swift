@@ -34,4 +34,19 @@ final class SpoilerPreprocessorTests: XCTestCase {
         XCTAssertEqual(result.source, "plain text")
         XCTAssertTrue(result.spoilers.isEmpty)
     }
+
+    func test_doesNotLiftSpoilerInsideFencedCode() {
+        let source = "```\n::: spoiler secret\nhidden\n:::\n```"
+        let result = SpoilerPreprocessor.preprocess(source)
+        XCTAssertTrue(result.spoilers.isEmpty)
+        XCTAssertEqual(result.source, source)
+    }
+
+    func test_liftsSpoilerAfterClosedFence() {
+        let source = "```\ncode\n```\n\n::: spoiler Real\ninner\n:::"
+        let result = SpoilerPreprocessor.preprocess(source)
+        XCTAssertEqual(result.spoilers.count, 1)
+        XCTAssertEqual(result.spoilers.values.first?.title, "Real")
+        XCTAssertTrue(result.source.contains("```\ncode\n```"))
+    }
 }

@@ -27,6 +27,7 @@ enum SpoilerPreprocessor {
 
     static func preprocess(_ source: String) -> Result {
         let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let isCode = MarkdownFenceScanner.codeLineFlags(lines)
         var output: [String] = []
         var spoilers: [String: Spoiler] = [:]
         var nextID = 0
@@ -34,21 +35,24 @@ enum SpoilerPreprocessor {
         var index = 0
         while index < lines.count {
             let line = lines[index]
-            if let title = openingTitle(line) {
+            if !isCode[index], let title = openingTitle(line) {
+                // Preserve the opening fence's indentation so the sentinel stays in
+                // its container (e.g. a list item) instead of floating to column 0.
+                let indent = String(line.prefix(while: { $0 == " " }))
                 var inner: [String] = []
                 var depth = 1
                 index += 1
                 while index < lines.count {
                     let current = lines[index]
-                    if openingTitle(current) != nil {
+                    if !isCode[index], openingTitle(current) != nil {
                         depth += 1
-                        inner.append(current)
-                    } else if isClosingFence(current) {
+                        inner.append(stripIndent(current, upTo: indent.count))
+                    } else if !isCode[index], isClosingFence(current) {
                         depth -= 1
                         if depth == 0 { break }
-                        inner.append(current)
+                        inner.append(stripIndent(current, upTo: indent.count))
                     } else {
-                        inner.append(current)
+                        inner.append(stripIndent(current, upTo: indent.count))
                     }
                     index += 1
                 }
@@ -56,7 +60,7 @@ enum SpoilerPreprocessor {
                 nextID += 1
                 spoilers[id] = Spoiler(title: title, inner: inner.joined(separator: "\n"))
                 output.append("")
-                output.append(sentinel(for: id))
+                output.append(indent + sentinel(for: id))
                 output.append("")
             } else {
                 output.append(line)
@@ -65,6 +69,19 @@ enum SpoilerPreprocessor {
         }
 
         return Result(source: output.joined(separator: "\n"), spoilers: spoilers)
+    }
+
+    /// Removes up to `count` leading spaces, so inner content captured from an
+    /// indented spoiler re-parses at column 0 (otherwise deep indentation would
+    /// be misread as an indented code block).
+    private static func stripIndent(_ line: String, upTo count: Int) -> String {
+        var removed = 0
+        var index = line.startIndex
+        while removed < count, index < line.endIndex, line[index] == " " {
+            index = line.index(after: index)
+            removed += 1
+        }
+        return String(line[index...])
     }
 
     /// The title if `line` opens a spoiler (`::: spoiler [title]`), else nil.

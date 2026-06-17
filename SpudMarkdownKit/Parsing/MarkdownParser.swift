@@ -47,10 +47,21 @@ public enum MarkdownParser {
                 return block
             case let .blockQuote(children):
                 return .blockQuote(reinjectSpoilers(children, spoilers: spoilers))
+            case let .unorderedList(items):
+                return .unorderedList(reinjectSpoilers(in: items, spoilers: spoilers))
+            case let .orderedList(start, items):
+                return .orderedList(start: start, reinjectSpoilers(in: items, spoilers: spoilers))
             default:
                 return block
             }
         }
+    }
+
+    private static func reinjectSpoilers(
+        in items: [MarkdownListItem],
+        spoilers: [String: SpoilerPreprocessor.Spoiler]
+    ) -> [MarkdownListItem] {
+        items.map { MarkdownListItem(blocks: reinjectSpoilers($0.blocks, spoilers: spoilers)) }
     }
 
     /// If `inlines` is exactly a spoiler sentinel (`…spoiler:<id>…`), the id.

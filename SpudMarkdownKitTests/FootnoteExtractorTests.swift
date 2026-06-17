@@ -22,4 +22,18 @@ final class FootnoteExtractorTests: XCTestCase {
         XCTAssertEqual(result.source, "Just text.")
         XCTAssertTrue(result.definitions.isEmpty)
     }
+
+    func test_doesNotExtractDefinitionInsideFencedCode() {
+        let source = "```\n[^1]: not a footnote\n```"
+        let result = FootnoteExtractor.extract(source)
+        XCTAssertTrue(result.definitions.isEmpty)
+        XCTAssertEqual(result.source, source)
+    }
+
+    func test_extractsDefinitionAfterClosedFence() {
+        let source = "```\ncode\n```\n[^1]: real note"
+        let result = FootnoteExtractor.extract(source)
+        XCTAssertEqual(result.definitions.map(\.label), ["1"])
+        XCTAssertEqual(result.definitions.first?.text, "real note")
+    }
 }

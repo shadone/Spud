@@ -11,7 +11,19 @@ import Foundation
 /// PUA-wrapped sentinels before parsing. `InlineLexer` restores them.
 enum SubSupPreprocessor {
     static func protectText(_ source: String) -> String {
-        var s = source
+        // Sub/sup tokens never span a newline (their content excludes whitespace),
+        // so we can protect line-by-line and skip fenced code, where `^x^`/`~x~`
+        // are literal code, not markup.
+        let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let isCode = MarkdownFenceScanner.codeLineFlags(lines)
+        let protected = lines.enumerated().map { index, line in
+            isCode[index] ? line : protectLine(line)
+        }
+        return protected.joined(separator: "\n")
+    }
+
+    private static func protectLine(_ line: String) -> String {
+        var s = line
         s = s.replacing(/\^([^\^\s]+)\^/) { "\u{E010}sup:\($0.1)\u{E011}" }
         // Match `~content~` where the tilde on each side is NOT doubled.
         // Pattern: a single `~` not preceded by another `~` (handled by

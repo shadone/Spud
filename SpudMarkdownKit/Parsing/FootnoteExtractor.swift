@@ -20,9 +20,11 @@ enum FootnoteExtractor {
 
     static func extract(_ source: String) -> Result {
         var definitions: [Definition] = []
-        var kept: [Substring] = []
-        for line in source.split(separator: "\n", omittingEmptySubsequences: false) {
-            if let match = line.wholeMatch(of: /\[\^([\w-]+)\]:\s?(.*)/) {
+        var kept: [String] = []
+        let lines = source.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let isCode = MarkdownFenceScanner.codeLineFlags(lines)
+        for (index, line) in lines.enumerated() {
+            if !isCode[index], let match = line.wholeMatch(of: /\[\^([\w-]+)\]:\s?(.*)/) {
                 definitions.append(Definition(label: String(match.1), text: String(match.2)))
             } else {
                 kept.append(line)
