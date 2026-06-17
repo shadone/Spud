@@ -25,6 +25,7 @@ final class ContentSpotlightIndexerTests: XCTestCase {
         XCTAssertEqual(item.domainIdentifier, "content")
         XCTAssertEqual(item.attributeSet.title, "Hello world")
         XCTAssertEqual(item.attributeSet.thumbnailURL, URL(string: "https://lemmy.world/pic.jpg"))
+        XCTAssertEqual(item.attributeSet.contentDescription, "!programming")
     }
 
     func test_makeItem_returnsNilWhenNoCanonicalURL() {
