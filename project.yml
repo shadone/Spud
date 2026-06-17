@@ -117,7 +117,10 @@ targets:
     type: app-extension
     platform: iOS
     sources:
-      - OpenInAppExtension
+      - path: OpenInAppExtension
+        excludes:
+          # Node-only helper tests; never bundle them into the appex.
+          - "Resources/__tests__/**"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.Spud.OpenInAppExtension
