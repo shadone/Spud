@@ -20,6 +20,15 @@ class AppCoordinator {
 
     let dependencies: DependencyContainer
 
+    /// The live navigation surface (the active `MainWindow`), registered by the
+    /// scene delegate. Weak so a disconnected scene doesn't keep it alive.
+    weak var activeWindow: AppNavigating?
+
+    /// A navigation requested while no window was ready (e.g. an App Intent on
+    /// cold launch). Replayed by `drainPendingNavigation()` once a window
+    /// registers. One slot: the latest request wins.
+    private(set) var pendingNavigation: AppNavigation?
+
     // MARK: Functions
 
     init() {
@@ -116,6 +125,52 @@ class AppCoordinator {
                 logger.error("Could not resolve an object to display for: \(canonicalURL.absoluteString, privacy: .public)")
                 Haptics.warning()
             }
+        }
+    }
+
+    // MARK: - Intent navigation
+
+    /// Registers (or clears) the live navigation surface and replays any pending
+    /// navigation the moment a window becomes available.
+    func setActiveWindow(_ window: AppNavigating?) {
+        activeWindow = window
+        drainPendingNavigation()
+    }
+
+    /// Routes a navigation target to the live window, or stores it for replay if
+    /// no window is ready yet (cold launch from an App Intent).
+    func navigate(_ target: AppNavigation) {
+        guard let window = activeWindow else {
+            pendingNavigation = target
+            return
+        }
+        apply(target, to: window)
+    }
+
+    /// Replays the stored pending navigation, if any, once a window is ready.
+    func drainPendingNavigation() {
+        guard let target = pendingNavigation, let window = activeWindow else { return }
+        pendingNavigation = nil
+        apply(target, to: window)
+    }
+
+    private func apply(_ target: AppNavigation, to window: AppNavigating) {
+        switch target {
+        case let .feed(listing, sort):
+            window.selectFeed(listing: listing, sort: sort)
+
+        case let .search(query):
+            window.selectSearch(query: query)
+
+        case .newPost:
+            window.presentNewPost()
+
+        case .inbox:
+            window.selectInbox()
+
+        case let .community(name, instance):
+            let accountKeychainId = dependencies.accountService.accountKeychainId(forInstance: instance)
+            window.display(communityName: name, instance: instance, accountKeychainId: accountKeychainId)
         }
     }
 }
