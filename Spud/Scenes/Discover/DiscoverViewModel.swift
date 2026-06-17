@@ -51,7 +51,11 @@ final class DiscoverViewModel {
     private let dependencies: OwnDependencies
 
     @ObservationIgnored
-    let accountKeychainId: String
+    private let accountScope: AccountScope
+
+    var accountKeychainId: String {
+        accountScope.accountKeychainId
+    }
 
     @ObservationIgnored
     let isSignedIn: Bool
@@ -134,16 +138,12 @@ final class DiscoverViewModel {
     @ObservationIgnored
     private let showNsfw: Bool
 
-    private var accountService: AccountServiceType {
-        dependencies.accountService
-    }
-
     private var alertService: AlertServiceType {
         dependencies.alertService
     }
 
     init(
-        accountKeychainId: String,
+        accountScope: AccountScope,
         isSignedIn: Bool,
         dependencies: Dependencies,
         onOpenCommunity: @escaping (CommunityListRow) -> Void,
@@ -151,14 +151,14 @@ final class DiscoverViewModel {
         onOpenInstance: @escaping (InstanceSummary) -> Void,
         onRequestSignIn: @escaping () -> Void
     ) {
-        self.accountKeychainId = accountKeychainId
+        self.accountScope = accountScope
         self.isSignedIn = isSignedIn
         self.dependencies = dependencies
         self.onOpenCommunity = onOpenCommunity
         self.onOpenPack = onOpenPack
         self.onOpenInstance = onOpenInstance
         self.onRequestSignIn = onRequestSignIn
-        showNsfw = dependencies.appDatabase.accountShowNsfwSync(forKeychainId: accountKeychainId)
+        showNsfw = dependencies.appDatabase.accountShowNsfwSync(forKeychainId: accountScope.accountKeychainId)
 
         let appDatabase = dependencies.appDatabase
         observationTask = Task { [weak self] in
@@ -174,7 +174,7 @@ final class DiscoverViewModel {
 
         // "Because you follow" needs the account's subscriptions; only observe
         // them for a signed-in account that resolves to a stored row.
-        if isSignedIn, let accountRowId = appDatabase.accountRowIdSync(forKeychainId: accountKeychainId) {
+        if isSignedIn, let accountRowId = appDatabase.accountRowIdSync(forKeychainId: accountScope.accountKeychainId) {
             followObservationTask = Task { [weak self] in
                 for await communities in appDatabase.observeFollowedCommunities(forAccountId: accountRowId) {
                     if Task.isCancelled { break }
@@ -322,7 +322,7 @@ final class DiscoverViewModel {
         Task { [weak self] in
             guard let self else { return }
             do {
-                let lemmyService = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+                let lemmyService = accountScope.lemmyService
                 let serverCommunityId = try await lemmyService
                     .fetchCommunityInfo(communityName: "\(row.name)@\(row.instanceHost)")
                 try await lemmyService.setBlocked(serverCommunityId: serverCommunityId, blocked: true)
@@ -345,7 +345,7 @@ final class DiscoverViewModel {
             guard let self else { return }
             defer { inFlightRowIds.remove(row.id) }
             do {
-                let lemmyService = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+                let lemmyService = accountScope.lemmyService
                 let serverCommunityId = try await lemmyService
                     .fetchCommunityInfo(communityName: "\(row.name)@\(row.instanceHost)")
                 if Task.isCancelled { return }
@@ -373,7 +373,7 @@ final class DiscoverViewModel {
         Task { [weak self] in
             guard let self else { return }
             do {
-                let lemmyService = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+                let lemmyService = accountScope.lemmyService
                 let response = try await lemmyService.search(
                     query: query,
                     type: .Communities,

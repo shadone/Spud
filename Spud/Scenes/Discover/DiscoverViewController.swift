@@ -51,7 +51,7 @@ class DiscoverViewController: UIViewController {
         super.init(nibName: nil, bundle: nil)
 
         viewModel = DiscoverViewModel(
-            accountKeychainId: accountKeychainId,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             isSignedIn: isSignedIn,
             dependencies: dependencies,
             onOpenCommunity: { [weak self] row in
