@@ -24,19 +24,19 @@ final class HiddenAndMutedViewModel {
     private(set) var mutedCommunities: [MutedCommunityListItem] = []
 
     @ObservationIgnored
-    private let accountKeychainId: String
-    @ObservationIgnored
-    private let accountService: AccountServiceType
+    private let accountScope: AccountScope
     @ObservationIgnored
     private let appDatabase: AppDatabase
 
+    private var accountKeychainId: String {
+        accountScope.accountKeychainId
+    }
+
     init(
-        accountKeychainId: String,
-        accountService: AccountServiceType,
+        accountScope: AccountScope,
         appDatabase: AppDatabase
     ) {
-        self.accountKeychainId = accountKeychainId
-        self.accountService = accountService
+        self.accountScope = accountScope
         self.appDatabase = appDatabase
     }
 
@@ -54,8 +54,7 @@ final class HiddenAndMutedViewModel {
         Task { [weak self] in
             guard let self else { return }
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: accountKeychainId)
+                try await accountScope.lemmyService
                     .hidePost(serverPostId: Components.Schemas.PostID(post.serverPostId), hidden: false)
             } catch {
                 logger.error("Unhide post failed: \(String(describing: error), privacy: .public)")
