@@ -212,7 +212,7 @@ final class InstanceDetailViewController: UIViewController {
 
         let tags = record.tagList
         if !tags.isEmpty {
-            let wrap = WrapView()
+            let wrap = InstanceWrapView()
             wrap.setItems(tags.map { makeChip($0) })
             stack.addArrangedSubview(wrap)
         }
@@ -223,22 +223,22 @@ final class InstanceDetailViewController: UIViewController {
         let card = makeCard()
 
         let trust = ExplorerInstanceHealth.trust(score100: score100(), suspicious: record.isSuspicious)
-        let ring = ScoreRingView()
-        ring.configure(score100: score100(), color: color(for: trust.level))
+        let ring = InstanceScoreRingView()
+        ring.configure(score100: score100(), color: InstanceHealthStyle.color(for: trust.level))
         ring.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             ring.widthAnchor.constraint(equalToConstant: 56),
             ring.heightAnchor.constraint(equalToConstant: 56),
         ])
 
-        let trustIcon = UIImageView(image: UIImage(systemName: trustSymbol(trust.level)))
-        trustIcon.tintColor = color(for: trust.level)
+        let trustIcon = UIImageView(image: UIImage(systemName: InstanceHealthStyle.trustSymbol(trust.level)))
+        trustIcon.tintColor = InstanceHealthStyle.color(for: trust.level)
         trustIcon.contentMode = .scaleAspectFit
         trustIcon.setContentHuggingPriority(.required, for: .horizontal)
         let trustLabel = UILabel()
         trustLabel.text = trust.label
         trustLabel.font = .systemFont(ofSize: 14, weight: .bold)
-        trustLabel.textColor = color(for: trust.level)
+        trustLabel.textColor = InstanceHealthStyle.color(for: trust.level)
         let trustRow = UIStackView(arrangedSubviews: [trustIcon, trustLabel, UIView()])
         trustRow.axis = .horizontal
         trustRow.spacing = 7
@@ -252,14 +252,14 @@ final class InstanceDetailViewController: UIViewController {
         let version = ExplorerInstanceHealth.version(record.version)
         let registration = ExplorerInstanceHealth.registration(record.registrationMode)
         var pills: [UIView] = [
-            makePill(symbol: "waveform.path.ecg", text: "\(uptime.short) up", level: uptime.level),
-            makePill(symbol: "tag", text: version.short, level: version.level),
-            makePill(symbol: registrationSymbol(record.registrationMode), text: registrationShort(record.registrationMode), level: registration.level),
+            InstanceHealthPillView(symbol: "waveform.path.ecg", text: "\(uptime.short) up", color: InstanceHealthStyle.color(for: uptime.level)),
+            InstanceHealthPillView(symbol: "tag", text: version.short, color: InstanceHealthStyle.color(for: version.level)),
+            InstanceHealthPillView(symbol: InstanceHealthStyle.registrationSymbol(record.registrationMode), text: InstanceHealthStyle.registrationShort(record.registrationMode), color: InstanceHealthStyle.color(for: registration.level)),
         ]
         if record.isNsfw {
-            pills.append(makePill(symbol: "eye", text: "NSFW", level: .unknown))
+            pills.append(InstanceHealthPillView(symbol: "eye", text: "NSFW", color: InstanceHealthStyle.color(for: .unknown)))
         }
-        let pillWrap = WrapView()
+        let pillWrap = InstanceWrapView()
         pillWrap.hSpacing = 6
         pillWrap.vSpacing = 6
         pillWrap.setItems(pills)
@@ -281,10 +281,10 @@ final class InstanceDetailViewController: UIViewController {
     private func makeStatGrid() -> UIView {
         let card = makeCard()
         let items: [(String, String?)] = [
-            (formatCount(record.usersTotal), "Members"),
-            (formatCount(record.usersActiveMonth), "Active /mo"),
-            (formatCount(record.numberOfPosts), "Posts"),
-            (formatCount(record.numberOfCommunities), "Communities"),
+            (InstanceHealthStyle.formatCount(record.usersTotal), "Members"),
+            (InstanceHealthStyle.formatCount(record.usersActiveMonth), "Active /mo"),
+            (InstanceHealthStyle.formatCount(record.numberOfPosts), "Posts"),
+            (InstanceHealthStyle.formatCount(record.numberOfCommunities), "Communities"),
         ]
         let top = makeGridRow(items[0], items[1])
         let bottom = makeGridRow(items[2], items[3])
@@ -362,9 +362,9 @@ final class InstanceDetailViewController: UIViewController {
         let languages = record.languageCodes.isEmpty ? "—" : record.languageCodes.map { $0.uppercased() }.joined(separator: ", ")
 
         let rows = [
-            metaRow(symbol: registrationSymbol(record.registrationMode), label: "Signups", value: registration.label, valueColor: color(for: registration.level)),
-            metaRow(symbol: "waveform.path.ecg", label: "Uptime", value: uptimeValue, valueColor: color(for: uptime.level)),
-            metaRow(symbol: "tag", label: "Software", value: version.short, valueColor: color(for: version.level)),
+            metaRow(symbol: InstanceHealthStyle.registrationSymbol(record.registrationMode), label: "Signups", value: registration.label, valueColor: InstanceHealthStyle.color(for: registration.level)),
+            metaRow(symbol: "waveform.path.ecg", label: "Uptime", value: uptimeValue, valueColor: InstanceHealthStyle.color(for: uptime.level)),
+            metaRow(symbol: "tag", label: "Software", value: version.short, valueColor: InstanceHealthStyle.color(for: version.level)),
             metaRow(symbol: "character.bubble", label: "Languages", value: languages, valueColor: .label),
             metaRow(symbol: "arrow.triangle.branch", label: "Federation", value: federation, valueColor: .label),
         ]
@@ -701,71 +701,6 @@ final class InstanceDetailViewController: UIViewController {
         return line
     }
 
-    private func makePill(symbol: String, text: String, level: HealthLevel) -> UIView {
-        let tint = color(for: level)
-        let container = UIView()
-        container.backgroundColor = tint.withAlphaComponent(0.15)
-        container.layer.cornerRadius = 8
-        let icon = UIImageView(image: UIImage(systemName: symbol))
-        icon.tintColor = tint
-        icon.contentMode = .scaleAspectFit
-        let label = UILabel()
-        label.text = text
-        label.font = .systemFont(ofSize: 12.5, weight: .semibold)
-        label.textColor = tint
-        let stack = UIStackView(arrangedSubviews: [icon, label])
-        stack.axis = .horizontal
-        stack.spacing = 5
-        stack.alignment = .center
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 9),
-            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -9),
-            stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 5),
-            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -5),
-            icon.widthAnchor.constraint(equalToConstant: 13.5),
-            icon.heightAnchor.constraint(equalToConstant: 13.5),
-        ])
-        return container
-    }
-
-    private func color(for level: HealthLevel) -> UIColor {
-        switch level {
-        case .good: .systemGreen
-        case .ok: .systemOrange
-        case .bad: .systemRed
-        case .unknown: .tertiaryLabel
-        }
-    }
-
-    private func trustSymbol(_ level: HealthLevel) -> String {
-        switch level {
-        case .good: "checkmark.shield.fill"
-        case .ok: "shield"
-        case .bad: "exclamationmark.triangle.fill"
-        case .unknown: "shield"
-        }
-    }
-
-    private func registrationSymbol(_ mode: ExplorerRegistrationMode) -> String {
-        switch mode {
-        case .open: "globe"
-        case .requireApplication: "doc.text"
-        case .closed: "lock.fill"
-        case .unknown: "globe"
-        }
-    }
-
-    private func registrationShort(_ mode: ExplorerRegistrationMode) -> String {
-        switch mode {
-        case .open: "Open"
-        case .requireApplication: "Apply"
-        case .closed: "Closed"
-        case .unknown: "—"
-        }
-    }
-
     private func descriptionText() -> String? {
         if let text = record.descriptionText, !text.isEmpty { return text }
         return "No description provided by this server."
@@ -783,159 +718,5 @@ final class InstanceDetailViewController: UIViewController {
     private func hue(for string: String) -> CGFloat {
         let sum = string.unicodeScalars.reduce(0) { $0 + Int($1.value) }
         return CGFloat(sum % 360) / 360
-    }
-
-    /// Compact count (e.g. "1.2K", "32K"). Returns "—" for nil/zero.
-    private func formatCount(_ value: Int64?) -> String {
-        guard let value, value > 0 else { return "—" }
-        let n = Double(value)
-        switch value {
-        case 1_000_000...:
-            return trim(n / 1_000_000) + "M"
-        case 1000...:
-            return trim(n / 1000) + "K"
-        default:
-            return "\(value)"
-        }
-    }
-
-    private func trim(_ value: Double) -> String {
-        if value >= 100 || value == value.rounded() {
-            return "\(Int(value.rounded()))"
-        }
-        return String(format: "%.1f", value)
-    }
-}
-
-// MARK: - ScoreRingView
-
-/// Explorer-score donut: a track ring + a coloured progress arc with the score
-/// (0...100) and a "SCORE" caption centred inside.
-private final class ScoreRingView: UIView {
-    private let track = CAShapeLayer()
-    private let progress = CAShapeLayer()
-    private let valueLabel = UILabel()
-    private var score100: Double?
-
-    init() {
-        super.init(frame: .zero)
-        track.fillColor = UIColor.clear.cgColor
-        track.strokeColor = UIColor.separator.cgColor
-        track.lineWidth = 4
-        progress.fillColor = UIColor.clear.cgColor
-        progress.lineWidth = 4
-        progress.lineCap = .round
-        layer.addSublayer(track)
-        layer.addSublayer(progress)
-
-        valueLabel.textAlignment = .center
-        valueLabel.font = .monospacedDigitSystemFont(ofSize: 19, weight: .heavy)
-        let caption = UILabel()
-        caption.text = "SCORE"
-        caption.textAlignment = .center
-        caption.font = .systemFont(ofSize: 8, weight: .bold)
-        caption.textColor = .tertiaryLabel
-        let stack = UIStackView(arrangedSubviews: [valueLabel, caption])
-        stack.axis = .vertical
-        stack.alignment = .center
-        stack.spacing = 1
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    func configure(score100: Double?, color: UIColor) {
-        self.score100 = score100
-        if let score100 {
-            valueLabel.text = "\(Int(score100.rounded()))"
-            valueLabel.textColor = .label
-        } else {
-            valueLabel.text = "—"
-            valueLabel.textColor = .tertiaryLabel
-        }
-        progress.strokeColor = color.cgColor
-        setNeedsLayout()
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        let size = min(bounds.width, bounds.height)
-        let radius = (size - track.lineWidth) / 2
-        let center = CGPoint(x: bounds.midX, y: bounds.midY)
-        let path = UIBezierPath(
-            arcCenter: center,
-            radius: radius,
-            startAngle: -.pi / 2,
-            endAngle: 1.5 * .pi,
-            clockwise: true
-        )
-        track.path = path.cgPath
-        progress.path = path.cgPath
-        progress.strokeEnd = score100.map { max(0, min(1, $0 / 100)) } ?? 0
-        valueLabel.font = .monospacedDigitSystemFont(ofSize: size * 0.34, weight: .heavy)
-    }
-}
-
-// MARK: - WrapView
-
-/// A simple flow-layout container that wraps its items onto multiple rows.
-/// Used for the health pills and the tag chips.
-private final class WrapView: UIView {
-    var hSpacing: CGFloat = 7
-    var vSpacing: CGFloat = 7
-
-    private var items: [UIView] = []
-    private var lastWidth: CGFloat = 0
-
-    func setItems(_ views: [UIView]) {
-        items.forEach { $0.removeFromSuperview() }
-        items = views
-        views.forEach { addSubview($0) }
-        invalidateIntrinsicContentSize()
-        setNeedsLayout()
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        if bounds.width != lastWidth {
-            lastWidth = bounds.width
-            invalidateIntrinsicContentSize()
-        }
-        layout(width: bounds.width, apply: true)
-    }
-
-    override var intrinsicContentSize: CGSize {
-        let width = bounds.width > 0 ? bounds.width : UIScreen.main.bounds.width
-        return CGSize(width: UIView.noIntrinsicMetric, height: layout(width: width, apply: false))
-    }
-
-    @discardableResult
-    private func layout(width: CGFloat, apply: Bool) -> CGFloat {
-        guard width > 0 else { return 0 }
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        for view in items {
-            let size = view.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
-            if x > 0, x + size.width > width {
-                x = 0
-                y += rowHeight + vSpacing
-                rowHeight = 0
-            }
-            if apply {
-                view.frame = CGRect(x: x, y: y, width: size.width, height: size.height)
-            }
-            x += size.width + hSpacing
-            rowHeight = max(rowHeight, size.height)
-        }
-        return y + rowHeight
     }
 }
