@@ -382,21 +382,45 @@ class MainWindow: UIWindow {
             accountKeychainId: accountKeychainId,
             dependencies: dependencies.nested
         )
+        pushIntoCurrentContext(postDetailVC)
+    }
 
-        // Show the post in the tab the user is currently in, so Back returns to
-        // where they were (e.g. a community in the Communities tab) instead of
-        // hijacking the Posts tab. Only the Posts tab is a split view and needs
-        // the split-aware detail handling; every other tab is a plain navigation
-        // controller, so a normal push is correct. Fall back to the Posts tab
-        // when there is no current navigation context (e.g. a cold deep link).
+    func display(communityName: String, instance: InstanceActorId, accountKeychainId: String) {
+        let vc = CommunityOrLoadingViewController(
+            communityName: communityName,
+            instance: instance,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        pushIntoCurrentContext(vc)
+    }
+
+    func display(personId: Components.Schemas.PersonID, instance: InstanceActorId, accountKeychainId: String) {
+        let vc = PersonOrLoadingViewController(
+            personId: personId,
+            instance: instance,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        pushIntoCurrentContext(vc)
+    }
+
+    /// Pushes a screen into whichever tab the user is currently in, so Back
+    /// returns to where they were (e.g. a community in the Communities tab)
+    /// instead of hijacking the Posts tab. Only the Posts tab is a split view and
+    /// needs the split-aware detail handling; every other tab is a plain
+    /// navigation controller, so a normal push is correct. Falls back to the
+    /// Posts tab when there is no current navigation context (e.g. a cold deep
+    /// link).
+    private func pushIntoCurrentContext(_ viewController: UIViewController) {
         let selected = tabBarController.selectedViewController
         if selected === splitViewController {
-            pushDetail(viewController: postDetailVC)
+            pushDetail(viewController: viewController)
         } else if let navigationController = selected as? UINavigationController {
-            navigationController.pushViewController(postDetailVC, animated: true)
+            navigationController.pushViewController(viewController, animated: true)
         } else {
             tabBarController.selectedIndex = 0
-            pushDetail(viewController: postDetailVC)
+            pushDetail(viewController: viewController)
         }
     }
 }

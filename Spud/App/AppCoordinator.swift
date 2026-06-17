@@ -66,30 +66,56 @@ class AppCoordinator {
             let accountKeychainId = dependencies.accountService.accountKeychainId(forInstance: instance)
             window.display(serverPostId: postId, accountKeychainId: accountKeychainId)
 
-        case let .objectAtURL(canonicalURL):
-            Task { @MainActor in
-                guard let keychainId = dependencies.accountService.currentDefaultAccountKeychainId() else {
-                    logger.error("No default account to resolve link: \(canonicalURL.absoluteString, privacy: .public)")
-                    return
-                }
-                let lemmyService = dependencies.accountService.lemmyService(forAccountKeychainId: keychainId)
-                guard
-                    let resolved = try? await lemmyService.resolveObject(query: canonicalURL.absoluteString),
-                    case let .post(postId, _) = resolved
-                else {
-                    logger.error("Could not resolve a post to display for: \(canonicalURL.absoluteString, privacy: .public)")
-                    return
-                }
-                window.display(serverPostId: postId, accountKeychainId: keychainId)
-            }
+        case let .community(name, instance):
+            let accountKeychainId = dependencies.accountService.accountKeychainId(forInstance: instance)
+            window.display(communityName: name, instance: instance, accountKeychainId: accountKeychainId)
 
-        case .person, .community, .instance:
-            // These push onto a navigation stack, which AppCoordinator does not
-            // own; body-text taps route through PostDetailViewController instead.
-            logger.error("Internal link type not handled at window level: \(url.absoluteString, privacy: .public)")
+        case let .person(personId, instance):
+            let accountKeychainId = dependencies.accountService.accountKeychainId(forInstance: instance)
+            window.display(personId: personId, instance: instance, accountKeychainId: accountKeychainId)
+
+        case let .objectAtURL(canonicalURL):
+            resolveAndDisplay(canonicalURL, in: window)
+
+        case .instance:
+            // No instance-home screen yet; bare instance links are out of scope.
+            logger.error("Instance links are not handled yet: \(url.absoluteString, privacy: .public)")
 
         case .none:
             logger.error("Received open url request for url that we can't handle: \(url.absoluteString, privacy: .public)")
+        }
+    }
+
+    /// Resolves a canonical Lemmy URL via `resolve_object` under the default
+    /// account, then routes to the matching screen by the resolved object type.
+    private func resolveAndDisplay(_ canonicalURL: URL, in window: MainWindow) {
+        Task { @MainActor in
+            guard let keychainId = dependencies.accountService.currentDefaultAccountKeychainId() else {
+                logger.error("No default account to resolve link: \(canonicalURL.absoluteString, privacy: .public)")
+                Haptics.warning()
+                return
+            }
+            let lemmyService = dependencies.accountService.lemmyService(forAccountKeychainId: keychainId)
+            let resolved = try? await lemmyService.resolveObject(query: canonicalURL.absoluteString)
+            switch resolved {
+            case let .post(postId, _):
+                window.display(serverPostId: postId, accountKeychainId: keychainId)
+
+            case let .community(name, instance):
+                window.display(communityName: name, instance: instance, accountKeychainId: keychainId)
+
+            case let .person(personId, instance):
+                window.display(personId: personId, instance: instance, accountKeychainId: keychainId)
+
+            case let .comment(postId, _, _):
+                // TODO(Slice D): scroll to the resolved comment. For now open the
+                // parent post so the link still lands somewhere useful.
+                window.display(serverPostId: postId, accountKeychainId: keychainId)
+
+            case .unresolved, .none:
+                logger.error("Could not resolve an object to display for: \(canonicalURL.absoluteString, privacy: .public)")
+                Haptics.warning()
+            }
         }
     }
 }

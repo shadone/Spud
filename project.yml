@@ -83,6 +83,7 @@ targets:
       - target: SpudUtilKit
       - target: SpudWidgetExtension
       - target: OpenInAppExtension
+      - target: OpenInSpudAction
       # B2 (archive-stage): SBTUITestTunnelServer is linked in all configs
       # because XcodeGen 2.45 cannot scope a package product to one
       # configuration, and SwiftPM has no "import without link". The server is
@@ -116,7 +117,10 @@ targets:
     type: app-extension
     platform: iOS
     sources:
-      - OpenInAppExtension
+      - path: OpenInAppExtension
+        excludes:
+          # Node-only helper tests; never bundle them into the appex.
+          - "Resources/__tests__/**"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.Spud.OpenInAppExtension
@@ -125,6 +129,20 @@ targets:
         OTHER_LDFLAGS:
           - "-framework"
           - SafariServices
+
+  OpenInSpudAction:
+    type: app-extension
+    platform: iOS
+    sources:
+      - OpenInSpudAction
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.Spud.OpenInSpudAction
+        INFOPLIST_FILE: OpenInSpudAction/Info.plist
+        GENERATE_INFOPLIST_FILE: "YES"
+        SWIFT_VERSION: "6.0"
+    dependencies:
+      - target: SpudUtilKit
 
   SpudDataKit:
     type: framework

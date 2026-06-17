@@ -17,7 +17,8 @@ import SpudUtilKit
 /// host is a known instance, so a non-Lemmy `example.com/post/1` is left as a
 /// plain external link. Mention shorthands (`!c@i`, `@u@i`) are unambiguous
 /// Lemmy syntax and need no allowlist — the instance is named inline.
-/// Comments (`/comment/N`) are intentionally not classified yet (deferred).
+/// Comments (`/comment/N`) classify to `.objectAtURL` so the app resolves the
+/// comment server-side (its local id is not known until resolved).
 enum LemmyURLParser {
     static func classify(url: URL, isKnownInstance: (String) -> Bool) -> URL.SpudInternalLink? {
         guard
@@ -53,8 +54,9 @@ enum LemmyURLParser {
             let (name, instance) = community(from: parts[1], linkHost: host, linkPort: url.port)
             return .community(name: name, instance: instance)
 
-        case ("comment", _):
-            return nil // deferred
+        case ("comment", 2):
+            guard Int32(parts[1]) != nil else { return nil }
+            return .objectAtURL(url: url)
 
         default:
             return nil
