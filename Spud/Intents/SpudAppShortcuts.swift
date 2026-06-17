@@ -61,5 +61,14 @@ struct SpudAppShortcuts: AppShortcutsProvider {
             shortTitle: "Saved Posts",
             systemImageName: "bookmark.fill"
         )
+        AppShortcut(
+            intent: SwitchAccountAppIntent(),
+            phrases: [
+                "Switch to \(\.$account) in \(.applicationName)",
+                "Switch \(.applicationName) account",
+            ],
+            shortTitle: "Switch Account",
+            systemImageName: "person.crop.circle"
+        )
     }
 }
