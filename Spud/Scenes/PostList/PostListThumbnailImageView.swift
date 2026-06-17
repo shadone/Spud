@@ -21,6 +21,9 @@ class PostListThumbnailImageView: UIView {
         /// We display a text post icon.
         case text
 
+        /// External-link post with no embed image: a web (globe) placeholder.
+        case link
+
         /// Used before we have an image set.
         case none
     }
@@ -29,6 +32,13 @@ class PostListThumbnailImageView: UIView {
     var badgeText: String? {
         get { mediaBadgeView.text }
         set { mediaBadgeView.text = newValue }
+    }
+
+    /// SF Symbol glyph for the small overlay badge (e.g. "globe" for an external
+    /// link), or `nil` to hide it.
+    var badgeSymbolName: String? {
+        get { mediaBadgeView.symbolName }
+        set { mediaBadgeView.symbolName = newValue }
     }
 
     /// Whether to overlay a centred play indicator (for video posts).
@@ -53,6 +63,13 @@ class PostListThumbnailImageView: UIView {
                 brokenView.isHidden = false
 
             case .text:
+                textPlaceholderImageView.image = Design.TextPost.Thumbnail.icon.image
+                textPlaceholderView.isHidden = false
+
+            case .link:
+                // Reuse the neutral placeholder, swapping the doc glyph for a
+                // globe so the row reads as an external link, not a self-post.
+                textPlaceholderImageView.image = UIImage(systemName: "globe")
                 textPlaceholderView.isHidden = false
 
             case .none:
@@ -185,6 +202,7 @@ class PostListThumbnailImageView: UIView {
     func prepareForReuse() {
         thumbnailType = .none
         badgeText = nil
+        badgeSymbolName = nil
         showsPlayIcon = false
     }
 }

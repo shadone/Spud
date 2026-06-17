@@ -21,6 +21,7 @@ class PostListViewController: UIViewController {
         HasAccountService &
         HasAlertService &
         HasAppDatabase &
+        HasAppService &
         HasAppearanceService &
         HasImageService &
         HasPostContentDetectorService &
@@ -44,6 +45,10 @@ class PostListViewController: UIViewController {
 
     var appDatabase: AppDatabase {
         dependencies.own.appDatabase
+    }
+
+    var appService: AppServiceType {
+        dependencies.own.appService
     }
 
     var imageService: ImageServiceType {
@@ -972,6 +977,16 @@ class PostListViewController: UIViewController {
                     }
                 }
 
+                cell.linkTapped = { [weak self] linkUrl in
+                    guard let self else { return }
+                    openExternalLink(linkUrl)
+                    // Opening the post's link counts as consuming it, like
+                    // opening the post detail does (master toggle only).
+                    if markPostsRead {
+                        markReadInBackground(serverPostId: serverPostId)
+                    }
+                }
+
                 let general = appearance.general
                 cell.swipeActionConfiguration = self?.swipeActionConfig.viewConfiguration(
                     state: Self.swipeState(for: row),
@@ -1301,6 +1316,15 @@ class PostListViewController: UIViewController {
             dependencies: dependencies.own
         )
         present(viewer, animated: true)
+    }
+
+    /// Opens an external-link post's url, honoring the user's "Open External
+    /// Links in" preference (in-app Safari / browser / reader mode).
+    private func openExternalLink(_ url: URL) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await appService.open(url: url, on: self)
+        }
     }
 
     private func flushSeen() {

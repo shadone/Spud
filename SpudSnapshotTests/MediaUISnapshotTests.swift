@@ -76,6 +76,17 @@ final class MediaUISnapshotTests: XCTestCase {
         })
     }
 
+    func test_thumbnail_linkBadge() {
+        assertThumbnail(thumbnail {
+            $0.thumbnailType = .image(solidImage(.systemTeal))
+            $0.badgeSymbolName = "globe"
+        })
+    }
+
+    func test_thumbnail_link() {
+        assertThumbnail(thumbnail { $0.thumbnailType = .link })
+    }
+
     func test_thumbnail_text() {
         assertThumbnail(thumbnail { $0.thumbnailType = .text })
     }
