@@ -11,13 +11,12 @@ import SpudMarkdownKit
 ///
 /// `MarkdownParser.parse` is pure and synchronous, so the block tree does not
 /// depend on any rendering context — the cache key is just the markdown source.
-/// Parsed blocks are stored so they can be shared across any rendering pass
-/// (e.g. the new `MarkdownBlockView` path and the legacy `MarkdownRenderer`
-/// path during the transitional period).
+/// Parsed blocks are stored so they can be shared across every rendering pass
+/// (post detail, comments, composer preview, and the post-list peek).
 ///
-/// The pre-warm pattern mirrors `MarkdownRenderer`: call `blocks(for:)` off the
-/// main thread before cells are configured, so cell dequeue is a warm cache hit
-/// rather than a synchronous parse on the scroll path.
+/// The pre-warm pattern: call `blocks(for:)` off the main thread before cells
+/// are configured, so cell dequeue is a warm cache hit rather than a
+/// synchronous parse on the scroll path.
 ///
 /// `NSCache` is thread-safe for concurrent get/set; wrapping `[MarkdownBlock]`
 /// in a reference-type box lets `NSCache<NSString, BlockBox>` store the value

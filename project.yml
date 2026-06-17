@@ -39,9 +39,6 @@ packages:
   SemVer:
     url: https://github.com/sersoft-gmbh/semver
     from: 3.0.0
-  Down:
-    url: https://github.com/shadone/Down
-    branch: main
   SwiftMarkdown:
     url: https://github.com/apple/swift-markdown
     branch: main
@@ -82,7 +79,6 @@ targets:
       - target: SpudUtilKit
       - target: SpudWidgetExtension
       - target: OpenInAppExtension
-      - package: Down
       # B2 (archive-stage): SBTUITestTunnelServer is linked in all configs
       # because XcodeGen 2.45 cannot scope a package product to one
       # configuration, and SwiftPM has no "import without link". The server is
@@ -238,13 +234,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.SpudTests
     dependencies:
       - target: Spud
-      # MarkdownRendererTests builds a DownStyler directly, so the test bundle
-      # links Down (the Spud app target also links it, but @testable import does
-      # not re-export the package's symbols to the test bundle).
-      - package: Down
       # MarkdownBlockCacheTests calls MarkdownParser directly; SpudMarkdownKit is
       # embedded in the Spud app but the test bundle must also link it to call
-      # its public API directly (same reason Down is linked above).
+      # its public API directly.
       - target: SpudMarkdownKit
 
   SpudDataKitTests:
@@ -299,7 +291,6 @@ targets:
       - target: Spud
       - target: SpudDataKit
       - package: SnapshotTesting
-      - package: Down
 
   SpudUITests:
     type: bundle.ui-testing
