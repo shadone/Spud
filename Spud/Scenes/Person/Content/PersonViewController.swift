@@ -127,7 +127,7 @@ class PersonViewController: UIViewController {
         viewModel = PersonViewModel(
             personRowId: personRowId,
             serverPersonId: serverPersonId,
-            accountKeychainId: accountKeychainId,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             accountService: dependencies.accountService,
             appDatabase: dependencies.appDatabase
         )

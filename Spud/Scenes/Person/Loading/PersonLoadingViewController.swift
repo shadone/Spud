@@ -139,7 +139,8 @@ class PersonLoadingViewController: UIViewController {
     private func fetchPersonInfo() async {
         do {
             try await accountService
-                .lemmyService(forAccountKeychainId: accountKeychainId)
+                .scope(forAccountKeychainId: accountKeychainId)
+                .lemmyService
                 .fetchPersonInfo(serverPersonId: serverPersonId)
         } catch {
             alertService.handle(error, for: .fetchPersonInfo)

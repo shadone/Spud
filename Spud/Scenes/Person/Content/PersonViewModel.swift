@@ -56,11 +56,15 @@ final class PersonViewModel {
     @ObservationIgnored
     let serverPersonId: Components.Schemas.PersonID
     @ObservationIgnored
-    private let accountKeychainId: String
+    private let accountScope: AccountScope
     @ObservationIgnored
     private let accountService: AccountServiceType
     @ObservationIgnored
     private let sortType: Components.Schemas.SortType
+
+    private var accountKeychainId: String {
+        accountScope.accountKeychainId
+    }
 
     @ObservationIgnored
     private var observationTask: Task<Void, Never>?
@@ -70,14 +74,14 @@ final class PersonViewModel {
     init(
         personRowId: Int64?,
         serverPersonId: Components.Schemas.PersonID,
-        accountKeychainId: String,
+        accountScope: AccountScope,
         accountService: AccountServiceType,
         appDatabase: AppDatabase
     ) {
         self.serverPersonId = serverPersonId
-        self.accountKeychainId = accountKeychainId
+        self.accountScope = accountScope
         self.accountService = accountService
-        sortType = accountService.defaultSortType(forAccountKeychainId: accountKeychainId)
+        sortType = accountService.defaultSortType(forAccountKeychainId: accountScope.accountKeychainId)
 
         if let personRowId {
             observationTask = Task { [weak self] in
@@ -144,7 +148,7 @@ final class PersonViewModel {
         let sortType = sortType
         contentTask = Task { [weak self] in
             guard let self else { return }
-            let lemmyService = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let lemmyService = accountScope.lemmyService
             do {
                 let response = try await lemmyService.fetchPersonContent(
                     serverPersonId: serverPersonId,
@@ -178,7 +182,7 @@ final class PersonViewModel {
         let serverPersonId = serverPersonId
         Task { [weak self] in
             guard let self else { return }
-            let lemmyService = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let lemmyService = accountScope.lemmyService
             do {
                 let blocked = try await lemmyService.fetchBlockedList()
                 if Task.isCancelled { return }
@@ -196,8 +200,8 @@ final class PersonViewModel {
         let previous = isBlocked
         isBlocked = blocked
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: accountKeychainId)
+            try await accountScope
+                .lemmyService
                 .setBlocked(serverPersonId: serverPersonId, blocked: blocked)
             blockStateKnown = true
         } catch {
