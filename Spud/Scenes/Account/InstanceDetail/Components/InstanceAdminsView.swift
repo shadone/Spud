@@ -21,6 +21,9 @@ final class InstanceAdminsView: UIView {
     private let header = InstanceSectionHeader()
     private let card = UIView()
     private let stack = UIStackView()
+    /// Stored so `layoutSubviews` can re-resolve the card's border `CGColor`
+    /// after a light/dark trait change (a baked `CGColor` would not update).
+    private var cardBorderColor: UIColor?
 
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -54,9 +57,17 @@ final class InstanceAdminsView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        // Re-resolve the dynamic border colour against the current trait
+        // collection so the anonymous-state border follows live light/dark switches.
+        card.layer.borderColor = cardBorderColor?.cgColor
+    }
+
     func update(_ state: InstanceAdminsState) {
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         card.layer.borderWidth = 0
+        cardBorderColor = nil
         card.layer.borderColor = nil
         switch state {
         case .loading:
@@ -71,7 +82,8 @@ final class InstanceAdminsView: UIView {
             header.configure(title: "Admins", count: 0)
             card.backgroundColor = UIColor.systemRed.withAlphaComponent(0.10)
             card.layer.borderWidth = 1
-            card.layer.borderColor = UIColor.systemRed.withAlphaComponent(0.24).cgColor
+            cardBorderColor = UIColor.systemRed.withAlphaComponent(0.24)
+            card.layer.borderColor = cardBorderColor?.cgColor
             let row = warningRow("No admins are publicly listed — operator is anonymous.")
             stack.addArrangedSubview(row)
         case let .admins(admins):

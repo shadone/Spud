@@ -13,6 +13,9 @@ final class InstanceScoreRingView: UIView {
     private let progress = CAShapeLayer()
     private let valueLabel = UILabel()
     private var score100: Double?
+    /// Stored so `layoutSubviews` can re-resolve the progress arc's `CGColor`
+    /// after a light/dark trait change (a baked `CGColor` would not update).
+    private var ringColor: UIColor = .clear
 
     init() {
         super.init(frame: .zero)
@@ -58,12 +61,17 @@ final class InstanceScoreRingView: UIView {
             valueLabel.text = "—"
             valueLabel.textColor = .tertiaryLabel
         }
+        ringColor = color
         progress.strokeColor = color.cgColor
         setNeedsLayout()
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        // Re-resolve the dynamic stroke colours against the current trait
+        // collection so they follow live light/dark switches.
+        track.strokeColor = UIColor.separator.cgColor
+        progress.strokeColor = ringColor.cgColor
         let size = min(bounds.width, bounds.height)
         let radius = (size - track.lineWidth) / 2
         let center = CGPoint(x: bounds.midX, y: bounds.midY)

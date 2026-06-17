@@ -53,6 +53,11 @@ final class InstanceDetailViewController: UIViewController {
     private var adminsView: InstanceAdminsView!
     private var communitiesContainer: UIStackView!
 
+    /// The notice banner and its tint, kept so dynamic `CGColor` borders can be
+    /// re-resolved on a light/dark trait change (see `refreshDynamicBorders`).
+    private weak var noticeBannerContainer: UIView?
+    private var noticeBannerColor: UIColor?
+
     private var accent: UIColor {
         ThemeManager.currentAccentColor
     }
@@ -91,6 +96,16 @@ final class InstanceDetailViewController: UIViewController {
         setup()
         loadImages()
         loadSecondaryData()
+        // The icon ring and notice banner use CALayer borders (CGColor), which
+        // don't re-resolve on their own; refresh them on a light/dark switch.
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (vc: InstanceDetailViewController, _: UITraitCollection) in
+            vc.refreshDynamicBorders()
+        }
+    }
+
+    private func refreshDynamicBorders() {
+        iconImageView.layer.borderColor = Theme.groupedBackground.cgColor
+        noticeBannerContainer?.layer.borderColor = noticeBannerColor?.withAlphaComponent(0.26).cgColor
     }
 
     // MARK: Setup
@@ -538,6 +553,8 @@ final class InstanceDetailViewController: UIViewController {
         container.layer.cornerRadius = 12
         container.layer.borderWidth = 1
         container.layer.borderColor = color.withAlphaComponent(0.26).cgColor
+        noticeBannerContainer = container
+        noticeBannerColor = color
 
         let icon = UIImageView(image: UIImage(systemName: notice.symbol))
         icon.tintColor = color
