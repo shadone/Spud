@@ -29,7 +29,7 @@ final class ActionViewController: UIViewController {
             return
         }
         let deepLink = URL.SpudInternalLink.objectAtURL(url: url).url
-        openInHostApp(deepLink)
+        await openInHostApp(deepLink)
         finish()
     }
 
@@ -52,11 +52,27 @@ final class ActionViewController: UIViewController {
         return nil
     }
 
-    /// Opens a URL in the host app. App extensions cannot reference
-    /// `UIApplication.shared`, so walk the responder chain for an object that
-    /// implements `openURL:` (that object is the application); fall back to the
-    /// extension context if none is found.
-    private func openInHostApp(_ url: URL) {
+    /// Opens a URL in the host app. Prefers the public `NSExtensionContext.open`
+    /// API; if it reports failure (it can no-op for custom schemes on some iOS
+    /// versions), falls back to walking the responder chain for an object that
+    /// implements `openURL:` — the application — since extensions cannot reference
+    /// `UIApplication.shared` directly.
+    private func openInHostApp(_ url: URL) async {
+        let opened = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+            guard let context = extensionContext else {
+                continuation.resume(returning: false)
+                return
+            }
+            context.open(url) { success in
+                continuation.resume(returning: success)
+            }
+        }
+        if !opened {
+            openViaResponderChain(url)
+        }
+    }
+
+    private func openViaResponderChain(_ url: URL) {
         let selector = sel_registerName("openURL:")
         var responder: UIResponder? = self
         while let current = responder {
@@ -66,7 +82,6 @@ final class ActionViewController: UIViewController {
             }
             responder = current.next
         }
-        extensionContext?.open(url, completionHandler: nil)
     }
 
     private func finish() {
