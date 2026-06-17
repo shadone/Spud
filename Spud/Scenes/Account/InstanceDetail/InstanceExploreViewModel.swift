@@ -43,13 +43,15 @@ final class InstanceExploreViewModel {
         accountKeychainId: String,
         accountService: AccountServiceType,
         appDatabase: AppDatabase,
-        alertService: AlertServiceType
+        alertService: AlertServiceType,
+        initialJoinedCommunityUrls: Set<String> = []
     ) {
         self.record = record
         self.accountKeychainId = accountKeychainId
         self.accountService = accountService
         self.appDatabase = appDatabase
         self.alertService = alertService
+        joinedCommunityUrls = initialJoinedCommunityUrls
     }
 
     func load() {

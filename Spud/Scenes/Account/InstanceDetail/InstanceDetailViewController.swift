@@ -72,6 +72,15 @@ final class InstanceDetailViewController: UIViewController {
         observationTasks.forEach { $0.cancel() }
     }
 
+    // MARK: Test support
+
+    /// The height of the scroll view's content after layout. Used by snapshot tests to
+    /// size the snapshot tall enough to capture admins and communities below the fold.
+    var snapshotContentHeight: CGFloat {
+        view.layoutIfNeeded()
+        return scrollView.contentSize.height
+    }
+
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")

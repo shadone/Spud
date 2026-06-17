@@ -12,11 +12,13 @@ import XCTest
 
 /// Screen snapshots of the in-app `InstanceExploreViewController` (post-login
 /// instance browse). Covers: populated state (world), suspicious/anonymous admins,
-/// missing/unavailable admins + communities, and a sidebar variant.
+/// missing/unavailable admins + communities, a sidebar variant, and a joined-community
+/// variant.
 ///
-/// Rendered at a pinned `ViewImageConfig` (iPhone 13 Pro size/scale/safe-area).
-/// Admins, communities and sidebar are seeded into the in-memory DB before the
-/// VC is constructed so the synchronous cache-first render captures them.
+/// Rendered at a pinned `ViewImageConfig` (iPhone 13 Pro width/scale/safe-area) at
+/// the full scroll-content height, so admins and communities below the fold are
+/// always captured. Admins, communities and sidebar are seeded into the in-memory DB
+/// before the VC is constructed so the synchronous cache-first render captures them.
 @MainActor
 final class InstanceExploreSnapshotTests: XCTestCase {
     @MainActor
@@ -37,54 +39,6 @@ final class InstanceExploreSnapshotTests: XCTestCase {
         )
     }
 
-    // MARK: - DB seeding
-
-    private func seed(
-        _ record: ExplorerInstanceRecord,
-        into database: AppDatabase,
-        adminCount: Int,
-        communityCount: Int,
-        sidebar: String? = nil
-    ) throws {
-        let actorId = record.url ?? "https://\(record.baseurl)"
-        try database.writer.write { db in
-            var instance = InstanceRecord(actorId: actorId)
-            try instance.insert(db)
-            let instanceId = instance.id!
-
-            var site = SiteRecord(
-                instanceId: instanceId,
-                name: record.name,
-                sidebar: sidebar
-            )
-            try site.insert(db)
-            let siteId = site.id!
-
-            for ordinal in 0..<adminCount {
-                var admin = SiteAdminRecord(
-                    siteId: siteId,
-                    ordinal: ordinal,
-                    personActorId: "\(actorId)/u/admin\(ordinal)",
-                    personName: "admin\(ordinal)",
-                    displayName: ordinal == 0 ? "Owner Admin" : "Mod Admin \(ordinal)"
-                )
-                try admin.insert(db)
-            }
-
-            for i in 0..<communityCount {
-                var community = ExplorerCommunityRecord(
-                    url: "https://\(record.baseurl)/c/community\(i)",
-                    baseurl: record.baseurl,
-                    name: "community\(i)",
-                    title: "Community \(i) on \(record.name)",
-                    numberOfSubscribers: Int64(1000 - i * 100),
-                    score: Double(communityCount - i)
-                )
-                try community.insert(db)
-            }
-        }
-    }
-
     // MARK: - Snapshot helper
 
     private func assertScreens(
@@ -92,12 +46,13 @@ final class InstanceExploreSnapshotTests: XCTestCase {
         adminCount: Int = 3,
         communityCount: Int = 3,
         sidebar: String? = nil,
+        joinedCommunityUrls: Set<String> = [],
         testName: String = #function,
         line: UInt = #line
     ) throws {
         for style in [UIUserInterfaceStyle.light, .dark] {
             let dependencies = try makeDependencies()
-            try seed(
+            try seedInstanceSnapshot(
                 record,
                 into: dependencies.appDatabase,
                 adminCount: adminCount,
@@ -110,12 +65,28 @@ final class InstanceExploreSnapshotTests: XCTestCase {
             let viewController = InstanceExploreViewController(
                 record: record,
                 accountKeychainId: accountKeychainId,
-                dependencies: dependencies
+                dependencies: dependencies,
+                initialJoinedCommunityUrls: joinedCommunityUrls
             )
             let navigationController = UINavigationController(rootViewController: viewController)
+
+            // Load and lay out so snapshotContentHeight reflects the full content.
+            navigationController.loadViewIfNeeded()
+            navigationController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            navigationController.view.layoutIfNeeded()
+
+            let contentHeight = viewController.snapshotContentHeight
+            // Add chrome margin for the nav bar and bottom safe area.
+            let totalHeight = max(844, contentHeight + 120)
+            let size = CGSize(width: 390, height: totalHeight)
+
             assertSnapshot(
                 matching: navigationController,
-                as: .image(on: .iPhone13Pro, traits: UITraitCollection(userInterfaceStyle: style)),
+                as: .image(
+                    on: .iPhone13Pro,
+                    size: size,
+                    traits: UITraitCollection(userInterfaceStyle: style)
+                ),
                 named: style == .dark ? "dark" : "light",
                 testName: testName,
                 line: line
@@ -138,6 +109,12 @@ final class InstanceExploreSnapshotTests: XCTestCase {
             **Rules:** Be kind. No spam. Follow Lemmy's [Code of Conduct](https://join-lemmy.org/docs/code_of_conduct.html).
             """
         try assertScreens(Fixtures.world, sidebar: sidebar)
+    }
+
+    func test_world_joinedCommunity() throws {
+        // One community pre-marked as joined to verify the joined row state renders correctly.
+        let joinedUrl = "https://lemmy.world/c/community0"
+        try assertScreens(Fixtures.world, joinedCommunityUrls: [joinedUrl])
     }
 
     func test_suspicious_anonymousAdmins() throws {

@@ -53,7 +53,12 @@ final class InstanceExploreViewController: UIViewController {
 
     // MARK: Init
 
-    init(record: ExplorerInstanceRecord, accountKeychainId: String, dependencies: Dependencies) {
+    init(
+        record: ExplorerInstanceRecord,
+        accountKeychainId: String,
+        dependencies: Dependencies,
+        initialJoinedCommunityUrls: Set<String> = []
+    ) {
         self.record = record
         self.dependencies = (own: dependencies, nested: dependencies)
         bannerHeader = InstanceBannerHeaderView(name: record.name, host: record.baseurl)
@@ -62,13 +67,23 @@ final class InstanceExploreViewController: UIViewController {
             accountKeychainId: accountKeychainId,
             accountService: dependencies.accountService,
             appDatabase: dependencies.appDatabase,
-            alertService: dependencies.alertService
+            alertService: dependencies.alertService,
+            initialJoinedCommunityUrls: initialJoinedCommunityUrls
         )
         super.init(nibName: nil, bundle: nil)
     }
 
     deinit {
         observationTasks.forEach { $0.cancel() }
+    }
+
+    // MARK: Test support
+
+    /// The height of the scroll view's content after layout. Used by snapshot tests to
+    /// size the snapshot tall enough to capture admins and communities below the fold.
+    var snapshotContentHeight: CGFloat {
+        view.layoutIfNeeded()
+        return scrollView.contentSize.height
     }
 
     @available(*, unavailable)

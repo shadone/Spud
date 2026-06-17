@@ -14,17 +14,15 @@ import XCTest
 /// design's state matrix — open / application / closed / NSFW / suspicious /
 /// tiny (unknown uptime) / missing (graceful degradation) — in light and dark.
 ///
-/// Rendered at a pinned `ViewImageConfig` (iPhone 13 Pro size/scale/safe-area),
-/// so the references are device-independent — they record and verify identically
-/// on any simulator. Records are deterministic: instance icons/banners are left
-/// nil so the placeholder marks render without any async image loading.
-/// Admins and communities are seeded into the in-memory DB before the VC is
-/// constructed so the synchronous cache-first render captures them at snapshot time.
+/// Rendered at a pinned `ViewImageConfig` (iPhone 13 Pro width/scale/safe-area) at
+/// the full scroll-content height, so admins and communities below the fold are
+/// always captured. Records are deterministic: instance icons/banners are left nil
+/// so placeholder marks render without async image loading. Admins and communities
+/// are seeded into the in-memory DB before the VC is constructed so the synchronous
+/// cache-first render captures them at snapshot time.
 @MainActor
 final class InstanceDetailSnapshotTests: XCTestCase {
-    /// A minimal dependency container. The detail view controller stores
-    /// these services; lightweight real implementations + an in-memory
-    /// account service + an in-memory database suffice for snapshots.
+    /// A minimal dependency container.
     @MainActor
     struct SnapshotDependencies: HasVoid, HasImageService, HasAccountService, HasAlertService, HasAppDatabase {
         let imageService: ImageServiceType
@@ -43,64 +41,6 @@ final class InstanceDetailSnapshotTests: XCTestCase {
         )
     }
 
-    // MARK: - DB seeding
-
-    /// Seeds instance + site + admins + communities into the in-memory DB for
-    /// the given fixture record, so the synchronous cache-first render in
-    /// `loadSecondaryData()` shows populated data at snapshot time.
-    ///
-    /// - Parameters:
-    ///   - record: The fixture whose `baseurl` / `url` identify the instance.
-    ///   - database: The in-memory `AppDatabase` to seed.
-    ///   - adminCount: Number of admin rows to insert (0 → anonymous/unavailable state).
-    ///   - communityCount: Number of community directory rows to insert (0 → unavailable).
-    ///   - sidebar: Optional sidebar markdown (only seeded for explore tests).
-    private func seed(
-        _ record: ExplorerInstanceRecord,
-        into database: AppDatabase,
-        adminCount: Int,
-        communityCount: Int,
-        sidebar: String? = nil
-    ) throws {
-        let actorId = record.url ?? "https://\(record.baseurl)"
-        try database.writer.write { db in
-            var instance = InstanceRecord(actorId: actorId)
-            try instance.insert(db)
-            let instanceId = instance.id!
-
-            var site = SiteRecord(
-                instanceId: instanceId,
-                name: record.name,
-                sidebar: sidebar
-            )
-            try site.insert(db)
-            let siteId = site.id!
-
-            for ordinal in 0..<adminCount {
-                var admin = SiteAdminRecord(
-                    siteId: siteId,
-                    ordinal: ordinal,
-                    personActorId: "\(actorId)/u/admin\(ordinal)",
-                    personName: "admin\(ordinal)",
-                    displayName: ordinal == 0 ? "Owner Admin" : "Mod Admin \(ordinal)"
-                )
-                try admin.insert(db)
-            }
-
-            for i in 0..<communityCount {
-                var community = ExplorerCommunityRecord(
-                    url: "https://\(record.baseurl)/c/community\(i)",
-                    baseurl: record.baseurl,
-                    name: "community\(i)",
-                    title: "Community \(i) on \(record.name)",
-                    numberOfSubscribers: Int64(1000 - i * 100),
-                    score: Double(communityCount - i)
-                )
-                try community.insert(db)
-            }
-        }
-    }
-
     // MARK: - Snapshot helper
 
     private func assertScreens(
@@ -112,12 +52,32 @@ final class InstanceDetailSnapshotTests: XCTestCase {
     ) throws {
         for style in [UIUserInterfaceStyle.light, .dark] {
             let dependencies = try makeDependencies()
-            try seed(record, into: dependencies.appDatabase, adminCount: adminCount, communityCount: communityCount)
+            try seedInstanceSnapshot(
+                record,
+                into: dependencies.appDatabase,
+                adminCount: adminCount,
+                communityCount: communityCount
+            )
             let viewController = InstanceDetailViewController(record: record, dependencies: dependencies)
             let navigationController = UINavigationController(rootViewController: viewController)
+
+            // Load and lay out so snapshotContentHeight reflects the full content.
+            navigationController.loadViewIfNeeded()
+            navigationController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            navigationController.view.layoutIfNeeded()
+
+            let contentHeight = viewController.snapshotContentHeight
+            // Add chrome margin for the nav bar and bottom safe area.
+            let totalHeight = max(844, contentHeight + 120)
+            let size = CGSize(width: 390, height: totalHeight)
+
             assertSnapshot(
                 matching: navigationController,
-                as: .image(on: .iPhone13Pro, traits: UITraitCollection(userInterfaceStyle: style)),
+                as: .image(
+                    on: .iPhone13Pro,
+                    size: size,
+                    traits: UITraitCollection(userInterfaceStyle: style)
+                ),
                 named: style == .dark ? "dark" : "light",
                 testName: testName,
                 line: line
