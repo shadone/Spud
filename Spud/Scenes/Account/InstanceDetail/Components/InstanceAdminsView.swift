@@ -8,7 +8,7 @@ import SpudDataKit
 import SpudUIKit
 import UIKit
 
-enum InstanceAdminsState: Equatable {
+enum InstanceAdminsState: Equatable, Sendable {
     case loading
     case unavailable
     case anonymous
