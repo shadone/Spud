@@ -49,4 +49,36 @@ final class ImageServiceFullFetchTests: XCTestCase {
         }
         XCTAssertNotNil(loadingThumbnail, "Expected .loading to be seeded with the cached thumbnail image")
     }
+
+    func test_fullFetch_failure_yieldsFailureAndAlerts() async throws {
+        let url = try XCTUnwrap(URL(string: "https://example.com/bad.png"))
+        let alert = SpyAlertService()
+        let pipeline = ImagePipeline { config in
+            config.dataLoader = StubDataLoader(result: .failure(URLError(.timedOut)))
+            config.imageCache = nil
+        }
+        let service = ImageService(alertService: alert, pipeline: pipeline)
+
+        var sawFailure = false
+        for await state in service.fetch(url, thumbnail: nil) {
+            if case .failure = state { sawFailure = true }
+        }
+        XCTAssertTrue(sawFailure)
+        XCTAssertEqual(alert.imageErrors, [url])
+    }
+
+    func test_fullFetch_throughEventStream_yieldsReady() async throws {
+        let url = try XCTUnwrap(URL(string: "https://example.com/full.png"))
+        let pipeline = ImagePipeline { config in
+            config.dataLoader = StubDataLoader(result: .success((ImageFixture.pngData(), ImageFixture.httpResponse(url))))
+            config.imageCache = nil
+        }
+        let service = ImageService(alertService: AlertService(), pipeline: pipeline)
+
+        var lastImage: UIImage?
+        for await state in service.fetch(url, thumbnail: nil) {
+            if case let .ready(image) = state { lastImage = image }
+        }
+        XCTAssertNotNil(lastImage)
+    }
 }

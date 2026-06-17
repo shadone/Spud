@@ -48,12 +48,51 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         _ url: URL,
         thumbnail thumbnailUrl: URL?
     ) -> AsyncStream<ImageLoadingState> {
-        // Phase 1: seed the loading state with whatever thumbnail Nuke already
-        // holds in its memory cache — cheap, synchronous, no network touch.
-        // Phase-2 progressive-decode will add incremental previews on top of this.
         let seeded = thumbnailUrl.flatMap { pipeline.cache[ImageRequest(url: $0)]?.image }
-        let request = ImageRequest(url: url)
-        return makeStream(for: request, url: url, initialThumbnail: seeded, signpostName: "fetchFull")
+        return makeProgressiveStream(for: ImageRequest(url: url), url: url, initialThumbnail: seeded)
+    }
+
+    /// Drives a Nuke `ImageTask` to the `AsyncStream` event model, surfacing
+    /// progressive-decode previews as `.loading(thumbnail:)` so the viewer and
+    /// post-detail header paint coarse->sharp before the full image arrives.
+    /// Non-progressive sources emit no previews and fall through to `.ready`.
+    private func makeProgressiveStream(
+        for request: ImageRequest,
+        url: URL,
+        initialThumbnail: UIImage?
+    ) -> AsyncStream<ImageLoadingState> {
+        AsyncStream { continuation in
+            let imageTask = pipeline.imageTask(with: request)
+            let consumer = Task { [weak self] in
+                guard let self else { continuation.finish()
+                    return
+                }
+                continuation.yield(.loading(thumbnail: initialThumbnail))
+                let signpost = signposter.beginInterval("fetchFull")
+                defer { signposter.endInterval("fetchFull", signpost) }
+                for await event in imageTask.events {
+                    if Task.isCancelled { break }
+                    switch event {
+                    case let .preview(response):
+                        continuation.yield(.loading(thumbnail: response.image))
+                    case let .finished(.success(response)):
+                        recordImageSize(response.image.size, for: url)
+                        continuation.yield(.ready(response.image))
+                    case let .finished(.failure(error)):
+                        if Task.isCancelled || error.isImageLoadingCancellation { break }
+                        alertService.image(error: ImageService.imageLoadingError(from: error), for: url)
+                        continuation.yield(.failure)
+                    case .started, .progress:
+                        break
+                    }
+                }
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in
+                imageTask.cancel()
+                consumer.cancel()
+            }
+        }
     }
 
     /// Fetch and play an animated image (GIF). Yields a loading state while

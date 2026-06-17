@@ -77,6 +77,10 @@ enum ImagePipelineFactory {
             // Native decompression on the decode thread (replaces the old manual
             // `byPreparingForDisplay()`), keeping scroll hitch-free.
             config.isUsingPrepareForDisplay = true
+            // Progressive JPEGs paint coarse->sharp via ImageTask previews
+            // (consumed by ImageService.makeProgressiveStream for the viewer /
+            // post-detail header). Non-progressive sources simply emit no previews.
+            config.isProgressiveDecodingEnabled = true
         }
     }
 }

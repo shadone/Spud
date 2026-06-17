@@ -20,4 +20,12 @@ struct ImageLoadingSignposter {
         defer { signposter.endInterval(name, state) }
         return try await work()
     }
+
+    func beginInterval(_ name: StaticString) -> OSSignpostIntervalState {
+        signposter.beginInterval(name, id: signposter.makeSignpostID())
+    }
+
+    func endInterval(_ name: StaticString, _ state: OSSignpostIntervalState) {
+        signposter.endInterval(name, state)
+    }
 }
