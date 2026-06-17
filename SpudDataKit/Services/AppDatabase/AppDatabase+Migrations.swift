@@ -515,6 +515,21 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v16_siteAdmin") { db in
+            try db.create(table: "siteAdmin") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("siteId", .integer)
+                    .notNull()
+                    .indexed()
+                    .references("site", onDelete: .cascade)
+                t.column("ordinal", .integer).notNull().defaults(to: 0)
+                t.column("personActorId", .text).notNull()
+                t.column("personName", .text).notNull()
+                t.column("displayName", .text)
+                t.column("avatarUrl", .text)
+            }
+        }
+
         return migrator
     }
 }

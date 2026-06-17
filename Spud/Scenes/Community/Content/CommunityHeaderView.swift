@@ -29,6 +29,8 @@ final class CommunityHeaderView: UIView {
     var onBodyVideoTapped: ((URL) -> Void)?
     /// Fired when an inline description audio tile is tapped.
     var onBodyAudioTapped: ((URL) -> Void)?
+    /// Fired when the "!name@instance" handle label is tapped.
+    var onInstanceTapped: (() -> Void)?
 
     /// The image loader used for inline description images. Set by the owning
     /// view controller before `configure(...)`.
@@ -175,6 +177,16 @@ final class CommunityHeaderView: UIView {
         addSubview(iconImageView)
         addSubview(titleLabel)
         addSubview(handleLabel)
+
+        handleLabel.isUserInteractionEnabled = true
+        handleLabel.accessibilityTraits = .button
+        handleLabel.accessibilityHint = NSLocalizedString(
+            "Opens the instance detail",
+            comment: "Accessibility hint for the community handle label that taps through to instance detail"
+        )
+        let handleTapGesture = UITapGestureRecognizer(target: self, action: #selector(handleTapped))
+        handleLabel.addGestureRecognizer(handleTapGesture)
+
         addSubview(metaStack)
         addSubview(subscribeButton)
         addSubview(descriptionView)
@@ -311,6 +323,11 @@ final class CommunityHeaderView: UIView {
     @objc
     private func subscribeButtonTapped() {
         subscribeTapped?()
+    }
+
+    @objc
+    private func handleTapped() {
+        onInstanceTapped?()
     }
 }
 

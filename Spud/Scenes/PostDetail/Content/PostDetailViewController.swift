@@ -838,7 +838,11 @@ class PostDetailViewController: UIViewController {
             if let url = instance.url { openExternal(url) }
             return
         }
-        let vc = InstanceDetailViewController(record: record, dependencies: dependencies.nested)
+        let vc = InstanceExploreViewController(
+            record: record,
+            accountKeychainId: viewModel.accountKeychainId,
+            dependencies: dependencies.nested
+        )
         navigationController?.pushViewController(vc, animated: true)
     }
 

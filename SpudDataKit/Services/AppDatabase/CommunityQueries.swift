@@ -31,6 +31,16 @@ public extension AppDatabase {
         return followedCommunitiesSync(forAccountId: accountId)
     }
 
+    /// Actor-id URLs of communities the given account follows (e.g.
+    /// "https://lemmy.world/c/technology"). Matches the `communityUrl` field on
+    /// `CommunityListRow` so callers can check membership with `contains`. Empty
+    /// when the account is not yet imported or has no follows. Best-effort cache
+    /// read — no network, no async.
+    func followedCommunityActorIdsSync(forAccountKeychainId keychainId: String) -> Set<String> {
+        let records = followedCommunitiesSync(forAccountKeychainId: keychainId)
+        return Set(records.compactMap(\.actorId))
+    }
+
     /// Followed communities for the default (non-service) account, resolved
     /// entirely from the database. Safe off the main thread, so the App Intents
     /// entity query (a background process) can use it without the `@MainActor`

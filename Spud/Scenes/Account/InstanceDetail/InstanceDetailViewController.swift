@@ -7,6 +7,7 @@
 import Foundation
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 /// "Before you commit" instance detail (Explorer feature #4). Shown between the
@@ -18,6 +19,7 @@ import UIKit
 final class InstanceDetailViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
+        HasAppDatabase &
         HasImageService
     typealias NestedDependencies =
         LoginViewController.Dependencies &
@@ -33,14 +35,28 @@ final class InstanceDetailViewController: UIViewController {
         dependencies.own.accountService
     }
 
+    private var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
+    }
+
     private let record: ExplorerInstanceRecord
     private let row: SiteListRow?
+    private let showsActions: Bool
 
     private let scrollView = UIScrollView()
     private let bannerImageView = UIImageView()
     private let iconImageView = UIImageView()
     private let iconLetterLabel = UILabel()
     private var imageTasks: [Task<Void, Never>] = []
+    private var observationTasks: [Task<Void, Never>] = []
+
+    private var adminsView: InstanceAdminsView!
+    private var communitiesContainer: UIStackView!
+
+    /// The notice banner and its tint, kept so dynamic `CGColor` borders can be
+    /// re-resolved on a light/dark trait change (see `refreshDynamicBorders`).
+    private weak var noticeBannerContainer: UIView?
+    private var noticeBannerColor: UIColor?
 
     private var accent: UIColor {
         ThemeManager.currentAccentColor
@@ -48,8 +64,9 @@ final class InstanceDetailViewController: UIViewController {
 
     // MARK: Init
 
-    init(record: ExplorerInstanceRecord, dependencies: Dependencies) {
+    init(record: ExplorerInstanceRecord, showsActions: Bool = true, dependencies: Dependencies) {
         self.record = record
+        self.showsActions = showsActions
         row = SiteListRow(explorerInstance: record)
         self.dependencies = (own: dependencies, nested: dependencies)
         super.init(nibName: nil, bundle: nil)
@@ -57,6 +74,16 @@ final class InstanceDetailViewController: UIViewController {
 
     deinit {
         imageTasks.forEach { $0.cancel() }
+        observationTasks.forEach { $0.cancel() }
+    }
+
+    // MARK: Test support
+
+    /// The height of the scroll view's content after layout. Used by snapshot tests to
+    /// size the snapshot tall enough to capture admins and communities below the fold.
+    var snapshotContentHeight: CGFloat {
+        view.layoutIfNeeded()
+        return scrollView.contentSize.height
     }
 
     @available(*, unavailable)
@@ -68,6 +95,17 @@ final class InstanceDetailViewController: UIViewController {
         super.viewDidLoad()
         setup()
         loadImages()
+        loadSecondaryData()
+        // The icon ring and notice banner use CALayer borders (CGColor), which
+        // don't re-resolve on their own; refresh them on a light/dark switch.
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (vc: InstanceDetailViewController, _: UITraitCollection) in
+            vc.refreshDynamicBorders()
+        }
+    }
+
+    private func refreshDynamicBorders() {
+        iconImageView.layer.borderColor = Theme.groupedBackground.cgColor
+        noticeBannerContainer?.layer.borderColor = noticeBannerColor?.withAlphaComponent(0.26).cgColor
     }
 
     // MARK: Setup
@@ -83,22 +121,32 @@ final class InstanceDetailViewController: UIViewController {
             menu: nil
         )
 
-        let actionBar = makeActionBar()
-        view.addSubview(actionBar)
         view.addSubview(scrollView)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
-        actionBar.translatesAutoresizingMaskIntoConstraints = false
 
-        NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: actionBar.topAnchor),
+        if showsActions {
+            let actionBar = makeActionBar()
+            view.addSubview(actionBar)
+            actionBar.translatesAutoresizingMaskIntoConstraints = false
 
-            actionBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            actionBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            actionBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
+            NSLayoutConstraint.activate([
+                scrollView.topAnchor.constraint(equalTo: view.topAnchor),
+                scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                scrollView.bottomAnchor.constraint(equalTo: actionBar.topAnchor),
+
+                actionBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                actionBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                actionBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            ])
+        } else {
+            NSLayoutConstraint.activate([
+                scrollView.topAnchor.constraint(equalTo: view.topAnchor),
+                scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            ])
+        }
 
         let content = scrollView.contentLayoutGuide
         let frame = scrollView.frameLayoutGuide
@@ -212,10 +260,21 @@ final class InstanceDetailViewController: UIViewController {
 
         let tags = record.tagList
         if !tags.isEmpty {
-            let wrap = WrapView()
+            let wrap = InstanceWrapView()
             wrap.setItems(tags.map { makeChip($0) })
             stack.addArrangedSubview(wrap)
         }
+
+        adminsView = InstanceAdminsView()
+        adminsView.update(.loading)
+        stack.setCustomSpacing(4, after: stack.arrangedSubviews.last!)
+        stack.addArrangedSubview(adminsView)
+
+        communitiesContainer = UIStackView()
+        communitiesContainer.axis = .vertical
+        communitiesContainer.spacing = 8
+        stack.addArrangedSubview(communitiesContainer)
+
         return stack
     }
 
@@ -223,22 +282,22 @@ final class InstanceDetailViewController: UIViewController {
         let card = makeCard()
 
         let trust = ExplorerInstanceHealth.trust(score100: score100(), suspicious: record.isSuspicious)
-        let ring = ScoreRingView()
-        ring.configure(score100: score100(), color: color(for: trust.level))
+        let ring = InstanceScoreRingView()
+        ring.configure(score100: score100(), color: InstanceHealthStyle.color(for: trust.level))
         ring.translatesAutoresizingMaskIntoConstraints = false
         NSLayoutConstraint.activate([
             ring.widthAnchor.constraint(equalToConstant: 56),
             ring.heightAnchor.constraint(equalToConstant: 56),
         ])
 
-        let trustIcon = UIImageView(image: UIImage(systemName: trustSymbol(trust.level)))
-        trustIcon.tintColor = color(for: trust.level)
+        let trustIcon = UIImageView(image: UIImage(systemName: InstanceHealthStyle.trustSymbol(trust.level)))
+        trustIcon.tintColor = InstanceHealthStyle.color(for: trust.level)
         trustIcon.contentMode = .scaleAspectFit
         trustIcon.setContentHuggingPriority(.required, for: .horizontal)
         let trustLabel = UILabel()
         trustLabel.text = trust.label
         trustLabel.font = .systemFont(ofSize: 14, weight: .bold)
-        trustLabel.textColor = color(for: trust.level)
+        trustLabel.textColor = InstanceHealthStyle.color(for: trust.level)
         let trustRow = UIStackView(arrangedSubviews: [trustIcon, trustLabel, UIView()])
         trustRow.axis = .horizontal
         trustRow.spacing = 7
@@ -252,14 +311,14 @@ final class InstanceDetailViewController: UIViewController {
         let version = ExplorerInstanceHealth.version(record.version)
         let registration = ExplorerInstanceHealth.registration(record.registrationMode)
         var pills: [UIView] = [
-            makePill(symbol: "waveform.path.ecg", text: "\(uptime.short) up", level: uptime.level),
-            makePill(symbol: "tag", text: version.short, level: version.level),
-            makePill(symbol: registrationSymbol(record.registrationMode), text: registrationShort(record.registrationMode), level: registration.level),
+            InstanceHealthPillView(symbol: "waveform.path.ecg", text: "\(uptime.short) up", color: InstanceHealthStyle.color(for: uptime.level)),
+            InstanceHealthPillView(symbol: "tag", text: version.short, color: InstanceHealthStyle.color(for: version.level)),
+            InstanceHealthPillView(symbol: InstanceHealthStyle.registrationSymbol(record.registrationMode), text: InstanceHealthStyle.registrationShort(record.registrationMode), color: InstanceHealthStyle.color(for: registration.level)),
         ]
         if record.isNsfw {
-            pills.append(makePill(symbol: "eye", text: "NSFW", level: .unknown))
+            pills.append(InstanceHealthPillView(symbol: "eye", text: "NSFW", color: InstanceHealthStyle.color(for: .unknown)))
         }
-        let pillWrap = WrapView()
+        let pillWrap = InstanceWrapView()
         pillWrap.hSpacing = 6
         pillWrap.vSpacing = 6
         pillWrap.setItems(pills)
@@ -281,10 +340,10 @@ final class InstanceDetailViewController: UIViewController {
     private func makeStatGrid() -> UIView {
         let card = makeCard()
         let items: [(String, String?)] = [
-            (formatCount(record.usersTotal), "Members"),
-            (formatCount(record.usersActiveMonth), "Active /mo"),
-            (formatCount(record.numberOfPosts), "Posts"),
-            (formatCount(record.numberOfCommunities), "Communities"),
+            (InstanceHealthStyle.formatCount(record.usersTotal), "Members"),
+            (InstanceHealthStyle.formatCount(record.usersActiveMonth), "Active /mo"),
+            (InstanceHealthStyle.formatCount(record.numberOfPosts), "Posts"),
+            (InstanceHealthStyle.formatCount(record.numberOfCommunities), "Communities"),
         ]
         let top = makeGridRow(items[0], items[1])
         let bottom = makeGridRow(items[2], items[3])
@@ -362,9 +421,9 @@ final class InstanceDetailViewController: UIViewController {
         let languages = record.languageCodes.isEmpty ? "—" : record.languageCodes.map { $0.uppercased() }.joined(separator: ", ")
 
         let rows = [
-            metaRow(symbol: registrationSymbol(record.registrationMode), label: "Signups", value: registration.label, valueColor: color(for: registration.level)),
-            metaRow(symbol: "waveform.path.ecg", label: "Uptime", value: uptimeValue, valueColor: color(for: uptime.level)),
-            metaRow(symbol: "tag", label: "Software", value: version.short, valueColor: color(for: version.level)),
+            metaRow(symbol: InstanceHealthStyle.registrationSymbol(record.registrationMode), label: "Signups", value: registration.label, valueColor: InstanceHealthStyle.color(for: registration.level)),
+            metaRow(symbol: "waveform.path.ecg", label: "Uptime", value: uptimeValue, valueColor: InstanceHealthStyle.color(for: uptime.level)),
+            metaRow(symbol: "tag", label: "Software", value: version.short, valueColor: InstanceHealthStyle.color(for: version.level)),
             metaRow(symbol: "character.bubble", label: "Languages", value: languages, valueColor: .label),
             metaRow(symbol: "arrow.triangle.branch", label: "Federation", value: federation, valueColor: .label),
         ]
@@ -494,6 +553,8 @@ final class InstanceDetailViewController: UIViewController {
         container.layer.cornerRadius = 12
         container.layer.borderWidth = 1
         container.layer.borderColor = color.withAlphaComponent(0.26).cgColor
+        noticeBannerContainer = container
+        noticeBannerColor = color
 
         let icon = UIImageView(image: UIImage(systemName: notice.symbol))
         icon.tintColor = color
@@ -594,6 +655,117 @@ final class InstanceDetailViewController: UIViewController {
         if let bannerUrl = (record.bannerUrl).flatMap(URL.init(string:)) {
             fetch(bannerUrl, into: bannerImageView, fallbackLetter: false)
         }
+    }
+
+    // MARK: Secondary data (admins + communities)
+
+    private func loadSecondaryData() {
+        guard let instance = InstanceActorId(from: record.url ?? "https://\(record.baseurl)") else {
+            adminsView.update(.unavailable)
+            return
+        }
+
+        let allRows = appDatabase.explorerCommunityListRowsSync()
+        let comms = ExplorerCommunityDirectory.communities(onInstance: record.baseurl, in: allRows, sort: .members)
+        renderCommunities(into: communitiesContainer, comms: comms)
+
+        // Synchronous cache-first render so the initial layout shows seeded data
+        // without waiting for the async network refresh.
+        let cachedAdmins = appDatabase.siteAdminsSync(forInstanceActorId: instance)
+        adminsView.update(Self.adminsState(cachedAdmins, isSuspicious: record.isSuspicious))
+
+        let keychainId = accountService.accountForSignedOut(forInstance: instance, isServiceAccount: true)
+        let service = accountService.lemmyService(forAccountKeychainId: keychainId)
+        let appDatabase = appDatabase
+        let isSuspicious = record.isSuspicious
+        observationTasks.append(Task { @MainActor [weak self] in
+            try? await service.fetchSiteInfo()
+            for await admins in appDatabase.observeSiteAdmins(forInstanceActorId: instance) {
+                if Task.isCancelled { break }
+                guard let self else { break }
+                adminsView.update(Self.adminsState(admins, isSuspicious: isSuspicious))
+            }
+        })
+    }
+
+    private static func adminsState(_ admins: [SiteAdminRecord], isSuspicious: Bool) -> InstanceAdminsState {
+        admins.isEmpty ? (isSuspicious ? .anonymous : .unavailable) : .admins(admins)
+    }
+
+    private func renderCommunities(into container: UIStackView, comms: [CommunityListRow]) {
+        container.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        let countValue: Int? = record.numberOfCommunities > 0 ? Int(record.numberOfCommunities) : nil
+        let header = InstanceSectionHeader()
+        header.configure(title: "Communities", count: countValue)
+        container.addArrangedSubview(header)
+
+        guard !comms.isEmpty else {
+            let unavailableCard = makeCard()
+            let label = UILabel()
+            label.text = "Community list unavailable."
+            label.font = .systemFont(ofSize: 13.5)
+            label.textColor = .tertiaryLabel
+            label.numberOfLines = 0
+            label.translatesAutoresizingMaskIntoConstraints = false
+            unavailableCard.addSubview(label)
+            NSLayoutConstraint.activate([
+                label.topAnchor.constraint(equalTo: unavailableCard.topAnchor, constant: 14),
+                label.leadingAnchor.constraint(equalTo: unavailableCard.leadingAnchor, constant: 14),
+                label.trailingAnchor.constraint(equalTo: unavailableCard.trailingAnchor, constant: -14),
+                label.bottomAnchor.constraint(equalTo: unavailableCard.bottomAnchor, constant: -14),
+            ])
+            container.addArrangedSubview(unavailableCard)
+            return
+        }
+
+        let card = makeCard()
+        let cardStack = UIStackView()
+        cardStack.axis = .vertical
+        cardStack.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(cardStack)
+        pinToCard(cardStack, card, inset: 0)
+
+        let top3 = Array(comms.prefix(3))
+        for (index, row) in top3.enumerated() {
+            let rowView = InstanceCommunityRowView(row: row, action: .chevron, joined: false, accent: accent)
+            cardStack.addArrangedSubview(rowView)
+            if index < top3.count - 1 {
+                let line = UIView()
+                line.backgroundColor = .separator
+                line.heightAnchor.constraint(equalToConstant: 0.5).isActive = true
+                let insetLine = UIStackView(arrangedSubviews: [line])
+                insetLine.isLayoutMarginsRelativeArrangement = true
+                insetLine.layoutMargins = .init(top: 0, left: 13, bottom: 0, right: 0)
+                cardStack.addArrangedSubview(insetLine)
+            }
+        }
+
+        let footerLine = UIView()
+        footerLine.backgroundColor = .separator
+        footerLine.heightAnchor.constraint(equalToConstant: 0.5).isActive = true
+        let insetFooterLine = UIStackView(arrangedSubviews: [footerLine])
+        insetFooterLine.isLayoutMarginsRelativeArrangement = true
+        insetFooterLine.layoutMargins = .init(top: 0, left: 13, bottom: 0, right: 0)
+        cardStack.addArrangedSubview(insetFooterLine)
+
+        let browseLabel = UILabel()
+        let totalCount: Int? = record.numberOfCommunities > 0 ? Int(record.numberOfCommunities) : nil
+        if let total = totalCount {
+            browseLabel.text = "Browse all \(total) communities"
+        } else {
+            browseLabel.text = "Browse all communities"
+        }
+        browseLabel.font = .systemFont(ofSize: 14.5)
+        browseLabel.textColor = .secondaryLabel
+        let footerRow = UIStackView(arrangedSubviews: [browseLabel])
+        footerRow.axis = .horizontal
+        footerRow.alignment = .center
+        footerRow.isLayoutMarginsRelativeArrangement = true
+        footerRow.layoutMargins = .init(top: 11, left: 14, bottom: 11, right: 14)
+        cardStack.addArrangedSubview(footerRow)
+
+        container.addArrangedSubview(card)
     }
 
     private func fetch(_ url: URL, into imageView: UIImageView, fallbackLetter: Bool) {
@@ -701,71 +873,6 @@ final class InstanceDetailViewController: UIViewController {
         return line
     }
 
-    private func makePill(symbol: String, text: String, level: HealthLevel) -> UIView {
-        let tint = color(for: level)
-        let container = UIView()
-        container.backgroundColor = tint.withAlphaComponent(0.15)
-        container.layer.cornerRadius = 8
-        let icon = UIImageView(image: UIImage(systemName: symbol))
-        icon.tintColor = tint
-        icon.contentMode = .scaleAspectFit
-        let label = UILabel()
-        label.text = text
-        label.font = .systemFont(ofSize: 12.5, weight: .semibold)
-        label.textColor = tint
-        let stack = UIStackView(arrangedSubviews: [icon, label])
-        stack.axis = .horizontal
-        stack.spacing = 5
-        stack.alignment = .center
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 9),
-            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -9),
-            stack.topAnchor.constraint(equalTo: container.topAnchor, constant: 5),
-            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -5),
-            icon.widthAnchor.constraint(equalToConstant: 13.5),
-            icon.heightAnchor.constraint(equalToConstant: 13.5),
-        ])
-        return container
-    }
-
-    private func color(for level: HealthLevel) -> UIColor {
-        switch level {
-        case .good: .systemGreen
-        case .ok: .systemOrange
-        case .bad: .systemRed
-        case .unknown: .tertiaryLabel
-        }
-    }
-
-    private func trustSymbol(_ level: HealthLevel) -> String {
-        switch level {
-        case .good: "checkmark.shield.fill"
-        case .ok: "shield"
-        case .bad: "exclamationmark.triangle.fill"
-        case .unknown: "shield"
-        }
-    }
-
-    private func registrationSymbol(_ mode: ExplorerRegistrationMode) -> String {
-        switch mode {
-        case .open: "globe"
-        case .requireApplication: "doc.text"
-        case .closed: "lock.fill"
-        case .unknown: "globe"
-        }
-    }
-
-    private func registrationShort(_ mode: ExplorerRegistrationMode) -> String {
-        switch mode {
-        case .open: "Open"
-        case .requireApplication: "Apply"
-        case .closed: "Closed"
-        case .unknown: "—"
-        }
-    }
-
     private func descriptionText() -> String? {
         if let text = record.descriptionText, !text.isEmpty { return text }
         return "No description provided by this server."
@@ -783,159 +890,5 @@ final class InstanceDetailViewController: UIViewController {
     private func hue(for string: String) -> CGFloat {
         let sum = string.unicodeScalars.reduce(0) { $0 + Int($1.value) }
         return CGFloat(sum % 360) / 360
-    }
-
-    /// Compact count (e.g. "1.2K", "32K"). Returns "—" for nil/zero.
-    private func formatCount(_ value: Int64?) -> String {
-        guard let value, value > 0 else { return "—" }
-        let n = Double(value)
-        switch value {
-        case 1_000_000...:
-            return trim(n / 1_000_000) + "M"
-        case 1000...:
-            return trim(n / 1000) + "K"
-        default:
-            return "\(value)"
-        }
-    }
-
-    private func trim(_ value: Double) -> String {
-        if value >= 100 || value == value.rounded() {
-            return "\(Int(value.rounded()))"
-        }
-        return String(format: "%.1f", value)
-    }
-}
-
-// MARK: - ScoreRingView
-
-/// Explorer-score donut: a track ring + a coloured progress arc with the score
-/// (0...100) and a "SCORE" caption centred inside.
-private final class ScoreRingView: UIView {
-    private let track = CAShapeLayer()
-    private let progress = CAShapeLayer()
-    private let valueLabel = UILabel()
-    private var score100: Double?
-
-    init() {
-        super.init(frame: .zero)
-        track.fillColor = UIColor.clear.cgColor
-        track.strokeColor = UIColor.separator.cgColor
-        track.lineWidth = 4
-        progress.fillColor = UIColor.clear.cgColor
-        progress.lineWidth = 4
-        progress.lineCap = .round
-        layer.addSublayer(track)
-        layer.addSublayer(progress)
-
-        valueLabel.textAlignment = .center
-        valueLabel.font = .monospacedDigitSystemFont(ofSize: 19, weight: .heavy)
-        let caption = UILabel()
-        caption.text = "SCORE"
-        caption.textAlignment = .center
-        caption.font = .systemFont(ofSize: 8, weight: .bold)
-        caption.textColor = .tertiaryLabel
-        let stack = UIStackView(arrangedSubviews: [valueLabel, caption])
-        stack.axis = .vertical
-        stack.alignment = .center
-        stack.spacing = 1
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
-        NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
-        ])
-    }
-
-    @available(*, unavailable)
-    required init?(coder _: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    func configure(score100: Double?, color: UIColor) {
-        self.score100 = score100
-        if let score100 {
-            valueLabel.text = "\(Int(score100.rounded()))"
-            valueLabel.textColor = .label
-        } else {
-            valueLabel.text = "—"
-            valueLabel.textColor = .tertiaryLabel
-        }
-        progress.strokeColor = color.cgColor
-        setNeedsLayout()
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        let size = min(bounds.width, bounds.height)
-        let radius = (size - track.lineWidth) / 2
-        let center = CGPoint(x: bounds.midX, y: bounds.midY)
-        let path = UIBezierPath(
-            arcCenter: center,
-            radius: radius,
-            startAngle: -.pi / 2,
-            endAngle: 1.5 * .pi,
-            clockwise: true
-        )
-        track.path = path.cgPath
-        progress.path = path.cgPath
-        progress.strokeEnd = score100.map { max(0, min(1, $0 / 100)) } ?? 0
-        valueLabel.font = .monospacedDigitSystemFont(ofSize: size * 0.34, weight: .heavy)
-    }
-}
-
-// MARK: - WrapView
-
-/// A simple flow-layout container that wraps its items onto multiple rows.
-/// Used for the health pills and the tag chips.
-private final class WrapView: UIView {
-    var hSpacing: CGFloat = 7
-    var vSpacing: CGFloat = 7
-
-    private var items: [UIView] = []
-    private var lastWidth: CGFloat = 0
-
-    func setItems(_ views: [UIView]) {
-        items.forEach { $0.removeFromSuperview() }
-        items = views
-        views.forEach { addSubview($0) }
-        invalidateIntrinsicContentSize()
-        setNeedsLayout()
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        if bounds.width != lastWidth {
-            lastWidth = bounds.width
-            invalidateIntrinsicContentSize()
-        }
-        layout(width: bounds.width, apply: true)
-    }
-
-    override var intrinsicContentSize: CGSize {
-        let width = bounds.width > 0 ? bounds.width : UIScreen.main.bounds.width
-        return CGSize(width: UIView.noIntrinsicMetric, height: layout(width: width, apply: false))
-    }
-
-    @discardableResult
-    private func layout(width: CGFloat, apply: Bool) -> CGFloat {
-        guard width > 0 else { return 0 }
-        var x: CGFloat = 0
-        var y: CGFloat = 0
-        var rowHeight: CGFloat = 0
-        for view in items {
-            let size = view.systemLayoutSizeFitting(UIView.layoutFittingCompressedSize)
-            if x > 0, x + size.width > width {
-                x = 0
-                y += rowHeight + vSpacing
-                rowHeight = 0
-            }
-            if apply {
-                view.frame = CGRect(x: x, y: y, width: size.width, height: size.height)
-            }
-            x += size.width + hSpacing
-            rowHeight = max(rowHeight, size.height)
-        }
-        return y + rowHeight
     }
 }

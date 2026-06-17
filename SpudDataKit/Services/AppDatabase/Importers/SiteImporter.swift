@@ -113,7 +113,33 @@ public extension AppDatabase {
                 resolvedSiteId = record.id!
             }
 
+            try Self.applyAdmins(response.admins, siteId: resolvedSiteId, db: db)
+
             return (instanceId, resolvedSiteId)
+        }
+    }
+
+    /// Replaces the site's admin rows with `admins`, preserving API order via
+    /// `ordinal`. `ON DELETE CASCADE` on the FK is not relied on here; we delete
+    /// the prior set explicitly so a shrinking admin list converges.
+    private static func applyAdmins(
+        _ admins: [Components.Schemas.PersonView],
+        siteId: Int64,
+        db: Database
+    ) throws {
+        try SiteAdminRecord
+            .filter(Column("siteId") == siteId)
+            .deleteAll(db)
+        for (ordinal, view) in admins.enumerated() {
+            var record = SiteAdminRecord(
+                siteId: siteId,
+                ordinal: ordinal,
+                personActorId: view.person.actor_id,
+                personName: view.person.name,
+                displayName: view.person.display_name,
+                avatarUrl: view.person.avatar
+            )
+            try record.insert(db)
         }
     }
 

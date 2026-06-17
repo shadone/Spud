@@ -172,7 +172,11 @@ class DiscoverViewController: UIViewController {
             logger.error("Discover: no Explorer instance record for \(host, privacy: .public)")
             return
         }
-        let detail = InstanceDetailViewController(record: record, dependencies: dependencies.nested)
+        let detail = InstanceExploreViewController(
+            record: record,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
         navigationController?.pushViewController(detail, animated: true)
     }
 
