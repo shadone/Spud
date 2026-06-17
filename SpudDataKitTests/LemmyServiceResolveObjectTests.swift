@@ -67,4 +67,32 @@ final class LemmyServiceResolveObjectTests: XCTestCase {
         XCTAssertEqual(personId, 55)
         XCTAssertEqual(instance.host, "lemmy.world")
     }
+
+    func test_mapsCommentResponse_toCommentCaseWithPostAndCommentIds() {
+        var post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
+        post.id = 42
+        let comment = Components.Schemas.Comment.fake(
+            id: 7,
+            post: post,
+            creator: .fake,
+            parent: .root
+        )
+        let view = Components.Schemas.CommentView.fake(
+            comment: comment,
+            creator: .fake,
+            post: post,
+            community: .fake,
+            childCount: 0
+        )
+        let resolved = ResolvedLemmyObject(
+            response: Components.Schemas.ResolveObjectResponse(comment: view),
+            homeInstance: home
+        )
+        guard case let .comment(postId, commentId, instance) = resolved else {
+            return XCTFail("expected .comment")
+        }
+        XCTAssertEqual(postId, 42)
+        XCTAssertEqual(commentId, 7)
+        XCTAssertEqual(instance.host, "lemmy.world")
+    }
 }

@@ -18,8 +18,14 @@ public enum ResolvedLemmyObject: Sendable {
     case community(name: String, instance: InstanceActorId)
     /// A resolved person, by local id under the resolving account's instance.
     case person(personId: Components.Schemas.PersonID, instance: InstanceActorId)
-    /// Resolved to a comment (deferred — caller falls back to the browser).
-    case comment
+    /// A resolved comment, by its parent post id + comment id, both local under
+    /// the resolving account's instance. Callers open the post and scroll to the
+    /// comment.
+    case comment(
+        postId: Components.Schemas.PostID,
+        commentId: Components.Schemas.CommentID,
+        instance: InstanceActorId
+    )
     /// Nothing resolved (not federated, unknown, or empty response).
     case unresolved
 
@@ -34,8 +40,12 @@ public enum ResolvedLemmyObject: Sendable {
             self = .community(name: community.community.name, instance: instance)
         } else if let person = response.person {
             self = .person(personId: person.person.id, instance: homeInstance)
-        } else if response.comment != nil {
-            self = .comment
+        } else if let comment = response.comment {
+            self = .comment(
+                postId: comment.comment.post_id,
+                commentId: comment.comment.id,
+                instance: homeInstance
+            )
         } else {
             self = .unresolved
         }
