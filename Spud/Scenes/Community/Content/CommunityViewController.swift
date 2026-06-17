@@ -235,8 +235,9 @@ class CommunityViewController: UIViewController {
         Task { [weak self] in
             guard let self else { return }
             do {
-                let blocked = try await accountService
-                    .lemmyService(forAccountKeychainId: accountKeychainId)
+                let blocked = try await dependencies.own.accountService
+                    .scope(forAccountKeychainId: accountKeychainId)
+                    .lemmyService
                     .fetchBlockedList()
                 if Task.isCancelled { return }
                 viewModel.isBlocked = blocked.communities.contains { $0.serverCommunityId == serverCommunityId }
@@ -346,8 +347,9 @@ class CommunityViewController: UIViewController {
         let previous = viewModel.isBlocked
         viewModel.isBlocked = blocked
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: accountKeychainId)
+            try await dependencies.own.accountService
+                .scope(forAccountKeychainId: accountKeychainId)
+                .lemmyService
                 .setBlocked(serverCommunityId: viewModel.serverCommunityId, blocked: blocked)
             viewModel.blockStateKnown = true
             Haptics.success()
@@ -481,8 +483,9 @@ class CommunityViewController: UIViewController {
     private func setSubscribed(_ subscribed: Bool) async {
         Haptics.tap()
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: accountKeychainId)
+            try await dependencies.own.accountService
+                .scope(forAccountKeychainId: accountKeychainId)
+                .lemmyService
                 .setSubscribed(serverCommunityId: viewModel.serverCommunityId, subscribed: subscribed)
         } catch {
             alertService.handle(error, for: .setSubscribed)
