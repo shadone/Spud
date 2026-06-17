@@ -67,6 +67,22 @@ final class ImageServiceFullFetchTests: XCTestCase {
         XCTAssertEqual(alert.imageErrors, [url])
     }
 
+    func test_fullFetch_memoryCacheHit_yieldsReady() async throws {
+        let url = try XCTUnwrap(URL(string: "https://example.com/cached.png"))
+        let pipeline = ImagePipeline { config in
+            config.dataLoader = StubDataLoader(result: .failure(URLError(.notConnectedToInternet)))
+            config.imageCache = ImageCache()
+        }
+        pipeline.cache[ImageRequest(url: url)] = ImageContainer(image: ImageFixture.image())
+        let service = ImageService(alertService: AlertService(), pipeline: pipeline)
+
+        var ready: UIImage?
+        for await state in service.fetch(url, thumbnail: nil) {
+            if case let .ready(image) = state { ready = image }
+        }
+        XCTAssertNotNil(ready, "memory-cache hit must yield .ready, not hang on .loading")
+    }
+
     func test_fullFetch_throughEventStream_yieldsReady() async throws {
         let url = try XCTUnwrap(URL(string: "https://example.com/full.png"))
         let pipeline = ImagePipeline { config in

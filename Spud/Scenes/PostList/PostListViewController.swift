@@ -1753,34 +1753,32 @@ extension PostListViewController: UITableViewDelegate {
 // MARK: - UITableViewDataSourcePrefetching
 
 extension PostListViewController: UITableViewDataSourcePrefetching {
+    private static let thumbnailPrefetchSize = CGSize(width: PostListPostCell.thumbnailDimension, height: PostListPostCell.thumbnailDimension)
+
+    private func prefetchThumbnailUrls(for indexPaths: [IndexPath]) -> [URL] {
+        let postContentDetector = dependencies.own.postContentDetectorService
+        return indexPaths.compactMap { indexPath in
+            guard case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath),
+                  let row = rowsByServerPostId[serverPostId]
+            else { return nil }
+            return PostListPostViewModel.prefetchThumbnailUrl(for: row, postContentDetector: postContentDetector)
+        }
+    }
+
     /// Warms the image cache for image posts a few rows ahead of the visible
     /// window, so the thumbnail is already decoded by the time the cell is
     /// configured — no pop-in while scrolling quickly. The cell's own fetch then
     /// resolves from the cache. Text/link posts have nothing to prefetch.
     func tableView(_ tableView: UITableView, prefetchRowsAt indexPaths: [IndexPath]) {
-        let postContentDetector = dependencies.own.postContentDetectorService
-        let urls: [URL] = indexPaths.compactMap { indexPath in
-            guard case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath),
-                  let row = rowsByServerPostId[serverPostId]
-            else { return nil }
-            return PostListPostViewModel.prefetchThumbnailUrl(for: row, postContentDetector: postContentDetector)
-        }
+        let urls = prefetchThumbnailUrls(for: indexPaths)
         guard !urls.isEmpty else { return }
-        let size = CGSize(width: PostListPostCell.thumbnailDimension, height: PostListPostCell.thumbnailDimension)
-        imageService.startPrefetching(urls, downsampleTo: size)
+        imageService.startPrefetching(urls, downsampleTo: Self.thumbnailPrefetchSize)
     }
 
     func tableView(_ tableView: UITableView, cancelPrefetchingForRowsAt indexPaths: [IndexPath]) {
-        let postContentDetector = dependencies.own.postContentDetectorService
-        let urls: [URL] = indexPaths.compactMap { indexPath in
-            guard case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath),
-                  let row = rowsByServerPostId[serverPostId]
-            else { return nil }
-            return PostListPostViewModel.prefetchThumbnailUrl(for: row, postContentDetector: postContentDetector)
-        }
+        let urls = prefetchThumbnailUrls(for: indexPaths)
         guard !urls.isEmpty else { return }
-        let size = CGSize(width: PostListPostCell.thumbnailDimension, height: PostListPostCell.thumbnailDimension)
-        imageService.stopPrefetching(urls, downsampleTo: size)
+        imageService.stopPrefetching(urls, downsampleTo: Self.thumbnailPrefetchSize)
     }
 }
 

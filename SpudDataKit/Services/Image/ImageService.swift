@@ -50,8 +50,21 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         _ url: URL,
         thumbnail thumbnailUrl: URL?
     ) -> AsyncStream<ImageLoadingState> {
+        let request = ImageRequest(url: url)
+        // Full image already decoded in memory: deliver it immediately. Besides
+        // the instant paint, this avoids a lost-terminal-event race where
+        // imageTask(with:) completes synchronously on a cache hit before the
+        // consumer subscribes to .events (Nuke does not replay .finished to a
+        // late subscriber).
+        if let cached = pipeline.cache[request]?.image {
+            recordImageSize(cached.size, for: url)
+            return AsyncStream { continuation in
+                continuation.yield(.ready(cached))
+                continuation.finish()
+            }
+        }
         let seeded = thumbnailUrl.flatMap { pipeline.cache[ImageRequest(url: $0)]?.image }
-        return makeProgressiveStream(for: ImageRequest(url: url), url: url, initialThumbnail: seeded)
+        return makeProgressiveStream(for: request, url: url, initialThumbnail: seeded)
     }
 
     /// Drives a Nuke `ImageTask` to the `AsyncStream` event model, surfacing
