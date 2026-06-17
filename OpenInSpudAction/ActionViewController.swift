@@ -29,8 +29,7 @@ final class ActionViewController: UIViewController {
             return
         }
         let deepLink = URL.SpudInternalLink.objectAtURL(url: url).url
-        await openInHostApp(deepLink)
-        finish()
+        openInHostApp(deepLink)
     }
 
     /// The first `http(s)` URL attachment across the extension's input items.
@@ -52,36 +51,23 @@ final class ActionViewController: UIViewController {
         return nil
     }
 
-    /// Opens a URL in the host app. Prefers the public `NSExtensionContext.open`
-    /// API; if it reports failure (it can no-op for custom schemes on some iOS
-    /// versions), falls back to walking the responder chain for an object that
-    /// implements `openURL:` — the application — since extensions cannot reference
-    /// `UIApplication.shared` directly.
-    private func openInHostApp(_ url: URL) async {
-        let opened = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
-            guard let context = extensionContext else {
-                continuation.resume(returning: false)
-                return
-            }
-            context.open(url) { success in
-                continuation.resume(returning: success)
-            }
-        }
-        if !opened {
-            openViaResponderChain(url)
-        }
-    }
-
-    private func openViaResponderChain(_ url: URL) {
-        let selector = sel_registerName("openURL:")
+    /// Opens a URL in the host app. Extensions cannot use `UIApplication.shared`,
+    /// and `NSExtensionContext.open` no-ops for `com.apple.ui-services` action
+    /// extensions, so walk the responder chain to the `UIApplication` and call
+    /// the non-deprecated `open(_:options:completionHandler:)`. The legacy
+    /// `openURL:` selector is force-failed ("returning NO") by modern iOS.
+    private func openInHostApp(_ url: URL) {
         var responder: UIResponder? = self
         while let current = responder {
-            if current.responds(to: selector) {
-                _ = current.perform(selector, with: url)
+            if let application = current as? UIApplication {
+                application.open(url, options: [:]) { [weak self] _ in
+                    Task { @MainActor in self?.finish() }
+                }
                 return
             }
             responder = current.next
         }
+        finish()
     }
 
     private func finish() {
