@@ -28,10 +28,12 @@ final class InstanceCommunityRowView: UIView {
     private let joinButton = UIButton(type: .system)
     private var joined: Bool
     private let accent: UIColor
+    private let action: Action
 
     init(row: CommunityListRow, action: Action, joined: Bool, accent: UIColor) {
         self.joined = joined
         self.accent = accent
+        self.action = action
         super.init(frame: .zero)
 
         let icon = InstanceCommunityRowView.iconMark(for: row)
@@ -89,6 +91,7 @@ final class InstanceCommunityRowView: UIView {
 
     /// Optimistically reflect a join/leave without rebuilding the row.
     func setJoined(_ value: Bool) {
+        guard action == .join else { return }
         joined = value
         configureJoinButton()
     }
