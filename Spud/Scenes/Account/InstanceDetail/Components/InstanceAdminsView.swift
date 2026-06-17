@@ -56,6 +56,8 @@ final class InstanceAdminsView: UIView {
 
     func update(_ state: InstanceAdminsState) {
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        card.layer.borderWidth = 0
+        card.layer.borderColor = nil
         switch state {
         case .loading:
             header.configure(title: "Admins", count: nil)
@@ -75,7 +77,6 @@ final class InstanceAdminsView: UIView {
         case let .admins(admins):
             header.configure(title: "Admins", count: admins.count)
             card.backgroundColor = Theme.secondaryGroupedBackground
-            card.layer.borderWidth = 0
             for (index, admin) in admins.enumerated() {
                 stack.addArrangedSubview(adminRow(admin))
                 if index < admins.count - 1 {
