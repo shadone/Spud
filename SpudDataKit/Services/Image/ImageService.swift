@@ -48,11 +48,12 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         _ url: URL,
         thumbnail thumbnailUrl: URL?
     ) -> AsyncStream<ImageLoadingState> {
-        // Phase 1: a plain full-image fetch. The Phase-2 progressive-decode plan
-        // adds incremental previews here; the old hand-rolled thumbnail race is
-        // retired in favor of Nuke's memory cache + (later) progressive scans.
+        // Phase 1: seed the loading state with whatever thumbnail Nuke already
+        // holds in its memory cache — cheap, synchronous, no network touch.
+        // Phase-2 progressive-decode will add incremental previews on top of this.
+        let seeded = thumbnailUrl.flatMap { pipeline.cache[ImageRequest(url: $0)]?.image }
         let request = ImageRequest(url: url)
-        return makeStream(for: request, url: url)
+        return makeStream(for: request, url: url, initialThumbnail: seeded, signpostName: "fetchFull")
     }
 
     /// Fetch and play an animated image (GIF). Yields a loading state while
@@ -66,7 +67,7 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
                 }
                 continuation.yield(.loading(thumbnail: nil))
                 do {
-                    let (data, _) = try await signposter.interval("fetchAnimated", url: url) {
+                    let (data, _) = try await signposter.interval("fetchAnimated") {
                         try await self.pipeline.data(for: ImageRequest(url: url))
                     }
                     if Task.isCancelled { continuation.finish()
@@ -117,21 +118,27 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
             url: url,
             processors: [ImageProcessors.Resize(size: pointSize, unit: .points, contentMode: .aspectFit)]
         )
-        return makeStream(for: request, url: url)
+        return makeStream(for: request, url: url, signpostName: "fetchDownsample")
     }
 
     /// Shared adapter: drives a Nuke request to the `AsyncStream` event model.
-    /// Yields `.loading(thumbnail:)` immediately, then `.ready` on success or
-    /// `.failure` on a real error. A cancelled request exits quietly.
-    private func makeStream(for request: ImageRequest, url: URL) -> AsyncStream<ImageLoadingState> {
+    /// Yields `.loading(thumbnail:)` immediately (seeded with `initialThumbnail`
+    /// when available), then `.ready` on success or `.failure` on a real error.
+    /// A cancelled request exits quietly.
+    private func makeStream(
+        for request: ImageRequest,
+        url: URL,
+        initialThumbnail: UIImage? = nil,
+        signpostName: StaticString
+    ) -> AsyncStream<ImageLoadingState> {
         AsyncStream { continuation in
             let task = Task { [weak self] in
                 guard let self else { continuation.finish()
                     return
                 }
-                continuation.yield(.loading(thumbnail: nil))
+                continuation.yield(.loading(thumbnail: initialThumbnail))
                 do {
-                    let image = try await signposter.interval("fetch", url: url) {
+                    let image = try await signposter.interval(signpostName) {
                         try await self.pipeline.image(for: request)
                     }
                     if Task.isCancelled { continuation.finish()

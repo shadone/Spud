@@ -36,7 +36,7 @@ enum ImagePipelineFactory {
               !(200...299).contains(http.statusCode)
         else { return }
         func header(_ name: String) -> String {
-            (http.value(forHTTPHeaderField: name)) ?? "-"
+            http.value(forHTTPHeaderField: name) ?? "-"
         }
         logger.error(
             """

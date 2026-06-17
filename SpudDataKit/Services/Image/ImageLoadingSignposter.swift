@@ -15,7 +15,7 @@ struct ImageLoadingSignposter {
         category: "ImageLoading"
     )
 
-    func interval<T>(_ name: StaticString, url: URL, _ work: () async throws -> T) async rethrows -> T {
+    func interval<T>(_ name: StaticString, _ work: () async throws -> T) async rethrows -> T {
         let state = signposter.beginInterval(name, id: signposter.makeSignpostID())
         defer { signposter.endInterval(name, state) }
         return try await work()

@@ -49,6 +49,11 @@ enum ImageFixture {
     static func httpResponse(_ url: URL, status: Int = 200) -> HTTPURLResponse {
         HTTPURLResponse(url: url, statusCode: status, httpVersion: nil, headerFields: nil)!
     }
+
+    /// Decodes `pngData()` into a `UIImage` for use as a cache value.
+    static func image() -> UIImage {
+        UIImage(data: pngData())!
+    }
 }
 
 final class ImageServiceDownsampleTests: XCTestCase {
