@@ -27,8 +27,14 @@ final class PostListViewModel {
     @ObservationIgnored
     private let dependencies: OwnDependencies
 
+    @ObservationIgnored
+    let accountScope: AccountScope
+
     var feed: FeedHandle
-    let accountKeychainId: String
+    var accountKeychainId: String {
+        accountScope.accountKeychainId
+    }
+
     var navigationTitle: String
     var isFetchingNextPage: Bool = false
 
@@ -50,10 +56,10 @@ final class PostListViewModel {
         dependencies.accountService
     }
 
-    init(feed: FeedHandle, accountKeychainId: String, dependencies: Dependencies) {
+    init(feed: FeedHandle, accountScope: AccountScope, dependencies: Dependencies) {
         self.dependencies = dependencies
+        self.accountScope = accountScope
         self.feed = feed
-        self.accountKeychainId = accountKeychainId
         navigationTitle = Self.navigationTitle(for: feed.feedType)
     }
 
@@ -112,8 +118,7 @@ final class PostListViewModel {
         defer { isFetchingNextPage = false }
 
         do {
-            let returnedCursor = try await accountService
-                .lemmyService(forAccountKeychainId: accountKeychainId)
+            let returnedCursor = try await accountScope.lemmyService
                 .fetchFeed(feed, pageCursor: nextPageCursor)
             nextPageCursor = returnedCursor
             lastFetchError = nil
