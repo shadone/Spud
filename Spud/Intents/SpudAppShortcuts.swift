@@ -52,5 +52,14 @@ struct SpudAppShortcuts: AppShortcutsProvider {
             shortTitle: "Open Community",
             systemImageName: "person.3"
         )
+        AppShortcut(
+            intent: OpenSavedAppIntent(),
+            phrases: [
+                "Open my \(.applicationName) saved posts",
+                "Show saved in \(.applicationName)",
+            ],
+            shortTitle: "Saved Posts",
+            systemImageName: "bookmark.fill"
+        )
     }
 }
