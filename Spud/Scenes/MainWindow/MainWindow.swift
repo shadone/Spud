@@ -188,6 +188,9 @@ class MainWindow: UIWindow {
     ) {
         currentDefaultAccountKeychainId = keychainId
 
+        // Keep the Spotlight community index current for this account.
+        CommunitySpotlightIndexer.reindex(appDatabase: appDatabase)
+
         // Tab: Setup the split view controller
         let splitViewController = MainWindowSplitViewController(
             accountKeychainId: keychainId,

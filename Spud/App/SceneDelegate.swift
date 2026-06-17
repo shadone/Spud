@@ -68,6 +68,10 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // Refresh the inbox unread count so the badge is current when the user
         // returns to the app.
         window?.refreshUnreadCount()
+
+        // Keep the Spotlight community index current with any subscription
+        // changes made while we were away.
+        CommunitySpotlightIndexer.reindex(appDatabase: AppCoordinator.shared.dependencies.appDatabase)
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {

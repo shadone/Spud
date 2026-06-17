@@ -5,12 +5,14 @@
 //
 
 import AppIntents
+import CoreSpotlight
 import SpudDataKit
 import SpudUtilKit
 
 /// A Lemmy community exposed to App Intents / Siri / Spotlight. Identity is
 /// `name@instanceHost`, which is federation-aware and stable across re-imports.
-struct CommunityAppEntity: AppEntity {
+/// `IndexedEntity` lets subscribed communities be indexed into Spotlight.
+struct CommunityAppEntity: AppEntity, IndexedEntity {
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Community")
     static let defaultQuery = CommunityEntityQuery()
 
