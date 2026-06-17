@@ -70,6 +70,9 @@ final class InstanceAboutServerView: UIView {
         collapsedHeightConstraint = clip.heightAnchor.constraint(equalToConstant: collapsedHeight)
         collapsedHeightConstraint.isActive = true
 
+        let bodyBottom = bodyView.bottomAnchor.constraint(equalTo: clip.bottomAnchor)
+        bodyBottom.priority = .defaultLow
+
         NSLayoutConstraint.activate([
             outer.topAnchor.constraint(equalTo: topAnchor),
             outer.leadingAnchor.constraint(equalTo: leadingAnchor),
@@ -83,6 +86,7 @@ final class InstanceAboutServerView: UIView {
             bodyView.topAnchor.constraint(equalTo: clip.topAnchor),
             bodyView.leadingAnchor.constraint(equalTo: clip.leadingAnchor),
             bodyView.trailingAnchor.constraint(equalTo: clip.trailingAnchor),
+            bodyBottom,
 
             fade.leadingAnchor.constraint(equalTo: clip.leadingAnchor),
             fade.trailingAnchor.constraint(equalTo: clip.trailingAnchor),
@@ -123,15 +127,18 @@ final class InstanceAboutServerView: UIView {
     private func toggle() {
         expanded.toggle()
         let animate = !UIAccessibility.isReduceMotionEnabled
-        let work = { self.applyState()
-            self.superview?.layoutIfNeeded()
-        }
         if animate {
-            UIView.animate(withDuration: 0.28, delay: 0, options: [.curveEaseInOut]) { work() }
+            UIView.animate(withDuration: 0.28, delay: 0, options: [.curveEaseInOut]) {
+                self.applyState()
+                self.superview?.layoutIfNeeded()
+            } completion: { _ in
+                self.onHeightChange?()
+            }
         } else {
-            work()
+            applyState()
+            superview?.layoutIfNeeded()
+            onHeightChange?()
         }
-        onHeightChange?()
     }
 
     private func applyState() {
