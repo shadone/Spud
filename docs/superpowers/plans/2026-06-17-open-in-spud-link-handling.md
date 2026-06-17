@@ -486,6 +486,13 @@ git commit -m "feat: localize Open in Spud banner strings"
 
 ## Slice D — Comment deep-link scroll (the hard part)
 
+> **Status: DEFERRED (not shipped on this branch).** A comment link already opens
+> its parent post (Slice A4 routes `.comment` → `display(serverPostId:)`). Scrolling
+> to the specific comment needs (a) a server `CommentID` → post-detail `elementId`
+> mapping and (b) fetching the comment's context so the row exists in the tree
+> (`scrollToComment`/`expandAncestors` only work on already-loaded rows). That is a
+> self-contained follow-up; the steps below capture it for when it's picked up.
+
 Depends on Slice A. Optional polish; the parent post already opens without it.
 
 ### Task D1: Scroll to and highlight a deep-linked comment
