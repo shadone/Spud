@@ -57,6 +57,7 @@ class PersonViewController: UIViewController {
     // MARK: Private
 
     private let accountKeychainId: String
+    private let personRowId: Int64
     private let viewModel: PersonViewModel
 
     private let headerView = PersonHeaderView()
@@ -121,6 +122,7 @@ class PersonViewController: UIViewController {
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
         self.accountKeychainId = accountKeychainId
+        self.personRowId = personRowId
 
         viewModel = PersonViewModel(
             personRowId: personRowId,
@@ -300,7 +302,7 @@ class PersonViewController: UIViewController {
     /// their canonical `ap_id` (resolved via the existing `.objectAtURL` path).
     private func updateUserActivity() {
         guard
-            let actorIdString = appDatabase.personActorIdSync(forServerPersonId: Int64(viewModel.serverPersonId)),
+            let actorIdString = appDatabase.personActorIdSync(forPersonRowId: personRowId),
             let actorURL = URL(string: actorIdString)
         else { return }
         let routingURL = URL.SpudInternalLink.objectAtURL(url: actorURL).url
