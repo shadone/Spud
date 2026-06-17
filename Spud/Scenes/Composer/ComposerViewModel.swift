@@ -77,7 +77,7 @@ final class ComposerViewModel {
     private let target: ComposerTarget
 
     @ObservationIgnored
-    let accountKeychainId: String
+    private let accountScope: AccountScope
 
     var bodyText: String = ""
     var submissionState: ComposerSubmissionState = .editing
@@ -102,21 +102,17 @@ final class ComposerViewModel {
         }
     }
 
-    private var accountService: AccountServiceType {
-        dependencies.accountService
-    }
-
     private var alertService: AlertServiceType {
         dependencies.alertService
     }
 
     init(
         target: ComposerTarget,
-        accountKeychainId: String,
+        accountScope: AccountScope,
         dependencies: Dependencies
     ) {
         self.target = target
-        self.accountKeychainId = accountKeychainId
+        self.accountScope = accountScope
         self.dependencies = dependencies
     }
 
@@ -125,7 +121,7 @@ final class ComposerViewModel {
         guard !content.isEmpty else { return }
 
         submissionState = .submitting
-        let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+        let service = accountScope.lemmyService
         do {
             if let recipientId = target.privateMessageRecipientId {
                 try await service.sendPrivateMessage(content: content, recipientId: recipientId)

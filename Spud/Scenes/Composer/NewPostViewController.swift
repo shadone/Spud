@@ -182,7 +182,7 @@ final class NewPostViewController: UIViewController {
         viewModel = NewPostViewModel(
             serverCommunityId: serverCommunityId,
             initialCommunityName: initialCommunityName,
-            accountKeychainId: accountKeychainId,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             dependencies: dependencies
         )
         super.init(nibName: nil, bundle: nil)
