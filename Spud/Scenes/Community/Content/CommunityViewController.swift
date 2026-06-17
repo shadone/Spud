@@ -201,6 +201,32 @@ class CommunityViewController: UIViewController {
         refreshBlockState()
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        updateUserActivity()
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        userActivity?.resignCurrent()
+        userActivity = nil
+    }
+
+    /// Vends a Handoff/Spotlight/Prediction activity for this community, keyed by
+    /// `!name@instance` so it resolves without a network round-trip.
+    private func updateUserActivity() {
+        guard
+            !viewModel.name.isEmpty,
+            let actorId = viewModel.actorId,
+            let url = URL(string: actorId),
+            let instance = InstanceActorId(from: url)
+        else { return }
+        let routingURL = URL.SpudInternalLink.community(name: viewModel.name, instance: instance).url
+        let activity = SpudUserActivity.viewCommunity(routingURL: routingURL, name: viewModel.name)
+        userActivity = activity
+        activity.becomeCurrent()
+    }
+
     /// Resolves whether this community is currently blocked, from the server's
     /// `getSite` block list. No-op for signed-out accounts.
     private func refreshBlockState() {
