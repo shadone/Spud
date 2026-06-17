@@ -70,9 +70,9 @@ public extension ImageServiceType {
     }
 
     /// Default: no prefetching. Real implementations override this.
-    func startPrefetching(_ urls: [URL], downsampleTo pointSize: CGSize) {}
+    func startPrefetching(_ urls: [URL], downsampleTo pointSize: CGSize) { }
 
-    func stopPrefetching(_ urls: [URL], downsampleTo pointSize: CGSize) {}
+    func stopPrefetching(_ urls: [URL], downsampleTo pointSize: CGSize) { }
 }
 
 @MainActor

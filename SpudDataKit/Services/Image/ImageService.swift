@@ -21,6 +21,7 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     private var knownImageSizes: [String: CGSize] = [:]
 
     private let pipeline: ImagePipeline
+    private let prefetcher: ImagePrefetcher
     private let signposter = ImageLoadingSignposter()
 
     /// Name for this process's on-disk image cache. Each process (app, widget,
@@ -35,6 +36,7 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     init(alertService: AlertServiceType, pipeline: ImagePipeline) {
         self.alertService = alertService
         self.pipeline = pipeline
+        prefetcher = ImagePrefetcher(pipeline: pipeline, destination: .memoryCache)
     }
 
     public convenience init(alertService: AlertServiceType) {
@@ -152,12 +154,28 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
         }
     }
 
-    public func fetch(_ url: URL, downsampleTo pointSize: CGSize) -> AsyncStream<ImageLoadingState> {
-        let request = ImageRequest(
+    /// The Nuke request the feed uses for a downsampled thumbnail. Single source
+    /// of truth so prefetch warms exactly the cache entry the cell later reads.
+    static func downsampleRequest(url: URL, pointSize: CGSize) -> ImageRequest {
+        ImageRequest(
             url: url,
             processors: [ImageProcessors.Resize(size: pointSize, unit: .points, contentMode: .aspectFit)]
         )
+    }
+
+    public func fetch(_ url: URL, downsampleTo pointSize: CGSize) -> AsyncStream<ImageLoadingState> {
+        let request = Self.downsampleRequest(url: url, pointSize: pointSize)
         return makeStream(for: request, url: url, signpostName: "fetchDownsample")
+    }
+
+    public func startPrefetching(_ urls: [URL], downsampleTo pointSize: CGSize) {
+        let requests = urls.map { Self.downsampleRequest(url: $0, pointSize: pointSize) }
+        prefetcher.startPrefetching(with: requests)
+    }
+
+    public func stopPrefetching(_ urls: [URL], downsampleTo pointSize: CGSize) {
+        let requests = urls.map { Self.downsampleRequest(url: $0, pointSize: pointSize) }
+        prefetcher.stopPrefetching(with: requests)
     }
 
     /// Shared adapter: drives a Nuke request to the `AsyncStream` event model.
