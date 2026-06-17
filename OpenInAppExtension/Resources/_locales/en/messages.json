@@ -6,5 +6,17 @@
     "extension_description": {
         "message": "Open Lemmy links in Spud app.\nThis extension does not collect any data about the visited websites, all Lemmy link processing occurs on device.",
         "description": "Description of what the extension does."
+    },
+    "banner_title": {
+        "message": "Open this in Spud?",
+        "description": "Title of the in-page banner shown on a recognized Lemmy page."
+    },
+    "banner_open": {
+        "message": "Open",
+        "description": "Label of the banner button that opens the current page in the Spud app."
+    },
+    "banner_dismiss": {
+        "message": "Dismiss",
+        "description": "Accessibility label of the banner's dismiss button."
     }
 }
