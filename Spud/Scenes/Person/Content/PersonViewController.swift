@@ -8,6 +8,7 @@ import Foundation
 import LemmyKit
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 /// The person profile content: an Apollo-style header pinned above a segmented
@@ -282,6 +283,30 @@ class PersonViewController: UIViewController {
         if !isOwnProfile {
             viewModel.refreshBlockState()
         }
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        updateUserActivity()
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        userActivity?.resignCurrent()
+        userActivity = nil
+    }
+
+    /// Vends a Handoff/Spotlight/Prediction activity for this person, keyed by
+    /// their canonical `ap_id` (resolved via the existing `.objectAtURL` path).
+    private func updateUserActivity() {
+        guard
+            let actorIdString = appDatabase.personActorIdSync(forServerPersonId: Int64(viewModel.serverPersonId)),
+            let actorURL = URL(string: actorIdString)
+        else { return }
+        let routingURL = URL.SpudInternalLink.objectAtURL(url: actorURL).url
+        let activity = SpudUserActivity.viewPerson(routingURL: routingURL, handle: viewModel.handle)
+        userActivity = activity
+        activity.becomeCurrent()
     }
 
     /// True when this profile belongs to the backing account itself - block and
