@@ -1025,9 +1025,20 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - The audio/video transport bars are static design props (no real progress / scrubbing / duration).
 - No max-height clamp on very tall loaded images (the box takes the image's full aspect ratio).
 - **`ImageBlockView` does not fire `onContentSizeChange` after the async load resolves** (the box swaps from the 16:10 loading placeholder to the image's natural aspect / the failed plate, changing height). Harmless for the standalone self-sizing `MarkdownBodyView` and the Lab's synchronous loader, but Phase 6 integrates into cached-height table/collection cells — pass `renderer.onContentSizeChange` into `ImageBlockView` and fire it after `apply(state:)`, like `SpoilerBlockView` does on toggle. (Flagged by the final review; the load-bearing Phase-6 item.)
-- **No VoiceOver element on a loaded image** — audio/video expose `isAccessibilityElement`+label+hint+`.button`, but the loaded image's tappable box isn't an announced/activatable element (alt text renders only as a visible caption). The spec wants "VoiceOver children per image"; add an element with the alt text / "Tap to zoom" / `.image` trait at Phase 6.
+- ~~**No VoiceOver element on a loaded image**~~ — RESOLVED 2026-06-17 (see below).
 - **No haptic on media tap** (CodeBlockView's Copy fires `Haptics.tap()`); media taps route to the delegate, so the host adds haptics at Phase 6.
-- The Phase-3 carry-overs are untouched: rounded mention/community chips, footnote ref↔def smooth scroll, fence-aware preprocessors, spoiler-in-list extraction, H6 inline formatting, the minor Phase-2 cleanups.
+- ~~The Phase-3 carry-overs are untouched: rounded mention/community chips, footnote ref↔def smooth scroll, fence-aware preprocessors, spoiler-in-list extraction, H6 inline formatting~~ — RESOLVED 2026-06-17 (see below); the minor Phase-2 cleanups remain.
+
+## Resolved 2026-06-17 — carried renderer limitations
+
+Six carried items were implemented (TDD, full SpudMarkdownKit unit + snapshot suite green):
+
+- **Fence-aware preprocessors** — `MarkdownFenceScanner` flags lines inside ``` / ~~~ fences; `FootnoteExtractor`, `SpoilerPreprocessor`, and `SubSupPreprocessor` skip them, so `[^1]:` / `::: spoiler` / `^x^` / `~x~` inside code stay literal.
+- **Spoiler-in-list** — `MarkdownParser.reinjectSpoilers` recurses into list items, and `SpoilerPreprocessor` preserves the opening fence's indentation (and strips it from the captured inner) so a spoiler nests in its list item instead of floating out.
+- **H6 inline formatting** — `MarkdownBlockRenderer.heading` builds H6 with the heading font as the inline base and uppercases per attribute run, so bold/italic/links survive (links stay tappable) instead of being flattened.
+- **Loaded-image VoiceOver** — `ImageBlockView` marks itself an accessibility element in the loaded state (alt-text label, "Tap to zoom" hint, `.image`+`.button` traits) and overrides `accessibilityActivate()` to fire the zoom.
+- **Footnote ref↔def scroll** — `[^n]` references and the `↩` return affordance carry internal `spud-markdown://footnote-def|footnote-ref` links (`MarkdownFootnoteLink`); `MarkdownBodyView` intercepts them (never forwarding to the host delegate), indexes ref/def prose rows, and `scrollRectToVisible` in the enclosing scroll view. Also: `ProseBlockView.linkTextAttributes = [:]` so links/mentions/footnote refs keep their brand-teal color instead of UIKit's blue tint.
+- **Rounded mention/community chips** — handles stay real, selectable text (full VoiceOver, wraps per the spec) marked `.mentionChipFill`; `ProseBlockView` runs an explicit TextKit 1 stack whose `ChipBackgroundLayoutManager.drawBackground` paints rounded pills behind those ranges. (An `NSTextAttachmentViewProvider` pill was tried first but its hosted view doesn't populate offscreen — empty/placeholder boxes in snapshots and on device.)
 
 ## Next
 

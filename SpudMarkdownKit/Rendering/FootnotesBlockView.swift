@@ -39,8 +39,11 @@ final class FootnotesBlockView: UIView {
                 .font: context.smallFont.withTraits(.traitBold), .foregroundColor: context.secondaryColor,
             ])
             m.append(InlineAttributedStringBuilder.build(note.content, context: context))
-            m.append(NSAttributedString(string: " \u{21A9}", attributes: [
-                .font: context.smallFont, .foregroundColor: context.accentColor,
+            m.append(NSAttributedString(string: " ", attributes: [.font: context.smallFont]))
+            m.append(NSAttributedString(string: "\u{21A9}", attributes: [
+                .font: context.smallFont,
+                .foregroundColor: context.accentColor,
+                .link: MarkdownFootnoteLink.url(.toReference(label: note.label)),
             ]))
             stack.addArrangedSubview(renderer.prose(m))
         }

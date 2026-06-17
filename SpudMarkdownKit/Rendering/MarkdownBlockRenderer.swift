@@ -85,17 +85,36 @@ final class MarkdownBlockRenderer {
 
     private func heading(level: Int, inlines: [MarkdownInline]) -> NSAttributedString {
         let font = context.headingFont(level: level)
-        let color: UIColor = level == 6 ? context.secondaryColor : context.labelColor
+        if level == 6 {
+            // The small uppercase secondary label. Build with the heading font as
+            // the base so inline emphasis/links compose instead of being flattened,
+            // recolor only non-link runs to secondary (keeping link accent), then
+            // uppercase per-run so links stay tappable.
+            let inner = InlineAttributedStringBuilder.build(inlines, context: context, baseFont: font)
+            let m = NSMutableAttributedString(attributedString: inner)
+            let full = NSRange(location: 0, length: m.length)
+            m.enumerateAttribute(.link, in: full) { link, range, _ in
+                if link == nil {
+                    m.addAttribute(.foregroundColor, value: context.secondaryColor, range: range)
+                }
+            }
+            return uppercasedPreservingAttributes(m)
+        }
         let inner = InlineAttributedStringBuilder.build(inlines, context: context)
         let m = NSMutableAttributedString(attributedString: inner)
         let full = NSRange(location: 0, length: m.length)
-        m.addAttributes([.font: font, .foregroundColor: color], range: full)
-        if level == 6 {
-            m.replaceCharacters(in: full, with: NSAttributedString(
-                string: m.string.uppercased(),
-                attributes: [.font: font, .foregroundColor: color]
-            ))
-        }
+        m.addAttributes([.font: font, .foregroundColor: context.labelColor], range: full)
         return m
+    }
+
+    /// Uppercases an attributed string while keeping each run's attributes (so a
+    /// link/emphasis inside an H6 survives the case transform).
+    private func uppercasedPreservingAttributes(_ attributed: NSAttributedString) -> NSAttributedString {
+        let result = NSMutableAttributedString()
+        let nsString = attributed.string as NSString
+        attributed.enumerateAttributes(in: NSRange(location: 0, length: attributed.length)) { attrs, range, _ in
+            result.append(NSAttributedString(string: nsString.substring(with: range).uppercased(), attributes: attrs))
+        }
+        return result
     }
 }

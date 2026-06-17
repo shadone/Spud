@@ -24,6 +24,7 @@ final class ImageBlockView: UIView {
 
     private let box = UIView()
     private var boxAspect: NSLayoutConstraint?
+    private var isLoaded = false
 
     init(
         image: MarkdownImage,
@@ -98,6 +99,10 @@ final class ImageBlockView: UIView {
         box.backgroundColor = nil
         box.layer.borderWidth = 0
         box.isUserInteractionEnabled = false
+        // Only the loaded state is an interactive element; loading/failed expose
+        // their own children (status label, "Open in browser" button) instead.
+        isLoaded = false
+        isAccessibilityElement = false
 
         switch state {
         case .loading:
@@ -126,6 +131,13 @@ final class ImageBlockView: UIView {
             addZoomChip()
             box.isUserInteractionEnabled = true
             box.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(zoomTapped)))
+            // Announce the whole view as one focusable, activatable element. Marking
+            // self the element collapses the caption/chip so the alt text reads once.
+            isLoaded = true
+            isAccessibilityElement = true
+            accessibilityLabel = altText ?? "Image"
+            accessibilityHint = "Tap to zoom"
+            accessibilityTraits = [.image, .button]
 
         case .failed:
             box.backgroundColor = .secondarySystemFill
@@ -220,5 +232,13 @@ final class ImageBlockView: UIView {
     @objc
     private func zoomTapped() {
         onTapImage?(url, altText, box.convert(box.bounds, to: nil))
+    }
+
+    /// VoiceOver double-tap on the loaded image opens the zoom, matching the
+    /// visual tap. The gesture lives on `box`, so route activation explicitly.
+    override func accessibilityActivate() -> Bool {
+        guard isLoaded else { return false }
+        zoomTapped()
+        return true
     }
 }

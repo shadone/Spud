@@ -6,20 +6,36 @@
 
 import UIKit
 
-/// A non-editable, non-scrolling, self-sizing TextKit 2 text view for one
-/// attributed string (a paragraph/heading run, or a list/quote leaf).
+/// A non-editable, non-scrolling, self-sizing text view for one attributed string
+/// (a paragraph/heading run, or a list/quote leaf). Built on an explicit TextKit 1
+/// stack so a `ChipBackgroundLayoutManager` can paint rounded mention/community
+/// pills behind the handle text.
 final class ProseBlockView: UITextView {
     var onTapLink: ((URL) -> Void)?
 
+    /// Strongly held so the manual TextKit 1 stack isn't torn down.
+    private let chipTextStorage: NSTextStorage
+
     init() {
-        super.init(frame: .zero, textContainer: nil)
+        let textStorage = NSTextStorage()
+        let layoutManager = ChipBackgroundLayoutManager()
+        textStorage.addLayoutManager(layoutManager)
+        let container = NSTextContainer(size: CGSize(width: 0, height: CGFloat.greatestFiniteMagnitude))
+        container.lineFragmentPadding = 0
+        container.widthTracksTextView = true
+        layoutManager.addTextContainer(container)
+        chipTextStorage = textStorage
+
+        super.init(frame: .zero, textContainer: container)
         isEditable = false
         isScrollEnabled = false
         isSelectable = true
         backgroundColor = .clear
         textContainerInset = .zero
-        textContainer.lineFragmentPadding = 0
         adjustsFontForContentSizeCategory = true
+        // Defer link styling to the attributed string so links/mentions/footnote
+        // refs keep their brand-teal color instead of UIKit's blue tint override.
+        linkTextAttributes = [:]
         delegate = self
         setContentCompressionResistancePriority(.required, for: .vertical)
         setContentHuggingPriority(.required, for: .vertical)

@@ -47,11 +47,33 @@ final class InlineAttributedStringBuilderTests: XCTestCase {
         XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.traitMonoSpace) ?? false)
     }
 
-    func test_mentionCarriesInternalLinkAndAccentColor() {
+    private func chipFillAndLink(_ s: NSAttributedString) -> (fill: UIColor, url: URL)? {
+        let full = NSRange(location: 0, length: s.length)
+        var fill: UIColor?
+        var url: URL?
+        s.enumerateAttribute(.mentionChipFill, in: full) { value, _, _ in
+            if let color = value as? UIColor { fill = color }
+        }
+        s.enumerateAttribute(.link, in: full) { value, _, _ in
+            if let value = value as? URL { url = value }
+        }
+        guard let fill, let url else { return nil }
+        return (fill, url)
+    }
+
+    func test_mentionRendersHandleTextWithChipFillAndLink() throws {
         let s = build([.mention(name: "alice", instance: "lemmy.world")])
-        XCTAssertTrue(s.string.contains("alice"))
-        let url = s.attribute(.link, at: s.length - 1, effectiveRange: nil) as? URL
-        XCTAssertEqual(url?.scheme, "spud-markdown")
+        XCTAssertTrue(s.string.contains("alice@lemmy.world"))
+        let chip = try XCTUnwrap(chipFillAndLink(s))
+        XCTAssertEqual(chip.url.scheme, "spud-markdown")
+        XCTAssertEqual(chip.url.host, "mention")
+    }
+
+    func test_communityRendersHandleTextWithChipFillAndLink() throws {
+        let s = build([.community(name: "linux", instance: "lemmy.world")])
+        XCTAssertTrue(s.string.contains("linux@lemmy.world"))
+        let chip = try XCTUnwrap(chipFillAndLink(s))
+        XCTAssertEqual(chip.url.host, "community")
     }
 
     func test_superscriptRaised() {
@@ -61,12 +83,18 @@ final class InlineAttributedStringBuilderTests: XCTestCase {
         XCTAssertGreaterThan(offset ?? 0, 0)
     }
 
-    func test_mentionWithUnsafeCharactersDoesNotCrash() {
+    func test_footnoteReferenceCarriesDefinitionLink() {
+        let s = build([.footnoteReference("1")])
+        let url = s.attribute(.link, at: 0, effectiveRange: nil) as? URL
+        XCTAssertEqual(url.flatMap(MarkdownFootnoteLink.init), .toDefinition(label: "1"))
+    }
+
+    func test_mentionWithUnsafeCharactersDoesNotCrash() throws {
         // A name with a space would crash a force-unwrapped URL(string:) — it must
-        // not, and the link must still be a valid spud-markdown URL.
+        // not, and the chip must still carry a valid spud-markdown URL.
         let s = build([.mention(name: "alice smith", instance: "lemmy.world")])
-        let url = s.attribute(.link, at: s.length - 1, effectiveRange: nil) as? URL
-        XCTAssertEqual(url?.scheme, "spud-markdown")
-        XCTAssertEqual(url?.host, "mention")
+        let chip = try XCTUnwrap(chipFillAndLink(s))
+        XCTAssertEqual(chip.url.scheme, "spud-markdown")
+        XCTAssertEqual(chip.url.host, "mention")
     }
 }

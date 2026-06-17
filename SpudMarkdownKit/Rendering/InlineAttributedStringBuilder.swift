@@ -12,10 +12,15 @@ import UIKit
 /// framework knowing the app's URL scheme.
 @MainActor
 enum InlineAttributedStringBuilder {
-    static func build(_ inlines: [MarkdownInline], context: MarkdownContext) -> NSAttributedString {
+    static func build(
+        _ inlines: [MarkdownInline],
+        context: MarkdownContext,
+        baseFont: UIFont? = nil
+    ) -> NSAttributedString {
+        let base = baseFont ?? context.bodyFont
         let out = NSMutableAttributedString()
         for inline in inlines {
-            out.append(render(inline, context: context, baseFont: context.bodyFont))
+            out.append(render(inline, context: context, baseFont: base))
         }
         return out
     }
@@ -139,6 +144,7 @@ enum InlineAttributedStringBuilder {
                 .font: small,
                 .foregroundColor: context.accentColor,
                 .baselineOffset: small.pointSize * 0.3,
+                .link: MarkdownFootnoteLink.url(.toDefinition(label: label)),
             ])
         }
     }
@@ -168,6 +174,10 @@ enum InlineAttributedStringBuilder {
         return m
     }
 
+    /// A mention/community handle: a leading glyph + bold accent handle, kept as
+    /// real text and marked with `.mentionChipFill` so `ChipBackgroundLayoutManager`
+    /// paints a rounded pill behind it. Hair spaces pad the pill off the glyph and
+    /// the neighboring words. The whole run carries the internal `.link`.
     private static func chip(
         symbol: String,
         text: String,
@@ -175,23 +185,25 @@ enum InlineAttributedStringBuilder {
         context: MarkdownContext,
         baseFont: UIFont
     ) -> NSAttributedString {
+        let font = baseFont.withTraits(.traitBold)
         let m = NSMutableAttributedString()
         if let image = UIImage(systemName: symbol)?
             .withTintColor(context.accentColor, renderingMode: .alwaysOriginal)
         {
             let attachment = NSTextAttachment()
             attachment.image = image
-            let size = baseFont.pointSize * 0.85
-            attachment.bounds = CGRect(x: 0, y: baseFont.descender * 0.3, width: size, height: size)
+            let size = font.pointSize * 0.85
+            attachment.bounds = CGRect(x: 0, y: font.descender * 0.3, width: size, height: size)
             m.append(NSAttributedString(attachment: attachment))
-            m.append(NSAttributedString(string: "\u{2009}")) // thin space
+            m.append(NSAttributedString(string: "\u{202F}")) // narrow no-break space: keep glyph with handle
         }
-        m.append(NSAttributedString(string: text, attributes: [.font: baseFont.withTraits(.traitBold)]))
+        m.append(NSAttributedString(string: text, attributes: [.font: font]))
         m.addAttributes(
             [
-                .link: url,
+                .font: font,
                 .foregroundColor: context.accentColor,
-                .backgroundColor: context.chipBackground,
+                .link: url,
+                .mentionChipFill: context.chipBackground,
             ],
             range: NSRange(location: 0, length: m.length)
         )
