@@ -739,18 +739,13 @@ final class InstanceDetailViewController: UIViewController {
         } else {
             browseLabel.text = "Browse all communities"
         }
-        browseLabel.font = .systemFont(ofSize: 14.5, weight: .semibold)
-        browseLabel.textColor = accent
-        let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
-        chevron.tintColor = .tertiaryLabel
-        chevron.contentMode = .scaleAspectFit
-        chevron.setContentHuggingPriority(.required, for: .horizontal)
-        let footerRow = UIStackView(arrangedSubviews: [browseLabel, chevron])
+        browseLabel.font = .systemFont(ofSize: 14.5)
+        browseLabel.textColor = .secondaryLabel
+        let footerRow = UIStackView(arrangedSubviews: [browseLabel])
         footerRow.axis = .horizontal
-        footerRow.spacing = 8
         footerRow.alignment = .center
         footerRow.isLayoutMarginsRelativeArrangement = true
-        footerRow.layoutMargins = .init(top: 11, left: 14, bottom: 11, right: 13)
+        footerRow.layoutMargins = .init(top: 11, left: 14, bottom: 11, right: 14)
         cardStack.addArrangedSubview(footerRow)
 
         container.addArrangedSubview(card)

@@ -51,7 +51,8 @@ final class InstanceExploreViewModel {
         self.accountService = accountService
         self.appDatabase = appDatabase
         self.alertService = alertService
-        joinedCommunityUrls = initialJoinedCommunityUrls
+        let derived = appDatabase.followedCommunityActorIdsSync(forAccountKeychainId: accountKeychainId)
+        joinedCommunityUrls = initialJoinedCommunityUrls.union(derived)
     }
 
     func load() {
