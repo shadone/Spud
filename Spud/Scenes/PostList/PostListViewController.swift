@@ -5,7 +5,6 @@
 //
 
 import Foundation
-import Intents
 import LemmyKit
 import Observation
 import OSLog
@@ -368,7 +367,6 @@ class PostListViewController: UIViewController {
         setupComposeButton()
         rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
         applyNavigationTitle()
-        donateIntent()
     }
 
     /// Switches the post list to a feed from outside the controller (deep links,
@@ -411,7 +409,6 @@ class PostListViewController: UIViewController {
 
         startObservations()
         feedChanged()
-        donateIntent()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -700,7 +697,6 @@ class PostListViewController: UIViewController {
         viewModel.didChangeSortType(sortType)
         feedChanged()
         rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
-        donateIntent()
     }
 
     /// Reloads the feed from scratch (a fresh feed key + re-fetch). Used after
@@ -1356,25 +1352,6 @@ class PostListViewController: UIViewController {
                     serverPostId: id,
                     snapshot: snapshot
                 )
-            }
-        }
-    }
-
-    private func donateIntent() {
-        let intent = ViewTopPostsIntent()
-
-        let feed = viewModel.feed
-        guard let feedType = IntentFeedType(from: feed.feedType) else { return }
-
-        intent.feedType = feedType
-        intent.sortType = .init(from: feed.feedType.sortType)
-
-        logger.debug("Donating intent \(intent, privacy: .public)")
-
-        let interaction = INInteraction(intent: intent, response: nil)
-        interaction.donate { error in
-            if let error {
-                logger.error("Failed to donate intent: \(error, privacy: .public)")
             }
         }
     }
