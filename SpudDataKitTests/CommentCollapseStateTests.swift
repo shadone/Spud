@@ -120,4 +120,79 @@ final class CommentCollapseStateTests: XCTestCase {
         XCTAssertEqual(result.rows.map(\.id), [1, 2, 3, 4, 5])
         XCTAssertEqual(result.collapsedDescendantCounts[3], 0)
     }
+
+    func testCollapsedNewDescendantCountsCountsOnlyNewHiddenDescendants() {
+        let tree = sampleTree() // 1 > (2 > 3), 4 ; 5
+        // Collapse 1; 3 and 4 are new, 2 is old. All three are hidden under 1.
+        let result = CommentCollapseState.visibleTree(
+            orderedComments: tree,
+            collapsedIds: [1],
+            newElementIds: [3, 4]
+        )
+        XCTAssertEqual(result.collapsedDescendantCounts[1], 3)
+        XCTAssertEqual(result.collapsedNewDescendantCounts[1], 2)
+    }
+
+    func testCollapsedNewDescendantCountsNestedCountsForOutermostVisibleParent() {
+        let tree = sampleTree()
+        // Collapse 1 and 2; only 3 is new. 1 is the visible parent; 2 is hidden.
+        let result = CommentCollapseState.visibleTree(
+            orderedComments: tree,
+            collapsedIds: [1, 2],
+            newElementIds: [3]
+        )
+        XCTAssertEqual(result.collapsedNewDescendantCounts[1], 1)
+        XCTAssertNil(result.collapsedNewDescendantCounts[2]) // hidden -> no visible badge
+    }
+
+    func testCollapsedParentWithNoNewDescendantsHasNoNewCount() {
+        let tree = sampleTree()
+        // Collapse 1; the only new comment (5) is a sibling, not under 1.
+        let result = CommentCollapseState.visibleTree(
+            orderedComments: tree,
+            collapsedIds: [1],
+            newElementIds: [5]
+        )
+        XCTAssertEqual(result.collapsedDescendantCounts[1], 3)
+        XCTAssertNil(result.collapsedNewDescendantCounts[1])
+    }
+
+    func testNoNewElementIdsLeavesNewCountsEmpty() {
+        let tree = sampleTree()
+        let result = CommentCollapseState.visibleTree(orderedComments: tree, collapsedIds: [1])
+        XCTAssertTrue(result.collapsedNewDescendantCounts.isEmpty)
+    }
+
+    func testCollapsedAncestorsVisibleTargetReturnsEmpty() {
+        let tree = sampleTree()
+        XCTAssertEqual(
+            CommentCollapseState.collapsedAncestors(of: 3, in: tree, collapsedIds: []),
+            []
+        )
+    }
+
+    func testCollapsedAncestorsSingleCollapsedParent() {
+        let tree = sampleTree() // 3's ancestors are 2 (depth 2) and 1 (depth 1)
+        XCTAssertEqual(
+            CommentCollapseState.collapsedAncestors(of: 3, in: tree, collapsedIds: [1]),
+            [1]
+        )
+    }
+
+    func testCollapsedAncestorsNestedChainIsLeafToRoot() {
+        let tree = sampleTree()
+        // Both 1 and 2 collapsed; revealing 3 needs both, returned leaf-to-root.
+        XCTAssertEqual(
+            CommentCollapseState.collapsedAncestors(of: 3, in: tree, collapsedIds: [1, 2]),
+            [2, 1]
+        )
+    }
+
+    func testCollapsedAncestorsUnknownIdReturnsEmpty() {
+        let tree = sampleTree()
+        XCTAssertEqual(
+            CommentCollapseState.collapsedAncestors(of: 999, in: tree, collapsedIds: [1]),
+            []
+        )
+    }
 }

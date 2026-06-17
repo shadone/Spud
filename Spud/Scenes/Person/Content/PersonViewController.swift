@@ -151,8 +151,24 @@ class PersonViewController: UIViewController {
 
         headerView.translatesAutoresizingMaskIntoConstraints = false
         headerView.imageService = imageService
-        headerView.linkTapped = { [weak self] url in
-            self?.linkTapped(url)
+        headerView.onBodyLinkTapped = { [weak self] url in
+            self?.linkTapped(MarkdownInternalLink.resolve(url) ?? url)
+        }
+        headerView.onBodyImageTapped = { [weak self] url, altText, _ in
+            guard let self else { return }
+            presentMediaViewer(
+                imageUrl: url,
+                thumbnailUrl: nil,
+                preloadedImage: nil,
+                altText: altText,
+                dependencies: dependencies.own
+            )
+        }
+        headerView.onBodyVideoTapped = { [weak self] url in
+            self?.presentVideoPlayer(url: url)
+        }
+        headerView.onBodyAudioTapped = { [weak self] url in
+            self?.presentVideoPlayer(url: url)
         }
         // The header is an Auto Layout subview, so a taller bio (once an inline
         // image loads) repositions the segmented control and table automatically;

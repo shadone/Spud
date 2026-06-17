@@ -20,6 +20,7 @@ final class ImageBlockViewTests: XCTestCase {
             context: MarkdownContext(kind: .post),
             onTapImage: onTapImage,
             onOpenInBrowser: nil,
+            onContentSizeChange: nil,
             loader: nil
         )
         return (view, url)

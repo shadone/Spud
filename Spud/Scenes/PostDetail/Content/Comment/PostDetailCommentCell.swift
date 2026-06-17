@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudMarkdownKit
 import UIKit
 
 class PostDetailCommentCell: UITableViewCell {
@@ -15,9 +16,30 @@ class PostDetailCommentCell: UITableViewCell {
     var linkTapped: ((URL) -> Void)?
     var linkLongPressed: ((URL) -> Void)?
 
+    /// Builds the context-menu configuration for a long press on a link preview
+    /// card, given that card's (tap) URL. Set by the owner, which holds the
+    /// services needed to build the menu and preview.
+    var linkPreviewContextMenu: ((URL) -> UIContextMenuConfiguration?)?
+
+    /// Commits a link preview card's context-menu preview (e.g. opens the peeked
+    /// page) when the user taps the preview.
+    var linkPreviewContextMenuCommit: ((UIContextMenuConfiguration, UIContextMenuInteractionCommitAnimating) -> Void)?
+
     /// Fired when an inline image in the body finishes loading, so the host can
     /// re-measure this row to fit the now-known image height.
     var onBodyImageLoaded: (() -> Void)?
+
+    /// Invoked when the user taps a link inside the comment body markdown.
+    var onBodyLinkTapped: ((URL) -> Void)?
+
+    /// Invoked when the user taps an inline image in the comment body markdown.
+    var onBodyImageTapped: ((_ url: URL, _ altText: String?, _ sourceRect: CGRect) -> Void)?
+
+    /// Invoked when the user taps a video link in the comment body markdown.
+    var onBodyVideoTapped: ((URL) -> Void)?
+
+    /// Invoked when the user taps an audio link in the comment body markdown.
+    var onBodyAudioTapped: ((URL) -> Void)?
 
     /// Fired when the user taps the comment body/header (but not a link or a
     /// swipe action) to collapse or expand its thread.
@@ -90,9 +112,23 @@ class PostDetailCommentCell: UITableViewCell {
         stackView.spacing = 4
 
         stackView.addArrangedSubview(headerStackView)
+        stackView.addArrangedSubview(bodyView)
         stackView.addArrangedSubview(messageLabel)
+        stackView.addArrangedSubview(linkPreviewsStackView)
         stackView.addArrangedSubview(blockedFoldView)
 
+        return stackView
+    }()
+
+    /// Holds one `LinkPreviewView` card per previewable link in the comment body,
+    /// stacked below the text. Hidden when the comment has no link cards to show.
+    lazy var linkPreviewsStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .vertical
+        stackView.spacing = 4
+        stackView.isHidden = true
+        stackView.accessibilityIdentifier = "linkPreviews"
         return stackView
     }()
 
@@ -110,6 +146,7 @@ class PostDetailCommentCell: UITableViewCell {
             subtitleLabel,
             spacerView,
             collapsedBadgeLabel,
+            collapsedNewBadgeLabel,
         ]
         for view in subviews {
             stackView.addArrangedSubview(view)
@@ -118,6 +155,7 @@ class PostDetailCommentCell: UITableViewCell {
         stackView.setCustomSpacing(6, after: newDotView)
         stackView.setCustomSpacing(6, after: authorLabel)
         stackView.setCustomSpacing(6, after: badgesStackView)
+        stackView.setCustomSpacing(6, after: collapsedBadgeLabel)
 
         return stackView
     }()
@@ -180,17 +218,34 @@ class PostDetailCommentCell: UITableViewCell {
         return label
     }()
 
-    lazy var messageLabel: BodyTextView = {
-        let view = BodyTextView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.accessibilityIdentifier = "message"
-        view.tapped = { [weak self] url in
-            self?.linkTapped?(url)
-        }
-        view.onContentSizeChange = { [weak self] in
-            self?.onBodyImageLoaded?()
-        }
-        return view
+    /// Accent "N new" pill shown on a collapsed comment that hides replies new
+    /// since the user's last visit, beside the "+N" hidden-count label.
+    lazy var collapsedNewBadgeLabel: BadgeLabel = {
+        let label = BadgeLabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.layer.cornerRadius = 4
+        label.clipsToBounds = true
+        label.accessibilityIdentifier = "collapsedNewBadge"
+        label.isAccessibilityElement = false
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
+        return label
+    }()
+
+    /// Rendered comment-body markdown view. Recreated when the text-size
+    /// preference changes, since `MarkdownBodyView` bakes the context (fonts,
+    /// spacing) at init time.
+    private(set) lazy var bodyView: MarkdownBodyView = makeBodyView(textScale: 0)
+
+    /// Placeholder body for deleted or removed comments (a styled attributed
+    /// string with an icon + italic label). Hidden for normal comments that use
+    /// `bodyView` instead.
+    lazy var messageLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 0
+        label.accessibilityIdentifier = "message"
+        return label
     }()
 
     /// Folded presentation for a blocked user's comment: "Blocked user … Show".
@@ -275,6 +330,15 @@ class PostDetailCommentCell: UITableViewCell {
 
     // MARK: Private
 
+    /// Maps each rendered `LinkPreviewView` card to its tap URL, so the context
+    /// menu delegate can resolve the URL from the interaction's view.
+    private var linkPreviewTapURLs: [ObjectIdentifier: URL] = [:]
+
+    /// Text-scale baked into the current `bodyView`. Compared on each configure;
+    /// when it changes a new `MarkdownBodyView` is built and swapped into the
+    /// stack view so fonts reflect the updated preference.
+    private var bodyViewTextScale: CGFloat = 0
+
     /// The row's non-fresh resting wash color (clear, or the distinguished /
     /// collapsed tint), captured in `configure` so the fade lands on the right
     /// background instead of always clearing to transparent.
@@ -284,6 +348,18 @@ class PostDetailCommentCell: UITableViewCell {
     private var isFresh = false
 
     // MARK: Functions
+
+    private func makeBodyView(textScale: CGFloat) -> MarkdownBodyView {
+        let context = MarkdownContext(kind: .comment, textScale: textScale, density: .comfortable)
+        let view = MarkdownBodyView(context: context)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.accessibilityIdentifier = "body"
+        view.delegate = self
+        view.onContentSizeChange = { [weak self] in
+            self?.onBodyImageLoaded?()
+        }
+        return view
+    }
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
@@ -318,7 +394,13 @@ class PostDetailCommentCell: UITableViewCell {
 
         linkTapped = nil
         linkLongPressed = nil
+        linkPreviewContextMenu = nil
+        linkPreviewContextMenuCommit = nil
         onBodyImageLoaded = nil
+        onBodyLinkTapped = nil
+        onBodyImageTapped = nil
+        onBodyVideoTapped = nil
+        onBodyAudioTapped = nil
         collapseTapped = nil
         revealBlockedTapped = nil
         swipeActionConfiguration = nil
@@ -331,10 +413,16 @@ class PostDetailCommentCell: UITableViewCell {
         freshTintColor = .clear
         newDotView.isHidden = true
         newDotView.backgroundColor = .clear
-        // Drop the body now so any in-flight inline-image loads are cancelled
+        collapsedNewBadgeLabel.attributedText = nil
+        collapsedNewBadgeLabel.backgroundColor = .clear
+        collapsedNewBadgeLabel.isHidden = true
+        // Drop the bodies now so any in-flight inline-image loads are cancelled
         // before the cell is reused for another comment.
+        bodyView.setBlocks([])
+        bodyView.isHidden = true
         messageLabel.attributedText = nil
         clearBadges()
+        clearLinkPreviews()
     }
 
     private func clearBadges() {
@@ -343,6 +431,38 @@ class PostDetailCommentCell: UITableViewCell {
             view.removeFromSuperview()
         }
         badgesStackView.isHidden = true
+    }
+
+    /// Rebuilds the link-preview stack from the view model. Cards are shown only
+    /// when the markdown body itself is shown (so a collapsed / folded / "load
+    /// more" / moderation-placeholder row shows none). A tap fires the link's tap
+    /// URL through `linkTapped` (not the displayed URL); a long press shows a
+    /// system context menu via `UIContextMenuInteraction`.
+    private func configureLinkPreviews(_ viewModel: PostDetailCommentViewModel) {
+        clearLinkPreviews()
+
+        guard !bodyView.isHidden, !viewModel.linkPreviews.isEmpty else { return }
+
+        linkPreviewsStackView.isHidden = false
+        for preview in viewModel.linkPreviews {
+            let view = LinkPreviewView()
+            view.translatesAutoresizingMaskIntoConstraints = false
+            view.url = preview.displayURL
+            let tapURL = preview.tapURL
+            view.tapped = { [weak self] _ in self?.linkTapped?(tapURL) }
+            view.addInteraction(UIContextMenuInteraction(delegate: self))
+            linkPreviewTapURLs[ObjectIdentifier(view)] = tapURL
+            linkPreviewsStackView.addArrangedSubview(view)
+        }
+    }
+
+    private func clearLinkPreviews() {
+        for view in linkPreviewsStackView.arrangedSubviews {
+            linkPreviewsStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        linkPreviewTapURLs.removeAll()
+        linkPreviewsStackView.isHidden = true
     }
 
     /// A `UILabel` with small horizontal padding, used for the rounded badge pills.
@@ -392,20 +512,55 @@ class PostDetailCommentCell: UITableViewCell {
     func configure(with viewModel: PostDetailCommentViewModel, imageService: ImageServiceType) {
         let accent = tintColor ?? .systemTeal
 
-        // Set before the body so inline images can begin loading immediately.
-        messageLabel.imageService = imageService
-
         if viewModel.isMore {
             authorLabel.attributedText = viewModel.moreText
             subtitleLabel.attributedText = nil
+            bodyView.setBlocks([])
+            bodyView.isHidden = true
             messageLabel.attributedText = nil
+            messageLabel.isHidden = true
             clearBadges()
         } else {
             authorLabel.attributedText = viewModel.author
             subtitleLabel.attributedText = viewModel.subtitle
-            // A collapsed comment hides its own body too, Apollo-style: only the
-            // header line (author + score + "+N") remains.
-            messageLabel.attributedText = viewModel.isCollapsed ? nil : viewModel.body
+
+            // Rebuild the body view when the text-scale preference changes so fonts
+            // are correct; otherwise reuse the existing instance.
+            let textScale = viewModel.textSizeAdjustment
+            if textScale != bodyViewTextScale {
+                let oldBodyView = bodyView
+                let newBodyView = makeBodyView(textScale: textScale)
+                if let idx = verticalStackView.arrangedSubviews.firstIndex(of: oldBodyView) {
+                    verticalStackView.insertArrangedSubview(newBodyView, at: idx)
+                    oldBodyView.removeFromSuperview()
+                }
+                bodyView = newBodyView
+                bodyViewTextScale = textScale
+            }
+
+            // Normal markdown: use bodyView. Deleted/removed: use messageLabel for
+            // the styled placeholder (the blocks array is empty in those cases).
+            let hasMarkdownBlocks = !viewModel.bodyBlocks.isEmpty
+            if hasMarkdownBlocks {
+                // A collapsed comment hides its own body too, Apollo-style.
+                let blocks = viewModel.isCollapsed ? [] : viewModel.bodyBlocks
+                bodyView.imageLoader = { [imageService] url in
+                    for await state in imageService.fetch(url) {
+                        if case let .ready(image) = state { return image }
+                    }
+                    return nil
+                }
+                bodyView.setBlocks(blocks)
+                bodyView.isHidden = viewModel.isCollapsed
+                messageLabel.attributedText = nil
+                messageLabel.isHidden = true
+            } else {
+                // Deleted or removed — use the styled placeholder in messageLabel.
+                bodyView.setBlocks([])
+                bodyView.isHidden = true
+                messageLabel.attributedText = viewModel.isCollapsed ? nil : viewModel.body
+                messageLabel.isHidden = (messageLabel.attributedText?.length ?? 0) == 0
+            }
 
             clearBadges()
             if !viewModel.badges.isEmpty {
@@ -415,7 +570,6 @@ class PostDetailCommentCell: UITableViewCell {
                 }
             }
         }
-        messageLabel.isHidden = (messageLabel.attributedText?.length ?? 0) == 0
 
         // Blocked-user fold: swap the normal content for the "Blocked user · Show"
         // affordance.
@@ -423,13 +577,36 @@ class PostDetailCommentCell: UITableViewCell {
         blockedFoldView.isHidden = !folded
         headerStackView.isHidden = folded
         if folded {
+            bodyView.isHidden = true
             messageLabel.isHidden = true
             blockedLabel.attributedText = viewModel.blockedFoldedText
             blockedShowLabel.attributedText = viewModel.blockedShowText
         }
 
+        // Link preview cards follow the markdown body's visibility — shown only
+        // when `bodyView` is (i.e. not collapsed, folded, "load more", or a
+        // moderation placeholder).
+        configureLinkPreviews(viewModel)
+
         collapsedBadgeLabel.attributedText = viewModel.collapsedBadgeText
         collapsedBadgeLabel.isHidden = viewModel.collapsedBadgeText == nil
+
+        if let newCount = viewModel.collapsedNewDescendantCount {
+            let attributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.monospacedDigitSystemFont(ofSize: 11, weight: .bold),
+                .foregroundColor: UIColor.white,
+            ]
+            collapsedNewBadgeLabel.attributedText = NSAttributedString(
+                string: "\(newCount) new",
+                attributes: attributes
+            )
+            collapsedNewBadgeLabel.backgroundColor = accent
+            collapsedNewBadgeLabel.isHidden = false
+        } else {
+            collapsedNewBadgeLabel.attributedText = nil
+            collapsedNewBadgeLabel.backgroundColor = .clear
+            collapsedNewBadgeLabel.isHidden = true
+        }
 
         depthRailsView.railColors = viewModel.depthRailColors
 
@@ -533,11 +710,21 @@ class PostDetailCommentCell: UITableViewCell {
             return
         }
 
-        // Defer to the LinkLabels: if the tap landed on an actual link range,
-        // let the label handle it and do not collapse.
+        // Defer to the LinkLabels and the markdown body: if the tap landed on an
+        // actual link range, a media tile, or an interactive control (the body
+        // hit-tests its own contents), let the view handle it and do not collapse.
         let point = recognizer.location(in: contentView)
-        if labelHasLink(authorLabel, at: point) || labelHasLink(messageLabel, at: point) {
+        if labelHasLink(authorLabel, at: point) || labelHasLink(bodyView, at: point) {
             return
+        }
+
+        // A tap on a link-preview card is handled by the card's own button; don't
+        // also collapse the thread.
+        if !linkPreviewsStackView.isHidden {
+            let pointInStack = contentView.convert(point, to: linkPreviewsStackView)
+            if linkPreviewsStackView.bounds.contains(pointInStack) {
+                return
+            }
         }
 
         collapseTapped?()
@@ -553,13 +740,41 @@ class PostDetailCommentCell: UITableViewCell {
 
 /// A view that can report whether a point lands on a tappable link or inline
 /// image, so the comment collapse-tap can defer to link/image taps. Implemented
-/// by both `LinkLabel` (author) and `BodyTextView` (body).
+/// by `LinkLabel` (author) and `MarkdownBodyView` (markdown body).
 protocol BodyLinkHitTesting: UIView {
     func hasLink(at point: CGPoint) -> Bool
 }
 
 extension LinkLabel: BodyLinkHitTesting { }
-extension BodyTextView: BodyLinkHitTesting { }
+
+/// Reports whether a point lands on an actual tappable link, media tile, or
+/// control inside the markdown body, so the collapse-tap defers to those and
+/// still collapses on plain-text taps.
+extension MarkdownBodyView: BodyLinkHitTesting {
+    public func hasLink(at point: CGPoint) -> Bool {
+        handlesTap(at: point)
+    }
+}
+
+// MARK: - MarkdownBodyDelegate
+
+extension PostDetailCommentCell: MarkdownBodyDelegate {
+    func markdownBody(didTapLink url: URL) {
+        onBodyLinkTapped?(url)
+    }
+
+    func markdownBody(didTapImage url: URL, altText: String?, sourceRect: CGRect) {
+        onBodyImageTapped?(url, altText, sourceRect)
+    }
+
+    func markdownBody(didTapVideo url: URL) {
+        onBodyVideoTapped?(url)
+    }
+
+    func markdownBody(didTapAudio url: URL) {
+        onBodyAudioTapped?(url)
+    }
+}
 
 // MARK: - UIGestureRecognizerDelegate
 
@@ -571,5 +786,30 @@ extension PostDetailCommentCell {
         // Coexist with the LinkLabel tap recognizers (we filter link hits in
         // the handler) and with the swipe pan recognizer.
         true
+    }
+}
+
+// MARK: - UIContextMenuInteractionDelegate
+
+extension PostDetailCommentCell: UIContextMenuInteractionDelegate {
+    func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        configurationForMenuAtLocation _: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard
+            let view = interaction.view,
+            let url = linkPreviewTapURLs[ObjectIdentifier(view)]
+        else {
+            return nil
+        }
+        return linkPreviewContextMenu?(url)
+    }
+
+    func contextMenuInteraction(
+        _: UIContextMenuInteraction,
+        willPerformPreviewActionForMenuWith configuration: UIContextMenuConfiguration,
+        animator: UIContextMenuInteractionCommitAnimating
+    ) {
+        linkPreviewContextMenuCommit?(configuration, animator)
     }
 }

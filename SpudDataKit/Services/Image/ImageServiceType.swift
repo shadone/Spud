@@ -32,6 +32,14 @@ public protocol ImageServiceType: AnyObject, Sendable {
     /// `url`, if known. Lets callers reserve layout space at the right aspect
     /// ratio before the image (re)appears. Returns nil when the size isn't known.
     func imageSize(for url: URL) -> CGSize?
+
+    /// Begin low-priority warm-up of feed thumbnails at the given downsample
+    /// size, so a cell that scrolls into view finds the decoded image cached.
+    func startPrefetching(_ urls: [URL], downsampleTo pointSize: CGSize)
+
+    /// Cancel warm-up started by `startPrefetching` for rows that scrolled out
+    /// of the prefetch window.
+    func stopPrefetching(_ urls: [URL], downsampleTo pointSize: CGSize)
 }
 
 public extension ImageServiceType {
@@ -60,6 +68,12 @@ public extension ImageServiceType {
     func imageSize(for url: URL) -> CGSize? {
         nil
     }
+
+    /// Default: no prefetching. Real implementations override this.
+    func startPrefetching(_ urls: [URL], downsampleTo pointSize: CGSize) { }
+
+    /// Default: no prefetching to cancel.
+    func stopPrefetching(_ urls: [URL], downsampleTo pointSize: CGSize) { }
 }
 
 @MainActor

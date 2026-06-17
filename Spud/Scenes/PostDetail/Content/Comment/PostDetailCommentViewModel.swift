@@ -4,10 +4,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Down
 import Foundation
 import OSLog
 import SpudDataKit
+import SpudMarkdownKit
 import SpudUtilKit
 import UIKit
 
@@ -34,6 +34,19 @@ struct CommentBadge: Equatable {
 struct PostDetailCommentViewModel {
     let author: NSAttributedString
     let body: NSAttributedString
+    /// Parsed markdown block tree for the comment body.  Empty for deleted /
+    /// removed comments (those use `body` for the styled placeholder instead).
+    let bodyBlocks: [MarkdownBlock]
+    /// The text-size preference baked into `body`; exposed so the cell can
+    /// rebuild `MarkdownBodyView` with a matching context when the preference
+    /// changes between configure calls.
+    let textSizeAdjustment: CGFloat
+
+    /// Previewable links found in the comment body, rendered as `LinkPreviewView`
+    /// cards below the text. Empty for moderation placeholders (no blocks) and for
+    /// comments without previewable links.
+    let linkPreviews: [CommentLinkPreview]
+
     let subtitle: NSAttributedString
     let isMore: Bool
     let moreText: NSAttributedString?
@@ -75,6 +88,11 @@ struct PostDetailCommentViewModel {
     /// `nil` when the comment is expanded (no badge shown).
     let collapsedBadgeText: NSAttributedString?
 
+    /// Count of *new* descendants hidden under this collapsed comment, for the
+    /// accent "N new" pill. nil when none (the cell renders no pill). The cell
+    /// builds the pill so the accent resolves from its `tintColor`.
+    let collapsedNewDescendantCount: Int?
+
     /// Spoken form of the metadata line (score, age, depth, saved/moderation
     /// and collapsed state), since the visible subtitle renders SF Symbols
     /// inline. The author (a link) and body are read as their own elements.
@@ -90,10 +108,12 @@ struct PostDetailCommentViewModel {
         postCreatorPersonId: Int64? = nil,
         isCollapsed: Bool = false,
         collapsedDescendantCount: Int? = nil,
+        collapsedNewDescendantCount: Int? = nil,
         isBlockedRevealed: Bool = false,
         isNew: Bool = false
     ) {
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
+        self.textSizeAdjustment = textSizeAdjustment
 
         let isDeleted = row.isDeleted == true
         let isRemoved = row.isRemoved == true
@@ -209,6 +229,7 @@ struct PostDetailCommentViewModel {
                 tint: .secondaryLabel,
                 bodyFont: bodyFont
             )
+            bodyBlocks = []
         } else if isRemoved {
             let removedBase = NSLocalizedString("Removed by moderator", comment: "Placeholder for a comment a moderator removed")
             let removedText: String = {
@@ -221,14 +242,18 @@ struct PostDetailCommentViewModel {
                 tint: .systemOrange,
                 bodyFont: bodyFont
             )
+            bodyBlocks = []
         } else {
-            // Rendered (and cached) through `MarkdownRenderer` so a long thread
-            // does not re-parse markdown on every cell dequeue. The comment list
-            // pre-warms this cache off the main thread, so steady state is a
-            // cache hit here.
+            // Normal comments render through `bodyView` (MarkdownBodyView) from
+            // the parsed block tree; the legacy attributed `body` is unused here.
             let bodyMarkdown = row.body ?? ""
-            body = MarkdownRenderer.shared.imageBody(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment)
+            body = NSAttributedString()
+            bodyBlocks = MarkdownBlockCache.shared.blocks(for: bodyMarkdown)
         }
+
+        // Link preview cards under the body, capped to keep long comments tidy.
+        // Empty for deleted/removed placeholders (their block tree is empty).
+        linkPreviews = bodyBlocks.commentLinkPreviews(limit: 3)
 
         // MARK: Blocked-user fold
 
@@ -332,6 +357,11 @@ struct PostDetailCommentViewModel {
         } else {
             collapsedBadgeText = nil
         }
+        if let newCount = collapsedNewDescendantCount, newCount > 0 {
+            self.collapsedNewDescendantCount = newCount
+        } else {
+            self.collapsedNewDescendantCount = nil
+        }
 
         // MARK: Accessibility
 
@@ -388,6 +418,15 @@ struct PostDetailCommentViewModel {
                     ))
                 } else {
                     pieces.append(NSLocalizedString("collapsed", comment: "VoiceOver: collapsed comment"))
+                }
+                if let newCount = collapsedNewDescendantCount, newCount > 0 {
+                    pieces.append(String(
+                        format: NSLocalizedString(
+                            "%lld new",
+                            comment: "VoiceOver: count of new replies hidden under a collapsed comment"
+                        ),
+                        newCount
+                    ))
                 }
             }
             if row.isSaved == true {

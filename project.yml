@@ -31,6 +31,9 @@ packages:
   LemmyKit:
     url: https://github.com/shadone/LemmyKit
     exactVersion: 0.5.0
+  Nuke:
+    url: https://github.com/kean/Nuke
+    from: 13.0.0
   GRDB:
     url: https://github.com/groue/GRDB.swift
     from: 7.0.0
@@ -40,9 +43,6 @@ packages:
   SemVer:
     url: https://github.com/sersoft-gmbh/semver
     from: 3.0.0
-  Down:
-    url: https://github.com/shadone/Down
-    branch: main
   SwiftMarkdown:
     url: https://github.com/apple/swift-markdown
     branch: main
@@ -78,11 +78,12 @@ targets:
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
     dependencies:
       - target: SpudDataKit
+      - target: SpudMarkdownKit
       - target: SpudUIKit
       - target: SpudUtilKit
       - target: SpudWidgetExtension
       - target: OpenInAppExtension
-      - package: Down
+      - target: OpenInSpudAction
       # B2 (archive-stage): SBTUITestTunnelServer is linked in all configs
       # because XcodeGen 2.45 cannot scope a package product to one
       # configuration, and SwiftPM has no "import without link". The server is
@@ -116,7 +117,22 @@ targets:
     type: app-extension
     platform: iOS
     sources:
-      - OpenInAppExtension
+      - path: OpenInAppExtension
+        excludes:
+          # Node-only helper tests; never bundle them into the appex.
+          - "Resources/__tests__/**"
+          # Re-added below as folder references. A flattened group drops the
+          # directory structure, so the manifest's `_locales/<locale>/` and
+          # `images/<icon>` subpaths break (default_locale + icons fail to load).
+          - "Resources/_locales/**"
+          - "Resources/images/**"
+      # Folder references preserve the subdirectory structure Safari needs.
+      - path: OpenInAppExtension/Resources/_locales
+        type: folder
+        buildPhase: resources
+      - path: OpenInAppExtension/Resources/images
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.Spud.OpenInAppExtension
@@ -125,6 +141,20 @@ targets:
         OTHER_LDFLAGS:
           - "-framework"
           - SafariServices
+
+  OpenInSpudAction:
+    type: app-extension
+    platform: iOS
+    sources:
+      - OpenInSpudAction
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.Spud.OpenInSpudAction
+        INFOPLIST_FILE: OpenInSpudAction/Info.plist
+        GENERATE_INFOPLIST_FILE: "YES"
+        SWIFT_VERSION: "6.0"
+    dependencies:
+      - target: SpudUtilKit
 
   SpudDataKit:
     type: framework
@@ -140,6 +170,8 @@ targets:
       - package: GRDB
       - package: KeychainAccess
       - package: SemVer
+      - package: Nuke
+        product: Nuke
 
   SpudUIKit:
     type: framework
@@ -238,10 +270,10 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.SpudTests
     dependencies:
       - target: Spud
-      # MarkdownRendererTests builds a DownStyler directly, so the test bundle
-      # links Down (the Spud app target also links it, but @testable import does
-      # not re-export the package's symbols to the test bundle).
-      - package: Down
+      # MarkdownBlockCacheTests calls MarkdownParser directly; SpudMarkdownKit is
+      # embedded in the Spud app but the test bundle must also link it to call
+      # its public API directly.
+      - target: SpudMarkdownKit
 
   SpudDataKitTests:
     type: bundle.unit-test
@@ -254,6 +286,8 @@ targets:
     dependencies:
       - target: SpudDataKit
       - target: SpudUtilKit
+      - package: Nuke
+        product: Nuke
 
   SpudUtilKitTests:
     type: bundle.unit-test
@@ -295,7 +329,6 @@ targets:
       - target: Spud
       - target: SpudDataKit
       - package: SnapshotTesting
-      - package: Down
 
   SpudUITests:
     type: bundle.ui-testing

@@ -4,16 +4,16 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Down
+import SpudDataKit
+import SpudMarkdownKit
 import SpudUIKit
 import SpudUtilKit
 import UIKit
 
 /// A reusable markdown editor: a `UITextView` with a formatting-toolbar
 /// `inputAccessoryView`, plus a "Write / Preview" mode swap that renders the
-/// draft through `Down` into a `LinkLabel`. The preview uses the plain
-/// `DownStyler` (no inline images); post and comment bodies render through
-/// `BodyImageStyler` into a `BodyTextView` instead.
+/// draft through `MarkdownBodyView` — the same renderer post and comment bodies
+/// use — so the preview matches the posted result, inline images included.
 ///
 /// The view owns no drafting state of its own beyond the live `text`; toggling
 /// to preview and back keeps the draft intact. Callers observe edits via
@@ -31,6 +31,10 @@ final class MarkdownEditorView: UIView {
 
     /// Invoked when a link in the rendered preview is tapped.
     var onPreviewLinkTapped: ((URL) -> Void)?
+
+    /// Host-supplied image loader so the preview renders inline images at full
+    /// fidelity. Set before switching to preview.
+    var imageService: ImageServiceType?
 
     /// Placeholder shown when the editor is empty in write mode.
     var placeholder: String? {
@@ -71,14 +75,12 @@ final class MarkdownEditorView: UIView {
         return scrollView
     }()
 
-    private lazy var previewLabel: LinkLabel = {
-        let label = LinkLabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.numberOfLines = 0
-        label.tapped = { [weak self] url in
-            self?.onPreviewLinkTapped?(url)
-        }
-        return label
+    private lazy var previewBody: MarkdownBodyView = {
+        let context = MarkdownContext(kind: .post, textScale: 0, density: .comfortable)
+        let view = MarkdownBodyView(context: context)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.delegate = self
+        return view
     }()
 
     private lazy var previewEmptyLabel: UILabel = {
@@ -93,12 +95,7 @@ final class MarkdownEditorView: UIView {
         return label
     }()
 
-    /// Per-screen markdown styling, taken from the same configuration the post
-    /// detail uses, so the preview matches the rendered result exactly.
-    private let stylerConfiguration: DownStylerConfiguration
-
-    init(textSizeAdjustment: CGFloat = 0) {
-        stylerConfiguration = PostDetailAppearance.bodyStylerConfiguration(for: textSizeAdjustment)
+    init() {
         textView = UITextView()
 
         super.init(frame: .zero)
@@ -126,7 +123,7 @@ final class MarkdownEditorView: UIView {
         addSubview(textView)
         textView.addSubview(placeholderLabel)
         addSubview(previewScrollView)
-        previewScrollView.addSubview(previewLabel)
+        previewScrollView.addSubview(previewBody)
         addSubview(previewEmptyLabel)
 
         NSLayoutConstraint.activate([
@@ -144,11 +141,11 @@ final class MarkdownEditorView: UIView {
             previewScrollView.topAnchor.constraint(equalTo: topAnchor),
             previewScrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
 
-            previewLabel.leadingAnchor.constraint(equalTo: previewScrollView.contentLayoutGuide.leadingAnchor, constant: 12),
-            previewLabel.trailingAnchor.constraint(equalTo: previewScrollView.contentLayoutGuide.trailingAnchor, constant: -12),
-            previewLabel.topAnchor.constraint(equalTo: previewScrollView.contentLayoutGuide.topAnchor, constant: 12),
-            previewLabel.bottomAnchor.constraint(equalTo: previewScrollView.contentLayoutGuide.bottomAnchor, constant: -12),
-            previewLabel.widthAnchor.constraint(equalTo: previewScrollView.frameLayoutGuide.widthAnchor, constant: -24),
+            previewBody.leadingAnchor.constraint(equalTo: previewScrollView.contentLayoutGuide.leadingAnchor, constant: 12),
+            previewBody.trailingAnchor.constraint(equalTo: previewScrollView.contentLayoutGuide.trailingAnchor, constant: -12),
+            previewBody.topAnchor.constraint(equalTo: previewScrollView.contentLayoutGuide.topAnchor, constant: 12),
+            previewBody.bottomAnchor.constraint(equalTo: previewScrollView.contentLayoutGuide.bottomAnchor, constant: -12),
+            previewBody.widthAnchor.constraint(equalTo: previewScrollView.frameLayoutGuide.widthAnchor, constant: -24),
 
             previewEmptyLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
             previewEmptyLabel.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -185,14 +182,20 @@ final class MarkdownEditorView: UIView {
     private func renderPreview() {
         let markdown = text
         guard !markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            previewLabel.attributedText = nil
+            previewBody.setBlocks([])
             previewEmptyLabel.isHidden = false
             return
         }
         previewEmptyLabel.isHidden = true
-        previewLabel.attributedText = Down(markdownString: markdown)
-            .toAttributedString(styler: DownStyler(configuration: stylerConfiguration))
-            .addingAutolinks()
+        if let imageService {
+            previewBody.imageLoader = { [imageService] url in
+                for await state in imageService.fetch(url) {
+                    if case let .ready(image) = state { return image }
+                }
+                return nil
+            }
+        }
+        previewBody.setBlocks(MarkdownBlockCache.shared.blocks(for: markdown))
     }
 
     // MARK: Formatting
@@ -244,4 +247,13 @@ extension MarkdownEditorView: UITextViewDelegate {
         updatePlaceholderVisibility()
         onTextChange?(textView.text ?? "")
     }
+}
+
+// MARK: - MarkdownBodyDelegate
+
+extension MarkdownEditorView: MarkdownBodyDelegate {
+    func markdownBody(didTapLink url: URL) {
+        onPreviewLinkTapped?(url)
+    }
+    // Image / video / audio taps intentionally no-op in the compose preview.
 }

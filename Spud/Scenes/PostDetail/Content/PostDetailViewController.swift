@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Down
 import Foundation
 import LemmyKit
 import OSLog
@@ -142,6 +141,7 @@ class PostDetailViewController: UIViewController {
     /// Per-collapsed-parent hidden-descendant counts from the last visible-tree
     /// computation. Used to render the "+N" badge on collapsed cells.
     private var collapsedDescendantCounts: [Int64: Int] = [:]
+    private var collapsedNewDescendantCounts: [Int64: Int] = [:]
     /// Comment elements whose blocked author the user chose to reveal.
     private var revealedBlockedElementIds: Set<Int64> = []
     private var observationTask: Task<Void, Never>?
@@ -430,6 +430,7 @@ class PostDetailViewController: UIViewController {
         // hidden counts for the "+N" badge.
         let visible = viewModel.visibleCommentTree()
         collapsedDescendantCounts = visible.collapsedDescendantCounts
+        collapsedNewDescendantCounts = visible.collapsedNewDescendantCounts
 
         let items = visible.rows.map { Item.comment(elementId: $0.id) }
         snapshot.appendItems(items, toSection: .comments)
@@ -440,19 +441,19 @@ class PostDetailViewController: UIViewController {
         updateJumpButtonVisibility()
     }
 
-    /// Renders and caches every comment body into `MarkdownRenderer` off the main
-    /// thread. Declared `nonisolated async` so its body runs on the cooperative
-    /// pool (Swift 6 language mode) rather than the main actor; it captures only
-    /// `Sendable` values (the rows and the text-size adjustment). Cell dequeue
+    /// Pre-parses every comment body's block tree into `MarkdownBlockCache` off
+    /// the main thread for the renderer path. Declared `nonisolated async` so its
+    /// body runs on the cooperative pool (Swift 6 language mode) rather than the
+    /// main actor; it captures only `Sendable` values (the rows). Cell dequeue
     /// then hits the warm cache instead of parsing cmark on the scroll path.
     private nonisolated static func prewarmCommentBodies(
         _ rows: [PostDetailCommentRow],
-        textSizeAdjustment: CGFloat
+        textSizeAdjustment _: CGFloat
     ) async {
         for row in rows {
             if Task.isCancelled { return }
             guard let body = row.body, !body.isEmpty else { continue }
-            MarkdownRenderer.shared.imageBody(markdown: body, textSizeAdjustment: textSizeAdjustment)
+            MarkdownBlockCache.shared.blocks(for: body)
         }
     }
 
@@ -502,30 +503,77 @@ class PostDetailViewController: UIViewController {
         return nil
     }
 
-    /// The index path of the next new comment whose top is below the current
-    /// content offset (plus the top inset). Iterates the new comments in display
-    /// order (`orderedNewCommentElementIds`), skipping any that are currently
-    /// collapsed away (no index path). Returns nil if none below.
-    private func indexPathOfNextNewComment() -> IndexPath? {
-        let threshold = tableView.contentOffset.y + tableView.adjustedContentInset.top + 1
-        for elementId in viewModel.orderedNewCommentElementIds {
-            guard let indexPath = dataSource.indexPath(for: .comment(elementId: elementId)) else { continue }
-            if tableView.rectForRow(at: indexPath).minY > threshold {
+    /// Scrolls to the comment, first expanding any collapsed ancestors that hide
+    /// it (rebuilding the snapshot non-animated) so the row exists before the
+    /// scroll. Does not haptic — callers do.
+    private func scrollToComment(elementId: Int64) {
+        if dataSource.indexPath(for: .comment(elementId: elementId)) == nil {
+            if viewModel.expandAncestors(toReveal: elementId) {
+                applySnapshot(animated: false)
+            }
+        }
+        guard let indexPath = dataSource.indexPath(for: .comment(elementId: elementId)) else { return }
+        tableView.scrollToRow(at: indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
+    }
+
+    /// Where `elementId` currently sits on screen: its own row if visible, else
+    /// the outermost collapsed ancestor — the one still visible in the table
+    /// (inner collapsed parents are themselves hidden by it and have no index
+    /// path, so the leaf-to-root walk's first resolvable id is that outer one).
+    /// Used to position a possibly-hidden new comment for the "below the fold"
+    /// test. Returns nil only when neither resolves (should not happen for a
+    /// comment in the tree).
+    private func anchorIndexPath(forNewComment elementId: Int64) -> IndexPath? {
+        if let indexPath = dataSource.indexPath(for: .comment(elementId: elementId)) {
+            return indexPath
+        }
+        let ancestors = CommentCollapseState.collapsedAncestors(
+            of: elementId,
+            in: viewModel.orderedComments,
+            collapsedIds: viewModel.collapsedElementIds
+        )
+        for ancestorId in ancestors {
+            if let indexPath = dataSource.indexPath(for: .comment(elementId: ancestorId)) {
                 return indexPath
             }
         }
         return nil
     }
 
-    /// Returns the FAB's current jump target and whether it is a new-comment
-    /// target. Prefers the next new comment when any new comments exist;
-    /// otherwise falls back to the next top-level comment.
-    private func jumpTarget() -> (indexPath: IndexPath, isNew: Bool)? {
-        if viewModel.newCommentCount > 0, let next = indexPathOfNextNewComment() {
-            return (next, true)
+    /// The element id of the next new comment whose anchor row sits below the
+    /// current scroll position, in display order. The anchor lets a collapsed-away
+    /// new comment still count (positioned at its visible collapsed ancestor); the
+    /// jump handler expands it. Returns nil when none below.
+    private func nextNewCommentBelowFold() -> Int64? {
+        let threshold = tableView.contentOffset.y + tableView.adjustedContentInset.top + 1
+        for elementId in viewModel.orderedNewCommentElementIds {
+            guard let anchor = anchorIndexPath(forNewComment: elementId) else { continue }
+            if tableView.rectForRow(at: anchor).minY > threshold {
+                return elementId
+            }
         }
-        if let next = indexPathOfNextTopLevelComment() {
-            return (next, false)
+        return nil
+    }
+
+    /// The FAB's current jump target. A new-comment target is identified by id (it
+    /// may be collapsed away and is expanded on tap); a fallback next-top-level
+    /// target is a concrete index path.
+    private enum JumpTarget {
+        case newComment(elementId: Int64)
+        case topLevel(indexPath: IndexPath)
+
+        var isNew: Bool {
+            if case .newComment = self { return true }
+            return false
+        }
+    }
+
+    private func jumpTarget() -> JumpTarget? {
+        if viewModel.newCommentCount > 0, let elementId = nextNewCommentBelowFold() {
+            return .newComment(elementId: elementId)
+        }
+        if let indexPath = indexPathOfNextTopLevelComment() {
+            return .topLevel(indexPath: indexPath)
         }
         return nil
     }
@@ -534,17 +582,19 @@ class PostDetailViewController: UIViewController {
     private func jumpToNextTopCommentTapped() {
         guard let target = jumpTarget() else { return }
         Haptics.tap()
-        tableView.scrollToRow(at: target.indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
+        switch target {
+        case let .newComment(elementId):
+            scrollToComment(elementId: elementId)
+        case let .topLevel(indexPath):
+            tableView.scrollToRow(at: indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
+        }
     }
 
     /// Scrolls to the first new comment (the banner's "Jump" action).
     private func jumpToFirstNewComment() {
-        guard
-            let elementId = viewModel.firstNewCommentElementId,
-            let indexPath = dataSource.indexPath(for: .comment(elementId: elementId))
-        else { return }
+        guard let elementId = viewModel.firstNewCommentElementId else { return }
         Haptics.tap()
-        tableView.scrollToRow(at: indexPath, at: .top, animated: !UIAccessibility.isReduceMotionEnabled)
+        scrollToComment(elementId: elementId)
     }
 
     /// Shows the jump button when there is a next top-level or next new comment
@@ -860,23 +910,93 @@ class PostDetailViewController: UIViewController {
         present(safariVC, animated: true)
     }
 
+    /// The modern context menu for a long press on a comment's link preview card.
+    /// Mirrors ``linkLongPressed(_:)``'s actions: a web URL gets a Safari peek plus
+    /// open-in-Spud (when it classifies as Lemmy content) / open-in-browser / copy
+    /// / share; an internal-scheme link (e.g. a community) offers in-app open only.
+    private func linkContextMenuConfiguration(for url: URL) -> UIContextMenuConfiguration? {
+        let openInSpud = NSLocalizedString("Open in Spud", comment: "")
+
+        // Internal-scheme link (community / object / instance): only in-app open
+        // is meaningful, and there is nothing to peek in a browser.
+        if url.spud != nil {
+            return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+                UIMenu(children: [
+                    UIAction(title: openInSpud, image: UIImage(systemName: "arrow.up.forward.app")) { _ in
+                        self?.linkTapped(url)
+                    },
+                ])
+            }
+        }
+
+        // A web URL: Safari peek, plus the browser / copy / share hatch and an
+        // in-app open when it classifies as Lemmy content.
+        return UIContextMenuConfiguration(
+            identifier: nil,
+            previewProvider: { [appService] in appService.safariViewControllerForPreview(url: url) },
+            actionProvider: { [weak self] _ in
+                guard let self else { return nil }
+                var children: [UIMenuElement] = []
+
+                let isKnown: (String) -> Bool = { [appDatabase] host in
+                    appDatabase.explorerInstanceSync(baseurl: host) != nil
+                }
+                if let internalLink = LemmyURLParser.classify(url: url, isKnownInstance: isKnown) {
+                    children.append(UIAction(title: openInSpud, image: UIImage(systemName: "arrow.up.forward.app")) { _ in
+                        self.linkTapped(internalLink.url)
+                    })
+                }
+                children.append(UIAction(
+                    title: NSLocalizedString("Open in Browser", comment: ""),
+                    image: UIImage(systemName: "safari")
+                ) { [weak self] _ in
+                    guard let self else { return }
+                    Task { await self.appService.open(url: url, on: self) }
+                })
+                children.append(UIAction(
+                    title: NSLocalizedString("Copy Link", comment: ""),
+                    image: UIImage(systemName: "doc.on.doc")
+                ) { _ in
+                    UIPasteboard.general.url = url
+                })
+                children.append(UIAction(
+                    title: NSLocalizedString("Share", comment: ""),
+                    image: UIImage(systemName: "square.and.arrow.up")
+                ) { [weak self] _ in
+                    self?.presentShareSheet(for: url)
+                })
+                return UIMenu(children: children)
+            }
+        )
+    }
+
+    /// Commits a comment link preview's peek: opens the previewed Safari view
+    /// controller, matching the post header's link preview.
+    private func commitLinkPreviewContextMenu(
+        _: UIContextMenuConfiguration,
+        _ animator: UIContextMenuInteractionCommitAnimating
+    ) {
+        guard let safariVC = animator.previewViewController as? SFSafariViewController else { return }
+        animator.addCompletion { [weak self] in
+            self?.linkTappedFromPreview(safariVC)
+        }
+    }
+
+    /// Thin forwarder so existing call sites stay unchanged; the logic lives in
+    /// `UIViewController+MediaViewer.swift`.
     private func presentMediaViewer(
         imageUrl: URL,
         thumbnailUrl: URL?,
         preloadedImage: UIImage?,
         altText: String? = nil
     ) {
-        let item = MediaItem(
+        presentMediaViewer(
             imageUrl: imageUrl,
             thumbnailUrl: thumbnailUrl,
             preloadedImage: preloadedImage,
-            altText: altText
-        )
-        let viewer = MediaViewerViewController.make(
-            items: [item],
+            altText: altText,
             dependencies: dependencies.own
         )
-        present(viewer, animated: true)
     }
 
     private func voteOnPost(_ action: VoteStatus.Action) async {
@@ -1460,6 +1580,24 @@ extension PostDetailViewController {
                 cell.saveTapped = { [weak self] in
                     self?.toggleSavedOnPost()
                 }
+                cell.onBodyLinkTapped = { [weak self] url in
+                    self?.linkTapped(MarkdownInternalLink.resolve(url) ?? url)
+                }
+                cell.onBodyImageTapped = { [weak self] url, altText, _ in
+                    self?.presentMediaViewer(
+                        imageUrl: url,
+                        thumbnailUrl: nil,
+                        preloadedImage: nil,
+                        altText: altText
+                    )
+                }
+                cell.onBodyVideoTapped = { [weak self] url in
+                    self?.presentVideoPlayer(url: url)
+                }
+                // Audio reuses the video player, which handles audio-only URLs.
+                cell.onBodyAudioTapped = { [weak self] url in
+                    self?.presentVideoPlayer(url: url)
+                }
                 cell.isBeingConfigured = false
                 return cell
 
@@ -1490,6 +1628,7 @@ extension PostDetailViewController {
 
                 let isCollapsed = self?.viewModel.isCollapsed(elementId: elementId) ?? false
                 let collapsedCount = self?.collapsedDescendantCounts[elementId]
+                let collapsedNewCount = self?.collapsedNewDescendantCounts[elementId]
                 let isBlockedRevealed = self?.revealedBlockedElementIds.contains(elementId) ?? false
                 let viewModel = PostDetailCommentViewModel(
                     row: row,
@@ -1497,15 +1636,38 @@ extension PostDetailViewController {
                     postCreatorPersonId: self?.headerRow?.creatorPersonId,
                     isCollapsed: isCollapsed,
                     collapsedDescendantCount: collapsedCount,
+                    collapsedNewDescendantCount: collapsedNewCount,
                     isBlockedRevealed: isBlockedRevealed,
                     isNew: self?.viewModel.isNewComment(elementId: elementId) ?? false
                 )
                 cell.configure(with: viewModel, imageService: imageService)
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
                 cell.linkLongPressed = { [weak self] url in self?.linkLongPressed(url) }
+                cell.linkPreviewContextMenu = { [weak self] url in self?.linkContextMenuConfiguration(for: url) }
+                cell.linkPreviewContextMenuCommit = { [weak self] configuration, animator in
+                    self?.commitLinkPreviewContextMenu(configuration, animator)
+                }
                 cell.onBodyImageLoaded = { [weak tableView] in
                     // An inline body image loaded; re-measure this row to fit it.
                     tableView?.performBatchUpdates(nil)
+                }
+                cell.onBodyLinkTapped = { [weak self] url in
+                    self?.linkTapped(MarkdownInternalLink.resolve(url) ?? url)
+                }
+                cell.onBodyImageTapped = { [weak self] url, altText, _ in
+                    self?.presentMediaViewer(
+                        imageUrl: url,
+                        thumbnailUrl: nil,
+                        preloadedImage: nil,
+                        altText: altText
+                    )
+                }
+                cell.onBodyVideoTapped = { [weak self] url in
+                    self?.presentVideoPlayer(url: url)
+                }
+                cell.onBodyAudioTapped = { [weak self] url in
+                    // Audio reuses the video player, which handles audio-only URLs.
+                    self?.presentVideoPlayer(url: url)
                 }
                 cell.revealBlockedTapped = { [weak self] in
                     self?.revealBlocked(elementId: elementId)

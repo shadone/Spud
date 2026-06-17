@@ -39,7 +39,7 @@ public struct MarkdownContext {
     }
 
     public var bodyFont: UIFont {
-        scaled(post ? 16.5 : 14.5)
+        scaled(post ? 15.5 : 14.5)
     }
 
     public var smallFont: UIFont {

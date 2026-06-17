@@ -49,6 +49,17 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         ))
     }
 
+    func test_collapsedWithNew() {
+        // A collapsed parent hiding 22 descendants, 5 of them new: "+22" plus an
+        // accent "5 new" pill (the glidergun demo node).
+        assertComment(viewModel: makeViewModel(
+            row: row(),
+            isCollapsed: true,
+            collapsedDescendantCount: 22,
+            collapsedNewDescendantCount: 5
+        ))
+    }
+
     func test_deletedByAuthor() {
         // Author-deleted: the (empty) body becomes a stated placeholder and the
         // score is hidden — the bug that motivated the state system.
@@ -122,6 +133,22 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         ))
     }
 
+    func test_withLinkPreviews() {
+        // A bare web URL (external card) and a community shorthand (rendered as a
+        // "lemmy.world /c/news" card) each appear as a LinkPreviewView below the
+        // text — the bare, no-thumbnail style with the `safari` placeholder.
+        assertComment(viewModel: makeViewModel(
+            row: row(body: "Great read: https://example.com/research/findings — discussion lives in !news@lemmy.world")
+        ))
+    }
+
+    func test_withManyLinks_cappedAtThree() {
+        // Five links, but only the first three get cards.
+        assertComment(viewModel: makeViewModel(
+            row: row(body: "Sources: https://a.example/1 https://b.example/2 https://c.example/3 https://d.example/4 https://e.example/5")
+        ))
+    }
+
     // MARK: - Comment cell rendering
 
     private func assertComment(
@@ -180,6 +207,7 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         postCreatorPersonId: Int64? = nil,
         isCollapsed: Bool = false,
         collapsedDescendantCount: Int? = nil,
+        collapsedNewDescendantCount: Int? = nil,
         isNew: Bool = false
     ) -> PostDetailCommentViewModel {
         let appearance = AppearanceService(preferencesService: PreferencesService())
@@ -189,6 +217,7 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
             postCreatorPersonId: postCreatorPersonId,
             isCollapsed: isCollapsed,
             collapsedDescendantCount: collapsedDescendantCount,
+            collapsedNewDescendantCount: collapsedNewDescendantCount,
             isNew: isNew
         )
     }

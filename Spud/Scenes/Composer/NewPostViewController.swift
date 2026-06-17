@@ -24,7 +24,8 @@ private let logger = Logger.app
 final class NewPostViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
-        HasAlertService
+        HasAlertService &
+        HasImageService
     typealias Dependencies = OwnDependencies
     private let dependencies: OwnDependencies
 
@@ -120,6 +121,7 @@ final class NewPostViewController: UIViewController {
 
     private lazy var bodyEditorView: MarkdownEditorView = {
         let editor = MarkdownEditorView()
+        editor.imageService = dependencies.imageService
         editor.translatesAutoresizingMaskIntoConstraints = false
         editor.placeholder = NSLocalizedString("Body (optional, markdown)", comment: "Placeholder for the new-post body editor")
         editor.textView.isScrollEnabled = false

@@ -4,11 +4,11 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Down
 import Foundation
 import LemmyKit
 import OSLog
 import SpudDataKit
+import SpudMarkdownKit
 import SpudUtilKit
 import UIKit
 
@@ -30,7 +30,11 @@ struct PostDetailHeaderViewModel {
     }
 
     let title: NSAttributedString
-    let body: NSAttributedString
+    let bodyBlocks: [MarkdownBlock]
+    /// The text-size preference used to size `bodyBlocks`. Exposed so the cell can
+    /// rebuild `MarkdownBodyView` with a matching context when the preference
+    /// changes between configure calls.
+    let textSizeAdjustment: CGFloat
     let attribution: NSAttributedString
     let subtitleScore: NSAttributedString
     let subtitleComments: NSAttributedString
@@ -52,6 +56,7 @@ struct PostDetailHeaderViewModel {
         postContentDetector: PostContentDetectorServiceType
     ) {
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
+        self.textSizeAdjustment = textSizeAdjustment
 
         let titleAttributes: [NSAttributedString.Key: Any] = [
             .foregroundColor: UIColor.label,
@@ -106,10 +111,10 @@ struct PostDetailHeaderViewModel {
             attributes: secondaryAttributes
         )
 
-        // Shares the cached `MarkdownRenderer` body path with comment cells; the
-        // header re-renders on every vote/save, so caching avoids re-parsing.
+        // The block-based renderer caches parsed markdown off the main thread,
+        // so the header re-rendering on every vote/save is a cache hit here.
         let bodyMarkdown = row.body ?? ""
-        body = MarkdownRenderer.shared.imageBody(markdown: bodyMarkdown, textSizeAdjustment: textSizeAdjustment)
+        bodyBlocks = MarkdownBlockCache.shared.blocks(for: bodyMarkdown)
 
         var creatorAttributes = secondaryHighlightedAttributes
         if

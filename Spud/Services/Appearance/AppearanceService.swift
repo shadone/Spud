@@ -22,9 +22,10 @@ protocol HasAppearanceService {
 class AppearanceService: AppearanceServiceType {
     let general = GeneralAppearance()
     let postList: PostListAppearanceType
-    let postDetail: PostDetailAppearanceType = PostDetailAppearance()
+    let postDetail: PostDetailAppearanceType
 
     init(preferencesService: PreferencesServiceType) {
         postList = PostListAppearance(preferencesService: preferencesService)
+        postDetail = PostDetailAppearance(preferencesService: preferencesService)
     }
 }
