@@ -76,7 +76,7 @@ final class InstanceDetailSnapshotTests: XCTestCase {
             try site.insert(db)
             let siteId = site.id!
 
-            for ordinal in 0 ..< adminCount {
+            for ordinal in 0..<adminCount {
                 var admin = SiteAdminRecord(
                     siteId: siteId,
                     ordinal: ordinal,
@@ -87,7 +87,7 @@ final class InstanceDetailSnapshotTests: XCTestCase {
                 try admin.insert(db)
             }
 
-            for i in 0 ..< communityCount {
+            for i in 0..<communityCount {
                 var community = ExplorerCommunityRecord(
                     url: "https://\(record.baseurl)/c/community\(i)",
                     baseurl: record.baseurl,

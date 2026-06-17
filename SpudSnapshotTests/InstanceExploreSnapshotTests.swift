@@ -60,7 +60,7 @@ final class InstanceExploreSnapshotTests: XCTestCase {
             try site.insert(db)
             let siteId = site.id!
 
-            for ordinal in 0 ..< adminCount {
+            for ordinal in 0..<adminCount {
                 var admin = SiteAdminRecord(
                     siteId: siteId,
                     ordinal: ordinal,
@@ -71,7 +71,7 @@ final class InstanceExploreSnapshotTests: XCTestCase {
                 try admin.insert(db)
             }
 
-            for i in 0 ..< communityCount {
+            for i in 0..<communityCount {
                 var community = ExplorerCommunityRecord(
                     url: "https://\(record.baseurl)/c/community\(i)",
                     baseurl: record.baseurl,
@@ -131,12 +131,12 @@ final class InstanceExploreSnapshotTests: XCTestCase {
 
     func test_world_withSidebar() throws {
         let sidebar = """
-        ## Welcome to Lemmy World
+            ## Welcome to Lemmy World
 
-        The largest general-purpose Lemmy server. Join us for news, tech, culture and more.
+            The largest general-purpose Lemmy server. Join us for news, tech, culture and more.
 
-        **Rules:** Be kind. No spam. Follow Lemmy's [Code of Conduct](https://join-lemmy.org/docs/code_of_conduct.html).
-        """
+            **Rules:** Be kind. No spam. Follow Lemmy's [Code of Conduct](https://join-lemmy.org/docs/code_of_conduct.html).
+            """
         try assertScreens(Fixtures.world, sidebar: sidebar)
     }
 
