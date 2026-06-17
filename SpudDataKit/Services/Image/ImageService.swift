@@ -12,12 +12,6 @@ import UIKit
 private let logger = Logger.imageService
 
 public final class ImageService: ImageServiceType, @unchecked Sendable {
-    /// Pixel-per-point factor used when converting a requested point size to a
-    /// downsample target. Fixed at the maximum modern screen scale so the
-    /// result stays crisp on every device without a main-actor scale lookup
-    /// from the background fetch task.
-    private let downsampleScale: CGFloat = 3
-
     /// Decoded pixel sizes of images this service has loaded, keyed by absolute
     /// url. Lets a caller reserve the right amount of space for an image before
     /// it has (re)loaded — e.g. the post-detail header sizing its image
@@ -83,6 +77,9 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
                         continuation.yield(.ready(animated))
                     } else if let image = UIImage(data: data) {
                         let decoded = await image.byPreparingForDisplay() ?? image
+                        if Task.isCancelled { continuation.finish()
+                            return
+                        }
                         recordImageSize(decoded.size, for: url)
                         continuation.yield(.ready(decoded))
                     } else {
