@@ -39,4 +39,21 @@ final class AccountScopeTests: XCTestCase {
         // parallel service: both must be the same actor instance.
         XCTAssertTrue(scope.lemmyService === direct)
     }
+
+    func test_scope_capturesSignedOutStatus() throws {
+        let (service, _, keychainId) = try makeService()
+
+        let scope = service.scope(forAccountKeychainId: keychainId)
+
+        // makeService() registers a signed-out account.
+        XCTAssertTrue(scope.isSignedOut)
+    }
+
+    func test_scope_capturesInstanceActorId() throws {
+        let (service, _, keychainId) = try makeService()
+
+        let scope = service.scope(forAccountKeychainId: keychainId)
+
+        XCTAssertEqual(scope.instanceActorId?.host, "lemmy.world")
+    }
 }
