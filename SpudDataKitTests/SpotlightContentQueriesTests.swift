@@ -1,0 +1,83 @@
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
+import Foundation
+import GRDB
+import XCTest
+@testable import SpudDataKit
+
+final class SpotlightContentQueriesTests: XCTestCase {
+    private static func seedGraph(_ db: Database, keychainId: String, isDefault: Bool) throws -> (accountId: Int64, communityId: Int64, personId: Int64) {
+        try db.execute(sql: "INSERT INTO instance (actorId, createdAt) VALUES (?, ?)", arguments: ["https://\(keychainId).test", Date()])
+        let instanceId = db.lastInsertedRowID
+        try db.execute(sql: "INSERT INTO site (instanceId, createdAt, updatedAt) VALUES (?, ?, ?)", arguments: [instanceId, Date(), Date()])
+        let siteId = db.lastInsertedRowID
+        try db.execute(sql: """
+            INSERT INTO person (siteId, personId, name, isAdmin, isBanned, isBotAccount, isDeleted, isLocal, numberOfPosts, numberOfComments, createdAt, updatedAt)
+            VALUES (?, 10, 'alice', 0, 0, 0, 0, 0, 0, 0, ?, ?)
+            """, arguments: [siteId, Date(), Date()])
+        let personId = db.lastInsertedRowID
+        try db.execute(sql: """
+            INSERT INTO account (siteId, accountKeychainId, isDefault, isServiceAccount, isSignedOutAccountType, createdAt, updatedAt)
+            VALUES (?, ?, ?, 0, 0, ?, ?)
+            """, arguments: [siteId, keychainId, isDefault, Date(), Date()])
+        let accountId = db.lastInsertedRowID
+        try db.execute(sql: """
+            INSERT INTO community (accountId, communityId, name, actorId, isHidden, isLocal, isNsfw, isPostingRestrictedToMods, isRemoved, subscribedState, numberOfSubscribers, numberOfPosts, numberOfComments, createdAt, updatedAt)
+            VALUES (?, 5, 'programming', 'https://\(keychainId).test/c/programming', 0, 0, 0, 0, 0, 'NotSubscribed', 0, 0, 0, ?, ?)
+            """, arguments: [accountId, Date(), Date()])
+        let communityId = db.lastInsertedRowID
+        return (accountId, communityId, personId)
+    }
+
+    private static func insertPost(_ db: Database, accountId: Int64, communityId: Int64, personId: Int64, serverPostId: Int64, title: String, isSaved: Bool) throws {
+        try db.execute(sql: """
+            INSERT INTO post (accountId, communityId, creatorId, postId, title, originalPostUrl, score, numberOfUpvotes, numberOfDownvotes, numberOfComments, isRead, isSaved, isHidden, isRemoved, isLocked, isFeaturedCommunity, isFeaturedLocal, isDeleted, published, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, 'https://x.test/post/\(serverPostId)', 7, 7, 0, 3, 0, ?, 0, 0, 0, 0, 0, 0, ?, ?, ?)
+            """, arguments: [accountId, communityId, personId, serverPostId, title, isSaved, Date(), Date(), Date()])
+    }
+
+    private static func insertInteraction(_ db: Database, accountId: Int64, postServerId: Int64, title: String, lastOpenedAt: Date?) throws {
+        var record = PostInteractionRecord(accountId: accountId, postServerId: postServerId)
+        record.titleSnapshot = title
+        record.communityName = "programming"
+        record.lastOpenedAt = lastOpenedAt
+        try record.insert(db)
+    }
+
+    func test_indexableRows_returnsSavedAndRecentOpened() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        try await appDatabase.writer.write { db in
+            let g = try Self.seedGraph(db, keychainId: "kc-1", isDefault: true)
+            // 1: saved but never opened -> included (saved)
+            try Self.insertPost(db, accountId: g.accountId, communityId: g.communityId, personId: g.personId, serverPostId: 1, title: "Saved", isSaved: true)
+            try Self.insertInteraction(db, accountId: g.accountId, postServerId: 1, title: "Saved", lastOpenedAt: nil)
+            // 2: opened but not saved -> included (recent)
+            try Self.insertPost(db, accountId: g.accountId, communityId: g.communityId, personId: g.personId, serverPostId: 2, title: "Opened", isSaved: false)
+            try Self.insertInteraction(db, accountId: g.accountId, postServerId: 2, title: "Opened", lastOpenedAt: Date(timeIntervalSince1970: 1_000_000))
+            // 3: only seen (never opened, not saved) -> excluded
+            try Self.insertPost(db, accountId: g.accountId, communityId: g.communityId, personId: g.personId, serverPostId: 3, title: "OnlySeen", isSaved: false)
+            try Self.insertInteraction(db, accountId: g.accountId, postServerId: 3, title: "OnlySeen", lastOpenedAt: nil)
+        }
+        let rows = appDatabase.indexableContentRowsSync(forKeychainId: "kc-1", limit: 100)
+        XCTAssertEqual(Set(rows.map(\.serverPostId)), [1, 2])
+        let saved = rows.first { $0.serverPostId == 1 }
+        XCTAssertEqual(saved?.title, "Saved")
+        XCTAssertEqual(saved?.originalPostUrl, "https://x.test/post/1")
+        XCTAssertEqual(saved?.communityName, "programming")
+    }
+
+    func test_indexableRowsForDefaultAccount_resolvesDefault() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        try await appDatabase.writer.write { db in
+            let g = try Self.seedGraph(db, keychainId: "kc-default", isDefault: true)
+            try Self.insertPost(db, accountId: g.accountId, communityId: g.communityId, personId: g.personId, serverPostId: 1, title: "Saved", isSaved: true)
+            try Self.insertInteraction(db, accountId: g.accountId, postServerId: 1, title: "Saved", lastOpenedAt: nil)
+        }
+        let rows = appDatabase.indexableContentRowsForDefaultAccountSync(limit: 100)
+        XCTAssertEqual(rows.map(\.serverPostId), [1])
+    }
+}
