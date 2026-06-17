@@ -80,4 +80,25 @@ final class SpotlightContentQueriesTests: XCTestCase {
         let rows = appDatabase.indexableContentRowsForDefaultAccountSync(limit: 100)
         XCTAssertEqual(rows.map(\.serverPostId), [1])
     }
+
+    /// Spotlight indexing must be scoped to a single account. A saved post that
+    /// belongs to a different account (kc-2) must NOT appear in the index for
+    /// kc-1, even when both accounts exist in the same database.
+    func test_indexableRows_accountIsolation_doesNotLeakCrossAccount() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        try await appDatabase.writer.write { db in
+            // Account 1 — one saved post.
+            let g1 = try Self.seedGraph(db, keychainId: "kc-1", isDefault: true)
+            try Self.insertPost(db, accountId: g1.accountId, communityId: g1.communityId, personId: g1.personId, serverPostId: 101, title: "Account1Post", isSaved: true)
+            try Self.insertInteraction(db, accountId: g1.accountId, postServerId: 101, title: "Account1Post", lastOpenedAt: nil)
+
+            // Account 2 — one saved post (must not bleed into kc-1's index).
+            let g2 = try Self.seedGraph(db, keychainId: "kc-2", isDefault: false)
+            try Self.insertPost(db, accountId: g2.accountId, communityId: g2.communityId, personId: g2.personId, serverPostId: 202, title: "Account2Post", isSaved: true)
+            try Self.insertInteraction(db, accountId: g2.accountId, postServerId: 202, title: "Account2Post", lastOpenedAt: nil)
+        }
+        let rows = appDatabase.indexableContentRowsSync(forKeychainId: "kc-1", limit: 100)
+        XCTAssertEqual(rows.map(\.serverPostId), [101])
+        XCTAssertFalse(rows.contains(where: { $0.serverPostId == 202 }), "account kc-2 post must not appear in kc-1 index")
+    }
 }
