@@ -61,8 +61,20 @@ final class LemmyURLParserTests: XCTestCase {
         XCTAssertNil(classify("https://example.com/post/1"))
     }
 
-    func test_commentURL_isNil_deferred() {
-        XCTAssertNil(classify("https://lemmy.world/comment/9"))
+    func test_commentURL_onKnownInstance_isObjectAtURL() throws {
+        let url = try XCTUnwrap(URL(string: "https://lemmy.world/comment/9"))
+        guard case let .objectAtURL(parsed)? = classify(url.absoluteString) else {
+            return XCTFail("expected .objectAtURL")
+        }
+        XCTAssertEqual(parsed, url)
+    }
+
+    func test_commentPathOnUnknownDomain_isNil() {
+        XCTAssertNil(classify("https://example.com/comment/9"))
+    }
+
+    func test_commentURL_withNonNumericId_isNil() {
+        XCTAssertNil(classify("https://lemmy.world/comment/notanumber"))
     }
 
     func test_communityMention_isCommunity() {
