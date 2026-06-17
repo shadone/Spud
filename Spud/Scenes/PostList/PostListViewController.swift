@@ -21,6 +21,7 @@ class PostListViewController: UIViewController {
         HasAccountService &
         HasAlertService &
         HasAppDatabase &
+        HasAppService &
         HasAppearanceService &
         HasImageService &
         HasPostContentDetectorService &
@@ -44,6 +45,10 @@ class PostListViewController: UIViewController {
 
     var appDatabase: AppDatabase {
         dependencies.own.appDatabase
+    }
+
+    var appService: AppServiceType {
+        dependencies.own.appService
     }
 
     var imageService: ImageServiceType {
@@ -146,9 +151,9 @@ class PostListViewController: UIViewController {
     /// from under the user until the next refresh.
     private var pinnedReadIds: Set<Int64> = []
 
-    /// Server post ids already enqueued for a scroll mark-as-read, so we don't
-    /// fire the API repeatedly for the same row.
-    private var scrollMarkedReadIds: Set<Int64> = []
+    /// Server post ids already enqueued for a background mark-as-read (scroll-out
+    /// or media-open), so we don't fire the API repeatedly for the same row.
+    private var markedReadIds: Set<Int64> = []
 
     var sortTypeBarButtonItem: UIBarButtonItem!
     var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
@@ -736,7 +741,7 @@ class PostListViewController: UIViewController {
         orderedRows.removeAll()
         displayedRows.removeAll()
         pinnedReadIds.removeAll()
-        scrollMarkedReadIds.removeAll()
+        markedReadIds.removeAll()
         hasReceivedFirstSnapshot = false
         // Clear any error carried over from the feed we're leaving so it can't
         // flash before the new feed's fetch starts.
@@ -950,16 +955,36 @@ class PostListViewController: UIViewController {
                 cell.seenTrackingServerPostId = serverPostId
 
                 cell.imageTapped = { [weak self] imageUrl, thumbnailUrl, thumbnailImage in
-                    self?.presentMediaViewer(
+                    guard let self else { return }
+                    presentMediaViewer(
                         imageUrl: imageUrl,
                         thumbnailUrl: thumbnailUrl,
                         preloadedImage: thumbnailImage,
                         altText: row.altText
                     )
+                    // Viewing a post's media counts as opening it, so mark it
+                    // read like tapping into the post does (master toggle only).
+                    if markPostsRead {
+                        markReadInBackground(serverPostId: serverPostId)
+                    }
                 }
 
                 cell.videoTapped = { [weak self] videoUrl in
-                    self?.presentVideoPlayer(url: videoUrl)
+                    guard let self else { return }
+                    presentVideoPlayer(url: videoUrl)
+                    if markPostsRead {
+                        markReadInBackground(serverPostId: serverPostId)
+                    }
+                }
+
+                cell.linkTapped = { [weak self] linkUrl in
+                    guard let self else { return }
+                    openExternalLink(linkUrl)
+                    // Opening the post's link counts as consuming it, like
+                    // opening the post detail does (master toggle only).
+                    if markPostsRead {
+                        markReadInBackground(serverPostId: serverPostId)
+                    }
                 }
 
                 let general = appearance.general
@@ -1291,6 +1316,15 @@ class PostListViewController: UIViewController {
         )
     }
 
+    /// Opens an external-link post's url, honoring the user's "Open External
+    /// Links in" preference (in-app Safari / browser / reader mode).
+    private func openExternalLink(_ url: URL) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await appService.open(url: url, on: self)
+        }
+    }
+
     private func flushSeen() {
         let seen = seenDwellTracker.flushSeen(at: Date())
         guard !seen.isEmpty else { return }
@@ -1384,17 +1418,21 @@ extension PostListViewController: UITableViewDelegate {
         // last-known item rather than `itemIdentifier(for:)`.
         guard let item = dataSource.itemIdentifier(for: indexPath),
               case let .post(serverPostId) = item else { return }
-        markReadOnScroll(serverPostId: serverPostId)
+        markReadInBackground(serverPostId: serverPostId)
     }
 
-    private func markReadOnScroll(serverPostId: Int64) {
+    /// Fires a best-effort server mark-as-read for a post the user has implicitly
+    /// consumed (scrolled past, or opened its media). Deduped per session and
+    /// short-circuited for rows already read; the new read state flows back
+    /// through the GRDB observation. Callers gate on the relevant preference.
+    private func markReadInBackground(serverPostId: Int64) {
         // Skip rows already read or already enqueued this session.
-        guard !scrollMarkedReadIds.contains(serverPostId) else { return }
+        guard !markedReadIds.contains(serverPostId) else { return }
         if rowsByServerPostId[serverPostId]?.isRead == true {
-            scrollMarkedReadIds.insert(serverPostId)
+            markedReadIds.insert(serverPostId)
             return
         }
-        scrollMarkedReadIds.insert(serverPostId)
+        markedReadIds.insert(serverPostId)
 
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -1403,10 +1441,10 @@ extension PostListViewController: UITableViewDelegate {
                     .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
                     .markAsRead(serverPostId: Components.Schemas.PostID(serverPostId))
             } catch {
-                // Best-effort: a failed scroll mark-read should not interrupt
+                // Best-effort: a failed mark-read should not interrupt
                 // browsing. Allow a later retry by un-enqueuing.
-                scrollMarkedReadIds.remove(serverPostId)
-                logger.debug("Scroll mark-as-read failed: \(String(describing: error), privacy: .public)")
+                markedReadIds.remove(serverPostId)
+                logger.debug("Background mark-as-read failed: \(String(describing: error), privacy: .public)")
             }
         }
     }

@@ -4,12 +4,12 @@ Spud (placeholder name) is a UIKit client for [Lemmy](https://join-lemmy.org), t
 
 ## Project layout
 
-`Spud.xcodeproj` is generated from [`project.yml`](project.yml) with [XcodeGen](https://github.com/yonaskolb/XcodeGen) (run `make project`); the generated project is gitignored, so `project.yml` is the source of truth. [LemmyKit](../LemmyKit), the OpenAPI-generated Lemmy client, is consumed as a local sibling SPM package (`path: ../LemmyKit`), so the project resolves it locally — no workspace needed.
+`Spud.xcodeproj` is generated from [`project.yml`](project.yml) with [XcodeGen](https://github.com/yonaskolb/XcodeGen) (run `make project`); the generated project is gitignored, so `project.yml` is the source of truth. [LemmyKit](https://github.com/shadone/LemmyKit), the OpenAPI-generated Lemmy client, is consumed as a versioned remote SPM package pinned to a release tag in `project.yml`, so the project resolves it from its git remote — no workspace needed.
 
 ```
 info.ddenis/Spud/
 ├── Spud/                       ← this repo (iOS app); open Spud.xcodeproj
-└── LemmyKit/                   ← sibling SPM package
+└── LemmyKit/                   ← dev checkout of the LemmyKit package (optional; Spud builds the pinned release)
 ```
 
 ## Targets
@@ -71,7 +71,7 @@ xcodebuild -project Spud.xcodeproj -scheme Spud \
 
 Declared in [`project.yml`](project.yml) and resolved via SPM:
 
-- [LemmyKit](../LemmyKit) — local sibling package, OpenAPI-generated Lemmy API client
+- [LemmyKit](https://github.com/shadone/LemmyKit) — OpenAPI-generated Lemmy API client (pinned remote package)
 - [Down](https://github.com/johnxnguyen/Down) — Markdown rendering
 - [KeychainAccess](https://github.com/kishikawakatsumi/KeychainAccess) — keychain wrapper
 - [SemVer](https://github.com/glwithu06/Semver.swift) — Lemmy server version comparisons

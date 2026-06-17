@@ -111,16 +111,20 @@ final class PostListPrefetchTests: XCTestCase {
             ),
             postContentDetector: detector
         )
-        XCTAssertEqual(thumbnail, try .linkImage(thumbnailUrl: XCTUnwrap(URL(string: "https://example.test/embed.jpg"))))
+        XCTAssertEqual(thumbnail, try .linkImage(
+            thumbnailUrl: XCTUnwrap(URL(string: "https://example.test/embed.jpg")),
+            linkUrl: XCTUnwrap(URL(string: "https://example.test/article"))
+        ))
         XCTAssertNil(fullImageUrl, "a link preview does not open the image viewer")
     }
 
-    func test_thumbnail_externalLinkWithoutEmbed_isText() {
-        let (thumbnail, _) = PostListPostViewModel.thumbnail(
+    func test_thumbnail_externalLinkWithoutEmbed_isLink_andHasNoFullImage() throws {
+        let (thumbnail, fullImageUrl) = PostListPostViewModel.thumbnail(
             for: row(url: "https://example.test/article", thumbnailUrl: nil),
             postContentDetector: detector
         )
-        XCTAssertEqual(thumbnail, .text)
+        XCTAssertEqual(thumbnail, try .link(linkUrl: XCTUnwrap(URL(string: "https://example.test/article"))))
+        XCTAssertNil(fullImageUrl, "a link post does not open the image viewer")
     }
 
     func test_thumbnail_textPost_isText() {

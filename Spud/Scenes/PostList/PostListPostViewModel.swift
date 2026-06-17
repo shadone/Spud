@@ -16,10 +16,12 @@ struct PostListPostViewModel {
         /// Post points to an image (or has a thumbnail) — load it via ImageService.
         /// Tapping it opens the full-screen viewer.
         case image(thumbnailUrl: URL)
-        /// External-link post that carries an embed image — show it inline (like
-        /// the detail view's link preview). Tapping falls through to opening the
-        /// post rather than the image viewer.
-        case linkImage(thumbnailUrl: URL)
+        /// External-link post that carries an embed image — show it inline with a
+        /// link badge. Tapping opens the external link.
+        case linkImage(thumbnailUrl: URL, linkUrl: URL)
+        /// External-link post with no embed image — show the web placeholder so
+        /// it reads as a link, not a self-post. Tapping opens the external link.
+        case link(linkUrl: URL)
         /// Playable video post. Show the poster (if any) with a play indicator;
         /// tapping plays the video.
         case video(posterUrl: URL?, videoUrl: URL)
@@ -109,12 +111,12 @@ struct PostListPostViewModel {
             return (.image(thumbnailUrl: image.thumbnailUrl ?? image.imageUrl), image.imageUrl, nil)
         case let .video(video):
             return (.video(posterUrl: video.thumbnailUrl, videoUrl: video.videoUrl), nil, nil)
-        case .externalLink:
-            let domain = url?.canonicalHost
+        case let .externalLink(link):
+            let domain = link.url.canonicalHost
             if let thumbnailUrl {
-                return (.linkImage(thumbnailUrl: thumbnailUrl), nil, domain)
+                return (.linkImage(thumbnailUrl: thumbnailUrl, linkUrl: link.url), nil, domain)
             }
-            return (.text, nil, domain)
+            return (.link(linkUrl: link.url), nil, domain)
         case .textOrEmpty:
             return (.text, nil, nil)
         }
@@ -128,11 +130,11 @@ struct PostListPostViewModel {
         postContentDetector: PostContentDetectorServiceType
     ) -> URL? {
         switch thumbnail(for: row, postContentDetector: postContentDetector).thumbnail {
-        case let .image(thumbnailUrl), let .linkImage(thumbnailUrl):
+        case let .image(thumbnailUrl), let .linkImage(thumbnailUrl, _):
             return thumbnailUrl
         case let .video(posterUrl, _):
             return posterUrl
-        case .text:
+        case .link, .text:
             return nil
         }
     }

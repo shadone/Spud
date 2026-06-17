@@ -39,6 +39,10 @@ class PostListPostCell: UITableViewCell {
     /// playable video url.
     var videoTapped: ((_ videoUrl: URL) -> Void)?
 
+    /// Invoked when the user taps an external-link post's thumbnail, carrying
+    /// the post's external url to open.
+    var linkTapped: ((_ linkUrl: URL) -> Void)?
+
     /// Invoked when the user taps one of the inline vote arrows.
     var voteTapped: ((VoteStatus.Action) -> Void)?
 
@@ -213,6 +217,7 @@ class PostListPostCell: UITableViewCell {
     private var tappableImageUrl: URL?
     private var tappableThumbnailUrl: URL?
     private var tappableVideoUrl: URL?
+    private var tappableLinkUrl: URL?
     private var loadedThumbnailImage: UIImage?
 
     /// The thumbnail position applied to the current layout, so `configure`
@@ -281,6 +286,7 @@ class PostListPostCell: UITableViewCell {
         tappableImageUrl = nil
         tappableThumbnailUrl = nil
         tappableVideoUrl = nil
+        tappableLinkUrl = nil
         loadedThumbnailImage = nil
 
         // Leave `appliedThumbnailPosition` / `appliedDensity` intact: they
@@ -292,6 +298,7 @@ class PostListPostCell: UITableViewCell {
         swipeActionTriggered = nil
         imageTapped = nil
         videoTapped = nil
+        linkTapped = nil
         voteTapped = nil
 
         domainLabel.attributedText = nil
@@ -304,6 +311,8 @@ class PostListPostCell: UITableViewCell {
     private func thumbnailTapped() {
         if let tappableVideoUrl {
             videoTapped?(tappableVideoUrl)
+        } else if let tappableLinkUrl {
+            linkTapped?(tappableLinkUrl)
         } else if let tappableImageUrl {
             imageTapped?(tappableImageUrl, tappableThumbnailUrl, loadedThumbnailImage)
         }
@@ -431,8 +440,10 @@ class PostListPostCell: UITableViewCell {
         }
 
         thumbnailView.badgeText = nil
+        thumbnailView.badgeSymbolName = nil
         thumbnailView.showsPlayIcon = false
         tappableVideoUrl = nil
+        tappableLinkUrl = nil
         switch viewModel.thumbnail {
         case .text:
             tappableImageUrl = nil
@@ -464,14 +475,24 @@ class PostListPostCell: UITableViewCell {
             thumbnailView.accessibilityTraits = [.image, .button]
             loadThumbnail(thumbnailUrl, imageService: imageService)
 
-        case let .linkImage(thumbnailUrl):
+        case let .linkImage(thumbnailUrl, linkUrl):
             tappableImageUrl = nil
             tappableThumbnailUrl = nil
-            // The embed image previews the link; tapping it falls through to the
-            // cell (opens the post), like the detail view's link preview.
-            thumbnailView.isUserInteractionEnabled = false
-            thumbnailView.isAccessibilityElement = false
+            tappableLinkUrl = linkUrl
+            // The embed image previews the link; a globe badge marks it as an
+            // external link, and tapping opens that link.
+            thumbnailView.badgeSymbolName = "globe"
+            applyLinkAccessibility()
             loadThumbnail(thumbnailUrl, imageService: imageService)
+
+        case let .link(linkUrl):
+            tappableImageUrl = nil
+            tappableThumbnailUrl = nil
+            tappableLinkUrl = linkUrl
+            // No embed image: the globe placeholder marks it as an external
+            // link, and tapping opens that link.
+            setStaticThumbnail(.link)
+            applyLinkAccessibility()
 
         case let .video(posterUrl, videoUrl):
             tappableImageUrl = nil
@@ -498,8 +519,25 @@ class PostListPostCell: UITableViewCell {
         }
     }
 
-    /// Shows a non-image placeholder (text or broken), cancelling any in-flight
-    /// thumbnail load and clearing the load memo so a later image re-fetches.
+    /// Exposes the thumbnail as a tappable link element (used by both the
+    /// embed-image and image-less external-link cases): tapping opens the link.
+    private func applyLinkAccessibility() {
+        thumbnailView.isUserInteractionEnabled = true
+        thumbnailView.isAccessibilityElement = true
+        thumbnailView.accessibilityLabel = NSLocalizedString(
+            "External link",
+            comment: "VoiceOver label for a post's external-link thumbnail"
+        )
+        thumbnailView.accessibilityHint = NSLocalizedString(
+            "Opens the link",
+            comment: "VoiceOver hint for a post's external-link thumbnail"
+        )
+        thumbnailView.accessibilityTraits = [.link, .button]
+    }
+
+    /// Shows a non-image placeholder (text, link, or broken), cancelling any
+    /// in-flight thumbnail load and clearing the load memo so a later image
+    /// re-fetches.
     private func setStaticThumbnail(_ type: PostListThumbnailImageView.ThumbnailType) {
         thumbnailLoadTask?.cancel()
         thumbnailLoadTask = nil

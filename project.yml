@@ -1,7 +1,7 @@
 # XcodeGen spec for Spud. Regenerate the project with:  xcodegen generate
 # (or `make project`). The generated Spud.xcodeproj is gitignored — project.yml is the
-# source of truth. LemmyKit is a local sibling package, so the bare project resolves it
-# locally (no workspace needed). See README.md / CLAUDE.md.
+# source of truth. LemmyKit is pinned to a released version from its git remote.
+# See README.md / CLAUDE.md.
 name: Spud
 
 options:
@@ -29,7 +29,8 @@ settings:
 
 packages:
   LemmyKit:
-    path: ../LemmyKit
+    url: https://github.com/shadone/LemmyKit
+    exactVersion: 0.5.0
   Nuke:
     url: https://github.com/kean/Nuke
     from: 13.0.0
