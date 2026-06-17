@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Down
 import SpudDataKit
+import SpudMarkdownKit
 import SpudUIKit
 import SpudUtilKit
 import UIKit
@@ -41,11 +41,33 @@ final class PostPreviewViewController: UIViewController {
         return label
     }()
 
-    private let bodyLabel: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.numberOfLines = 12
-        return label
+    /// The peek mirrors the real post body using the same `MarkdownBodyView`
+    /// renderer as post detail, but is a transient preview, so it is
+    /// height-capped: a long post fades out past `maxBodyHeight` instead of
+    /// growing the popover without bound.
+    private let bodyContainer: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.clipsToBounds = true
+        return view
+    }()
+
+    private lazy var bodyView: MarkdownBodyView = {
+        let context = MarkdownContext(kind: .post, textScale: textSizeAdjustment, density: .comfortable)
+        let view = MarkdownBodyView(context: context)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.accessibilityIdentifier = "body"
+        return view
+    }()
+
+    private let maxBodyHeight: CGFloat = 340
+
+    /// Alpha mask that fades the body's bottom edge when it overflows the cap.
+    /// Alpha-based (not a color), so it is correct in both light and dark.
+    private let fadeMaskLayer: CAGradientLayer = {
+        let layer = CAGradientLayer()
+        layer.colors = [UIColor.white.cgColor, UIColor.white.cgColor, UIColor.clear.cgColor]
+        return layer
     }()
 
     private let stackView: UIStackView = {
@@ -89,8 +111,19 @@ final class PostPreviewViewController: UIViewController {
 
         stackView.addArrangedSubview(imageView)
         stackView.addArrangedSubview(titleLabel)
-        stackView.addArrangedSubview(bodyLabel)
+        stackView.addArrangedSubview(bodyContainer)
         view.addSubview(stackView)
+
+        bodyContainer.addSubview(bodyView)
+        let bodyBottom = bodyView.bottomAnchor.constraint(equalTo: bodyContainer.bottomAnchor)
+        bodyBottom.priority = .defaultLow
+        NSLayoutConstraint.activate([
+            bodyView.topAnchor.constraint(equalTo: bodyContainer.topAnchor),
+            bodyView.leadingAnchor.constraint(equalTo: bodyContainer.leadingAnchor),
+            bodyView.trailingAnchor.constraint(equalTo: bodyContainer.trailingAnchor),
+            bodyBottom,
+            bodyContainer.heightAnchor.constraint(lessThanOrEqualToConstant: maxBodyHeight),
+        ])
 
         let margin: CGFloat = 14
         NSLayoutConstraint.activate([
@@ -103,17 +136,15 @@ final class PostPreviewViewController: UIViewController {
         titleLabel.text = row.title
 
         if let body = row.body, !body.isEmpty {
-            bodyLabel.attributedText = MarkdownRenderer.shared.attributedString(
-                markdown: body,
-                key: MarkdownRenderer.postBodyKey(markdown: body, textSizeAdjustment: textSizeAdjustment),
-                makeStyler: {
-                    DownStyler(configuration: PostDetailAppearance.bodyStylerConfiguration(
-                        for: textSizeAdjustment
-                    ))
+            bodyView.imageLoader = { [imageService] url in
+                for await state in imageService.fetch(url) {
+                    if case let .ready(image) = state { return image }
                 }
-            )
+                return nil
+            }
+            bodyView.setBlocks(MarkdownBlockCache.shared.blocks(for: body))
         } else {
-            bodyLabel.isHidden = true
+            bodyContainer.isHidden = true
         }
 
         configureImage()
@@ -121,6 +152,8 @@ final class PostPreviewViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+
+        updateBodyFade()
 
         // Size the popover to the content. The width is whatever the system
         // offers (the cell width); the height is the fitted stack height.
@@ -133,6 +166,23 @@ final class PostPreviewViewController: UIViewController {
         if preferredContentSize != fittingSize {
             preferredContentSize = fittingSize
         }
+    }
+
+    /// Fades the body's bottom edge only when the rendered body is taller than
+    /// the cap (i.e. the peek truncated it); otherwise no mask, so a short body
+    /// shows in full.
+    private func updateBodyFade() {
+        let containerHeight = bodyContainer.bounds.height
+        let isTruncated = bodyView.bounds.height > containerHeight + 1
+        guard isTruncated, containerHeight > 0 else {
+            bodyContainer.layer.mask = nil
+            return
+        }
+        let fade: CGFloat = 36
+        let start = max(0, (containerHeight - fade) / containerHeight)
+        fadeMaskLayer.frame = bodyContainer.bounds
+        fadeMaskLayer.locations = [0, NSNumber(value: Double(start)), 1]
+        bodyContainer.layer.mask = fadeMaskLayer
     }
 
     private func configureImage() {
