@@ -443,6 +443,13 @@ extension MainWindow: AppNavigating {
         ))
     }
 
+    func selectSavedFeed(sort: Components.Schemas.SortType?) {
+        tabBarController.selectedIndex = 0
+        let postListVC = splitViewController?.postListNavigationController
+            .viewControllers.first as? PostListViewController
+        postListVC?.showFeed(.saved(sortType: sort ?? .Hot))
+    }
+
     func selectSearch(query: String) {
         tabBarController.selectedIndex = 2
         guard

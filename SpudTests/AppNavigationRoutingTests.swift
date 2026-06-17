@@ -32,6 +32,10 @@ final class AppNavigationRoutingTests: XCTestCase {
         func display(communityName: String, instance _: InstanceActorId, accountKeychainId _: String) {
             calls.append("community:\(communityName)")
         }
+
+        func selectSavedFeed(sort: Components.Schemas.SortType?) {
+            calls.append("savedFeed:\(String(describing: sort))")
+        }
     }
 
     func test_navigate_withActiveWindow_routesImmediately() {
@@ -45,6 +49,17 @@ final class AppNavigationRoutingTests: XCTestCase {
         XCTAssertEqual(spy.calls, ["inbox", "search:cats"])
         XCTAssertNil(coordinator.pendingNavigation)
 
+        coordinator.setActiveWindow(nil)
+    }
+
+    func test_navigate_savedFeed_routesToSavedFeed() {
+        let coordinator = AppCoordinator.shared
+        let spy = SpyNavigator()
+        coordinator.setActiveWindow(spy)
+
+        coordinator.navigate(.savedFeed(sort: nil))
+
+        XCTAssertEqual(spy.calls, ["savedFeed:nil"])
         coordinator.setActiveWindow(nil)
     }
 

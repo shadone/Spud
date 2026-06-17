@@ -171,6 +171,9 @@ class AppCoordinator {
         case let .community(name, instance):
             let accountKeychainId = dependencies.accountService.accountKeychainId(forInstance: instance)
             window.display(communityName: name, instance: instance, accountKeychainId: accountKeychainId)
+
+        case let .savedFeed(sort):
+            window.selectSavedFeed(sort: sort)
         }
     }
 }
