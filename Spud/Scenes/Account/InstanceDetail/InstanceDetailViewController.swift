@@ -7,6 +7,7 @@
 import Foundation
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 /// "Before you commit" instance detail (Explorer feature #4). Shown between the
@@ -18,6 +19,7 @@ import UIKit
 final class InstanceDetailViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
+        HasAppDatabase &
         HasImageService
     typealias NestedDependencies =
         LoginViewController.Dependencies &
@@ -33,14 +35,23 @@ final class InstanceDetailViewController: UIViewController {
         dependencies.own.accountService
     }
 
+    private var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
+    }
+
     private let record: ExplorerInstanceRecord
     private let row: SiteListRow?
+    private let showsActions: Bool
 
     private let scrollView = UIScrollView()
     private let bannerImageView = UIImageView()
     private let iconImageView = UIImageView()
     private let iconLetterLabel = UILabel()
     private var imageTasks: [Task<Void, Never>] = []
+    private var observationTasks: [Task<Void, Never>] = []
+
+    private var adminsView: InstanceAdminsView!
+    private var communitiesContainer: UIStackView!
 
     private var accent: UIColor {
         ThemeManager.currentAccentColor
@@ -48,8 +59,9 @@ final class InstanceDetailViewController: UIViewController {
 
     // MARK: Init
 
-    init(record: ExplorerInstanceRecord, dependencies: Dependencies) {
+    init(record: ExplorerInstanceRecord, showsActions: Bool = true, dependencies: Dependencies) {
         self.record = record
+        self.showsActions = showsActions
         row = SiteListRow(explorerInstance: record)
         self.dependencies = (own: dependencies, nested: dependencies)
         super.init(nibName: nil, bundle: nil)
@@ -57,6 +69,7 @@ final class InstanceDetailViewController: UIViewController {
 
     deinit {
         imageTasks.forEach { $0.cancel() }
+        observationTasks.forEach { $0.cancel() }
     }
 
     @available(*, unavailable)
@@ -68,6 +81,7 @@ final class InstanceDetailViewController: UIViewController {
         super.viewDidLoad()
         setup()
         loadImages()
+        loadSecondaryData()
     }
 
     // MARK: Setup
@@ -83,22 +97,32 @@ final class InstanceDetailViewController: UIViewController {
             menu: nil
         )
 
-        let actionBar = makeActionBar()
-        view.addSubview(actionBar)
         view.addSubview(scrollView)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
-        actionBar.translatesAutoresizingMaskIntoConstraints = false
 
-        NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: actionBar.topAnchor),
+        if showsActions {
+            let actionBar = makeActionBar()
+            view.addSubview(actionBar)
+            actionBar.translatesAutoresizingMaskIntoConstraints = false
 
-            actionBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            actionBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            actionBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
+            NSLayoutConstraint.activate([
+                scrollView.topAnchor.constraint(equalTo: view.topAnchor),
+                scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                scrollView.bottomAnchor.constraint(equalTo: actionBar.topAnchor),
+
+                actionBar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                actionBar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                actionBar.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            ])
+        } else {
+            NSLayoutConstraint.activate([
+                scrollView.topAnchor.constraint(equalTo: view.topAnchor),
+                scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+                scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+                scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+            ])
+        }
 
         let content = scrollView.contentLayoutGuide
         let frame = scrollView.frameLayoutGuide
@@ -216,6 +240,17 @@ final class InstanceDetailViewController: UIViewController {
             wrap.setItems(tags.map { makeChip($0) })
             stack.addArrangedSubview(wrap)
         }
+
+        adminsView = InstanceAdminsView()
+        adminsView.update(.loading)
+        stack.setCustomSpacing(4, after: stack.arrangedSubviews.last!)
+        stack.addArrangedSubview(adminsView)
+
+        communitiesContainer = UIStackView()
+        communitiesContainer.axis = .vertical
+        communitiesContainer.spacing = 8
+        stack.addArrangedSubview(communitiesContainer)
+
         return stack
     }
 
@@ -594,6 +629,114 @@ final class InstanceDetailViewController: UIViewController {
         if let bannerUrl = (record.bannerUrl).flatMap(URL.init(string:)) {
             fetch(bannerUrl, into: bannerImageView, fallbackLetter: false)
         }
+    }
+
+    // MARK: Secondary data (admins + communities)
+
+    private func loadSecondaryData() {
+        guard let instance = InstanceActorId(from: record.url ?? "https://\(record.baseurl)") else {
+            adminsView.update(.unavailable)
+            return
+        }
+
+        let allRows = appDatabase.explorerCommunityListRowsSync()
+        let comms = ExplorerCommunityDirectory.communities(onInstance: record.baseurl, in: allRows, sort: .members)
+        renderCommunities(into: communitiesContainer, comms: comms)
+
+        let keychainId = accountService.accountForSignedOut(forInstance: instance, isServiceAccount: true)
+        let service = accountService.lemmyService(forAccountKeychainId: keychainId)
+        observationTasks.append(Task { [weak self] in
+            try? await service.fetchSiteInfo()
+            guard let self else { return }
+            for await admins in appDatabase.observeSiteAdmins(forInstanceActorId: instance) {
+                adminsView.update(Self.adminsState(admins, isSuspicious: record.isSuspicious))
+            }
+        })
+    }
+
+    private static func adminsState(_ admins: [SiteAdminRecord], isSuspicious: Bool) -> InstanceAdminsState {
+        admins.isEmpty ? (isSuspicious ? .anonymous : .unavailable) : .admins(admins)
+    }
+
+    private func renderCommunities(into container: UIStackView, comms: [CommunityListRow]) {
+        container.arrangedSubviews.forEach { $0.removeFromSuperview() }
+
+        let countValue: Int? = record.numberOfCommunities > 0 ? Int(record.numberOfCommunities) : nil
+        let header = InstanceSectionHeader()
+        header.configure(title: "Communities", count: countValue)
+        container.addArrangedSubview(header)
+
+        guard !comms.isEmpty else {
+            let unavailableCard = makeCard()
+            let label = UILabel()
+            label.text = "Community list unavailable."
+            label.font = .systemFont(ofSize: 13.5)
+            label.textColor = .tertiaryLabel
+            label.numberOfLines = 0
+            label.translatesAutoresizingMaskIntoConstraints = false
+            unavailableCard.addSubview(label)
+            NSLayoutConstraint.activate([
+                label.topAnchor.constraint(equalTo: unavailableCard.topAnchor, constant: 14),
+                label.leadingAnchor.constraint(equalTo: unavailableCard.leadingAnchor, constant: 14),
+                label.trailingAnchor.constraint(equalTo: unavailableCard.trailingAnchor, constant: -14),
+                label.bottomAnchor.constraint(equalTo: unavailableCard.bottomAnchor, constant: -14),
+            ])
+            container.addArrangedSubview(unavailableCard)
+            return
+        }
+
+        let card = makeCard()
+        let cardStack = UIStackView()
+        cardStack.axis = .vertical
+        cardStack.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(cardStack)
+        pinToCard(cardStack, card, inset: 0)
+
+        let top3 = Array(comms.prefix(3))
+        for (index, row) in top3.enumerated() {
+            let rowView = InstanceCommunityRowView(row: row, action: .chevron, joined: false, accent: accent)
+            cardStack.addArrangedSubview(rowView)
+            if index < top3.count - 1 {
+                let line = UIView()
+                line.backgroundColor = .separator
+                line.heightAnchor.constraint(equalToConstant: 0.5).isActive = true
+                let insetLine = UIStackView(arrangedSubviews: [line])
+                insetLine.isLayoutMarginsRelativeArrangement = true
+                insetLine.layoutMargins = .init(top: 0, left: 13, bottom: 0, right: 0)
+                cardStack.addArrangedSubview(insetLine)
+            }
+        }
+
+        let footerLine = UIView()
+        footerLine.backgroundColor = .separator
+        footerLine.heightAnchor.constraint(equalToConstant: 0.5).isActive = true
+        let insetFooterLine = UIStackView(arrangedSubviews: [footerLine])
+        insetFooterLine.isLayoutMarginsRelativeArrangement = true
+        insetFooterLine.layoutMargins = .init(top: 0, left: 13, bottom: 0, right: 0)
+        cardStack.addArrangedSubview(insetFooterLine)
+
+        let browseLabel = UILabel()
+        let totalCount: Int? = record.numberOfCommunities > 0 ? Int(record.numberOfCommunities) : nil
+        if let total = totalCount {
+            browseLabel.text = "Browse all \(total) communities"
+        } else {
+            browseLabel.text = "Browse all communities"
+        }
+        browseLabel.font = .systemFont(ofSize: 14.5, weight: .semibold)
+        browseLabel.textColor = accent
+        let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
+        chevron.tintColor = .tertiaryLabel
+        chevron.contentMode = .scaleAspectFit
+        chevron.setContentHuggingPriority(.required, for: .horizontal)
+        let footerRow = UIStackView(arrangedSubviews: [browseLabel, chevron])
+        footerRow.axis = .horizontal
+        footerRow.spacing = 8
+        footerRow.alignment = .center
+        footerRow.isLayoutMarginsRelativeArrangement = true
+        footerRow.layoutMargins = .init(top: 11, left: 14, bottom: 11, right: 13)
+        cardStack.addArrangedSubview(footerRow)
+
+        container.addArrangedSubview(card)
     }
 
     private func fetch(_ url: URL, into imageView: UIImageView, fallbackLetter: Bool) {
