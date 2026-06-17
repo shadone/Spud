@@ -40,20 +40,35 @@ final class AccountScopeTests: XCTestCase {
         XCTAssertTrue(scope.lemmyService === direct)
     }
 
-    func test_scope_capturesSignedOutStatus() throws {
+    func test_scope_reportsSignedOutStatus() throws {
         let (service, _, keychainId) = try makeService()
-
-        let scope = service.scope(forAccountKeychainId: keychainId)
 
         // makeService() registers a signed-out account.
-        XCTAssertTrue(scope.isSignedOut)
+        XCTAssertTrue(service.scope(forAccountKeychainId: keychainId).isSignedOut)
     }
 
-    func test_scope_capturesInstanceActorId() throws {
+    func test_scope_reportsSignedInStatus() async throws {
+        let db = try AppDatabase.inMemory()
+        let service = AccountService(appDatabase: db)
+        let instance = try XCTUnwrap(InstanceActorId(from: "https://lemmy.world"))
+        let (_, siteId) = try await db.ensureSite(forInstance: instance)
+        let keychainId = "signed-in-account"
+        _ = try await db.ensureAccount(
+            keychainId: keychainId,
+            siteId: siteId,
+            isSignedOut: false,
+            isServiceAccount: false
+        )
+
+        // A signed-in account reports isSignedOut == false. This cannot pass via
+        // isSignedOut(forAccountKeychainId:)'s `?? true` missing-row fallback, so
+        // it genuinely exercises the signed-in path (which makeService never does).
+        XCTAssertFalse(service.scope(forAccountKeychainId: keychainId).isSignedOut)
+    }
+
+    func test_scope_reportsInstanceActorId() throws {
         let (service, _, keychainId) = try makeService()
 
-        let scope = service.scope(forAccountKeychainId: keychainId)
-
-        XCTAssertEqual(scope.instanceActorId?.host, "lemmy.world")
+        XCTAssertEqual(service.scope(forAccountKeychainId: keychainId).instanceActorId?.host, "lemmy.world")
     }
 }

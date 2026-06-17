@@ -7,7 +7,6 @@
 import Foundation
 import LemmyKit
 import SpudDataKit
-import SpudUtilKit
 import XCTest
 @testable import Spud
 
@@ -47,13 +46,9 @@ final class PostDetailViewModelExpandAncestorsTests: XCTestCase {
 
     private func makeViewModel() -> PostDetailViewModel {
         let dependencies = TestDependencies()
-        let keychainId = dependencies.accountService.accountForSignedOut(
-            forInstance: InstanceActorId(from: "https://example.test")!,
-            isServiceAccount: false
-        )
         return PostDetailViewModel(
             serverPostId: 1,
-            accountScope: dependencies.accountService.scope(forAccountKeychainId: keychainId),
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: "kc-1"),
             dependencies: dependencies
         )
     }
