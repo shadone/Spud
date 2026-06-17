@@ -267,6 +267,34 @@ class PostDetailViewController: UIViewController {
             Task { await markAsRead() }
         }
         isFirstAppearance = false
+
+        updateUserActivity()
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        userActivity?.resignCurrent()
+        userActivity = nil
+    }
+
+    /// Vends a Handoff/Spotlight/Prediction activity for this post, keyed by its
+    /// canonical `ap_id` so it resolves under any account on any device.
+    private func updateUserActivity() {
+        let instanceActorId = appDatabase.accountInstanceActorIdSync(
+            forKeychainId: viewModel.accountKeychainId
+        )
+        guard let canonical = ShareURL.forPost(
+            originalPostUrl: headerRow?.originalPostUrl,
+            serverPostId: Int64(viewModel.serverPostId),
+            instanceActorId: instanceActorId
+        ) else { return }
+        let routingURL = URL.SpudInternalLink.objectAtURL(url: canonical).url
+        let activity = SpudUserActivity.viewPost(
+            routingURL: routingURL,
+            title: headerRow?.title ?? "Post"
+        )
+        userActivity = activity
+        activity.becomeCurrent()
     }
 
     private func markAsRead() async {
