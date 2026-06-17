@@ -38,10 +38,6 @@ final class InboxViewController: UIViewController {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    private var accountService: AccountServiceType {
-        dependencies.own.accountService
-    }
-
     private var imageService: ImageServiceType {
         dependencies.own.imageService
     }
@@ -118,10 +114,9 @@ final class InboxViewController: UIViewController {
             .map { Components.Schemas.PersonID($0.serverPersonId) }
 
         viewModel = InboxViewModel(
-            accountKeychainId: accountKeychainId,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             isSignedIn: isSignedIn,
             myPersonId: myPersonId,
-            accountService: dependencies.accountService,
             alertService: dependencies.alertService,
             unreadCountService: dependencies.unreadCountService
         )

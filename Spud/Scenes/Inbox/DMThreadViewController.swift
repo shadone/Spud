@@ -57,12 +57,11 @@ final class DMThreadViewController: UIViewController {
             .map { Components.Schemas.PersonID($0.serverPersonId) }
 
         viewModel = DMThreadViewModel(
-            accountKeychainId: accountKeychainId,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             correspondentId: correspondentId,
             correspondentName: correspondentName,
             myPersonId: myPersonId,
             initialMessages: initialMessages,
-            accountService: dependencies.accountService,
             alertService: dependencies.alertService,
             unreadCountService: dependencies.unreadCountService
         )
