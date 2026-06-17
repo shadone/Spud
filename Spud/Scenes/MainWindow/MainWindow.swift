@@ -425,6 +425,60 @@ class MainWindow: UIWindow {
     }
 }
 
+// MARK: - AppNavigating (App Intents / Siri navigation)
+
+extension MainWindow: AppNavigating {
+    // Tab order: Posts 0 | Communities 1 | Search 2 | Inbox 3 | Account 4.
+
+    func selectFeed(listing: Components.Schemas.ListingType, sort: Components.Schemas.SortType?) {
+        tabBarController.selectedIndex = 0
+        let postListVC = splitViewController?.postListNavigationController
+            .viewControllers.first as? PostListViewController
+        postListVC?.showFeed(.frontpage(
+            listingType: adjustedListing(listing),
+            sortType: sort ?? .Hot
+        ))
+    }
+
+    func selectSearch(query: String) {
+        tabBarController.selectedIndex = 2
+        guard
+            let viewControllers = tabBarController.viewControllers,
+            viewControllers.indices.contains(2),
+            let navigationController = viewControllers[2] as? UINavigationController,
+            let searchViewController = navigationController.viewControllers.first as? SearchViewController
+        else { return }
+        searchViewController.setSearchQuery(query)
+    }
+
+    func presentNewPost() {
+        tabBarController.selectedIndex = 0
+        let postListVC = splitViewController?.postListNavigationController
+            .viewControllers.first as? PostListViewController
+        postListVC?.beginNewPost()
+    }
+
+    func selectInbox() {
+        tabBarController.selectedIndex = 3
+    }
+
+    // `display(communityName:instance:accountKeychainId:)` already satisfies the
+    // protocol requirement.
+
+    /// Subscribed / Moderator feeds are meaningless when signed out; fall back to
+    /// All, mirroring the widget's signed-out behavior.
+    private func adjustedListing(
+        _ listing: Components.Schemas.ListingType
+    ) -> Components.Schemas.ListingType {
+        let signedOut = accountService.currentDefaultAccountKeychainId()
+            .map { accountService.isSignedOut(forAccountKeychainId: $0) } ?? true
+        if signedOut, listing == .Subscribed || listing == .ModeratorView {
+            return .All
+        }
+        return listing
+    }
+}
+
 extension MainWindow: UISplitViewControllerDelegate {
     /// The post list navigation stack's base depth: `[PostListViewController]`
     /// (the feed is the root of the Posts tab now). Anything pushed above this

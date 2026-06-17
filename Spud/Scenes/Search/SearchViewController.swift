@@ -136,6 +136,14 @@ final class SearchViewController: UIViewController {
         resultsObservationTask?.cancel()
     }
 
+    /// Pre-fills and runs a search from an external entry (App Intent / Siri).
+    func setSearchQuery(_ query: String) {
+        loadViewIfNeeded()
+        searchController.isActive = true
+        searchController.searchBar.text = query
+        viewModel.queryChanged(query)
+    }
+
     override func viewDidLoad() {
         super.viewDidLoad()
 

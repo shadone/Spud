@@ -371,6 +371,18 @@ class PostListViewController: UIViewController {
         donateIntent()
     }
 
+    /// Switches the post list to a feed from outside the controller (deep links,
+    /// App Intents). Mirrors the in-app drawer feed switch.
+    func showFeed(_ feedType: FeedType) {
+        switchFeed(to: feedType)
+    }
+
+    /// Starts the new-post composer (App Intent / external entry). Reuses the
+    /// toolbar compose path, which applies the sign-in gate for signed-out users.
+    func beginNewPost() {
+        composeTapped()
+    }
+
     @objc
     private func composeTapped() {
         let keychainId = viewModel.accountKeychainId
