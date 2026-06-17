@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import Nuke
 import OSLog
 import UIKit
 
@@ -410,17 +411,33 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
     }
 }
 
-private extension Error {
+extension Error {
     /// Whether this error represents a cancelled image request rather than a real
-    /// transport failure: a Swift task cancellation, `URLSession` reporting
-    /// `URLError.cancelled` (`NSURLErrorCancelled`, code -999), or either of those
-    /// wrapped in `ImageLoadingError.network`.
+    /// transport failure: a Swift task cancellation, `URLError.cancelled`
+    /// (`NSURLErrorCancelled`, -999), `ImagePipeline.Error.cancelled`, or any of
+    /// those wrapped in `ImageLoadingError.network`.
     var isImageLoadingCancellation: Bool {
         if self is CancellationError { return true }
         if (self as? URLError)?.code == .cancelled { return true }
+        if let nukeError = self as? ImagePipeline.Error, case .cancelled = nukeError { return true }
         if let imageError = self as? ImageLoadingError, case let .network(underlying) = imageError {
             return underlying.isImageLoadingCancellation
         }
         return false
+    }
+}
+
+private extension ImageService {
+    /// Maps a Nuke pipeline error onto the app's `ImageLoadingError` so callers
+    /// (and `AlertService`) see the same error vocabulary they did before Nuke.
+    func imageLoadingError(from nukeError: ImagePipeline.Error) -> ImageLoadingError {
+        switch nukeError {
+        case let .dataLoadingFailed(error):
+            return .network(error)
+        case .decodingFailed, .decoderNotRegistered, .dataIsEmpty:
+            return .cannotDecode
+        default:
+            return .network(nukeError)
+        }
     }
 }
