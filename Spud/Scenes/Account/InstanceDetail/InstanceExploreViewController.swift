@@ -406,7 +406,8 @@ final class InstanceExploreViewController: UIViewController {
 
     // MARK: Actions
 
-    @objc private func healthCardTapped() {
+    @objc
+    private func healthCardTapped() {
         let vc = InstanceDetailViewController(
             record: record,
             showsActions: false,

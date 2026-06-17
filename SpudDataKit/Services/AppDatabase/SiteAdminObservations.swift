@@ -47,10 +47,10 @@ public extension AppDatabase {
     func siteSidebarSync(forInstanceActorId actorId: InstanceActorId) -> String? {
         try? writer.read { db in
             try String.fetchOne(db, sql: """
-                SELECT site.sidebar FROM site
-                JOIN instance ON instance.id = site.instanceId
-                WHERE instance.actorId = ?
-            """, arguments: [actorId.actorId])
+                    SELECT site.sidebar FROM site
+                    JOIN instance ON instance.id = site.instanceId
+                    WHERE instance.actorId = ?
+                """, arguments: [actorId.actorId])
         } ?? nil
     }
 

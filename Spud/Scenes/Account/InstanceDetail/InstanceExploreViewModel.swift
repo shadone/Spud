@@ -86,7 +86,7 @@ final class InstanceExploreViewModel {
             for await admins in appDatabase.observeSiteAdmins(forInstanceActorId: instance) {
                 guard !Task.isCancelled else { break }
                 guard let self else { break }
-                self.adminsState = admins.isEmpty
+                adminsState = admins.isEmpty
                     ? (isSuspicious ? .anonymous : .unavailable)
                     : .admins(admins)
             }
@@ -97,7 +97,7 @@ final class InstanceExploreViewModel {
                 guard !Task.isCancelled else { break }
                 guard let self else { break }
                 if let value = appDatabase.siteSidebarSync(forInstanceActorId: instance), !value.isEmpty {
-                    self.sidebar = value
+                    sidebar = value
                 }
             }
         })
