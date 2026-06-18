@@ -437,8 +437,7 @@ extension MainWindow: AppNavigating {
 
     func selectFeed(listing: Components.Schemas.ListingType, sort: Components.Schemas.SortType?) {
         tabBarController.selectedIndex = 0
-        let postListVC = splitViewController?.postListNavigationController
-            .viewControllers.first as? PostListViewController
+        let postListVC = splitViewController?.postListViewController
         postListVC?.showFeed(.frontpage(
             listingType: adjustedListing(listing),
             sortType: sort ?? .Hot
@@ -447,8 +446,7 @@ extension MainWindow: AppNavigating {
 
     func selectSavedFeed(sort: Components.Schemas.SortType?) {
         tabBarController.selectedIndex = 0
-        let postListVC = splitViewController?.postListNavigationController
-            .viewControllers.first as? PostListViewController
+        let postListVC = splitViewController?.postListViewController
         postListVC?.showFeed(.saved(sortType: sort ?? .Hot))
     }
 
@@ -465,8 +463,7 @@ extension MainWindow: AppNavigating {
 
     func presentNewPost() {
         tabBarController.selectedIndex = 0
-        let postListVC = splitViewController?.postListNavigationController
-            .viewControllers.first as? PostListViewController
+        let postListVC = splitViewController?.postListViewController
         postListVC?.beginNewPost()
     }
 
@@ -492,12 +489,13 @@ extension MainWindow: AppNavigating {
 }
 
 extension MainWindow: UISplitViewControllerDelegate {
-    /// The post list navigation stack's base depth: `[PostListViewController]`
-    /// (the feed is the root of the Posts tab now). Anything pushed above this
-    /// (a post detail and whatever the user drilled into from it) is "detail"
-    /// content that belongs in the secondary column when the split view is
-    /// expanded.
-    private static let postListBaseStackDepth = 1
+    /// The post list navigation stack's base depth:
+    /// `[FeedSwitcherViewController, PostListViewController]` — the feed switcher
+    /// sits beneath the post list so a left-edge swipe reveals it. Anything pushed
+    /// above this base (a post detail and whatever the user drilled into from it)
+    /// is "detail" content that belongs in the secondary column when the split
+    /// view is expanded.
+    private static let postListBaseStackDepth = 2
 
     /// Collapsing from two columns (regular width) to one (compact width):
     /// e.g. rotating a Max-class iPhone back to portrait, or narrowing an iPad

@@ -9,26 +9,39 @@ import SpudDataKit
 import SpudUIKit
 import UIKit
 
-/// Read-only quick-switch drawer. Lists the standard feeds (All / Local /
-/// Subscribed / Saved) and a link into the Communities tab, sliding in from the
-/// leading edge when the user taps the feed title. Navigation only — no
-/// subscription management lives here (that is the Communities tab's job), per
-/// the Scout navigation direction.
-final class QuickSwitchDrawerViewController: UIViewController {
-    /// Invoked with the chosen feed type. The presenter switches the Posts feed.
+/// The feed switcher. Lists the standard feeds (All / Local / Subscribed /
+/// Saved) and a link into the Communities tab. It sits beneath the post list in
+/// the Posts-tab navigation stack, so swiping in from the left edge (the system
+/// back gesture) reveals it. Navigation only — no subscription management lives
+/// here (that is the Communities tab's job), per the Scout navigation direction.
+final class FeedSwitcherViewController: UIViewController {
+    /// Invoked with the chosen feed type. The presenter switches the Posts feed
+    /// and re-pushes the post list.
     var onSelectFeedType: ((FeedType) -> Void)?
 
     /// Invoked when the user taps "Browse all communities".
     var onBrowseAllCommunities: (() -> Void)?
 
+    private enum FeedKind {
+        case frontpage(Components.Schemas.ListingType)
+        case saved
+        case browseCommunities
+    }
+
     private struct Row {
         let title: String
         let symbolName: String
-        /// nil marks the "Browse all communities" row.
-        let feedType: FeedType?
+        let kind: FeedKind
     }
 
-    private let activeFeedType: FeedType
+    /// Reads the feed currently shown by the post list, so the matching row gets
+    /// a checkmark. Evaluated each time the switcher appears (it is long-lived).
+    private let currentFeedType: @MainActor () -> FeedType?
+
+    /// Resolves the default sort applied to a freshly chosen feed. Evaluated at
+    /// selection time so a changed preference is honoured.
+    private let defaultSortType: @MainActor () -> Components.Schemas.SortType
+
     private let sections: [[Row]]
 
     private lazy var tableView: UITableView = {
@@ -41,36 +54,40 @@ final class QuickSwitchDrawerViewController: UIViewController {
         return tableView
     }()
 
-    init(activeFeedType: FeedType, defaultSortType: Components.Schemas.SortType) {
-        self.activeFeedType = activeFeedType
+    init(
+        currentFeedType: @escaping @MainActor () -> FeedType?,
+        defaultSortType: @escaping @MainActor () -> Components.Schemas.SortType
+    ) {
+        self.currentFeedType = currentFeedType
+        self.defaultSortType = defaultSortType
         sections = [
             [
                 Row(
-                    title: NSLocalizedString("All", comment: "Quick-switch feed: all federated content"),
+                    title: NSLocalizedString("All", comment: "Feed switcher: all federated content"),
                     symbolName: "globe",
-                    feedType: .frontpage(listingType: .All, sortType: defaultSortType)
+                    kind: .frontpage(.All)
                 ),
                 Row(
-                    title: NSLocalizedString("Local", comment: "Quick-switch feed: this instance only"),
+                    title: NSLocalizedString("Local", comment: "Feed switcher: this instance only"),
                     symbolName: "house",
-                    feedType: .frontpage(listingType: .Local, sortType: defaultSortType)
+                    kind: .frontpage(.Local)
                 ),
                 Row(
-                    title: NSLocalizedString("Subscribed", comment: "Quick-switch feed: subscribed communities"),
+                    title: NSLocalizedString("Subscribed", comment: "Feed switcher: subscribed communities"),
                     symbolName: "star",
-                    feedType: .frontpage(listingType: .Subscribed, sortType: defaultSortType)
+                    kind: .frontpage(.Subscribed)
                 ),
                 Row(
-                    title: NSLocalizedString("Saved", comment: "Quick-switch feed: saved posts"),
+                    title: NSLocalizedString("Saved", comment: "Feed switcher: saved posts"),
                     symbolName: "bookmark",
-                    feedType: .saved(sortType: defaultSortType)
+                    kind: .saved
                 ),
             ],
             [
                 Row(
-                    title: NSLocalizedString("Browse all communities", comment: "Quick-switch row opening the Communities tab"),
+                    title: NSLocalizedString("Browse all communities", comment: "Feed switcher row opening the Communities tab"),
                     symbolName: "person.3",
-                    feedType: nil
+                    kind: .browseCommunities
                 ),
             ],
         ]
@@ -86,7 +103,7 @@ final class QuickSwitchDrawerViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = Theme.groupedBackground
 
-        title = NSLocalizedString("Switch feed", comment: "Quick-switch drawer title")
+        title = NSLocalizedString("Feeds", comment: "Feed switcher label")
         navigationItem.largeTitleDisplayMode = .never
 
         view.addSubview(tableView)
@@ -98,13 +115,19 @@ final class QuickSwitchDrawerViewController: UIViewController {
         ])
     }
 
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // The active feed may have changed since the switcher was last shown;
+        // refresh so the checkmark lands on the current feed.
+        tableView.reloadData()
+    }
+
     /// Whether a feeds row matches the currently displayed feed (so it gets a
-    /// checkmark). Compared by kind, ignoring sort, since the drawer always
-    /// offers feeds at the default sort.
+    /// checkmark). Compared by kind, ignoring sort.
     private func isActive(_ row: Row) -> Bool {
-        guard let rowFeed = row.feedType else { return false }
-        switch (rowFeed, activeFeedType) {
-        case let (.frontpage(lhs, _), .frontpage(rhs, _)):
+        guard let active = currentFeedType() else { return false }
+        switch (row.kind, active) {
+        case let (.frontpage(lhs), .frontpage(rhs, _)):
             return lhs == rhs
         case (.saved, .saved):
             return true
@@ -114,7 +137,7 @@ final class QuickSwitchDrawerViewController: UIViewController {
     }
 }
 
-extension QuickSwitchDrawerViewController: UITableViewDataSource, UITableViewDelegate {
+extension FeedSwitcherViewController: UITableViewDataSource, UITableViewDelegate {
     func numberOfSections(in _: UITableView) -> Int {
         sections.count
     }
@@ -124,7 +147,7 @@ extension QuickSwitchDrawerViewController: UITableViewDataSource, UITableViewDel
     }
 
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        section == 0 ? NSLocalizedString("Feeds", comment: "Quick-switch drawer section header") : nil
+        section == 0 ? NSLocalizedString("Feeds", comment: "Feed switcher label") : nil
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -138,9 +161,10 @@ extension QuickSwitchDrawerViewController: UITableViewDataSource, UITableViewDel
         cell.contentConfiguration = content
         cell.backgroundColor = Theme.secondaryGroupedBackground
 
-        if row.feedType == nil {
+        switch row.kind {
+        case .browseCommunities:
             cell.accessoryType = .disclosureIndicator
-        } else {
+        case .frontpage, .saved:
             cell.accessoryType = isActive(row) ? .checkmark : .none
         }
         return cell
@@ -151,17 +175,13 @@ extension QuickSwitchDrawerViewController: UITableViewDataSource, UITableViewDel
         Haptics.tap()
 
         let row = sections[indexPath.section][indexPath.row]
-        // Capture the callbacks strongly so they fire even after this drawer is
-        // torn down by the dismissal.
-        let onSelectFeedType = onSelectFeedType
-        let onBrowseAllCommunities = onBrowseAllCommunities
-
-        dismiss(animated: true) {
-            if let feedType = row.feedType {
-                onSelectFeedType?(feedType)
-            } else {
-                onBrowseAllCommunities?()
-            }
+        switch row.kind {
+        case let .frontpage(listingType):
+            onSelectFeedType?(.frontpage(listingType: listingType, sortType: defaultSortType()))
+        case .saved:
+            onSelectFeedType?(.saved(sortType: defaultSortType()))
+        case .browseCommunities:
+            onBrowseAllCommunities?()
         }
     }
 }
