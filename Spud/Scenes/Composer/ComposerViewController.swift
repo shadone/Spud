@@ -78,7 +78,7 @@ final class ComposerViewController: UIViewController {
         self.dependencies = dependencies
         viewModel = ComposerViewModel(
             target: target,
-            accountKeychainId: accountKeychainId,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             dependencies: dependencies
         )
 

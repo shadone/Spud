@@ -115,8 +115,7 @@ final class SearchViewController: UIViewController {
         self.accountKeychainId = accountKeychainId
 
         viewModel = SearchViewModel(
-            accountKeychainId: accountKeychainId,
-            accountService: dependencies.accountService,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             alertService: dependencies.alertService
         )
 
@@ -327,7 +326,7 @@ final class SearchViewController: UIViewController {
     // MARK: Actions
 
     private func setSubscribed(result: SearchCommunityResult, subscribe: Bool, cell: SearchCommunityCell?) {
-        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString(
                     "Sign in to subscribe",
@@ -344,8 +343,7 @@ final class SearchViewController: UIViewController {
         Task { [weak self, weak cell] in
             guard let self else { return }
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: accountKeychainId)
+                try await viewModel.accountScope.lemmyService
                     .setSubscribed(serverCommunityId: result.serverCommunityId, subscribed: subscribe)
             } catch {
                 alertService.handle(error, for: .setSubscribed)

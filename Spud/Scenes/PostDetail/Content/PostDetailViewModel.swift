@@ -31,7 +31,11 @@ final class PostDetailViewModel {
     let serverPostId: Components.Schemas.PostID
 
     @ObservationIgnored
-    let accountKeychainId: String
+    let accountScope: AccountScope
+
+    var accountKeychainId: String {
+        accountScope.accountKeychainId
+    }
 
     var commentSortType: Components.Schemas.CommentSortType
 
@@ -61,22 +65,18 @@ final class PostDetailViewModel {
     private(set) var newCommentState: NewCommentState.Result =
         .init(newElementIds: [], firstNewElementId: nil)
 
-    private var accountService: AccountServiceType {
-        dependencies.accountService
-    }
-
     private var alertService: AlertServiceType {
         dependencies.alertService
     }
 
     init(
         serverPostId: Components.Schemas.PostID,
-        accountKeychainId: String,
+        accountScope: AccountScope,
         dependencies: Dependencies
     ) {
         self.dependencies = dependencies
         self.serverPostId = serverPostId
-        self.accountKeychainId = accountKeychainId
+        self.accountScope = accountScope
         commentSortType = dependencies.preferencesService.defaultCommentSortType
     }
 
@@ -175,8 +175,7 @@ final class PostDetailViewModel {
 
     func fetchComments() async {
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: accountKeychainId)
+            try await accountScope.lemmyService
                 .fetchComments(serverPostId: serverPostId, sortType: commentSortType)
         } catch {
             alertService.handle(error, for: .fetchComments)

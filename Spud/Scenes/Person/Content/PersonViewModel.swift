@@ -56,7 +56,7 @@ final class PersonViewModel {
     @ObservationIgnored
     let serverPersonId: Components.Schemas.PersonID
     @ObservationIgnored
-    private let accountKeychainId: String
+    let accountScope: AccountScope
     @ObservationIgnored
     private let accountService: AccountServiceType
     @ObservationIgnored
@@ -70,14 +70,14 @@ final class PersonViewModel {
     init(
         personRowId: Int64?,
         serverPersonId: Components.Schemas.PersonID,
-        accountKeychainId: String,
+        accountScope: AccountScope,
         accountService: AccountServiceType,
         appDatabase: AppDatabase
     ) {
         self.serverPersonId = serverPersonId
-        self.accountKeychainId = accountKeychainId
+        self.accountScope = accountScope
         self.accountService = accountService
-        sortType = accountService.defaultSortType(forAccountKeychainId: accountKeychainId)
+        sortType = accountService.defaultSortType(forAccountKeychainId: accountScope.accountKeychainId)
 
         if let personRowId {
             observationTask = Task { [weak self] in
@@ -144,7 +144,7 @@ final class PersonViewModel {
         let sortType = sortType
         contentTask = Task { [weak self] in
             guard let self else { return }
-            let lemmyService = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let lemmyService = accountScope.lemmyService
             do {
                 let response = try await lemmyService.fetchPersonContent(
                     serverPersonId: serverPersonId,
@@ -174,11 +174,11 @@ final class PersonViewModel {
     /// `getSite` block list. Silently no-ops for signed-out accounts (which
     /// can't block) and on failure leaves `isBlocked` at its last value.
     func refreshBlockState() {
-        guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else { return }
+        guard !accountScope.isSignedOut else { return }
         let serverPersonId = serverPersonId
         Task { [weak self] in
             guard let self else { return }
-            let lemmyService = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let lemmyService = accountScope.lemmyService
             do {
                 let blocked = try await lemmyService.fetchBlockedList()
                 if Task.isCancelled { return }
@@ -196,8 +196,8 @@ final class PersonViewModel {
         let previous = isBlocked
         isBlocked = blocked
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: accountKeychainId)
+            try await accountScope
+                .lemmyService
                 .setBlocked(serverPersonId: serverPersonId, blocked: blocked)
             blockStateKnown = true
         } catch {

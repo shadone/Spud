@@ -174,6 +174,16 @@ Core Data is gone. The migration moved persistence to GRDB and the durable accou
 
 GRDB observations live in `SpudDataKit/Services/AppDatabase/*Observations.swift`; sync row-id lookups (e.g. `postRowIdSync`, `accountRowIdSync`) in the importers. Records are pure structs (Sendable when their fields are).
 
+Per-account dependency scope: a single-account screen takes an `AccountScope`
+(`accountService.scope(forAccountKeychainId:)`), not a bare keychain id, and reads
+its per-account connection through it — `scope.lemmyService`, `scope.isSignedOut`,
+`scope.instanceActorId`. `AccountScope` is a zero-cost **lazy facade** over
+`AccountServiceType` (accessors resolve live, so a long-lived scope never serves a
+stale snapshot). Only the per-account connection/identity lives on the scope;
+account *management* (`createFeed`, `defaultSortType`, login/logout) and the
+account-*selection* layer (`MainWindow`, account-list / preferences) call
+`AccountServiceType` directly.
+
 ## Strategic direction
 
 - **Combine → AsyncSequence / Observation** — Combine is fully retired from the Spud, SpudDataKit, and SpudUtilKit targets. View-models are `@Observable`; bind UI through the shared `ObservationStream.values(of:)` helper in `Spud/Utils/Extensions/Observation+AsyncStream.swift` (do not roll your own `withObservationTracking` loop). `@UserDefaultsBacked`'s projected value is `AsyncStream<Value>`, backed by a thread-safe `Broadcaster` class — multiple subscribers, replay-on-subscribe semantics. `PreferencesService` exposes `*Stream: AsyncStream<...>` accessors that just forward `$prop`.

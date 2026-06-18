@@ -35,13 +35,11 @@ final class InboxViewModel {
 
     // MARK: Private
 
-    let accountKeychainId: String
-
     @ObservationIgnored
     let isSignedIn: Bool
 
     @ObservationIgnored
-    private let accountService: AccountServiceType
+    private let accountScope: AccountScope
     @ObservationIgnored
     private let alertService: AlertServiceType
     @ObservationIgnored
@@ -59,17 +57,15 @@ final class InboxViewModel {
     // MARK: Functions
 
     init(
-        accountKeychainId: String,
+        accountScope: AccountScope,
         isSignedIn: Bool,
         myPersonId: Components.Schemas.PersonID?,
-        accountService: AccountServiceType,
         alertService: AlertServiceType,
         unreadCountService: UnreadCountServiceType
     ) {
-        self.accountKeychainId = accountKeychainId
+        self.accountScope = accountScope
         self.isSignedIn = isSignedIn
         self.myPersonId = myPersonId
-        self.accountService = accountService
         self.alertService = alertService
         self.unreadCountService = unreadCountService
     }
@@ -91,7 +87,7 @@ final class InboxViewModel {
         loadReplies()
         loadMentions()
         loadMessages()
-        Task { await unreadCountService.refresh(accountKeychainId: accountKeychainId) }
+        Task { await unreadCountService.refresh(accountKeychainId: accountScope.accountKeychainId) }
     }
 
     func loadReplies() {
@@ -100,7 +96,7 @@ final class InboxViewModel {
         repliesPhase = .loading
         repliesTask = Task { [weak self] in
             guard let self else { return }
-            let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let service = accountScope.lemmyService
             do {
                 let response = try await service.fetchReplies(unreadOnly: false, page: 1)
                 if Task.isCancelled { return }
@@ -122,7 +118,7 @@ final class InboxViewModel {
         mentionsPhase = .loading
         mentionsTask = Task { [weak self] in
             guard let self else { return }
-            let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let service = accountScope.lemmyService
             do {
                 let response = try await service.fetchMentions(unreadOnly: false, page: 1)
                 if Task.isCancelled { return }
@@ -145,7 +141,7 @@ final class InboxViewModel {
         let myPersonId = myPersonId
         messagesTask = Task { [weak self] in
             guard let self else { return }
-            let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let service = accountScope.lemmyService
             do {
                 let response = try await service.fetchPrivateMessages(unreadOnly: false, page: 1)
                 if Task.isCancelled { return }
@@ -176,7 +172,7 @@ final class InboxViewModel {
 
         Task { [weak self] in
             guard let self else { return }
-            let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let service = accountScope.lemmyService
             do {
                 try await service.markReplyAsRead(commentReplyId: item.commentReplyId, read: true)
             } catch {
@@ -193,7 +189,7 @@ final class InboxViewModel {
 
         Task { [weak self] in
             guard let self else { return }
-            let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let service = accountScope.lemmyService
             do {
                 try await service.markMentionAsRead(personMentionId: item.personMentionId, read: true)
             } catch {
@@ -212,11 +208,11 @@ final class InboxViewModel {
 
         Task { [weak self] in
             guard let self else { return }
-            let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let service = accountScope.lemmyService
             do {
                 try await service.markAllInboxAsRead()
                 // Reload to reflect the server's view (e.g. messages read state).
-                await unreadCountService.refresh(accountKeychainId: accountKeychainId)
+                await unreadCountService.refresh(accountKeychainId: accountScope.accountKeychainId)
             } catch {
                 logger.error("Mark all inbox read failed: \(String(describing: error), privacy: .public)")
                 alertService.handle(error, for: .markAllInboxRead)

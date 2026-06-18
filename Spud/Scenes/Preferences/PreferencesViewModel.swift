@@ -63,8 +63,7 @@ final class PreferencesViewModel {
     func makeHiddenAndMutedViewModel() -> HiddenAndMutedViewModel? {
         guard let accountService, let appDatabase else { return nil }
         return HiddenAndMutedViewModel(
-            accountKeychainId: accountKeychainId,
-            accountService: accountService,
+            accountScope: accountService.scope(forAccountKeychainId: accountKeychainId),
             appDatabase: appDatabase
         )
     }
@@ -72,8 +71,7 @@ final class PreferencesViewModel {
     func makeBlockedListViewModel() -> BlockedListViewModel? {
         guard let accountService else { return nil }
         return BlockedListViewModel(
-            accountKeychainId: accountKeychainId,
-            accountService: accountService
+            accountScope: accountService.scope(forAccountKeychainId: accountKeychainId)
         )
     }
 

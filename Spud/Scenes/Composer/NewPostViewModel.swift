@@ -56,7 +56,11 @@ final class NewPostViewModel {
     private let dependencies: OwnDependencies
 
     @ObservationIgnored
-    let accountKeychainId: String
+    private let accountScope: AccountScope
+
+    var accountKeychainId: String {
+        accountScope.accountKeychainId
+    }
 
     // MARK: Draft state (draft-safe: never cleared on error or dismiss)
 
@@ -97,10 +101,6 @@ final class NewPostViewModel {
             ?? NSLocalizedString("Choose a community", comment: "Placeholder on the new-post community picker button")
     }
 
-    private var accountService: AccountServiceType {
-        dependencies.accountService
-    }
-
     private var alertService: AlertServiceType {
         dependencies.alertService
     }
@@ -108,10 +108,10 @@ final class NewPostViewModel {
     init(
         serverCommunityId: Components.Schemas.CommunityID?,
         initialCommunityName: String?,
-        accountKeychainId: String,
+        accountScope: AccountScope,
         dependencies: Dependencies
     ) {
-        self.accountKeychainId = accountKeychainId
+        self.accountScope = accountScope
         self.dependencies = dependencies
 
         if let serverCommunityId {
@@ -133,7 +133,7 @@ final class NewPostViewModel {
         submissionState = .uploadingImage
         defer { isUploadingImage = false }
 
-        let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+        let service = accountScope.lemmyService
         do {
             let url = try await service.uploadImage(
                 imageData: imageData,
@@ -173,7 +173,7 @@ final class NewPostViewModel {
         let trimmedUrl = urlText.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+        let service = accountScope.lemmyService
         do {
             let serverPostId = try await service.createPost(
                 serverCommunityId: community.id,

@@ -41,10 +41,6 @@ final class CommunityPickerViewController: UITableViewController {
         return controller
     }()
 
-    private var accountService: AccountServiceType {
-        dependencies.accountService
-    }
-
     private var alertService: AlertServiceType {
         dependencies.alertService
     }
@@ -104,7 +100,7 @@ final class CommunityPickerViewController: UITableViewController {
             try? await Task.sleep(for: .milliseconds(300))
             if Task.isCancelled { return }
 
-            let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let service = dependencies.accountService.scope(forAccountKeychainId: accountKeychainId).lemmyService
             do {
                 let response = try await service.search(
                     query: trimmed,

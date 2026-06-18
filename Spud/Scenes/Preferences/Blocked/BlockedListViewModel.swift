@@ -31,16 +31,12 @@ final class BlockedListViewModel {
     private(set) var communities: [BlockedList.Community] = []
 
     @ObservationIgnored
-    private let accountKeychainId: String
-    @ObservationIgnored
-    private let accountService: AccountServiceType
+    private let accountScope: AccountScope
 
     init(
-        accountKeychainId: String,
-        accountService: AccountServiceType
+        accountScope: AccountScope
     ) {
-        self.accountKeychainId = accountKeychainId
-        self.accountService = accountService
+        self.accountScope = accountScope
     }
 
     /// Loads (or reloads) the block lists from the server.
@@ -49,8 +45,7 @@ final class BlockedListViewModel {
         Task { [weak self] in
             guard let self else { return }
             do {
-                let blocked = try await accountService
-                    .lemmyService(forAccountKeychainId: accountKeychainId)
+                let blocked = try await accountScope.lemmyService
                     .fetchBlockedList()
                 persons = blocked.persons
                 communities = blocked.communities
@@ -69,8 +64,7 @@ final class BlockedListViewModel {
         Task { [weak self] in
             guard let self else { return }
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: accountKeychainId)
+                try await accountScope.lemmyService
                     .setBlocked(serverPersonId: person.serverPersonId, blocked: false)
             } catch {
                 logger.error("Unblock person failed: \(String(describing: error), privacy: .public)")
@@ -91,8 +85,7 @@ final class BlockedListViewModel {
         Task { [weak self] in
             guard let self else { return }
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: accountKeychainId)
+                try await accountScope.lemmyService
                     .setBlocked(serverCommunityId: community.serverCommunityId, blocked: false)
             } catch {
                 logger.error("Unblock community failed: \(String(describing: error), privacy: .public)")

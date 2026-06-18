@@ -37,10 +37,8 @@ final class SearchViewModel {
 
     // MARK: Private
 
-    let accountKeychainId: String
-
     @ObservationIgnored
-    private let accountService: AccountServiceType
+    let accountScope: AccountScope
     @ObservationIgnored
     private let alertService: AlertServiceType
 
@@ -52,12 +50,10 @@ final class SearchViewModel {
     // MARK: Functions
 
     init(
-        accountKeychainId: String,
-        accountService: AccountServiceType,
+        accountScope: AccountScope,
         alertService: AlertServiceType
     ) {
-        self.accountKeychainId = accountKeychainId
-        self.accountService = accountService
+        self.accountScope = accountScope
         self.alertService = alertService
     }
 
@@ -120,7 +116,7 @@ final class SearchViewModel {
     }
 
     private func performSearch(query: String, scope: SearchScope) async {
-        let lemmyService = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+        let lemmyService = accountScope.lemmyService
 
         do {
             let response = try await lemmyService.search(

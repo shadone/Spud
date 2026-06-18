@@ -1,0 +1,66 @@
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
+import Foundation
+import SpudUtilKit
+
+/// The per-account facade over `AccountServiceType`: account-scoped operations
+/// bound to one account, reached without threading an `accountKeychainId`
+/// through every call.
+///
+/// Where `DependencyContainer` is the app-lifetime scope, `AccountScope` names
+/// the per-account scope that was previously implicit - a bare
+/// `accountKeychainId: String` threaded through view models plus repeated
+/// `accountService.lemmyService(forAccountKeychainId:)` / `isSignedOut(...)`
+/// lookups. A screen takes an `AccountScope` instead of
+/// `(accountService, accountKeychainId)` and reads `scope.lemmyService` /
+/// `scope.isSignedOut`.
+///
+/// Accessors resolve **live** against `AccountService` on each read (the
+/// underlying `LemmyService` is itself cached per account), so a long-lived
+/// scope never serves a stale snapshot: `isSignedOut` reflects current account
+/// state and `lemmyService` resolves the current cached service. Construction is
+/// free - no I/O happens until an accessor is used.
+@MainActor
+public struct AccountScope {
+    /// The durable identifier of the account this scope is bound to.
+    public let accountKeychainId: String
+
+    private let accountService: AccountServiceType
+
+    public init(accountKeychainId: String, accountService: AccountServiceType) {
+        self.accountKeychainId = accountKeychainId
+        self.accountService = accountService
+    }
+
+    /// The account's `LemmyService` (cached per account), talking to its home
+    /// instance with its credential (or unauthenticated, for a signed-out
+    /// account).
+    public var lemmyService: LemmyServiceType {
+        accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+    }
+
+    /// Whether this is a signed-out (anonymous) account. Read live, so sign-in
+    /// gates fail safe even if the account is removed out from under the scope.
+    public var isSignedOut: Bool {
+        accountService.isSignedOut(forAccountKeychainId: accountKeychainId)
+    }
+
+    /// The actor id of the account's home instance (e.g. the one behind
+    /// `lemmy.world`), or nil if it can't be resolved.
+    public var instanceActorId: InstanceActorId? {
+        accountService.instanceActorId(forAccountKeychainId: accountKeychainId)
+    }
+}
+
+@MainActor
+public extension AccountServiceType {
+    /// The per-account `AccountScope` for `keychainId` - a lightweight, zero-I/O
+    /// facade bound to this account.
+    func scope(forAccountKeychainId keychainId: String) -> AccountScope {
+        AccountScope(accountKeychainId: keychainId, accountService: self)
+    }
+}

@@ -45,10 +45,11 @@ final class PostDetailViewModelNewCommentTests: XCTestCase {
     }
 
     private func makeViewModel() -> PostDetailViewModel {
-        PostDetailViewModel(
+        let dependencies = TestDependencies()
+        return PostDetailViewModel(
             serverPostId: 1,
-            accountKeychainId: "kc-1",
-            dependencies: TestDependencies()
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: "kc-1"),
+            dependencies: dependencies
         )
     }
 

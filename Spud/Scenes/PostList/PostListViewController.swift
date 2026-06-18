@@ -176,7 +176,7 @@ class PostListViewController: UIViewController {
 
         viewModel = PostListViewModel(
             feed: feed,
-            accountKeychainId: accountKeychainId,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             dependencies: dependencies
         )
 
@@ -384,7 +384,7 @@ class PostListViewController: UIViewController {
     @objc
     private func composeTapped() {
         let keychainId = viewModel.accountKeychainId
-        guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to post", comment: "Sign-in gate title when a signed-out user tries to create a post")
             )
@@ -711,12 +711,10 @@ class PostListViewController: UIViewController {
     /// Best-effort: a failure (or signed-out account) leaves it at `.none`,
     /// hiding mod actions.
     private func refreshModerationCapability() {
-        let keychainId = viewModel.accountKeychainId
         Task { @MainActor [weak self] in
             guard let self else { return }
             let capability = await (
-                try? accountService
-                    .lemmyService(forAccountKeychainId: keychainId)
+                try? viewModel.accountScope.lemmyService
                     .fetchModerationCapability()
             ) ?? .none
             guard !Task.isCancelled else { return }
@@ -1065,7 +1063,7 @@ class PostListViewController: UIViewController {
     /// sign-in.
     private func replyToPost(serverPostId: Int64) {
         let keychainId = viewModel.accountKeychainId
-        guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to comment", comment: "Sign-in gate title when a signed-out user tries to comment")
             )
@@ -1125,7 +1123,7 @@ class PostListViewController: UIViewController {
     /// Reports the post, gating on sign-in. Mirrors the post-detail report
     /// flow: a required-reason alert, then a confirmation.
     private func reportPost(serverPostId: Int64) {
-        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to report", comment: "Sign-in gate title when a signed-out user tries to report")
             )
@@ -1142,8 +1140,7 @@ class PostListViewController: UIViewController {
     private func submitPostReport(serverPostId: Int64, reason: String) async {
         Haptics.tap()
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .reportPost(serverPostId: Components.Schemas.PostID(serverPostId), reason: reason)
             Haptics.success()
             presentReportSubmittedConfirmation()
@@ -1156,7 +1153,7 @@ class PostListViewController: UIViewController {
     /// server filters blocked authors from later feed fetches, so their posts
     /// drop out on the next refresh.
     private func blockAuthor(serverPostId: Int64) {
-        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to block", comment: "Sign-in gate title when a signed-out user tries to block")
             )
@@ -1179,8 +1176,7 @@ class PostListViewController: UIViewController {
 
     private func submitBlockAuthor(serverPersonId: Int64) async {
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .setBlocked(serverPersonId: Components.Schemas.PersonID(serverPersonId), blocked: true)
         } catch {
             alertService.handle(error, for: .setBlockedPerson)
@@ -1191,7 +1187,7 @@ class PostListViewController: UIViewController {
     /// success the GRDB observation re-emits without the row, so it drops out of
     /// the feed.
     private func hidePost(serverPostId: Int64) {
-        guard !accountService.isSignedOut(forAccountKeychainId: viewModel.accountKeychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to hide posts", comment: "Sign-in gate title when a signed-out user tries to hide a post")
             )
@@ -1203,8 +1199,7 @@ class PostListViewController: UIViewController {
     private func performHidePost(serverPostId: Int64) async {
         Haptics.tap()
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .hidePost(serverPostId: Components.Schemas.PostID(serverPostId), hidden: true)
         } catch {
             alertService.handle(error, for: .hidePost)
@@ -1245,8 +1240,7 @@ class PostListViewController: UIViewController {
     private func vote(serverPostId: Int64, action: VoteStatus.Action) async {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .vote(serverPostId: Components.Schemas.PostID(serverPostId), vote: action)
         } catch {
             alertService.handle(error, for: .vote)
@@ -1256,8 +1250,7 @@ class PostListViewController: UIViewController {
     /// Toggles the saved state for `serverPostId` against its currently
     /// observed value, gating on sign-in.
     private func toggleSaved(serverPostId: Int64) {
-        let keychainId = viewModel.accountKeychainId
-        guard !accountService.isSignedOut(forAccountKeychainId: keychainId) else {
+        guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to save", comment: "Sign-in gate title when a signed-out user tries to save a post")
             )
@@ -1271,8 +1264,7 @@ class PostListViewController: UIViewController {
     private func setSaved(serverPostId: Int64, saved: Bool) async {
         Haptics.tap()
         do {
-            try await accountService
-                .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+            try await viewModel.accountScope.lemmyService
                 .setSaved(serverPostId: Components.Schemas.PostID(serverPostId), saved: saved)
         } catch {
             alertService.handle(error, for: .save)
@@ -1423,8 +1415,7 @@ extension PostListViewController: UITableViewDelegate {
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                try await viewModel.accountScope.lemmyService
                     .markAsRead(serverPostId: Components.Schemas.PostID(serverPostId))
             } catch {
                 // Best-effort: a failed mark-read should not interrupt
@@ -1694,8 +1685,7 @@ extension PostListViewController: UITableViewDelegate {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                try await viewModel.accountScope.lemmyService
                     .removePost(serverPostId: serverPostId, removed: removed, reason: reason)
                 Haptics.success()
             } catch {
@@ -1709,8 +1699,7 @@ extension PostListViewController: UITableViewDelegate {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                try await viewModel.accountScope.lemmyService
                     .lockPost(serverPostId: serverPostId, locked: locked)
                 Haptics.success()
             } catch {
@@ -1728,8 +1717,7 @@ extension PostListViewController: UITableViewDelegate {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await accountService
-                    .lemmyService(forAccountKeychainId: viewModel.accountKeychainId)
+                try await viewModel.accountScope.lemmyService
                     .featurePost(serverPostId: serverPostId, featured: featured, local: local)
                 Haptics.success()
             } catch {

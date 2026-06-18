@@ -27,14 +27,13 @@ final class DMThreadViewModel {
 
     // MARK: Private
 
-    let accountKeychainId: String
     let correspondentId: Components.Schemas.PersonID
     let correspondentName: String
 
     @ObservationIgnored
-    private let myPersonId: Components.Schemas.PersonID?
+    private let accountScope: AccountScope
     @ObservationIgnored
-    private let accountService: AccountServiceType
+    private let myPersonId: Components.Schemas.PersonID?
     @ObservationIgnored
     private let alertService: AlertServiceType
     @ObservationIgnored
@@ -46,21 +45,19 @@ final class DMThreadViewModel {
     // MARK: Functions
 
     init(
-        accountKeychainId: String,
+        accountScope: AccountScope,
         correspondentId: Components.Schemas.PersonID,
         correspondentName: String,
         myPersonId: Components.Schemas.PersonID?,
         initialMessages: [InboxMessageItem],
-        accountService: AccountServiceType,
         alertService: AlertServiceType,
         unreadCountService: UnreadCountServiceType
     ) {
-        self.accountKeychainId = accountKeychainId
+        self.accountScope = accountScope
         self.correspondentId = correspondentId
         self.correspondentName = correspondentName
         self.myPersonId = myPersonId
         messages = initialMessages
-        self.accountService = accountService
         self.alertService = alertService
         self.unreadCountService = unreadCountService
     }
@@ -87,7 +84,7 @@ final class DMThreadViewModel {
         let correspondentId = correspondentId
         loadTask = Task { [weak self] in
             guard let self else { return }
-            let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let service = accountScope.lemmyService
             do {
                 let response = try await service.fetchPrivateMessages(unreadOnly: false, page: 1)
                 if Task.isCancelled { return }
@@ -114,7 +111,7 @@ final class DMThreadViewModel {
     /// Marks every unread message from the correspondent as read, decrementing
     /// the badge accordingly.
     private func markCorrespondentMessagesRead() async {
-        let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+        let service = accountScope.lemmyService
         let unread = messages.filter { !$0.isRead && $0.creatorId == correspondentId }
         guard !unread.isEmpty else { return }
 
@@ -155,7 +152,7 @@ final class DMThreadViewModel {
         let correspondentId = correspondentId
         Task { [weak self] in
             guard let self else { return }
-            let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+            let service = accountScope.lemmyService
             do {
                 let view = try await service.sendPrivateMessage(content: content, recipientId: correspondentId)
                 if Task.isCancelled { return }
