@@ -30,7 +30,10 @@ class MainWindowSplitViewController: UISplitViewController {
     /// Retained so it survives being popped off the stack to reveal the feed
     /// switcher beneath it, and so the same instance is re-pushed — preserving
     /// the feed observation and letting the forward-stack reducer consume it.
-    private var postListViewController: PostListViewController!
+    /// Exposed read-only so navigation entry points can reach the post list
+    /// regardless of its position in the stack — it now sits at index 1, beneath
+    /// the feed switcher.
+    private(set) var postListViewController: PostListViewController!
 
     // MARK: Functions
 
