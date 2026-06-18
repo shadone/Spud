@@ -155,8 +155,9 @@ class PostListViewController: UIViewController {
     var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
 
     /// Whether this feed is the Posts-tab primary feed that sits atop the feed
-    /// switcher in the navigation stack. When true the system back button
-    /// ("Feeds") is kept visible alongside the leading compose button.
+    /// switcher in the navigation stack. Currently inert (compose moved to the
+    /// trailing nav-bar slot, so it no longer affects the back button); retained
+    /// as the primary-feed marker for the forthcoming feed-title redesign.
     private let showsQuickSwitch: Bool
 
     // MARK: Functions
@@ -220,7 +221,7 @@ class PostListViewController: UIViewController {
 
         setupDataSource()
         setupSortTypeMenu()
-        setupComposeButton()
+        updateTrailingBarButtonItems()
     }
 
     override func viewDidLayoutSubviews() {
@@ -269,34 +270,31 @@ class PostListViewController: UIViewController {
         tableView.tableHeaderView = header
     }
 
-    /// Adds a compose entry to the nav bar on the standalone frontpage feed.
-    /// Community feeds are embedded children whose host (`CommunityViewController`)
-    /// owns the nav bar and provides its own community-prefilled "New post"
-    /// button, and saved feeds have no single community to post to.
-    private func setupComposeButton() {
+    /// Installs the trailing nav-bar buttons. The sort menu is always present; on
+    /// the standalone frontpage feed a compose ("New post") button sits as the
+    /// right-most item, outboard of the sort menu. Community feeds are embedded
+    /// children whose host (`CommunityViewController`) owns the nav bar and
+    /// provides its own community-prefilled "New post" button, and saved feeds
+    /// have no single community to post to — both show only the sort menu.
+    private func updateTrailingBarButtonItems() {
         guard case .frontpage = viewModel.feed.feedType else {
-            // Saved / community feeds have no single community to post to.
-            navigationItem.leftBarButtonItem = nil
+            navigationItem.rightBarButtonItems = [sortTypeBarButtonItem]
             return
         }
-        navigationItem.leftBarButtonItem = UIBarButtonItem(
+        let composeButton = UIBarButtonItem(
             image: UIImage(systemName: "square.and.pencil"),
             style: .plain,
             target: self,
             action: #selector(composeTapped)
         )
+        // The first item is the right-most: compose sits outboard of the sort menu.
+        navigationItem.rightBarButtonItems = [composeButton, sortTypeBarButtonItem]
     }
 
     // MARK: Feed title
 
     private func configureTitle() {
         applyNavigationTitle()
-        if showsQuickSwitch {
-            // The primary feed sits atop the feed switcher in the Posts-tab
-            // stack. Keep the system back button ("Feeds") visible next to the
-            // leading compose button instead of letting compose replace it.
-            navigationItem.leftItemsSupplementBackButton = true
-        }
     }
 
     private func applyNavigationTitle() {
@@ -314,7 +312,7 @@ class PostListViewController: UIViewController {
     private func switchFeed(to feedType: FeedType) {
         viewModel.switchFeed(to: feedType)
         feedChanged()
-        setupComposeButton()
+        updateTrailingBarButtonItems()
         rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
         applyNavigationTitle()
     }
@@ -609,8 +607,8 @@ class PostListViewController: UIViewController {
             image: UIImage(systemName: "line.horizontal.3.decrease.circle"),
             menu: nil
         )
-        navigationItem.rightBarButtonItem = sortTypeBarButtonItem
-
+        // Placement is owned by updateTrailingBarButtonItems() (called right after
+        // this in setup()), which orders compose outboard of the sort menu.
         rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
     }
 
