@@ -97,9 +97,11 @@ hosting controller reports `preferredContentSize` (or uses
    menu (actives inline, a "Top" subgroup of time windows, comments inline), with a
    checkmark on the active sort. Selecting one pops back and applies immediately.
 
-Every mutation calls `Haptics.tap()` (matching `PreferencesViewModel`). All controls
-reflect external changes (e.g. someone changing density in Settings) because the view
-model mirrors the preference streams.
+Every mutation calls `Haptics.tap()` (matching `PreferencesViewModel`). The popover is
+short-lived and the sole writer of these prefs while open, so the view model seeds its
+values once at init rather than mirroring the streams. The *feed* still reflects each
+change live, because `PostListViewController` already observes the same preference
+streams and reconfigures its visible cells.
 
 **No auth gate.** Density, thumbnail, vote visibility, and sort all work signed-out;
 no sign-in prompt is involved (unlike compose).
@@ -111,12 +113,13 @@ New files under `Scenes/PostList/QuickSwitch/`:
 - `QuickSwitchView.swift` — SwiftUI popover root (the `NavigationStack` + Form).
 - `QuickSwitchSortView.swift` — the pushed sort picker list.
 - `QuickSwitchViewModel.swift` — `@MainActor @Observable`. Holds a
-  `PreferencesServiceType` and mirrors `postDensity` / `thumbnailPosition` /
-  `showVoteButtons` from their streams (same pattern as `PreferencesViewModel`);
-  exposes `update…(_:)` setters that write the service and fire `Haptics.tap()`. Holds
-  the current sort + the sort groups, and an `onSelectSort: (SortType) -> Void`
-  callback supplied by the controller. Reads "active sort" via a closure so it always
-  reflects the live feed.
+  `PreferencesServiceType` and seeds `postDensity` / `thumbnailPosition` /
+  `showVoteButtons` from it once at init (the popover is short-lived and the sole writer
+  while open, so — unlike the long-lived `PreferencesViewModel` — it does not mirror the
+  streams); exposes `update…(_:)` setters that write both the local value and the
+  service and fire `Haptics.tap()`. Holds the current sort, seeded with the feed's
+  current sort, and an `onSelectSort: (SortType) -> Void` callback supplied by the
+  controller.
 - Presentation glue: a small helper on `PostListViewController` (e.g.
   `presentQuickSwitch(from:)`) that builds the hosting controller, wires the callbacks,
   configures the popover, and presents. Plus a `@objc quickSwitchTapped()` action and
@@ -163,10 +166,12 @@ QuickSwitchSortView selection
 ## Testing
 
 - `QuickSwitchViewModelTests` (SpudTests):
-  - Setting density/thumbnail/vote through the VM writes through to a fake/in-memory
-    `PreferencesService`.
-  - Changing the service externally updates the VM's mirrored values (stream mirror).
-  - Selecting a sort invokes `onSelectSort` with the chosen `SortType`.
+  - The VM seeds density/thumbnail/vote and the current sort from `PreferencesService`
+    at init.
+  - Setting density/thumbnail/vote through the VM writes through to a real
+    `PreferencesService` (the established repo test pattern).
+  - Selecting a sort invokes `onSelectSort` with the chosen `SortType` and updates
+    `currentSort`.
 - Optional snapshot test of `QuickSwitchView` (light/dark). Snapshot tests are pinned
   to iPhone 14 Pro / portrait (or a config-pinned `.image(on:)`); only add if it earns
   its keep.
