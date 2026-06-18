@@ -17,13 +17,20 @@ import SpudUtilKit
 @Observable
 final class InstanceExploreViewModel {
     let record: ExplorerInstanceRecord
-    let accountKeychainId: String
+
+    /// The browsing account this scene operates as.
+    var accountKeychainId: String {
+        accountScope.accountKeychainId
+    }
 
     private(set) var sidebar: String?
     private(set) var adminsState: InstanceAdminsState = .loading
     private(set) var communities: [CommunityListRow] = []
     private(set) var joinedCommunityUrls: Set<String> = []
 
+    @ObservationIgnored
+    let accountScope: AccountScope
+    @ObservationIgnored
     private let accountService: AccountServiceType
     private let appDatabase: AppDatabase
     private let alertService: AlertServiceType
@@ -33,25 +40,25 @@ final class InstanceExploreViewModel {
     }
 
     var isSignedOut: Bool {
-        accountService.isSignedOut(forAccountKeychainId: accountKeychainId)
+        accountScope.isSignedOut
     }
 
     private nonisolated(unsafe) var tasks: [Task<Void, Never>] = []
 
     init(
         record: ExplorerInstanceRecord,
-        accountKeychainId: String,
+        accountScope: AccountScope,
         accountService: AccountServiceType,
         appDatabase: AppDatabase,
         alertService: AlertServiceType,
         initialJoinedCommunityUrls: Set<String> = []
     ) {
         self.record = record
-        self.accountKeychainId = accountKeychainId
+        self.accountScope = accountScope
         self.accountService = accountService
         self.appDatabase = appDatabase
         self.alertService = alertService
-        let derived = appDatabase.followedCommunityActorIdsSync(forAccountKeychainId: accountKeychainId)
+        let derived = appDatabase.followedCommunityActorIdsSync(forAccountKeychainId: accountScope.accountKeychainId)
         joinedCommunityUrls = initialJoinedCommunityUrls.union(derived)
     }
 
@@ -91,7 +98,7 @@ final class InstanceExploreViewModel {
                 forInstance: instance,
                 isServiceAccount: true
             )
-            let service = accountService.lemmyService(forAccountKeychainId: keychainId)
+            let service = accountService.scope(forAccountKeychainId: keychainId).lemmyService
             try? await service.fetchSiteInfo()
 
             guard !Task.isCancelled else { return }
@@ -128,7 +135,7 @@ final class InstanceExploreViewModel {
     /// Toggle Join for a community via the browsing account's home instance.
     /// Returns the resulting joined state (so the row can settle), or throws.
     func toggleJoin(_ row: CommunityListRow) async throws -> Bool {
-        let service = accountService.lemmyService(forAccountKeychainId: accountKeychainId)
+        let service = accountScope.lemmyService
         let wantJoined = !joinedCommunityUrls.contains(row.communityUrl)
         let id = try await service.fetchCommunityInfo(communityName: "\(row.name)@\(row.instanceHost)")
         try await service.setSubscribed(serverCommunityId: id, subscribed: wantJoined)

@@ -64,7 +64,7 @@ final class InstanceExploreViewController: UIViewController {
         bannerHeader = InstanceBannerHeaderView(name: record.name, host: record.baseurl)
         viewModel = InstanceExploreViewModel(
             record: record,
-            accountKeychainId: accountKeychainId,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             accountService: dependencies.accountService,
             appDatabase: dependencies.appDatabase,
             alertService: dependencies.alertService,

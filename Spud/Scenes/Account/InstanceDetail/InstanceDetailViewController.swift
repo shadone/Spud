@@ -675,7 +675,7 @@ final class InstanceDetailViewController: UIViewController {
         adminsView.update(Self.adminsState(cachedAdmins, isSuspicious: record.isSuspicious))
 
         let keychainId = accountService.accountForSignedOut(forInstance: instance, isServiceAccount: true)
-        let service = accountService.lemmyService(forAccountKeychainId: keychainId)
+        let service = accountService.scope(forAccountKeychainId: keychainId).lemmyService
         let appDatabase = appDatabase
         let isSuspicious = record.isSuspicious
         observationTasks.append(Task { @MainActor [weak self] in
