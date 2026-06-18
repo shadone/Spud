@@ -587,18 +587,7 @@ class PostListViewController: UIViewController {
             return action
         }
 
-        let actives: [Components.Schemas.SortType] = [
-            .Active, .Hot, .New, .Old, .Controversial, .Scaled,
-        ]
-        let tops: [Components.Schemas.SortType] = [
-            .TopSixHour, .TopTwelveHour, .TopDay, .TopWeek, .TopMonth,
-            .TopThreeMonths, .TopSixMonths, .TopNineMonths, .TopYear, .TopAll,
-        ]
-        let comments: [Components.Schemas.SortType] = [
-            .MostComments, .NewComments,
-        ]
-
-        for sortType in actives + tops + comments {
+        for sortType in PostSortMenu.all {
             _ = makeAction(for: sortType)
         }
 
@@ -617,24 +606,13 @@ class PostListViewController: UIViewController {
             action.state = (sortType == activeSortType) ? .on : .off
         }
 
-        let actives: [Components.Schemas.SortType] = [
-            .Active, .Hot, .New, .Old, .Controversial, .Scaled,
-        ]
-        let tops: [Components.Schemas.SortType] = [
-            .TopSixHour, .TopTwelveHour, .TopDay, .TopWeek, .TopMonth,
-            .TopThreeMonths, .TopSixMonths, .TopNineMonths, .TopYear, .TopAll,
-        ]
-        let comments: [Components.Schemas.SortType] = [
-            .MostComments, .NewComments,
-        ]
-
         let sortTypeMenu = UIMenu(
             title: "",
             options: .singleSelection,
             children: [
-                UIMenu(title: "", options: .displayInline, children: actives.compactMap { sortTypeMenuActionsBySortType[$0] }),
-                UIMenu(title: "Top", options: .singleSelection, children: tops.compactMap { sortTypeMenuActionsBySortType[$0] }),
-                UIMenu(title: "", options: .displayInline, children: comments.compactMap { sortTypeMenuActionsBySortType[$0] }),
+                UIMenu(title: "", options: .displayInline, children: PostSortMenu.actives.compactMap { sortTypeMenuActionsBySortType[$0] }),
+                UIMenu(title: "Top", options: .singleSelection, children: PostSortMenu.tops.compactMap { sortTypeMenuActionsBySortType[$0] }),
+                UIMenu(title: "", options: .displayInline, children: PostSortMenu.comments.compactMap { sortTypeMenuActionsBySortType[$0] }),
             ]
         )
 
