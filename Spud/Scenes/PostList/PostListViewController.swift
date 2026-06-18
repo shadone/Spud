@@ -11,6 +11,7 @@ import OSLog
 import SpudDataKit
 import SpudUIKit
 import SpudUtilKit
+import SwiftUI
 import UIKit
 
 private let logger = Logger.app
@@ -154,6 +155,12 @@ class PostListViewController: UIViewController {
     var sortTypeBarButtonItem: UIBarButtonItem!
     var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
 
+    var quickSwitchBarButtonItem: UIBarButtonItem!
+
+    /// Keeps the Quick Switch popover a popover (not a sheet) on iPhone. The
+    /// popover holds this only weakly, so the controller retains it.
+    private let forcePopoverDelegate = ForcePopoverDelegate()
+
     /// Whether this feed is the Posts-tab primary feed that sits atop the feed
     /// switcher in the navigation stack. Currently inert (compose moved to the
     /// trailing nav-bar slot, so it no longer affects the back button); retained
@@ -221,6 +228,7 @@ class PostListViewController: UIViewController {
 
         setupDataSource()
         setupSortTypeMenu()
+        setupQuickSwitchButton()
         updateTrailingBarButtonItems()
     }
 
@@ -278,7 +286,7 @@ class PostListViewController: UIViewController {
     /// have no single community to post to — both show only the sort menu.
     private func updateTrailingBarButtonItems() {
         guard case .frontpage = viewModel.feed.feedType else {
-            navigationItem.rightBarButtonItems = [sortTypeBarButtonItem]
+            navigationItem.rightBarButtonItems = [quickSwitchBarButtonItem, sortTypeBarButtonItem]
             return
         }
         let composeButton = UIBarButtonItem(
@@ -287,8 +295,9 @@ class PostListViewController: UIViewController {
             target: self,
             action: #selector(composeTapped)
         )
-        // The first item is the right-most: compose sits outboard of the sort menu.
-        navigationItem.rightBarButtonItems = [composeButton, sortTypeBarButtonItem]
+        // First item is the right-most: compose stays outboard, Quick Switch
+        // sits immediately to its left, then the sort menu.
+        navigationItem.rightBarButtonItems = [composeButton, quickSwitchBarButtonItem, sortTypeBarButtonItem]
     }
 
     // MARK: Feed title
@@ -587,18 +596,7 @@ class PostListViewController: UIViewController {
             return action
         }
 
-        let actives: [Components.Schemas.SortType] = [
-            .Active, .Hot, .New, .Old, .Controversial, .Scaled,
-        ]
-        let tops: [Components.Schemas.SortType] = [
-            .TopSixHour, .TopTwelveHour, .TopDay, .TopWeek, .TopMonth,
-            .TopThreeMonths, .TopSixMonths, .TopNineMonths, .TopYear, .TopAll,
-        ]
-        let comments: [Components.Schemas.SortType] = [
-            .MostComments, .NewComments,
-        ]
-
-        for sortType in actives + tops + comments {
+        for sortType in PostSortMenu.all {
             _ = makeAction(for: sortType)
         }
 
@@ -617,24 +615,13 @@ class PostListViewController: UIViewController {
             action.state = (sortType == activeSortType) ? .on : .off
         }
 
-        let actives: [Components.Schemas.SortType] = [
-            .Active, .Hot, .New, .Old, .Controversial, .Scaled,
-        ]
-        let tops: [Components.Schemas.SortType] = [
-            .TopSixHour, .TopTwelveHour, .TopDay, .TopWeek, .TopMonth,
-            .TopThreeMonths, .TopSixMonths, .TopNineMonths, .TopYear, .TopAll,
-        ]
-        let comments: [Components.Schemas.SortType] = [
-            .MostComments, .NewComments,
-        ]
-
         let sortTypeMenu = UIMenu(
             title: "",
             options: .singleSelection,
             children: [
-                UIMenu(title: "", options: .displayInline, children: actives.compactMap { sortTypeMenuActionsBySortType[$0] }),
-                UIMenu(title: "Top", options: .singleSelection, children: tops.compactMap { sortTypeMenuActionsBySortType[$0] }),
-                UIMenu(title: "", options: .displayInline, children: comments.compactMap { sortTypeMenuActionsBySortType[$0] }),
+                UIMenu(title: "", options: .displayInline, children: PostSortMenu.actives.compactMap { sortTypeMenuActionsBySortType[$0] }),
+                UIMenu(title: "Top", options: .singleSelection, children: PostSortMenu.tops.compactMap { sortTypeMenuActionsBySortType[$0] }),
+                UIMenu(title: "", options: .displayInline, children: PostSortMenu.comments.compactMap { sortTypeMenuActionsBySortType[$0] }),
             ]
         )
 
@@ -645,6 +632,35 @@ class PostListViewController: UIViewController {
         viewModel.didChangeSortType(sortType)
         feedChanged()
         rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
+    }
+
+    private func setupQuickSwitchButton() {
+        quickSwitchBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "slider.horizontal.3"),
+            style: .plain,
+            target: self,
+            action: #selector(quickSwitchTapped)
+        )
+    }
+
+    @objc
+    private func quickSwitchTapped() {
+        Haptics.tap()
+        let quickSwitchViewModel = QuickSwitchViewModel(
+            preferencesService: preferencesService,
+            currentSort: viewModel.feed.feedType.sortType,
+            onSelectSort: { [weak self] sortType in
+                self?.sortTypeChanged(to: sortType)
+            }
+        )
+        let host = UIHostingController(rootView: QuickSwitchView(viewModel: quickSwitchViewModel))
+        host.modalPresentationStyle = .popover
+        host.sizingOptions = [.preferredContentSize]
+        if let popover = host.popoverPresentationController {
+            popover.sourceItem = quickSwitchBarButtonItem
+            popover.delegate = forcePopoverDelegate
+        }
+        present(host, animated: true)
     }
 
     /// Reloads the feed from scratch (a fresh feed key + re-fetch). Used after
