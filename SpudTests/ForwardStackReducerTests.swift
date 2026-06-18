@@ -34,6 +34,22 @@ final class ForwardStackReducerTests: XCTestCase {
         XCTAssertEqual(result, [c])
     }
 
+    func test_feedSwitcher_popThenRestorePush_roundTripsToEmpty() {
+        // Start on [switcher(a), postList(b)] with nothing pending.
+        // 1) Swipe back: postList is popped, becoming forward-restorable.
+        let afterPop = ForwardStackReducer.reduce(
+            forwardStack: [], lastStack: [a, b], newStack: [a], animated: true
+        )
+        XCTAssertEqual(afterPop, [b])
+
+        // 2) Pick a feed (or forward-swipe): the SAME postList is re-pushed and
+        //    consumed, leaving a clean forward stack.
+        let afterRestore = ForwardStackReducer.reduce(
+            forwardStack: afterPop, lastStack: [a], newStack: [a, b], animated: true
+        )
+        XCTAssertEqual(afterRestore, [])
+    }
+
     func test_newPush_clearsStack() {
         let result = ForwardStackReducer.reduce(forwardStack: [b], lastStack: [a], newStack: [a, c], animated: true)
         XCTAssertEqual(result, [])
