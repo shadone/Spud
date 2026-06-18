@@ -154,14 +154,10 @@ class PostListViewController: UIViewController {
     var sortTypeBarButtonItem: UIBarButtonItem!
     var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
 
-    /// Whether this feed is the Posts-tab root, and so shows the tappable
-    /// quick-switch title (chevron) that opens the read-only feed drawer.
+    /// Whether this feed is the Posts-tab primary feed that sits atop the feed
+    /// switcher in the navigation stack. When true the system back button
+    /// ("Feeds") is kept visible alongside the leading compose button.
     private let showsQuickSwitch: Bool
-
-    /// Retained because UIKit holds the transitioning delegate weakly.
-    private let drawerTransitioningDelegate = LeadingDrawerTransitioningDelegate()
-
-    private lazy var quickSwitchTitleButton: UIButton = makeQuickSwitchTitleButton()
 
     // MARK: Functions
 
@@ -291,72 +287,26 @@ class PostListViewController: UIViewController {
         )
     }
 
-    // MARK: Quick-switch drawer
+    // MARK: Feed title
 
     private func configureTitle() {
-        if showsQuickSwitch {
-            navigationItem.titleView = quickSwitchTitleButton
-        }
         applyNavigationTitle()
+        if showsQuickSwitch {
+            // The primary feed sits atop the feed switcher in the Posts-tab
+            // stack. Keep the system back button ("Feeds") visible next to the
+            // leading compose button instead of letting compose replace it.
+            navigationItem.leftItemsSupplementBackButton = true
+        }
     }
 
     private func applyNavigationTitle() {
-        if showsQuickSwitch {
-            updateQuickSwitchTitle(viewModel.navigationTitle)
-        } else {
-            navigationItem.title = viewModel.navigationTitle
-        }
+        navigationItem.title = viewModel.navigationTitle
     }
 
-    private func makeQuickSwitchTitleButton() -> UIButton {
-        var config = UIButton.Configuration.plain()
-        config.image = UIImage(
-            systemName: "chevron.down",
-            withConfiguration: UIImage.SymbolConfiguration(pointSize: 11, weight: .semibold)
-        )
-        config.imagePlacement = .trailing
-        config.imagePadding = 5
-        config.baseForegroundColor = .label
-        config.contentInsets = NSDirectionalEdgeInsets(top: 4, leading: 8, bottom: 4, trailing: 8)
-        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
-            var outgoing = incoming
-            outgoing.font = .systemFont(ofSize: 17, weight: .semibold)
-            return outgoing
-        }
-        let button = UIButton(configuration: config)
-        button.addTarget(self, action: #selector(quickSwitchTapped), for: .touchUpInside)
-        button.accessibilityHint = NSLocalizedString(
-            "Opens the feed switcher",
-            comment: "Accessibility hint for the tappable feed title"
-        )
-        return button
-    }
-
-    private func updateQuickSwitchTitle(_ text: String) {
-        quickSwitchTitleButton.configuration?.title = text
-        quickSwitchTitleButton.sizeToFit()
-    }
-
-    @objc
-    private func quickSwitchTapped() {
-        Haptics.tap()
-        let keychainId = viewModel.accountKeychainId
-        let drawer = QuickSwitchDrawerViewController(
-            activeFeedType: viewModel.feed.feedType,
-            defaultSortType: accountService.defaultSortType(forAccountKeychainId: keychainId)
-        )
-        drawer.onSelectFeedType = { [weak self] feedType in
-            self?.switchFeed(to: feedType)
-        }
-        drawer.onBrowseAllCommunities = { [weak self] in
-            // Communities is tab index 1 (Posts | Communities | Search | Inbox | Account).
-            self?.tabBarController?.selectedIndex = 1
-        }
-
-        let navigationController = UINavigationController(rootViewController: drawer)
-        navigationController.modalPresentationStyle = .custom
-        navigationController.transitioningDelegate = drawerTransitioningDelegate
-        present(navigationController, animated: true)
+    /// The feed currently displayed. The feed switcher reads this to mark the
+    /// active row.
+    var currentFeedType: FeedType {
+        viewModel.feed.feedType
     }
 
     /// Switches the feed in place (drawer selection), mirroring the sort-change
