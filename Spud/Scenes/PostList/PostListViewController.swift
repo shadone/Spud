@@ -309,7 +309,7 @@ class PostListViewController: UIViewController {
         viewModel.feed.feedType
     }
 
-    /// Switches the feed in place (drawer selection), mirroring the sort-change
+    /// Switches the feed in place (feed-switcher selection), mirroring the sort-change
     /// path: swap the feed, restart the observation, and refresh the chrome.
     private func switchFeed(to feedType: FeedType) {
         viewModel.switchFeed(to: feedType)
@@ -320,7 +320,7 @@ class PostListViewController: UIViewController {
     }
 
     /// Switches the post list to a feed from outside the controller (deep links,
-    /// App Intents). Mirrors the in-app drawer feed switch.
+    /// App Intents). Mirrors the feed-switcher selection.
     func showFeed(_ feedType: FeedType) {
         switchFeed(to: feedType)
     }

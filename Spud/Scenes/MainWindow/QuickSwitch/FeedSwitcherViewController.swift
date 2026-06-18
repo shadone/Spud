@@ -103,7 +103,7 @@ final class FeedSwitcherViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = Theme.groupedBackground
 
-        title = NSLocalizedString("Feeds", comment: "Feed switcher screen title")
+        title = NSLocalizedString("Feeds", comment: "Feed switcher label")
         navigationItem.largeTitleDisplayMode = .never
 
         view.addSubview(tableView)
@@ -147,7 +147,7 @@ extension FeedSwitcherViewController: UITableViewDataSource, UITableViewDelegate
     }
 
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        section == 0 ? NSLocalizedString("Feeds", comment: "Feed switcher section header") : nil
+        section == 0 ? NSLocalizedString("Feeds", comment: "Feed switcher label") : nil
     }
 
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
