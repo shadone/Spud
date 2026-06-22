@@ -233,9 +233,9 @@ class PostDetailCommentCell: UITableViewCell {
         return label
     }()
 
-    /// Rendered comment-body markdown view. Recreated when the text-size
-    /// preference changes, since `MarkdownBodyView` bakes the context (fonts,
-    /// spacing) at init time.
+    /// Rendered comment-body markdown view. Recreated when the text-size or
+    /// density preference changes, since `MarkdownBodyView` bakes the context
+    /// (fonts, spacing) at init time.
     private(set) lazy var bodyView: MarkdownBodyView = makeBodyView(textScale: 0, density: .comfortable)
 
     /// Placeholder body for deleted or removed comments (a styled attributed

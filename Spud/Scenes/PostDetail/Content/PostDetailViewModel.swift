@@ -202,6 +202,12 @@ final class PostDetailViewModel {
             } catch is CancellationError {
                 // Superseded — leave the flag to the winning fetch.
             } catch {
+                // The production `fetchCommentsOperation` (LemmyService.fetchComments)
+                // wraps all underlying errors — including cancellation — as a domain
+                // error, so `catch is CancellationError` only fires for direct /
+                // seam cancellation. In the production path this `catch` fires instead,
+                // and the `!Task.isCancelled` guard below is what silences a superseded
+                // fetch. Do NOT remove these guards as "redundant" — they are load-bearing.
                 if !Task.isCancelled {
                     alertService.handle(error, for: .fetchComments)
                 }
