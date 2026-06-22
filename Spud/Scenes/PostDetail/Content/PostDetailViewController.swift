@@ -73,6 +73,7 @@ class PostDetailViewController: UIViewController {
     func setPost(serverPostId: Components.Schemas.PostID, accountKeychainId: String) {
         observationTask?.cancel()
         commentObservationTask?.cancel()
+        loadingObservationTask?.cancel()
 
         viewModel = PostDetailViewModel(
             serverPostId: serverPostId,
@@ -147,6 +148,16 @@ class PostDetailViewController: UIViewController {
     private var observationTask: Task<Void, Never>?
     private var commentObservationTask: Task<Void, Never>?
     private var swipeActionsObservationTask: Task<Void, Never>?
+    /// True once the comment GRDB observation has emitted at least once; gates
+    /// the single `didPrepareObservation` call.
+    private var hasReceivedFirstCommentSnapshot = false
+    /// True once a comment fetch has completed (its loading flag went
+    /// true -> false); gates the "No comments yet" empty state.
+    private var hasCompletedCommentFetch = false
+    private var loadingObservationTask: Task<Void, Never>?
+
+    private lazy var commentLoadingSkeletonView = CommentLoadingSkeletonView()
+    private lazy var emptyCommentsView = PostDetailEmptyCommentsView()
 
     /// The active comment swipe-action config, sanitized for comments. Seeded
     /// from the preference and kept live via `swipeActionsObservationTask`;
@@ -189,6 +200,7 @@ class PostDetailViewController: UIViewController {
         observationTask?.cancel()
         commentObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
+        loadingObservationTask?.cancel()
     }
 
     private func setup() {
@@ -322,6 +334,11 @@ class PostDetailViewController: UIViewController {
     }
 
     private func startObservations() {
+        hasReceivedFirstCommentSnapshot = false
+        hasCompletedCommentFetch = false
+        startLoadingObservation()
+        updateCommentsBackground()
+
         refreshModerationCapability()
 
         let keychainId = viewModel.accountKeychainId
@@ -387,7 +404,6 @@ class PostDetailViewController: UIViewController {
         let sortTypeRaw = viewModel.commentSortType.rawValue
         commentObservationTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            var hasReceivedFirstSnapshot = false
             for await rows in appDatabase.observePostDetailComments(
                 postRowId: postRowId,
                 sortType: sortTypeRaw
@@ -396,9 +412,6 @@ class PostDetailViewController: UIViewController {
                 commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
                 viewModel.updateOrderedComments(rows)
 
-                // Parse and cache every comment body off the main thread before
-                // the cells are configured, so cell dequeue is a cache hit
-                // instead of a synchronous cmark parse on the scroll path.
                 await Self.prewarmCommentBodies(
                     rows,
                     textSizeAdjustment: appearanceService.postDetail.textSizeAdjustment
@@ -406,10 +419,58 @@ class PostDetailViewController: UIViewController {
                 if Task.isCancelled { break }
 
                 applySnapshot()
-                if !hasReceivedFirstSnapshot {
-                    hasReceivedFirstSnapshot = true
+                if !hasReceivedFirstCommentSnapshot {
+                    hasReceivedFirstCommentSnapshot = true
                     viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
                 }
+            }
+        }
+    }
+
+    /// Observes the view model's comment-loading flag and refreshes the comments
+    /// background on each change, recording the first fetch completion (the
+    /// true -> false edge) so the empty state can show only once a fetch settles.
+    private func startLoadingObservation() {
+        loadingObservationTask?.cancel()
+        loadingObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var wasLoading = false
+            for await isLoading in ObservationStream.values(of: { [weak self] in
+                self?.viewModel.isLoadingComments ?? false
+            }) {
+                if Task.isCancelled { break }
+                if wasLoading, !isLoading {
+                    hasCompletedCommentFetch = true
+                }
+                wasLoading = isLoading
+                updateCommentsBackground()
+            }
+        }
+    }
+
+    /// Picks the comments-region background (skeleton / empty / none) and drives
+    /// the skeleton pulse. The header cell is opaque, so the background view shows
+    /// only in the blank region below it. Idempotent — safe to call freely.
+    private func updateCommentsBackground() {
+        switch CommentsBackground.decide(
+            isLoadingComments: viewModel.isLoadingComments,
+            hasCompletedFetch: hasCompletedCommentFetch,
+            hasComments: !viewModel.orderedComments.isEmpty
+        ) {
+        case .skeleton:
+            if tableView.backgroundView !== commentLoadingSkeletonView {
+                tableView.backgroundView = commentLoadingSkeletonView
+            }
+            commentLoadingSkeletonView.startAnimating()
+        case .empty:
+            commentLoadingSkeletonView.stopAnimating()
+            if tableView.backgroundView !== emptyCommentsView {
+                tableView.backgroundView = emptyCommentsView
+            }
+        case .hidden:
+            commentLoadingSkeletonView.stopAnimating()
+            if tableView.backgroundView != nil {
+                tableView.backgroundView = nil
             }
         }
     }
@@ -450,6 +511,7 @@ class PostDetailViewController: UIViewController {
         let animate = animated && !UIAccessibility.isReduceMotionEnabled
         dataSource.apply(snapshot, animatingDifferences: animate)
         updateJumpButtonVisibility()
+        updateCommentsBackground()
     }
 
     /// Pre-parses every comment body's block tree into `MarkdownBlockCache` off
