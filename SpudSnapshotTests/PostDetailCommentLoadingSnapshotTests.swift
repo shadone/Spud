@@ -53,4 +53,31 @@ final class PostDetailCommentLoadingSnapshotTests: XCTestCase {
             line: line
         )
     }
+
+    func test_emptyComments_light() {
+        assertEmpty(style: .light)
+    }
+
+    func test_emptyComments_dark() {
+        assertEmpty(style: .dark)
+    }
+
+    private func assertEmpty(
+        style: UIUserInterfaceStyle,
+        testName: String = #function,
+        line: UInt = #line
+    ) {
+        let size = CGSize(width: width, height: 320)
+        let view = PostDetailEmptyCommentsView(frame: CGRect(origin: .zero, size: size))
+        view.backgroundColor = .systemBackground
+        view.layoutIfNeeded()
+
+        assertSnapshot(
+            matching: view,
+            as: .image(size: size, traits: traits(style)),
+            named: style == .dark ? "dark" : "light",
+            testName: testName,
+            line: line
+        )
+    }
 }
