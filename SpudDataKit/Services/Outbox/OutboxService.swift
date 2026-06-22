@@ -15,6 +15,8 @@ public struct OutboxFailure: Sendable, Equatable {
 public protocol OutboxServiceType: Actor {
     func enqueue(_ op: OutboxOperation) async
     func drainOnce() async
+    func drainAll() async
+    func start() async
     var failureEvents: AsyncStream<OutboxFailure> { get }
 }
 
@@ -25,6 +27,7 @@ public actor OutboxService: OutboxServiceType {
     private let reachability: ReachabilityMonitoring
     private let now: @Sendable () -> Double
     private var failureContinuations: [UUID: AsyncStream<OutboxFailure>.Continuation] = [:]
+    private var started = false
 
     public init(
         accountId: Int64,
@@ -78,7 +81,36 @@ public actor OutboxService: OutboxServiceType {
         } catch {
             return
         }
-        for record in due {
+        await drain(records: due)
+    }
+
+    public func drainAll() async {
+        let all: [PendingOperationRecord]
+        do {
+            all = try await appDatabase.dueOutboxOperations(accountId: accountId, asOf: .greatestFiniteMagnitude)
+        } catch {
+            return
+        }
+        await drain(records: all)
+    }
+
+    public func start() async {
+        guard !started else { return }
+        started = true
+        let stream = await MainActor.run { reachability.statusStream }
+        Task { [weak self] in
+            var wasOnline: Bool?
+            for await online in stream {
+                if online, wasOnline != true {
+                    await self?.drainAll()
+                }
+                wasOnline = online
+            }
+        }
+    }
+
+    private func drain(records: [PendingOperationRecord]) async {
+        for record in records {
             guard let op = Self.operation(from: record), let id = record.id else { continue }
             do {
                 try await performer.perform(op)
