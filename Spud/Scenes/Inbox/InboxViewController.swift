@@ -33,6 +33,7 @@ final class InboxViewController: UIViewController {
         HasImageService &
         HasPostContentDetectorService &
         HasPreferencesService &
+        HasReachabilityMonitor &
         HasUnreadCountService &
         HasVoid
     typealias Dependencies = NestedDependencies & OwnDependencies

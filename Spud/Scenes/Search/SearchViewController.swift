@@ -33,6 +33,7 @@ final class SearchViewController: UIViewController {
         HasImageService &
         HasPostContentDetectorService &
         HasPreferencesService &
+        HasReachabilityMonitor &
         HasVoid
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)

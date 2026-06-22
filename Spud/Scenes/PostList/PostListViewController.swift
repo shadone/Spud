@@ -25,7 +25,8 @@ class PostListViewController: UIViewController {
         HasAppearanceService &
         HasImageService &
         HasPostContentDetectorService &
-        HasPreferencesService
+        HasPreferencesService &
+        HasReachabilityMonitor
     typealias NestedDependencies =
         PostDetailViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
@@ -59,6 +60,10 @@ class PostListViewController: UIViewController {
         dependencies.own.preferencesService
     }
 
+    private var reachabilityMonitor: ReachabilityMonitoring {
+        dependencies.own.reachabilityMonitor
+    }
+
     // MARK: Public
 
     private let viewModel: PostListViewModel
@@ -75,6 +80,7 @@ class PostListViewController: UIViewController {
 
         tableView.register(PostListPostCell.self, forCellReuseIdentifier: PostListPostCell.reuseIdentifier)
         tableView.register(LoadingFooterCell.self, forCellReuseIdentifier: LoadingFooterCell.reuseIdentifier)
+        tableView.register(PaginationErrorFooterCell.self, forCellReuseIdentifier: PaginationErrorFooterCell.reuseIdentifier)
 
         return tableView
     }()
@@ -95,6 +101,7 @@ class PostListViewController: UIViewController {
         /// Server-assigned post id (PostRecord.postId), unique within an account.
         case post(serverPostId: Int64)
         case loadingIndicator
+        case paginationRetry
     }
 
     private var dataSource: UITableViewDiffableDataSource<Section, Item>!
@@ -120,8 +127,9 @@ class PostListViewController: UIViewController {
     private var hasReceivedFirstSnapshot = false
     private var observationTask: Task<Void, Never>?
     private var titleObservationTask: Task<Void, Never>?
-    private var loadingObservationTask: Task<Void, Never>?
-    private var fetchFailedObservationTask: Task<Void, Never>?
+    private var loadStateObservationTask: Task<Void, Never>?
+    private var paginationStateObservationTask: Task<Void, Never>?
+    private var reachabilityObservationTask: Task<Void, Never>?
     private var swipeActionsObservationTask: Task<Void, Never>?
     private var displayPrefsObservationTasks: [Task<Void, Never>] = []
 
@@ -207,8 +215,9 @@ class PostListViewController: UIViewController {
     deinit {
         observationTask?.cancel()
         titleObservationTask?.cancel()
-        loadingObservationTask?.cancel()
-        fetchFailedObservationTask?.cancel()
+        loadStateObservationTask?.cancel()
+        paginationStateObservationTask?.cancel()
+        reachabilityObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
         for task in displayPrefsObservationTasks {
             task.cancel()
@@ -386,8 +395,9 @@ class PostListViewController: UIViewController {
 
     private func startObservations() {
         titleObservationTask?.cancel()
-        loadingObservationTask?.cancel()
-        fetchFailedObservationTask?.cancel()
+        loadStateObservationTask?.cancel()
+        paginationStateObservationTask?.cancel()
+        reachabilityObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
         for task in displayPrefsObservationTasks {
             task.cancel()
@@ -414,34 +424,27 @@ class PostListViewController: UIViewController {
                 self?.applyNavigationTitle()
             }
         }
-        loadingObservationTask = Task { @MainActor [weak self] in
-            for await _ in Self.values(of: { viewModel.isFetchingNextPage }) {
+        loadStateObservationTask = Task { @MainActor [weak self] in
+            for await state in Self.values(of: { viewModel.loadState }) {
                 if Task.isCancelled { break }
-                self?.applyLoadingIndicatorVisibility(hidden: !viewModel.isFetchingNextPage)
+                self?.applyLoadState(state)
             }
         }
-        fetchFailedObservationTask = Task { @MainActor [weak self] in
-            for await failed in Self.values(of: { viewModel.fetchFailed }) {
+        paginationStateObservationTask = Task { @MainActor [weak self] in
+            for await state in Self.values(of: { viewModel.paginationState }) {
                 if Task.isCancelled { break }
-                self?.handleFetchFailedChange(failed)
+                self?.applyPaginationState(state)
             }
         }
-    }
-
-    /// A page fetch threw. With posts already on screen this was a pagination
-    /// failure, so surface a transient alert and keep the feed visible. With an
-    /// empty feed it was the initial load, so let the content-unavailable state
-    /// take over with the designed "Couldn't reach ..." error and its actions.
-    private func handleFetchFailedChange(_ failed: Bool) {
-        guard failed else {
-            updateContentUnavailableState()
-            return
-        }
-        if displayedRows.isEmpty {
-            updateContentUnavailableState()
-        } else if let error = viewModel.lastFetchError {
-            alertService.handle(error, for: .fetchPostList)
-            viewModel.fetchFailed = false
+        reachabilityObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await online in reachabilityMonitor.statusStream {
+                if Task.isCancelled { break }
+                guard online else { continue }
+                if case let .failed(failure) = viewModel.loadState, failure.kind == .offline {
+                    feedChanged()
+                }
+            }
         }
     }
 
@@ -710,29 +713,30 @@ class PostListViewController: UIViewController {
         pinnedReadIds.removeAll()
         markedReadIds.removeAll()
         hasReceivedFirstSnapshot = false
-        // Clear any error carried over from the feed we're leaving so it can't
-        // flash before the new feed's fetch starts.
-        viewModel.fetchFailed = false
-        updateContentUnavailableState()
         showLoadingSkeleton()
         refreshModerationCapability()
-
-        applyLoadingIndicatorVisibility(hidden: !viewModel.isFetchingNextPage)
 
         let feedKey = viewModel.feed.feedKey
         observationTask = Task { @MainActor [weak self] in
             guard let self else { return }
 
             // Feeds are created lazily by the importer on the first fetch.
-            // If the row doesn't exist yet, await the first page so the
+            // If the row doesn't exist yet, await the tracked first page so the
             // importer creates it before we set up the observation.
             if appDatabase.feedRowIdSync(forFeedKey: feedKey) == nil {
-                await viewModel.fetchNextPage()
+                await viewModel.loadFirstPage()
                 if Task.isCancelled { return }
             }
 
             guard let feedRowId = appDatabase.feedRowIdSync(forFeedKey: feedKey) else {
-                hideLoadingSkeleton()
+                // The feed row never materialized, so the fetch failed. Leave the
+                // failed state on screen (applyLoadState renders it); otherwise
+                // hide the skeleton so nothing keeps spinning.
+                if case .failed = viewModel.loadState {
+                    // The error surface is already shown by applyLoadState.
+                } else {
+                    hideLoadingSkeleton()
+                }
                 return
             }
 
@@ -741,7 +745,6 @@ class PostListViewController: UIViewController {
                 let isFirstSnapshot = !hasReceivedFirstSnapshot
                 hasReceivedFirstSnapshot = true
                 if isFirstSnapshot {
-                    hideLoadingSkeleton()
                     // Pin the rows already read when this feed view began, so
                     // `onRefresh` hide-read only hides those (posts read while
                     // scrolling stay until the next refresh).
@@ -755,7 +758,11 @@ class PostListViewController: UIViewController {
                 // way. The deliberate hide-read toggle still animates its removals.
                 apply(rows: rows, animatingDifferences: false)
                 if isFirstSnapshot {
-                    viewModel.didPrepareObservation(numberOfFetchedPosts: rows.count)
+                    viewModel.resolveInitialSnapshot(rowCount: rows.count)
+                    if case .loading = viewModel.loadState, rows.isEmpty {
+                        // Cached-but-empty feed: kick the tracked initial fetch.
+                        await viewModel.loadFirstPage()
+                    }
                 }
             }
         }
@@ -790,107 +797,105 @@ class PostListViewController: UIViewController {
         // pagination. Matches reconfigureVisibleCells()/reconfigureVisibleSwipeActions().
         snapshot.reconfigureItems(items)
 
-        if viewModel.isFetchingNextPage {
-            snapshot.appendSections([.loading])
-            snapshot.appendItems([.loadingIndicator], toSection: .loading)
-        }
-
+        // The `.loading` section (pagination spinner / retry footer) is owned
+        // solely by applyPaginationState; this snapshot only carries posts.
         dataSource.apply(snapshot, animatingDifferences: animatingDifferences)
 
-        updateContentUnavailableState()
+        // A row change can flip loaded <-> empty, so re-evaluate the top-level
+        // load state after every snapshot.
+        applyLoadState(viewModel.loadState)
     }
 
-    private func applyLoadingIndicatorVisibility(hidden: Bool) {
-        guard dataSource != nil else { return }
+    /// Renders the feed's top-level load state: skeleton + slow caption while
+    /// loading, the designed empty state when settled-and-empty, and the
+    /// presenter-driven error surface when the initial load failed. The skeleton
+    /// and the content-unavailable surface are mutually exclusive.
+    private func applyLoadState(_ state: FeedLoadState) {
+        switch state {
+        case let .loading(slow):
+            showLoadingSkeleton()
+            loadingSkeletonView.setShowsSlowHint(slow)
+            contentUnavailableConfiguration = nil
+        case .loaded:
+            hideLoadingSkeleton()
+            contentUnavailableConfiguration = nil
+        case .empty:
+            hideLoadingSkeleton()
+            let empty = viewModel.emptyState
+            var config = UIContentUnavailableConfiguration.empty()
+            config.image = UIImage(systemName: empty.symbolName)
+            config.text = empty.title
+            config.secondaryText = empty.message
+            contentUnavailableConfiguration = config
+        case let .failed(failure):
+            hideLoadingSkeleton()
+            contentUnavailableConfiguration = makeErrorConfiguration(for: failure)
+        }
+    }
 
-        var snapshot = dataSource.snapshot()
-        let hasLoadingSection = snapshot.sectionIdentifiers.contains(.loading)
+    /// Renders a `LoadFailure` into a content-unavailable configuration via the
+    /// `FeedStatePresenter`, wiring each descriptor action to a controller
+    /// closure.
+    private func makeErrorConfiguration(for failure: LoadFailure) -> UIContentUnavailableConfiguration {
+        let descriptor = FeedStatePresenter.descriptor(for: failure.kind, host: viewModel.instanceHost)
+        var config = UIContentUnavailableConfiguration.empty()
+        config.image = UIImage(systemName: descriptor.symbolName)
+        config.text = descriptor.title
+        config.secondaryText = descriptor.message
 
-        if hidden {
-            if hasLoadingSection {
-                snapshot.deleteSections([.loading])
-                dataSource.apply(snapshot, animatingDifferences: true)
+        var primary = UIButton.Configuration.borderedProminent()
+        primary.title = descriptor.primary.title
+        primary.baseBackgroundColor = ThemeManager.currentAccentColor
+        config.button = primary
+        config.buttonProperties.primaryAction = action(for: descriptor.primary.action, failure: failure)
+
+        if let secondary = descriptor.secondary {
+            var secondaryConfig = UIButton.Configuration.plain()
+            secondaryConfig.title = secondary.title
+            config.secondaryButton = secondaryConfig
+            config.secondaryButtonProperties.primaryAction = action(for: secondary.action, failure: failure)
+        }
+        return config
+    }
+
+    private func action(for action: FeedErrorDescriptor.Action, failure: LoadFailure) -> UIAction {
+        switch action {
+        case .retry:
+            return UIAction { [weak self] _ in self?.feedChanged() }
+        case .workOffline:
+            return UIAction { [weak self] _ in
+                guard let self else { return }
+                // Dismiss the error and show the empty state for this feed.
+                viewModel.dismissToEmpty()
+                applyLoadState(viewModel.loadState)
             }
-        } else if !hasLoadingSection {
+        case .copyDetails:
+            return UIAction { [weak self] _ in
+                UIPasteboard.general.string = self?.viewModel.lastFailureDiagnostics
+            }
+        }
+    }
+
+    /// Renders the pagination footer section from `paginationState`: a loading
+    /// spinner footer, an inline retry footer on failure, and nothing when idle.
+    /// Owns the `.loading` section exclusively.
+    private func applyPaginationState(_ state: PaginationState) {
+        guard dataSource != nil else { return }
+        var snapshot = dataSource.snapshot()
+        if snapshot.sectionIdentifiers.contains(.loading) {
+            snapshot.deleteSections([.loading])
+        }
+        switch state {
+        case .idle:
+            break
+        case .loading:
             snapshot.appendSections([.loading])
             snapshot.appendItems([.loadingIndicator], toSection: .loading)
-            dataSource.apply(snapshot, animatingDifferences: true)
+        case .failed:
+            snapshot.appendSections([.loading])
+            snapshot.appendItems([.paginationRetry], toSection: .loading)
         }
-
-        updateContentUnavailableState()
-    }
-
-    /// Drives the full-screen content-unavailable surface once the feed has
-    /// settled (first snapshot in, not mid-fetch) and has no posts to show:
-    /// the designed error state when the initial load failed, otherwise the
-    /// empty state (e.g. "No saved posts yet"). Hidden while posts exist or a
-    /// fetch is in flight.
-    private func updateContentUnavailableState() {
-        let isSettledAndEmpty = displayedRows.isEmpty && !viewModel.isFetchingNextPage
-
-        if viewModel.fetchFailed, isSettledAndEmpty {
-            hideLoadingSkeleton()
-            contentUnavailableConfiguration = makeErrorConfiguration()
-            return
-        }
-
-        guard hasReceivedFirstSnapshot, isSettledAndEmpty else {
-            contentUnavailableConfiguration = nil
-            return
-        }
-
-        let empty = viewModel.emptyState
-        var config = UIContentUnavailableConfiguration.empty()
-        config.image = UIImage(systemName: empty.symbolName)
-        config.text = empty.title
-        config.secondaryText = empty.message
-        contentUnavailableConfiguration = config
-    }
-
-    /// The designed feed error state: a globe glyph, "Couldn't reach <host>",
-    /// a reassuring line, and Try again / Work offline actions.
-    private func makeErrorConfiguration() -> UIContentUnavailableConfiguration {
-        var config = UIContentUnavailableConfiguration.empty()
-        config.image = UIImage(systemName: "globe")
-
-        if let host = viewModel.instanceHost {
-            config.text = String(
-                format: NSLocalizedString(
-                    "Couldn't reach %@",
-                    comment: "Feed error-state title; %@ is the instance host, e.g. lemmy.world"
-                ),
-                host
-            )
-        } else {
-            config.text = NSLocalizedString(
-                "Couldn't reach the server",
-                comment: "Feed error-state title when the instance host is unknown"
-            )
-        }
-        config.secondaryText = NSLocalizedString(
-            "Check your connection and try again.",
-            comment: "Feed error-state message"
-        )
-
-        var tryAgain = UIButton.Configuration.borderedProminent()
-        tryAgain.title = NSLocalizedString("Try again", comment: "Feed error-state primary action")
-        tryAgain.baseBackgroundColor = ThemeManager.currentAccentColor
-        config.button = tryAgain
-        config.buttonProperties.primaryAction = UIAction { [weak self] _ in
-            guard let self else { return }
-            Task { await self.viewModel.fetchNextPage() }
-        }
-
-        var workOffline = UIButton.Configuration.plain()
-        workOffline.title = NSLocalizedString("Work offline", comment: "Feed error-state secondary action")
-        config.secondaryButton = workOffline
-        config.secondaryButtonProperties.primaryAction = UIAction { [weak self] _ in
-            guard let self else { return }
-            viewModel.fetchFailed = false
-            updateContentUnavailableState()
-        }
-
-        return config
+        dataSource.apply(snapshot, animatingDifferences: true)
     }
 
     private func setupDataSource() {
@@ -978,6 +983,16 @@ class PostListViewController: UIViewController {
                     withIdentifier: LoadingFooterCell.reuseIdentifier,
                     for: indexPath
                 )
+
+            case .paginationRetry:
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: PaginationErrorFooterCell.reuseIdentifier,
+                    for: indexPath
+                ) as! PaginationErrorFooterCell
+                cell.onRetry = { [weak self] in
+                    Task { await self?.viewModel.retryPagination() }
+                }
+                return cell
             }
         }
     }

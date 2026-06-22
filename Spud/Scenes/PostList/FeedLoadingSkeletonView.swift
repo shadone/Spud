@@ -18,16 +18,36 @@ final class FeedLoadingSkeletonView: SkeletonView {
         return stack
     }()
 
+    /// Caption pinned near the bottom, shown only once the load crosses the
+    /// slow-connection threshold. Hidden by default and on `stopAnimating()`.
+    private lazy var slowLabel: UILabel = {
+        let label = UILabel()
+        label.text = NSLocalizedString("Still loading… slow connection", comment: "Feed slow-load hint")
+        label.font = .preferredFont(forTextStyle: .footnote)
+        label.textColor = .secondaryLabel
+        label.textAlignment = .center
+        label.numberOfLines = 0
+        label.isHidden = true
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }()
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
         isUserInteractionEnabled = false
 
         addSubview(stack)
+        addSubview(slowLabel)
         NSLayoutConstraint.activate([
             stack.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor),
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+
+            slowLabel.centerXAnchor.constraint(equalTo: centerXAnchor),
+            slowLabel.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 16),
+            slowLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -16),
+            slowLabel.bottomAnchor.constraint(equalTo: safeAreaLayoutGuide.bottomAnchor, constant: -24),
         ])
 
         for _ in 0..<8 {
@@ -38,6 +58,15 @@ final class FeedLoadingSkeletonView: SkeletonView {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    func setShowsSlowHint(_ shows: Bool) {
+        slowLabel.isHidden = !shows
+    }
+
+    override func stopAnimating() {
+        super.stopAnimating()
+        slowLabel.isHidden = true
     }
 
     private func makeRow() -> UIView {

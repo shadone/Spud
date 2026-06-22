@@ -39,6 +39,7 @@ class AccountViewController: UIViewController {
         HasImageService &
         HasPostContentDetectorService &
         HasPreferencesService &
+        HasReachabilityMonitor &
         HasSiteService &
         HasVoid
     typealias Dependencies = NestedDependencies & OwnDependencies
