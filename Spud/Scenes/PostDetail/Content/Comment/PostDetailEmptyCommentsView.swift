@@ -28,16 +28,19 @@ final class PostDetailEmptyCommentsView: UIView {
         icon.tintColor = .tertiaryLabel
         icon.contentMode = .scaleAspectFit
         icon.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: 34, weight: .regular)
+        icon.adjustsImageSizeForAccessibilityContentSizeCategory = true
 
         let title = UILabel()
         title.text = titleText
         title.font = .preferredFont(forTextStyle: .headline)
+        title.adjustsFontForContentSizeCategory = true
         title.textColor = .secondaryLabel
         title.textAlignment = .center
 
         let subtitle = UILabel()
         subtitle.text = subtitleText
         subtitle.font = .preferredFont(forTextStyle: .subheadline)
+        subtitle.adjustsFontForContentSizeCategory = true
         subtitle.textColor = .tertiaryLabel
         subtitle.textAlignment = .center
         subtitle.numberOfLines = 0
