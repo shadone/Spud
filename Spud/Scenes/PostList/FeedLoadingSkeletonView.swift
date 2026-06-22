@@ -10,7 +10,7 @@ import UIKit
 /// block plus three text bars) that gently pulse. Shown as the table background
 /// during the initial fetch — before the first snapshot — matching the design's
 /// Loading state, so the feed never flashes blank.
-final class FeedLoadingSkeletonView: UIView {
+final class FeedLoadingSkeletonView: SkeletonView {
     private let stack: UIStackView = {
         let stack = UIStackView()
         stack.axis = .vertical
@@ -40,26 +40,8 @@ final class FeedLoadingSkeletonView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    /// Starts the pulse, unless Reduce Motion is on (then the bars stay static).
-    func startAnimating() {
-        layer.removeAnimation(forKey: "pulse")
-        guard !UIAccessibility.isReduceMotionEnabled else { return }
-        let pulse = CABasicAnimation(keyPath: "opacity")
-        pulse.fromValue = 1.0
-        pulse.toValue = 0.45
-        pulse.duration = 0.8
-        pulse.autoreverses = true
-        pulse.repeatCount = .infinity
-        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        layer.add(pulse, forKey: "pulse")
-    }
-
-    func stopAnimating() {
-        layer.removeAnimation(forKey: "pulse")
-    }
-
     private func makeRow() -> UIView {
-        let thumbnail = bar(height: 56)
+        let thumbnail = Self.bar(height: 56)
         thumbnail.layer.cornerRadius = 9
         NSLayoutConstraint.activate([thumbnail.widthAnchor.constraint(equalToConstant: 56)])
 
@@ -68,9 +50,9 @@ final class FeedLoadingSkeletonView: UIView {
         textColumn.alignment = .leading
         textColumn.spacing = 7
 
-        let line1 = bar(height: 13)
-        let line2 = bar(height: 13)
-        let line3 = bar(height: 11)
+        let line1 = Self.bar(height: 13)
+        let line2 = Self.bar(height: 13)
+        let line3 = Self.bar(height: 11)
         textColumn.addArrangedSubview(line1)
         textColumn.addArrangedSubview(line2)
         textColumn.addArrangedSubview(line3)
@@ -108,15 +90,5 @@ final class FeedLoadingSkeletonView: UIView {
             separator.bottomAnchor.constraint(equalTo: container.bottomAnchor),
         ])
         return container
-    }
-
-    private func bar(height: CGFloat) -> UIView {
-        let view = UIView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.backgroundColor = .tertiarySystemFill
-        view.layer.cornerRadius = min(height / 2, 6)
-        view.layer.cornerCurve = .continuous
-        view.heightAnchor.constraint(equalToConstant: height).isActive = true
-        return view
     }
 }

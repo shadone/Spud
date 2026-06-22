@@ -39,6 +39,10 @@ final class PostDetailViewModel {
 
     var commentSortType: Components.Schemas.CommentSortType
 
+    /// True while a (non-pull-refresh) comment fetch is in flight. Pull-to-refresh
+    /// calls `LemmyService.fetchComments` directly and does not flip this.
+    private(set) var isLoadingComments: Bool = false
+
     /// The full, ordered comment tree as last emitted by the GRDB observation.
     /// Collapse is computed against this; it is never mutated by collapse.
     @ObservationIgnored
@@ -174,6 +178,8 @@ final class PostDetailViewModel {
     }
 
     func fetchComments() async {
+        isLoadingComments = true
+        defer { isLoadingComments = false }
         do {
             try await accountScope.lemmyService
                 .fetchComments(serverPostId: serverPostId, sortType: commentSortType)
