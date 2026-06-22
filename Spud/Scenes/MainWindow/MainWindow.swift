@@ -58,6 +58,9 @@ class MainWindow: UIWindow {
     private var unreadCountObservationTask: Task<Void, Never>?
     private var appThemeObservationTask: Task<Void, Never>?
     private var accentColorObservationTask: Task<Void, Never>?
+    /// Observes the active account's permanent outbox failures (a vote/save/hide
+    /// rolled back after exhausting retries) and surfaces each as a toast.
+    private var outboxFailureToastTask: Task<Void, Never>?
     /// Keychain id of the account currently driving the tab bar — guards
     /// against rebuilds when the GRDB observation re-emits the same row.
     private var currentDefaultAccountKeychainId: String?
@@ -112,6 +115,7 @@ class MainWindow: UIWindow {
         unreadCountObservationTask?.cancel()
         appThemeObservationTask?.cancel()
         accentColorObservationTask?.cancel()
+        outboxFailureToastTask?.cancel()
     }
 
     @available(*, unavailable)
@@ -192,6 +196,10 @@ class MainWindow: UIWindow {
         CommunitySpotlightIndexer.reindex(appDatabase: appDatabase)
         // Keep the Spotlight saved + history content index current too.
         ContentSpotlightIndexer.reindex(appDatabase: appDatabase)
+
+        // Surface this account's permanent outbox failures as toasts, and drain
+        // any ops left pending from a previous session.
+        startObservingOutboxFailures(keychainId: keychainId)
 
         // Tab: Setup the split view controller
         let splitViewController = MainWindowSplitViewController(
@@ -280,6 +288,42 @@ class MainWindow: UIWindow {
             items.indices.contains(Self.inboxTabIndex)
         else { return }
         items[Self.inboxTabIndex].badgeValue = count.total > 0 ? "\(count.total)" : nil
+    }
+
+    /// Subscribes to the active account's permanent outbox failures and surfaces
+    /// each as a toast. Building the failure stream lazily constructs and
+    /// `start()`s the outbox (enabling reachability-driven retry); we also drain
+    /// any ops persisted from a previous session so they retry on launch. A
+    /// signed-out account never enqueues, so there's nothing to observe.
+    private func startObservingOutboxFailures(keychainId: String) {
+        outboxFailureToastTask?.cancel()
+        let scope = accountService.scope(forAccountKeychainId: keychainId)
+        guard !scope.isSignedOut else {
+            outboxFailureToastTask = nil
+            return
+        }
+        outboxFailureToastTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let events = await scope.outboxFailureEvents()
+            await scope.drainPendingOutbox()
+            for await failure in events {
+                if Task.isCancelled { break }
+                presentOutboxFailureToast(failure)
+            }
+        }
+    }
+
+    private func presentOutboxFailureToast(_ failure: OutboxFailure) {
+        let message: String
+        switch failure.kind {
+        case .vote:
+            message = NSLocalizedString("Couldn't vote", comment: "Toast when a vote permanently failed and was reverted")
+        case .save:
+            message = NSLocalizedString("Couldn't save", comment: "Toast when a save permanently failed and was reverted")
+        case .hide:
+            message = NSLocalizedString("Couldn't hide", comment: "Toast when a hide permanently failed and was reverted")
+        }
+        ToastPresenter.shared.show(message, in: self)
     }
 
     /// Routes to the Account tab (its signed-out screen offers log in / sign

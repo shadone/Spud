@@ -77,6 +77,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // changes made while we were away.
         CommunitySpotlightIndexer.reindex(appDatabase: AppCoordinator.shared.dependencies.appDatabase)
         ContentSpotlightIndexer.reindex(appDatabase: AppCoordinator.shared.dependencies.appDatabase)
+
+        // Retry any pending outbox ops for the active account. There's no backoff
+        // timer, so foreground (alongside reconnect and enqueue) is a retry
+        // trigger — this covers being foregrounded with pending ops but no
+        // connectivity change since.
+        let accountService = AppCoordinator.shared.dependencies.accountService
+        if let keychainId = accountService.currentDefaultAccountKeychainId() {
+            Task { await accountService.scope(forAccountKeychainId: keychainId).drainPendingOutbox() }
+        }
     }
 
     func sceneDidEnterBackground(_ scene: UIScene) {

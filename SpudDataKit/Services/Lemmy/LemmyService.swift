@@ -179,6 +179,12 @@ public protocol LemmyServiceType: Actor {
     /// silently and never appear here.
     func outboxFailureEvents() async -> AsyncStream<OutboxFailure>
 
+    /// Drains any operations persisted in this account's outbox right now (e.g.
+    /// ops left pending by a previous session, or held while offline). Lazily
+    /// constructs and `start()`s the outbox if needed. A no-op when the account
+    /// row can't be resolved.
+    func drainPendingOutbox() async
+
     func markAsRead(
         serverPostId: Components.Schemas.PostID
     ) async throws
@@ -1545,6 +1551,10 @@ public actor LemmyService: LemmyServiceType {
             return AsyncStream { $0.finish() }
         }
         return await outbox.failureEvents
+    }
+
+    public func drainPendingOutbox() async {
+        await outboxService()?.drainAll()
     }
 
     public func markAsRead(

@@ -1145,11 +1145,20 @@ class PostDetailViewController: UIViewController {
     }
 
     private func voteOnPost(_ action: VoteStatus.Action) async {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to vote", comment: "Sign-in gate title when a signed-out user tries to vote")
+            )
+            return
+        }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
             try await viewModel.accountScope.lemmyService
                 .vote(serverPostId: viewModel.serverPostId, vote: action)
         } catch {
+            // The optimistic write already applied synchronously inside enqueue;
+            // network failures are retried by the outbox and surfaced via toast.
+            // This catch is now a defensive log only.
             alertService.handle(error, for: .vote)
         }
     }
@@ -1200,11 +1209,20 @@ class PostDetailViewController: UIViewController {
     }
 
     private func voteOnComment(serverCommentId: Int64, action: VoteStatus.Action) async {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to vote", comment: "Sign-in gate title when a signed-out user tries to vote")
+            )
+            return
+        }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         do {
             try await viewModel.accountScope.lemmyService
                 .vote(serverCommentId: Components.Schemas.CommentID(serverCommentId), vote: action)
         } catch {
+            // The optimistic write already applied synchronously inside enqueue;
+            // network failures are retried by the outbox and surfaced via toast.
+            // This catch is now a defensive log only.
             alertService.handle(error, for: .vote)
         }
     }

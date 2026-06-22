@@ -61,6 +61,13 @@ public struct AccountScope {
     public func outboxFailureEvents() async -> AsyncStream<OutboxFailure> {
         await lemmyService.outboxFailureEvents()
     }
+
+    /// Drains any operations persisted in this account's outbox right now,
+    /// retrying vote/save/hide mutations left pending by a previous session or
+    /// held while offline. Used as a foreground / launch retry trigger.
+    public func drainPendingOutbox() async {
+        await lemmyService.drainPendingOutbox()
+    }
 }
 
 @MainActor
