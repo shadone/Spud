@@ -3,7 +3,8 @@ import Testing
 @testable import SpudDataKit
 
 struct OutboxOperationTests {
-    @Test func voteEncodingRoundTrips() {
+    @Test
+    func voteEncodingRoundTrips() {
         for status in [LikeStatus.liked, .disliked, .neutral] {
             let state = OutboxDesiredState.vote(status)
             #expect(state.kind == .vote)
@@ -12,7 +13,8 @@ struct OutboxOperationTests {
         }
     }
 
-    @Test func saveAndHideEncodingRoundTrips() {
+    @Test
+    func saveAndHideEncodingRoundTrips() {
         for value in [true, false] {
             let save = OutboxDesiredState.save(value)
             #expect(OutboxDesiredState.decode(kind: .save, raw: save.encoded) == save)
@@ -21,7 +23,8 @@ struct OutboxOperationTests {
         }
     }
 
-    @Test func operationDerivesKindFromDesiredState() {
+    @Test
+    func operationDerivesKindFromDesiredState() {
         let op = OutboxOperation(entityType: .post, entityServerId: 7, desiredState: .save(true))
         #expect(op.kind == .save)
     }

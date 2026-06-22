@@ -50,7 +50,9 @@ public struct OutboxOperation: Sendable, Equatable {
     public let entityServerId: Int64
     public let desiredState: OutboxDesiredState
 
-    public var kind: OutboxKind { desiredState.kind }
+    public var kind: OutboxKind {
+        desiredState.kind
+    }
 
     public init(entityType: OutboxEntityType, entityServerId: Int64, desiredState: OutboxDesiredState) {
         self.entityType = entityType
