@@ -790,9 +790,17 @@ extension PostDetailCommentCell {
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
+        // Never recognize simultaneously with the enclosing table view's scroll
+        // pan. Doing so suppresses the cancellation UIKit normally applies to the
+        // tap once a scroll begins, so a vertical drag survives as a tap and
+        // collapses the thread mid-scroll. The swipe pan (SwipeActionView) and the
+        // link taps are not scroll views, so they still coexist below.
+        if otherGestureRecognizer.view is UIScrollView {
+            return false
+        }
         // Coexist with the LinkLabel tap recognizers (we filter link hits in
         // the handler) and with the swipe pan recognizer.
-        true
+        return true
     }
 }
 
