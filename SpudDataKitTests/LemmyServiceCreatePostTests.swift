@@ -57,6 +57,7 @@ private final class StubCreatePostTransport: ClientTransport, @unchecked Sendabl
     }
 }
 
+@MainActor
 final class LemmyServiceCreatePostTests: XCTestCase {
     private let keychainId = "keychain-1"
     private let serverCommunityId: Components.Schemas.CommunityID = 1
@@ -108,7 +109,8 @@ final class LemmyServiceCreatePostTests: XCTestCase {
             accountKeychainId: keychainId,
             accountIsSignedOut: accountIsSignedOut,
             appDatabase: appDatabase,
-            api: api
+            api: api,
+            reachability: StaticReachabilityMonitor(isOnline: true)
         )
     }
 

@@ -172,6 +172,13 @@ public protocol LemmyServiceType: Actor {
         hidden: Bool
     ) async throws
 
+    /// A stream of permanent outbox failures (e.g. an expired session) for the
+    /// vote/save/hide operations enqueued through this service. Each event names
+    /// the entity whose optimistic write was rolled back so the UI can surface
+    /// the failure. Transient failures (offline / server hiccups) are retried
+    /// silently and never appear here.
+    func outboxFailureEvents() async -> AsyncStream<OutboxFailure>
+
     func markAsRead(
         serverPostId: Components.Schemas.PostID
     ) async throws
@@ -449,6 +456,16 @@ public actor LemmyService: LemmyServiceType {
     let accountIsSignedOut: Bool
     let appDatabase: AppDatabase
     let api: LemmyApi
+    private let reachability: ReachabilityMonitoring
+
+    /// Task-memoized lazy outbox. Construction is deferred to the first
+    /// vote/save/hide call because it needs `accountSiteIds()` (an async DB
+    /// read) and must call `start()`. Memoizing the *Task* (not the value)
+    /// makes concurrent callers share one construction even under actor
+    /// reentrancy: the `outboxTask = task` assignment runs before the first
+    /// `await task.value`, so a second caller arriving mid-await sees the
+    /// in-flight task rather than starting a second drain loop.
+    private var outboxTask: Task<OutboxService?, Never>?
 
     // MARK: Functions
 
@@ -456,14 +473,43 @@ public actor LemmyService: LemmyServiceType {
         accountKeychainId: String,
         accountIsSignedOut: Bool,
         appDatabase: AppDatabase,
-        api: LemmyApi
+        api: LemmyApi,
+        reachability: ReachabilityMonitoring
     ) {
         accountIdentifierForLogging = accountKeychainId
         self.accountIsSignedOut = accountIsSignedOut
         self.appDatabase = appDatabase
         self.api = api
+        self.reachability = reachability
 
         logger.info("Creating new service for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
+    }
+
+    /// Lazily builds (and `start()`s) the per-account `OutboxService`, returning
+    /// `nil` only when the account row can't be resolved (no ids -> no outbox).
+    /// Memoized via `outboxTask` so every call shares one service instance.
+    private func outboxService() async -> OutboxService? {
+        if let outboxTask { return await outboxTask.value }
+        let task = Task<OutboxService?, Never> { [self] in
+            guard let ids = try? await accountSiteIds() else { return nil }
+            let performer = LemmyOutboxPerformer(
+                api: api,
+                appDatabase: appDatabase,
+                accountId: ids.0,
+                siteId: ids.1
+            )
+            let service = OutboxService(
+                accountId: ids.0,
+                appDatabase: appDatabase,
+                performer: performer,
+                reachability: reachability,
+                now: { Date().timeIntervalSince1970 }
+            )
+            await service.start()
+            return service
+        }
+        outboxTask = task
+        return await task.value
     }
 
     /// Looks up the GRDB account row for this LemmyService and returns
@@ -943,6 +989,15 @@ public actor LemmyService: LemmyServiceType {
         serverPostId: Components.Schemas.PostID,
         vote action: VoteStatus.Action
     ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Vote rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                postId=\(serverPostId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
         let currentVoteStatus: VoteStatus
         do {
             currentVoteStatus = try await appDatabase.postVoteStatus(
@@ -954,33 +1009,38 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError.internalInconsistency(description: "post vote status lookup failed: \(error.localizedDescription)")
         }
 
-        let effectiveAction = currentVoteStatus.effectiveAction(for: action)
+        let desired = currentVoteStatus.effectiveAction(for: action)
 
         logger.debug("""
             Vote '\(action, privacy: .public)' \
-            (effective '\(effectiveAction, privacy: .public)') \
+            (desired '\(desired, privacy: .public)') \
             for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Components.Schemas.PostResponse
-        do {
-            response = try await api.likePost(postID: serverPostId, status: effectiveAction)
-        } catch {
-            logger.error("""
-                Vote failed. postId=\(serverPostId, privacy: .public). \
-                \(String(describing: error), privacy: .public)
-                """)
-            throw LemmyServiceError(from: error)
+        guard let outbox = await outboxService() else {
+            throw LemmyServiceError.internalInconsistency(description: "outbox unavailable")
         }
-
-        await mirrorPostInfoToAppDatabase(view: response.post_view)
+        await outbox.enqueue(OutboxOperation(
+            entityType: .post,
+            entityServerId: Int64(serverPostId),
+            desiredState: .vote(desired)
+        ))
     }
 
     public func vote(
         serverCommentId: Components.Schemas.CommentID,
         vote action: VoteStatus.Action
     ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Vote rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                commentId=\(serverCommentId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
         let currentVoteStatus: VoteStatus
         do {
             currentVoteStatus = try await appDatabase.commentVoteStatus(
@@ -992,27 +1052,23 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError.internalInconsistency(description: "comment vote status lookup failed: \(error.localizedDescription)")
         }
 
-        let effectiveAction = currentVoteStatus.effectiveAction(for: action)
+        let desired = currentVoteStatus.effectiveAction(for: action)
 
         logger.debug("""
             Vote '\(action, privacy: .public)' \
-            (effective '\(effectiveAction, privacy: .public)') \
+            (desired '\(desired, privacy: .public)') \
             for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             commentId=\(serverCommentId, privacy: .public)
             """)
 
-        let response: Components.Schemas.CommentResponse
-        do {
-            response = try await api.likeComment(commentID: serverCommentId, status: effectiveAction)
-        } catch {
-            logger.error("""
-                Vote failed. commentId=\(serverCommentId, privacy: .public). \
-                \(String(describing: error), privacy: .public)
-                """)
-            throw LemmyServiceError(from: error)
+        guard let outbox = await outboxService() else {
+            throw LemmyServiceError.internalInconsistency(description: "outbox unavailable")
         }
-
-        await mirrorCommentToAppDatabase(view: response.comment_view)
+        await outbox.enqueue(OutboxOperation(
+            entityType: .comment,
+            entityServerId: Int64(serverCommentId),
+            desiredState: .vote(desired)
+        ))
     }
 
     public func createComment(
@@ -1150,18 +1206,14 @@ public actor LemmyService: LemmyServiceType {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Components.Schemas.PostResponse
-        do {
-            response = try await api.savePost(postID: serverPostId, save: saved)
-        } catch {
-            logger.error("""
-                Save post failed. postId=\(serverPostId, privacy: .public). \
-                \(String(describing: error), privacy: .public)
-                """)
-            throw LemmyServiceError(from: error)
+        guard let outbox = await outboxService() else {
+            throw LemmyServiceError.internalInconsistency(description: "outbox unavailable")
         }
-
-        await mirrorPostInfoToAppDatabase(view: response.post_view)
+        await outbox.enqueue(OutboxOperation(
+            entityType: .post,
+            entityServerId: Int64(serverPostId),
+            desiredState: .save(saved)
+        ))
     }
 
     public func setSaved(
@@ -1183,18 +1235,14 @@ public actor LemmyService: LemmyServiceType {
             commentId=\(serverCommentId, privacy: .public)
             """)
 
-        let response: Components.Schemas.CommentResponse
-        do {
-            response = try await api.saveComment(commentID: serverCommentId, save: saved)
-        } catch {
-            logger.error("""
-                Save comment failed. commentId=\(serverCommentId, privacy: .public). \
-                \(String(describing: error), privacy: .public)
-                """)
-            throw LemmyServiceError(from: error)
+        guard let outbox = await outboxService() else {
+            throw LemmyServiceError.internalInconsistency(description: "outbox unavailable")
         }
-
-        await mirrorCommentToAppDatabase(view: response.comment_view)
+        await outbox.enqueue(OutboxOperation(
+            entityType: .comment,
+            entityServerId: Int64(serverCommentId),
+            desiredState: .save(saved)
+        ))
     }
 
     func mirrorCommentToAppDatabase(
@@ -1480,29 +1528,21 @@ public actor LemmyService: LemmyServiceType {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Components.Schemas.SuccessResponse
-        do {
-            response = try await api.hidePost(postIDs: [serverPostId], hide: hidden)
-        } catch {
-            logger.error("""
-                Hide post failed. postId=\(serverPostId, privacy: .public). \
-                \(String(describing: error), privacy: .public)
-                """)
-            throw LemmyServiceError(from: error)
+        guard let outbox = await outboxService() else {
+            throw LemmyServiceError.internalInconsistency(description: "outbox unavailable")
         }
+        await outbox.enqueue(OutboxOperation(
+            entityType: .post,
+            entityServerId: Int64(serverPostId),
+            desiredState: .hide(hidden)
+        ))
+    }
 
-        if response.success {
-            do {
-                guard let (accountRowId, _) = try await accountSiteIds() else { return }
-                try await appDatabase.setPostIsHidden(
-                    accountId: accountRowId,
-                    serverPostId: Int64(serverPostId),
-                    isHidden: hidden
-                )
-            } catch {
-                logger.error("AppDatabase setPostIsHidden failed: \(String(describing: error), privacy: .public)")
-            }
+    public func outboxFailureEvents() async -> AsyncStream<OutboxFailure> {
+        guard let outbox = await outboxService() else {
+            return AsyncStream { $0.finish() }
         }
+        return await outbox.failureEvents
     }
 
     public func markAsRead(

@@ -77,6 +77,7 @@ private final class StubSaveTransport: ClientTransport, @unchecked Sendable {
     }
 }
 
+@MainActor
 final class LemmyServiceSaveTests: XCTestCase {
     private let keychainId = "keychain-1"
     private let serverPostId: Components.Schemas.PostID = 1
@@ -140,7 +141,8 @@ final class LemmyServiceSaveTests: XCTestCase {
             accountKeychainId: keychainId,
             accountIsSignedOut: accountIsSignedOut,
             appDatabase: appDatabase,
-            api: api
+            api: api,
+            reachability: StaticReachabilityMonitor(isOnline: true)
         )
     }
 

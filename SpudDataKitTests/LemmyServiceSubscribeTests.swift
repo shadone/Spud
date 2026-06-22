@@ -57,6 +57,7 @@ private final class StubFollowCommunityTransport: ClientTransport, @unchecked Se
     }
 }
 
+@MainActor
 final class LemmyServiceSubscribeTests: XCTestCase {
     private let keychainId = "keychain-1"
     private let serverCommunityId: Components.Schemas.CommunityID = 1
@@ -106,7 +107,8 @@ final class LemmyServiceSubscribeTests: XCTestCase {
             accountKeychainId: keychainId,
             accountIsSignedOut: accountIsSignedOut,
             appDatabase: appDatabase,
-            api: api
+            api: api,
+            reachability: StaticReachabilityMonitor(isOnline: true)
         )
     }
 

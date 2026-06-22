@@ -111,6 +111,7 @@ private final class StubModerationTransport: ClientTransport, @unchecked Sendabl
     }
 }
 
+@MainActor
 final class LemmyServiceModerationTests: XCTestCase {
     private let keychainId = "keychain-mod-1"
 
@@ -172,7 +173,8 @@ final class LemmyServiceModerationTests: XCTestCase {
             accountKeychainId: keychainId,
             accountIsSignedOut: accountIsSignedOut,
             appDatabase: appDatabase,
-            api: api
+            api: api,
+            reachability: StaticReachabilityMonitor(isOnline: true)
         )
     }
 

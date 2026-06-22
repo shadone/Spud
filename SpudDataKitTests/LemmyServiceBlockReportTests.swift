@@ -92,6 +92,7 @@ private final class StubBlockReportTransport: ClientTransport, @unchecked Sendab
     }
 }
 
+@MainActor
 final class LemmyServiceBlockReportTests: XCTestCase {
     private let keychainId = "keychain-1"
 
@@ -138,7 +139,8 @@ final class LemmyServiceBlockReportTests: XCTestCase {
             accountKeychainId: keychainId,
             accountIsSignedOut: accountIsSignedOut,
             appDatabase: appDatabase,
-            api: api
+            api: api,
+            reachability: StaticReachabilityMonitor(isOnline: true)
         )
     }
 

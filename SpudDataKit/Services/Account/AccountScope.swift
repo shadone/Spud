@@ -54,6 +54,13 @@ public struct AccountScope {
     public var instanceActorId: InstanceActorId? {
         accountService.instanceActorId(forAccountKeychainId: accountKeychainId)
     }
+
+    /// A stream of permanent outbox failures (e.g. an expired session) for the
+    /// account's optimistic vote/save/hide mutations, so a screen can surface the
+    /// rollback. Forwards the account `LemmyService`'s outbox failure stream.
+    public func outboxFailureEvents() async -> AsyncStream<OutboxFailure> {
+        await lemmyService.outboxFailureEvents()
+    }
 }
 
 @MainActor

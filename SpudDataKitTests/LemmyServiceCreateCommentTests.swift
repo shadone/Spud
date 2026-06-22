@@ -58,6 +58,7 @@ private final class StubCreateCommentTransport: ClientTransport, @unchecked Send
     }
 }
 
+@MainActor
 final class LemmyServiceCreateCommentTests: XCTestCase {
     private let keychainId = "keychain-1"
     private let serverPostId: Components.Schemas.PostID = 1
@@ -122,7 +123,8 @@ final class LemmyServiceCreateCommentTests: XCTestCase {
             accountKeychainId: keychainId,
             accountIsSignedOut: accountIsSignedOut,
             appDatabase: appDatabase,
-            api: api
+            api: api,
+            reachability: StaticReachabilityMonitor(isOnline: true)
         )
     }
 

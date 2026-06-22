@@ -54,6 +54,7 @@ private final class StubGetPostsTransport: ClientTransport, @unchecked Sendable 
     }
 }
 
+@MainActor
 final class LemmyServiceFetchSavedFeedTests: XCTestCase {
     private let keychainId = "keychain-1"
 
@@ -100,7 +101,8 @@ final class LemmyServiceFetchSavedFeedTests: XCTestCase {
             accountKeychainId: keychainId,
             accountIsSignedOut: accountIsSignedOut,
             appDatabase: appDatabase,
-            api: api
+            api: api,
+            reachability: StaticReachabilityMonitor(isOnline: true)
         )
     }
 

@@ -186,12 +186,21 @@ public class AccountService: AccountServiceType {
     /// bundle lacks; production uses `KeychainCredentialStore`.
     private let credentialStore: CredentialStore
 
+    /// Network reachability, threaded into each per-account `LemmyService` so its
+    /// outbox can classify failures (offline = transient, retry on reconnect) and
+    /// auto-drain when connectivity returns. Defaults to a live monitor so the
+    /// many `AccountService(appDatabase:)` call sites (tests, widget) keep working.
+    private let reachabilityMonitor: ReachabilityMonitoring
+
     private var lemmyServices: [String: LemmyService] = [:]
 
     // MARK: Functions
 
-    public convenience init(appDatabase: AppDatabase) {
-        self.init(appDatabase: appDatabase) { instanceUrl, credential in
+    public convenience init(
+        appDatabase: AppDatabase,
+        reachabilityMonitor: ReachabilityMonitoring = ReachabilityMonitor()
+    ) {
+        self.init(appDatabase: appDatabase, reachabilityMonitor: reachabilityMonitor) { instanceUrl, credential in
             LemmyApi(instanceUrl: instanceUrl, credential: credential, userAgent: AppUserAgent.value)
         }
     }
@@ -199,10 +208,12 @@ public class AccountService: AccountServiceType {
     init(
         appDatabase: AppDatabase,
         credentialStore: CredentialStore = KeychainCredentialStore(),
+        reachabilityMonitor: ReachabilityMonitoring = ReachabilityMonitor(),
         makeApi: @escaping @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?) -> LemmyApi
     ) {
         self.appDatabase = appDatabase
         self.credentialStore = credentialStore
+        self.reachabilityMonitor = reachabilityMonitor
         self.makeApi = makeApi
     }
 
@@ -393,7 +404,8 @@ public class AccountService: AccountServiceType {
             accountKeychainId: keychainId,
             accountIsSignedOut: snapshot.isSignedOut,
             appDatabase: appDatabase,
-            api: api
+            api: api,
+            reachability: reachabilityMonitor
         )
         lemmyServices[keychainId] = service
         return service

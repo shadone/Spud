@@ -58,6 +58,7 @@ private final class StubSearchTransport: ClientTransport, @unchecked Sendable {
     }
 }
 
+@MainActor
 final class LemmyServiceSearchTests: XCTestCase {
     private let keychainId = "keychain-1"
 
@@ -102,7 +103,8 @@ final class LemmyServiceSearchTests: XCTestCase {
             accountKeychainId: keychainId,
             accountIsSignedOut: false,
             appDatabase: appDatabase,
-            api: api
+            api: api,
+            reachability: StaticReachabilityMonitor(isOnline: true)
         )
     }
 

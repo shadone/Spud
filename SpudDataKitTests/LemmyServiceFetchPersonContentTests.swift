@@ -58,6 +58,7 @@ private final class StubGetPersonDetailsTransport: ClientTransport, @unchecked S
     }
 }
 
+@MainActor
 final class LemmyServiceFetchPersonContentTests: XCTestCase {
     private let keychainId = "keychain-1"
 
@@ -99,7 +100,8 @@ final class LemmyServiceFetchPersonContentTests: XCTestCase {
             accountKeychainId: keychainId,
             accountIsSignedOut: false,
             appDatabase: appDatabase,
-            api: api
+            api: api,
+            reachability: StaticReachabilityMonitor(isOnline: true)
         )
     }
 

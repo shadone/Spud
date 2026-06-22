@@ -53,8 +53,9 @@ struct DependencyContainer:
             fatalError("Failed to open AppDatabase: \(error)")
         }
 
+        reachabilityMonitor = ReachabilityMonitor()
         siteService = SiteService(appDatabase: appDatabase)
-        accountService = AccountService(appDatabase: appDatabase)
+        accountService = AccountService(appDatabase: appDatabase, reachabilityMonitor: reachabilityMonitor)
         schedulerService = SchedulerService(
             appDatabase: appDatabase,
             accountService: accountService,
@@ -65,7 +66,6 @@ struct DependencyContainer:
         appService = AppService(preferencesService: preferencesService, appDatabase: appDatabase)
         unreadCountService = UnreadCountService(accountService: accountService)
         explorerService = ExplorerService(appDatabase: appDatabase)
-        reachabilityMonitor = ReachabilityMonitor()
     }
 
     func start() {
