@@ -55,7 +55,7 @@ final class LoadFailureTests: XCTestCase {
     }
 
     func testUnknownErrorDefaultsToUnreachable() {
-        struct Mystery: Error {}
+        struct Mystery: Error { }
         let failure = LoadFailure.classify(Mystery(), isOnline: true)
         XCTAssertEqual(failure.kind, .unreachable)
     }
