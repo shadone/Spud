@@ -8,6 +8,7 @@ import Foundation
 import OSLog
 import SpudDataKit
 import SpudMarkdownKit
+import SpudUIKit
 import SpudUtilKit
 import UIKit
 
@@ -41,6 +42,7 @@ struct PostDetailCommentViewModel {
     /// rebuild `MarkdownBodyView` with a matching context when the preference
     /// changes between configure calls.
     let textSizeAdjustment: CGFloat
+    let commentDensity: PostDensity
 
     /// Previewable links found in the comment body, rendered as `LinkPreviewView`
     /// cards below the text. Empty for moderation placeholders (no blocks) and for
@@ -114,6 +116,7 @@ struct PostDetailCommentViewModel {
     ) {
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
         self.textSizeAdjustment = textSizeAdjustment
+        commentDensity = appearance.postDetail.commentDensity
 
         let isDeleted = row.isDeleted == true
         let isRemoved = row.isRemoved == true
