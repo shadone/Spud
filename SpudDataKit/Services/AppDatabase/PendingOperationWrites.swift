@@ -312,3 +312,26 @@ private extension AppDatabase {
         _ = try PendingOperationRecord.deleteOne(db, key: id)
     }
 }
+
+// MARK: - Reconciliation guard helper
+
+extension AppDatabase {
+    /// Returns the set of pending outbox operation kinds for a given entity,
+    /// used by importers to avoid clobbering un-synced optimistic state.
+    static func pendingOutboxKinds(
+        _ db: Database,
+        accountId: Int64,
+        entityType: String,
+        entityServerId: Int64
+    ) throws -> Set<OutboxKind> {
+        let raws = try String.fetchAll(
+            db,
+            sql: """
+                SELECT kind FROM pendingOperation
+                WHERE accountId = ? AND entityType = ? AND entityServerId = ?
+                """,
+            arguments: [accountId, entityType, entityServerId]
+        )
+        return Set(raws.compactMap(OutboxKind.init(rawValue:)))
+    }
+}

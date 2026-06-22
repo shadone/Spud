@@ -166,3 +166,21 @@ func readCommentVote(
         return (row?.score ?? 0, row?.voteStatus)
     }
 }
+
+// MARK: - PostView builder
+
+/// Builds a PostView for the fake post (server id 1) with the given vote and
+/// score. Used by ReconciliationGuardTests to simulate a background refresh.
+func makePostView(
+    postId: Int64,
+    myVote: Int32?,
+    score: Int64
+) -> Components.Schemas.PostView {
+    let post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
+    var counts = Components.Schemas.PostAggregates.fake(post: post)
+    counts.score = score
+    var view = Components.Schemas.PostView.fake(post: post, creator: .fake, community: .fake)
+    view.counts = counts
+    view.my_vote = myVote
+    return view
+}

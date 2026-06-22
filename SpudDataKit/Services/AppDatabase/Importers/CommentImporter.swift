@@ -15,10 +15,15 @@ public extension AppDatabase {
     /// Upserts a single comment row tied to its post. Used by vote/edit flows
     /// where we receive a fresh CommentView for one comment without rebuilding
     /// the whole tree. Skips silently if the post is not yet in AppDatabase.
+    ///
+    /// When `respectsPendingOutbox` is `true` (the default), any pending
+    /// outbox operations for this comment will prevent the corresponding
+    /// optimistic fields from being overwritten by server data.
     func upsertComment(
         from view: Components.Schemas.CommentView,
         accountId: Int64,
-        siteId: Int64
+        siteId: Int64,
+        respectsPendingOutbox: Bool = true
     ) async throws {
         try await writer.write { db in
             guard
@@ -31,8 +36,10 @@ public extension AppDatabase {
 
             _ = try Self.upsertComment(
                 from: view,
+                accountId: accountId,
                 postRowId: postRowId,
                 siteId: siteId,
+                respectsPendingOutbox: respectsPendingOutbox,
                 in: db
             )
         }
@@ -89,8 +96,10 @@ public extension AppDatabase {
 
                 let commentRowId = try Self.upsertComment(
                     from: view,
+                    accountId: accountId,
                     postRowId: postRowId,
                     siteId: siteId,
+                    respectsPendingOutbox: true,
                     in: db
                 )
 
@@ -151,8 +160,10 @@ public extension AppDatabase {
 
     private static func upsertComment(
         from view: Components.Schemas.CommentView,
+        accountId: Int64,
         postRowId: Int64,
         siteId: Int64,
+        respectsPendingOutbox: Bool,
         in db: Database
     ) throws -> Int64 {
         let creatorId = try AppDatabase.upsertPerson(
@@ -169,8 +180,19 @@ public extension AppDatabase {
             .filter(Column("localCommentId") == serverCommentId)
             .fetchOne(db)
         {
+            let pendingKinds = respectsPendingOutbox
+                ? try AppDatabase.pendingOutboxKinds(db, accountId: accountId, entityType: "comment", entityServerId: serverCommentId)
+                : []
+            let preserved = existing
             existing.creatorId = creatorId
             apply(view: view, to: &existing, now: now)
+            if pendingKinds.contains(.vote) {
+                existing.voteStatus = preserved.voteStatus
+                existing.score = preserved.score
+                existing.numberOfUpvotes = preserved.numberOfUpvotes
+                existing.numberOfDownvotes = preserved.numberOfDownvotes
+            }
+            if pendingKinds.contains(.save) { existing.isSaved = preserved.isSaved }
             try existing.update(db)
             return existing.id!
         }

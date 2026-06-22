@@ -55,14 +55,19 @@ public extension AppDatabase {
     /// Upserts a post tied to `accountId` along with its creator and
     /// community, so all foreign keys are satisfied. Returns the resolved
     /// post row id.
+    ///
+    /// When `respectsPendingOutbox` is `true` (the default), any pending
+    /// outbox operations for this post will prevent the corresponding
+    /// optimistic fields from being overwritten by server data.
     @discardableResult
     func upsertPost(
         from view: Components.Schemas.PostView,
         accountId: Int64,
-        siteId: Int64
+        siteId: Int64,
+        respectsPendingOutbox: Bool = true
     ) async throws -> Int64 {
         try await writer.write { db in
-            try Self.upsertPost(from: view, accountId: accountId, siteId: siteId, in: db)
+            try Self.upsertPost(from: view, accountId: accountId, siteId: siteId, respectsPendingOutbox: respectsPendingOutbox, in: db)
         }
     }
 
@@ -70,6 +75,7 @@ public extension AppDatabase {
         from view: Components.Schemas.PostView,
         accountId: Int64,
         siteId: Int64,
+        respectsPendingOutbox: Bool = true,
         in db: Database
     ) throws -> Int64 {
         let creatorId = try AppDatabase.upsertPerson(
@@ -91,9 +97,21 @@ public extension AppDatabase {
             .filter(Column("postId") == serverPostId)
             .fetchOne(db)
         {
+            let pendingKinds = respectsPendingOutbox
+                ? try AppDatabase.pendingOutboxKinds(db, accountId: accountId, entityType: "post", entityServerId: serverPostId)
+                : []
+            let preserved = existing
             existing.creatorId = creatorId
             existing.communityId = communityRowId
             apply(view: view, to: &existing, now: now)
+            if pendingKinds.contains(.vote) {
+                existing.voteStatus = preserved.voteStatus
+                existing.score = preserved.score
+                existing.numberOfUpvotes = preserved.numberOfUpvotes
+                existing.numberOfDownvotes = preserved.numberOfDownvotes
+            }
+            if pendingKinds.contains(.save) { existing.isSaved = preserved.isSaved }
+            if pendingKinds.contains(.hide) { existing.isHidden = preserved.isHidden }
             try existing.update(db)
             return existing.id!
         }
