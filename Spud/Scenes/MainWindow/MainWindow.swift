@@ -307,7 +307,7 @@ class MainWindow: UIWindow {
             let events = await scope.outboxFailureEvents()
             await scope.drainPendingOutbox()
             for await failure in events {
-                if Task.isCancelled { break }
+                guard currentDefaultAccountKeychainId == keychainId else { break }
                 presentOutboxFailureToast(failure)
             }
         }
