@@ -178,6 +178,13 @@ final class PostDetailViewModel {
     }
 
     func fetchComments() async {
+        // De-dup overlapping fetches: only one comment fetch runs at a time. A
+        // second trigger while one is already in flight is a no-op — its result
+        // would be redundant, and letting it run would reset `isLoadingComments`
+        // early and flap the loading state. (When a per-post comment sort
+        // switcher is added, this should become cancel-and-replace so a sort
+        // change supersedes the in-flight fetch rather than being dropped.)
+        guard !isLoadingComments else { return }
         isLoadingComments = true
         defer { isLoadingComments = false }
         do {
