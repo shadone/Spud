@@ -6,6 +6,7 @@
 
 import SpudDataKit
 import SpudMarkdownKit
+import SpudUIKit
 import UIKit
 
 class PostDetailCommentCell: UITableViewCell {
@@ -232,10 +233,10 @@ class PostDetailCommentCell: UITableViewCell {
         return label
     }()
 
-    /// Rendered comment-body markdown view. Recreated when the text-size
-    /// preference changes, since `MarkdownBodyView` bakes the context (fonts,
-    /// spacing) at init time.
-    private(set) lazy var bodyView: MarkdownBodyView = makeBodyView(textScale: 0)
+    /// Rendered comment-body markdown view. Recreated when the text-size or
+    /// density preference changes, since `MarkdownBodyView` bakes the context
+    /// (fonts, spacing) at init time.
+    private(set) lazy var bodyView: MarkdownBodyView = makeBodyView(textScale: 0, density: .comfortable)
 
     /// Placeholder body for deleted or removed comments (a styled attributed
     /// string with an icon + italic label). Hidden for normal comments that use
@@ -339,6 +340,10 @@ class PostDetailCommentCell: UITableViewCell {
     /// stack view so fonts reflect the updated preference.
     private var bodyViewTextScale: CGFloat = 0
 
+    /// Density baked into the current `bodyView`, compared on each configure
+    /// alongside `bodyViewTextScale`.
+    private var bodyViewDensity: PostDensity = .comfortable
+
     /// The row's non-fresh resting wash color (clear, or the distinguished /
     /// collapsed tint), captured in `configure` so the fade lands on the right
     /// background instead of always clearing to transparent.
@@ -349,8 +354,8 @@ class PostDetailCommentCell: UITableViewCell {
 
     // MARK: Functions
 
-    private func makeBodyView(textScale: CGFloat) -> MarkdownBodyView {
-        let context = MarkdownContext(kind: .comment, textScale: textScale, density: .comfortable)
+    private func makeBodyView(textScale: CGFloat, density: PostDensity) -> MarkdownBodyView {
+        let context = MarkdownContext(kind: .comment, textScale: textScale, density: density)
         let view = MarkdownBodyView(context: context)
         view.translatesAutoresizingMaskIntoConstraints = false
         view.accessibilityIdentifier = "body"
@@ -524,18 +529,20 @@ class PostDetailCommentCell: UITableViewCell {
             authorLabel.attributedText = viewModel.author
             subtitleLabel.attributedText = viewModel.subtitle
 
-            // Rebuild the body view when the text-scale preference changes so fonts
-            // are correct; otherwise reuse the existing instance.
+            // Rebuild the body view when the text-scale or density preference
+            // changes so fonts are correct; otherwise reuse the existing instance.
             let textScale = viewModel.textSizeAdjustment
-            if textScale != bodyViewTextScale {
+            let density = viewModel.commentDensity
+            if textScale != bodyViewTextScale || density != bodyViewDensity {
                 let oldBodyView = bodyView
-                let newBodyView = makeBodyView(textScale: textScale)
+                let newBodyView = makeBodyView(textScale: textScale, density: density)
                 if let idx = verticalStackView.arrangedSubviews.firstIndex(of: oldBodyView) {
                     verticalStackView.insertArrangedSubview(newBodyView, at: idx)
                     oldBodyView.removeFromSuperview()
                 }
                 bodyView = newBodyView
                 bodyViewTextScale = textScale
+                bodyViewDensity = density
             }
 
             // Normal markdown: use bodyView. Deleted/removed: use messageLabel for

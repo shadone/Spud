@@ -63,6 +63,11 @@ protocol PreferencesServiceType: AnyObject {
     var postDensity: PostDensity { get set }
     var postDensityStream: AsyncStream<PostDensity> { get }
 
+    /// Comment-thread density (comfortable / compact) for the post-detail
+    /// screen. Independent of the feed's `postDensity`.
+    var commentDensity: PostDensity { get set }
+    var commentDensityStream: AsyncStream<PostDensity> { get }
+
     /// Where the post-list thumbnail sits (left / right / hidden). Default
     /// `.left` (the pre-M8 layout).
     var thumbnailPosition: ThumbnailPosition { get set }
@@ -203,6 +208,13 @@ class PreferencesService: PreferencesServiceType {
 
     var postDensityStream: AsyncStream<PostDensity> {
         $postDensity
+    }
+
+    @UserDefaultsBacked(key: "commentDensity")
+    var commentDensity: PostDensity = .comfortable
+
+    var commentDensityStream: AsyncStream<PostDensity> {
+        $commentDensity
     }
 
     @UserDefaultsBacked(key: "thumbnailPosition")

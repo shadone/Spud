@@ -6,6 +6,7 @@
 
 import SnapshotTesting
 import SpudDataKit
+import SpudUIKit
 import UIKit
 import XCTest
 @testable import Spud
@@ -149,6 +150,13 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         ))
     }
 
+    func test_compactDensity() {
+        assertComment(viewModel: makeViewModel(
+            row: row(body: "A compact comment renders with tighter, smaller body text."),
+            commentDensity: .compact
+        ))
+    }
+
     // MARK: - Comment cell rendering
 
     private func assertComment(
@@ -208,10 +216,13 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         isCollapsed: Bool = false,
         collapsedDescendantCount: Int? = nil,
         collapsedNewDescendantCount: Int? = nil,
-        isNew: Bool = false
+        isNew: Bool = false,
+        commentDensity: PostDensity = .comfortable
     ) -> PostDetailCommentViewModel {
-        let appearance = AppearanceService(preferencesService: PreferencesService())
-        return PostDetailCommentViewModel(
+        let preferences = PreferencesService()
+        preferences.commentDensity = commentDensity
+        let appearance = AppearanceService(preferencesService: preferences)
+        let viewModel = PostDetailCommentViewModel(
             row: row,
             appearance: appearance,
             postCreatorPersonId: postCreatorPersonId,
@@ -220,6 +231,10 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
             collapsedNewDescendantCount: collapsedNewDescendantCount,
             isNew: isNew
         )
+        // The VM captured the density at init; restore the global default so no
+        // other snapshot renders compact.
+        preferences.commentDensity = .comfortable
+        return viewModel
     }
 
     // MARK: - DepthRailsView component states
