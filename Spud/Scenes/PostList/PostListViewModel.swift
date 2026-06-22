@@ -129,6 +129,15 @@ final class PostListViewModel {
 
     // MARK: - Initial load
 
+    /// Reset the initial-load state so a reload of the SAME feed starts from
+    /// `.loading` rather than re-pinning a stale `.failed` surface (the retry
+    /// and reconnect paths re-run `feedChanged()` without minting a new feed).
+    func prepareForReload() {
+        loadState = .loading(slow: false)
+        paginationState = .idle
+        hasCompletedInitialFetch = false
+    }
+
     /// Fetch the first page with the hard-cap timeout and slow-hint escalation.
     /// Leaves `loadState` at `.loading` on success — the GRDB first snapshot
     /// resolves `.loaded` / `.empty` via `resolveInitialSnapshot(rowCount:)`.

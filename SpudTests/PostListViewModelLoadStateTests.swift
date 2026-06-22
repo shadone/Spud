@@ -117,4 +117,13 @@ final class PostListViewModelLoadStateTests: XCTestCase {
         await vm.retryPagination() // call 3: succeeds
         XCTAssertEqual(vm.paginationState, .idle)
     }
+
+    func testPrepareForReloadResetsFailedToLoading() async {
+        let vm = makeViewModel { _ in throw URLError(.timedOut) }
+        await vm.loadFirstPage()
+        guard case .failed = vm.loadState else { return XCTFail("expected failed") }
+        vm.prepareForReload()
+        XCTAssertEqual(vm.loadState, .loading(slow: false))
+        XCTAssertEqual(vm.paginationState, .idle)
+    }
 }

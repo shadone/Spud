@@ -706,6 +706,7 @@ class PostListViewController: UIViewController {
     }
 
     private func feedChanged() {
+        viewModel.prepareForReload()
         observationTask?.cancel()
         rowsByServerPostId.removeAll()
         orderedRows.removeAll()
