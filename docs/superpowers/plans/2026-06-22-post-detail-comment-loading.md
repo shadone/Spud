@@ -4,7 +4,7 @@
 
 **Goal:** On the post-detail content screen, show a comment-shaped loading skeleton in the comments region while comments are fetched, and a "No comments yet" empty state when a post genuinely has none.
 
-**Architecture:** A pure `CommentsBackground.decide(...)` function chooses skeleton / empty / hidden from three booleans. `PostDetailViewModel` gains an observable `isLoadingComments` flag toggled around its `fetchComments()` network call (pull-to-refresh bypasses this method, so it is excluded). `PostDetailViewController` renders the skeleton and empty views as `tableView.backgroundView` — occluded by the always-present opaque header cell, so they appear only in the comments region below it — driven by an `ObservationStream` task on the flag plus the existing comment-snapshot path.
+**Architecture:** A pure `CommentsBackground.decide(...)` function chooses skeleton / empty / hidden from three booleans. `PostDetailViewModel` gains an observable `isLoadingComments` flag toggled around its `fetchComments()` network call (pull-to-refresh bypasses this method, so it is excluded). `PostDetailViewController` renders the skeleton and empty views as `tableView.backgroundView` — occluded by the always-present opaque header cell, so they appear only in the comments region below it — driven by an `ObservationStream` task on the flag plus the existing comment-snapshot path. The skeleton's pulse + bar factory are shared with the feed's `FeedLoadingSkeletonView` via a small `SkeletonView` base class.
 
 **Tech Stack:** Swift 6 / UIKit, GRDB observations, `@Observable` view models, `ObservationStream.values(of:)`, `swift-snapshot-testing`, XcodeGen, XCTest.
 
@@ -12,6 +12,8 @@ Spec: `docs/superpowers/specs/2026-06-22-post-detail-comment-loading-design.md`
 
 ## Global Constraints
 
+- **Working directory: `/Users/denis/dev/info.ddenis/Spud/Spud-comment-loading`** (an isolated git worktree on branch `feat/post-detail-comment-loading`). Do ALL work here. Never `cd` into `/Users/denis/dev/info.ddenis/Spud/Spud` (the shared checkout, on `main`) or any path containing `/worktrees/` or `/.claude/` or `/.claire/`.
+- Before any commit, verify `git branch --show-current` prints `feat/post-detail-comment-loading`.
 - No emojis in code, comments, docs, or commit messages.
 - Conventional commit subjects (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`); small, focused commits.
 - New source/test files require `make project` (XcodeGen) before they compile into the target — the `.xcodeproj` is generated and gitignored. Run it after creating any file.
@@ -19,9 +21,8 @@ Spec: `docs/superpowers/specs/2026-06-22-post-detail-comment-loading-design.md`
 - Spud target is Swift 6 language mode; the view controller and view model are `@MainActor`.
 - Headless `xcodebuild` needs `-skipPackagePluginValidation -skipMacroValidation`.
 - Unit tests run on the `Spud` test plan; snapshot tests on the `SpudSnapshots` test plan. New snapshot classes here pin `size:` + `displayScale: 2`, so they are device-independent (any booted sim).
-- git-annex tracks all `SpudSnapshotTests/__Snapshots__/**`. Record/verify one class at a time; never `git annex restage` between the record and verify runs; after a green verify, `git add` the PNGs (the annex clean filter stores them); commit new refs before any branch switch.
-- `git status` here hides untracked files — use `git status -uall`. Stage explicit paths; never `git add -A` (`.remember/remember.md` is a dirty session buffer, not ours to commit).
-- Branch for this work: `feat/post-detail-comment-loading` (already created and checked out).
+- git-annex tracks all `SpudSnapshotTests/__Snapshots__/**`. Record/verify one class at a time; never `git annex restage` between the record and verify runs; after a green verify, `git add` the PNGs (the annex clean filter stores them); commit new refs before any branch switch. Existing snapshot PNGs may show as cosmetically "modified" (annex content-availability) — do NOT stage those; stage only the explicit new-class ref directory.
+- `git status` here hides untracked files — use `git status -uall`. Stage explicit paths; never `git add -A`.
 
 ---
 
@@ -96,7 +97,7 @@ final class CommentsBackgroundStateTests: XCTestCase {
 - [ ] **Step 2: Regenerate the project and run the test to verify it fails**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 make project
 xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan Spud \
   -only-testing:SpudTests/CommentsBackgroundStateTests \
@@ -159,7 +160,7 @@ enum CommentsBackground: Equatable {
 - [ ] **Step 4: Regenerate and run the test to verify it passes**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 make project
 xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan Spud \
   -only-testing:SpudTests/CommentsBackgroundStateTests \
@@ -172,7 +173,7 @@ Expected: TEST SUCCEEDED (4 tests pass).
 - [ ] **Step 5: Format and commit**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 mint run swiftformat Spud/Scenes/PostDetail/Content/Comment/CommentsBackgroundState.swift SpudTests/CommentsBackgroundStateTests.swift
 git add Spud/Scenes/PostDetail/Content/Comment/CommentsBackgroundState.swift SpudTests/CommentsBackgroundStateTests.swift
 git commit -m "feat(post-detail): add CommentsBackground decision for comment loading state"
@@ -242,7 +243,7 @@ final class PostDetailViewModelLoadingTests: XCTestCase {
 - [ ] **Step 2: Regenerate and run to verify it fails**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 make project
 xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan Spud \
   -only-testing:SpudTests/PostDetailViewModelLoadingTests \
@@ -293,7 +294,7 @@ with:
 - [ ] **Step 4: Run to verify it passes**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan Spud \
   -only-testing:SpudTests/PostDetailViewModelLoadingTests \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
@@ -305,7 +306,7 @@ Expected: TEST SUCCEEDED.
 - [ ] **Step 5: Format and commit**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 mint run swiftformat Spud/Scenes/PostDetail/Content/PostDetailViewModel.swift SpudTests/PostDetailViewModelLoadingTests.swift
 git add Spud/Scenes/PostDetail/Content/PostDetailViewModel.swift SpudTests/PostDetailViewModelLoadingTests.swift
 git commit -m "feat(post-detail): track isLoadingComments while fetching comments"
@@ -313,15 +314,120 @@ git commit -m "feat(post-detail): track isLoadingComments while fetching comment
 
 ---
 
-### Task 3: `CommentLoadingSkeletonView`
+### Task 3: Extract shared `SkeletonView` base
+
+**Files:**
+- Create: `Spud/Scenes/Common/SkeletonView.swift`
+- Modify: `Spud/Scenes/PostList/FeedLoadingSkeletonView.swift`
+- Test: existing `SpudSnapshotTests/LoadingStatesSnapshotTests.swift` (no new tests — the existing `FeedLoadingSkeletonView` snapshots must still pass unchanged, proving the refactor is behavior-preserving).
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: `class SkeletonView: UIView` with instance `func startAnimating()`, `func stopAnimating()`, and `static func bar(height: CGFloat) -> UIView`. `FeedLoadingSkeletonView` becomes a subclass; its surface used by `PostListViewController` (`init(frame:)`, `startAnimating()`, `stopAnimating()`) is unchanged.
+
+This is a behavior-preserving refactor, so there is no RED step; the gate is that the existing `FeedLoadingSkeletonView` snapshot references still match (no re-record).
+
+- [ ] **Step 1: Create the shared base**
+
+Create `Spud/Scenes/Common/SkeletonView.swift`:
+
+```swift
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
+import UIKit
+
+/// Base class for pulsing skeleton placeholder views. Provides the shared,
+/// reduce-motion-aware opacity pulse and a neutral rounded "bar" factory used to
+/// build skeleton rows. Subclasses lay out their own bars.
+class SkeletonView: UIView {
+    /// Starts the pulse, unless Reduce Motion is on (then the bars stay static).
+    func startAnimating() {
+        layer.removeAnimation(forKey: "pulse")
+        guard !UIAccessibility.isReduceMotionEnabled else { return }
+        let pulse = CABasicAnimation(keyPath: "opacity")
+        pulse.fromValue = 1.0
+        pulse.toValue = 0.45
+        pulse.duration = 0.8
+        pulse.autoreverses = true
+        pulse.repeatCount = .infinity
+        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        layer.add(pulse, forKey: "pulse")
+    }
+
+    func stopAnimating() {
+        layer.removeAnimation(forKey: "pulse")
+    }
+
+    /// A neutral rounded bar used as a skeleton element. Callers may override the
+    /// returned view's `layer.cornerRadius` for non-default shapes (e.g. a round
+    /// avatar dot).
+    static func bar(height: CGFloat) -> UIView {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.backgroundColor = .tertiarySystemFill
+        view.layer.cornerRadius = min(height / 2, 6)
+        view.layer.cornerCurve = .continuous
+        view.heightAnchor.constraint(equalToConstant: height).isActive = true
+        return view
+    }
+}
+```
+
+- [ ] **Step 2: Refactor `FeedLoadingSkeletonView` onto the base**
+
+In `Spud/Scenes/PostList/FeedLoadingSkeletonView.swift`, make exactly these changes (leave all layout code intact):
+
+1. Change the declaration `final class FeedLoadingSkeletonView: UIView {` to `final class FeedLoadingSkeletonView: SkeletonView {`.
+2. Delete its `startAnimating()` and `stopAnimating()` methods (and their doc comment) — now inherited from `SkeletonView`.
+3. Delete its private `bar(height:)` method — now `SkeletonView.bar(height:)`.
+4. In `makeRow()`, replace each `bar(height: N)` call with `Self.bar(height: N)` (the `thumbnail`, `line1`, `line2`, and `line3` bars — four call sites).
+
+- [ ] **Step 3: Regenerate and build**
+
+```bash
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
+make project
+python3 /Users/denis/dev/info.ddenis/dotfiles/agent-rules/skills/xcode-skill/scripts/build_and_test.py --scheme Spud
+```
+
+Expected: build succeeds.
+
+- [ ] **Step 4: Run the existing skeleton snapshots to confirm no drift**
+
+```bash
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
+xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan SpudSnapshots \
+  -only-testing:SpudSnapshotTests/LoadingStatesSnapshotTests \
+  -destination 'platform=iOS Simulator,name=iPhone 17' \
+  -skipPackagePluginValidation -skipMacroValidation test
+```
+
+Expected: TEST SUCCEEDED (all `loadingFooter` and `skeleton` cases still pass — the refactor changes no rendering, so no references are re-recorded). If any `skeleton` case reports a recorded/changed reference, the refactor changed rendering — revert and reconcile before continuing.
+
+- [ ] **Step 5: Format and commit**
+
+```bash
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
+mint run swiftformat Spud/Scenes/Common/SkeletonView.swift Spud/Scenes/PostList/FeedLoadingSkeletonView.swift
+git add Spud/Scenes/Common/SkeletonView.swift Spud/Scenes/PostList/FeedLoadingSkeletonView.swift
+git commit -m "refactor(skeleton): extract shared SkeletonView base for pulse and bar"
+```
+
+---
+
+### Task 4: `CommentLoadingSkeletonView`
 
 **Files:**
 - Create: `Spud/Scenes/PostDetail/Content/Comment/CommentLoadingSkeletonView.swift`
 - Test: `SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests.swift`
 
 **Interfaces:**
-- Consumes: nothing.
-- Produces: `final class CommentLoadingSkeletonView: UIView` with `init(frame:)`, `func startAnimating()`, `func stopAnimating()`.
+- Consumes: `SkeletonView` (Task 3) — instance `startAnimating()`/`stopAnimating()` and `static func bar(height:)`.
+- Produces: `final class CommentLoadingSkeletonView: SkeletonView` with `init(frame:)` (pulse and bar inherited from `SkeletonView`).
 
 - [ ] **Step 1: Write the snapshot test**
 
@@ -384,7 +490,7 @@ final class PostDetailCommentLoadingSnapshotTests: XCTestCase {
 - [ ] **Step 2: Regenerate and run to verify it fails**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 make project
 xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan SpudSnapshots \
   -only-testing:SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests \
@@ -409,10 +515,10 @@ import UIKit
 
 /// A loading placeholder for a post's comments: a column of comment-shaped
 /// skeleton rows (a small avatar dot + a short name bar, then two text bars),
-/// each indented per depth to read as a threaded tree, that gently pulse. Shown
-/// as the table background below the post header while comments load, so the
-/// comments region never reads as blank. Mirrors `FeedLoadingSkeletonView`.
-final class CommentLoadingSkeletonView: UIView {
+/// each indented per depth to read as a threaded tree. Shown as the table
+/// background below the post header while comments load, so the comments region
+/// never reads as blank. The pulse and bar factory come from `SkeletonView`.
+final class CommentLoadingSkeletonView: SkeletonView {
     /// Indentation depth per skeleton row, to suggest a comment tree.
     private static let rowDepths: [Int] = [0, 0, 1, 2, 0, 1]
     private static let indentPerDepth: CGFloat = 22
@@ -447,37 +553,19 @@ final class CommentLoadingSkeletonView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    /// Starts the pulse, unless Reduce Motion is on (then the bars stay static).
-    func startAnimating() {
-        layer.removeAnimation(forKey: "pulse")
-        guard !UIAccessibility.isReduceMotionEnabled else { return }
-        let pulse = CABasicAnimation(keyPath: "opacity")
-        pulse.fromValue = 1.0
-        pulse.toValue = 0.45
-        pulse.duration = 0.8
-        pulse.autoreverses = true
-        pulse.repeatCount = .infinity
-        pulse.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        layer.add(pulse, forKey: "pulse")
-    }
-
-    func stopAnimating() {
-        layer.removeAnimation(forKey: "pulse")
-    }
-
     private func makeRow(depth: Int) -> UIView {
-        let avatar = bar(height: 24)
+        let avatar = Self.bar(height: 24)
         avatar.layer.cornerRadius = 12
         NSLayoutConstraint.activate([avatar.widthAnchor.constraint(equalToConstant: 24)])
 
-        let name = bar(height: 12)
+        let name = Self.bar(height: 12)
         let header = UIStackView(arrangedSubviews: [avatar, name])
         header.axis = .horizontal
         header.alignment = .center
         header.spacing = 8
 
-        let line1 = bar(height: 12)
-        let line2 = bar(height: 12)
+        let line1 = Self.bar(height: 12)
+        let line2 = Self.bar(height: 12)
 
         let column = UIStackView(arrangedSubviews: [header, line1, line2])
         column.axis = .vertical
@@ -513,23 +601,13 @@ final class CommentLoadingSkeletonView: UIView {
         ])
         return container
     }
-
-    private func bar(height: CGFloat) -> UIView {
-        let view = UIView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.backgroundColor = .tertiarySystemFill
-        view.layer.cornerRadius = min(height / 2, 6)
-        view.layer.cornerCurve = .continuous
-        view.heightAnchor.constraint(equalToConstant: height).isActive = true
-        return view
-    }
 }
 ```
 
 - [ ] **Step 4: Record the snapshot references (first run)**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 make project
 xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan SpudSnapshots \
   -only-testing:SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests \
@@ -544,24 +622,23 @@ Expected: TEST FAILURE — "No reference was found on disk. Automatically record
 Do NOT run `git annex restage` between Step 4 and here.
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan SpudSnapshots \
   -only-testing:SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
   -skipPackagePluginValidation -skipMacroValidation test
 ```
 
-Expected: TEST SUCCEEDED. Visually inspect the two PNGs to confirm they read as indented comment rows:
+Expected: TEST SUCCEEDED. Inspect the two PNGs to confirm they read as indented comment rows:
 
 ```bash
 find SpudSnapshotTests/__Snapshots__/PostDetailCommentLoadingSnapshotTests -name '*.png'
-open SpudSnapshotTests/__Snapshots__/PostDetailCommentLoadingSnapshotTests/test_commentSkeleton_light.light.png
 ```
 
 - [ ] **Step 6: Format and commit (refs first)**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 mint run swiftformat Spud/Scenes/PostDetail/Content/Comment/CommentLoadingSkeletonView.swift SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests.swift
 git add Spud/Scenes/PostDetail/Content/Comment/CommentLoadingSkeletonView.swift \
         SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests.swift \
@@ -571,7 +648,7 @@ git commit -m "feat(post-detail): add CommentLoadingSkeletonView with snapshots"
 
 ---
 
-### Task 4: `PostDetailEmptyCommentsView`
+### Task 5: `PostDetailEmptyCommentsView`
 
 **Files:**
 - Create: `Spud/Scenes/PostDetail/Content/Comment/PostDetailEmptyCommentsView.swift`
@@ -612,7 +689,7 @@ In `SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests.swift`, add these me
 - [ ] **Step 2: Regenerate and run to verify it fails**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 make project
 xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan SpudSnapshots \
   -only-testing:SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests \
@@ -701,7 +778,7 @@ final class PostDetailEmptyCommentsView: UIView {
 - [ ] **Step 4: Record the new references (first run)**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 make project
 xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan SpudSnapshots \
   -only-testing:SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests \
@@ -716,23 +793,19 @@ Expected: TEST FAILURE — "No reference was found on disk. Automatically record
 Do NOT `git annex restage` between Step 4 and here.
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan SpudSnapshots \
   -only-testing:SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
   -skipPackagePluginValidation -skipMacroValidation test
 ```
 
-Expected: TEST SUCCEEDED (all 4 cases). Inspect:
-
-```bash
-open SpudSnapshotTests/__Snapshots__/PostDetailCommentLoadingSnapshotTests/test_emptyComments_light.light.png
-```
+Expected: TEST SUCCEEDED (all 4 cases).
 
 - [ ] **Step 6: Format and commit (refs first)**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 mint run swiftformat Spud/Scenes/PostDetail/Content/Comment/PostDetailEmptyCommentsView.swift SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests.swift
 git add Spud/Scenes/PostDetail/Content/Comment/PostDetailEmptyCommentsView.swift \
         SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests.swift \
@@ -742,13 +815,13 @@ git commit -m "feat(post-detail): add PostDetailEmptyCommentsView with snapshots
 
 ---
 
-### Task 5: Wire the background into `PostDetailViewController`
+### Task 6: Wire the background into `PostDetailViewController`
 
 **Files:**
 - Modify: `Spud/Scenes/PostDetail/Content/PostDetailViewController.swift`
 
 **Interfaces:**
-- Consumes: `CommentsBackground.decide(...)` (Task 1), `PostDetailViewModel.isLoadingComments` (Task 2), `CommentLoadingSkeletonView` (Task 3), `PostDetailEmptyCommentsView` (Task 4), `ObservationStream.values(of:)`.
+- Consumes: `CommentsBackground.decide(...)` (Task 1), `PostDetailViewModel.isLoadingComments` (Task 2), `CommentLoadingSkeletonView` (Task 4), `PostDetailEmptyCommentsView` (Task 5), `ObservationStream.values(of:)`.
 - Produces: no new public surface; drives `tableView.backgroundView`.
 
 This task has no automated test — its logic is the already-tested pure decision function; the wiring is verified by a clean build plus on-device checks (Step 8). Make every edit, then build, then verify.
@@ -803,7 +876,7 @@ In `setPost(serverPostId:accountKeychainId:)` (lines 73-84), add the cancel besi
 
 - [ ] **Step 3: Reset flags and start the loading observation in `startObservations()`**
 
-At the very top of `startObservations()` (currently begins at line 324 with `refreshModerationCapability()`), insert:
+At the very top of `startObservations()` (currently begins with `refreshModerationCapability()`), insert:
 
 ```swift
     private func startObservations() {
@@ -819,7 +892,7 @@ At the very top of `startObservations()` (currently begins at line 324 with `ref
 
 - [ ] **Step 4: Use the instance flag in `startCommentObservation`**
 
-In `startCommentObservation(postRowId:)` (lines 384-415), remove the local `var hasReceivedFirstSnapshot = false` and use the instance property. The loop body becomes:
+In `startCommentObservation(postRowId:)`, remove the local `var hasReceivedFirstSnapshot = false` and use the instance property. The loop body becomes:
 
 ```swift
         commentObservationTask = Task { @MainActor [weak self] in
@@ -849,9 +922,10 @@ In `startCommentObservation(postRowId:)` (lines 384-415), remove the local `var 
 
 - [ ] **Step 5: Re-evaluate the background at the end of `applySnapshot`**
 
-At the end of `applySnapshot(animated:)` (after `updateJumpButtonVisibility()`, line 452), add:
+At the end of `applySnapshot(animated:)` (after the existing `updateJumpButtonVisibility()` call), add `updateCommentsBackground()`:
 
 ```swift
+        dataSource.apply(snapshot, animatingDifferences: animate)
         updateJumpButtonVisibility()
         updateCommentsBackground()
     }
@@ -914,7 +988,7 @@ Add both methods to the controller (e.g. immediately after `startCommentObservat
 - [ ] **Step 7: Format and build**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 mint run swiftformat Spud/Scenes/PostDetail/Content/PostDetailViewController.swift
 python3 /Users/denis/dev/info.ddenis/dotfiles/agent-rules/skills/xcode-skill/scripts/build_and_test.py --scheme Spud
 ```
@@ -934,19 +1008,19 @@ Boot a single simulator (multiple booted sims flake UI runs). Run the app and ch
 - [ ] **Step 9: Commit**
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 git add Spud/Scenes/PostDetail/Content/PostDetailViewController.swift
 git commit -m "feat(post-detail): show comment skeleton and empty state while loading"
 ```
 
 ---
 
-## Full regression pass (after Task 5)
+## Full regression pass (after Task 6)
 
 Run the comment-related unit + snapshot tests together to confirm nothing regressed:
 
 ```bash
-cd /Users/denis/dev/info.ddenis/Spud/Spud
+cd /Users/denis/dev/info.ddenis/Spud/Spud-comment-loading
 xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan Spud \
   -only-testing:SpudTests/CommentsBackgroundStateTests \
   -only-testing:SpudTests/PostDetailViewModelLoadingTests \
@@ -954,6 +1028,7 @@ xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan Spud \
   -skipPackagePluginValidation -skipMacroValidation test
 
 xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan SpudSnapshots \
+  -only-testing:SpudSnapshotTests/LoadingStatesSnapshotTests \
   -only-testing:SpudSnapshotTests/PostDetailCommentLoadingSnapshotTests \
   -destination 'platform=iOS Simulator,name=iPhone 17' \
   -skipPackagePluginValidation -skipMacroValidation test
