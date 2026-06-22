@@ -11,6 +11,7 @@ import SafariServices
 import SpudDataKit
 import SpudUIKit
 import SpudUtilKit
+import SwiftUI
 import UIKit
 
 private let logger = Logger.app
@@ -148,6 +149,9 @@ class PostDetailViewController: UIViewController {
     private var observationTask: Task<Void, Never>?
     private var commentObservationTask: Task<Void, Never>?
     private var swipeActionsObservationTask: Task<Void, Never>?
+    private var configBarButtonItem: UIBarButtonItem!
+    private let forcePopoverDelegate = ForcePopoverDelegate()
+    private var commentDensityObservationTask: Task<Void, Never>?
     /// True once the comment GRDB observation has emitted at least once; gates
     /// the single `didPrepareObservation` call.
     private var hasReceivedFirstCommentSnapshot = false
@@ -200,6 +204,7 @@ class PostDetailViewController: UIViewController {
         observationTask?.cancel()
         commentObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
+        commentDensityObservationTask?.cancel()
         loadingObservationTask?.cancel()
     }
 
@@ -215,7 +220,18 @@ class PostDetailViewController: UIViewController {
             "More",
             comment: "Accessibility label for the post detail overflow menu button"
         )
-        navigationItem.rightBarButtonItem = overflowBarButtonItem
+        configBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "slider.horizontal.3"),
+            style: .plain,
+            target: self,
+            action: #selector(configTapped)
+        )
+        configBarButtonItem.accessibilityIdentifier = "postDetailConfig"
+        configBarButtonItem.accessibilityLabel = NSLocalizedString(
+            "Comment options",
+            comment: "Accessibility label for the post detail comment config button"
+        )
+        navigationItem.rightBarButtonItems = [overflowBarButtonItem, configBarButtonItem]
 
         view.addSubview(tableView)
         view.addSubview(jumpToNextButton)
@@ -241,6 +257,7 @@ class PostDetailViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         startSwipeActionsObservation()
+        startCommentDensityObservation()
         startObservations()
     }
 
@@ -264,6 +281,69 @@ class PostDetailViewController: UIViewController {
     /// Reconfigures visible comment cells so they rebuild their swipe
     /// configuration from the updated `commentSwipeActionConfig`.
     private func reconfigureVisibleSwipeActions() {
+        guard dataSource != nil else { return }
+        var snapshot = dataSource.snapshot()
+        let commentItems = snapshot.itemIdentifiers(inSection: .comments)
+        guard !commentItems.isEmpty else { return }
+        snapshot.reconfigureItems(commentItems)
+        dataSource.apply(snapshot, animatingDifferences: false)
+    }
+
+    @objc
+    private func configTapped() {
+        Haptics.tap()
+        let configViewModel = PostDetailConfigViewModel(
+            preferencesService: preferencesService,
+            currentSort: viewModel.commentSortType,
+            onSelectSort: { [weak self] sortType in
+                self?.changeCommentSort(to: sortType)
+            }
+        )
+        let host = UIHostingController(rootView: PostDetailConfigView(viewModel: configViewModel))
+        host.modalPresentationStyle = .popover
+        host.sizingOptions = [.preferredContentSize]
+        if let popover = host.popoverPresentationController {
+            popover.sourceItem = configBarButtonItem
+            popover.delegate = forcePopoverDelegate
+        }
+        present(host, animated: true)
+    }
+
+    /// Applies a new comment sort: updates the view model, restarts the comment
+    /// observation with the new ordering, and triggers a cancel-and-replace
+    /// fetch. Per-post only — the global default is untouched.
+    private func changeCommentSort(to sortType: Components.Schemas.CommentSortType) {
+        guard sortType != viewModel.commentSortType else { return }
+        viewModel.setCommentSortType(sortType)
+        if let postRowId = appDatabase.postRowIdSync(
+            forKeychainId: viewModel.accountKeychainId,
+            serverPostId: Int64(viewModel.serverPostId)
+        ) {
+            startCommentObservation(postRowId: postRowId)
+        }
+        Task { await viewModel.fetchComments() }
+    }
+
+    /// Observes the comment-density preference and reconfigures visible comment
+    /// cells when it changes, so the open thread re-flows live. Independent of
+    /// the backing post, so it is started once in `viewDidLoad`.
+    private func startCommentDensityObservation() {
+        commentDensityObservationTask?.cancel()
+        commentDensityObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var current = preferencesService.commentDensity
+            for await density in preferencesService.commentDensityStream {
+                if Task.isCancelled { break }
+                guard density != current else { continue }
+                current = density
+                reconfigureVisibleComments()
+            }
+        }
+    }
+
+    /// Reconfigures visible comment cells so they rebuild body views at the
+    /// updated density.
+    private func reconfigureVisibleComments() {
         guard dataSource != nil else { return }
         var snapshot = dataSource.snapshot()
         let commentItems = snapshot.itemIdentifiers(inSection: .comments)
