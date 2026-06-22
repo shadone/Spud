@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import SpudUIKit
 import SpudUtilKit
 import UIKit
 
@@ -12,6 +13,8 @@ import UIKit
 protocol PostDetailAppearanceType: AnyObject {
     var textSizeAdjustment: CGFloat { get set }
     var commentRibbonTheme: PostCommentRibbonTheme { get set }
+    var commentDensity: PostDensity { get set }
+    var commentDensityStream: AsyncStream<PostDensity> { get }
 }
 
 /// Resolves post-detail display preferences. The text-scale override is the
@@ -35,4 +38,14 @@ final class PostDetailAppearance: PostDetailAppearanceType {
 
     @UserDefaultsBacked(key: "PostDetail.CommentRibbonTheme")
     var commentRibbonTheme: PostCommentRibbonTheme = .rainbow
+
+    /// Forwards to the user's comment-density preference.
+    var commentDensity: PostDensity {
+        get { preferencesService.commentDensity }
+        set { preferencesService.commentDensity = newValue }
+    }
+
+    var commentDensityStream: AsyncStream<PostDensity> {
+        preferencesService.commentDensityStream
+    }
 }
