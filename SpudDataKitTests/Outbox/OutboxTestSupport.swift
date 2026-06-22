@@ -155,11 +155,13 @@ func readPostHidden(
 
 func readCommentVote(
     _ appDatabase: AppDatabase,
+    accountId: Int64,
     serverCommentId: Int64
 ) async throws -> (score: Int64, voteStatus: Int64?) {
     try await appDatabase.writer.read { db -> (Int64, Int64?) in
         let row = try CommentRecord
             .filter(Column("localCommentId") == serverCommentId)
+            .filter(sql: "postId IN (SELECT id FROM post WHERE accountId = ?)", arguments: [accountId])
             .fetchOne(db)
         return (row?.score ?? 0, row?.voteStatus)
     }

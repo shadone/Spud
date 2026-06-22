@@ -73,12 +73,12 @@ struct OptimisticWritesTests {
             score: 0,
             voteStatus: nil
         )
-        let commentServerId = 42
+        let commentServerId: Int64 = 42
         try await seedComment(
             appDatabase,
             accountId: ids.accountId,
             siteId: ids.siteId,
-            commentServerId: commentServerId,
+            commentServerId: Int(commentServerId),
             score: 10,
             voteStatus: nil
         )
@@ -87,14 +87,32 @@ struct OptimisticWritesTests {
             try OptimisticWrites.setCommentVote(
                 db,
                 accountId: ids.accountId,
-                serverCommentId: Int64(commentServerId),
+                serverCommentId: commentServerId,
                 voteStatus: 1,
                 scoreDelta: 1
             )
         }
 
-        let (score, vote) = try await readCommentVote(appDatabase, serverCommentId: Int64(commentServerId))
+        let (score, vote) = try await readCommentVote(appDatabase, accountId: ids.accountId, serverCommentId: commentServerId)
         #expect(score == 11)
         #expect(vote == 1)
+    }
+
+    @Test
+    func setPostHiddenTogglesFlag() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let ids = try await seedAccountAndSite(appDatabase)
+        let serverPostId = try await seedPost(
+            appDatabase,
+            accountId: ids.accountId,
+            siteId: ids.siteId,
+            score: 0,
+            voteStatus: nil
+        )
+        try await appDatabase.writer.write { db in
+            try OptimisticWrites.setPostHidden(db, accountId: ids.accountId, serverPostId: serverPostId, isHidden: true)
+        }
+        let hidden = try await readPostHidden(appDatabase, accountId: ids.accountId, serverPostId: serverPostId)
+        #expect(hidden == true)
     }
 }
