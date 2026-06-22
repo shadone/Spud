@@ -9,19 +9,31 @@ import LemmyKit
 import Observation
 import OSLog
 import SpudDataKit
+import SpudUtilKit
 
 private let logger = Logger.app
 
-/// View-model state for PostListViewController. Holds a `FeedHandle`
-/// (feedKey + feedType) plus plain values driven by GRDB observations and
-/// LemmyService fetches. Pagination is cursor-based — `nextPageCursor`
-/// comes from the previous fetch's response and is nil at the head of the
-/// feed and after exhaustion.
+enum FeedLoadState: Equatable {
+    /// Initial fetch in flight. `slow == true` after the escalation threshold.
+    case loading(slow: Bool)
+    /// At least one post is visible.
+    case loaded
+    /// The fetch succeeded but there are no posts.
+    case empty
+    /// The initial fetch failed.
+    case failed(LoadFailure)
+}
+
+enum PaginationState: Equatable {
+    case idle
+    case loading
+    case failed
+}
+
 @MainActor
 @Observable
 final class PostListViewModel {
-    typealias OwnDependencies =
-        HasAccountService
+    typealias OwnDependencies = HasAccountService & HasReachabilityMonitor
     typealias Dependencies = OwnDependencies
 
     @ObservationIgnored
@@ -36,108 +48,179 @@ final class PostListViewModel {
     }
 
     var navigationTitle: String
-    var isFetchingNextPage: Bool = false
 
-    /// True after a page fetch threw. Observed by the controller, which shows
-    /// the inline error state when the feed is still empty, or a transient
-    /// alert when there are already posts on screen (a pagination failure).
-    /// Reset at the start of every fetch and on success.
-    var fetchFailed: Bool = false
+    private(set) var loadState: FeedLoadState = .loading(slow: false)
+    private(set) var paginationState: PaginationState = .idle
+
+    /// Diagnostics from the most recent failure, for the "Copy details" action.
+    @ObservationIgnored
+    private(set) var lastFailureDiagnostics: String?
 
     @ObservationIgnored
-    private(set) var lastFetchError: Error?
+    private let fetchFeedOperation: @MainActor (String?) async throws -> String?
+    @ObservationIgnored
+    private let slowThreshold: Duration
+    @ObservationIgnored
+    private let hardCapTimeout: Duration
 
     @ObservationIgnored
     private var nextPageCursor: String?
     @ObservationIgnored
-    private var feedExhausted: Bool = false
+    private var feedExhausted = false
+    @ObservationIgnored
+    private var hasCompletedInitialFetch = false
+    @ObservationIgnored
+    private var slowHintTask: Task<Void, Never>?
 
     private var accountService: AccountServiceType {
         dependencies.accountService
     }
 
-    init(feed: FeedHandle, accountScope: AccountScope, dependencies: Dependencies) {
+    private var reachabilityMonitor: ReachabilityMonitoring {
+        dependencies.reachabilityMonitor
+    }
+
+    init(
+        feed: FeedHandle,
+        accountScope: AccountScope,
+        dependencies: Dependencies,
+        fetchFeedOperation: (@MainActor (String?) async throws -> String?)? = nil,
+        slowThreshold: Duration = .seconds(8),
+        hardCapTimeout: Duration = .seconds(25)
+    ) {
         self.dependencies = dependencies
         self.accountScope = accountScope
         self.feed = feed
+        self.slowThreshold = slowThreshold
+        self.hardCapTimeout = hardCapTimeout
         navigationTitle = Self.navigationTitle(for: feed.feedType)
-    }
-
-    func didChangeSortType(_ sortType: Components.Schemas.SortType) {
-        let newFeed = accountService.createFeed(
-            duplicateOf: feed,
-            forAccountKeychainId: accountKeychainId,
-            sortType: sortType
-        )
-        feed = newFeed
-        nextPageCursor = nil
-        feedExhausted = false
-        navigationTitle = Self.navigationTitle(for: newFeed.feedType)
-    }
-
-    func didClickReload() {
-        let newFeed = accountService.createFeed(
-            duplicateOf: feed,
-            forAccountKeychainId: accountKeychainId
-        )
-        feed = newFeed
-        nextPageCursor = nil
-        feedExhausted = false
-        navigationTitle = Self.navigationTitle(for: newFeed.feedType)
-    }
-
-    /// Switches this list to a different feed entirely (e.g. from the
-    /// quick-switch drawer). The controller restarts its observation via
-    /// `feedChanged()` afterwards.
-    func switchFeed(to feedType: FeedType) {
-        let newFeed = accountService.createFeed(
-            forAccountKeychainId: accountKeychainId,
-            feedType: feedType
-        )
-        feed = newFeed
-        nextPageCursor = nil
-        feedExhausted = false
-        navigationTitle = Self.navigationTitle(for: newFeed.feedType)
-    }
-
-    func didScrollToBottom() {
-        guard !isFetchingNextPage, !feedExhausted else { return }
-        Task { await fetchNextPage() }
-    }
-
-    /// Called once after the controller has wired up the GRDB observation. If
-    /// the feed has no rows yet, kick a fetch from the server.
-    func didPrepareObservation(numberOfFetchedPosts: Int) {
-        guard numberOfFetchedPosts == 0 else { return }
-        Task { await fetchNextPage() }
-    }
-
-    func fetchNextPage() async {
-        isFetchingNextPage = true
-        fetchFailed = false
-        defer { isFetchingNextPage = false }
-
-        do {
-            let returnedCursor = try await accountScope.lemmyService
-                .fetchFeed(feed, pageCursor: nextPageCursor)
-            nextPageCursor = returnedCursor
-            lastFetchError = nil
-            if returnedCursor == nil {
-                feedExhausted = true
-            }
-        } catch {
-            // The controller decides how to surface this: the inline error
-            // state when the feed is still empty, or an alert when there are
-            // already posts on screen.
-            lastFetchError = error
-            fetchFailed = true
+        let scope = accountScope
+        self.fetchFeedOperation = fetchFeedOperation ?? { cursor in
+            try await scope.lemmyService.fetchFeed(feed, pageCursor: cursor)
         }
     }
 
-    /// The host of the instance this feed is served from (e.g. `lemmy.world`),
-    /// used to name the server in the feed error state. Community feeds carry
-    /// the instance directly; frontpage and saved feeds use the account's home
-    /// instance.
+    // MARK: - Feed switching (reset state)
+
+    func didChangeSortType(_ sortType: Components.Schemas.SortType) {
+        let newFeed = accountService.createFeed(duplicateOf: feed, forAccountKeychainId: accountKeychainId, sortType: sortType)
+        resetForNewFeed(newFeed)
+    }
+
+    func didClickReload() {
+        let newFeed = accountService.createFeed(duplicateOf: feed, forAccountKeychainId: accountKeychainId)
+        resetForNewFeed(newFeed)
+    }
+
+    func switchFeed(to feedType: FeedType) {
+        let newFeed = accountService.createFeed(forAccountKeychainId: accountKeychainId, feedType: feedType)
+        resetForNewFeed(newFeed)
+    }
+
+    private func resetForNewFeed(_ newFeed: FeedHandle) {
+        feed = newFeed
+        nextPageCursor = nil
+        feedExhausted = false
+        hasCompletedInitialFetch = false
+        loadState = .loading(slow: false)
+        paginationState = .idle
+        navigationTitle = Self.navigationTitle(for: newFeed.feedType)
+    }
+
+    // MARK: - Initial load
+
+    /// Fetch the first page with the hard-cap timeout and slow-hint escalation.
+    /// Leaves `loadState` at `.loading` on success — the GRDB first snapshot
+    /// resolves `.loaded` / `.empty` via `resolveInitialSnapshot(rowCount:)`.
+    func loadFirstPage() async {
+        loadState = .loading(slow: false)
+        startSlowHint()
+        defer { cancelSlowHint() }
+        do {
+            let next = try await withTimeout(hardCapTimeout) { [self] in
+                try await fetchFeedOperation(nextPageCursor)
+            }
+            nextPageCursor = next
+            if next == nil { feedExhausted = true }
+            hasCompletedInitialFetch = true
+        } catch {
+            let failure = LoadFailure.classify(error, isOnline: reachabilityMonitor.isOnline)
+            lastFailureDiagnostics = failure.diagnostics
+            loadState = .failed(failure)
+        }
+    }
+
+    /// Resolve the initial load once GRDB delivers the first snapshot. No-op if
+    /// we've already left the loading state (failed/loaded/empty).
+    func resolveInitialSnapshot(rowCount: Int) {
+        guard case .loading = loadState else { return }
+        if rowCount > 0 {
+            loadState = .loaded
+        } else if hasCompletedInitialFetch {
+            loadState = .empty
+        }
+        // rowCount == 0 and no fetch yet: a cached-but-empty feed. The controller
+        // kicks loadFirstPage(); we stay in .loading until it resolves.
+    }
+
+    /// Dismisses the current failure and shows the empty state for this feed.
+    /// Backs the error state's "Work offline" action.
+    func dismissToEmpty() {
+        loadState = .empty
+    }
+
+    private func startSlowHint() {
+        slowHintTask?.cancel()
+        slowHintTask = Task { [weak self, slowThreshold] in
+            try? await Task.sleep(for: slowThreshold)
+            guard let self, !Task.isCancelled else { return }
+            if case .loading = loadState {
+                loadState = .loading(slow: true)
+            }
+        }
+    }
+
+    private func cancelSlowHint() {
+        slowHintTask?.cancel()
+        slowHintTask = nil
+    }
+
+    // MARK: - Pagination
+
+    func didScrollToBottom() {
+        Task { await loadMore() }
+    }
+
+    func loadMore() async {
+        guard loadState == .loaded, paginationState != .loading, !feedExhausted else { return }
+        paginationState = .loading
+        await performPagination()
+    }
+
+    func retryPagination() async {
+        guard paginationState == .failed else { return }
+        paginationState = .loading
+        await performPagination()
+    }
+
+    private func performPagination() async {
+        do {
+            let next = try await withTimeout(hardCapTimeout) { [self] in
+                try await fetchFeedOperation(nextPageCursor)
+            }
+            nextPageCursor = next
+            if next == nil { feedExhausted = true }
+            paginationState = .idle
+        } catch {
+            let failure = LoadFailure.classify(error, isOnline: reachabilityMonitor.isOnline)
+            lastFailureDiagnostics = failure.diagnostics
+            logger.error("Pagination fetch failed: \(failure.diagnostics, privacy: .public)")
+            paginationState = .failed
+        }
+    }
+
+    // MARK: - Host / empty / title (unchanged behavior)
+
     var instanceHost: String? {
         switch feed.feedType {
         case let .community(_, instance, _):
@@ -147,8 +230,6 @@ final class PostListViewModel {
         }
     }
 
-    /// Designed empty-state copy for the current feed. The saved feed gets a
-    /// dedicated message; everything else shares a generic one.
     struct EmptyState {
         let symbolName: String
         let title: String
@@ -161,19 +242,13 @@ final class PostListViewModel {
             return EmptyState(
                 symbolName: "bookmark",
                 title: NSLocalizedString("No saved posts yet", comment: "Empty-state title for the saved-posts feed"),
-                message: NSLocalizedString(
-                    "Posts you save will show up here.",
-                    comment: "Empty-state message for the saved-posts feed"
-                )
+                message: NSLocalizedString("Posts you save will show up here.", comment: "Empty-state message for the saved-posts feed")
             )
         case .frontpage, .community:
             return EmptyState(
                 symbolName: "tray",
                 title: NSLocalizedString("No posts", comment: "Empty-state title for a post feed"),
-                message: NSLocalizedString(
-                    "There are no posts to show here.",
-                    comment: "Empty-state message for a post feed"
-                )
+                message: NSLocalizedString("There are no posts to show here.", comment: "Empty-state message for a post feed")
             )
         }
     }
