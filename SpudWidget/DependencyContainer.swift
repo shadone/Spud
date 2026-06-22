@@ -8,6 +8,7 @@ import Foundation
 import SpudDataKit
 import SpudUtilKit
 
+@MainActor
 class DependencyContainer: ObservableObject,
     HasAppDatabase,
     HasAccountService,
@@ -32,7 +33,7 @@ class DependencyContainer: ObservableObject,
             fatalError("Failed to open AppDatabase: \(error)")
         }
 
-        accountService = AccountService(appDatabase: appDatabase)
+        accountService = AccountService(appDatabase: appDatabase, reachabilityMonitor: StaticReachabilityMonitor(isOnline: true))
         entryService = EntryService(
             appDatabase: appDatabase,
             accountService: accountService

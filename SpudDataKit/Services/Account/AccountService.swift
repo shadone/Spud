@@ -198,7 +198,7 @@ public class AccountService: AccountServiceType {
 
     public convenience init(
         appDatabase: AppDatabase,
-        reachabilityMonitor: ReachabilityMonitoring = ReachabilityMonitor()
+        reachabilityMonitor: ReachabilityMonitoring = StaticReachabilityMonitor(isOnline: true)
     ) {
         self.init(appDatabase: appDatabase, reachabilityMonitor: reachabilityMonitor) { instanceUrl, credential in
             LemmyApi(instanceUrl: instanceUrl, credential: credential, userAgent: AppUserAgent.value)
@@ -208,7 +208,7 @@ public class AccountService: AccountServiceType {
     init(
         appDatabase: AppDatabase,
         credentialStore: CredentialStore = KeychainCredentialStore(),
-        reachabilityMonitor: ReachabilityMonitoring = ReachabilityMonitor(),
+        reachabilityMonitor: ReachabilityMonitoring = StaticReachabilityMonitor(isOnline: true),
         makeApi: @escaping @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?) -> LemmyApi
     ) {
         self.appDatabase = appDatabase

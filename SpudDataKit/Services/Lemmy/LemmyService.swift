@@ -509,7 +509,9 @@ public actor LemmyService: LemmyServiceType {
             return service
         }
         outboxTask = task
-        return await task.value
+        let result = await task.value
+        if result == nil { outboxTask = nil } // allow retry after a transient failure; keep memoized only on success
+        return result
     }
 
     /// Looks up the GRDB account row for this LemmyService and returns
