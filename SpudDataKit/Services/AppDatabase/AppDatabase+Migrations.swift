@@ -530,6 +530,27 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v17_pendingOperation") { db in
+            try db.create(table: "pendingOperation") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("accountId", .integer)
+                    .notNull()
+                    .indexed()
+                    .references("account", onDelete: .cascade)
+                t.column("entityType", .text).notNull()
+                t.column("entityServerId", .integer).notNull()
+                t.column("kind", .text).notNull()
+                t.column("desiredState", .integer).notNull()
+                t.column("baseline", .integer)
+                t.column("attempts", .integer).notNull().defaults(to: 0)
+                t.column("lastError", .text)
+                t.column("nextAttemptAt", .double)
+                t.column("createdAt", .double).notNull()
+                t.column("updatedAt", .double).notNull()
+                t.uniqueKey(["accountId", "entityType", "entityServerId", "kind"])
+            }
+        }
+
         return migrator
     }
 }

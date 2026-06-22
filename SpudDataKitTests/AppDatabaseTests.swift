@@ -53,6 +53,7 @@ final class AppDatabaseTests: XCTestCase {
                 "postInteraction",
                 "postInteractionFts",
                 "site",
+                "pendingOperation",
                 "siteAdmin",
             ])
         )
