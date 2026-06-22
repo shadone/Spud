@@ -21,7 +21,8 @@ struct DependencyContainer:
     HasAlertService,
     HasPreferencesService,
     HasUnreadCountService,
-    HasExplorerService
+    HasExplorerService,
+    HasReachabilityMonitor
 {
     let appDatabase: AppDatabase
     let siteService: SiteServiceType
@@ -35,6 +36,7 @@ struct DependencyContainer:
     let preferencesService: PreferencesServiceType = PreferencesService()
     let unreadCountService: UnreadCountServiceType
     let explorerService: ExplorerServiceType
+    let reachabilityMonitor: ReachabilityMonitoring
 
     // MARK: Functions
 
@@ -63,6 +65,7 @@ struct DependencyContainer:
         appService = AppService(preferencesService: preferencesService, appDatabase: appDatabase)
         unreadCountService = UnreadCountService(accountService: accountService)
         explorerService = ExplorerService(appDatabase: appDatabase)
+        reachabilityMonitor = ReachabilityMonitor()
     }
 
     func start() {
