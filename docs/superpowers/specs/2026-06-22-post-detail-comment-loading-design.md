@@ -152,54 +152,106 @@ A small `UIView` for the settled-empty state, centered in its bounds:
   sort path (via `didChangeCommentSortType`) when it exists, and stays false for
   pull-to-refresh (which never calls this method).
 
-### 4. `PostDetailViewController` changes
+### 4. `CommentsBackground` decision (new, pure)
 
-- Promote the comment observation's local `hasReceivedFirstSnapshot` to an
-  instance property `hasReceivedFirstCommentSnapshot`, set when the first comment
-  snapshot arrives in `startCommentObservation`, reset to `false` in
-  `setPost(...)` / at the top of `startObservations()`.
-- Hold lazily-created `commentLoadingSkeletonView` and `emptyCommentsView`.
-- `updateCommentsBackground()` selects the background view and drives the pulse:
+`Scenes/PostDetail/Content/Comment/CommentsBackgroundState.swift`
+
+The branching logic is the only genuinely bug-prone part, so it is extracted
+from the view controller into a pure, unit-testable function:
+
+```swift
+enum CommentsBackground: Equatable {
+    case skeleton   // loading, or initial pre-fetch — no comments on screen
+    case empty      // a fetch has completed and the post has no comments
+    case hidden     // comments are present (background view removed)
+
+    static func decide(
+        isLoadingComments: Bool,
+        hasCompletedFetch: Bool,
+        hasComments: Bool
+    ) -> CommentsBackground {
+        if hasComments { return .hidden }
+        if isLoadingComments { return .skeleton }
+        if hasCompletedFetch { return .empty }
+        return .skeleton
+    }
+}
+```
+
+Key point — the empty state is gated on **`hasCompletedFetch`, not "first
+snapshot received."** A fresh open emits an empty *cached* snapshot before the
+network fetch begins; gating on first-snapshot would flash "No comments yet" for
+that frame before the skeleton appears. Defaulting the initial state to
+`.skeleton` and only switching to `.empty` once a fetch has actually completed
+avoids the flash.
+
+### 5. `PostDetailViewController` changes
+
+- Replace the comment observation's local `hasReceivedFirstSnapshot` (which only
+  gated the one-time `didPrepareObservation` call) with two instance properties,
+  both reset to `false` at the top of `startObservations()`:
+  - `hasReceivedFirstCommentSnapshot` — still gates the single
+    `didPrepareObservation(numberOfFetchedComments:)` call;
+  - `hasCompletedCommentFetch` — set `true` when `isLoadingComments` transitions
+    `true -> false` (detected in the loading-observation task below).
+- Hold lazily-created `commentLoadingSkeletonView` and `emptyCommentsView`, plus
+  `loadingObservationTask`.
+- `updateCommentsBackground()` maps `CommentsBackground.decide(...)` onto the
+  table's background view and drives the pulse, guarding against redundant
+  assignment (mirrors `showLoadingSkeleton`'s `backgroundView !== ...` check):
 
   ```
-  let isEmpty = viewModel.orderedComments.isEmpty
-  if viewModel.isLoadingComments && isEmpty:
-      backgroundView = skeleton; skeleton.startAnimating()
-  else if hasReceivedFirstCommentSnapshot && !viewModel.isLoadingComments && isEmpty:
-      backgroundView = emptyCommentsView
-  else:
-      skeleton.stopAnimating(); backgroundView = nil
+  switch CommentsBackground.decide(
+      isLoadingComments: viewModel.isLoadingComments,
+      hasCompletedFetch: hasCompletedCommentFetch,
+      hasComments: !viewModel.orderedComments.isEmpty
+  ) {
+  case .skeleton: backgroundView = skeleton (if not already); skeleton.startAnimating()
+  case .empty:    skeleton.stopAnimating(); backgroundView = emptyCommentsView (if not already)
+  case .hidden:   skeleton.stopAnimating(); backgroundView = nil (if not already)
+  }
   ```
 
-  Guards against redundant assignment (mirrors `showLoadingSkeleton`'s
-  `backgroundView !== ...` check) so it can be called freely.
 - Drive it from:
-  - a new observation task,
-    `ObservationStream.values(of: { viewModel.isLoadingComments })`, that calls
-    `updateCommentsBackground()` on each yield (started in `startObservations()`,
-    cancelled/restarted on `setPost`, cancelled in `deinit`);
+  - a new `loadingObservationTask`,
+    `ObservationStream.values(of: { viewModel.isLoadingComments })`, that detects
+    the `true -> false` edge (sets `hasCompletedCommentFetch`) and calls
+    `updateCommentsBackground()` on each yield. Started in `startObservations()`,
+    cancelled/restarted on `setPost`, cancelled in `deinit`. The access closure
+    reads through `[weak self]` to avoid a retain cycle and to always see the
+    live (post-`setPost`) view model;
   - the end of `applySnapshot()` (after `orderedComments` updates), so arriving
     or vanishing comments re-evaluate the background.
 
 ## Edge cases
 
 - **Revisit with cached comments:** the comment observation emits cached rows
-  immediately; `orderedComments` is non-empty, so the background is `nil` even
+  immediately; `orderedComments` is non-empty, so `decide` returns `.hidden` even
   while a background refetch runs. No skeleton flash.
-- **Genuinely 0-comment post:** skeleton shows during the fetch; on settle,
-  `hasReceivedFirstCommentSnapshot` is true and `orderedComments` is empty, so the
-  empty state shows.
+- **Fresh open, empty cache:** the first (empty) cached snapshot arrives before
+  the fetch starts — `decide` returns `.skeleton` (loading not yet true, fetch
+  not yet completed), so no "No comments yet" flash; the fetch then keeps it on
+  `.skeleton`.
+- **Genuinely 0-comment post:** skeleton shows during the fetch; when
+  `isLoadingComments` goes `true -> false` with no comments,
+  `hasCompletedCommentFetch` is set and `decide` returns `.empty`.
 - **Post not yet mirrored** (`startObservations` early-return branch): the fetch
-  runs (skeleton shows while empty), but the comment observation has not started,
-  so `hasReceivedFirstCommentSnapshot` stays false — the empty state is correctly
-  suppressed (background falls to `nil` after the fetch) rather than flashing
-  "No comments yet" before the first snapshot.
+  still runs and `hasCompletedCommentFetch` is set on completion; with no
+  comments mirrored this lands on `.empty` ("No comments yet"). This matches the
+  pre-existing limitation that this branch does not bring comments in until the
+  screen is re-entered, and is an acceptable resting state.
 - **Reduce Motion:** skeleton bars render static (no pulse).
 - **Tall header filling the viewport:** the skeleton is fully occluded until the
   user scrolls; acceptable (nothing to show in zero blank space).
 
 ## Testing
 
+- **Unit tests** (SpudTests) for `CommentsBackground.decide(...)` — the full
+  8-row truth table over the three boolean inputs — and for
+  `PostDetailViewModel.isLoadingComments` defaulting to `false`. The live
+  `true/false` toggle around the network call is left to manual verification (it
+  is fetch-timing dependent and there is no `LemmyService` mock in SpudTests);
+  the `isLoading == true` branch is exercised by the decision-function tests.
 - **Snapshot tests** (SpudSnapshotTests, iPhone 14 Pro / portrait plan) for
   `CommentLoadingSkeletonView` and `PostDetailEmptyCommentsView` rendered at a
   fixed size, matching the existing PostDetail snapshot coverage. Record refs one
