@@ -19,7 +19,7 @@ actor FakeOutboxPerformer: OutboxNetworkPerforming {
         case fail(any Error)
     }
 
-    var outcomeByKind: [OutboxKind: Outcome] = [:]
+    private var outcomeByKind: [OutboxKind: Outcome] = [:]
     private(set) var performed: [OutboxOperation] = []
 
     func setOutcome(_ outcome: Outcome, for kind: OutboxKind) {
