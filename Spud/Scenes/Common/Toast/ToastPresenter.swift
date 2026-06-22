@@ -47,12 +47,11 @@ final class ToastPresenter {
         toast.transform = CGAffineTransform(translationX: 0, y: 12)
         window.addSubview(toast)
 
-        let safeBottom = window.safeAreaInsets.bottom
         NSLayoutConstraint.activate([
             toast.centerXAnchor.constraint(equalTo: window.centerXAnchor),
             toast.bottomAnchor.constraint(
-                equalTo: window.bottomAnchor,
-                constant: -(safeBottom + 24)
+                equalTo: window.safeAreaLayoutGuide.bottomAnchor,
+                constant: -24
             ),
             toast.leadingAnchor.constraint(
                 greaterThanOrEqualTo: window.leadingAnchor,
@@ -78,7 +77,7 @@ final class ToastPresenter {
 
     private func scheduleDismiss(for toast: ToastView) {
         dismissTask?.cancel()
-        dismissTask = Task { [weak toast] in
+        dismissTask = Task { [weak self, weak toast] in
             try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled, let toast else { return }
             UIView.animate(withDuration: 0.22, delay: 0, options: .curveEaseIn) {
@@ -87,6 +86,7 @@ final class ToastPresenter {
             } completion: { _ in
                 toast.removeFromSuperview()
             }
+            self?.dismissTask = nil
         }
     }
 }
@@ -112,6 +112,12 @@ private final class ToastView: UIView {
         backgroundColor = .secondarySystemBackground
         layer.cornerRadius = 20
         layer.cornerCurve = .continuous
+        layer.shadowColor = UIColor.black.cgColor
+        layer.shadowOpacity = 0.18
+        layer.shadowRadius = 8
+        layer.shadowOffset = CGSize(width: 0, height: 2)
+        layer.borderWidth = 1.0 / UIScreen.main.scale
+        layer.borderColor = UIColor.separator.cgColor
 
         addSubview(messageLabel)
         NSLayoutConstraint.activate([
