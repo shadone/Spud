@@ -893,8 +893,8 @@ git commit  # subject: "feat: add reusable feed error-state presenter" + footer
   private(set) var paginationState: PaginationState
   func loadFirstPage() async
   func resolveInitialSnapshot(rowCount: Int)
-  func loadMore()
-  func retryPagination()
+  func loadMore() async
+  func retryPagination() async
   var lastFailureDiagnostics: String?   // for the "Copy details" action
   ```
   Initializer gains: `reachabilityMonitor` (via `Dependencies`), and test-only seam params `fetchFeedOperation`, `slowThreshold`, `hardCapTimeout`. `OwnDependencies` becomes `HasAccountService & HasReachabilityMonitor`.
@@ -929,6 +929,8 @@ final class PostListViewModelLoadStateTests: XCTestCase {
 
     private func makeViewModel(
         reachabilityMonitor: ReachabilityMonitoring = StaticReachabilityMonitor(isOnline: true),
+        slowThreshold: Duration = .milliseconds(20),
+        hardCapTimeout: Duration = .seconds(5),
         fetchFeedOperation: @escaping @MainActor (String?) async throws -> String?
     ) -> PostListViewModel {
         let dependencies = TestDependencies(reachabilityMonitor: reachabilityMonitor)
@@ -941,8 +943,8 @@ final class PostListViewModelLoadStateTests: XCTestCase {
             accountScope: dependencies.accountService.scope(forAccountKeychainId: "kc-1"),
             dependencies: dependencies,
             fetchFeedOperation: fetchFeedOperation,
-            slowThreshold: .milliseconds(20),
-            hardCapTimeout: .milliseconds(80)
+            slowThreshold: slowThreshold,
+            hardCapTimeout: hardCapTimeout
         )
     }
 
@@ -977,7 +979,7 @@ final class PostListViewModelLoadStateTests: XCTestCase {
     }
 
     func testHardCapTimesOutToUnreachable() async {
-        let vm = makeViewModel { _ in
+        let vm = makeViewModel(hardCapTimeout: .milliseconds(50)) { _ in
             try await Task.sleep(for: .seconds(10))
             return nil
         }
@@ -1004,21 +1006,25 @@ final class PostListViewModelLoadStateTests: XCTestCase {
         await task.value
     }
 
-    func testPaginationFailureSetsFailedState() async {
-        let vm = makeViewModel { _ in throw URLError(.timedOut) }
-        vm.loadMore()
-        // loadMore guards on loadState == .loaded; force loaded first.
-        vm.resolveInitialSnapshot(rowCount: 1) // no-op unless loading; set up via load
-        // Drive a proper loaded state:
-        let vm2 = makeViewModel { _ in "c" }
-        await vm2.loadFirstPage()
-        vm2.resolveInitialSnapshot(rowCount: 1)
-        XCTAssertEqual(vm2.loadState, .loaded)
+    func testPaginationFailsThenRetrySucceeds() async {
+        var callCount = 0
+        let vm = makeViewModel { _ in
+            callCount += 1
+            if callCount == 2 { throw URLError(.timedOut) }
+            return "next"
+        }
+        await vm.loadFirstPage()            // call 1: succeeds
+        vm.resolveInitialSnapshot(rowCount: 2)
+        XCTAssertEqual(vm.loadState, .loaded)
+
+        await vm.loadMore()                 // call 2: throws
+        XCTAssertEqual(vm.paginationState, .failed)
+
+        await vm.retryPagination()          // call 3: succeeds
+        XCTAssertEqual(vm.paginationState, .idle)
     }
 }
 ```
-
-> Note: `testPaginationFailureSetsFailedState` is intentionally split into a clean loaded-state setup; pagination behavior is exercised more fully in Step 7 below once `loadMore` is implemented. Keep the assertions that compile against the produced API.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -1206,19 +1212,19 @@ final class PostListViewModel {
     // MARK: - Pagination
 
     func didScrollToBottom() {
-        loadMore()
+        Task { await loadMore() }
     }
 
-    func loadMore() {
+    func loadMore() async {
         guard loadState == .loaded, paginationState != .loading, !feedExhausted else { return }
         paginationState = .loading
-        Task { await performPagination() }
+        await performPagination()
     }
 
-    func retryPagination() {
+    func retryPagination() async {
         guard paginationState == .failed else { return }
         paginationState = .loading
-        Task { await performPagination() }
+        await performPagination()
     }
 
     private func performPagination() async {
@@ -1400,7 +1406,7 @@ enum Item: Hashable {
 }
 ```
 
-In the data source's cell provider (`setupDataSource`, `PostListViewController.swift:901+`), add a branch for `.paginationRetry` that dequeues `PaginationErrorFooterCell`, sets `cell.onRetry = { [weak self] in self?.viewModel.retryPagination() }`, and returns it. Keep the existing `.loadingIndicator` branch returning `LoadingFooterCell`.
+In the data source's cell provider (`setupDataSource`, `PostListViewController.swift:901+`), add a branch for `.paginationRetry` that dequeues `PaginationErrorFooterCell`, sets `cell.onRetry = { [weak self] in Task { await self?.viewModel.retryPagination() } }`, and returns it. Keep the existing `.loadingIndicator` branch returning `LoadingFooterCell`.
 
 - [ ] **Step 4: Add the slow caption to the skeleton view**
 
