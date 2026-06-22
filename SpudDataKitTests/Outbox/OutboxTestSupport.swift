@@ -9,6 +9,31 @@ import GRDB
 import LemmyKit
 @testable import SpudDataKit
 
+// MARK: - Fake performer
+
+/// A controllable stand-in for ``OutboxNetworkPerforming`` used by outbox tests.
+/// Task 9 (OutboxService tests) reuses this type directly.
+actor FakeOutboxPerformer: OutboxNetworkPerforming {
+    enum Outcome {
+        case success
+        case fail(any Error)
+    }
+
+    var outcomeByKind: [OutboxKind: Outcome] = [:]
+    private(set) var performed: [OutboxOperation] = []
+
+    func setOutcome(_ outcome: Outcome, for kind: OutboxKind) {
+        outcomeByKind[kind] = outcome
+    }
+
+    func perform(_ op: OutboxOperation) async throws {
+        performed.append(op)
+        if case let .fail(error) = outcomeByKind[op.kind] ?? .success {
+            throw error
+        }
+    }
+}
+
 // MARK: - Seed helpers
 
 /// Seeds an instance, site, and account into `appDatabase`. Returns the
