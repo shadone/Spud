@@ -37,7 +37,7 @@ final class PostDetailViewModel {
         accountScope.accountKeychainId
     }
 
-    var commentSortType: Components.Schemas.CommentSortType
+    private(set) var commentSortType: Components.Schemas.CommentSortType
 
     /// True while a (non-pull-refresh) comment fetch is in flight. Pull-to-refresh
     /// calls `LemmyService.fetchComments` directly and does not flip this.
@@ -69,6 +69,12 @@ final class PostDetailViewModel {
     private(set) var newCommentState: NewCommentState.Result =
         .init(newElementIds: [], firstNewElementId: nil)
 
+    @ObservationIgnored
+    private let fetchCommentsOperation: @MainActor (Components.Schemas.CommentSortType) async throws -> Void
+
+    @ObservationIgnored
+    private var fetchTask: Task<Void, Never>?
+
     private var alertService: AlertServiceType {
         dependencies.alertService
     }
@@ -76,17 +82,21 @@ final class PostDetailViewModel {
     init(
         serverPostId: Components.Schemas.PostID,
         accountScope: AccountScope,
-        dependencies: Dependencies
+        dependencies: Dependencies,
+        fetchCommentsOperation: (@MainActor (Components.Schemas.CommentSortType) async throws -> Void)? = nil
     ) {
         self.dependencies = dependencies
         self.serverPostId = serverPostId
         self.accountScope = accountScope
         commentSortType = dependencies.preferencesService.defaultCommentSortType
+        self.fetchCommentsOperation = fetchCommentsOperation ?? { sortType in
+            try await accountScope.lemmyService
+                .fetchComments(serverPostId: serverPostId, sortType: sortType)
+        }
     }
 
-    func didChangeCommentSortType(_ sortType: Components.Schemas.CommentSortType) {
+    func setCommentSortType(_ sortType: Components.Schemas.CommentSortType) {
         commentSortType = sortType
-        Task { await fetchComments() }
     }
 
     // MARK: - Collapse state (view-layer)
@@ -178,20 +188,29 @@ final class PostDetailViewModel {
     }
 
     func fetchComments() async {
-        // De-dup overlapping fetches: only one comment fetch runs at a time. A
-        // second trigger while one is already in flight is a no-op — its result
-        // would be redundant, and letting it run would reset `isLoadingComments`
-        // early and flap the loading state. (When a per-post comment sort
-        // switcher is added, this should become cancel-and-replace so a sort
-        // change supersedes the in-flight fetch rather than being dropped.)
-        guard !isLoadingComments else { return }
+        // Cancel-and-replace: a new fetch (e.g. a sort change) supersedes the
+        // in-flight one. The flag is set synchronously and only the winning
+        // (non-cancelled) task clears it or surfaces an error, so it never flaps
+        // and a superseded fetch is silent.
+        fetchTask?.cancel()
         isLoadingComments = true
-        defer { isLoadingComments = false }
-        do {
-            try await accountScope.lemmyService
-                .fetchComments(serverPostId: serverPostId, sortType: commentSortType)
-        } catch {
-            alertService.handle(error, for: .fetchComments)
+        let sortType = commentSortType
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await fetchCommentsOperation(sortType)
+            } catch is CancellationError {
+                // Superseded — leave the flag to the winning fetch.
+            } catch {
+                if !Task.isCancelled {
+                    alertService.handle(error, for: .fetchComments)
+                }
+            }
+            if !Task.isCancelled {
+                isLoadingComments = false
+            }
         }
+        fetchTask = task
+        await task.value
     }
 }
