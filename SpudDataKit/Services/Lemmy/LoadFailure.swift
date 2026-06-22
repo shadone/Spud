@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import LemmyKit
 import SpudUtilKit
 
 /// A remote load failure, narrowed to the three causes the UI distinguishes.
@@ -57,10 +58,7 @@ public struct LoadFailure: Error, Equatable {
                 // fallback for an unexpected error type — treat as a Spud bug.
                 return LoadFailure(kind: .malformedResponse, diagnostics: diagnostics)
             case let .apiError(apiError):
-                if let urlError = firstURLError(in: apiError) {
-                    return LoadFailure(kind: kind(for: urlError), diagnostics: diagnostics)
-                }
-                return LoadFailure(kind: .unreachable, diagnostics: diagnostics)
+                return LoadFailure(kind: kind(forApiError: apiError), diagnostics: diagnostics)
             case .requiresAuthentication:
                 // Auth is out of scope for this iteration; treat as unreachable.
                 return LoadFailure(kind: .unreachable, diagnostics: diagnostics)
@@ -91,11 +89,32 @@ public struct LoadFailure: Error, Equatable {
         return false
     }
 
-    private static func firstURLError(in error: Error) -> URLError? {
-        if let urlError = error as? URLError { return urlError }
-        for underlying in (error as NSError).underlyingErrors {
-            if let found = firstURLError(in: underlying) { return found }
+    /// `LemmyApiError` carries its cause as an associated value and does not
+    /// bridge it into `NSError.underlyingErrors`, so inspect its cases directly.
+    private static func kind(forApiError apiError: LemmyApiError) -> Kind {
+        switch apiError {
+        case .failedToDeserializeResponse:
+            return .malformedResponse
+        case let .network(underlying):
+            if let urlError = underlying as? URLError {
+                return kind(for: urlError)
+            }
+            return .unreachable
+        case .serverError, .unauthorized:
+            return .unreachable
+        case let .unknownServerError(_, underlying):
+            if let underlying, containsDecodingError(underlying) {
+                return .malformedResponse
+            }
+            return .unreachable
+        case let .unknown(underlying):
+            if containsDecodingError(underlying) {
+                return .malformedResponse
+            }
+            if let urlError = underlying as? URLError {
+                return kind(for: urlError)
+            }
+            return .unreachable
         }
-        return nil
     }
 }

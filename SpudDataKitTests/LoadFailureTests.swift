@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import LemmyKit
 import SpudUtilKit
 import XCTest
 @testable import SpudDataKit
@@ -63,5 +64,38 @@ final class LoadFailureTests: XCTestCase {
     func testDiagnosticsAreNonEmpty() {
         let failure = LoadFailure.classify(URLError(.timedOut), isOnline: true)
         XCTAssertFalse(failure.diagnostics.isEmpty)
+    }
+
+    func testApiErrorWrappingDeserializeFailureIsMalformed() {
+        let decoding = DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "bad"))
+        let failure = LoadFailure.classify(
+            LemmyServiceError.apiError(.failedToDeserializeResponse(underlyingError: decoding)),
+            isOnline: true
+        )
+        XCTAssertEqual(failure.kind, .malformedResponse)
+    }
+
+    func testApiErrorWrappingNotConnectedURLErrorIsOffline() {
+        let failure = LoadFailure.classify(
+            LemmyServiceError.apiError(.network(URLError(.notConnectedToInternet))),
+            isOnline: true
+        )
+        XCTAssertEqual(failure.kind, .offline)
+    }
+
+    func testApiErrorWrappingTimedOutURLErrorIsUnreachable() {
+        let failure = LoadFailure.classify(
+            LemmyServiceError.apiError(.network(URLError(.timedOut))),
+            isOnline: true
+        )
+        XCTAssertEqual(failure.kind, .unreachable)
+    }
+
+    func testApiErrorUnknownServerErrorIsUnreachable() {
+        let failure = LoadFailure.classify(
+            LemmyServiceError.apiError(.unknownServerError(httpStatusCode: 500, error: nil)),
+            isOnline: true
+        )
+        XCTAssertEqual(failure.kind, .unreachable)
     }
 }
