@@ -29,4 +29,16 @@ struct OutboxFailureClassTests {
     func unauthorizedApiErrorIsPermanent() {
         #expect(OutboxFailureClass.classify(LemmyApiError.unauthorized(message: nil), isOnline: true) == .permanent)
     }
+
+    @Test
+    func failedToDeserializeIsPermanent() {
+        let error = LemmyApiError.failedToDeserializeResponse(underlyingError: URLError(.cannotDecodeRawData))
+        #expect(OutboxFailureClass.classify(error, isOnline: true) == .permanent)
+    }
+
+    @Test
+    func wrappedApiErrorClassifiesInner() {
+        let error = LemmyServiceError.apiError(.unauthorized(message: nil))
+        #expect(OutboxFailureClass.classify(error, isOnline: true) == .permanent)
+    }
 }

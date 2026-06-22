@@ -22,16 +22,14 @@ public enum OutboxFailureClass: Sendable, Equatable {
         if !isOnline { return .transient }
 
         switch error {
-        case LemmyServiceError.requiresAuthentication:
-            return .permanent
         case let serviceError as LemmyServiceError:
             switch serviceError {
             case let .apiError(apiError):
                 return classify(apiError)
-            case .internalInconsistency:
-                return .transient
             case .requiresAuthentication:
                 return .permanent
+            case .internalInconsistency:
+                return .transient
             }
         case is URLError:
             return .transient
