@@ -7,7 +7,7 @@
 import XCTest
 @testable import Spud
 
-final class CommentsBackgroundStateTests: XCTestCase {
+final class CommentsBackgroundTests: XCTestCase {
     func testCommentsPresentIsAlwaysHidden() {
         for loading in [true, false] {
             for completed in [true, false] {
