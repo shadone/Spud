@@ -16,7 +16,8 @@ final class SearchURLDetectorTests: XCTestCase {
         SearchURLDetector.detect(query: s, isKnownInstance: known)
     }
 
-    // Known instance: classify drives kind + link.
+    // MARK: Known instance: classify drives kind + link.
+
     func test_knownPost_isPostKind_objectAtURL() throws {
         let s = try XCTUnwrap(detect("https://lemmy.world/post/123"))
         XCTAssertEqual(s.kind, .post)
@@ -49,7 +50,8 @@ final class SearchURLDetectorTests: XCTestCase {
         guard case .instance = s.link else { return XCTFail("expected .instance") }
     }
 
-    // Unknown host: path-shape fallback -> objectAtURL with derived kind.
+    // MARK: Unknown host: path-shape fallback -> objectAtURL with derived kind.
+
     func test_unknownPost_isOffered_objectAtURL() throws {
         let s = try XCTUnwrap(detect("https://small.example/post/1"))
         XCTAssertEqual(s.kind, .post)
@@ -73,7 +75,8 @@ final class SearchURLDetectorTests: XCTestCase {
         guard case .objectAtURL = s.link else { return XCTFail("expected .objectAtURL for unknown host") }
     }
 
-    // Negatives.
+    // MARK: Negatives.
+
     func test_bareUnknownHost_isNil() {
         XCTAssertNil(detect("https://example.com"))
     }
