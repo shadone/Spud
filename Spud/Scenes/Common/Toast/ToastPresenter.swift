@@ -15,7 +15,9 @@ import UIKit
 /// - Interactive (`show(_:actionTitle:in:duration:action:)`): adds a trailing
 ///   accent action button (e.g. "Undo"); the pill is content-sized, so only it
 ///   intercepts touches - the rest of the screen stays usable. Replaces any
-///   existing toast rather than coalescing.
+///   existing toast rather than coalescing. Tapping the action button runs
+///   `action` directly; if `action` presents a follow-up toast (as the undo
+///   flow does), the hint is replaced by it and dwells its full duration.
 ///
 /// `dismiss()` animates the current toast out immediately.
 @MainActor
@@ -50,10 +52,7 @@ final class ToastPresenter {
         duration: Duration = .seconds(4),
         action: @escaping @MainActor () -> Void
     ) {
-        let toast = ToastView(message: message, actionTitle: actionTitle) { [weak self] in
-            action()
-            self?.dismiss()
-        }
+        let toast = ToastView(message: message, actionTitle: actionTitle, action: action)
         present(toast, in: window, duration: duration)
     }
 

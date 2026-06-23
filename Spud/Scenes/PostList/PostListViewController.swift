@@ -1468,6 +1468,11 @@ extension PostListViewController: UITableViewDelegate {
     /// The server post id of the topmost currently-visible post row - the row to
     /// pulse on restore. `nil` when no post row is visible (e.g. only the loading
     /// footer), which suppresses the undo for that tap.
+    ///
+    /// "Substantially visible" was the original spec intent, but using the first
+    /// visible post is deliberate here: the content-offset restore is exact, so
+    /// this anchor only determines which row to *pulse* on restore. The topmost
+    /// visible post is a correct and cheap choice.
     private func topmostVisibleServerPostId() -> Int64? {
         for indexPath in tableView.indexPathsForVisibleRows ?? [] {
             if case let .post(serverPostId)? = dataSource.itemIdentifier(for: indexPath) {
