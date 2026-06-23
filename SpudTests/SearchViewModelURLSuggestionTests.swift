@@ -51,4 +51,21 @@ final class SearchViewModelURLSuggestionTests: XCTestCase {
         XCTAssertNil(viewModel.urlSuggestion)
         XCTAssertEqual(viewModel.phase, .initial)
     }
+
+    func test_submit_withURLQuery_doesNotSearch() throws {
+        let viewModel = try makeViewModel()
+        viewModel.queryChanged("https://small.example/post/1")
+        viewModel.submit()
+        XCTAssertNotNil(viewModel.urlSuggestion)
+        // submit() must not call scheduleSearch; phase stays .initial.
+        XCTAssertEqual(viewModel.phase, .initial)
+    }
+
+    func test_scopeChanged_withURLQuery_doesNotSearch() throws {
+        let viewModel = try makeViewModel()
+        viewModel.queryChanged("https://small.example/post/1")
+        viewModel.scopeChanged(.communities)
+        // scopeChanged() must not call scheduleSearch when a URL suggestion is active.
+        XCTAssertEqual(viewModel.phase, .initial)
+    }
 }

@@ -110,6 +110,9 @@ final class SearchViewModel {
             return
         }
 
+        // A recognized URL is offered as an "Open in Spud" row; skip the search.
+        guard urlSuggestion == nil else { return }
+
         scheduleSearch(query: query, debounced: false)
     }
 
@@ -117,6 +120,8 @@ final class SearchViewModel {
     func submit() {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        // A recognized URL is offered as an "Open in Spud" row; skip the search.
+        guard urlSuggestion == nil else { return }
         searchTask?.cancel()
         scheduleSearch(query: trimmed, debounced: false)
     }
