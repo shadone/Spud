@@ -27,34 +27,12 @@ public struct PersonProfileRow: Sendable, Equatable, Identifiable {
 }
 
 public extension AppDatabase {
-    /// Resolves the row id of a person by `(instance actor id, server person
-    /// id)`. Synchronous so callers can wire up the observation at init time
-    /// without adopting an async path purely for one lookup.
-    func personRowIdSync(instanceActorId: String, personId: Int64) -> Int64? {
-        do {
-            return try writer.read { db in
-                try Int64.fetchOne(db, sql: """
-                        SELECT person.id
-                        FROM person
-                        JOIN site     ON site.id = person.siteId
-                        JOIN instance ON instance.id = site.instanceId
-                        WHERE instance.actorId = ?
-                          AND person.personId = ?
-                        LIMIT 1
-                    """, arguments: [instanceActorId, personId])
-            }
-        } catch {
-            logger.error("Failed to resolve person row id: \(String(describing: error), privacy: .public)")
-            return nil
-        }
-    }
-
     /// Resolves the row id of a person by `(accountKeychainId, server person id)`.
     /// Persons are stored under the account's site, so this account-keyed lookup
-    /// matches storage regardless of the person's federated home instance - unlike
-    /// `personRowIdSync(instanceActorId:personId:)`, which fails for a person whose
-    /// home instance differs from the account's. Synchronous for view-controller
-    /// bring-up paths.
+    /// matches storage regardless of the person's federated home instance (a
+    /// home-instance-keyed lookup would fail for a person whose home instance
+    /// differs from the account's). Synchronous for view-controller bring-up
+    /// paths.
     func personRowIdSync(forKeychainId keychainId: String, personId: Int64) -> Int64? {
         do {
             return try writer.read { db in

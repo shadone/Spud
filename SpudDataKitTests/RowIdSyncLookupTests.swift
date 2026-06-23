@@ -83,10 +83,9 @@ final class RowIdSyncLookupTests: XCTestCase {
 
     /// Regression: a federated (remote) person has an actorId on a different
     /// host than the account's home instance, but is still stored under the
-    /// ACCOUNT's siteId. The account-keyed lookup must still find it; the old
-    /// instance-keyed lookup (personRowIdSync(instanceActorId:personId:)) would
-    /// fail because it joins through instance.actorId which won't match the
-    /// person's remote host.
+    /// ACCOUNT's siteId. The account-keyed lookup must still find it (a
+    /// home-instance-keyed lookup would fail, since it joins through
+    /// instance.actorId which won't match the person's remote host).
     func testPersonRowIdSyncByKeychainIdIgnoresPersonHomeInstance() async throws {
         let keychainId = "test-keychain-2"
         // Account's home instance is "https://example.com".
@@ -111,14 +110,6 @@ final class RowIdSyncLookupTests: XCTestCase {
         // Account-keyed lookup finds the remote person via the account's siteId.
         let result = appDatabase.personRowIdSync(forKeychainId: keychainId, personId: serverPersonId)
         XCTAssertEqual(result, personRowId)
-
-        // Confirm the old instance-keyed helper would NOT find it (the regression
-        // scenario): bob's actorId is on remote.example, not example.com.
-        let oldLookup = appDatabase.personRowIdSync(
-            instanceActorId: "https://remote.example",
-            personId: serverPersonId
-        )
-        XCTAssertNil(oldLookup, "Old instance-keyed lookup must not find a person stored under a different site")
     }
 
     // MARK: - communityRowIdSync(forAccountId:serverCommunityId:)

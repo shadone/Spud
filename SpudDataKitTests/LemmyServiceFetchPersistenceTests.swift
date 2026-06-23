@@ -305,7 +305,7 @@ final class LemmyServiceFetchPersistenceTests: XCTestCase {
         }
 
         let rowId = appDatabase.personRowIdSync(
-            instanceActorId: instanceActorId,
+            forKeychainId: keychainId,
             personId: Int64(serverPersonId)
         )
         XCTAssertNil(rowId, "person row must not exist when persistence failed")
@@ -329,7 +329,7 @@ final class LemmyServiceFetchPersistenceTests: XCTestCase {
         }
 
         let rowId = appDatabase.personRowIdSync(
-            instanceActorId: instanceActorId,
+            forKeychainId: keychainId,
             personId: Int64(serverPersonId)
         )
         XCTAssertNotNil(rowId, "person row must exist after a successful fetch")

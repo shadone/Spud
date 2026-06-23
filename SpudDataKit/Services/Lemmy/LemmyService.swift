@@ -802,15 +802,10 @@ public actor LemmyService: LemmyServiceType {
 
         await mirrorPersonInfoToAppDatabase(personView: response.person_view)
 
-        let resolvedInstanceActorId = await appDatabase.accountInstanceActorId(
-            forKeychainId: accountIdentifierForLogging
-        )
-        guard let resolvedInstanceActorId,
-              appDatabase.personRowIdSync(
-                  instanceActorId: resolvedInstanceActorId,
-                  personId: Int64(serverPersonId)
-              ) != nil
-        else {
+        guard appDatabase.personRowIdSync(
+            forKeychainId: accountIdentifierForLogging,
+            personId: Int64(serverPersonId)
+        ) != nil else {
             throw LemmyServiceError.internalInconsistency(
                 description: "fetchPersonInfo: person row not persisted after mirror for personId=\(serverPersonId)"
             )
