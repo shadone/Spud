@@ -49,6 +49,32 @@ public extension AppDatabase {
         }
     }
 
+    /// Resolves the row id of a person by `(accountKeychainId, server person id)`.
+    /// Persons are stored under the account's site, so this account-keyed lookup
+    /// matches storage regardless of the person's federated home instance - unlike
+    /// `personRowIdSync(instanceActorId:personId:)`, which fails for a person whose
+    /// home instance differs from the account's. Synchronous for view-controller
+    /// bring-up paths.
+    func personRowIdSync(forKeychainId keychainId: String, personId: Int64) -> Int64? {
+        do {
+            return try writer.read { db in
+                let siteId: Int64? = try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)?
+                    .siteId
+                guard let siteId else { return nil }
+                return try PersonRecord
+                    .filter(Column("siteId") == siteId)
+                    .filter(Column("personId") == personId)
+                    .fetchOne(db)?
+                    .id
+            }
+        } catch {
+            logger.error("Failed to resolve person row id by keychainId: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     /// Stream of the Person profile snapshot for `personRowId`. Yields nil if
     /// the row no longer exists.
     func observePersonProfile(personRowId: Int64) -> AsyncStream<PersonProfileRow?> {

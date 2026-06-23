@@ -153,7 +153,7 @@ class PersonLoadingViewController: UIViewController {
         // landed yet, fall through silently — the parent will keep showing
         // the spinner and the user can pop the screen.
         if let personRowId = appDatabase.personRowIdSync(
-            instanceActorId: instance.actorId,
+            forKeychainId: accountKeychainId,
             personId: Int64(serverPersonId)
         ) {
             didFinishLoading?(personRowId)

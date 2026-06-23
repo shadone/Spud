@@ -170,6 +170,24 @@ public extension AppDatabase {
         return makeStream(observation: observation)
     }
 
+    /// Resolves the row id of a community by `(accountId, serverCommunityId)` -
+    /// the same key `observeCommunity` gates on. Returns nil until the community
+    /// has been imported. Synchronous for view-controller bring-up paths.
+    func communityRowIdSync(forAccountId accountId: Int64, serverCommunityId: Int64) -> Int64? {
+        do {
+            return try writer.read { db in
+                try CommunityRecord
+                    .filter(Column("accountId") == accountId)
+                    .filter(Column("communityId") == serverCommunityId)
+                    .fetchOne(db)?
+                    .id
+            }
+        } catch {
+            logger.error("Failed to resolve community row id: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     private func makeStream<Value: Sendable & Equatable>(
         observation: ValueObservation<ValueReducers.RemoveDuplicates<ValueReducers.Fetch<Value>>>
     ) -> AsyncStream<Value> {
