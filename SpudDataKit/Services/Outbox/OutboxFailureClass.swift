@@ -11,6 +11,11 @@ import LemmyKit
 /// or rolled back and surfaced (permanent). Distinct from `LoadFailure`, which
 /// collapses auth into `.unreachable`; the outbox must treat auth as permanent
 /// because a vote should not spin forever when the session is invalid.
+///
+/// Permanent cases include: auth errors, structured Lemmy server rejections
+/// (deleted/removed entity, banned, not-found, etc.), and client-error HTTP
+/// status codes (4xx excluding 408 and 429). Transient cases include: network
+/// errors, rate-limit rejections, server errors (5xx), 408, and 429.
 public enum OutboxFailureClass: Sendable, Equatable {
     case transient
     case permanent
@@ -44,7 +49,22 @@ public enum OutboxFailureClass: Sendable, Equatable {
         switch apiError {
         case .unauthorized, .failedToDeserializeResponse:
             return .permanent
-        case .network, .serverError, .unknownServerError, .unknown:
+        case let .serverError(errorResponse):
+            // A structured Lemmy rejection (deleted/removed entity, banned, not-found,
+            // already-deleted, etc.) is permanent — retrying yields the same rejection.
+            // Rate-limit errors are the exception: backing off and retrying later helps.
+            if errorResponse.error.hasPrefix("rate_limit") {
+                return .transient
+            }
+            return .permanent
+        case let .unknownServerError(httpStatusCode, _):
+            // Client errors (4xx) are permanent except 408 Request Timeout and
+            // 429 Too Many Requests, which are worth retrying. 5xx are transient.
+            if (400..<500).contains(httpStatusCode), httpStatusCode != 408, httpStatusCode != 429 {
+                return .permanent
+            }
+            return .transient
+        case .network, .unknown:
             return .transient
         }
     }
