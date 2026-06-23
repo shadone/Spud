@@ -75,6 +75,14 @@ final class SearchURLDetectorTests: XCTestCase {
         guard case .objectAtURL = s.link else { return XCTFail("expected .objectAtURL for unknown host") }
     }
 
+    func test_knownCommunity_qualifiedName_usesQualifiedHost() throws {
+        let s = try XCTUnwrap(detect("https://lemmy.world/c/games@beehaw.org"))
+        XCTAssertEqual(s.kind, .community)
+        guard case let .community(name, instance) = s.link else { return XCTFail("expected .community") }
+        XCTAssertEqual(name, "games")
+        XCTAssertEqual(instance.host, "beehaw.org")
+    }
+
     // MARK: Negatives.
 
     func test_bareUnknownHost_isNil() {

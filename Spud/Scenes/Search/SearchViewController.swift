@@ -6,10 +6,13 @@
 
 import Foundation
 import LemmyKit
+import OSLog
 import SpudDataKit
 import SpudUIKit
 import SpudUtilKit
 import UIKit
+
+private let logger = Logger.app
 
 /// The Search tab. A `UISearchController` drives a scoped, debounced search;
 /// results render in a table with feed-style post rows, community/user rows
@@ -442,7 +445,14 @@ final class SearchViewController: UIViewController {
     /// type. Comments open the parent post; unresolved links warn.
     private func resolveAndOpen(_ canonicalURL: URL, in window: MainWindow) async {
         let lemmyService = viewModel.accountScope.lemmyService
-        let resolved = try? await lemmyService.resolveObject(query: canonicalURL.absoluteString)
+        let resolved: ResolvedLemmyObject?
+        do {
+            resolved = try await lemmyService.resolveObject(query: canonicalURL.absoluteString)
+        } catch {
+            logger.error("resolve_object failed for \(canonicalURL.absoluteString, privacy: .public): \(String(describing: error), privacy: .public)")
+            Haptics.warning()
+            return
+        }
         switch resolved {
         case let .post(postId, _):
             window.display(serverPostId: postId, accountKeychainId: accountKeychainId)
@@ -453,6 +463,7 @@ final class SearchViewController: UIViewController {
         case let .comment(postId, _, _):
             window.display(serverPostId: postId, accountKeychainId: accountKeychainId)
         case .unresolved, .none:
+            logger.error("Could not resolve an object to display for: \(canonicalURL.absoluteString, privacy: .public)")
             Haptics.warning()
         }
     }
