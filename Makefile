@@ -4,11 +4,21 @@
 # and is gitignored. project.yml is the source of truth. Regenerate after pulling
 # changes to project.yml or adding/removing source files.
 
-.PHONY: project bootstrap explorer-seed safari-matches
+.PHONY: project release-project bootstrap explorer-seed safari-matches
 
 # Regenerate Spud.xcodeproj from project.yml.
 project:
 	xcodegen generate
+
+# Regenerate Spud.xcodeproj for a TestFlight / App Store archive: same as
+# `project` but with test-only dependencies removed (everything between the
+# `# >>> release-strip` / `# <<< release-strip` sentinels in project.yml).
+# Shipping SBTUITestTunnelServer links a private API and is rejected with
+# ITMS-90338, so use this target — not `project` — before archiving to distribute.
+release-project:
+	sed '/# >>> release-strip/,/# <<< release-strip/d' project.yml > .project.release.yml
+	xcodegen generate --spec .project.release.yml
+	rm -f .project.release.yml
 
 # Regenerate the bundled Lemmy Explorer seed (instances + communities) from
 # data.lemmyverse.net into SpudDataKit/Resources. Run per release.

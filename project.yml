@@ -84,15 +84,18 @@ targets:
       - target: SpudWidgetExtension
       - target: OpenInAppExtension
       - target: OpenInSpudAction
-      # B2 (archive-stage): SBTUITestTunnelServer is linked in all configs
-      # because XcodeGen 2.45 cannot scope a package product to one
-      # configuration, and SwiftPM has no "import without link". The server is
-      # runtime-inert in Release (takeOff() is #if DEBUG, so no socket is ever
-      # opened), but its code is still present in the binary. Removing it needs
-      # a Debug-only framework wrapper or a move off the SPM-linked server; see
-      # RELEASE-PLAN.md B2.
+      # SBTUITestTunnelServer is needed only by Debug / UI-test builds (the app's
+      # `import` and `takeOff()` in AppDelegate are both #if DEBUG). XcodeGen 2.45
+      # cannot scope a package product to a single configuration, so by default it
+      # links in all configs. Shipping it in a Release / App Store build links a
+      # private NSInvocation API (__NSMakeSpecialForwardingCaptureBlock) and is
+      # rejected with ITMS-90338. `make release-project` regenerates the project
+      # with the dependency between the release-strip sentinels removed; use it
+      # (not `make project`) before archiving for TestFlight / the App Store.
+      # >>> release-strip
       - package: SBTUITestTunnel
         product: SBTUITestTunnelServer
+      # <<< release-strip
 
   SpudWidgetExtension:
     type: app-extension
