@@ -85,6 +85,7 @@ enum SearchURLDetector {
         case .objectAtURL:
             let parts = path.split(separator: "/").map(String.init)
             switch parts.first {
+            case "post": return .post
             case "comment": return .comment
             case "u": return .user
             default: return .post
