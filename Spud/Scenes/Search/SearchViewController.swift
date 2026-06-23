@@ -8,6 +8,7 @@ import Foundation
 import LemmyKit
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 /// The Search tab. A `UISearchController` drives a scoped, debounced search;
@@ -50,6 +51,10 @@ final class SearchViewController: UIViewController {
         dependencies.own.imageService
     }
 
+    private var appDatabase: AppDatabase {
+        dependencies.own.appDatabase
+    }
+
     // MARK: Private
 
     private let accountKeychainId: String
@@ -59,10 +64,12 @@ final class SearchViewController: UIViewController {
     private var resultsObservationTask: Task<Void, Never>?
 
     private enum Section: Hashable {
+        case openURL
         case results
     }
 
     private enum Item: Hashable {
+        case openURL(kind: SearchURLSuggestion.Kind, displayURL: String)
         case post(SearchPostResult)
         case community(SearchCommunityResult)
         case user(SearchUserResult)
@@ -80,6 +87,7 @@ final class SearchViewController: UIViewController {
         tableView.register(SearchCommunityCell.self, forCellReuseIdentifier: SearchCommunityCell.reuseIdentifier)
         tableView.register(SearchUserCell.self, forCellReuseIdentifier: SearchUserCell.reuseIdentifier)
         tableView.register(SearchCommentCell.self, forCellReuseIdentifier: SearchCommentCell.reuseIdentifier)
+        tableView.register(SearchOpenURLCell.self, forCellReuseIdentifier: SearchOpenURLCell.reuseIdentifier)
         return tableView
     }()
 
@@ -185,7 +193,7 @@ final class SearchViewController: UIViewController {
             }
         }
         resultsObservationTask = Task { @MainActor [weak self] in
-            for await _ in ObservationStream.values(of: { (viewModel.results.posts, viewModel.results.communities, viewModel.results.users, viewModel.results.comments, viewModel.scope) }) {
+            for await _ in ObservationStream.values(of: { (viewModel.urlSuggestion?.displayURL, viewModel.results.posts, viewModel.results.communities, viewModel.results.users, viewModel.results.comments, viewModel.scope) }) {
                 if Task.isCancelled { break }
                 self?.render()
             }
@@ -195,10 +203,17 @@ final class SearchViewController: UIViewController {
     // MARK: Rendering
 
     private func render() {
+        if let suggestion = viewModel.urlSuggestion {
+            loadingIndicator.stopAnimating()
+            updateContentUnavailable(.none)
+            applySnapshot(suggestion: suggestion, items: [])
+            return
+        }
+
         switch viewModel.phase {
         case .initial:
             loadingIndicator.stopAnimating()
-            applySnapshot([])
+            applySnapshot(suggestion: nil, items: [])
             updateContentUnavailable(.initial)
         case .loading:
             loadingIndicator.startAnimating()
@@ -211,7 +226,7 @@ final class SearchViewController: UIViewController {
             )
         case .error:
             loadingIndicator.stopAnimating()
-            applySnapshot([])
+            applySnapshot(suggestion: nil, items: [])
             updateContentUnavailable(.error)
         }
     }
@@ -228,11 +243,18 @@ final class SearchViewController: UIViewController {
         case .comments:
             items = viewModel.results.comments.map(Item.comment)
         }
-        applySnapshot(items)
+        applySnapshot(suggestion: nil, items: items)
     }
 
-    private func applySnapshot(_ items: [Item]) {
+    private func applySnapshot(suggestion: SearchURLSuggestion?, items: [Item]) {
         var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
+        if let suggestion {
+            snapshot.appendSections([.openURL])
+            snapshot.appendItems(
+                [.openURL(kind: suggestion.kind, displayURL: suggestion.displayURL)],
+                toSection: .openURL
+            )
+        }
         snapshot.appendSections([.results])
         snapshot.appendItems(items, toSection: .results)
         dataSource.apply(snapshot, animatingDifferences: false)
@@ -288,6 +310,14 @@ final class SearchViewController: UIViewController {
         UITableViewDiffableDataSource<Section, Item>(tableView: tableView) { [weak self] tableView, indexPath, item in
             guard let self else { return UITableViewCell() }
             switch item {
+            case let .openURL(kind, displayURL):
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: SearchOpenURLCell.reuseIdentifier,
+                    for: indexPath
+                ) as! SearchOpenURLCell
+                cell.configure(kind: kind, displayURL: displayURL)
+                return cell
+
             case let .post(result):
                 let cell = tableView.dequeueReusableCell(
                     withIdentifier: SearchPostCell.reuseIdentifier,
@@ -354,6 +384,78 @@ final class SearchViewController: UIViewController {
             }
         }
     }
+
+    // MARK: Open-URL routing
+
+    /// Routes a detected Lemmy URL. Mirrors PostDetailViewController's local link
+    /// handling: communities/instances push directly; canonical URLs resolve
+    /// federally first.
+    private func openSuggestion(_ link: URL.SpudInternalLink, in window: MainWindow) {
+        switch link {
+        case let .community(name, instance):
+            pushCommunity(name: name, instance: instance)
+        case let .instance(instance):
+            openInstance(instance)
+        case let .objectAtURL(url):
+            Task { @MainActor [weak self] in await self?.resolveAndOpen(url, in: window) }
+        case let .post(postId, _):
+            window.display(serverPostId: postId, accountKeychainId: accountKeychainId)
+        case let .person(personId, instance):
+            pushPerson(personId: personId, instance: instance)
+        }
+    }
+
+    private func pushCommunity(name: String, instance: InstanceActorId) {
+        let vc = CommunityOrLoadingViewController(
+            communityName: name,
+            instance: instance,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    private func pushPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId) {
+        let vc = PersonOrLoadingViewController(
+            personId: personId,
+            instance: instance,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    private func openInstance(_ instance: InstanceActorId) {
+        guard let record = appDatabase.explorerInstanceSync(baseurl: instance.host) else {
+            Haptics.warning()
+            return
+        }
+        let vc = InstanceExploreViewController(
+            record: record,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    /// Resolves a canonical Lemmy URL under the current account, then routes by
+    /// type. Comments open the parent post; unresolved links warn.
+    private func resolveAndOpen(_ canonicalURL: URL, in window: MainWindow) async {
+        let lemmyService = viewModel.accountScope.lemmyService
+        let resolved = try? await lemmyService.resolveObject(query: canonicalURL.absoluteString)
+        switch resolved {
+        case let .post(postId, _):
+            window.display(serverPostId: postId, accountKeychainId: accountKeychainId)
+        case let .community(name, instance):
+            pushCommunity(name: name, instance: instance)
+        case let .person(personId, instance):
+            pushPerson(personId: personId, instance: instance)
+        case let .comment(postId, _, _):
+            window.display(serverPostId: postId, accountKeychainId: accountKeychainId)
+        case .unresolved, .none:
+            Haptics.warning()
+        }
+    }
 }
 
 // MARK: - UITableViewDelegate
@@ -364,6 +466,11 @@ extension SearchViewController: UITableViewDelegate {
         guard let item = dataSource.itemIdentifier(for: indexPath) else { return }
 
         switch item {
+        case .openURL:
+            guard let suggestion = viewModel.urlSuggestion,
+                  let window = view.window as? MainWindow else { return }
+            openSuggestion(suggestion.link, in: window)
+
         case let .post(result):
             guard let window = view.window as? MainWindow else { return }
             window.display(serverPostId: result.serverPostId, accountKeychainId: accountKeychainId)
