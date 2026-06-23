@@ -54,9 +54,13 @@ public struct LoadFailure: Error, Equatable {
         case let serviceError as LemmyServiceError:
             switch serviceError {
             case .internalInconsistency:
-                // The fetch path only reaches this via LemmyServiceError(from:)'s
-                // fallback for an unexpected error type — treat as a Spud bug.
-                return LoadFailure(kind: .malformedResponse, diagnostics: diagnostics)
+                // Reached either by LemmyServiceError(from:)'s fallback for an unexpected
+                // error type, or by an explicit persistence failure (e.g. a feed page that
+                // could not be written because the account/site row was not ready yet).
+                // Both are transient and retryable - surface the retryable error, not a
+                // "Spud bug" malformed-response surface. (Genuine decode failures are
+                // already caught above by containsDecodingError.)
+                return LoadFailure(kind: .unreachable, diagnostics: diagnostics)
             case let .apiError(apiError):
                 return LoadFailure(kind: kind(forApiError: apiError), diagnostics: diagnostics)
             case .requiresAuthentication:

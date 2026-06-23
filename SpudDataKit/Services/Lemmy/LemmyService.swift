@@ -607,7 +607,7 @@ public actor LemmyService: LemmyServiceType {
             feedId=\(feedKey, privacy: .public)
             """)
 
-        await mirrorFeedPageToAppDatabase(
+        try await mirrorFeedPageToAppDatabase(
             feedKey: feedKey,
             feedType: feedType,
             posts: response.posts
@@ -620,21 +620,19 @@ public actor LemmyService: LemmyServiceType {
         feedKey: String,
         feedType: FeedType,
         posts: [Components.Schemas.PostView]
-    ) async {
-        do {
-            guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
-                return
-            }
-            try await appDatabase.appendFeedPage(
-                feedKey: feedKey,
-                feedType: feedType,
-                accountId: accountRowId,
-                siteId: siteRowId,
-                posts: posts
+    ) async throws {
+        guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
+            throw LemmyServiceError.internalInconsistency(
+                description: "Feed page not persisted: no account/site row for keychainId"
             )
-        } catch {
-            logger.error("AppDatabase appendFeedPage failed: \(String(describing: error), privacy: .public)")
         }
+        try await appDatabase.appendFeedPage(
+            feedKey: feedKey,
+            feedType: feedType,
+            accountId: accountRowId,
+            siteId: siteRowId,
+            posts: posts
+        )
     }
 
     public func fetchComments(

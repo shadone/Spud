@@ -731,6 +731,7 @@ class PostListViewController: UIViewController {
             rowsByServerPostId.removeAll()
             orderedRows.removeAll()
             displayedRows.removeAll()
+            clearPostItems()
         }
         pinnedReadIds.removeAll()
         markedReadIds.removeAll()
@@ -753,13 +754,17 @@ class PostListViewController: UIViewController {
             }
 
             guard let feedRowId = appDatabase.feedRowIdSync(forFeedKey: feedKey) else {
-                // The feed row never materialized, so the fetch failed. Leave the
-                // failed state on screen (applyLoadState renders it); otherwise
-                // hide the skeleton so nothing keeps spinning.
                 if case .failed = viewModel.loadState {
-                    // The error surface is already shown by applyLoadState.
+                    // loadFirstPage already surfaced the failure; the loadState
+                    // observation ends the refresh control and renders the error
+                    // surface.
                 } else {
+                    // Defensive: the row is missing but loadFirstPage did not
+                    // report a failure. Never leave a pull-to-refresh spinner or
+                    // the skeleton orphaned - reach a terminal state.
+                    refreshControl.endRefreshing()
                     hideLoadingSkeleton()
+                    viewModel.failInitialLoad()
                 }
                 return
             }
@@ -927,6 +932,21 @@ class PostListViewController: UIViewController {
                 UIPasteboard.general.string = self?.viewModel.lastFailureDiagnostics
             }
         }
+    }
+
+    /// Clears the displayed posts from the diffable snapshot, keeping the
+    /// snapshot and `rowsByServerPostId` in lockstep. Without this, switching
+    /// feeds leaves the prior feed's `.post` items in the snapshot while
+    /// `rowsByServerPostId` has been emptied, so any cell re-dequeued before
+    /// the new feed's first snapshot resolves to no row ("Missing PostListRow").
+    /// The `.loading` section (pagination footer) is owned by applyPaginationState
+    /// and left untouched.
+    private func clearPostItems() {
+        guard dataSource != nil else { return }
+        var snapshot = dataSource.snapshot()
+        guard snapshot.sectionIdentifiers.contains(.posts) else { return }
+        snapshot.deleteSections([.posts])
+        dataSource.apply(snapshot, animatingDifferences: false)
     }
 
     /// Renders the pagination footer section from `paginationState`: a loading

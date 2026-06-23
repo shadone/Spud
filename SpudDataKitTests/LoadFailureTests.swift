@@ -42,12 +42,12 @@ final class LoadFailureTests: XCTestCase {
         XCTAssertEqual(failure.kind, .malformedResponse)
     }
 
-    func testInternalInconsistencyIsMalformed() {
+    func testInternalInconsistencyIsUnreachable() {
         let failure = LoadFailure.classify(
             LemmyServiceError.internalInconsistency(description: "unexpected"),
             isOnline: true
         )
-        XCTAssertEqual(failure.kind, .malformedResponse)
+        XCTAssertEqual(failure.kind, .unreachable)
     }
 
     func testRequiresAuthenticationIsUnreachable() {
