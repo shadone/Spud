@@ -115,9 +115,11 @@ final class SearchViewController: UIViewController {
         self.dependencies = (own: dependencies, nested: dependencies)
         self.accountKeychainId = accountKeychainId
 
+        let appDatabase = dependencies.appDatabase
         viewModel = SearchViewModel(
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
-            alertService: dependencies.alertService
+            alertService: dependencies.alertService,
+            isKnownInstance: { host in appDatabase.explorerInstanceSync(baseurl: host) != nil }
         )
 
         super.init(nibName: nil, bundle: nil)

@@ -35,12 +35,19 @@ final class SearchViewModel {
     /// it quotes the term that actually returned nothing, not the live text.
     private(set) var lastSearchedQuery: String = ""
 
+    /// Set synchronously on each keystroke when the query is a recognized Lemmy
+    /// URL. While non-nil the text search is skipped (searching a URL string is
+    /// meaningless) and the VC shows an "Open in Spud" row instead.
+    private(set) var urlSuggestion: SearchURLSuggestion?
+
     // MARK: Private
 
     @ObservationIgnored
     let accountScope: AccountScope
     @ObservationIgnored
     private let alertService: AlertServiceType
+    @ObservationIgnored
+    private let isKnownInstance: (String) -> Bool
 
     /// The in-flight (or pending-debounce) search. Cancelled and replaced on
     /// every new query / scope change.
@@ -51,10 +58,12 @@ final class SearchViewModel {
 
     init(
         accountScope: AccountScope,
-        alertService: AlertServiceType
+        alertService: AlertServiceType,
+        isKnownInstance: @escaping (String) -> Bool
     ) {
         self.accountScope = accountScope
         self.alertService = alertService
+        self.isKnownInstance = isKnownInstance
     }
 
     deinit {
@@ -62,14 +71,24 @@ final class SearchViewModel {
     }
 
     /// Called on each keystroke. Trims, then either resets to the initial state
-    /// (empty query) or schedules a debounced search.
+    /// (empty query), offers an "Open in Spud" row for a recognized Lemmy URL,
+    /// or schedules a debounced text search.
     func queryChanged(_ rawQuery: String) {
         let trimmed = rawQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         query = trimmed
 
         searchTask?.cancel()
 
+        urlSuggestion = SearchURLDetector.detect(query: trimmed, isKnownInstance: isKnownInstance)
+
         guard !trimmed.isEmpty else {
+            phase = .initial
+            results = SearchResults()
+            return
+        }
+
+        // A recognized URL is offered as an "Open in Spud" row; skip the search.
+        guard urlSuggestion == nil else {
             phase = .initial
             results = SearchResults()
             return
