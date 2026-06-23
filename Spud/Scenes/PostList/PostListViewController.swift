@@ -117,6 +117,10 @@ class PostListViewController: UIViewController {
     private var seenDwellTracker = SeenDwellTracker(threshold: 0.5)
     private var seenFlushTimer: Timer?
 
+    /// Undo state for an accidental status-bar scroll-to-top. See
+    /// `ScrollToTopUndo`; wired in the `UITableViewDelegate` extension below.
+    private var scrollUndo = ScrollToTopUndo()
+
     private var rowsByServerPostId: [Int64: PostListRow] = [:]
     /// The full ordered feed snapshot from GRDB (before hide-read filtering).
     private var orderedRows: [PostListRow] = []
@@ -721,6 +725,14 @@ class PostListViewController: UIViewController {
     }
 
     private func feedChanged(keepingContent: Bool = false) {
+        // The saved scroll-undo position belongs to the prior feed; a feed swap
+        // makes it stale. Drop it (and its hint toast) before reloading.
+        let hadArmedUndo = scrollUndo.pending != nil
+        scrollUndo.invalidate()
+        if hadArmedUndo {
+            ToastPresenter.shared.dismiss()
+        }
+
         viewModel.prepareForReload()
         observationTask?.cancel()
         // A pull-to-refresh keeps the existing posts on screen — the refresh
@@ -1420,6 +1432,93 @@ extension PostListViewController: UITableViewDelegate {
         let verticalFraction = position / totalHeight
         if verticalFraction > 0.9 {
             viewModel.didScrollToBottom()
+        }
+    }
+
+    func scrollViewShouldScrollToTop(_ scrollView: UIScrollView) -> Bool {
+        switch scrollUndo.statusBarTapped(
+            currentOffset: scrollView.contentOffset,
+            topVisibleServerPostId: topmostVisibleServerPostId()
+        ) {
+        case .undo:
+            performScrollUndo()
+            return false
+        case .allowScrollToTop:
+            return true
+        }
+    }
+
+    func scrollViewDidScrollToTop(_ scrollView: UIScrollView) {
+        guard scrollUndo.scrolledToTop(viewportHeight: scrollView.bounds.height) != nil else {
+            return
+        }
+        showUndoScrollToast()
+    }
+
+    func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        // A manual scroll means the user moved on - drop the armed undo (and its
+        // hint toast). Only touch the toast when we actually had one armed.
+        let wasArmed = scrollUndo.pending != nil
+        scrollUndo.invalidate()
+        if wasArmed {
+            ToastPresenter.shared.dismiss()
+        }
+    }
+
+    /// The server post id of the topmost currently-visible post row - the row to
+    /// pulse on restore. `nil` when no post row is visible (e.g. only the loading
+    /// footer), which suppresses the undo for that tap.
+    private func topmostVisibleServerPostId() -> Int64? {
+        for indexPath in tableView.indexPathsForVisibleRows ?? [] {
+            if case let .post(serverPostId)? = dataSource.itemIdentifier(for: indexPath) {
+                return serverPostId
+            }
+        }
+        return nil
+    }
+
+    private func showUndoScrollToast() {
+        guard let window = view.window else { return }
+        UIAccessibility.post(
+            notification: .announcement,
+            argument: NSLocalizedString(
+                "Jumped to top",
+                comment: "Accessibility announcement when a status-bar tap scrolled the feed to the top"
+            )
+        )
+        ToastPresenter.shared.show(
+            NSLocalizedString(
+                "Jumped to top",
+                comment: "Undo toast title shown after an accidental scroll-to-top"
+            ),
+            actionTitle: NSLocalizedString(
+                "Undo",
+                comment: "Undo button on the scroll-to-top toast"
+            ),
+            in: window,
+            action: { [weak self] in self?.performScrollUndo() }
+        )
+    }
+
+    /// Snaps instantly back to the saved position, pulses the anchored row, and
+    /// confirms. Shared by the toast "Undo" button and the status-bar toggle.
+    private func performScrollUndo() {
+        guard let pending = scrollUndo.takeUndo() else { return }
+        tableView.setContentOffset(pending.offset, animated: false)
+        tableView.layoutIfNeeded()
+        if let indexPath = dataSource.indexPath(for: .post(serverPostId: pending.anchorServerPostId)),
+           let cell = tableView.cellForRow(at: indexPath)
+        {
+            cell.contentView.pulseHighlight()
+        }
+        if let window = view.window {
+            ToastPresenter.shared.show(
+                NSLocalizedString(
+                    "Back to where you were",
+                    comment: "Confirmation toast after undoing an accidental scroll-to-top"
+                ),
+                in: window
+            )
         }
     }
 
