@@ -31,6 +31,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             try? await AppDatabase.shared.prunePostInteractions()
         }
 
+        // Prune orphaned feed rows from prior sessions. Every feed is minted
+        // with a fresh UUID feedKey on demand and no feedKey survives a launch,
+        // so feeds older than a short margin are unreachable orphans.
+        // Best-effort: a failure just leaves stale rows until the next launch.
+        Task {
+            try? await AppDatabase.shared.pruneStaleFeedRows()
+        }
+
         #if DEBUG
         SBTUITestTunnelServer.takeOff()
         #endif

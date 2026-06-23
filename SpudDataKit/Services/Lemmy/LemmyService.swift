@@ -666,7 +666,7 @@ public actor LemmyService: LemmyServiceType {
             complete with \(response.comments.count, privacy: .public) comments
             """)
 
-        await mirrorCommentsToAppDatabase(
+        try await mirrorCommentsToAppDatabase(
             serverPostId: serverPostId,
             sortType: sortType,
             comments: response.comments
@@ -725,21 +725,19 @@ public actor LemmyService: LemmyServiceType {
         serverPostId: Components.Schemas.PostID,
         sortType: Components.Schemas.CommentSortType,
         comments: [Components.Schemas.CommentView]
-    ) async {
-        do {
-            guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
-                return
-            }
-            try await appDatabase.upsertComments(
-                forServerPostId: Int64(serverPostId),
-                accountId: accountRowId,
-                siteId: siteRowId,
-                sortType: sortType,
-                comments: comments
+    ) async throws {
+        guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
+            throw LemmyServiceError.internalInconsistency(
+                description: "mirrorCommentsToAppDatabase: account/site not found for \(accountIdentifierForLogging)"
             )
-        } catch {
-            logger.error("AppDatabase upsertComments failed: \(String(describing: error), privacy: .public)")
         }
+        try await appDatabase.upsertComments(
+            forServerPostId: Int64(serverPostId),
+            accountId: accountRowId,
+            siteId: siteRowId,
+            sortType: sortType,
+            comments: comments
+        )
     }
 
     public func fetchSiteInfo() async throws {
@@ -803,6 +801,20 @@ public actor LemmyService: LemmyServiceType {
             """)
 
         await mirrorPersonInfoToAppDatabase(personView: response.person_view)
+
+        let resolvedInstanceActorId = await appDatabase.accountInstanceActorId(
+            forKeychainId: accountIdentifierForLogging
+        )
+        guard let resolvedInstanceActorId,
+              appDatabase.personRowIdSync(
+                  instanceActorId: resolvedInstanceActorId,
+                  personId: Int64(serverPersonId)
+              ) != nil
+        else {
+            throw LemmyServiceError.internalInconsistency(
+                description: "fetchPersonInfo: person row not persisted after mirror for personId=\(serverPersonId)"
+            )
+        }
     }
 
     public func fetchPersonContent(
@@ -1496,6 +1508,15 @@ public actor LemmyService: LemmyServiceType {
             """)
 
         await mirrorPostInfoToAppDatabase(view: response.post_view)
+
+        guard appDatabase.postRowIdSync(
+            forKeychainId: accountIdentifierForLogging,
+            serverPostId: Int64(serverPostId)
+        ) != nil else {
+            throw LemmyServiceError.internalInconsistency(
+                description: "fetchPostInfo: post row not persisted after mirror for postId=\(serverPostId)"
+            )
+        }
     }
 
     func mirrorPostInfoToAppDatabase(
