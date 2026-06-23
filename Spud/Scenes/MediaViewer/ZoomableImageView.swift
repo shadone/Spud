@@ -28,6 +28,24 @@ final class ZoomableImageView: UIView {
         imageView.image
     }
 
+    // MARK: Test seams
+
+    /// Whether the loading spinner is currently animating. Test seam.
+    var isLoadingIndicatorVisible: Bool {
+        activityIndicator.isAnimating
+    }
+
+    /// Whether the broken-image icon is hidden. Test seam.
+    var isErrorIconHiddenForTesting: Bool {
+        errorImageView.isHidden
+    }
+
+    /// Awaits the in-flight load so tests can assert the terminal `.ready` /
+    /// `.failure` state deterministically. Test seam.
+    func awaitLoadForTesting() async {
+        await loadTask?.value
+    }
+
     // MARK: UI Properties
 
     private lazy var scrollView: UIScrollView = {
@@ -64,6 +82,23 @@ final class ZoomableImageView: UIView {
         view.translatesAutoresizingMaskIntoConstraints = false
         view.color = .white
         view.hidesWhenStopped = true
+        view.isAccessibilityElement = true
+        view.accessibilityLabel = NSLocalizedString(
+            "Loading full image",
+            comment: "Accessibility label for the full-screen image loading spinner"
+        )
+        return view
+    }()
+
+    /// A subtle rounded scrim behind the spinner so it reads over a bright
+    /// upscaled thumbnail. Hidden until the spinner is shown, and hidden again
+    /// alongside it.
+    private lazy var indicatorScrim: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.backgroundColor = UIColor.black.withAlphaComponent(0.35)
+        view.layer.cornerRadius = 14
+        view.isHidden = true
         return view
     }()
 
@@ -81,7 +116,19 @@ final class ZoomableImageView: UIView {
 
     private let item: MediaItem
     private let imageService: ImageServiceType
+    private let gracePeriod: Duration
     private var loadTask: Task<Void, Never>?
+
+    /// Armed by `startLoading()`; after `gracePeriod` it asks
+    /// `presentIndicatorIfStillLoading()` to show the spinner. Cancelled on
+    /// `.ready` / `.failure` and in `deinit`.
+    private var showIndicatorTask: Task<Void, Never>?
+
+    /// Set true once the load resolves, on either `.ready` or `.failure`. The
+    /// indicator's visibility depends only on this, not on whether a placeholder
+    /// is on screen.
+    private var loadDidComplete = false
+
     private var hasLaidOutImage = false
 
     /// The bounds size the image was last fitted to. Tracked so a change in
@@ -92,14 +139,22 @@ final class ZoomableImageView: UIView {
 
     // MARK: Functions
 
-    init(item: MediaItem, imageService: ImageServiceType) {
+    init(
+        item: MediaItem,
+        imageService: ImageServiceType,
+        gracePeriod: Duration = .milliseconds(400)
+    ) {
         self.item = item
         self.imageService = imageService
+        self.gracePeriod = gracePeriod
         super.init(frame: .zero)
 
         addSubview(scrollView)
         scrollView.addSubview(imageView)
-        addSubview(activityIndicator)
+        // Z-order: scrollView < scrim + spinner < errorImageView. The error icon
+        // and the spinner never display simultaneously.
+        addSubview(indicatorScrim)
+        indicatorScrim.addSubview(activityIndicator)
         addSubview(errorImageView)
 
         NSLayoutConstraint.activate([
@@ -108,8 +163,13 @@ final class ZoomableImageView: UIView {
             scrollView.topAnchor.constraint(equalTo: topAnchor),
             scrollView.bottomAnchor.constraint(equalTo: bottomAnchor),
 
-            activityIndicator.centerXAnchor.constraint(equalTo: centerXAnchor),
-            activityIndicator.centerYAnchor.constraint(equalTo: centerYAnchor),
+            indicatorScrim.centerXAnchor.constraint(equalTo: centerXAnchor),
+            indicatorScrim.centerYAnchor.constraint(equalTo: centerYAnchor),
+            indicatorScrim.widthAnchor.constraint(equalToConstant: 56),
+            indicatorScrim.heightAnchor.constraint(equalToConstant: 56),
+
+            activityIndicator.centerXAnchor.constraint(equalTo: indicatorScrim.centerXAnchor),
+            activityIndicator.centerYAnchor.constraint(equalTo: indicatorScrim.centerYAnchor),
 
             errorImageView.centerXAnchor.constraint(equalTo: centerXAnchor),
             errorImageView.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -134,6 +194,7 @@ final class ZoomableImageView: UIView {
 
     deinit {
         loadTask?.cancel()
+        showIndicatorTask?.cancel()
     }
 
     /// Kick off (or restart) the image load. Idempotent enough to call from
@@ -141,8 +202,15 @@ final class ZoomableImageView: UIView {
     func startLoading() {
         guard loadTask == nil else { return }
 
-        if item.preloadedImage == nil {
-            activityIndicator.startAnimating()
+        // Show the spinner only after a short grace delay, and only if the final
+        // image hasn't arrived yet — a memory-cache hit / fast load resolves to
+        // `.ready` and cancels this task well before it fires, so it never
+        // flashes. Visibility depends only on whether the final image has
+        // arrived, never on whether a placeholder is showing.
+        showIndicatorTask = Task { [weak self] in
+            try? await Task.sleep(for: self?.gracePeriod ?? .zero)
+            guard !Task.isCancelled else { return }
+            self?.presentIndicatorIfStillLoading()
         }
 
         // Animated assets (GIF) are decoded through the animated path so the
@@ -161,17 +229,34 @@ final class ZoomableImageView: UIView {
                         setImage(thumbnailImage, isFinal: false)
                     }
                 case let .ready(image):
-                    activityIndicator.stopAnimating()
+                    loadDidComplete = true
+                    hideIndicator()
                     errorImageView.isHidden = true
                     setImage(image, isFinal: true)
                 case .failure:
-                    activityIndicator.stopAnimating()
+                    loadDidComplete = true
+                    hideIndicator()
                     if image == nil {
                         errorImageView.isHidden = false
                     }
                 }
             }
         }
+    }
+
+    /// The single code path that starts the spinner. Shows the spinner + scrim
+    /// only while the load is still in flight. Called by the grace task; once the
+    /// load has resolved (`.ready` or `.failure`) it is a no-op.
+    func presentIndicatorIfStillLoading() {
+        guard !loadDidComplete else { return }
+        indicatorScrim.isHidden = false
+        activityIndicator.startAnimating()
+    }
+
+    private func hideIndicator() {
+        showIndicatorTask?.cancel()
+        activityIndicator.stopAnimating()
+        indicatorScrim.isHidden = true
     }
 
     override func layoutSubviews() {
