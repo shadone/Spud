@@ -391,6 +391,16 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
     // MARK: Functions
 
+    /// Pins the body to the full content width of `postContentVerticalStackView`.
+    /// That stack is `.leading`-aligned so siblings (the link preview, subtitle)
+    /// keep their intrinsic width; without this constraint the body would inherit
+    /// that behavior and shrink to its own intrinsic size whenever
+    /// `MarkdownBodyView` invalidates it after an inline image loads — collapsing
+    /// the whole body into a narrow column. Re-applied to each rebuilt body view.
+    private func pinBodyWidth(_ body: MarkdownBodyView) {
+        body.widthAnchor.constraint(equalTo: postContentVerticalStackView.widthAnchor).isActive = true
+    }
+
     private func makeBodyView(textScale: CGFloat) -> MarkdownBodyView {
         let context = MarkdownContext(kind: .post, textScale: textScale, density: .comfortable)
         let view = MarkdownBodyView(context: context)
@@ -448,6 +458,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
             postImageContainerHeightConstraint,
         ])
+
+        pinBodyWidth(bodyView)
 
         let contextMenuIteraction = UIContextMenuInteraction(delegate: self)
         linkPreviewView.addInteraction(contextMenuIteraction)
@@ -519,6 +531,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
             if let idx = postContentVerticalStackView.arrangedSubviews.firstIndex(of: oldBodyView) {
                 postContentVerticalStackView.insertArrangedSubview(newBodyView, at: idx)
                 oldBodyView.removeFromSuperview()
+                pinBodyWidth(newBodyView)
             }
             bodyView = newBodyView
             bodyViewTextScale = textScale
