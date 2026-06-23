@@ -858,9 +858,18 @@ class PostListViewController: UIViewController {
             config.secondaryText = empty.message
             contentUnavailableConfiguration = config
         case let .failed(failure):
-            refreshControl.endRefreshing()
-            hideLoadingSkeleton()
-            contentUnavailableConfiguration = makeErrorConfiguration(for: failure)
+            // A failed pull-to-refresh keeps the existing posts on screen and
+            // surfaces the failure as a transient toast, rather than replacing
+            // the list with the full error surface. With no posts to keep (or a
+            // normal initial-load failure), fall back to the error surface.
+            if refreshControl.isRefreshing, !displayedRows.isEmpty {
+                refreshControl.endRefreshing()
+                showRefreshFailureToast(for: failure)
+            } else {
+                refreshControl.endRefreshing()
+                hideLoadingSkeleton()
+                contentUnavailableConfiguration = makeErrorConfiguration(for: failure)
+            }
         }
     }
 
@@ -887,6 +896,16 @@ class PostListViewController: UIViewController {
             config.secondaryButtonProperties.primaryAction = action(for: secondary.action, failure: failure)
         }
         return config
+    }
+
+    /// Surfaces a failed pull-to-refresh as a transient toast, keeping the
+    /// existing posts on screen.
+    private func showRefreshFailureToast(for failure: LoadFailure) {
+        guard let window = view.window else { return }
+        let message = failure.kind == .offline
+            ? NSLocalizedString("You're offline", comment: "Toast when pull-to-refresh fails while offline")
+            : NSLocalizedString("Couldn't refresh", comment: "Toast when pull-to-refresh fails")
+        ToastPresenter.shared.show(message, in: window)
     }
 
     private func action(for action: FeedErrorDescriptor.Action, failure: LoadFailure) -> UIAction {
