@@ -178,6 +178,16 @@ final class PostListViewModel {
         loadState = .empty
     }
 
+    /// Marks the initial load as failed when the feed row never materialized
+    /// after a fetch that reported success - i.e. persistence silently failed.
+    /// Surfaces a retryable `.unreachable` failure so the post list shows the
+    /// error surface instead of an orphaned spinner or skeleton.
+    func failInitialLoad() {
+        let failure = LoadFailure(kind: .unreachable, diagnostics: "Feed page did not persist")
+        lastFailureDiagnostics = failure.diagnostics
+        loadState = .failed(failure)
+    }
+
     private func startSlowHint() {
         slowHintTask?.cancel()
         slowHintTask = Task { [weak self, slowThreshold] in

@@ -126,4 +126,19 @@ final class PostListViewModelLoadStateTests: XCTestCase {
         XCTAssertEqual(vm.loadState, .loading(slow: false))
         XCTAssertEqual(vm.paginationState, .idle)
     }
+
+    func testFailInitialLoadMarksFailedUnreachable() {
+        let vm = makeViewModel { _ in nil }
+        vm.failInitialLoad()
+        guard case let .failed(failure) = vm.loadState else { return XCTFail("expected failed") }
+        XCTAssertEqual(failure.kind, .unreachable)
+        XCTAssertNotNil(vm.lastFailureDiagnostics)
+    }
+
+    func testInternalInconsistencyBecomesFailedUnreachable() async {
+        let vm = makeViewModel { _ in throw LemmyServiceError.internalInconsistency(description: "") }
+        await vm.loadFirstPage()
+        guard case let .failed(failure) = vm.loadState else { return XCTFail("expected failed") }
+        XCTAssertEqual(failure.kind, .unreachable)
+    }
 }
