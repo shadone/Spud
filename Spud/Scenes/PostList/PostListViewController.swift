@@ -862,6 +862,9 @@ class PostListViewController: UIViewController {
             // surfaces the failure as a transient toast, rather than replacing
             // the list with the full error surface. With no posts to keep (or a
             // normal initial-load failure), fall back to the error surface.
+            // `displayedRows` still holds the prior feed until the new feed's
+            // first snapshot swaps it in, so it is non-empty exactly when a
+            // refresh failed (in `loadFirstPage`) before any new content arrived.
             if refreshControl.isRefreshing, !displayedRows.isEmpty {
                 refreshControl.endRefreshing()
                 showRefreshFailureToast(for: failure)
