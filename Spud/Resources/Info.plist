@@ -56,6 +56,13 @@
 	<string>public.app-category.social-networking</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Save images from Spud to your photo library.</string>
+	<!-- Spud does not use location. These strings are required only because a -->
+	<!-- bundled dependency (GRDB) links Apple's CoreLocation framework; the app -->
+	<!-- never requests location authorization, so this prompt is never shown. -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Spud does not use your location.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Spud does not use your location.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
