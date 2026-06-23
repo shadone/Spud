@@ -498,11 +498,8 @@ final class SearchOpenURLCell: UITableViewCell {
     static let reuseIdentifier = "SearchOpenURLCell"
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
-        super.init(style: .subtitle, reuseIdentifier: reuseIdentifier)
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
         accessoryType = .disclosureIndicator
-        imageView?.image = UIImage(systemName: "arrow.up.forward.app")
-        detailTextLabel?.textColor = .secondaryLabel
-        detailTextLabel?.lineBreakMode = .byTruncatingMiddle
     }
 
     @available(*, unavailable)
@@ -511,14 +508,19 @@ final class SearchOpenURLCell: UITableViewCell {
     }
 
     func configure(kind: SearchURLSuggestion.Kind, displayURL: String) {
-        textLabel?.text = String(
+        var content = UIListContentConfiguration.subtitleCell()
+        content.image = UIImage(systemName: "arrow.up.forward.app")
+        content.text = String(
             format: NSLocalizedString(
                 "Open %@ in Spud",
                 comment: "Search row that opens a pasted Lemmy URL; %@ is the object kind (post/community/etc.)"
             ),
             Self.kindNoun(kind)
         )
-        detailTextLabel?.text = displayURL
+        content.secondaryText = displayURL
+        content.secondaryTextProperties.color = .secondaryLabel
+        content.secondaryTextProperties.lineBreakMode = .byTruncatingMiddle
+        contentConfiguration = content
     }
 
     private static func kindNoun(_ kind: SearchURLSuggestion.Kind) -> String {
