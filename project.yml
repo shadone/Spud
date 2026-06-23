@@ -138,6 +138,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: info.ddenis.Spud.OpenInAppExtension
         INFOPLIST_FILE: OpenInAppExtension/Info.plist
         GENERATE_INFOPLIST_FILE: "YES"
+        INFOPLIST_KEY_CFBundleDisplayName: Open in Spud
         OTHER_LDFLAGS:
           - "-framework"
           - SafariServices
