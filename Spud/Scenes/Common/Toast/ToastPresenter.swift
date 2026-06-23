@@ -4,22 +4,22 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import SpudUIKit
 import UIKit
 
 /// Presents a transient, non-blocking "pill" toast near the bottom of a window.
 ///
-/// Usage:
-/// ```swift
-/// ToastPresenter.shared.show("Couldn't vote", in: window)
-/// ```
+/// Two forms:
+/// - Plain text (`show(_:in:)`): non-interactive, ~2s, coalesces by updating the
+///   text of an existing plain toast and resetting its timer.
+/// - Interactive (`show(_:actionTitle:in:duration:action:)`): adds a trailing
+///   accent action button (e.g. "Undo"); the pill is content-sized, so only it
+///   intercepts touches - the rest of the screen stays usable. Replaces any
+///   existing toast rather than coalescing. Tapping the action button runs
+///   `action` directly; if `action` presents a follow-up toast (as the undo
+///   flow does), the hint is replaced by it and dwells its full duration.
 ///
-/// Behaviour:
-/// - Animates in with a fade and a slight upward translation.
-/// - Dwells for ~2 seconds then animates out and removes itself.
-/// - Non-blocking: the toast view has `isUserInteractionEnabled = false` so
-///   touches pass through to the UI beneath it.
-/// - Coalescing: calling `show` while a toast is already visible replaces its
-///   text and resets the dismiss timer instead of stacking.
+/// `dismiss()` animates the current toast out immediately.
 @MainActor
 final class ToastPresenter {
     static let shared = ToastPresenter()
@@ -34,14 +34,47 @@ final class ToastPresenter {
     // MARK: - Public
 
     func show(_ message: String, in window: UIWindow) {
-        if let existing = currentToast {
-            // Coalesce: update text and reset the dismiss timer.
+        // Spud presents toasts in a single window, so coalescing an existing
+        // plain toast reuses it in place; the `window` argument is only needed
+        // when presenting a fresh toast below.
+        if let existing = currentToast, !existing.isInteractive {
             existing.messageLabel.text = message
-            scheduleDismiss(for: existing)
+            scheduleDismiss(for: existing, after: .seconds(2))
             return
         }
+        present(ToastView(message: message), in: window, duration: .seconds(2))
+    }
 
-        let toast = ToastView(message: message)
+    func show(
+        _ message: String,
+        actionTitle: String,
+        in window: UIWindow,
+        duration: Duration = .seconds(4),
+        action: @escaping @MainActor () -> Void
+    ) {
+        let toast = ToastView(message: message, actionTitle: actionTitle, action: action)
+        present(toast, in: window, duration: duration)
+    }
+
+    func dismiss() {
+        dismissTask?.cancel()
+        dismissTask = nil
+        guard let toast = currentToast else { return }
+        currentToast = nil
+        animateOut(toast)
+    }
+
+    // MARK: - Private
+
+    private func present(_ toast: ToastView, in window: UIWindow, duration: Duration) {
+        // Replace any existing toast outright (covers plain <-> interactive swaps).
+        if let existing = currentToast {
+            dismissTask?.cancel()
+            dismissTask = nil
+            existing.removeFromSuperview()
+            currentToast = nil
+        }
+
         toast.translatesAutoresizingMaskIntoConstraints = false
         toast.alpha = 0
         toast.transform = CGAffineTransform(translationX: 0, y: 12)
@@ -70,45 +103,55 @@ final class ToastPresenter {
             toast.transform = .identity
         }
 
-        scheduleDismiss(for: toast)
+        scheduleDismiss(for: toast, after: duration)
     }
 
-    // MARK: - Private
-
-    private func scheduleDismiss(for toast: ToastView) {
+    private func scheduleDismiss(for toast: ToastView, after duration: Duration) {
         dismissTask?.cancel()
         dismissTask = Task { [weak self, weak toast] in
-            try? await Task.sleep(for: .seconds(2))
-            guard !Task.isCancelled, let toast else { return }
-            UIView.animate(withDuration: 0.22, delay: 0, options: .curveEaseIn) {
-                toast.alpha = 0
-                toast.transform = CGAffineTransform(translationX: 0, y: 8)
-            } completion: { _ in
-                toast.removeFromSuperview()
-            }
-            self?.dismissTask = nil
+            try? await Task.sleep(for: duration)
+            guard !Task.isCancelled, let self, let toast else { return }
+            currentToast = nil
+            dismissTask = nil
+            animateOut(toast)
+        }
+    }
+
+    private func animateOut(_ toast: ToastView) {
+        UIView.animate(withDuration: 0.22, delay: 0, options: .curveEaseIn) {
+            toast.alpha = 0
+            toast.transform = CGAffineTransform(translationX: 0, y: 8)
+        } completion: { _ in
+            toast.removeFromSuperview()
         }
     }
 }
 
 // MARK: - ToastView
 
-private final class ToastView: UIView {
+final class ToastView: UIView {
     let messageLabel: UILabel = {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.numberOfLines = 0
-        label.textAlignment = .center
         label.font = .preferredFont(forTextStyle: .subheadline)
         label.adjustsFontForContentSizeCategory = true
         label.textColor = .label
         return label
     }()
 
-    init(message: String) {
+    /// True when the toast hosts an action button (and is interactive).
+    let isInteractive: Bool
+
+    init(
+        message: String,
+        actionTitle: String? = nil,
+        action: (@MainActor () -> Void)? = nil
+    ) {
+        isInteractive = actionTitle != nil && action != nil
         super.init(frame: .zero)
         messageLabel.text = message
-        isUserInteractionEnabled = false
+
         backgroundColor = .secondarySystemBackground
         layer.cornerRadius = 20
         layer.cornerCurve = .continuous
@@ -119,13 +162,42 @@ private final class ToastView: UIView {
         layer.borderWidth = 1.0 / UIScreen.main.scale
         layer.borderColor = UIColor.separator.cgColor
 
-        addSubview(messageLabel)
-        NSLayoutConstraint.activate([
-            messageLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
-            messageLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -10),
-            messageLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            messageLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-        ])
+        if let actionTitle, let action {
+            isUserInteractionEnabled = true
+            messageLabel.textAlignment = .natural
+
+            var config = UIButton.Configuration.plain()
+            config.title = actionTitle
+            config.baseForegroundColor = ThemeManager.currentAccentColor
+            let button = UIButton(configuration: config)
+            button.translatesAutoresizingMaskIntoConstraints = false
+            button.setContentHuggingPriority(.required, for: .horizontal)
+            button.setContentCompressionResistancePriority(.required, for: .horizontal)
+            button.addAction(UIAction { _ in action() }, for: .touchUpInside)
+
+            let stack = UIStackView(arrangedSubviews: [messageLabel, button])
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            stack.axis = .horizontal
+            stack.alignment = .center
+            stack.spacing = 12
+            addSubview(stack)
+            NSLayoutConstraint.activate([
+                stack.topAnchor.constraint(equalTo: topAnchor, constant: 8),
+                stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
+                stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+                stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+            ])
+        } else {
+            isUserInteractionEnabled = false
+            messageLabel.textAlignment = .center
+            addSubview(messageLabel)
+            NSLayoutConstraint.activate([
+                messageLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
+                messageLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -10),
+                messageLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+                messageLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            ])
+        }
     }
 
     @available(*, unavailable)
