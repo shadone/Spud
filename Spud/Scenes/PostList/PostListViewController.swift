@@ -85,6 +85,12 @@ class PostListViewController: UIViewController {
         return tableView
     }()
 
+    private lazy var refreshControl: UIRefreshControl = {
+        let control = UIRefreshControl()
+        control.addTarget(self, action: #selector(refreshTriggered), for: .valueChanged)
+        return control
+    }()
+
     /// An optional view hosted as the table's `tableHeaderView` so it sits above
     /// the first post and scrolls off-screen with the rows rather than floating
     /// on top. Installed by an embedding host (e.g. `CommunityViewController`)
@@ -373,6 +379,7 @@ class PostListViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
+        tableView.refreshControl = refreshControl
         startObservations()
         feedChanged()
     }
@@ -705,16 +712,32 @@ class PostListViewController: UIViewController {
         tableView.backgroundView = nil
     }
 
-    private func feedChanged() {
+    @objc
+    private func refreshTriggered() {
+        // Pull-to-refresh re-pulls the feed from the top via a fresh feed key,
+        // keeping the current posts on screen until the new content swaps in.
+        viewModel.didClickReload()
+        feedChanged(keepingContent: true)
+    }
+
+    private func feedChanged(keepingContent: Bool = false) {
         viewModel.prepareForReload()
         observationTask?.cancel()
-        rowsByServerPostId.removeAll()
-        orderedRows.removeAll()
-        displayedRows.removeAll()
+        // A pull-to-refresh keeps the existing posts on screen — the refresh
+        // control is the only progress indicator — until the new feed's first
+        // snapshot swaps them in. Read-id pins belong to the prior feed session,
+        // so they reset either way; the new first snapshot re-pins.
+        if !keepingContent {
+            rowsByServerPostId.removeAll()
+            orderedRows.removeAll()
+            displayedRows.removeAll()
+        }
         pinnedReadIds.removeAll()
         markedReadIds.removeAll()
         hasReceivedFirstSnapshot = false
-        showLoadingSkeleton()
+        if !keepingContent {
+            showLoadingSkeleton()
+        }
         refreshModerationCapability()
 
         let feedKey = viewModel.feed.feedKey
@@ -814,13 +837,19 @@ class PostListViewController: UIViewController {
     private func applyLoadState(_ state: FeedLoadState) {
         switch state {
         case let .loading(slow):
-            showLoadingSkeleton()
-            loadingSkeletonView.setShowsSlowHint(slow)
+            // During a pull-to-refresh the control is the only progress
+            // indicator; keep the existing posts and skip the skeleton.
+            if !refreshControl.isRefreshing {
+                showLoadingSkeleton()
+                loadingSkeletonView.setShowsSlowHint(slow)
+            }
             contentUnavailableConfiguration = nil
         case .loaded:
+            refreshControl.endRefreshing()
             hideLoadingSkeleton()
             contentUnavailableConfiguration = nil
         case .empty:
+            refreshControl.endRefreshing()
             hideLoadingSkeleton()
             let empty = viewModel.emptyState
             var config = UIContentUnavailableConfiguration.empty()
@@ -829,6 +858,7 @@ class PostListViewController: UIViewController {
             config.secondaryText = empty.message
             contentUnavailableConfiguration = config
         case let .failed(failure):
+            refreshControl.endRefreshing()
             hideLoadingSkeleton()
             contentUnavailableConfiguration = makeErrorConfiguration(for: failure)
         }
