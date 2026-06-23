@@ -62,7 +62,7 @@ class PersonOrLoadingViewController: UIViewController {
 
         let appDatabase = self.dependencies.own.appDatabase
         if let personRowId = appDatabase.personRowIdSync(
-            instanceActorId: instance.actorId,
+            forKeychainId: accountKeychainId,
             personId: Int64(personId)
         ) {
             state = .person(personRowId: personRowId)

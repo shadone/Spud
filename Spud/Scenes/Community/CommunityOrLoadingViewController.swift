@@ -131,6 +131,19 @@ class CommunityOrLoadingViewController: UIViewController {
             return
         }
 
+        guard appDatabase.communityRowIdSync(
+            forAccountId: accountRowId,
+            serverCommunityId: Int64(serverCommunityId)
+        ) != nil else {
+            logger.error("Community info did not persist for serverCommunityId=\(serverCommunityId)")
+            alertService.handle(
+                LemmyServiceError.internalInconsistency(description: "Community info did not persist"),
+                for: .fetchCommunityInfo
+            )
+            loadingIndicator.stopAnimating()
+            return
+        }
+
         let feed = accountService.createFeed(
             forAccountKeychainId: accountKeychainId,
             feedType: .community(
