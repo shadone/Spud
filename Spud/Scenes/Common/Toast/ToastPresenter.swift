@@ -32,6 +32,9 @@ final class ToastPresenter {
     // MARK: - Public
 
     func show(_ message: String, in window: UIWindow) {
+        // Spud presents toasts in a single window, so coalescing an existing
+        // plain toast reuses it in place; the `window` argument is only needed
+        // when presenting a fresh toast below.
         if let existing = currentToast, !existing.isInteractive {
             existing.messageLabel.text = message
             scheduleDismiss(for: existing, after: .seconds(2))
