@@ -56,4 +56,13 @@ final class MarkdownBlockCache: @unchecked Sendable {
         cache.setObject(BlockBox(parsed), forKey: key)
         return parsed
     }
+
+    /// Parses and caches `markdown` off the caller's actor. The method is
+    /// nonisolated and `async`, so `await`ing it from a `@MainActor` context runs
+    /// the cmark + inline-lexer parse on the cooperative pool rather than the main
+    /// thread; the caller then reads the warmed cache (a cheap hit) back on main.
+    /// This is the single-body counterpart to the batch comment pre-warm.
+    func prewarm(_ markdown: String) async {
+        blocks(for: markdown)
+    }
 }
