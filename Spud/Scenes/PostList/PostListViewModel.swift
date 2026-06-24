@@ -56,8 +56,12 @@ final class PostListViewModel {
     @ObservationIgnored
     private(set) var lastFailureDiagnostics: String?
 
+    /// Fetches one page of the given feed and returns the next cursor. Takes the
+    /// `FeedHandle` as a parameter (rather than capturing one) so callers always
+    /// pass the view model's *current* `feed`: an in-place feed switch swaps
+    /// `self.feed`, and the fetch must follow it to the new feedKey.
     @ObservationIgnored
-    private let fetchFeedOperation: @MainActor (String?) async throws -> String?
+    private let fetchFeedOperation: @MainActor (FeedHandle, String?) async throws -> String?
     @ObservationIgnored
     private let slowThreshold: Duration
     @ObservationIgnored
@@ -84,7 +88,7 @@ final class PostListViewModel {
         feed: FeedHandle,
         accountScope: AccountScope,
         dependencies: Dependencies,
-        fetchFeedOperation: (@MainActor (String?) async throws -> String?)? = nil,
+        fetchFeedOperation: (@MainActor (FeedHandle, String?) async throws -> String?)? = nil,
         slowThreshold: Duration = .seconds(8),
         hardCapTimeout: Duration = .seconds(25)
     ) {
@@ -95,8 +99,8 @@ final class PostListViewModel {
         self.hardCapTimeout = hardCapTimeout
         navigationTitle = Self.navigationTitle(for: feed.feedType)
         let scope = accountScope
-        self.fetchFeedOperation = fetchFeedOperation ?? { cursor in
-            try await scope.lemmyService.fetchFeed(feed, pageCursor: cursor)
+        self.fetchFeedOperation = fetchFeedOperation ?? { feedToFetch, cursor in
+            try await scope.lemmyService.fetchFeed(feedToFetch, pageCursor: cursor)
         }
     }
 
@@ -147,7 +151,7 @@ final class PostListViewModel {
         defer { cancelSlowHint() }
         do {
             let next = try await withTimeout(hardCapTimeout) { [self] in
-                try await fetchFeedOperation(nextPageCursor)
+                try await fetchFeedOperation(feed, nextPageCursor)
             }
             nextPageCursor = next
             if next == nil { feedExhausted = true }
@@ -225,7 +229,7 @@ final class PostListViewModel {
     private func performPagination() async {
         do {
             let next = try await withTimeout(hardCapTimeout) { [self] in
-                try await fetchFeedOperation(nextPageCursor)
+                try await fetchFeedOperation(feed, nextPageCursor)
             }
             nextPageCursor = next
             if next == nil { feedExhausted = true }

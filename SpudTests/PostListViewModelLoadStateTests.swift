@@ -25,11 +25,12 @@ final class PostListViewModelLoadStateTests: XCTestCase {
         reachabilityMonitor: ReachabilityMonitoring = StaticReachabilityMonitor(isOnline: true),
         slowThreshold: Duration = .milliseconds(20),
         hardCapTimeout: Duration = .seconds(5),
-        fetchFeedOperation: @escaping @MainActor (String?) async throws -> String?
+        feedKey: String = "feed-1",
+        fetchFeedOperation: @escaping @MainActor (FeedHandle, String?) async throws -> String?
     ) -> PostListViewModel {
         let dependencies = TestDependencies(reachabilityMonitor: reachabilityMonitor)
         let feed = FeedHandle(
-            feedKey: "feed-1",
+            feedKey: feedKey,
             feedType: .frontpage(listingType: .All, sortType: .Active)
         )
         return PostListViewModel(
@@ -43,7 +44,7 @@ final class PostListViewModelLoadStateTests: XCTestCase {
     }
 
     func testSuccessLeavesLoadingUntilSnapshotResolves() async {
-        let vm = makeViewModel { _ in "next-cursor" }
+        let vm = makeViewModel { _, _ in "next-cursor" }
         await vm.loadFirstPage()
         // Fetch succeeded but rows arrive via GRDB; still loading until snapshot.
         XCTAssertEqual(vm.loadState, .loading(slow: false))
@@ -52,28 +53,28 @@ final class PostListViewModelLoadStateTests: XCTestCase {
     }
 
     func testSuccessWithZeroRowsResolvesEmpty() async {
-        let vm = makeViewModel { _ in nil }
+        let vm = makeViewModel { _, _ in nil }
         await vm.loadFirstPage()
         vm.resolveInitialSnapshot(rowCount: 0)
         XCTAssertEqual(vm.loadState, .empty)
     }
 
     func testThrownURLErrorBecomesFailedUnreachable() async {
-        let vm = makeViewModel { _ in throw URLError(.timedOut) }
+        let vm = makeViewModel { _, _ in throw URLError(.timedOut) }
         await vm.loadFirstPage()
         XCTAssertEqual(vm.loadState, .failed(LoadFailure(kind: .unreachable, diagnostics: vm.lastFailureDiagnostics ?? "")))
     }
 
     func testOfflineMonitorClassifiesFailureAsOffline() async {
         let monitor = StaticReachabilityMonitor(isOnline: false)
-        let vm = makeViewModel(reachabilityMonitor: monitor) { _ in throw URLError(.timedOut) }
+        let vm = makeViewModel(reachabilityMonitor: monitor) { _, _ in throw URLError(.timedOut) }
         await vm.loadFirstPage()
         guard case let .failed(failure) = vm.loadState else { return XCTFail("expected failed") }
         XCTAssertEqual(failure.kind, .offline)
     }
 
     func testHardCapTimesOutToUnreachable() async {
-        let vm = makeViewModel(hardCapTimeout: .milliseconds(50)) { _ in
+        let vm = makeViewModel(hardCapTimeout: .milliseconds(50)) { _, _ in
             try await Task.sleep(for: .seconds(10))
             return nil
         }
@@ -85,7 +86,7 @@ final class PostListViewModelLoadStateTests: XCTestCase {
     func testSlowHintFiresWhileStillLoading() async {
         let started = expectation(description: "fetch started")
         var release: CheckedContinuation<String?, Error>?
-        let vm = makeViewModel { _ in
+        let vm = makeViewModel { _, _ in
             started.fulfill()
             return try await withCheckedThrowingContinuation { release = $0 }
         }
@@ -102,7 +103,7 @@ final class PostListViewModelLoadStateTests: XCTestCase {
 
     func testPaginationFailsThenRetrySucceeds() async {
         var callCount = 0
-        let vm = makeViewModel { _ in
+        let vm = makeViewModel { _, _ in
             callCount += 1
             if callCount == 2 { throw URLError(.timedOut) }
             return "next"
@@ -119,7 +120,7 @@ final class PostListViewModelLoadStateTests: XCTestCase {
     }
 
     func testPrepareForReloadResetsFailedToLoading() async {
-        let vm = makeViewModel { _ in throw URLError(.timedOut) }
+        let vm = makeViewModel { _, _ in throw URLError(.timedOut) }
         await vm.loadFirstPage()
         guard case .failed = vm.loadState else { return XCTFail("expected failed") }
         vm.prepareForReload()
@@ -128,7 +129,7 @@ final class PostListViewModelLoadStateTests: XCTestCase {
     }
 
     func testFailInitialLoadMarksFailedUnreachable() {
-        let vm = makeViewModel { _ in nil }
+        let vm = makeViewModel { _, _ in nil }
         vm.failInitialLoad()
         guard case let .failed(failure) = vm.loadState else { return XCTFail("expected failed") }
         XCTAssertEqual(failure.kind, .unreachable)
@@ -136,9 +137,32 @@ final class PostListViewModelLoadStateTests: XCTestCase {
     }
 
     func testInternalInconsistencyBecomesFailedUnreachable() async {
-        let vm = makeViewModel { _ in throw LemmyServiceError.internalInconsistency(description: "") }
+        let vm = makeViewModel { _, _ in throw LemmyServiceError.internalInconsistency(description: "") }
         await vm.loadFirstPage()
         guard case let .failed(failure) = vm.loadState else { return XCTFail("expected failed") }
         XCTAssertEqual(failure.kind, .unreachable)
+    }
+
+    /// Regression: switching the feed in place (the feed switcher reuses this
+    /// view model via `showFeed`) mints a fresh UUID feedKey. The fetch must
+    /// follow `self.feed` to the new key; if it keeps fetching the feed captured
+    /// at init, the page is persisted under the stale key and the observed feed
+    /// stays empty - the "all feeds show empty" bug.
+    func testFetchTargetsCurrentFeedAfterSwitch() async {
+        var fetchedFeedKeys: [String] = []
+        let vm = makeViewModel { feed, _ in
+            fetchedFeedKeys.append(feed.feedKey)
+            return nil
+        }
+
+        await vm.loadFirstPage()
+        XCTAssertEqual(fetchedFeedKeys, ["feed-1"])
+
+        vm.switchFeed(to: .saved(sortType: .Active))
+        await vm.loadFirstPage()
+
+        XCTAssertEqual(fetchedFeedKeys.count, 2)
+        XCTAssertEqual(fetchedFeedKeys[1], vm.feed.feedKey, "fetch after switch must target the new feed")
+        XCTAssertNotEqual(fetchedFeedKeys[1], "feed-1", "fetch must not reuse the feed captured at init")
     }
 }
