@@ -128,6 +128,11 @@ class PostDetailViewController: UIViewController {
 
     private var viewModel: PostDetailViewModel
     private var headerRow: PostDetailHeaderRow?
+    /// The body string last pre-warmed into `MarkdownBlockCache` off the main
+    /// thread. The header observation re-emits on every vote/save with the same
+    /// body, so this skips the redundant background hop on those updates while
+    /// still warming the cache once when the body first arrives (or changes).
+    private var prewarmedHeaderBody: String?
     private var commentRowsByElementId: [Int64: PostDetailCommentRow] = [:]
     /// Element ids of new comments whose one-time fresh-wash fade has already
     /// played this visit, so scrolling them back into view doesn't replay it.
@@ -445,6 +450,15 @@ class PostDetailViewController: UIViewController {
                 // Rebuild so the Save/Unsave label, Mute target, and the
                 // own-post-gated Report/Block items reflect the latest row.
                 overflowBarButtonItem.menu = makePostOverflowMenu()
+                // Parse the body off the main thread before the header cell is
+                // configured, so its dequeue is a warm cache hit instead of a
+                // synchronous parse. Only on a new/changed body (not on every
+                // vote/save re-emit), and skipped if cancelled mid-parse.
+                if let body = headerRow?.body, !body.isEmpty, body != prewarmedHeaderBody {
+                    await MarkdownBlockCache.shared.prewarm(body)
+                    if Task.isCancelled { break }
+                    prewarmedHeaderBody = body
+                }
                 applySnapshot()
             }
         }

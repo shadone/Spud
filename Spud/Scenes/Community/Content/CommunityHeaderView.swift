@@ -40,6 +40,10 @@ final class CommunityHeaderView: UIView {
     /// height changes, so the host can re-measure its scrolling table header.
     var onBodyImageLoaded: (() -> Void)?
 
+    /// Bumped on each `configureDescription` so a slower off-main parse from an
+    /// earlier call can't land its blocks after a newer one.
+    private var descriptionToken = 0
+
     private let bannerHeight: CGFloat = 120
     private let iconSize: CGFloat = 64
 
@@ -280,7 +284,15 @@ final class CommunityHeaderView: UIView {
                 return nil
             }
         }
-        descriptionView.setBlocks(MarkdownBlockCache.shared.blocks(for: markdown))
+        // Parse off the main thread, then render the blocks back on main. The
+        // token drops a stale parse from an earlier configure landing late.
+        descriptionToken &+= 1
+        let token = descriptionToken
+        Task { [weak self] in
+            await MarkdownBlockCache.shared.prewarm(markdown)
+            guard let self, token == descriptionToken else { return }
+            descriptionView.setBlocks(MarkdownBlockCache.shared.blocks(for: markdown))
+        }
     }
 
     private func configureSubscribeButton(subscribed: CommunitySubscribedState) {
