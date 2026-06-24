@@ -27,6 +27,9 @@ final class InstanceAboutServerView: UIView {
     private let toggleButton = UIButton(type: .system)
     private var expanded = false
     private var collapsedHeightConstraint: NSLayoutConstraint!
+    /// Bumped on each `configure(sidebar:)` so a slower off-main parse from an
+    /// earlier call can't land its blocks after a newer one.
+    private var bodyToken = 0
 
     private let collapsedHeight: CGFloat = 124
 
@@ -121,7 +124,20 @@ final class InstanceAboutServerView: UIView {
                 return nil
             }
         }
-        bodyView.setBlocks(MarkdownBlockCache.shared.blocks(for: sidebar))
+        guard !sidebar.isEmpty else {
+            bodyView.setBlocks([])
+            return
+        }
+        // Parse off the main thread, then render the blocks back on main; the
+        // sidebar can be long, so parsing it synchronously here would stall the
+        // detail screen. The token drops a stale parse from an earlier configure.
+        bodyToken &+= 1
+        let token = bodyToken
+        Task { [weak self] in
+            await MarkdownBlockCache.shared.prewarm(sidebar)
+            guard let self, token == bodyToken else { return }
+            bodyView.setBlocks(MarkdownBlockCache.shared.blocks(for: sidebar))
+        }
     }
 
     private func toggle() {
