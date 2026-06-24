@@ -60,6 +60,40 @@ final class PendingPostSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - Seeded content
+
+    private let seededTitle = "Local Harvest Festival — anyone going?"
+    private let seededBody = "Looking forward to the harvest festival this year. Anyone else going?"
+
+    // MARK: - Render detection
+
+    /// Recursively walks `view` and returns true if any visible `UILabel`'s text
+    /// contains `text`. Used to confirm the GRDB observation delivered the seeded
+    /// row and the VC actually rendered it before we snapshot.
+    private func hierarchyContainsLabel(_ view: UIView, text: String) -> Bool {
+        if let label = view as? UILabel, label.isHidden == false, label.text?.contains(text) == true {
+            return true
+        }
+        for subview in view.subviews where hierarchyContainsLabel(subview, text: text) {
+            return true
+        }
+        return false
+    }
+
+    /// True once the failed banner control (the Retry button) is visible.
+    private func hierarchyContainsVisibleRetry(_ view: UIView) -> Bool {
+        if let button = view as? UIButton,
+           button.isHidden == false,
+           button.configuration?.title == "Retry"
+        {
+            return true
+        }
+        for subview in view.subviews where hierarchyContainsVisibleRetry(subview) {
+            return true
+        }
+        return false
+    }
+
     // MARK: - Snapshot helper
 
     private func assertScreens(
@@ -74,11 +108,11 @@ final class PendingPostSnapshotTests: XCTestCase {
             // Insert the draft row.
             let input = OutboundDraftInput(
                 kind: .post,
-                body: "Looking forward to the harvest festival this year. Anyone else going?",
+                body: seededBody,
                 postServerId: nil,
                 parentCommentServerId: nil,
                 communityServerId: 42,
-                title: "Local Harvest Festival — anyone going?",
+                title: seededTitle,
                 url: nil,
                 nsfw: false,
                 postType: 0
@@ -133,15 +167,45 @@ final class PendingPostSnapshotTests: XCTestCase {
             navigationController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
             navigationController.view.layoutIfNeeded()
 
-            // Spin the run loop so the async GRDB observation delivers the first value.
-            let deadline = Date().addingTimeInterval(2)
+            // Wait deterministically for the async GRDB observation to deliver the
+            // seeded row and the VC to render it. We must genuinely SUSPEND the
+            // MainActor (Task.sleep) rather than spin the run loop synchronously —
+            // the observation lands on a `Task { @MainActor }` continuation that
+            // can only run while this method is suspended. Poll up to ~3s for the
+            // seeded title to appear, plus (for the failed state) the Retry button.
+            let deadline = Date().addingTimeInterval(3)
+            var rendered = false
             while Date() < deadline {
-                RunLoop.main.run(until: Date().addingTimeInterval(0.05))
-                // Check whether the title label has content — that means the row landed.
-                if vc.view.subviews.first != nil { break }
+                await Task.yield()
+                try? await Task.sleep(nanoseconds: 50_000_000)
+                navigationController.view.layoutIfNeeded()
+
+                let hasTitle = hierarchyContainsLabel(vc.view, text: seededTitle)
+                let bannerReady = status == .failed
+                    ? hierarchyContainsVisibleRetry(vc.view)
+                    : true
+                if hasTitle, bannerReady {
+                    rendered = true
+                    break
+                }
             }
-            // Extra settle pass so the markdown body Task can also deliver.
-            RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+
+            guard rendered else {
+                XCTFail(
+                    """
+                    PendingPostViewController never rendered the seeded post for status \(status). \
+                    Title visible: \(hierarchyContainsLabel(vc.view, text: seededTitle)), \
+                    Retry visible: \(hierarchyContainsVisibleRetry(vc.view)). \
+                    Refusing to snapshot a blank/default screen.
+                    """,
+                    line: line
+                )
+                return
+            }
+
+            // Final settle so the markdown body Task delivers its blocks and the
+            // layout is stable before capture.
+            try? await Task.sleep(nanoseconds: 200_000_000)
             navigationController.view.layoutIfNeeded()
 
             let size = CGSize(width: 390, height: 844)
