@@ -44,22 +44,22 @@ enum InlineLexer {
             rest.distance(from: rest.startIndex, to: upper)
         }
 
-        if let m = rest.prefixMatch(of: /\u{E010}sup:([^\u{E011}]+)\u{E011}/) {
+        if let m = rest.prefixMatch(of: Pattern.superscriptSentinel) {
             return (.superscript(parse(String(m.output.1))), count(m.range.upperBound))
         }
-        if let m = rest.prefixMatch(of: /\u{E010}sub:([^\u{E011}]+)\u{E011}/) {
+        if let m = rest.prefixMatch(of: Pattern.subscriptSentinel) {
             return (.subscript(parse(String(m.output.1))), count(m.range.upperBound))
         }
-        if let m = rest.prefixMatch(of: /\[\^([\w-]+)\]/) {
+        if let m = rest.prefixMatch(of: Pattern.footnoteReference) {
             return (.footnoteReference(String(m.output.1)), count(m.range.upperBound))
         }
-        if let m = rest.prefixMatch(of: /==([^=]+)==/) {
+        if let m = rest.prefixMatch(of: Pattern.highlight) {
             return (.highlight(parse(String(m.output.1))), count(m.range.upperBound))
         }
-        if let m = rest.prefixMatch(of: /::([a-zA-Z0-9_+\-]+)::/) {
+        if let m = rest.prefixMatch(of: Pattern.customEmoji) {
             return (.customEmoji(shortcode: String(m.output.1)), count(m.range.upperBound))
         }
-        if let m = rest.prefixMatch(of: /:([a-zA-Z0-9_+\-]+):/) {
+        if let m = rest.prefixMatch(of: Pattern.emojiShortcode) {
             let name = String(m.output.1)
             if let scalar = Emoji.map[name] {
                 return (.emoji(scalar), count(m.range.upperBound))
@@ -68,26 +68,26 @@ enum InlineLexer {
             // consume it, so its trailing colon can't open the next emoji.
             return (.text(String(rest[m.range])), count(m.range.upperBound))
         }
-        if let m = rest.prefixMatch(of: /\^([^\^\s]+)\^/) {
+        if let m = rest.prefixMatch(of: Pattern.caretSuperscript) {
             return (.superscript(parse(String(m.output.1))), count(m.range.upperBound))
         }
-        if let m = rest.prefixMatch(of: /~([^~\s]+)~/) {
+        if let m = rest.prefixMatch(of: Pattern.tildeSubscript) {
             return (.subscript(parse(String(m.output.1))), count(m.range.upperBound))
         }
-        if let m = rest.prefixMatch(of: /!([a-zA-Z0-9_]+)@([a-zA-Z0-9.\-]+)/) {
+        if let m = rest.prefixMatch(of: Pattern.community) {
             return (.community(name: String(m.output.1), instance: String(m.output.2)), count(m.range.upperBound))
         }
-        if let m = rest.prefixMatch(of: /@([a-zA-Z0-9_]+)@([a-zA-Z0-9.\-]+)/) {
+        if let m = rest.prefixMatch(of: Pattern.mention) {
             return (.mention(name: String(m.output.1), instance: String(m.output.2)), count(m.range.upperBound))
         }
-        if let m = rest.prefixMatch(of: /https?:\/\/[^\s)<]+[^\s).,;:!?'"<]/) {
+        if let m = rest.prefixMatch(of: Pattern.httpURL) {
             let raw = String(m.output)
             if let url = URL(string: raw) {
                 return (.link(text: [.text(raw)], url: url), count(m.range.upperBound))
             }
             return (.text(raw), count(m.range.upperBound))
         }
-        if let m = rest.prefixMatch(of: /www\.[^\s)<]+[^\s).,;:!?'"<]/) {
+        if let m = rest.prefixMatch(of: Pattern.wwwURL) {
             let raw = String(m.output)
             if let url = URL(string: "https://\(raw)") {
                 return (.link(text: [.text(raw)], url: url), count(m.range.upperBound))
@@ -95,6 +95,34 @@ enum InlineLexer {
             return (.text(raw), count(m.range.upperBound))
         }
         return nil
+    }
+
+    /// Compile-once regexes for the inline extension rules.
+    ///
+    /// `match` runs once per Character of every text node, so the regexes it
+    /// tries must be built ahead of time, not from regex *literals* inside the
+    /// loop: each evaluation of a `/.../ ` literal compiles a fresh `Regex`
+    /// program, which turned a long post body into (characters x rules) regex
+    /// compilations on the main thread — multiple seconds for a wall of text.
+    /// Hoisting them here makes each rule compile exactly once.
+    ///
+    /// `nonisolated(unsafe)` is safe: `Regex` matching is a read-only operation
+    /// over an immutable compiled program (the regex value is never mutated), so
+    /// sharing one instance across the main actor and the off-main pre-warm pool
+    /// has no data race. `Regex` itself just isn't marked `Sendable`.
+    private enum Pattern {
+        nonisolated(unsafe) static let superscriptSentinel = /\u{E010}sup:([^\u{E011}]+)\u{E011}/
+        nonisolated(unsafe) static let subscriptSentinel = /\u{E010}sub:([^\u{E011}]+)\u{E011}/
+        nonisolated(unsafe) static let footnoteReference = /\[\^([\w-]+)\]/
+        nonisolated(unsafe) static let highlight = /==([^=]+)==/
+        nonisolated(unsafe) static let customEmoji = /::([a-zA-Z0-9_+\-]+)::/
+        nonisolated(unsafe) static let emojiShortcode = /:([a-zA-Z0-9_+\-]+):/
+        nonisolated(unsafe) static let caretSuperscript = /\^([^\^\s]+)\^/
+        nonisolated(unsafe) static let tildeSubscript = /~([^~\s]+)~/
+        nonisolated(unsafe) static let community = /!([a-zA-Z0-9_]+)@([a-zA-Z0-9.\-]+)/
+        nonisolated(unsafe) static let mention = /@([a-zA-Z0-9_]+)@([a-zA-Z0-9.\-]+)/
+        nonisolated(unsafe) static let httpURL = /https?:\/\/[^\s)<]+[^\s).,;:!?'"<]/
+        nonisolated(unsafe) static let wwwURL = /www\.[^\s)<]+[^\s).,;:!?'"<]/
     }
 }
 
