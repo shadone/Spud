@@ -854,6 +854,7 @@ class PostDetailViewController: UIViewController {
         Task {
             await appService.openInBrowser(
                 serverPostId: viewModel.serverPostId,
+                originalPostUrl: headerRow?.originalPostUrl,
                 accountKeychainId: viewModel.accountKeychainId,
                 on: self
             )
