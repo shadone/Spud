@@ -40,6 +40,12 @@ final class PendingPostViewController: UIViewController {
     /// real post detail.
     var onResolvedPost: ((Components.Schemas.PostID) -> Void)?
 
+    /// Invoked when the user discards the pending post. The presenter owns the
+    /// dismissal so it can restore the correct navigation state on both iPhone
+    /// (pop) and iPad expanded split view (replace the dead screen with the
+    /// empty placeholder). When nil the VC falls back to `popViewController`.
+    var onDiscarded: (() -> Void)?
+
     private let clientToken: String
     private let accountKeychainId: String
 
@@ -365,8 +371,14 @@ final class PendingPostViewController: UIViewController {
         let clientToken = clientToken
         Task { @MainActor [weak self] in
             await scope.lemmyService.discardComposition(clientToken: clientToken)
-            // The post is gone; pop back to where the user came from.
-            self?.navigationController?.popViewController(animated: true)
+            guard let self else { return }
+            if let onDiscarded {
+                // MainWindow owns the dismissal and knows whether to pop or replace.
+                onDiscarded()
+            } else {
+                // Fallback for standalone presentation (no presenter wired).
+                navigationController?.popViewController(animated: true)
+            }
         }
     }
 

@@ -452,6 +452,10 @@ class MainWindow: UIWindow {
             )
             replaceTop(pending, with: real)
         }
+        pending.onDiscarded = { [weak self, weak pending] in
+            guard let pending else { return }
+            self?.dismissPending(pending)
+        }
         pushIntoCurrentContext(pending)
     }
 
@@ -467,6 +471,28 @@ class MainWindow: UIWindow {
         var stack = navigationController.viewControllers
         stack[index] = replacement
         navigationController.setViewControllers(stack, animated: false)
+    }
+
+    /// Dismisses a discarded pending-post screen in a context-aware way:
+    /// - iPhone / pushed onto an existing stack: pop back to the previous VC.
+    /// - iPad expanded split view: the pending VC is the single root of a fresh
+    ///   secondary-column navigation controller — `popViewController` would be a
+    ///   no-op and leave the user stranded on a dead screen. Replace it with the
+    ///   empty post-detail placeholder so the detail column is usable again.
+    private func dismissPending(_ vc: UIViewController) {
+        guard let nav = vc.navigationController else { return }
+        if nav.viewControllers.count > 1 {
+            nav.popViewController(animated: true)
+        } else {
+            guard let keychainId = currentDefaultAccountKeychainId ?? accountService.currentDefaultAccountKeychainId() else {
+                return
+            }
+            let emptyDetailViewController = PostDetailOrEmptyViewController(
+                accountKeychainId: keychainId,
+                dependencies: dependencies.nested
+            )
+            nav.setViewControllers([emptyDetailViewController], animated: false)
+        }
     }
 
     func display(communityName: String, instance: InstanceActorId, accountKeychainId: String) {
