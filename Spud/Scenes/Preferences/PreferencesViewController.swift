@@ -31,6 +31,7 @@ class PreferencesViewController: UIViewController {
 
     private let viewModel: PreferencesViewModel
     private var externalLinkTask: Task<Void, Never>?
+    private var draftsOutboxTask: Task<Void, Never>?
 
     init(
         defaultPostSortType: Components.Schemas.SortType,
@@ -57,6 +58,7 @@ class PreferencesViewController: UIViewController {
 
     deinit {
         externalLinkTask?.cancel()
+        draftsOutboxTask?.cancel()
     }
 
     private func setup() {
@@ -77,6 +79,17 @@ class PreferencesViewController: UIViewController {
             for await url in viewModel.externalLinkRequested {
                 guard let self else { return }
                 await appService.open(url: url, on: self)
+            }
+        }
+
+        draftsOutboxTask = Task { @MainActor [weak self, viewModel] in
+            for await _ in viewModel.draftsOutboxRequested {
+                guard let self else { return }
+                let vc = OutboundContentListViewController(
+                    accountKeychainId: viewModel.accountKeychainId,
+                    dependencies: dependencies.nested
+                )
+                navigationController?.pushViewController(vc, animated: true)
             }
         }
     }

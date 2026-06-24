@@ -21,6 +21,7 @@ class MainWindow: UIWindow {
         InboxViewController.Dependencies &
         MainWindowSplitViewController.Dependencies &
         OnboardingHomeBaseViewController.Dependencies &
+        OutboundContentListViewController.Dependencies &
         PreferencesViewController.Dependencies &
         SearchViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
@@ -61,6 +62,10 @@ class MainWindow: UIWindow {
     /// Observes the active account's permanent outbox failures (a vote/save/hide
     /// rolled back after exhausting retries) and surfaces each as a toast.
     private var outboxFailureToastTask: Task<Void, Never>?
+    /// Observes the active account's permanent composer failures (a post/comment
+    /// that could not be submitted after exhausting retries) and surfaces each
+    /// as an interactive toast offering a "View" action to open Drafts & Outbox.
+    private var composerFailureToastTask: Task<Void, Never>?
     /// Keychain id of the account currently driving the tab bar — guards
     /// against rebuilds when the GRDB observation re-emits the same row.
     private var currentDefaultAccountKeychainId: String?
@@ -116,6 +121,7 @@ class MainWindow: UIWindow {
         appThemeObservationTask?.cancel()
         accentColorObservationTask?.cancel()
         outboxFailureToastTask?.cancel()
+        composerFailureToastTask?.cancel()
     }
 
     @available(*, unavailable)
@@ -200,6 +206,7 @@ class MainWindow: UIWindow {
         // Surface this account's permanent outbox failures as toasts, and drain
         // any ops left pending from a previous session.
         startObservingOutboxFailures(keychainId: keychainId)
+        startObservingComposerFailures(keychainId: keychainId)
 
         // Tab: Setup the split view controller
         let splitViewController = MainWindowSplitViewController(
@@ -324,6 +331,51 @@ class MainWindow: UIWindow {
             message = NSLocalizedString("Couldn't hide", comment: "Toast when a hide permanently failed and was reverted")
         }
         ToastPresenter.shared.show(message, in: self)
+    }
+
+    /// Subscribes to the active account's permanent composer failures (a
+    /// post/comment rolled back after exhausting retries) and surfaces each as
+    /// an interactive toast. A signed-out account never composes, so there is
+    /// nothing to observe.
+    private func startObservingComposerFailures(keychainId: String) {
+        composerFailureToastTask?.cancel()
+        let scope = accountService.scope(forAccountKeychainId: keychainId)
+        guard !scope.isSignedOut else {
+            composerFailureToastTask = nil
+            return
+        }
+        composerFailureToastTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let events = await scope.composerFailureEvents()
+            for await failure in events {
+                guard currentDefaultAccountKeychainId == keychainId else { break }
+                presentComposerFailureToast(failure, accountKeychainId: keychainId)
+            }
+        }
+    }
+
+    private func presentComposerFailureToast(_ failure: ComposerOutboxFailure, accountKeychainId: String) {
+        let message = NSLocalizedString(
+            "Couldn't post",
+            comment: "Toast when a post or comment permanently failed to submit"
+        )
+        let actionTitle = NSLocalizedString(
+            "View",
+            comment: "Toast action button: open Drafts & Outbox to see the failed item"
+        )
+        ToastPresenter.shared.show(message, actionTitle: actionTitle, in: self) { [weak self] in
+            self?.displayDraftsOutbox(accountKeychainId: accountKeychainId)
+        }
+    }
+
+    /// Builds and pushes the Drafts & Outbox list for `accountKeychainId`
+    /// into whichever tab is currently active.
+    private func displayDraftsOutbox(accountKeychainId: String) {
+        let vc = OutboundContentListViewController(
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        pushIntoCurrentContext(vc)
     }
 
     /// Routes to the Account tab (its signed-out screen offers log in / sign
