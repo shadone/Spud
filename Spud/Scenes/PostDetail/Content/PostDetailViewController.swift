@@ -851,14 +851,12 @@ class PostDetailViewController: UIViewController {
     }
 
     private func openInBrowser() {
-        Task {
-            await appService.openInBrowser(
-                serverPostId: viewModel.serverPostId,
-                originalPostUrl: headerRow?.originalPostUrl,
-                accountKeychainId: viewModel.accountKeychainId,
-                on: self
-            )
-        }
+        appService.openInBrowser(
+            serverPostId: viewModel.serverPostId,
+            originalPostUrl: headerRow?.originalPostUrl,
+            accountKeychainId: viewModel.accountKeychainId,
+            on: self
+        )
     }
 
     /// Shares the current post's canonical URL. Prefers the post's `ap_id`

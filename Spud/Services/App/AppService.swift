@@ -19,7 +19,7 @@ protocol AppServiceType: AnyObject {
         originalPostUrl: String?,
         accountKeychainId: String,
         on viewController: UIViewController
-    ) async
+    )
 
     /// Opens the given external link according to user preferences (e.g. opens in In-App Safari or external browser).
     func open(url: URL, on viewController: UIViewController) async
