@@ -332,6 +332,12 @@ final class NewPostViewController: UIViewController {
                 onPosted?(serverPostId)
             }
 
+        case .queued:
+            // Task 14 will replace this with dismiss + navigate-to-pending-post.
+            view.endEditing(true)
+            Haptics.success()
+            dismiss(animated: true)
+
         case let .failed(message):
             setFormEnabled(true)
             navigationItem.rightBarButtonItem = postButton

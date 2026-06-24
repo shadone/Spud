@@ -39,6 +39,10 @@ enum NewPostSubmissionState: Equatable {
     /// Submission succeeded; carries the new post's server id so the view
     /// controller can dismiss and navigate to it.
     case finished(serverPostId: Components.Schemas.PostID)
+    /// Post was durably enqueued in the outbox; the view controller can dismiss
+    /// and show the pending post screen. Carries the client token so the VC can
+    /// locate the outbox row.
+    case queued(clientToken: String)
     /// Submission failed; the view controller presents `message` and keeps the
     /// draft so the user can retry.
     case failed(message: String)
@@ -57,6 +61,12 @@ final class NewPostViewModel {
 
     @ObservationIgnored
     private let accountScope: AccountScope
+
+    @ObservationIgnored
+    private var clientToken: String?
+
+    @ObservationIgnored
+    private var saveTask: Task<Void, Never>?
 
     var accountKeychainId: String {
         accountScope.accountKeychainId
@@ -92,7 +102,7 @@ final class NewPostViewModel {
     var isBusy: Bool {
         switch submissionState {
         case .uploadingImage, .submitting: true
-        case .editing, .finished, .failed: false
+        case .editing, .queued, .finished, .failed: false
         }
     }
 
@@ -121,6 +131,66 @@ final class NewPostViewModel {
                 title: initialCommunityName ?? ""
             )
         }
+    }
+
+    // MARK: Draft key + input
+
+    private var draftKey: String {
+        OutboundContentRecord.postDraftKey(communityServerId: community.map { Int64($0.id) })
+    }
+
+    private func currentInput() -> OutboundDraftInput {
+        OutboundDraftInput(
+            kind: .post,
+            body: bodyText,
+            postServerId: nil,
+            parentCommentServerId: nil,
+            communityServerId: community.map { Int64($0.id) },
+            title: titleText,
+            url: urlText.isEmpty ? nil : urlText,
+            nsfw: nsfw,
+            postType: Int64(postType.rawValue)
+        )
+    }
+
+    // MARK: Draft lifecycle
+
+    func loadExistingDraft() async {
+        guard let row = try? await accountScope.lemmyService.loadDraft(draftKey: draftKey) else { return }
+        let hasTitle = !(row.title ?? "").isEmpty
+        let hasBody = !row.body.isEmpty
+        guard hasTitle || hasBody else { return }
+        clientToken = row.clientToken
+        titleText = row.title ?? ""
+        bodyText = row.body
+        urlText = row.url ?? ""
+        nsfw = row.nsfw
+        postType = NewPostType(rawValue: Int(row.postType)) ?? .text
+    }
+
+    /// Call whenever any draft field changes. Debounces ~1.5 s before persisting.
+    func draftDidChange() {
+        saveTask?.cancel()
+        saveTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            guard !Task.isCancelled else { return }
+            await self?.flushDraft()
+        }
+    }
+
+    func flushDraft() async {
+        guard community != nil else { return }
+        let hasContent = !titleText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !urlText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard hasContent else { return }
+        clientToken = try? await accountScope.lemmyService.saveDraft(currentInput())
+    }
+
+    func discardDraft() async {
+        guard let token = clientToken else { return }
+        await accountScope.lemmyService.discardComposition(clientToken: token)
+        clientToken = nil
     }
 
     // MARK: Image upload
@@ -166,27 +236,23 @@ final class NewPostViewModel {
 
     func submit() async {
         let title = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !title.isEmpty, let community else { return }
+        guard !title.isEmpty, community != nil else { return }
 
-        submissionState = .submitting
+        await flushDraft()
 
-        let trimmedUrl = urlText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        let service = accountScope.lemmyService
-        do {
-            let serverPostId = try await service.createPost(
-                serverCommunityId: community.id,
-                name: title,
-                url: trimmedUrl.isEmpty ? nil : trimmedUrl,
-                body: trimmedBody.isEmpty ? nil : trimmedBody,
-                nsfw: nsfw
+        guard let token = clientToken else {
+            submissionState = .failed(
+                message: NSLocalizedString(
+                    "Couldn't save your post.",
+                    comment: "New post enqueue failure"
+                )
             )
-            submissionState = .finished(serverPostId: serverPostId)
-        } catch {
-            alertService.handle(error, for: .createPost)
-            submissionState = .failed(message: ErrorMessage.userFacing(for: error))
+            return
         }
+
+        await accountScope.lemmyService.submitDraft(clientToken: token)
+        clientToken = nil
+        submissionState = .queued(clientToken: token)
     }
 
     /// Called by the view controller after presenting the failure alert so a
