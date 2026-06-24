@@ -112,6 +112,7 @@ public actor ComposerOutboxService: ComposerOutboxServiceType {
     public func drainAll() async {
         let all = await (try? appDatabase.dueOutbound(accountId: accountId, asOf: .greatestFiniteMagnitude)) ?? []
         await drain(records: all)
+        await scheduleNextDrainIfNeeded()
     }
 
     public func start() async {
@@ -186,8 +187,7 @@ public actor ComposerOutboxService: ComposerOutboxServiceType {
         guard let earliest = nextTimes.min() else { return }
         let delay = max(0, earliest - nowValue)
         scheduledDrain = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-            if Task.isCancelled { return }
+            do { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) } catch { return }
             await self?.drainOnce()
         }
     }
