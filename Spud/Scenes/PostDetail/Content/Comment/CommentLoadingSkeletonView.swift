@@ -8,9 +8,12 @@ import UIKit
 
 /// A loading placeholder for a post's comments: a column of comment-shaped
 /// skeleton rows (a small avatar dot + a short name bar, then two text bars),
-/// each indented per depth to read as a threaded tree. Shown as the table
-/// background below the post header while comments load, so the comments region
-/// never reads as blank. The pulse and bar factory come from `SkeletonView`.
+/// each indented per depth to read as a threaded tree. Hosted in
+/// `PostDetailCommentLoadingCell` as an in-flow row in the comments section while
+/// comments load, so it scrolls with content and lands exactly where the comments
+/// will appear. The view is self-sizing (its stack is pinned on all four edges),
+/// so it drives the cell's height. The pulse and bar factory come from
+/// `SkeletonView`.
 final class CommentLoadingSkeletonView: SkeletonView {
     /// Indentation depth per skeleton row, to suggest a comment tree.
     private static let rowDepths: [Int] = [0, 0, 1, 2, 0, 1]
@@ -31,9 +34,10 @@ final class CommentLoadingSkeletonView: SkeletonView {
 
         addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor),
+            stack.topAnchor.constraint(equalTo: topAnchor),
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
 
         for depth in Self.rowDepths {

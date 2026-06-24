@@ -39,9 +39,20 @@ final class PostDetailCommentLoadingSnapshotTests: XCTestCase {
         testName: String = #function,
         line: UInt = #line
     ) {
-        let size = CGSize(width: width, height: 500)
-        let view = CommentLoadingSkeletonView(frame: CGRect(origin: .zero, size: size))
+        // The skeleton view is self-sizing now, so render it at its natural fitting
+        // height rather than a fixed height (which would stretch the bottom-pinned
+        // stack).
+        let view = CommentLoadingSkeletonView()
+        view.translatesAutoresizingMaskIntoConstraints = false
         view.backgroundColor = .systemBackground
+        view.widthAnchor.constraint(equalToConstant: width).isActive = true
+        let height = view.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+        let size = CGSize(width: width, height: height)
+        view.frame = CGRect(origin: .zero, size: size)
         view.stopAnimating()
         view.layoutIfNeeded()
 
