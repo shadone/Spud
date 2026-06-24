@@ -159,7 +159,8 @@ final class NewPostViewModel {
         guard let row = try? await accountScope.lemmyService.loadDraft(draftKey: draftKey) else { return }
         let hasTitle = !(row.title ?? "").isEmpty
         let hasBody = !row.body.isEmpty
-        guard hasTitle || hasBody else { return }
+        let hasUrl = !(row.url ?? "").isEmpty
+        guard hasTitle || hasBody || hasUrl else { return }
         clientToken = row.clientToken
         titleText = row.title ?? ""
         bodyText = row.body
@@ -237,6 +238,8 @@ final class NewPostViewModel {
     func submit() async {
         let title = titleText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty, community != nil else { return }
+        guard submissionState == .editing else { return }
+        submissionState = .submitting
 
         await flushDraft()
 

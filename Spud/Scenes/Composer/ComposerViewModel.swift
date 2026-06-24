@@ -181,6 +181,8 @@ final class ComposerViewModel {
     func post() async {
         let content = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
+        guard submissionState == .editing else { return }
+        submissionState = .submitting
 
         if target.serverPostId != nil {
             // Comment/post-reply: save to outbox and enqueue optimistically.
@@ -194,7 +196,6 @@ final class ComposerViewModel {
             submissionState = .finished
         } else {
             // DM / new-post: existing blocking network flow.
-            submissionState = .submitting
             let service = accountScope.lemmyService
             do {
                 if let recipientId = target.privateMessageRecipientId {
