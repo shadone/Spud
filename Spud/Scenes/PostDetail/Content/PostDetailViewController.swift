@@ -882,6 +882,14 @@ class PostDetailViewController: UIViewController {
     }
 
     private func reloadAsync() async {
+        // Pull-to-refresh is an explicit "refresh everything" gesture, so it
+        // refreshes the post itself (getPost) as well as its comments
+        // (getComments). The header's comment count lives on the post record,
+        // which only a fresh PostView updates — Lemmy's getComments response
+        // carries no post counters — so without the getPost the header would
+        // stay stale here. Run both concurrently; the post refresh is
+        // best-effort so it can't mask a comment-load failure.
+        async let postInfoRefresh: Void = refreshPostInfo()
         do {
             try await viewModel.accountScope.lemmyService
                 .fetchComments(
@@ -891,7 +899,20 @@ class PostDetailViewController: UIViewController {
         } catch {
             alertService.handle(error, for: .fetchComments)
         }
+        await postInfoRefresh
         refreshControl.endRefreshing()
+    }
+
+    /// Best-effort refresh of the post record (header counters) on pull-to-refresh.
+    /// Failures are swallowed so they don't mask the comment-load error surface.
+    private func refreshPostInfo() async {
+        do {
+            try await viewModel.accountScope.lemmyService
+                .fetchPostInfo(serverPostId: viewModel.serverPostId)
+        } catch {
+            // Comments are the primary content of a post-detail refresh; a
+            // header-counter refresh failure should not raise its own alert.
+        }
     }
 
     private func openInBrowser() {
