@@ -461,9 +461,9 @@ class CommunityViewController: UIViewController {
             initialCommunityName: viewModel.qualifiedName.isEmpty ? viewModel.name : viewModel.qualifiedName,
             accountKeychainId: accountKeychainId,
             dependencies: dependencies.own
-        ) { [weak self] serverPostId in
+        ) { [weak self] clientToken in
             guard let window = self?.view.window as? MainWindow else { return }
-            window.display(serverPostId: serverPostId, accountKeychainId: accountKeychainId)
+            window.displayPending(clientToken: clientToken, accountKeychainId: accountKeychainId)
         }
         present(composer, animated: true)
     }

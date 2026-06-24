@@ -434,6 +434,41 @@ class MainWindow: UIWindow {
         pushIntoCurrentContext(postDetailVC)
     }
 
+    /// Pushes the optimistic pending-post screen for a just-queued post. When the
+    /// outbox accepts the post the screen resolves to the real post detail,
+    /// swapped in place so Back returns to wherever the user composed from.
+    func displayPending(clientToken: String, accountKeychainId: String) {
+        let pending = PendingPostViewController(
+            clientToken: clientToken,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        pending.onResolvedPost = { [weak self, weak pending] serverPostId in
+            guard let self, let pending else { return }
+            let real = PostDetailOrEmptyViewController(
+                serverPostId: serverPostId,
+                accountKeychainId: accountKeychainId,
+                dependencies: dependencies.nested
+            )
+            replaceTop(pending, with: real)
+        }
+        pushIntoCurrentContext(pending)
+    }
+
+    /// Replaces `viewController` with `replacement` in whichever navigation stack
+    /// currently holds it, preserving everything beneath it. No-op if the user
+    /// has already navigated away and `viewController` is no longer in a stack.
+    private func replaceTop(_ viewController: UIViewController, with replacement: UIViewController) {
+        guard
+            let navigationController = viewController.navigationController,
+            let index = navigationController.viewControllers.firstIndex(of: viewController)
+        else { return }
+
+        var stack = navigationController.viewControllers
+        stack[index] = replacement
+        navigationController.setViewControllers(stack, animated: false)
+    }
+
     func display(communityName: String, instance: InstanceActorId, accountKeychainId: String) {
         let vc = CommunityOrLoadingViewController(
             communityName: communityName,

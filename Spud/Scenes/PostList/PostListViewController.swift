@@ -373,9 +373,9 @@ class PostListViewController: UIViewController {
             initialCommunityName: nil,
             accountKeychainId: keychainId,
             dependencies: dependencies.own
-        ) { [weak self] serverPostId in
+        ) { [weak self] clientToken in
             guard let window = self?.view.window as? MainWindow else { return }
-            window.display(serverPostId: serverPostId, accountKeychainId: keychainId)
+            window.displayPending(clientToken: clientToken, accountKeychainId: keychainId)
         }
         present(composer, animated: true)
     }

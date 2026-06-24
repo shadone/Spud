@@ -34,8 +34,12 @@ final class NewPostViewController: UIViewController {
     private var observationTasks: [Task<Void, Never>] = []
 
     /// Invoked on successful submit with the new post's id, so the presenter
-    /// can navigate to PostDetail.
+    /// can navigate to PostDetail. Used by the non-optimistic path.
     var onPosted: ((Components.Schemas.PostID) -> Void)?
+
+    /// Invoked once the post has been durably enqueued, carrying the client token
+    /// so the presenter can push the optimistic pending-post screen.
+    var onQueued: ((String) -> Void)?
 
     // MARK: UI
 
@@ -132,6 +136,7 @@ final class NewPostViewController: UIViewController {
         editor.textView.textContainerInset = UIEdgeInsets(top: 10, left: 8, bottom: 10, right: 8)
         editor.onTextChange = { [weak self] text in
             self?.viewModel.bodyText = text
+            self?.viewModel.draftDidChange()
         }
         editor.onPreviewLinkTapped = { url in
             UIApplication.shared.open(url)
@@ -203,6 +208,33 @@ final class NewPostViewController: UIViewController {
         super.viewDidLoad()
         setup()
         bindViewModel()
+
+        // Mail-style draft restore: reload a previously-saved draft (if any) for
+        // this community and reflect it back into the editable fields.
+        Task { @MainActor [weak self] in
+            await self?.viewModel.loadExistingDraft()
+            self?.reflectDraftFields()
+        }
+
+        // Persist whatever the user has typed if the app is backgrounded
+        // mid-compose, so nothing is lost on a cold restart.
+        NotificationCenter.default.addObserver(
+            forName: UIScene.didEnterBackgroundNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { await self?.viewModel.flushDraft() }
+        }
+    }
+
+    /// Pushes the view model's draft fields into the editable UI after a draft
+    /// load (the view model is the source of truth for restored text).
+    private func reflectDraftFields() {
+        titleField.text = viewModel.titleText
+        urlField.text = viewModel.urlText
+        bodyEditorView.text = viewModel.bodyText
+        nsfwSwitch.isOn = viewModel.nsfw
+        postTypeControl.selectedSegmentIndex = viewModel.postType.rawValue
+        applyPostType()
+        updateCommunityButton()
     }
 
     private func setup() {
@@ -332,11 +364,12 @@ final class NewPostViewController: UIViewController {
                 onPosted?(serverPostId)
             }
 
-        case .queued:
-            // Task 14 will replace this with dismiss + navigate-to-pending-post.
+        case let .queued(clientToken):
             view.endEditing(true)
             Haptics.success()
-            dismiss(animated: true)
+            dismiss(animated: true) { [onQueued] in
+                onQueued?(clientToken)
+            }
 
         case let .failed(message):
             setFormEnabled(true)
@@ -368,22 +401,26 @@ final class NewPostViewController: UIViewController {
     @objc
     private func titleChanged() {
         viewModel.titleText = titleField.text ?? ""
+        viewModel.draftDidChange()
     }
 
     @objc
     private func urlChanged() {
         viewModel.urlText = urlField.text ?? ""
+        viewModel.draftDidChange()
     }
 
     @objc
     private func nsfwChanged() {
         viewModel.nsfw = nsfwSwitch.isOn
+        viewModel.draftDidChange()
     }
 
     @objc
     private func postTypeChanged() {
         viewModel.postType = NewPostType(rawValue: postTypeControl.selectedSegmentIndex) ?? .text
         applyPostType()
+        viewModel.draftDidChange()
     }
 
     @objc
@@ -395,6 +432,7 @@ final class NewPostViewController: UIViewController {
         )
         picker.onSelect = { [weak self] community in
             self?.viewModel.community = community
+            self?.viewModel.draftDidChange()
         }
         let nav = UINavigationController(rootViewController: picker)
         present(nav, animated: true)
@@ -414,7 +452,39 @@ final class NewPostViewController: UIViewController {
     @objc
     private func cancelTapped() {
         view.endEditing(true)
-        dismiss(animated: true)
+
+        // No content typed: just dismiss, nothing to keep.
+        let hasContent = !(titleField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !bodyEditorView.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            || !(urlField.text ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard hasContent else {
+            dismiss(animated: true)
+            return
+        }
+
+        let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Save Draft", comment: "New-post keep-draft action"),
+            style: .default
+        ) { [weak self] _ in
+            Task { await self?.viewModel.flushDraft()
+                await MainActor.run { self?.dismiss(animated: true) }
+            }
+        })
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Delete Draft", comment: "New-post discard-draft action"),
+            style: .destructive
+        ) { [weak self] _ in
+            Task { await self?.viewModel.discardDraft()
+                await MainActor.run { self?.dismiss(animated: true) }
+            }
+        })
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Cancel", comment: "Cancel dismiss"),
+            style: .cancel
+        ))
+        sheet.popoverPresentationController?.barButtonItem = cancelButton
+        present(sheet, animated: true)
     }
 
     @objc
@@ -471,7 +541,7 @@ extension NewPostViewController {
         initialCommunityName: String?,
         accountKeychainId: String,
         dependencies: Dependencies,
-        onPosted: @escaping (Components.Schemas.PostID) -> Void
+        onQueued: @escaping (String) -> Void
     ) -> UIViewController {
         let composer = NewPostViewController(
             serverCommunityId: serverCommunityId,
@@ -479,7 +549,7 @@ extension NewPostViewController {
             accountKeychainId: accountKeychainId,
             dependencies: dependencies
         )
-        composer.onPosted = onPosted
+        composer.onQueued = onQueued
         let navigationController = UINavigationController(rootViewController: composer)
         if let sheet = navigationController.sheetPresentationController {
             sheet.detents = [.large()]
