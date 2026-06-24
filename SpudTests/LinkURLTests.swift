@@ -95,4 +95,44 @@ final class LinkURLTests: XCTestCase {
         )
         XCTAssertEqual(url?.absoluteString, "https://discuss.tchncs.de/comment/7")
     }
+
+    func test_comment_originalInstance_missingApId_fallsBackToHome() {
+        let url = LinkURL.forComment(
+            instance: .originalInstance,
+            originalCommentUrl: nil,
+            serverCommentId: 7,
+            instanceActorId: home
+        )
+        XCTAssertEqual(url?.absoluteString, "https://discuss.tchncs.de/comment/7")
+    }
+
+    func test_comment_originalInstance_emptyApId_fallsBackToHome() {
+        let url = LinkURL.forComment(
+            instance: .originalInstance,
+            originalCommentUrl: "",
+            serverCommentId: 7,
+            instanceActorId: home
+        )
+        XCTAssertEqual(url?.absoluteString, "https://discuss.tchncs.de/comment/7")
+    }
+
+    func test_comment_myInstance_noInstanceActorId_returnsNil() {
+        let url = LinkURL.forComment(
+            instance: .myInstance,
+            originalCommentUrl: commentApId,
+            serverCommentId: 7,
+            instanceActorId: nil
+        )
+        XCTAssertNil(url)
+    }
+
+    func test_comment_originalInstance_noApIdNoInstance_returnsNil() {
+        let url = LinkURL.forComment(
+            instance: .originalInstance,
+            originalCommentUrl: nil,
+            serverCommentId: 7,
+            instanceActorId: nil
+        )
+        XCTAssertNil(url)
+    }
 }
