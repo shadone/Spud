@@ -514,6 +514,33 @@ class PostDetailCommentCell: UITableViewCell {
         return label
     }
 
+    // MARK: Shared body/depth helpers
+
+    /// Attaches an image loader and renders `blocks` into `bodyView`, then
+    /// hides `messageLabel`. Both `configure(with:)` and `configurePending`
+    /// funnel through here so the markdown rendering path is never duplicated.
+    private func applyBodyBlocks(_ blocks: [MarkdownBlock], imageService: ImageServiceType) {
+        bodyView.imageLoader = { [imageService] url in
+            for await state in imageService.fetch(url) {
+                if case let .ready(image) = state { return image }
+            }
+            return nil
+        }
+        bodyView.setBlocks(blocks)
+        bodyView.isHidden = false
+        messageLabel.attributedText = nil
+        messageLabel.isHidden = true
+    }
+
+    /// Sets the leading depth rails from a raw integer depth. Used by
+    /// `configurePending` which has no access to the themed rail colors
+    /// the view model pre-computes; falls back to a neutral gray palette
+    /// matching the view model's `colors.isEmpty` path.
+    private func applyDepthRails(depth: Int) {
+        let railCount = max(0, depth - 1)
+        depthRailsView.railColors = Array(repeating: UIColor.lightGray, count: railCount)
+    }
+
     func configure(with viewModel: PostDetailCommentViewModel, imageService: ImageServiceType) {
         let accent = tintColor ?? .systemTeal
 
@@ -551,16 +578,8 @@ class PostDetailCommentCell: UITableViewCell {
             if hasMarkdownBlocks {
                 // A collapsed comment hides its own body too, Apollo-style.
                 let blocks = viewModel.isCollapsed ? [] : viewModel.bodyBlocks
-                bodyView.imageLoader = { [imageService] url in
-                    for await state in imageService.fetch(url) {
-                        if case let .ready(image) = state { return image }
-                    }
-                    return nil
-                }
-                bodyView.setBlocks(blocks)
+                applyBodyBlocks(blocks, imageService: imageService)
                 bodyView.isHidden = viewModel.isCollapsed
-                messageLabel.attributedText = nil
-                messageLabel.isHidden = true
             } else {
                 // Deleted or removed — use the styled placeholder in messageLabel.
                 bodyView.setBlocks([])
@@ -656,6 +675,63 @@ class PostDetailCommentCell: UITableViewCell {
         } else {
             accessibilityTraits = .none
         }
+    }
+
+    /// Configures the cell to represent a locally-composed comment that has been
+    /// submitted but not yet confirmed by the server (or that failed to send).
+    /// Renders the body via the existing `bodyView` path, shows a status line
+    /// in place of the normal metadata subtitle, hides vote/save/reply
+    /// affordances, and dims the cell when the send is in-flight.
+    func configurePending(_ state: PendingCommentCellState, imageService: ImageServiceType) {
+        clearBadges()
+        clearLinkPreviews()
+        blockedFoldView.isHidden = true
+        headerStackView.isHidden = false
+
+        authorLabel.attributedText = NSAttributedString(
+            string: NSLocalizedString("You", comment: "Pending comment author label"),
+            attributes: [.font: UIFont.preferredFont(forTextStyle: .subheadline)]
+        )
+
+        let statusText: String
+        let statusColor: UIColor
+        switch state.status {
+        case .sending:
+            statusText = NSLocalizedString("Sending\u{2026}", comment: "Pending comment status: sending")
+            statusColor = .secondaryLabel
+        case .failed:
+            statusText = NSLocalizedString("Failed \u{2014} tap to retry", comment: "Pending comment status: failed")
+            statusColor = .systemRed
+        }
+        subtitleLabel.attributedText = NSAttributedString(
+            string: statusText,
+            attributes: [
+                .font: UIFont.preferredFont(forTextStyle: .caption1),
+                .foregroundColor: statusColor,
+            ]
+        )
+        subtitleLabel.accessibilityLabel = statusText
+
+        // Parse the body via the same MarkdownBlockCache path that configure(with:)
+        // uses so fonts and density match.
+        let blocks = MarkdownBlockCache.shared.blocks(for: state.body)
+        applyBodyBlocks(blocks, imageService: imageService)
+
+        applyDepthRails(depth: state.depth)
+
+        collapsedBadgeLabel.attributedText = nil
+        collapsedBadgeLabel.isHidden = true
+        collapsedNewBadgeLabel.attributedText = nil
+        collapsedNewBadgeLabel.backgroundColor = .clear
+        collapsedNewBadgeLabel.isHidden = true
+        newDotView.isHidden = true
+        newDotView.backgroundColor = .clear
+
+        tintBackingView.backgroundColor = .clear
+        contentView.alpha = state.status == .sending ? 0.6 : 1.0
+        mainHorizontalStackView.alpha = 1
+        swipeActionConfiguration = nil
+        collapseTapGestureRecognizer.isEnabled = false
     }
 
     /// Applies the fresh-comment wash for this appearance. Returns `true` if it
