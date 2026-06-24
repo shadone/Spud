@@ -345,18 +345,17 @@ struct PostListPostViewModel {
     }
 
     /// Collapses a self-text body into a single trimmed line for the feed
-    /// preview, or `nil` when there's nothing to show. Markdown is left as-is —
-    /// a cheap, fast preview that never touches the main-thread markdown
-    /// renderer; the cell clamps the result to two lines.
+    /// preview, or `nil` when there's nothing to show. Markdown syntax is
+    /// stripped via the pure `MarkdownPlainText` helper — cheap string work that
+    /// never touches the main-thread markdown parser/renderer; the cell clamps
+    /// the result to two lines.
     private static func bodyPreview(
         from body: String?,
         attributes: [NSAttributedString.Key: Any]
     ) -> NSAttributedString? {
         guard let body else { return nil }
-        let collapsed = body
-            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !collapsed.isEmpty else { return nil }
-        return NSAttributedString(string: collapsed, attributes: attributes)
+        let plain = MarkdownPlainText.preview(from: body)
+        guard !plain.isEmpty else { return nil }
+        return NSAttributedString(string: plain, attributes: attributes)
     }
 }
