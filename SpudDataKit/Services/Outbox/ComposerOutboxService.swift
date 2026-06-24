@@ -42,6 +42,14 @@ public actor ComposerOutboxService: ComposerOutboxServiceType {
     private var started = false
     private var scheduledDrain: Task<Void, Never>?
 
+    /// Tokens currently being sent by an in-progress `drain`. Because `dueOutbound`
+    /// also returns `sending` rows and `perform` suspends on the network, a
+    /// concurrent drain (background kick + scheduled retry + reachability flip)
+    /// could re-select an in-flight row and send the same non-idempotent content
+    /// twice. This actor-isolated reservation set is checked-and-inserted
+    /// synchronously per record so a concurrent drain observes the reservation.
+    private var inFlight: Set<String> = []
+
     public init(
         accountId: Int64, appDatabase: AppDatabase, performer: OutboundContentPerforming,
         reachability: ReachabilityMonitoring, now: @escaping @Sendable () -> Double
@@ -91,12 +99,19 @@ public actor ComposerOutboxService: ComposerOutboxServiceType {
 
     public func submit(clientToken: String) async {
         try? await appDatabase.markOutboundQueued(clientToken: clientToken, now: now())
-        await drainOnce()
+        drainInBackground()
     }
 
     public func retry(clientToken: String) async {
         try? await appDatabase.markOutboundQueued(clientToken: clientToken, now: now())
-        await drainOnce()
+        drainInBackground()
+    }
+
+    /// Kicks a drain on a detached background task so callers (`submit` / `retry`)
+    /// return immediately after the fast DB write, without blocking on the network
+    /// round-trip. This is what makes the optimistic UI appear instantly.
+    private func drainInBackground() {
+        Task { [weak self] in await self?.drainOnce() }
     }
 
     public func discard(clientToken: String) async {
@@ -133,6 +148,15 @@ public actor ComposerOutboxService: ComposerOutboxServiceType {
         for record in records {
             guard let id = record.id else { continue }
             let token = record.clientToken
+
+            // In-flight guard: reserve this token synchronously (no await between
+            // the contains-check and the insert) so a concurrent drain that
+            // re-selects the same `sending` row skips it instead of re-sending
+            // non-idempotent content. Released on every exit path via `defer`.
+            guard !inFlight.contains(token) else { continue }
+            inFlight.insert(token)
+            defer { inFlight.remove(token) }
+
             let kind = OutboundKind(rawValue: record.kind) ?? .comment
 
             // Dedup: if a prior attempt actually committed (response lost), adopt + skip.

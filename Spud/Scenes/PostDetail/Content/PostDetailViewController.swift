@@ -77,6 +77,13 @@ class PostDetailViewController: UIViewController {
         outboundObservationTask?.cancel()
         loadingObservationTask?.cancel()
 
+        // Drop the previous post's pending overlay so a stale outbound comment
+        // can't splice into the new post's tree before the new outbound
+        // observation's first emit (iPad detail-column reuse path).
+        pendingOutboundComments = []
+        pendingStateByElementId.removeAll(keepingCapacity: true)
+        pendingTokenByElementId.removeAll(keepingCapacity: true)
+
         viewModel = PostDetailViewModel(
             serverPostId: serverPostId,
             accountScope: dependencies.own.accountService.scope(forAccountKeychainId: accountKeychainId),
