@@ -2,6 +2,8 @@
 
 Native iOS client for [Lemmy](https://join-lemmy.org). UIKit, GRDB, SPM. Bundle ID `info.ddenis.Spud`, team `J8B76VBZ57`.
 
+**Universal app — iPhone and iPad are both first-class.** `TARGETED_DEVICE_FAMILY` is `"1,2"`; the iPad layout is an adaptive `MainWindowSplitViewController` (sidebar + detail), not a stretched-iPhone fallback. Treat iPad as a shipping platform: new UI must work in the regular size class / split view, and any device-specific assets (e.g. the `AppIcon` set, which carries explicit iPad 152/167 sizes) must cover iPad. Snapshot tests still pin iPhone (see below), but that's a test-fixture constraint, not a statement that the app is iPhone-only.
+
 Project went dormant after June 2024. Picked back up May 2026. The previous session was mid-migration to Swift strict concurrency (project flag `SWIFT_STRICT_CONCURRENCY = complete` is already set); that WIP lives in `git stash@{0}` (`pre-pickup-2026-05 strict-concurrency WIP`) but is intentionally being redone from scratch — do not pop it without asking.
 
 ## Project layout
