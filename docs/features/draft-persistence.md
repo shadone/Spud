@@ -14,7 +14,7 @@ Spud auto-saves every compose session to a durable per-target draft store (GRDB 
 - **Auto-saved, not manually triggered.** The draft is written to the durable store incrementally as you type; no explicit "save" action is needed.
 - **Mail-style dismiss.** Dismissing a non-empty composer presents an action sheet: "Save Draft" (retains the text in the durable store), "Delete Draft" (removes it), and "Keep Editing" (returns to the composer). An empty composer dismisses without the action sheet.
 - **Silent restore on reopen.** Reopening the composer for a target that has a saved draft silently pre-fills the text fields with no notification or banner — the text is simply there.
-- **Cross-launch persistence.** Drafts survive force-quit and relaunch. The durable store is backed by the shared App Group database, so the widget and extensions see consistent account state (they do not write drafts, but the draft does not prevent them from reading the account).
+- **Cross-launch persistence.** Drafts survive force-quit and relaunch. The durable store is backed by the shared App Group database; draft content is not surfaced to the widget or extensions.
 - **Content for new posts.** For a new post, the durable draft stores title, body, URL, NSFW flag, post type, and chosen community (when pre-filled at launch). For a comment reply or DM, it stores the body text.
 - **Preview and upload do not lose the draft.** Toggling Write / Preview or attaching an image mutates the live draft in place. The in-memory state is flushed to the durable store.
 - **Not shared across composer types.** Each composer target (new post, top-level reply, nested comment reply, private message) has its own slot; there is no single global draft.

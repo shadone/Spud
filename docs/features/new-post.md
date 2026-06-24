@@ -81,7 +81,7 @@ Create a new post in a community from a sheet composer. The composer has a commu
 ## Not supported / out of scope
 
 - **No editing or deleting your own post.** The composer only creates; there is no edit or delete path for an existing post.
-- **Private messages.** Not covered here; see [private-messages.md](private-messages.md).
+- **Private messages.** The DM composer still uses the old blocking flow; durable/optimistic behavior is not yet supported for private messages. See [private-messages.md](private-messages.md).
 - **No cross-posting**, scheduling, or language selection.
 - **Dedup is not guaranteed.** If a send commits on the server but its response is lost before the app records success, and no later refresh imports the post before an auto-retry, a duplicate post may appear. This is a known rare edge case.
 - The markdown body editor (toolbar, live preview) is documented in [Markdown editor](markdown-editor.md); image upload mechanics are in [Image upload](image-upload.md); draft lifecycle is in [Draft persistence](draft-persistence.md); recovery for failed items is in [Drafts and Outbox](drafts-and-outbox.md).

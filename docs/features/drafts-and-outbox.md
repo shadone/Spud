@@ -15,9 +15,10 @@ A single recovery screen lists every pending or failed outbound content item —
   - **Sending** — queued in the background send queue; may be waiting for a retry interval or for network.
   - **Failed** — the background queue gave up after exhausting retries or hit a permanent error (auth failure, deleted parent, rate limit).
 - **Item content is always preserved.** A Failed item retains its full content (title, body, URL, community, etc.) — it is never silently discarded by the system.
-- **Swipe actions.** Each row supports:
+- **Row actions.** Each row supports swipe actions and a context menu:
   - **Retry** (Failed items only) — requeues the item in the background send queue.
-  - **Discard** — removes the item from the outbox and from the durable store. For a Failed comment this also removes the optimistic placeholder from the relevant post-detail thread.
+  - **Discard** (any item) — removes the item from the outbox and from the durable store. For a Failed comment this also removes the optimistic placeholder from the relevant post-detail thread.
+  - There is no in-list **Edit** action in v1. Editing unsent text happens by reopening the relevant composer: a saved Draft reopens its composer with the text silently restored (per target); a **failed comment** can also be edited inline from the post-detail thread (tap the failed comment → Retry / Edit / Discard, where Edit reopens the composer seeded with the failed body text); a **failed post** offers only Retry / Discard on its pending post-detail banner — there is no Edit path for a failed post.
 - **Failure toast entry point.** When a send permanently fails, a non-blocking "Couldn't post — View" or "Couldn't send comment — View" toast appears in the app. Tapping "View" navigates here.
 - **Preferences entry point.** A row in Preferences opens this screen at any time, not only after a failure.
 - **Per-account.** The list shows items for the currently active account only. Switching accounts shows that account's queue.
