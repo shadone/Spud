@@ -59,6 +59,24 @@ final class PostListViewModelLoadStateTests: XCTestCase {
         XCTAssertEqual(vm.loadState, .empty)
     }
 
+    /// Regression: when the first observed snapshot is empty (it arrives before
+    /// the tracked fetch persists posts) and the posts show up in a later
+    /// snapshot, resolving on that later snapshot must settle the load. The view
+    /// controller now calls `resolveInitialSnapshot` on every snapshot for
+    /// exactly this reason - gating it to the first snapshot left `loadState`
+    /// stuck at `.loading` forever on feeds whose first snapshot is empty (e.g.
+    /// the Saved feed), so the skeleton and the pull-to-refresh spinner never
+    /// cleared.
+    func testLaterNonEmptySnapshotResolvesLoadedAfterEmptyFirstSnapshot() {
+        let vm = makeViewModel { _, _ in nil }
+        // First (empty) snapshot, before any fetch has completed: stays loading.
+        vm.resolveInitialSnapshot(rowCount: 0)
+        XCTAssertEqual(vm.loadState, .loading(slow: false))
+        // Posts arrive in a later snapshot: the load must now settle.
+        vm.resolveInitialSnapshot(rowCount: 4)
+        XCTAssertEqual(vm.loadState, .loaded)
+    }
+
     func testThrownURLErrorBecomesFailedUnreachable() async {
         let vm = makeViewModel { _, _ in throw URLError(.timedOut) }
         await vm.loadFirstPage()

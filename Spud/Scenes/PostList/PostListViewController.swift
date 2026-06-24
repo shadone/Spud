@@ -791,6 +791,16 @@ class PostListViewController: UIViewController {
                     // scrolling stay until the next refresh).
                     pinnedReadIds = HideReadPostsFilter.readIds(in: rows)
                 }
+                // Resolve the top-level load state on EVERY snapshot, and BEFORE
+                // apply(). Gating resolution to the first snapshot leaves loadState
+                // stuck at `.loading` forever when a feed's first snapshot is empty
+                // and its posts arrive in a later one - the skeleton and the
+                // pull-to-refresh spinner then never clear. resolveInitialSnapshot
+                // self-guards once settled; resolving before apply() lets apply()'s
+                // own applyLoadState() hide the skeleton without waiting on the
+                // loadState observation to deliver the change.
+                viewModel.resolveInitialSnapshot(rowCount: rows.count)
+
                 // Live feed emissions never animate structurally. The first
                 // snapshot would otherwise scale every cell in from the top-left
                 // during the table's initial layout; a paginated insert would
@@ -798,12 +808,10 @@ class PostListViewController: UIViewController {
                 // view. Cells whose data changed are reconfigured in place either
                 // way. The deliberate hide-read toggle still animates its removals.
                 apply(rows: rows, animatingDifferences: false)
-                if isFirstSnapshot {
-                    viewModel.resolveInitialSnapshot(rowCount: rows.count)
-                    if case .loading = viewModel.loadState, rows.isEmpty {
-                        // Cached-but-empty feed: kick the tracked initial fetch.
-                        await viewModel.loadFirstPage()
-                    }
+
+                if isFirstSnapshot, case .loading = viewModel.loadState, rows.isEmpty {
+                    // Cached-but-empty feed: kick the tracked initial fetch.
+                    await viewModel.loadFirstPage()
                 }
             }
         }
