@@ -79,6 +79,12 @@ final class ComposerViewModel {
     @ObservationIgnored
     private let accountScope: AccountScope
 
+    /// Optional text to seed the editor with when there is no saved draft (used
+    /// by the failed-comment Edit flow so the user's text isn't lost). Cleared
+    /// once applied so a later draft load doesn't fight it.
+    @ObservationIgnored
+    private var initialBody: String?
+
     var bodyText: String = ""
     var submissionState: ComposerSubmissionState = .editing
 
@@ -120,19 +126,28 @@ final class ComposerViewModel {
     init(
         target: ComposerTarget,
         accountScope: AccountScope,
+        initialBody: String? = nil,
         dependencies: Dependencies
     ) {
         self.target = target
         self.accountScope = accountScope
+        self.initialBody = initialBody
         self.dependencies = dependencies
     }
 
     func loadExistingDraft() async {
-        guard let draftKey else { return }
-        if let row = try? await accountScope.lemmyService.loadDraft(draftKey: draftKey), !row.body.isEmpty {
+        if let draftKey,
+           let row = try? await accountScope.lemmyService.loadDraft(draftKey: draftKey),
+           !row.body.isEmpty
+        {
             clientToken = row.clientToken
             bodyText = row.body
+        } else if let initialBody, !initialBody.isEmpty {
+            // No saved draft: seed the editor with the caller-provided text (e.g.
+            // a failed comment being edited) so it isn't lost.
+            bodyText = initialBody
         }
+        initialBody = nil
     }
 
     func bodyDidChange() {

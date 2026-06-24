@@ -74,12 +74,14 @@ final class ComposerViewController: UIViewController {
     init(
         target: ComposerTarget,
         accountKeychainId: String,
+        initialBody: String? = nil,
         dependencies: Dependencies
     ) {
         self.dependencies = dependencies
         viewModel = ComposerViewModel(
             target: target,
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
+            initialBody: initialBody,
             dependencies: dependencies
         )
 
@@ -237,11 +239,13 @@ extension ComposerViewController {
     static func makeSheet(
         target: ComposerTarget,
         accountKeychainId: String,
+        initialBody: String? = nil,
         dependencies: Dependencies
     ) -> UIViewController {
         let composer = ComposerViewController(
             target: target,
             accountKeychainId: accountKeychainId,
+            initialBody: initialBody,
             dependencies: dependencies
         )
         let navigationController = UINavigationController(rootViewController: composer)

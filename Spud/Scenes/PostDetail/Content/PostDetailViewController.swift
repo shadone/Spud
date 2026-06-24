@@ -74,6 +74,7 @@ class PostDetailViewController: UIViewController {
     func setPost(serverPostId: Components.Schemas.PostID, accountKeychainId: String) {
         observationTask?.cancel()
         commentObservationTask?.cancel()
+        outboundObservationTask?.cancel()
         loadingObservationTask?.cancel()
 
         viewModel = PostDetailViewModel(
@@ -135,6 +136,18 @@ class PostDetailViewController: UIViewController {
     /// still warming the cache once when the body first arrives (or changes).
     private var prewarmedHeaderBody: String?
     private var commentRowsByElementId: [Int64: PostDetailCommentRow] = [:]
+    /// The post's pending/failed outbound comment rows (status != draft),
+    /// kept live by `outboundObservationTask` and spliced into the comment
+    /// tree by `applySnapshot()`.
+    private var pendingOutboundComments: [OutboundContentRecord] = []
+    /// Synthetic-element-id -> cell state, rebuilt each `applySnapshot()`. A
+    /// synthetic id is a large negative number (see `pendingElementId(for:)`)
+    /// so it never collides with a real `commentElement.id`. The cell provider
+    /// and tap handler resolve a synthetic id through this map.
+    private var pendingStateByElementId: [Int64: PendingCommentCellState] = [:]
+    /// Synthetic-element-id -> outbound `clientToken`, for the Retry / Edit /
+    /// Discard tap actions on a failed pending comment.
+    private var pendingTokenByElementId: [Int64: String] = [:]
     /// Element ids of new comments whose one-time fresh-wash fade has already
     /// played this visit, so scrolling them back into view doesn't replay it.
     private var animatedNewCommentIds: Set<Int64> = []
@@ -154,6 +167,7 @@ class PostDetailViewController: UIViewController {
     private var revealedBlockedElementIds: Set<Int64> = []
     private var observationTask: Task<Void, Never>?
     private var commentObservationTask: Task<Void, Never>?
+    private var outboundObservationTask: Task<Void, Never>?
     private var swipeActionsObservationTask: Task<Void, Never>?
     private var configBarButtonItem: UIBarButtonItem!
     private let forcePopoverDelegate = ForcePopoverDelegate()
@@ -208,6 +222,7 @@ class PostDetailViewController: UIViewController {
     deinit {
         observationTask?.cancel()
         commentObservationTask?.cancel()
+        outboundObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
         commentDensityObservationTask?.cancel()
         loadingObservationTask?.cancel()
@@ -442,6 +457,11 @@ class PostDetailViewController: UIViewController {
 
         refreshModerationCapability()
 
+        // The outbound (pending/failed) overlay is keyed on serverPostId, so it
+        // works even before the post is mirrored — start it independently of the
+        // comment observation's postRowId gate below.
+        startOutboundObservation()
+
         let keychainId = viewModel.accountKeychainId
         let serverPostId = Int64(viewModel.serverPostId)
 
@@ -533,6 +553,30 @@ class PostDetailViewController: UIViewController {
                     hasReceivedFirstCommentSnapshot = true
                     viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
                 }
+            }
+        }
+    }
+
+    /// Observes the post's outbound (pending/failed) comment rows for the backing
+    /// account and re-applies the snapshot when they change, so locally-composed
+    /// comments appear inline while sending and flip to a normal comment (the row
+    /// is deleted on success, which removes the overlay node) once the server
+    /// confirms. Draft rows never show in the tree. Keyed on `serverPostId`
+    /// directly, so unlike the comment observation it does not need the post to be
+    /// mirrored yet.
+    private func startOutboundObservation() {
+        outboundObservationTask?.cancel()
+        let serverPostId = Int64(viewModel.serverPostId)
+        let keychainId = viewModel.accountKeychainId
+        outboundObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await rows in appDatabase.observeOutboundComments(
+                postServerId: serverPostId,
+                accountKeychainId: keychainId
+            ) {
+                if Task.isCancelled { break }
+                pendingOutboundComments = rows.filter { $0.status != OutboundStatus.draft.rawValue }
+                applySnapshot(animated: true)
             }
         }
     }
@@ -640,7 +684,12 @@ class PostDetailViewController: UIViewController {
             hasCompletedFetch: hasCompletedCommentFetch,
             hasComments: !viewModel.orderedComments.isEmpty
         )
-        let commentItems = visible.rows.map { Item.comment(elementId: $0.id) }
+        // Splice pending (locally-composed, not-yet-confirmed) comments into the
+        // visible tree: a reply lands right after the loaded row whose server
+        // comment id is its parent; a top-level reply (or an orphan whose parent
+        // is not loaded) is appended at the end. Synthetic ids never collide with
+        // real element ids (see `pendingElementId(for:)`).
+        let commentItems = mergedCommentItems(visibleRows: visible.rows)
         let sectionItems = Self.commentsSectionItems(background: background, commentItems: commentItems)
         snapshot.appendItems(sectionItems, toSection: .comments)
         // Only comment rows need reconfiguring; the skeleton row has no per-row state.
@@ -651,6 +700,72 @@ class PostDetailViewController: UIViewController {
         dataSource.apply(snapshot, animatingDifferences: animate)
         updateJumpButtonVisibility()
         updateCommentsBackground()
+    }
+
+    /// The synthetic diffable element id for a pending outbound comment row. A
+    /// large negative base keeps it well clear of any real `commentElement.id`
+    /// (which are positive), so the two id spaces never collide.
+    private static func pendingElementId(for record: OutboundContentRecord) -> Int64 {
+        -(1_000_000 + (record.id ?? 0))
+    }
+
+    /// Builds the comments-section items: the visible (collapse-filtered) tree
+    /// with pending overlay nodes spliced in. Rebuilds `pendingStateByElementId`
+    /// / `pendingTokenByElementId` so the cell provider and tap handler can
+    /// resolve a synthetic id. A pending reply is placed right after the loaded
+    /// row whose `serverCommentId` matches its `parentCommentServerId`; a
+    /// top-level reply, or an orphan whose parent is not loaded, is appended at
+    /// the end.
+    private func mergedCommentItems(visibleRows: [PostDetailCommentRow]) -> [Item] {
+        pendingStateByElementId.removeAll(keepingCapacity: true)
+        pendingTokenByElementId.removeAll(keepingCapacity: true)
+
+        // No pending rows: the common case stays a plain map (no extra work).
+        guard !pendingOutboundComments.isEmpty else {
+            return visibleRows.map { Item.comment(elementId: $0.id) }
+        }
+
+        // Server comment ids present in the visible (loaded, non-collapsed-away)
+        // tree, so we can tell whether a pending reply's parent is shown.
+        var visibleServerCommentIds: Set<Int64> = []
+        for row in visibleRows {
+            if let scid = row.serverCommentId { visibleServerCommentIds.insert(scid) }
+        }
+
+        func pendingItem(for record: OutboundContentRecord, depth: Int) -> Item {
+            let elementId = Self.pendingElementId(for: record)
+            let status: PendingCommentCellState.Status =
+                record.status == OutboundStatus.failed.rawValue ? .failed : .sending
+            pendingStateByElementId[elementId] = PendingCommentCellState(
+                clientToken: record.clientToken,
+                body: record.body,
+                depth: depth,
+                status: status,
+                parentCommentServerId: record.parentCommentServerId
+            )
+            pendingTokenByElementId[elementId] = record.clientToken
+            return .comment(elementId: elementId)
+        }
+
+        var mergedItems: [Item] = []
+        for row in visibleRows {
+            mergedItems.append(.comment(elementId: row.id))
+            guard let scid = row.serverCommentId else { continue }
+            for record in pendingOutboundComments where record.parentCommentServerId == scid {
+                mergedItems.append(pendingItem(for: record, depth: Int(row.depth) + 1))
+            }
+        }
+
+        // Top-level pending (no parent) and orphans (parent not in the visible
+        // tree) go at the end so they are still reachable.
+        for record in pendingOutboundComments {
+            let isTopLevel = record.parentCommentServerId == nil
+            let isOrphan = record.parentCommentServerId.map { !visibleServerCommentIds.contains($0) } ?? false
+            guard isTopLevel || isOrphan else { continue }
+            mergedItems.append(pendingItem(for: record, depth: 1))
+        }
+
+        return mergedItems
     }
 
     /// Pre-parses every comment body's block tree into `MarkdownBlockCache` off
@@ -1714,8 +1829,10 @@ class PostDetailViewController: UIViewController {
     }
 
     /// Presents the composer sheet for `target`, gating on sign-in: a
-    /// signed-out account gets a "sign in to comment" alert instead.
-    private func presentComposer(target: ComposerTarget) {
+    /// signed-out account gets a "sign in to comment" alert instead. `initialBody`
+    /// seeds the editor when no saved draft exists (used by the failed-comment
+    /// Edit flow to preserve the user's text).
+    private func presentComposer(target: ComposerTarget, initialBody: String? = nil) {
         let keychainId = viewModel.accountKeychainId
         guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
@@ -1727,9 +1844,96 @@ class PostDetailViewController: UIViewController {
         let composer = ComposerViewController.makeSheet(
             target: target,
             accountKeychainId: keychainId,
+            initialBody: initialBody,
             dependencies: dependencies.own
         )
         present(composer, animated: true)
+    }
+
+    // MARK: - Pending (optimistic) comment actions
+
+    /// Handles a tap on a pending overlay comment. Only a failed send is
+    /// interactive: it offers Retry (re-enqueue the same outbound row), Edit
+    /// (discard then reopen the composer seeded with the failed text), and
+    /// Discard (drop the outbound row).
+    private func handlePendingTap(elementId: Int64) {
+        guard
+            let token = pendingTokenByElementId[elementId],
+            let state = pendingStateByElementId[elementId],
+            state.status == .failed
+        else { return }
+
+        Haptics.tap()
+        let sheet = UIAlertController(
+            title: NSLocalizedString("Comment failed to send", comment: "Failed pending comment action sheet title"),
+            message: state.body,
+            preferredStyle: .actionSheet
+        )
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Retry", comment: "Retry a failed comment send"),
+            style: .default
+        ) { [weak self] _ in
+            Task { await self?.viewModel.accountScope.lemmyService.retryComposition(clientToken: token) }
+        })
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Edit", comment: "Edit a failed comment before retrying"),
+            style: .default
+        ) { [weak self] _ in
+            self?.editFailedComment(
+                token: token,
+                body: state.body,
+                parentCommentServerId: state.parentCommentServerId
+            )
+        })
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Discard", comment: "Discard a failed comment"),
+            style: .destructive
+        ) { [weak self] _ in
+            Task { await self?.viewModel.accountScope.lemmyService.discardComposition(clientToken: token) }
+        })
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Cancel", comment: "Cancel the failed comment action sheet"),
+            style: .cancel
+        ))
+
+        // iPad: anchor the popover to the tapped cell.
+        if let popover = sheet.popoverPresentationController {
+            if let indexPath = dataSource.indexPath(for: .comment(elementId: elementId)),
+               let cell = tableView.cellForRow(at: indexPath)
+            {
+                popover.sourceView = cell
+                popover.sourceRect = cell.bounds
+            } else {
+                popover.sourceView = view
+                popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
+        }
+        present(sheet, animated: true)
+    }
+
+    /// Edits a failed pending comment: discards the failed outbound row, then
+    /// reopens the composer for the same target seeded with the failed text so
+    /// the user never loses what they wrote.
+    private func editFailedComment(token: String, body: String, parentCommentServerId: Int64?) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await viewModel.accountScope.lemmyService.discardComposition(clientToken: token)
+            if let parentCommentServerId {
+                presentComposer(
+                    target: .commentReply(
+                        serverPostId: viewModel.serverPostId,
+                        parentCommentId: Components.Schemas.CommentID(parentCommentServerId)
+                    ),
+                    initialBody: body
+                )
+            } else {
+                presentComposer(
+                    target: .postReply(serverPostId: viewModel.serverPostId),
+                    initialBody: body
+                )
+            }
+        }
     }
 
     // MARK: - Overflow menu
@@ -2005,6 +2209,16 @@ extension PostDetailViewController {
                     withIdentifier: PostDetailCommentCell.reuseIdentifier,
                     for: indexPath
                 ) as! PostDetailCommentCell
+
+                // A synthetic (negative) id is a pending overlay node, rendered
+                // before the real-row lookup so it never trips the assertion below.
+                if let pending = self?.pendingStateByElementId[elementId] {
+                    cell.configurePending(pending, imageService: imageService)
+                    cell.pendingTapped = { [weak self] in
+                        self?.handlePendingTap(elementId: elementId)
+                    }
+                    return cell
+                }
 
                 guard let row = self?.commentRowsByElementId[elementId] else {
                     logger.assertionFailure("Missing PostDetailCommentRow for element \(elementId)")

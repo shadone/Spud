@@ -16,4 +16,22 @@ struct PendingCommentCellState: Equatable {
     let body: String
     let depth: Int
     let status: Status
+    /// The server comment id this pending comment is replying to, or nil for a
+    /// top-level reply to the post. Lets the failed-comment Edit action
+    /// re-present the composer pointed at the original target.
+    var parentCommentServerId: Int64?
+
+    init(
+        clientToken: String,
+        body: String,
+        depth: Int,
+        status: Status,
+        parentCommentServerId: Int64? = nil
+    ) {
+        self.clientToken = clientToken
+        self.body = body
+        self.depth = depth
+        self.status = status
+        self.parentCommentServerId = parentCommentServerId
+    }
 }

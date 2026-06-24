@@ -49,6 +49,11 @@ class PostDetailCommentCell: UITableViewCell {
     /// Fired when the user taps "Show" on a folded blocked-user comment.
     var revealBlockedTapped: (() -> Void)?
 
+    /// Fired when the user taps a pending (locally-composed, not-yet-confirmed)
+    /// comment cell — only meaningful for a failed send, where the host offers
+    /// Retry / Edit / Discard. Installed in `configurePending`.
+    var pendingTapped: (() -> Void)?
+
     var swipeActionConfiguration: SwipeActionView.Configuration? {
         get { swipeActionView.configuration }
         set { swipeActionView.configuration = newValue }
@@ -329,6 +334,19 @@ class PostDetailCommentCell: UITableViewCell {
         return recognizer
     }()
 
+    /// Tap recognizer used only while the cell is in the pending (locally-composed)
+    /// presentation. Enabled in `configurePending`, disabled otherwise, so a normal
+    /// comment never fires `pendingTapped`.
+    private lazy var pendingTapGestureRecognizer: UITapGestureRecognizer = {
+        let recognizer = UITapGestureRecognizer(
+            target: self,
+            action: #selector(handlePendingTap(_:))
+        )
+        recognizer.delegate = self
+        recognizer.isEnabled = false
+        return recognizer
+    }()
+
     // MARK: Private
 
     /// Maps each rendered `LinkPreviewView` card to its tap URL, so the context
@@ -387,6 +405,7 @@ class PostDetailCommentCell: UITableViewCell {
         ])
 
         contentView.addGestureRecognizer(collapseTapGestureRecognizer)
+        contentView.addGestureRecognizer(pendingTapGestureRecognizer)
     }
 
     @available(*, unavailable)
@@ -408,6 +427,9 @@ class PostDetailCommentCell: UITableViewCell {
         onBodyAudioTapped = nil
         collapseTapped = nil
         revealBlockedTapped = nil
+        pendingTapped = nil
+        pendingTapGestureRecognizer.isEnabled = false
+        contentView.alpha = 1
         swipeActionConfiguration = nil
         swipeActionTriggered = nil
         mainHorizontalStackView.alpha = 1
@@ -732,6 +754,12 @@ class PostDetailCommentCell: UITableViewCell {
         mainHorizontalStackView.alpha = 1
         swipeActionConfiguration = nil
         collapseTapGestureRecognizer.isEnabled = false
+        // Only a failed send is interactive (Retry / Edit / Discard); a still-sending
+        // row shows progress and ignores taps.
+        pendingTapGestureRecognizer.isEnabled = state.status == .failed
+
+        // The whole row is the tap target for the failed-state actions.
+        accessibilityTraits = state.status == .failed ? .button : .none
     }
 
     /// Applies the fresh-comment wash for this appearance. Returns `true` if it
@@ -782,6 +810,12 @@ class PostDetailCommentCell: UITableViewCell {
     @objc
     private func handleRevealBlockedTap() {
         revealBlockedTapped?()
+    }
+
+    @objc
+    private func handlePendingTap(_ recognizer: UITapGestureRecognizer) {
+        guard recognizer.state == .ended else { return }
+        pendingTapped?()
     }
 
     @objc
