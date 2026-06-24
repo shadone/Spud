@@ -380,7 +380,8 @@ class PostDetailViewController: UIViewController {
         let instanceActorId = appDatabase.accountInstanceActorIdSync(
             forKeychainId: viewModel.accountKeychainId
         )
-        guard let canonical = ShareURL.forPost(
+        guard let canonical = LinkURL.forPost(
+            instance: .originalInstance,
             originalPostUrl: headerRow?.originalPostUrl,
             serverPostId: Int64(viewModel.serverPostId),
             instanceActorId: instanceActorId
@@ -865,7 +866,8 @@ class PostDetailViewController: UIViewController {
         let instanceActorId = appDatabase.accountInstanceActorIdSync(
             forKeychainId: viewModel.accountKeychainId
         )
-        guard let url = ShareURL.forPost(
+        guard let url = LinkURL.forPost(
+            instance: preferencesService.shareLinkInstance,
             originalPostUrl: headerRow?.originalPostUrl,
             serverPostId: Int64(viewModel.serverPostId),
             instanceActorId: instanceActorId
@@ -884,7 +886,8 @@ class PostDetailViewController: UIViewController {
         let instanceActorId = appDatabase.accountInstanceActorIdSync(
             forKeychainId: viewModel.accountKeychainId
         )
-        guard let url = ShareURL.forComment(
+        guard let url = LinkURL.forComment(
+            instance: preferencesService.shareLinkInstance,
             originalCommentUrl: row?.originalCommentUrl,
             serverCommentId: serverCommentId,
             instanceActorId: instanceActorId
