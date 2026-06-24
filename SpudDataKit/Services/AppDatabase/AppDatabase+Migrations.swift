@@ -551,6 +551,41 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v18_outboundContent") { db in
+            try db.create(table: "outboundContent") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("clientToken", .text).notNull().unique()
+                t.column("accountId", .integer)
+                    .notNull()
+                    .indexed()
+                    .references("account", onDelete: .cascade)
+                t.column("kind", .integer).notNull()
+                t.column("status", .integer).notNull()
+                t.column("draftKey", .text).notNull()
+                t.column("body", .text).notNull().defaults(to: "")
+                t.column("postServerId", .integer)
+                t.column("parentCommentServerId", .integer)
+                t.column("communityServerId", .integer)
+                t.column("title", .text)
+                t.column("url", .text)
+                t.column("nsfw", .boolean).notNull().defaults(to: false)
+                t.column("postType", .integer).notNull().defaults(to: 0)
+                t.column("attempts", .integer).notNull().defaults(to: 0)
+                t.column("lastError", .text)
+                t.column("nextAttemptAt", .double)
+                t.column("createdAt", .double).notNull()
+                t.column("updatedAt", .double).notNull()
+            }
+            // One *draft* per target; in-flight/failed rows are unconstrained.
+            try db.create(
+                index: "outboundContent_draft_unique",
+                on: "outboundContent",
+                columns: ["accountId", "draftKey"],
+                options: [.unique],
+                condition: Column("status") == 0
+            )
+        }
+
         return migrator
     }
 }
