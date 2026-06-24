@@ -135,4 +135,41 @@ public extension AppDatabase {
                 .fetchAll(db)
         }
     }
+
+    /// True if a comment authored by `accountId`'s person already exists under the
+    /// same post with the same trimmed body. Used to avoid double-sending when a
+    /// prior attempt committed server-side but the response was lost.
+    ///
+    /// Note: the `comment` table stores Lemmy's materialized path string but has
+    /// no direct parent-id column, so `parentCommentServerId` is accepted by the
+    /// signature (for API compatibility) but is not matched — the check is
+    /// (post + creator + trimmed body). A false positive from a duplicate body on
+    /// the same post is far less damaging than a duplicate send.
+    func matchingServerCommentExists(
+        accountId: Int64, postServerId: Int64?, parentCommentServerId: Int64?, body: String
+    ) async throws -> Bool {
+        guard let postServerId else { return false }
+        let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        return try await writer.read { db in
+            // Resolve the account's person row id (comment.creatorId).
+            // account.personId is nullable for signed-out accounts; return false when absent.
+            let personRowId = try Int64.fetchOne(db, sql: """
+                SELECT person.id FROM account
+                JOIN person ON person.personId = account.personId
+                          AND person.siteId = account.siteId
+                WHERE account.id = ?
+                """, arguments: [accountId])
+            guard let personRowId else { return false }
+            return try Bool.fetchOne(db, sql: """
+                SELECT 1 FROM comment
+                JOIN post ON post.id = comment.postId
+                WHERE post.postId = ?
+                  AND post.accountId = ?
+                  AND comment.creatorId = ?
+                  AND TRIM(comment.body) = ?
+                LIMIT 1
+                """, arguments: [postServerId, accountId, personRowId, trimmed]) ?? false
+        }
+    }
 }
