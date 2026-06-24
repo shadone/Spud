@@ -135,8 +135,9 @@ First internal build shipped 2026-06-23 — App Store Connect app "Spud for Lemm
 
 - **Archive with `make release-project`, never `make project`.** It strips test-only deps (the `# >>> release-strip` sentinel block in `project.yml`, currently `SBTUITestTunnelServer`) — shipping that server links the private `__NSMakeSpecialForwardingCaptureBlock` and the build is rejected with **ITMS-90338**. `make project` (dev) keeps it for Debug/UI tests (the app's `import` + `takeOff()` are `#if DEBUG`).
 - **Build release archives with Xcode 26.x.** Xcode 16.4 can't compile the project (Nuke's `isolated deinit` needs Swift 6.2).
-- **Distribution is `asc`-driven**, not Xcode Cloud (which isn't set up; the ASC API also can't create app records — web UI only). Flow: `make release-project` → Release archive (`generic/platform=iOS`) → manual-signed `-exportArchive` (Apple Distribution cert) → `ASC_TIMEOUT=180s asc builds upload --app 6783281123 --ipa <ipa> --wait` (the API is flaky on short timeouts). `ITSAppUsesNonExemptEncryption=false` is already set, so no export-compliance step. Cert/keychain/profile specifics are in the session auto-memory.
-- Bump `CURRENT_PROJECT_VERSION` in `project.yml` before each release (1–3 used; next ≥4).
+- **Distribution is `asc`-driven**, not Xcode Cloud (which isn't set up; the ASC API also can't create app records — web UI only). Flow: `make release-project` → Release archive (`generic/platform=iOS`) → manual-signed `-exportArchive` (Apple Distribution cert) → `ASC_TIMEOUT=180s asc builds upload --app 6783281123 --ipa <ipa> --wait` (the API is flaky on short timeouts) → once VALID, **distribute to internal testers with `asc builds add-groups --build-id <id> --group 9033005f-cd9f-45ce-a33a-59bf992f5082`** (builds do NOT auto-reach the "Internal Testers" group; no `--submit` for internal). `ITSAppUsesNonExemptEncryption=false` is already set, so no export-compliance step. Cert/keychain/profile specifics are in the session auto-memory.
+- After archiving with `make release-project`, run `make project` to restore the dev project (the release variant has the test tunnel stripped, so UI tests won't build against it).
+- Bump `CURRENT_PROJECT_VERSION` in `project.yml` before each release (1,2 failed uploads; 3,4,5 live; next ≥6).
 
 ## Code style
 
