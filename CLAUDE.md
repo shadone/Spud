@@ -73,6 +73,17 @@ Saved / History / Spotlight reads join `postInteraction -> post -> community`
 (canonical: `observeHistoryRows`); the canonical post `ap_id` is
 `post.originalPostUrl`.
 
+Post counters (`numberOfComments`, score, vote tallies) on `PostRecord` are
+refreshed **only** by a full `PostView` import (`upsertPost` → `apply(view:)`):
+feed `getPosts`, `getPost`, post votes, and `getPost`'s `cross_posts`. Lemmy's
+`getComments` carries **no** post counters, so importing the comment tree never
+updates them — the open post-detail header re-syncs the count only via the
+pull-to-refresh `getPost` (`PostDetailViewController.reloadAsync` fetches post +
+comments concurrently). **Trust the server's `counts`; do not derive the
+comment count from the loaded comment tree** (self-healing reconciliation was
+considered and rejected — see auto-memory). Incidental `PostView`s (e.g.
+cross-posts) are batch-harvested via `AppDatabase.upsertPosts`.
+
 GRDB gotcha: never `row["a"] ?? row["b"]` with two column subscripts — a
 NULL *left* column wrongly collapses the whole expression to nil (a
 double-optional type-inference footgun) instead of falling through to the
