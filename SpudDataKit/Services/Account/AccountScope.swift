@@ -68,6 +68,19 @@ public struct AccountScope {
     public func drainPendingOutbox() async {
         await lemmyService.drainPendingOutbox()
     }
+
+    /// A stream of permanent composer failures for compositions enqueued under
+    /// this account. Forwards the account `LemmyService`'s composer failure
+    /// stream.
+    public func composerFailureEvents() async -> AsyncStream<ComposerOutboxFailure> {
+        await lemmyService.composerFailureEvents()
+    }
+
+    /// A stream of composer successes for compositions delivered under this
+    /// account. Forwards the account `LemmyService`'s composer success stream.
+    public func composerSuccessEvents() async -> AsyncStream<ComposerOutboxSuccess> {
+        await lemmyService.composerSuccessEvents()
+    }
 }
 
 @MainActor

@@ -185,6 +185,37 @@ public protocol LemmyServiceType: Actor {
     /// row can't be resolved.
     func drainPendingOutbox() async
 
+    // MARK: Composer outbox
+
+    /// Persist a draft (or overwrite an existing one with the same `draftKey`)
+    /// and return the `clientToken` that identifies this composition through its
+    /// lifecycle. Throws when the account row can't be resolved.
+    func saveDraft(_ input: OutboundDraftInput) async throws -> String
+
+    /// Hand the draft identified by `clientToken` to the `ComposerOutboxService`
+    /// for immediate delivery. A no-op when the composer outbox can't be built.
+    func submitDraft(clientToken: String) async
+
+    /// Retry a previously failed composition identified by `clientToken`.
+    func retryComposition(clientToken: String) async
+
+    /// Permanently discard the composition identified by `clientToken`.
+    func discardComposition(clientToken: String) async
+
+    /// Load a previously saved draft by its `draftKey`. Returns `nil` when the
+    /// draft can't be found or when the account row can't be resolved.
+    func loadDraft(draftKey: String) async throws -> OutboundContentRecord?
+
+    /// A stream of permanent composer failures for compositions enqueued through
+    /// this service. Terminates immediately (empty stream) when the composer
+    /// outbox can't be built.
+    func composerFailureEvents() async -> AsyncStream<ComposerOutboxFailure>
+
+    /// A stream of composer successes for compositions delivered through this
+    /// service. Terminates immediately (empty stream) when the composer outbox
+    /// can't be built.
+    func composerSuccessEvents() async -> AsyncStream<ComposerOutboxSuccess>
+
     func markAsRead(
         serverPostId: Components.Schemas.PostID
     ) async throws
@@ -472,6 +503,10 @@ public actor LemmyService: LemmyServiceType {
     /// `await task.value`, so a second caller arriving mid-await sees the
     /// in-flight task rather than starting a second drain loop.
     private var outboxTask: Task<OutboxService?, Never>?
+
+    /// Task-memoized lazy composer outbox. Same construction pattern as
+    /// `outboxTask` — see that property's comment for rationale.
+    private var composerOutboxTask: Task<ComposerOutboxService?, Never>?
 
     // MARK: Functions
 
@@ -1596,6 +1631,71 @@ public actor LemmyService: LemmyServiceType {
 
     public func drainPendingOutbox() async {
         await outboxService()?.drainAll()
+    }
+
+    // MARK: Composer outbox
+
+    /// Lazily builds (and `start()`s) the per-account `ComposerOutboxService`,
+    /// returning `nil` only when the account row can't be resolved. Memoized via
+    /// `composerOutboxTask` so every call shares one service instance.
+    private func composerOutbox() async -> ComposerOutboxService? {
+        if let composerOutboxTask { return await composerOutboxTask.value }
+        let task = Task<ComposerOutboxService?, Never> { [self] in
+            guard let ids = try? await accountSiteIds() else { return nil }
+            let performer = LemmyComposerPerformer(
+                api: api,
+                appDatabase: appDatabase,
+                accountId: ids.0,
+                siteId: ids.1
+            )
+            let service = ComposerOutboxService(
+                accountId: ids.0,
+                appDatabase: appDatabase,
+                performer: performer,
+                reachability: reachability,
+                now: { Date().timeIntervalSince1970 }
+            )
+            await service.start()
+            return service
+        }
+        composerOutboxTask = task
+        let result = await task.value
+        if result == nil { composerOutboxTask = nil }
+        return result
+    }
+
+    public func saveDraft(_ input: OutboundDraftInput) async throws -> String {
+        guard let ids = try await accountSiteIds() else {
+            throw LemmyServiceError.internalInconsistency(description: "account row unavailable")
+        }
+        return try await appDatabase.upsertOutboundDraft(input, accountId: ids.0, now: Date().timeIntervalSince1970)
+    }
+
+    public func submitDraft(clientToken: String) async {
+        await composerOutbox()?.submit(clientToken: clientToken)
+    }
+
+    public func retryComposition(clientToken: String) async {
+        await composerOutbox()?.retry(clientToken: clientToken)
+    }
+
+    public func discardComposition(clientToken: String) async {
+        await composerOutbox()?.discard(clientToken: clientToken)
+    }
+
+    public func loadDraft(draftKey: String) async throws -> OutboundContentRecord? {
+        guard let ids = try await accountSiteIds() else { return nil }
+        return try await appDatabase.loadOutboundDraft(accountId: ids.0, draftKey: draftKey)
+    }
+
+    public func composerFailureEvents() async -> AsyncStream<ComposerOutboxFailure> {
+        guard let svc = await composerOutbox() else { return AsyncStream { $0.finish() } }
+        return await svc.failureEvents
+    }
+
+    public func composerSuccessEvents() async -> AsyncStream<ComposerOutboxSuccess> {
+        guard let svc = await composerOutbox() else { return AsyncStream { $0.finish() } }
+        return await svc.successEvents
     }
 
     public func markAsRead(
