@@ -35,6 +35,7 @@ final class ComposerViewController: UIViewController {
         editor.textView.textContainerInset = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
         editor.onTextChange = { [weak self] text in
             self?.viewModel.bodyText = text
+            self?.viewModel.bodyDidChange()
         }
         editor.onPreviewLinkTapped = { [weak self] url in
             self?.openPreviewLink(url)
@@ -100,6 +101,17 @@ final class ComposerViewController: UIViewController {
         super.viewDidLoad()
         setup()
         bindViewModel()
+
+        Task { @MainActor [weak self] in
+            await self?.viewModel.loadExistingDraft()
+            self?.editorView.text = self?.viewModel.bodyText ?? ""
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: UIScene.didEnterBackgroundNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            Task { await self?.viewModel.flushDraft() }
+        }
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -181,7 +193,33 @@ final class ComposerViewController: UIViewController {
     @objc
     private func cancelTapped() {
         view.endEditing(true)
-        dismiss(animated: true)
+        let trimmed = viewModel.bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { dismiss(animated: true)
+            return
+        }
+        let sheet = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Save Draft", comment: "Composer keep-draft action"),
+            style: .default
+        ) { [weak self] _ in
+            Task { await self?.viewModel.flushDraft()
+                await MainActor.run { self?.dismiss(animated: true) }
+            }
+        })
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Delete Draft", comment: "Composer discard-draft action"),
+            style: .destructive
+        ) { [weak self] _ in
+            Task { await self?.viewModel.discardDraft()
+                await MainActor.run { self?.dismiss(animated: true) }
+            }
+        })
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Cancel", comment: "Cancel dismiss"),
+            style: .cancel
+        ))
+        sheet.popoverPresentationController?.barButtonItem = cancelButton
+        present(sheet, animated: true)
     }
 
     @objc
