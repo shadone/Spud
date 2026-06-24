@@ -84,6 +84,8 @@ final class PreferencesViewModel {
     var openExternalLink: Preferences.OpenExternalLink
     var openExternalLinkInSafariVCReaderMode: Bool
     var openExternalLinkAsUniversalLinkInApp: Bool
+    var openInBrowserInstance: Preferences.LinkInstance
+    var shareLinkInstance: Preferences.LinkInstance
 
     /// Mirrored outbound URL hygiene config. Writes flow back through
     /// `preferencesService`; external changes arrive via its stream.
@@ -169,6 +171,8 @@ final class PreferencesViewModel {
             dependencies.preferencesService.openExternalLinksInSafariVCReaderMode
         openExternalLinkAsUniversalLinkInApp =
             dependencies.preferencesService.openUniversalLinkInApp
+        openInBrowserInstance = dependencies.preferencesService.openInBrowserInstance
+        shareLinkInstance = dependencies.preferencesService.shareLinkInstance
         urlSanitizerConfig = dependencies.preferencesService.urlSanitizerConfig
 
         appTheme = dependencies.preferencesService.appTheme
@@ -211,6 +215,18 @@ final class PreferencesViewModel {
         preferenceObservationTasks.append(Task { @MainActor [weak self] in
             for await value in preferencesService.openExternalLinksStream {
                 self?.openExternalLink = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.openInBrowserInstanceStream {
+                self?.openInBrowserInstance = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.shareLinkInstanceStream {
+                self?.shareLinkInstance = value
             }
         })
 
@@ -326,6 +342,8 @@ final class PreferencesViewModel {
         openExternalLink = .safariViewController
         openExternalLinkInSafariVCReaderMode = true
         openExternalLinkAsUniversalLinkInApp = true
+        openInBrowserInstance = .myInstance
+        shareLinkInstance = .originalInstance
         urlSanitizerConfig = .default
         appTheme = .system
         accentColor = .lemmy
@@ -382,6 +400,16 @@ final class PreferencesViewModel {
     func updateOpenExternalLinkAsUniversalLinkInApp(_ value: Bool) {
         openExternalLinkAsUniversalLinkInApp = value
         preferencesService?.openUniversalLinkInApp = value
+    }
+
+    func updateOpenInBrowserInstance(_ value: Preferences.LinkInstance) {
+        openInBrowserInstance = value
+        preferencesService?.openInBrowserInstance = value
+    }
+
+    func updateShareLinkInstance(_ value: Preferences.LinkInstance) {
+        shareLinkInstance = value
+        preferencesService?.shareLinkInstance = value
     }
 
     // MARK: URL hygiene

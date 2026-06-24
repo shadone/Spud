@@ -30,6 +30,14 @@ protocol PreferencesServiceType: AnyObject {
     var openExternalLinks: Preferences.OpenExternalLink { get set }
     var openExternalLinksStream: AsyncStream<Preferences.OpenExternalLink> { get }
 
+    /// Which instance the post-detail "Open in Browser" action targets.
+    var openInBrowserInstance: Preferences.LinkInstance { get set }
+    var openInBrowserInstanceStream: AsyncStream<Preferences.LinkInstance> { get }
+
+    /// Which instance "Share" links (posts and comments) target.
+    var shareLinkInstance: Preferences.LinkInstance { get set }
+    var shareLinkInstanceStream: AsyncStream<Preferences.LinkInstance> { get }
+
     /// Specifies whether to open Reader mode when opening external link in SFSafariViewController.
     var openExternalLinksInSafariVCReaderMode: Bool { get set }
     var openExternalLinksInSafariVCReaderModeStream: AsyncStream<Bool> { get }
@@ -152,6 +160,20 @@ class PreferencesService: PreferencesServiceType {
 
     var openExternalLinksStream: AsyncStream<Preferences.OpenExternalLink> {
         $openExternalLinks
+    }
+
+    @UserDefaultsBacked(key: "openInBrowserInstance")
+    var openInBrowserInstance: Preferences.LinkInstance = .myInstance
+
+    var openInBrowserInstanceStream: AsyncStream<Preferences.LinkInstance> {
+        $openInBrowserInstance
+    }
+
+    @UserDefaultsBacked(key: "shareLinkInstance")
+    var shareLinkInstance: Preferences.LinkInstance = .originalInstance
+
+    var shareLinkInstanceStream: AsyncStream<Preferences.LinkInstance> {
+        $shareLinkInstance
     }
 
     @UserDefaultsBacked(key: "openExternalLinksInSafariVCReaderMode")

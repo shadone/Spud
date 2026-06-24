@@ -1350,7 +1350,8 @@ class PostListViewController: UIViewController {
         let instanceActorId = appDatabase.accountInstanceActorIdSync(
             forKeychainId: viewModel.accountKeychainId
         )
-        guard let url = ShareURL.forPost(
+        guard let url = LinkURL.forPost(
+            instance: preferencesService.shareLinkInstance,
             originalPostUrl: rowsByServerPostId[serverPostId]?.originalPostUrl,
             serverPostId: serverPostId,
             instanceActorId: instanceActorId

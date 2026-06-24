@@ -40,7 +40,8 @@ enum ContentSpotlightIndexer {
     /// Pure mapping from a content row to a Spotlight item. nil when no canonical
     /// URL can be built (so the item would not be routable).
     static func makeItem(from row: IndexableContentRow) -> CSSearchableItem? {
-        guard let canonical = ShareURL.forPost(
+        guard let canonical = LinkURL.forPost(
+            instance: .originalInstance,
             originalPostUrl: row.originalPostUrl,
             serverPostId: row.serverPostId,
             instanceActorId: nil

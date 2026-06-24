@@ -35,6 +35,22 @@ struct PreferencesGeneralView: View {
         }
     }
 
+    private var openInBrowserInstance: Binding<Preferences.LinkInstance> {
+        .init {
+            viewModel.openInBrowserInstance
+        } set: { newValue in
+            viewModel.updateOpenInBrowserInstance(newValue)
+        }
+    }
+
+    private var shareLinkInstance: Binding<Preferences.LinkInstance> {
+        .init {
+            viewModel.shareLinkInstance
+        } set: { newValue in
+            viewModel.updateShareLinkInstance(newValue)
+        }
+    }
+
     private var openExternalLinkInSafariVCReaderMode: Binding<Bool> {
         .init {
             viewModel.openExternalLinkInSafariVCReaderMode
@@ -144,6 +160,23 @@ struct PreferencesGeneralView: View {
                     viewModel.testExternalLink(url)
                     return .handled
                 }))
+            }
+
+            Section {
+                Picker("Open in Browser", selection: openInBrowserInstance) {
+                    ForEach(Preferences.LinkInstance.allCases) { value in
+                        Text(value.title).tag(value)
+                    }
+                }
+                Picker("Share", selection: shareLinkInstance) {
+                    ForEach(Preferences.LinkInstance.allCases) { value in
+                        Text(value.title).tag(value)
+                    }
+                }
+            } header: {
+                Text("Post & Comment Links")
+            } footer: {
+                Text("\"My Instance\" keeps links on your home instance (so you stay signed in). \"Original Instance\" uses the post's source instance.")
             }
         }
         .navigationTitle("General")
