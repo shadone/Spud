@@ -126,10 +126,15 @@ final class LemmyServicePostCounterHarvestTests: XCTestCase {
         )
     }
 
-    private func makePostView(commentCount: Int64) -> PostView {
+    private func makePostView(
+        postId: Components.Schemas.PostID = 1,
+        commentCount: Int64
+    ) -> PostView {
         let person = Person.fake
         let community = Community.fake
-        let post = Components.Schemas.Post.fake(creator: person, community: community)
+        var post = Components.Schemas.Post.fake(creator: person, community: community)
+        post.id = postId
+        post.ap_id = "https://example.com/post/\(postId)"
         var view = PostView.fake(post: post, creator: person, community: community)
         view.counts.comments = commentCount
         return view
@@ -168,5 +173,29 @@ final class LemmyServicePostCounterHarvestTests: XCTestCase {
 
         let after = try await storedCommentCount(accountId: ids.accountId, serverPostId: serverPostId)
         XCTAssertEqual(after, 3, "importing a fresh PostView must refresh the stored comment count")
+    }
+
+    /// `getPost` returns the post's `cross_posts` as full `PostView`s. Their
+    /// counters should be harvested too, so a cross-post seen here stays fresh
+    /// without a separate fetch.
+    func testFetchPostInfoHarvestsCrossPostCounters() async throws {
+        let ids = try await seedAccountAndSite()
+
+        let mainView = makePostView(postId: 1, commentCount: 3)
+        let crossView = makePostView(postId: 2, commentCount: 7)
+        let getPostResponse = GetPostResponse(
+            post_view: mainView,
+            community_view: .fake(community: Community.fake),
+            moderators: [],
+            cross_posts: [crossView]
+        )
+        let service = try makeService(transport: StubGetPostTransport(response: getPostResponse))
+
+        try await service.fetchPostInfo(serverPostId: mainView.post.id)
+
+        let mainCount = try await storedCommentCount(accountId: ids.accountId, serverPostId: mainView.post.id)
+        let crossCount = try await storedCommentCount(accountId: ids.accountId, serverPostId: crossView.post.id)
+        XCTAssertEqual(mainCount, 3, "main post counter must be harvested")
+        XCTAssertEqual(crossCount, 7, "cross-post counters must be harvested from getPost's cross_posts")
     }
 }

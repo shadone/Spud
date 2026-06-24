@@ -1512,6 +1512,12 @@ public actor LemmyService: LemmyServiceType {
                 description: "fetchPostInfo: post row not persisted after mirror for postId=\(serverPostId)"
             )
         }
+
+        // getPost also returns the cross-posts as full PostViews, so harvest
+        // their counters too — keeps any cross-post we already cache fresh
+        // without a separate fetch. Best-effort: a cross-post is incidental and
+        // must not affect the primary post's persistence contract above.
+        await mirrorPostViewsToAppDatabase(views: response.cross_posts)
     }
 
     func mirrorPostInfoToAppDatabase(
@@ -1528,6 +1534,29 @@ public actor LemmyService: LemmyServiceType {
             )
         } catch {
             logger.error("AppDatabase upsertPost failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Best-effort harvest of incidental PostViews (e.g. a post's cross-posts)
+    /// so their counters stay fresh without an extra fetch. Each is upserted
+    /// like any other post; a failure is logged and the rest are skipped.
+    func mirrorPostViewsToAppDatabase(
+        views: [Components.Schemas.PostView]
+    ) async {
+        guard !views.isEmpty else { return }
+        do {
+            guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
+                return
+            }
+            for view in views {
+                try await appDatabase.upsertPost(
+                    from: view,
+                    accountId: accountRowId,
+                    siteId: siteRowId
+                )
+            }
+        } catch {
+            logger.error("AppDatabase upsertPost (cross-posts) failed: \(String(describing: error), privacy: .public)")
         }
     }
 
