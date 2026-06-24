@@ -762,7 +762,11 @@ class PostDetailViewController: UIViewController {
             let isTopLevel = record.parentCommentServerId == nil
             let isOrphan = record.parentCommentServerId.map { !visibleServerCommentIds.contains($0) } ?? false
             guard isTopLevel || isOrphan else { continue }
-            mergedItems.append(pendingItem(for: record, depth: 1))
+            // True top-level comments (parentCommentServerId == nil) render flush-left
+            // at depth 0. Orphan replies whose parent is not visible fall back to
+            // depth 1 as a reasonable indent.
+            let depth = isTopLevel ? 0 : 1
+            mergedItems.append(pendingItem(for: record, depth: depth))
         }
 
         return mergedItems
