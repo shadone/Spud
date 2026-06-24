@@ -38,9 +38,15 @@ public struct OutboundDraftInput: Sendable, Equatable {
         kind: OutboundKind, body: String, postServerId: Int64?, parentCommentServerId: Int64?,
         communityServerId: Int64?, title: String?, url: String?, nsfw: Bool, postType: Int64
     ) {
-        self.kind = kind; self.body = body; self.postServerId = postServerId
-        self.parentCommentServerId = parentCommentServerId; self.communityServerId = communityServerId
-        self.title = title; self.url = url; self.nsfw = nsfw; self.postType = postType
+        self.kind = kind
+        self.body = body
+        self.postServerId = postServerId
+        self.parentCommentServerId = parentCommentServerId
+        self.communityServerId = communityServerId
+        self.title = title
+        self.url = url
+        self.nsfw = nsfw
+        self.postType = postType
     }
 }
 
