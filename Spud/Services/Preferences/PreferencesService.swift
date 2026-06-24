@@ -30,9 +30,11 @@ protocol PreferencesServiceType: AnyObject {
     var openExternalLinks: Preferences.OpenExternalLink { get set }
     var openExternalLinksStream: AsyncStream<Preferences.OpenExternalLink> { get }
 
+    /// Which instance the post-detail "Open in Browser" action targets.
     var openInBrowserInstance: Preferences.LinkInstance { get set }
     var openInBrowserInstanceStream: AsyncStream<Preferences.LinkInstance> { get }
 
+    /// Which instance "Share" links (posts and comments) target.
     var shareLinkInstance: Preferences.LinkInstance { get set }
     var shareLinkInstanceStream: AsyncStream<Preferences.LinkInstance> { get }
 
