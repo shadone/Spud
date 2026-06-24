@@ -176,26 +176,29 @@ final class LemmyServicePostCounterHarvestTests: XCTestCase {
     }
 
     /// `getPost` returns the post's `cross_posts` as full `PostView`s. Their
-    /// counters should be harvested too, so a cross-post seen here stays fresh
-    /// without a separate fetch.
+    /// counters should be harvested too (in a single batched transaction), so a
+    /// cross-post seen here stays fresh without a separate fetch.
     func testFetchPostInfoHarvestsCrossPostCounters() async throws {
         let ids = try await seedAccountAndSite()
 
         let mainView = makePostView(postId: 1, commentCount: 3)
-        let crossView = makePostView(postId: 2, commentCount: 7)
+        let crossA = makePostView(postId: 2, commentCount: 7)
+        let crossB = makePostView(postId: 3, commentCount: 11)
         let getPostResponse = GetPostResponse(
             post_view: mainView,
             community_view: .fake(community: Community.fake),
             moderators: [],
-            cross_posts: [crossView]
+            cross_posts: [crossA, crossB]
         )
         let service = try makeService(transport: StubGetPostTransport(response: getPostResponse))
 
         try await service.fetchPostInfo(serverPostId: mainView.post.id)
 
         let mainCount = try await storedCommentCount(accountId: ids.accountId, serverPostId: mainView.post.id)
-        let crossCount = try await storedCommentCount(accountId: ids.accountId, serverPostId: crossView.post.id)
+        let crossCountA = try await storedCommentCount(accountId: ids.accountId, serverPostId: crossA.post.id)
+        let crossCountB = try await storedCommentCount(accountId: ids.accountId, serverPostId: crossB.post.id)
         XCTAssertEqual(mainCount, 3, "main post counter must be harvested")
-        XCTAssertEqual(crossCount, 7, "cross-post counters must be harvested from getPost's cross_posts")
+        XCTAssertEqual(crossCountA, 7, "first cross-post counter must be harvested from getPost's cross_posts")
+        XCTAssertEqual(crossCountB, 11, "second cross-post counter must be harvested in the same batch")
     }
 }

@@ -1548,13 +1548,11 @@ public actor LemmyService: LemmyServiceType {
             guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
                 return
             }
-            for view in views {
-                try await appDatabase.upsertPost(
-                    from: view,
-                    accountId: accountRowId,
-                    siteId: siteRowId
-                )
-            }
+            try await appDatabase.upsertPosts(
+                from: views,
+                accountId: accountRowId,
+                siteId: siteRowId
+            )
         } catch {
             logger.error("AppDatabase upsertPost (cross-posts) failed: \(String(describing: error), privacy: .public)")
         }

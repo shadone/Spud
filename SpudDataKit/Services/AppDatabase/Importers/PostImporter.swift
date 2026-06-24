@@ -71,6 +71,29 @@ public extension AppDatabase {
         }
     }
 
+    /// Upserts several posts in a single write transaction, rather than one
+    /// transaction per post. Atomic: if any upsert throws the whole batch rolls
+    /// back. No-ops on an empty input.
+    func upsertPosts(
+        from views: [Components.Schemas.PostView],
+        accountId: Int64,
+        siteId: Int64,
+        respectsPendingOutbox: Bool = true
+    ) async throws {
+        guard !views.isEmpty else { return }
+        try await writer.write { db in
+            for view in views {
+                _ = try Self.upsertPost(
+                    from: view,
+                    accountId: accountId,
+                    siteId: siteId,
+                    respectsPendingOutbox: respectsPendingOutbox,
+                    in: db
+                )
+            }
+        }
+    }
+
     internal static func upsertPost(
         from view: Components.Schemas.PostView,
         accountId: Int64,
