@@ -32,6 +32,9 @@ struct CommunityIcon: View {
     let name: String
     let title: String
     var size: CGFloat = 40
+    /// When `true`, the icon is obscured with a material overlay clipped to the
+    /// same rounded shape. Use for NSFW communities when Blur NSFW is on.
+    var isNsfwBlurred: Bool = false
 
     @Environment(\.imageService) private var imageService
     @State private var image: UIImage?
@@ -46,6 +49,12 @@ struct CommunityIcon: View {
                     .clipShape(RoundedRectangle(cornerRadius: size * 0.28))
             } else {
                 CommunityHueIcon(name: name, title: title, size: size)
+            }
+        }
+        .overlay {
+            if isNsfwBlurred {
+                RoundedRectangle(cornerRadius: size * 0.28)
+                    .fill(.ultraThinMaterial)
             }
         }
         .task(id: iconUrl) {

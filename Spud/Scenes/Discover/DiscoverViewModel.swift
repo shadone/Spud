@@ -132,6 +132,8 @@ final class DiscoverViewModel {
     private var followObservationTask: Task<Void, Never>?
     @ObservationIgnored
     private var nsfwObservationTask: Task<Void, Never>?
+    @ObservationIgnored
+    private var blurNsfwObservationTask: Task<Void, Never>?
     /// Home instances the account already follows communities on.
     @ObservationIgnored
     private var followedHosts: Set<String> = []
@@ -142,6 +144,9 @@ final class DiscoverViewModel {
     /// it (in Settings or the post-list Quick Switch) re-filters an open Discover.
     @ObservationIgnored
     private var showNsfw: Bool
+    /// Whether NSFW community icons should be obscured. Observed live so the
+    /// view re-renders immediately when the user toggles Blur NSFW in Settings.
+    private(set) var blurNsfw: Bool
 
     private var alertService: AlertServiceType {
         dependencies.alertService
@@ -164,6 +169,7 @@ final class DiscoverViewModel {
         self.onOpenInstance = onOpenInstance
         self.onRequestSignIn = onRequestSignIn
         showNsfw = dependencies.preferencesService.showNsfw
+        blurNsfw = dependencies.preferencesService.blurNsfw
 
         let appDatabase = dependencies.appDatabase
         observationTask = Task { [weak self] in
@@ -191,6 +197,17 @@ final class DiscoverViewModel {
             }
         }
 
+        // Re-render live when the blur preference changes. The stream replays
+        // the current value first; the equality guard skips the redundant first
+        // emission (init already seeded `blurNsfw`).
+        blurNsfwObservationTask = Task { [weak self] in
+            for await value in preferencesService.blurNsfwStream {
+                if Task.isCancelled { break }
+                guard let self, value != blurNsfw else { continue }
+                blurNsfw = value
+            }
+        }
+
         // "Because you follow" needs the account's subscriptions; only observe
         // them for a signed-in account that resolves to a stored row.
         if isSignedIn, let accountRowId = appDatabase.accountRowIdSync(forKeychainId: accountScope.accountKeychainId) {
@@ -211,6 +228,7 @@ final class DiscoverViewModel {
         observationTask?.cancel()
         followObservationTask?.cancel()
         nsfwObservationTask?.cancel()
+        blurNsfwObservationTask?.cancel()
     }
 
     func open(_ row: CommunityListRow) {
