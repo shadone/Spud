@@ -36,6 +36,10 @@ struct PreferencesPostMarkingAndHidingView: View {
         .init { viewModel.showNsfw } set: { viewModel.updateShowNsfw($0) }
     }
 
+    private var blurNsfw: Binding<Bool> {
+        .init { viewModel.blurNsfw } set: { viewModel.updateBlurNsfw($0) }
+    }
+
     var body: some View {
         Form {
             Section {
@@ -88,10 +92,21 @@ struct PreferencesPostMarkingAndHidingView: View {
                         systemImage: viewModel.showNsfw ? "eye" : "eye.slash"
                     )
                 }
+                Toggle(isOn: blurNsfw) {
+                    Label(
+                        NSLocalizedString("Blur NSFW Content", comment: "Settings toggle: blur not-safe-for-work media"),
+                        systemImage: "drop.fill"
+                    )
+                }
+                .disabled(!viewModel.showNsfw)
             } header: {
                 Text("NSFW")
             } footer: {
-                Text("Show posts and communities marked not-safe-for-work.")
+                if viewModel.showNsfw {
+                    Text("Blur media in posts and communities marked not-safe-for-work until you tap to reveal.")
+                } else {
+                    Text("Show posts and communities marked not-safe-for-work. Blur only applies when NSFW content is shown.")
+                }
             }
         }
         .navigationTitle("Post Marking & Hiding")
