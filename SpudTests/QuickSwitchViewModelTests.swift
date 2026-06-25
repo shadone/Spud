@@ -70,6 +70,18 @@ final class QuickSwitchViewModelTests: XCTestCase {
         XCTAssertEqual(prefs.showVoteButtons, false)
     }
 
+    func testUpdateShowNsfwWritesThrough() {
+        let prefs = PreferencesService()
+        prefs.showNsfw = false
+        let viewModel = makeViewModel(preferences: prefs)
+        XCTAssertEqual(viewModel.showNsfw, false)
+
+        viewModel.updateShowNsfw(true)
+
+        XCTAssertEqual(viewModel.showNsfw, true)
+        XCTAssertEqual(prefs.showNsfw, true)
+    }
+
     func testSelectSortInvokesCallbackAndUpdatesCurrent() {
         let prefs = PreferencesService()
         var selected: Components.Schemas.SortType?

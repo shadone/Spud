@@ -575,6 +575,33 @@ class PostListViewController: UIViewController {
                 markPostsReadOnScroll = value
             }
         })
+
+        // NSFW filtering is server-side (the `getPosts` request param), so a
+        // change must re-fetch — `reloadFeed()` mints a fresh feed key and
+        // re-pulls. The stream replays the current value on subscribe, so the
+        // first element is skipped (no reload on launch); only subsequent
+        // changes trigger a reload. For the frontpage feed only, also push the
+        // new value to the server (best-effort) so the account's
+        // `local_user.show_nsfw` stays in sync — gating to the frontpage avoids
+        // duplicate server writes from the community / saved post lists that
+        // also observe this stream.
+        displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
+            var first = true
+            for await value in preferencesService.showNsfwStream {
+                if Task.isCancelled { break }
+                if first { first = false
+                    continue
+                }
+                reloadFeed()
+                if case .frontpage = viewModel.feed.feedType,
+                   !viewModel.accountScope.isSignedOut
+                {
+                    let scope = viewModel.accountScope
+                    Task { try? await scope.lemmyService.setShowNsfw(value) }
+                }
+            }
+        })
     }
 
     /// Re-applies the diffable snapshot's currently visible items so each cell

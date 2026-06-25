@@ -28,6 +28,10 @@ struct QuickSwitchView: View {
         .init { viewModel.showVoteButtons } set: { viewModel.updateShowVoteButtons($0) }
     }
 
+    private var showNsfw: Binding<Bool> {
+        .init { viewModel.showNsfw } set: { viewModel.updateShowNsfw($0) }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -53,6 +57,14 @@ struct QuickSwitchView: View {
                     Toggle(isOn: showVoteButtons) {
                         Label("Vote Buttons", systemImage: "arrow.up.arrow.down")
                     }
+                }
+
+                Section {
+                    Toggle(isOn: showNsfw) {
+                        Label("Show NSFW", systemImage: viewModel.showNsfw ? "eye" : "eye.slash")
+                    }
+                } footer: {
+                    Text("Show posts marked not-safe-for-work.")
                 }
 
                 Section {

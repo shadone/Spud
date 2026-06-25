@@ -27,6 +27,7 @@ final class QuickSwitchViewModel {
     var postDensity: PostDensity
     var thumbnailPosition: ThumbnailPosition
     var showVoteButtons: Bool
+    var showNsfw: Bool
     var currentSort: Components.Schemas.SortType
 
     init(
@@ -40,6 +41,7 @@ final class QuickSwitchViewModel {
         postDensity = preferencesService.postDensity
         thumbnailPosition = preferencesService.thumbnailPosition
         showVoteButtons = preferencesService.showVoteButtons
+        showNsfw = preferencesService.showNsfw
     }
 
     func updatePostDensity(_ value: PostDensity) {
@@ -57,6 +59,16 @@ final class QuickSwitchViewModel {
     func updateShowVoteButtons(_ value: Bool) {
         showVoteButtons = value
         preferencesService.showVoteButtons = value
+        Haptics.tap()
+    }
+
+    /// Writes the NSFW preference straight through `PreferencesService`. The
+    /// hosting `PostListViewController` observes `showNsfwStream`, so toggling
+    /// here reloads the feed (and syncs to the server on the frontpage)
+    /// automatically — no separate callback is needed.
+    func updateShowNsfw(_ value: Bool) {
+        showNsfw = value
+        preferencesService.showNsfw = value
         Haptics.tap()
     }
 

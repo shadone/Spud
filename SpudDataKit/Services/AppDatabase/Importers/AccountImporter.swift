@@ -153,21 +153,18 @@ public extension AppDatabase {
         }
     }
 
-    /// Whether the account matching `keychainId` has NSFW content enabled (the
-    /// Lemmy `local_user.show_nsfw` setting mirrored on the account row).
-    /// Defaults to false for signed-out accounts and rows not yet imported.
-    /// Synchronous one-shot read for UI bring-up.
-    func accountShowNsfwSync(forKeychainId keychainId: String) -> Bool {
-        do {
-            return try writer.read { db in
-                try AccountRecord
-                    .filter(Column("accountKeychainId") == keychainId)
-                    .fetchOne(db)?
-                    .showNsfw ?? false
-            }
-        } catch {
-            logger.error("Failed to resolve account showNsfw: \(String(describing: error), privacy: .public)")
-            return false
+    /// Mirrors the `local_user.show_nsfw` setting onto the account row matching
+    /// `keychainId`, so the locally-cached value stays in sync after the app
+    /// pushes a change to the server. No-op if the row hasn't been imported yet.
+    func setAccountShowNsfw(_ showNsfw: Bool, forKeychainId keychainId: String) async throws {
+        try await writer.write { db in
+            guard var account = try AccountRecord
+                .filter(Column("accountKeychainId") == keychainId)
+                .fetchOne(db)
+            else { return }
+            account.showNsfw = showNsfw
+            account.updatedAt = Date()
+            try account.update(db)
         }
     }
 

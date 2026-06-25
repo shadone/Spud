@@ -115,6 +115,8 @@ final class PreferencesViewModel {
     var postTextScale: CGFloat
     var showVoteButtons: Bool
 
+    var showNsfw: Bool
+
     var markPostsRead: Bool
     var markPostsReadOnScroll: Bool
     var hideReadPosts: Bool
@@ -190,6 +192,7 @@ final class PreferencesViewModel {
         thumbnailPosition = dependencies.preferencesService.thumbnailPosition
         postTextScale = dependencies.preferencesService.postTextScale
         showVoteButtons = dependencies.preferencesService.showVoteButtons
+        showNsfw = dependencies.preferencesService.showNsfw
         markPostsRead = dependencies.preferencesService.markPostsRead
         markPostsReadOnScroll = dependencies.preferencesService.markPostsReadOnScroll
         hideReadPosts = dependencies.preferencesService.hideReadPosts
@@ -297,6 +300,12 @@ final class PreferencesViewModel {
         })
 
         preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.showNsfwStream {
+                self?.showNsfw = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
             for await value in preferencesService.markPostsReadStream {
                 self?.markPostsRead = value
             }
@@ -365,6 +374,7 @@ final class PreferencesViewModel {
         thumbnailPosition = .left
         postTextScale = 0
         showVoteButtons = true
+        showNsfw = false
         markPostsRead = true
         markPostsReadOnScroll = false
         hideReadPosts = false
@@ -529,6 +539,17 @@ final class PreferencesViewModel {
         guard value != showVoteButtons else { return }
         showVoteButtons = value
         preferencesService?.showVoteButtons = value
+        Haptics.tap()
+    }
+
+    func updateShowNsfw(_ value: Bool) {
+        guard value != showNsfw else { return }
+        showNsfw = value
+        // Writing the local preference is enough: the post lists observe
+        // `showNsfwStream` and re-fetch with the new request param, and the
+        // frontpage list mirrors the value to the server for signed-in
+        // accounts. Discover reads the same preference.
+        preferencesService?.showNsfw = value
         Haptics.tap()
     }
 

@@ -117,13 +117,42 @@ final class LemmyServiceFetchSavedFeedTests: XCTestCase {
             feedType: .saved(sortType: .New)
         )
 
-        _ = try await service.fetchFeed(feed, pageCursor: nil)
+        _ = try await service.fetchFeed(feed, pageCursor: nil, showNsfw: false)
 
         XCTAssertTrue(transport.didSendGetPosts, "fetchFeed(.saved) should call the getPosts api")
         let query = try XCTUnwrap(transport.lastQuery)
         XCTAssertTrue(
             query.contains("saved_only=true"),
             "fetchFeed(.saved) must request the saved_only filter, got query: \(query)"
+        )
+    }
+
+    func testFetchFeedThreadsShowNsfwIntoGetPostsQuery() async throws {
+        try await seedAccountAndSite()
+
+        let feed = FeedHandle(
+            feedKey: UUID().uuidString,
+            feedType: .frontpage(listingType: .All, sortType: .Hot)
+        )
+
+        // Hidden by default: show_nsfw=false on the wire.
+        let hideTransport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
+        let hideService = makeService(accountIsSignedOut: false, transport: hideTransport)
+        _ = try await hideService.fetchFeed(feed, pageCursor: nil, showNsfw: false)
+        let hideQuery = try XCTUnwrap(hideTransport.lastQuery)
+        XCTAssertTrue(
+            hideQuery.contains("show_nsfw=false"),
+            "fetchFeed(showNsfw: false) must request show_nsfw=false, got query: \(hideQuery)"
+        )
+
+        // Shown when enabled: show_nsfw=true on the wire.
+        let showTransport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
+        let showService = makeService(accountIsSignedOut: false, transport: showTransport)
+        _ = try await showService.fetchFeed(feed, pageCursor: nil, showNsfw: true)
+        let showQuery = try XCTUnwrap(showTransport.lastQuery)
+        XCTAssertTrue(
+            showQuery.contains("show_nsfw=true"),
+            "fetchFeed(showNsfw: true) must request show_nsfw=true, got query: \(showQuery)"
         )
     }
 
@@ -139,7 +168,7 @@ final class LemmyServiceFetchSavedFeedTests: XCTestCase {
         )
 
         do {
-            _ = try await service.fetchFeed(feed, pageCursor: nil)
+            _ = try await service.fetchFeed(feed, pageCursor: nil, showNsfw: false)
             XCTFail("Expected fetchFeed(.saved) to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.

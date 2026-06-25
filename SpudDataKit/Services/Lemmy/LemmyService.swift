@@ -35,10 +35,12 @@ public enum LemmyServiceError: Error {
 public protocol LemmyServiceType: Actor {
     /// Fetch one page of posts for `feed`. Pass `pageCursor: nil` for the
     /// first page; on subsequent calls pass the cursor returned by the
-    /// previous fetch. Returns the cursor for the next page, or nil if the
-    /// feed is exhausted.
+    /// previous fetch. `showNsfw` is forwarded to the server's `getPosts`
+    /// request param, so the NSFW filtering is server-side (applies to
+    /// signed-out accounts too). Returns the cursor for the next page, or nil
+    /// if the feed is exhausted.
     @discardableResult
-    func fetchFeed(_ feed: FeedHandle, pageCursor: String?) async throws -> String?
+    func fetchFeed(_ feed: FeedHandle, pageCursor: String?, showNsfw: Bool) async throws -> String?
 
     func fetchComments(
         serverPostId: Components.Schemas.PostID,
@@ -46,6 +48,13 @@ public protocol LemmyServiceType: Actor {
     ) async throws
 
     func fetchSiteInfo() async throws
+
+    /// Push the account's `show_nsfw` preference to the server via
+    /// `saveUserSettings`, then mirror the new value onto the local account
+    /// row so the cached `AccountRecord.showNsfw` stays in sync. Requires a
+    /// signed-in account: a signed-out account is a silent no-op (the local
+    /// client preference still governs feed filtering via the request param).
+    func setShowNsfw(_ showNsfw: Bool) async throws
 
     func fetchPersonInfo(
         serverPersonId: Components.Schemas.PersonID
@@ -571,7 +580,7 @@ public actor LemmyService: LemmyServiceType {
         }
     }
 
-    public func fetchFeed(_ feed: FeedHandle, pageCursor: String?) async throws -> String? {
+    public func fetchFeed(_ feed: FeedHandle, pageCursor: String?, showNsfw: Bool) async throws -> String? {
         let feedKey = feed.feedKey
         let feedType = feed.feedType
 
@@ -584,11 +593,13 @@ public actor LemmyService: LemmyServiceType {
                     feedId=\(feedKey, privacy: .public) \
                     listingType=\(listingType.rawValue, privacy: .public) \
                     sortType=\(sortType.rawValue, privacy: .public) \
+                    showNsfw=\(showNsfw, privacy: .public) \
                     pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
                 response = try await api.getPosts(
                     type: listingType,
                     sort: sortType,
+                    showNSFW: showNsfw,
                     page: pageCursor
                 )
 
@@ -599,11 +610,13 @@ public actor LemmyService: LemmyServiceType {
                     communityName=\(communityName, privacy: .public) \
                     instance=\(instance.debugDescription, privacy: .public) \
                     sortType=\(sortType.rawValue, privacy: .public) \
+                    showNsfw=\(showNsfw, privacy: .public) \
                     pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
                 response = try await api.getPosts(
                     community: .name("\(communityName)@\(instance.hostWithPort)"),
                     sort: sortType,
+                    showNSFW: showNsfw,
                     page: pageCursor
                 )
 
@@ -615,12 +628,14 @@ public actor LemmyService: LemmyServiceType {
                     Fetch saved feed for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
                     feedId=\(feedKey, privacy: .public) \
                     sortType=\(sortType.rawValue, privacy: .public) \
+                    showNsfw=\(showNsfw, privacy: .public) \
                     pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
                 response = try await api.getPosts(
                     type: .All,
                     sort: sortType,
                     filter: .saved,
+                    showNSFW: showNsfw,
                     page: pageCursor
                 )
             }
@@ -807,6 +822,46 @@ public actor LemmyService: LemmyServiceType {
             }
         } catch {
             logger.error("AppDatabase fetchSiteInfo upsert failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    public func setShowNsfw(_ showNsfw: Bool) async throws {
+        guard !accountIsSignedOut else {
+            // Signed-out accounts have no server settings to push; the local
+            // client preference still governs feed filtering via the request
+            // param, so this is a deliberate no-op rather than an error.
+            logger.debug("""
+                Set show_nsfw skipped - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
+                """)
+            return
+        }
+
+        logger.debug("""
+            Set show_nsfw=\(showNsfw, privacy: .public) \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
+            """)
+
+        do {
+            _ = try await api.saveUserSettings(showNSFW: showNsfw)
+        } catch {
+            logger.error("""
+                Set show_nsfw failed. \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        // Mirror the new value onto the local account row so the cached
+        // `AccountRecord.showNsfw` stays in sync with the server.
+        do {
+            try await appDatabase.setAccountShowNsfw(
+                showNsfw,
+                forKeychainId: accountIdentifierForLogging
+            )
+        } catch {
+            logger.error("""
+                Mirror show_nsfw to AppDatabase failed. \(String(describing: error), privacy: .public)
+                """)
         }
     }
 

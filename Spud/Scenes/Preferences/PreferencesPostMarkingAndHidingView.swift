@@ -32,6 +32,10 @@ struct PreferencesPostMarkingAndHidingView: View {
         .init { viewModel.hideReadPostsMode } set: { viewModel.updateHideReadPostsMode($0) }
     }
 
+    private var showNsfw: Binding<Bool> {
+        .init { viewModel.showNsfw } set: { viewModel.updateShowNsfw($0) }
+    }
+
     var body: some View {
         Form {
             Section {
@@ -75,6 +79,19 @@ struct PreferencesPostMarkingAndHidingView: View {
                 } else {
                     Text("Read posts stay in the feed.")
                 }
+            }
+
+            Section {
+                Toggle(isOn: showNsfw) {
+                    Label(
+                        NSLocalizedString("Show NSFW Content", comment: "Settings toggle: show not-safe-for-work content"),
+                        systemImage: viewModel.showNsfw ? "eye" : "eye.slash"
+                    )
+                }
+            } header: {
+                Text("NSFW")
+            } footer: {
+                Text("Show posts and communities marked not-safe-for-work.")
             }
         }
         .navigationTitle("Post Marking & Hiding")

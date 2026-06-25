@@ -115,7 +115,7 @@ final class LemmyServiceFetchFeedPersistenceTests: XCTestCase {
         )
 
         do {
-            _ = try await service.fetchFeed(feed, pageCursor: nil)
+            _ = try await service.fetchFeed(feed, pageCursor: nil, showNsfw: false)
             XCTFail("Expected fetchFeed to throw when no account/site row exists")
         } catch {
             // Any thrown error is acceptable — what matters is that it did not
@@ -141,7 +141,7 @@ final class LemmyServiceFetchFeedPersistenceTests: XCTestCase {
         )
 
         // Must not throw.
-        _ = try await service.fetchFeed(feed, pageCursor: nil)
+        _ = try await service.fetchFeed(feed, pageCursor: nil, showNsfw: false)
 
         // The feed row must have been created (appendFeedPage upserts even for
         // an empty page).

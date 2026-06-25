@@ -91,6 +91,14 @@ protocol PreferencesServiceType: AnyObject {
     var showVoteButtons: Bool { get set }
     var showVoteButtonsStream: AsyncStream<Bool> { get }
 
+    /// Whether posts and communities marked not-safe-for-work are shown in
+    /// feeds and the community directory. Default `false` (hide NSFW). The feed
+    /// fetch threads this through `getPosts(showNSFW:)`, so the filtering is
+    /// server-side; for signed-in accounts the value is also mirrored to the
+    /// server's `local_user.show_nsfw`.
+    var showNsfw: Bool { get set }
+    var showNsfwStream: AsyncStream<Bool> { get }
+
     // MARK: Mark-read / hide (M8)
 
     /// Whether posts interacted with (opened, voted) are marked read. Default
@@ -258,6 +266,13 @@ class PreferencesService: PreferencesServiceType {
 
     var showVoteButtonsStream: AsyncStream<Bool> {
         $showVoteButtons
+    }
+
+    @UserDefaultsBacked(key: "showNsfw")
+    var showNsfw: Bool = false
+
+    var showNsfwStream: AsyncStream<Bool> {
+        $showNsfw
     }
 
     // MARK: Mark-read / hide (M8)

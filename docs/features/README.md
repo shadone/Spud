@@ -60,6 +60,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 |---|---|---|
 | [Configurable swipe actions](swipe-actions.md) | `iphone`, `ipad` | shipped |
 | [Marking posts read and hiding read posts](mark-read-and-hiding.md) | `iphone`, `ipad` | shipped |
+| [NSFW content visibility](nsfw-content.md) | `iphone`, `ipad` | shipped |
 | [Feeds and sorting](feeds-and-sorting.md) | `iphone`, `ipad` | shipped |
 | [Feed loading and pagination](feed-loading.md) | `iphone`, `ipad` | partial — no pull-to-refresh on the feed |
 | [Post thumbnails and media badges](post-thumbnails.md) | `iphone`, `ipad` | shipped |
@@ -122,6 +123,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Inline thumbnails (text / link / image / video) + media badges
 - [x] Context-menu peek on posts
 - [x] Marking posts read / hiding read posts
+- [x] NSFW content visibility — hidden by default; server-side filter, synced for signed-in accounts (nsfw-content.md)
 - [x] Configurable swipe actions (posts)
 
 **Posts & comments**

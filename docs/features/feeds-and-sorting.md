@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [feed-loading.md](feed-loading.md), [post-thumbnails.md](post-thumbnails.md), [mark-read-and-hiding.md](mark-read-and-hiding.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [feed-loading.md](feed-loading.md), [post-thumbnails.md](post-thumbnails.md), [mark-read-and-hiding.md](mark-read-and-hiding.md), [nsfw-content.md](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 

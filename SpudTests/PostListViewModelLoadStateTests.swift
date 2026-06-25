@@ -11,12 +11,14 @@ import XCTest
 
 @MainActor
 final class PostListViewModelLoadStateTests: XCTestCase {
-    private struct TestDependencies: HasAccountService, HasReachabilityMonitor {
+    private struct TestDependencies: HasAccountService, HasPreferencesService, HasReachabilityMonitor {
         let accountService: AccountServiceType
+        let preferencesService: PreferencesServiceType
         let reachabilityMonitor: ReachabilityMonitoring
 
         init(reachabilityMonitor: ReachabilityMonitoring) {
             accountService = AccountService(appDatabase: try! AppDatabase.inMemory())
+            preferencesService = PreferencesService()
             self.reachabilityMonitor = reachabilityMonitor
         }
     }

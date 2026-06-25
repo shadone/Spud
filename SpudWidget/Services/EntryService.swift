@@ -125,9 +125,11 @@ class EntryService: EntryServiceType {
         )
 
         do {
+            // The widget always hides NSFW (the app-wide default); it has no
+            // access to the app-target-only `PreferencesService`.
             _ = try await accountService
                 .lemmyService(forAccountKeychainId: keychainId)
-                .fetchFeed(feed, pageCursor: nil)
+                .fetchFeed(feed, pageCursor: nil, showNsfw: false)
         } catch {
             logger.error("Failed to fetch feed: \(error, privacy: .public)")
         }

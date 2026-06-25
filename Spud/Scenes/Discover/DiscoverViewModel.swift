@@ -44,7 +44,8 @@ final class DiscoverViewModel {
     typealias OwnDependencies =
         HasAccountService &
         HasAlertService &
-        HasAppDatabase
+        HasAppDatabase &
+        HasPreferencesService
     typealias Dependencies = OwnDependencies
 
     @ObservationIgnored
@@ -129,14 +130,18 @@ final class DiscoverViewModel {
     private var observationTask: Task<Void, Never>?
     @ObservationIgnored
     private var followObservationTask: Task<Void, Never>?
+    @ObservationIgnored
+    private var nsfwObservationTask: Task<Void, Never>?
     /// Home instances the account already follows communities on.
     @ObservationIgnored
     private var followedHosts: Set<String> = []
-    /// The account's NSFW preference (Lemmy `show_nsfw`). When off, NSFW
+    /// The client's NSFW preference (`PreferencesService.showNsfw`, the
+    /// authoritative client setting shared with the feeds). When off, NSFW
     /// communities are filtered out of the directory; when on, they show
-    /// (badged). Curated rails stay clean regardless.
+    /// (badged). Curated rails stay clean regardless. Observed live so toggling
+    /// it (in Settings or the post-list Quick Switch) re-filters an open Discover.
     @ObservationIgnored
-    private let showNsfw: Bool
+    private var showNsfw: Bool
 
     private var alertService: AlertServiceType {
         dependencies.alertService
@@ -158,7 +163,7 @@ final class DiscoverViewModel {
         self.onOpenPack = onOpenPack
         self.onOpenInstance = onOpenInstance
         self.onRequestSignIn = onRequestSignIn
-        showNsfw = dependencies.appDatabase.accountShowNsfwSync(forKeychainId: accountScope.accountKeychainId)
+        showNsfw = dependencies.preferencesService.showNsfw
 
         let appDatabase = dependencies.appDatabase
         observationTask = Task { [weak self] in
@@ -169,6 +174,20 @@ final class DiscoverViewModel {
                 recomputeRails()
                 recomputeDirectory()
                 isLoading = false
+            }
+        }
+
+        // Re-filter live when the NSFW preference changes. The stream replays the
+        // current value first; the equality guard skips that redundant recompute
+        // (init already seeded `showNsfw`), so only real changes recompute.
+        let preferencesService = dependencies.preferencesService
+        nsfwObservationTask = Task { [weak self] in
+            for await value in preferencesService.showNsfwStream {
+                if Task.isCancelled { break }
+                guard let self, value != showNsfw else { continue }
+                showNsfw = value
+                recomputeRails()
+                recomputeDirectory()
             }
         }
 
@@ -191,6 +210,7 @@ final class DiscoverViewModel {
     deinit {
         observationTask?.cancel()
         followObservationTask?.cancel()
+        nsfwObservationTask?.cancel()
     }
 
     func open(_ row: CommunityListRow) {

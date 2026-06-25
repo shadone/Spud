@@ -33,7 +33,7 @@ enum PaginationState: Equatable {
 @MainActor
 @Observable
 final class PostListViewModel {
-    typealias OwnDependencies = HasAccountService & HasReachabilityMonitor
+    typealias OwnDependencies = HasAccountService & HasPreferencesService & HasReachabilityMonitor
     typealias Dependencies = OwnDependencies
 
     @ObservationIgnored
@@ -99,8 +99,18 @@ final class PostListViewModel {
         self.hardCapTimeout = hardCapTimeout
         navigationTitle = Self.navigationTitle(for: feed.feedType)
         let scope = accountScope
+        let preferencesService = dependencies.preferencesService
         self.fetchFeedOperation = fetchFeedOperation ?? { feedToFetch, cursor in
-            try await scope.lemmyService.fetchFeed(feedToFetch, pageCursor: cursor)
+            // Read the CURRENT NSFW preference at fetch time so a changed
+            // preference is honoured on the next page / reload (the filtering
+            // is server-side via the request param, so it applies to
+            // signed-out accounts too).
+            let showNsfw = preferencesService.showNsfw
+            return try await scope.lemmyService.fetchFeed(
+                feedToFetch,
+                pageCursor: cursor,
+                showNsfw: showNsfw
+            )
         }
     }
 

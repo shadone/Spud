@@ -22,7 +22,8 @@ class DiscoverViewController: UIViewController {
         HasAccountService &
         HasAlertService &
         HasAppDatabase &
-        HasImageService
+        HasImageService &
+        HasPreferencesService
     typealias NestedDependencies =
         CommunityOrLoadingViewController.Dependencies &
         InstanceDetailViewController.Dependencies

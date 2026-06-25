@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Configurable swipe actions](swipe-actions.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Configurable swipe actions](swipe-actions.md), [NSFW content visibility](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -21,6 +21,7 @@ Marking & Hiding and applies live.
   - **On Refresh** — only posts that were already read when the feed last refreshed are hidden; posts read during the current session stay until the next refresh, so nothing vanishes mid-scroll.
 - **Hiding is a view filter, not a mutation.** The full ordered feed is produced once and never altered; the visible list is filtered down to what should currently show (`HideReadPostsFilter`). Read state, ordering, and pagination are untouched — turning hiding off restores the posts in place.
 - **Everything applies live.** The post list observes the same preference streams, so toggling any of these reflects immediately without a relaunch.
+- **The same settings screen also hosts the "Show NSFW Content" toggle.** That preference is a separate, server-side feed filter documented in [NSFW content visibility](nsfw-content.md); it is grouped here because it is another content-visibility control.
 
 ## Scenarios
 
