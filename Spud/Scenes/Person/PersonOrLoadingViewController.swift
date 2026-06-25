@@ -109,7 +109,48 @@ class PersonOrLoadingViewController: UIViewController {
             }
         }
 
+        currentViewController = newViewController
         add(child: newViewController)
         addSubviewWithEdgeConstraints(child: newViewController)
+
+        promoteContentIfNeeded()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        promoteContentIfNeeded()
+    }
+
+    /// Once the person is resolved, replace ourselves in the navigation stack
+    /// with the `PersonViewController` so its navigation bar — the overflow
+    /// menu, the sort button, and the title it sets from the loaded person —
+    /// renders. A child view controller's `navigationItem` is ignored by UIKit,
+    /// so hosting the content as a child (the way the loading state is hosted)
+    /// would hide its entire navbar. The loading state stays an embedded child
+    /// (it has no navbar to surface). The swap is deferred past any in-flight
+    /// push so we never mutate the stack mid-transition.
+    private func promoteContentIfNeeded() {
+        guard case .person = state,
+              let content = currentViewController as? PersonViewController,
+              let navigationController,
+              let index = navigationController.viewControllers.firstIndex(of: self)
+        else { return }
+
+        if let coordinator = transitionCoordinator {
+            coordinator.animate(alongsideTransition: nil) { [weak self] _ in
+                self?.promoteContentIfNeeded()
+            }
+            return
+        }
+
+        remove(child: content)
+        // While embedded it was pinned with edge constraints
+        // (translatesAutoresizingMaskIntoConstraints = false); as a navigation
+        // stack root UIKit frames the view via autoresizing, so restore that or
+        // the content lays out to a zero frame and renders blank.
+        content.view.translatesAutoresizingMaskIntoConstraints = true
+        var stack = navigationController.viewControllers
+        stack[index] = content
+        navigationController.setViewControllers(stack, animated: false)
     }
 }
