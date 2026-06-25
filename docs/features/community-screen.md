@@ -16,11 +16,12 @@ The community screen pins a header above the community's post feed. The header s
 - **Subscribe / unsubscribe from the header.** The header button toggles subscription, gated on sign-in, via the shared confirm-then-mirror path (see [Subscribe / unsubscribe](subscribe-unsubscribe.md)). The button reflects Subscribe, Subscribed, or Pending from the mirrored state.
 - **Header context menu.** Long-pressing the header offers Subscribe / Unsubscribe and Block / Unblock community.
 - **New post.** A compose button in the navigation bar opens the new-post composer pre-filled with this community; it is gated on sign-in.
+- **Sort the feed.** A sort menu in the navigation bar changes the community feed's post sort order — the same grouped Hot / Active / New / Top… pull-down as the main feed. Picking a sort reloads the feed at the new ordering while the header stays in place. See [Feeds and sorting](feeds-and-sorting.md).
 - **Overflow menu.** The navigation bar's `•••` menu is grouped into three visually separated sections: (1) Subscribe / Unsubscribe and Add to / Remove from Favorites, (2) Mute and Block, (3) Copy Link, Share…, and Open in Browser. The state-dependent entries are evaluated each time the menu opens so they reflect live subscription, favorite, mute, and block state.
 - **Favorites.** Add to / Remove from Favorites is a local, per-account concern (not server-backed, like muting), so it is not gated on sign-in. A favorited community is pinned to the top of the Communities list and flagged with a star (see [Subscriptions sidebar](subscriptions-sidebar.md)).
 - **Sharing actions.** Copy Link copies the community's canonical URL, Share… opens the system share sheet (anchored to the overflow button on iPad), and Open in Browser opens that URL externally. The three are omitted when the community has no valid URL yet.
 - **Block awareness.** The overflow menu offers Block / Unblock community. The current block state is resolved from the server's block list on appear so the label is correct. Blocking asks for confirmation, then reloads the embedded feed so the now-filtered content disappears; a signed-out block attempt is gated with an alert.
-- **Markdown description links.** Links in the description open inline: a person link opens the [Person profile](person-profile.md), a community link opens another Community screen, and other links open externally.
+- **Markdown description links.** Links in the description open in-app: a person mention opens the [Person profile](person-profile.md), a community link opens another Community screen, and other Lemmy links (posts, instances, and federated mentions that need resolving) are routed in-app through the shared link router. Only non-Lemmy web links open externally.
 - **Title in the nav bar.** The navigation bar title is set to the community title once loaded.
 
 ## Scenarios
@@ -65,7 +66,13 @@ The community screen pins a header above the community's post feed. The header s
 
 - **Given** a community description containing a user mention
 - **When** I tap the mention
-- **Then** the Person profile for that user opens
+- **Then** the Person profile for that user opens in-app (not the browser)
+
+### Change the community feed sort
+
+- **Given** an open community screen
+- **When** I pick a different sort from the navigation bar sort menu
+- **Then** the feed reloads at the new sort while the header stays in place
 
 ### New post is gated when signed out
 
@@ -76,6 +83,6 @@ The community screen pins a header above the community's post feed. The header s
 ## Not supported / out of scope
 
 - No pull-to-refresh on the community feed — it reloads on sort change, re-selection, or after a block, like the main feed (see [Feed loading and pagination](feed-loading.md)).
-- The community feed sort follows the account default; there is no in-screen sort picker on this screen.
+- The community feed sort starts at the account default; a navigation-bar sort menu lets you change it per visit (the choice is not persisted as a new default).
 - Moderator and admin actions on the community are not provided; the overflow menu offers subscribe, favorite, mute, block, and the sharing actions only.
 - The header shows community metadata but not a moderator list or sidebar rules beyond the markdown description.
