@@ -88,7 +88,8 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [New post](new-post.md) | `iphone`, `ipad` | shipped |
 | [Image upload](image-upload.md) | `iphone`, `ipad` | shipped |
 | [Markdown editor](markdown-editor.md) | `iphone`, `ipad` | shipped |
-| [Draft persistence](draft-persistence.md) | `iphone`, `ipad` | partial — in-memory only |
+| [Draft persistence](draft-persistence.md) | `iphone`, `ipad` | shipped |
+| [Drafts & Outbox](drafts-and-outbox.md) | `iphone`, `ipad` | shipped |
 | [Block / unblock](block-unblock.md) | `iphone`, `ipad` | shipped |
 | [Report](report.md) | `iphone`, `ipad` | shipped |
 | [Moderator / admin actions](moderation-actions.md) | `iphone`, `ipad` | shipped |
@@ -128,7 +129,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Upvote / downvote (post & comment)
 - [x] Save / unsave (post & comment)
 - [x] Threaded comment collapse + jump-to-next-top-level
-- [~] Reply — shipped; edit / delete own comment not supported
+- [~] Reply — shipped (optimistic inline send + durable retry); edit / delete own comment not supported
 - [x] Configurable swipe actions (comments)
 - [~] Comment sort — preference-only; no in-screen picker (noted in post-detail-and-comments.md)
 - [x] Share post / comment / community URL; open in Safari
@@ -163,7 +164,9 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] New post (text / link / image) + community picker + NSFW
 - [x] Image upload (pict-rs)
 - [x] Markdown editor + toolbar + live preview
-- [~] Draft persistence — in-memory only; not saved across dismissal or relaunch
+- [x] Draft persistence — durable, per-target, auto-saved (survives dismiss / relaunch)
+- [x] Optimistic + durable sending — comments inline in the tree, posts via a pending screen; background retry with backoff
+- [x] Drafts & Outbox recovery list (failed / sending / drafts; retry / discard)
 
 **Safety & moderation**
 - [x] Block / unblock person & community + blocked-list management
