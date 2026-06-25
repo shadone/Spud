@@ -10,7 +10,8 @@ import LemmyKit
 extension Components.Schemas.Post {
     static func fake(
         creator: Components.Schemas.Person,
-        community: Components.Schemas.Community
+        community: Components.Schemas.Community,
+        nsfw: Bool = false
     ) -> Components.Schemas.Post {
         .init(
             id: 1,
@@ -24,7 +25,7 @@ extension Components.Schemas.Post {
             published: Date(timeIntervalSince1970: 1_685_577_784),
             updated: nil,
             deleted: false,
-            nsfw: false,
+            nsfw: nsfw,
             embed_title: nil,
             embed_description: nil,
             thumbnail_url: nil,
