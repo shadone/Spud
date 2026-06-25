@@ -6,7 +6,7 @@
 
 ## What it does
 
-The community screen pins a header above the community's post feed. The header shows the banner, an overlapping circular icon, the title, the canonical `!name@instance` handle, subscriber and post counts, a rendered markdown description, and a state-aware Subscribe / Unsubscribe button. Below it is the same post list used everywhere, scoped to this community, so it loads, sorts, and pages exactly like the main feed. The screen is reached by tapping a community in search, a community link in markdown, or a community in the subscriptions sidebar; it works on iPhone and iPad.
+The community screen pins a header above the community's post feed. The header shows the banner, an overlapping circular icon, the title, the canonical `!name@instance` handle, subscriber and post counts, a rendered markdown description, and a state-aware Subscribe / Unsubscribe button. Below it is the same post list used everywhere, scoped to this community, so it loads, sorts, and pages exactly like the main feed. The screen is reached by tapping a community in search, a community link in markdown, a community in the subscriptions sidebar, or a post's context-menu "Visit c/…" action; it works on iPhone and iPad.
 
 ## Behavior and rules
 

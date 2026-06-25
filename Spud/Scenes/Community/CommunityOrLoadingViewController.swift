@@ -162,9 +162,36 @@ class CommunityOrLoadingViewController: UIViewController {
         )
 
         loadingIndicator.stopAnimating()
-        show(contentVC)
+
+        // Become the content screen. `CommunityViewController` fully owns its
+        // navigation bar: it builds the overflow / sort / compose bar button
+        // items in `init` and sets the title from the loaded community. But a
+        // child view controller's `navigationItem` is ignored by UIKit — only
+        // the controller on the navigation stack is consulted — so embedding the
+        // content as our child would hide its entire navbar. Instead, swap
+        // ourselves out of the navigation stack for the content VC so its navbar
+        // (and dynamic title) render natively. Fall back to embedding only when
+        // there is no navigation controller to swap within.
+        if let navigationController,
+           let index = navigationController.viewControllers.firstIndex(of: self)
+        {
+            // Seed the title so it does not flash blank before the content VC's
+            // community observation delivers the real title.
+            contentVC.navigationItem.title = "!\(communityName)"
+            var stack = navigationController.viewControllers
+            stack[index] = contentVC
+            navigationController.setViewControllers(stack, animated: false)
+        } else {
+            show(contentVC)
+        }
     }
 
+    /// Fallback used only when we are not inside a navigation controller (so we
+    /// cannot replace ourselves in the stack): embed the content as a child.
+    /// Note this path does NOT surface the child's navigation bar — a child VC's
+    /// `navigationItem` is ignored by UIKit — but in practice the community
+    /// screen is always pushed onto a navigation stack, so `loadAndShow` takes
+    /// the replace-in-stack path instead.
     private func show(_ viewController: UIViewController) {
         remove(child: currentViewController)
         currentViewController = viewController

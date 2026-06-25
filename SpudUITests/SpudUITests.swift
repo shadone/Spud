@@ -79,6 +79,18 @@ class SpudUITests: XCTestCase {
                 ),
                 response: SBTStubResponse(fileNamed: "user-31989.json")
             )
+
+            // The first post's community ("Visit c/tincidunt"). Resolved by name
+            // (the qualified `tincidunt@lemmy.world`) when opening the community
+            // screen from the post context menu.
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: "discuss.tchncs.de/api/v3/community",
+                    query: ["name=tincidunt"],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "community-tincidunt.json")
+            )
         }
     }
 
@@ -188,6 +200,43 @@ class SpudUITests: XCTestCase {
         XCTAssertTrue(
             detailHeaderCell.waitForNonExistence(timeout: 5),
             "Tapping the creator link should navigate away from the post detail"
+        )
+    }
+
+    /// Opening a community from a post's context menu must land on the full
+    /// community screen WITH its navigation-bar actions. The community screen is
+    /// reached through `CommunityOrLoadingViewController`, which hosts the real
+    /// `CommunityViewController` — its overflow (`More`) menu and `Sort posts`
+    /// button live on that hosted controller's `navigationItem`. Regression
+    /// guard: when the host embedded the content as a child view controller,
+    /// UIKit ignored the child's `navigationItem` and the navbar came up empty,
+    /// so neither button appeared on any path to a community.
+    func test_VisitCommunityFromPostContextMenu_showsNavbarActions() {
+        let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
+        XCTAssertTrue(firstCell.waitForExistence(timeout: 10), "Feed should load")
+
+        // Long-press the post to open its context menu, then choose its community.
+        firstCell.press(forDuration: 1.2)
+
+        let visitAction = app.buttons["Visit c/tincidunt"]
+        XCTAssertTrue(
+            visitAction.waitForExistence(timeout: 5),
+            "Post context menu should offer 'Visit c/tincidunt'"
+        )
+        visitAction.tap()
+
+        let navBar = app.navigationBars
+
+        let overflowButton = navBar.buttons["More"]
+        XCTAssertTrue(
+            overflowButton.waitForExistence(timeout: 10),
+            "Community navbar should show the overflow (More) menu button"
+        )
+
+        let sortButton = navBar.buttons["Sort posts"]
+        XCTAssertTrue(
+            sortButton.exists,
+            "Community navbar should show the post sort button"
         )
     }
 
