@@ -101,6 +101,27 @@ class PersonViewController: UIViewController {
         return tableView
     }()
 
+    /// Wraps the profile header and the Posts / Comments tab control so they can
+    /// be hosted as the table's `tableHeaderView` and scroll with the content
+    /// (a tall bio in particular), rather than overflowing a fixed top region.
+    private lazy var headerContainer: UIView = {
+        let container = UIView()
+        container.backgroundColor = Theme.background
+        container.addSubview(headerView)
+        container.addSubview(segmentedControl)
+        NSLayoutConstraint.activate([
+            headerView.topAnchor.constraint(equalTo: container.topAnchor),
+            headerView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            headerView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+
+            segmentedControl.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
+            segmentedControl.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+            segmentedControl.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
+            segmentedControl.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -8),
+        ])
+        return container
+    }()
+
     private lazy var dataSource: UITableViewDiffableDataSource<Section, Item> = makeDataSource()
 
     private let loadingIndicator: UIActivityIndicatorView = {
@@ -177,30 +198,20 @@ class PersonViewController: UIViewController {
         headerView.onBodyAudioTapped = { [weak self] url in
             self?.presentVideoPlayer(url: url)
         }
-        // The header is an Auto Layout subview, so a taller bio (once an inline
-        // image loads) repositions the segmented control and table automatically;
-        // nudge a layout pass so the change isn't deferred to the next event.
+        // The header lives inside the table's `tableHeaderView`; when an inline
+        // image loads and the bio grows, re-measure and commit the new header
+        // height so the table can scroll the taller content.
         headerView.onBodyImageLoaded = { [weak self] in
-            self?.view.setNeedsLayout()
+            self?.layoutHeaderContainerIfNeeded()
         }
 
         tableView.refreshControl = refreshControl
 
-        view.addSubview(headerView)
-        view.addSubview(segmentedControl)
         view.addSubview(tableView)
         view.addSubview(loadingIndicator)
 
         NSLayoutConstraint.activate([
-            headerView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            headerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            headerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-
-            segmentedControl.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
-            segmentedControl.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
-            segmentedControl.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -16),
-
-            tableView.topAnchor.constraint(equalTo: segmentedControl.bottomAnchor, constant: 8),
+            tableView.topAnchor.constraint(equalTo: view.topAnchor),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
@@ -208,6 +219,14 @@ class PersonViewController: UIViewController {
             loadingIndicator.centerXAnchor.constraint(equalTo: tableView.centerXAnchor),
             loadingIndicator.centerYAnchor.constraint(equalTo: tableView.centerYAnchor),
         ])
+
+        // Host the header + tab switcher as the table's self-sizing header so a
+        // tall bio scrolls with the content instead of overflowing a fixed top
+        // region (which clipped long bios with no way to scroll). The table
+        // positions its header by frame, so opt the container out of Auto Layout
+        // for its own frame while its subviews keep using constraints.
+        headerContainer.translatesAutoresizingMaskIntoConstraints = true
+        tableView.tableHeaderView = headerContainer
 
         let interaction = UIContextMenuInteraction(delegate: self)
         headerView.addInteraction(interaction)
@@ -300,6 +319,35 @@ class PersonViewController: UIViewController {
         super.viewDidDisappear(animated)
         userActivity?.resignCurrent()
         userActivity = nil
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // Size the table header against the current width (handles first layout
+        // and rotation / size-class changes).
+        layoutHeaderContainerIfNeeded()
+    }
+
+    /// Re-measures the table's header container against the current table width
+    /// and commits its height so the table can scroll the full header (a tall
+    /// bio in particular). Safe to call repeatedly: it only reassigns the
+    /// `tableHeaderView` when the resolved height actually changes, so it does
+    /// not loop with `viewDidLayoutSubviews`.
+    private func layoutHeaderContainerIfNeeded() {
+        let width = tableView.bounds.width
+        guard width > 0 else { return }
+
+        headerContainer.frame.size.width = width
+        let height = headerContainer.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+
+        guard abs(headerContainer.frame.height - height) > 0.5 else { return }
+        headerContainer.frame.size.height = height
+        // Reassigning is what makes the table adopt the new header height.
+        tableView.tableHeaderView = headerContainer
     }
 
     /// Vends a Handoff/Spotlight/Prediction activity for this person, keyed by
@@ -398,6 +446,10 @@ class PersonViewController: UIViewController {
             statsText: viewModel.statsText,
             bioMarkdown: viewModel.bioMarkdown
         )
+        // The bio just changed, so the header's height may have changed; re-size
+        // the table header to match (async markdown growth is handled by
+        // `onBodyImageLoaded`).
+        layoutHeaderContainerIfNeeded()
 
         loadBannerIfNeeded(url: viewModel.bannerUrl)
         loadAvatarIfNeeded(url: viewModel.avatarUrl)
