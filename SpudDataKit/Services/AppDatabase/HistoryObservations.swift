@@ -79,6 +79,7 @@ public extension AppDatabase {
                         post.isFeaturedCommunity AS isFeaturedCommunity,
                         post.isFeaturedLocal   AS isFeaturedLocal,
                         post.isDeleted         AS isDeleted,
+                        (post.isNsfw OR community.isNsfw) AS isNsfw,
                         post.published         AS published,
                         community.communityId  AS serverCommunityId,
                         community.name         AS communityName,
@@ -131,6 +132,7 @@ public extension AppDatabase {
                         isFeaturedCommunity: row["isFeaturedCommunity"],
                         isFeaturedLocal: row["isFeaturedLocal"],
                         isDeleted: row["isDeleted"],
+                        isNsfw: row["isNsfw"],
                         published: row["published"]
                     )
                 }

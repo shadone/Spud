@@ -18,7 +18,7 @@ final class PostInteractionSnapshotMappingTests: XCTestCase {
             creatorPersonId: 10, creatorName: "alice", creatorActorId: "https://lemmy.world/u/alice",
             score: 7, numberOfComments: 3, voteStatus: nil, isRead: false, isSaved: false,
             isRemoved: false, isLocked: false, isFeaturedCommunity: false, isFeaturedLocal: false,
-            isDeleted: false, published: Date(timeIntervalSince1970: 0)
+            isDeleted: false, isNsfw: false, published: Date(timeIntervalSince1970: 0)
         )
     }
 
