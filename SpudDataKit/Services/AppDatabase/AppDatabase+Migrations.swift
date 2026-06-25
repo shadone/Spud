@@ -604,6 +604,18 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v20_postNsfw") { db in
+            // The client treated NSFW as purely server-filtered, so it never
+            // recorded whether a post was NSFW. Blur-on-display needs that flag.
+            try db.alter(table: "post") { t in
+                t.add(column: "isNsfw", .boolean).notNull().defaults(to: false)
+            }
+            // Cache the server's blur_nsfw local-user setting alongside showNsfw.
+            try db.alter(table: "account") { t in
+                t.add(column: "blurNsfw", .boolean)
+            }
+        }
+
         return migrator
     }
 }

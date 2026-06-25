@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Markdown editor](markdown-editor.md), [Image upload](image-upload.md), [Draft persistence](draft-persistence.md), [Drafts and Outbox](drafts-and-outbox.md), [Community screen](community-screen.md), [Sign-in gate on write actions](sign-in-gate.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Markdown editor](markdown-editor.md), [Image upload](image-upload.md), [Draft persistence](draft-persistence.md), [Drafts and Outbox](drafts-and-outbox.md), [Community screen](community-screen.md), [Sign-in gate on write actions](sign-in-gate.md), [NSFW content visibility and blur](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -11,7 +11,7 @@ Create a new post in a community from a sheet composer. The composer has a commu
 ## Behavior and rules
 
 - **Three post types.** A `Text / Link / Image` segmented control selects the post type. The type only changes which inputs are emphasised — `Text` hides the URL field; `Link` and `Image` show it. The underlying create request is the same shape regardless of type (`title`, optional `url`, optional `body`, `nsfw`).
-- **Community picker.** Tapping the community button opens a search-driven picker. Typing a query searches communities (debounced) and tapping a result fills the target community, shown on the button as `name@instance`. When the composer is launched from a community screen, that community is pre-filled.
+- **Community picker.** Tapping the community button opens a search-driven picker. Typing a query searches communities (debounced) and tapping a result fills the target community, shown on the button as `name@instance`. When the composer is launched from a community screen, that community is pre-filled. When "Show NSFW" is off, NSFW communities are filtered from picker results; already-subscribed NSFW communities reached via a community screen are unaffected. See [NSFW content visibility and blur](nsfw-content.md).
 - **Title is required.** Post is enabled only with a non-whitespace title, a chosen community, and no in-flight upload or submission. The body and URL are optional.
 - **NSFW toggle.** A switch marks the post NSFW; it is sent with the create request.
 - **Image attach.** "Attach image" opens the system photo picker (`PHPickerViewController`, out-of-process, no photo-library permission prompt) and uploads the chosen image. Where the uploaded URL lands depends on the post type — see [Image upload](image-upload.md).

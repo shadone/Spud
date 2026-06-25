@@ -34,6 +34,20 @@ struct PostListPostViewModel {
     let thumbnail: Thumbnail
     let isSaved: Bool
 
+    /// Whether the post is marked NSFW by the server.
+    let isNsfw: Bool
+
+    /// Whether the user preference asks to blur NSFW thumbnails.
+    let blurNsfw: Bool
+
+    /// Whether the user has already revealed this post's thumbnail this session.
+    let isRevealed: Bool
+
+    /// True when the thumbnail should be covered by the blur overlay.
+    var isThumbnailBlurred: Bool {
+        isNsfw && blurNsfw && !isRevealed
+    }
+
     /// The user's current vote on the post, driving the inline vote-arrow colors.
     let voteStatus: VoteStatus
 
@@ -142,8 +156,14 @@ struct PostListPostViewModel {
     init(
         row: PostListRow,
         appearance: AppearanceServiceType,
-        postContentDetector: PostContentDetectorServiceType
+        postContentDetector: PostContentDetectorServiceType,
+        blurNsfw: Bool = false,
+        isRevealed: Bool = false
     ) {
+        isNsfw = row.isNsfw
+        self.blurNsfw = blurNsfw
+        self.isRevealed = isRevealed
+
         let density = appearance.postList.postDensity
         self.density = density
         thumbnailPosition = appearance.postList.thumbnailPosition

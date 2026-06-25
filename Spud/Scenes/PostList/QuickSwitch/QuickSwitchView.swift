@@ -16,6 +16,8 @@ import SwiftUI
 struct QuickSwitchView: View {
     let viewModel: QuickSwitchViewModel
 
+    @State private var showingAgeGate = false
+
     private var postDensity: Binding<PostDensity> {
         .init { viewModel.postDensity } set: { viewModel.updatePostDensity($0) }
     }
@@ -29,7 +31,17 @@ struct QuickSwitchView: View {
     }
 
     private var showNsfw: Binding<Bool> {
-        .init { viewModel.showNsfw } set: { viewModel.updateShowNsfw($0) }
+        .init { viewModel.showNsfw } set: { newValue in
+            if newValue, !viewModel.hasAcknowledgedNsfwAge {
+                showingAgeGate = true
+            } else {
+                viewModel.updateShowNsfw(newValue)
+            }
+        }
+    }
+
+    private var blurNsfw: Binding<Bool> {
+        .init { viewModel.blurNsfw } set: { viewModel.updateBlurNsfw($0) }
     }
 
     var body: some View {
@@ -63,8 +75,16 @@ struct QuickSwitchView: View {
                     Toggle(isOn: showNsfw) {
                         Label("Show NSFW", systemImage: viewModel.showNsfw ? "eye" : "eye.slash")
                     }
+                    Toggle(isOn: blurNsfw) {
+                        Label("Blur NSFW", systemImage: "drop.fill")
+                    }
+                    .disabled(!viewModel.showNsfw)
                 } footer: {
-                    Text("Show posts marked not-safe-for-work.")
+                    Text(
+                        viewModel.showNsfw
+                            ? "Blur NSFW media until you tap to reveal."
+                            : "Show posts marked not-safe-for-work."
+                    )
                 }
 
                 Section {
@@ -82,6 +102,18 @@ struct QuickSwitchView: View {
             }
             .navigationTitle("Feed")
             .navigationBarTitleDisplayMode(.inline)
+            .alert(
+                NSLocalizedString("Show adult content?", comment: "Age gate alert title for enabling Show NSFW"),
+                isPresented: $showingAgeGate
+            ) {
+                Button(NSLocalizedString("Cancel", comment: "Age gate: dismiss without enabling NSFW"), role: .cancel) { }
+                Button(NSLocalizedString("Show NSFW", comment: "Age gate: confirm and enable NSFW")) {
+                    viewModel.acknowledgeNsfwAge()
+                    viewModel.updateShowNsfw(true)
+                }
+            } message: {
+                Text("By continuing you confirm you are of legal age to view adult material.")
+            }
         }
     }
 }

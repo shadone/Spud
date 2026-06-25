@@ -150,6 +150,31 @@ final class CommunityHeaderView: UIView {
         return button
     }()
 
+    /// Pill shown in the title area when the community is marked NSFW.
+    private lazy var nsfwBadge: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.text = NSLocalizedString("NSFW", comment: "NSFW badge on community header")
+        label.font = UIFont.systemFont(ofSize: 9, weight: .heavy)
+        label.textColor = .white
+        label.backgroundColor = .systemRed
+        label.textAlignment = .center
+        label.layer.cornerRadius = 4
+        label.layer.masksToBounds = true
+        label.isHidden = true
+        return label
+    }()
+
+    /// Blur overlay that obscures the banner image when Blur NSFW is on.
+    private lazy var bannerBlurView: UIVisualEffectView = {
+        let effect = UIBlurEffect(style: .systemThickMaterial)
+        let view = UIVisualEffectView(effect: effect)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.isUserInteractionEnabled = false
+        view.isHidden = true
+        return view
+    }()
+
     private lazy var separator: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -180,8 +205,12 @@ final class CommunityHeaderView: UIView {
         backgroundColor = Theme.background
 
         addSubview(bannerImageView)
+        // Blur overlay sits directly above the banner so it can be toggled
+        // without rearranging the view hierarchy later.
+        addSubview(bannerBlurView)
         addSubview(iconImageView)
         addSubview(titleLabel)
+        addSubview(nsfwBadge)
         addSubview(handleLabel)
 
         handleLabel.isUserInteractionEnabled = true
@@ -206,6 +235,11 @@ final class CommunityHeaderView: UIView {
             bannerImageView.trailingAnchor.constraint(equalTo: trailingAnchor),
             bannerImageView.heightAnchor.constraint(equalToConstant: bannerHeight),
 
+            bannerBlurView.topAnchor.constraint(equalTo: bannerImageView.topAnchor),
+            bannerBlurView.leadingAnchor.constraint(equalTo: bannerImageView.leadingAnchor),
+            bannerBlurView.trailingAnchor.constraint(equalTo: bannerImageView.trailingAnchor),
+            bannerBlurView.bottomAnchor.constraint(equalTo: bannerImageView.bottomAnchor),
+
             iconImageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
             iconImageView.centerYAnchor.constraint(equalTo: bannerImageView.bottomAnchor),
             iconImageView.widthAnchor.constraint(equalToConstant: iconSize),
@@ -216,7 +250,16 @@ final class CommunityHeaderView: UIView {
 
             titleLabel.topAnchor.constraint(equalTo: iconImageView.bottomAnchor, constant: 8),
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
-            titleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
+            titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -margin),
+
+            // NSFW badge: vertically centered on the title label, leading edge
+            // just after the title, with a min-width and a trailing cap so the
+            // pill never overflows into the trailing margin on narrow screens.
+            nsfwBadge.leadingAnchor.constraint(equalTo: titleLabel.trailingAnchor, constant: 6),
+            nsfwBadge.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            nsfwBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 36),
+            nsfwBadge.heightAnchor.constraint(equalToConstant: 16),
+            nsfwBadge.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -margin),
 
             handleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
             handleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
@@ -247,7 +290,9 @@ final class CommunityHeaderView: UIView {
         postsText: String,
         vitalityText: String?,
         descriptionMarkdown: String?,
-        subscribed: CommunitySubscribedState
+        subscribed: CommunitySubscribedState,
+        isNsfw: Bool,
+        blurBanner: Bool
     ) {
         titleLabel.text = title
         handleLabel.text = qualifiedName
@@ -264,6 +309,9 @@ final class CommunityHeaderView: UIView {
 
         vitalityLabel.text = vitalityText
         vitalityLabel.isHidden = vitalityText == nil
+
+        nsfwBadge.isHidden = !isNsfw
+        bannerBlurView.isHidden = !blurBanner
 
         configureDescription(markdown: descriptionMarkdown)
         configureSubscribeButton(subscribed: subscribed)

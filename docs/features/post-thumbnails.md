@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [feeds-and-sorting.md](feeds-and-sorting.md), [post-peek.md](post-peek.md), [swipe-actions.md](swipe-actions.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [feeds-and-sorting.md](feeds-and-sorting.md), [post-peek.md](post-peek.md), [swipe-actions.md](swipe-actions.md), [nsfw-content.md](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -72,6 +72,7 @@ Each post in the feed shows a small square thumbnail next to its title and subti
 
 ## Not supported / out of scope
 
+- **NSFW thumbnails.** When "Blur NSFW" is on and "Show NSFW" is on, thumbnails for NSFW posts are covered by a frosted-glass overlay until tapped. This is governed by the NSFW preference, not by thumbnail-display settings; see [NSFW content visibility and blur](nsfw-content.md).
 - The inline thumbnail never animates — a GIF shows a static frame plus the badge; animation happens only in the full-screen viewer.
 - Non-AVFoundation video containers (e.g. webm, mkv) are treated as external links, not video posts, and get no play indicator.
 - No badge other than "GIF" is shown on feed thumbnails; the badge component is generic but only the GIF case is wired up here.

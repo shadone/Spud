@@ -130,6 +130,7 @@ final class SearchViewController: UIViewController {
         viewModel = SearchViewModel(
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             alertService: dependencies.alertService,
+            preferencesService: dependencies.preferencesService,
             isKnownInstance: { host in appDatabase.explorerInstanceSync(baseurl: host) != nil }
         )
 

@@ -44,6 +44,18 @@ struct PostDetailHeaderViewModel {
     let isSaved: Bool
     let image: HeaderImage
 
+    /// True when the post or its community is marked NSFW.
+    let isNsfw: Bool
+    /// Mirrors `PreferencesService.blurNsfw` at configure time.
+    let blurNsfw: Bool
+    /// True once the user has tapped to reveal during this open-post session.
+    let isRevealed: Bool
+    /// Computed convenience: the image should be blurred when NSFW, the preference
+    /// is on, and the user has not yet revealed it this session.
+    var isImageBlurred: Bool {
+        isNsfw && blurNsfw && !isRevealed
+    }
+
     /// Spoken forms of the icon-and-value subtitle pieces, since the visible
     /// labels render SF Symbols that VoiceOver cannot pronounce.
     let subtitleScoreAccessibilityLabel: String
@@ -53,8 +65,14 @@ struct PostDetailHeaderViewModel {
     init(
         row: PostDetailHeaderRow,
         appearance: AppearanceServiceType,
-        postContentDetector: PostContentDetectorServiceType
+        postContentDetector: PostContentDetectorServiceType,
+        blurNsfw: Bool = false,
+        isRevealed: Bool = false
     ) {
+        isNsfw = row.isNsfw
+        self.blurNsfw = blurNsfw
+        self.isRevealed = isRevealed
+
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
         self.textSizeAdjustment = textSizeAdjustment
 

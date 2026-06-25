@@ -190,6 +190,7 @@ public extension AppDatabase {
         record.isFeaturedCommunity = post.featured_community
         record.isFeaturedLocal = post.featured_local
         record.isDeleted = post.deleted
+        record.isNsfw = post.nsfw
 
         switch view.my_vote {
         case 1: record.voteStatus = 1

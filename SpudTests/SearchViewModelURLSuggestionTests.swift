@@ -20,6 +20,7 @@ final class SearchViewModelURLSuggestionTests: XCTestCase {
         return SearchViewModel(
             accountScope: scope,
             alertService: AlertService(),
+            preferencesService: PreferencesService(),
             isKnownInstance: isKnownInstance
         )
     }

@@ -99,6 +99,15 @@ protocol PreferencesServiceType: AnyObject {
     var showNsfw: Bool { get set }
     var showNsfwStream: AsyncStream<Bool> { get }
 
+    /// Whether NSFW content (posts, images, comments) are visually blurred when shown.
+    /// Default `true` (blur on). Independent of ``showNsfw``.
+    var blurNsfw: Bool { get set }
+    var blurNsfwStream: AsyncStream<Bool> { get }
+
+    /// Whether the user has acknowledged the age gate for viewing adult content.
+    /// Set to `true` once on first confirmation; never reset to `false` in the app.
+    var hasAcknowledgedNsfwAge: Bool { get set }
+
     // MARK: Mark-read / hide (M8)
 
     /// Whether posts interacted with (opened, voted) are marked read. Default
@@ -274,6 +283,16 @@ class PreferencesService: PreferencesServiceType {
     var showNsfwStream: AsyncStream<Bool> {
         $showNsfw
     }
+
+    @UserDefaultsBacked(key: "blurNsfw")
+    var blurNsfw: Bool = true
+
+    var blurNsfwStream: AsyncStream<Bool> {
+        $blurNsfw
+    }
+
+    @UserDefaultsBacked(key: "hasAcknowledgedNsfwAge")
+    var hasAcknowledgedNsfwAge: Bool = false
 
     // MARK: Mark-read / hide (M8)
 

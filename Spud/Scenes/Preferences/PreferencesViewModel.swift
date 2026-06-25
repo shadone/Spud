@@ -116,6 +116,8 @@ final class PreferencesViewModel {
     var showVoteButtons: Bool
 
     var showNsfw: Bool
+    var blurNsfw: Bool
+    var hasAcknowledgedNsfwAge: Bool
 
     var markPostsRead: Bool
     var markPostsReadOnScroll: Bool
@@ -193,6 +195,8 @@ final class PreferencesViewModel {
         postTextScale = dependencies.preferencesService.postTextScale
         showVoteButtons = dependencies.preferencesService.showVoteButtons
         showNsfw = dependencies.preferencesService.showNsfw
+        blurNsfw = dependencies.preferencesService.blurNsfw
+        hasAcknowledgedNsfwAge = dependencies.preferencesService.hasAcknowledgedNsfwAge
         markPostsRead = dependencies.preferencesService.markPostsRead
         markPostsReadOnScroll = dependencies.preferencesService.markPostsReadOnScroll
         hideReadPosts = dependencies.preferencesService.hideReadPosts
@@ -306,6 +310,12 @@ final class PreferencesViewModel {
         })
 
         preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.blurNsfwStream {
+                self?.blurNsfw = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
             for await value in preferencesService.markPostsReadStream {
                 self?.markPostsRead = value
             }
@@ -375,6 +385,8 @@ final class PreferencesViewModel {
         postTextScale = 0
         showVoteButtons = true
         showNsfw = false
+        blurNsfw = true
+        hasAcknowledgedNsfwAge = false
         markPostsRead = true
         markPostsReadOnScroll = false
         hideReadPosts = false
@@ -542,6 +554,11 @@ final class PreferencesViewModel {
         Haptics.tap()
     }
 
+    func acknowledgeNsfwAge() {
+        hasAcknowledgedNsfwAge = true
+        preferencesService?.hasAcknowledgedNsfwAge = true
+    }
+
     func updateShowNsfw(_ value: Bool) {
         guard value != showNsfw else { return }
         showNsfw = value
@@ -550,6 +567,16 @@ final class PreferencesViewModel {
         // frontpage list mirrors the value to the server for signed-in
         // accounts. Discover reads the same preference.
         preferencesService?.showNsfw = value
+        Haptics.tap()
+    }
+
+    func updateBlurNsfw(_ value: Bool) {
+        guard value != blurNsfw else { return }
+        blurNsfw = value
+        // Local write is enough: post lists / post detail observe
+        // `blurNsfwStream` and re-apply blur in place, and the frontpage list
+        // mirrors the value to the server for signed-in accounts.
+        preferencesService?.blurNsfw = value
         Haptics.tap()
     }
 

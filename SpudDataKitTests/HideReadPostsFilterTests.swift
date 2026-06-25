@@ -38,6 +38,7 @@ final class HideReadPostsFilterTests: XCTestCase {
             isFeaturedCommunity: false,
             isFeaturedLocal: false,
             isDeleted: false,
+            isNsfw: false,
             published: Date(timeIntervalSince1970: 0)
         )
     }

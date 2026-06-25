@@ -46,6 +46,9 @@ class PostListPostCell: UITableViewCell {
     /// Invoked when the user taps one of the inline vote arrows.
     var voteTapped: ((VoteStatus.Action) -> Void)?
 
+    /// Invoked when the user taps the NSFW blur overlay to reveal the thumbnail.
+    var revealNsfwTapped: (() -> Void)?
+
     // MARK: UI Properties
 
     lazy var mainHorizontalStackView: UIStackView = {
@@ -300,6 +303,7 @@ class PostListPostCell: UITableViewCell {
         videoTapped = nil
         linkTapped = nil
         voteTapped = nil
+        revealNsfwTapped = nil
 
         domainLabel.attributedText = nil
         domainLabel.isHidden = true
@@ -517,6 +521,9 @@ class PostListPostCell: UITableViewCell {
                 setStaticThumbnail(.text)
             }
         }
+
+        thumbnailView.isBlurred = viewModel.isThumbnailBlurred
+        thumbnailView.onRevealBlur = { [weak self] in self?.revealNsfwTapped?() }
     }
 
     /// Exposes the thumbnail as a tappable link element (used by both the

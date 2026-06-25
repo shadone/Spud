@@ -24,7 +24,8 @@ class CommunityViewController: UIViewController {
         HasAlertService &
         HasAppDatabase &
         HasAppearanceService &
-        HasImageService
+        HasImageService &
+        HasPreferencesService
     /// Spelled out as a concrete protocol composition rather than
     /// `PostListViewController.Dependencies` to avoid a recursive typealias
     /// cycle (PostList -> PostDetail -> Community -> PostList). This is the same
@@ -71,6 +72,7 @@ class CommunityViewController: UIViewController {
     private var overflowBarButtonItem: UIBarButtonItem?
 
     private var observationTask: Task<Void, Never>?
+    private var blurNsfwTask: Task<Void, Never>?
     private var bannerImageTask: Task<Void, Never>?
     private var iconImageTask: Task<Void, Never>?
     private var loadedBannerUrl: URL?
@@ -113,6 +115,7 @@ class CommunityViewController: UIViewController {
 
     deinit {
         observationTask?.cancel()
+        blurNsfwTask?.cancel()
         bannerImageTask?.cancel()
         iconImageTask?.cancel()
     }
@@ -234,6 +237,7 @@ class CommunityViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         startObservation()
+        startBlurNsfwObservation()
         // Resolve whether this community is already blocked so the menu shows
         // the correct Block / Unblock label.
         refreshBlockState()
@@ -510,6 +514,26 @@ class CommunityViewController: UIViewController {
         }
     }
 
+    /// Re-applies the header whenever the "Blur NSFW" preference changes so the
+    /// banner blur and NSFW badge update live (mirrors how PostListViewController
+    /// observes the same stream to re-render post thumbnails). The stream replays
+    /// the current value on subscribe; skip the first emission to avoid a redundant
+    /// configure before the initial GRDB observation has landed.
+    private func startBlurNsfwObservation() {
+        blurNsfwTask?.cancel()
+        blurNsfwTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var first = true
+            for await _ in dependencies.nested.preferencesService.blurNsfwStream {
+                if Task.isCancelled { break }
+                if first { first = false
+                    continue
+                }
+                applyViewModel()
+            }
+        }
+    }
+
     private func applyViewModel() {
         guard viewModel.hasLoaded else { return }
 
@@ -522,7 +546,9 @@ class CommunityViewController: UIViewController {
             postsText: viewModel.postsText,
             vitalityText: viewModel.vitalityText,
             descriptionMarkdown: viewModel.descriptionMarkdown,
-            subscribed: viewModel.subscribed
+            subscribed: viewModel.subscribed,
+            isNsfw: viewModel.isNsfw,
+            blurBanner: viewModel.isNsfw && dependencies.nested.preferencesService.blurNsfw
         )
         // The header's height changes once real content (description, rules,
         // counts) is filled in; re-measure so the feed's table header tracks it.

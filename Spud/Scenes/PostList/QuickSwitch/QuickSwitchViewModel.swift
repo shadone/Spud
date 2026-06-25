@@ -28,6 +28,8 @@ final class QuickSwitchViewModel {
     var thumbnailPosition: ThumbnailPosition
     var showVoteButtons: Bool
     var showNsfw: Bool
+    var blurNsfw: Bool
+    var hasAcknowledgedNsfwAge: Bool
     var currentSort: Components.Schemas.SortType
 
     init(
@@ -42,6 +44,8 @@ final class QuickSwitchViewModel {
         thumbnailPosition = preferencesService.thumbnailPosition
         showVoteButtons = preferencesService.showVoteButtons
         showNsfw = preferencesService.showNsfw
+        blurNsfw = preferencesService.blurNsfw
+        hasAcknowledgedNsfwAge = preferencesService.hasAcknowledgedNsfwAge
     }
 
     func updatePostDensity(_ value: PostDensity) {
@@ -62,6 +66,11 @@ final class QuickSwitchViewModel {
         Haptics.tap()
     }
 
+    func acknowledgeNsfwAge() {
+        hasAcknowledgedNsfwAge = true
+        preferencesService.hasAcknowledgedNsfwAge = true
+    }
+
     /// Writes the NSFW preference straight through `PreferencesService`. The
     /// hosting `PostListViewController` observes `showNsfwStream`, so toggling
     /// here reloads the feed (and syncs to the server on the frontpage)
@@ -69,6 +78,15 @@ final class QuickSwitchViewModel {
     func updateShowNsfw(_ value: Bool) {
         showNsfw = value
         preferencesService.showNsfw = value
+        Haptics.tap()
+    }
+
+    /// Writes the blur preference through `PreferencesService`. The hosting
+    /// `PostListViewController` observes `blurNsfwStream`, so toggling here
+    /// re-applies blur in place (and syncs to the server on the frontpage).
+    func updateBlurNsfw(_ value: Bool) {
+        blurNsfw = value
+        preferencesService.blurNsfw = value
         Haptics.tap()
     }
 

@@ -40,6 +40,9 @@ final class CommunityViewModel {
     /// community isn't in the directory (so the strip stays hidden).
     var vitalityText: String?
 
+    /// True when the community has marked itself as NSFW.
+    var isNsfw: Bool = false
+
     /// Whether this community is currently blocked by the backing account.
     /// Sourced from `getSite` -> `my_user` (blocks aren't persisted on the
     /// community record); set by the view controller. Updated optimistically
@@ -94,6 +97,7 @@ final class CommunityViewModel {
         subscribersText = CommentsFormatter.string(from: record.numberOfSubscribers)
         postsText = CommentsFormatter.string(from: record.numberOfPosts)
         subscribed = record.subscribed
+        isNsfw = record.isNsfw
         loadVitalityIfNeeded()
     }
 

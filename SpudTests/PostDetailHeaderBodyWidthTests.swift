@@ -151,6 +151,7 @@ final class PostDetailHeaderBodyWidthTests: XCTestCase {
             isFeaturedCommunity: false,
             isFeaturedLocal: false,
             isDeleted: false,
+            isNsfw: false,
             published: Date(timeIntervalSinceNow: -5 * 3600)
         )
     }

@@ -19,7 +19,8 @@ private let logger = Logger.app
 final class CommunityPickerViewController: UITableViewController {
     typealias Dependencies =
         HasAccountService &
-        HasAlertService
+        HasAlertService &
+        HasPreferencesService
     private let dependencies: Dependencies
 
     private let accountKeychainId: String
@@ -110,13 +111,16 @@ final class CommunityPickerViewController: UITableViewController {
                     page: 1
                 )
                 if Task.isCancelled { return }
-                results = response.communities.map { view in
-                    NewPostCommunity(
-                        id: view.community.id,
-                        qualifiedName: Self.qualifiedName(for: view.community),
-                        title: view.community.title
-                    )
-                }
+                let showNsfw = dependencies.preferencesService.showNsfw
+                results = response.communities
+                    .filter { showNsfw || !$0.community.nsfw }
+                    .map { view in
+                        NewPostCommunity(
+                            id: view.community.id,
+                            qualifiedName: Self.qualifiedName(for: view.community),
+                            title: view.community.title
+                        )
+                    }
                 tableView.reloadData()
             } catch {
                 if Task.isCancelled { return }

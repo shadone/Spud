@@ -88,7 +88,8 @@ struct DiscoverView: View {
                         onTap: { viewModel.open(row) },
                         onCompare: { viewModel.compare(row) },
                         followState: viewModel.followState(for: row),
-                        onFollow: { viewModel.toggleFollow(row) }
+                        onFollow: { viewModel.toggleFollow(row) },
+                        blurNsfw: viewModel.blurNsfw
                     )
                     .communityContextMenu(for: row, viewModel: viewModel)
                     Divider().padding(.leading, 68)
@@ -159,7 +160,8 @@ struct DiscoverView: View {
                         accent: accent,
                         onTap: { viewModel.open(row) },
                         followState: viewModel.followState(for: row),
-                        onFollow: { viewModel.toggleFollow(row) }
+                        onFollow: { viewModel.toggleFollow(row) },
+                        blurNsfw: viewModel.blurNsfw
                     )
                     .communityContextMenu(for: row, viewModel: viewModel)
                     Divider().padding(.leading, 68)
@@ -265,7 +267,8 @@ struct DiscoverView: View {
                                 momentum: momentum,
                                 onTap: { viewModel.open(row) },
                                 followState: viewModel.followState(for: row),
-                                onFollow: { viewModel.toggleFollow(row) }
+                                onFollow: { viewModel.toggleFollow(row) },
+                                blurNsfw: viewModel.blurNsfw
                             )
                         }
                     }
@@ -342,10 +345,13 @@ struct DiscoverCommunityRow: View {
     /// bare community name — used by the instance drill-in, where every row shares the
     /// same host shown in the header. Defaults to the fully qualified `c/name@host`.
     var showsQualifiedHandle: Bool = true
+    /// When `true` and `row.isNsfw`, the community icon is obscured. Defaults to
+    /// `false` so call sites outside Discover (instance drill-in) are unaffected.
+    var blurNsfw: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
-            CommunityIcon(iconUrl: row.iconUrl, name: row.name, title: row.displayName, size: 40)
+            CommunityIcon(iconUrl: row.iconUrl, name: row.name, title: row.displayName, size: 40, isNsfwBlurred: row.isNsfw && blurNsfw)
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 6) {
                     Text(row.displayName)
@@ -353,7 +359,7 @@ struct DiscoverCommunityRow: View {
                         .foregroundStyle(Color(.label))
                         .lineLimit(1)
                     if row.isNsfw {
-                        nsfwBadge
+                        NsfwBadge()
                     }
                 }
                 Text(handle)
@@ -395,15 +401,6 @@ struct DiscoverCommunityRow: View {
     private var handle: String {
         let lead = showsQualifiedHandle ? "c/\(row.name)@\(row.instanceHost)" : row.name
         return "\(lead) · \(Self.compact(row.numberOfSubscribers)) · \(Self.compact(row.usersActiveWeek))/wk"
-    }
-
-    private var nsfwBadge: some View {
-        Text("NSFW")
-            .font(.system(size: 9, weight: .heavy))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(Color(.systemRed), in: RoundedRectangle(cornerRadius: 4))
     }
 
     private var accessibilityLabel: String {
@@ -466,11 +463,13 @@ struct DiscoverTrendCard: View {
     var followState: CommunityFollowState = .idle
     /// When set, a Follow control is shown at the foot of the card.
     var onFollow: (() -> Void)?
+    /// When `true` and `row.isNsfw`, the community icon is obscured.
+    var blurNsfw: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                CommunityIcon(iconUrl: row.iconUrl, name: row.name, title: row.displayName, size: 42)
+                CommunityIcon(iconUrl: row.iconUrl, name: row.name, title: row.displayName, size: 42, isNsfwBlurred: row.isNsfw && blurNsfw)
                 Spacer(minLength: 0)
                 if momentum {
                     HStack(spacing: 3) {

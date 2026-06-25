@@ -47,6 +47,14 @@ class PostListThumbnailImageView: UIView {
         set { playIconView.isHidden = !newValue }
     }
 
+    /// Called when the user taps the blur overlay to reveal the thumbnail.
+    var onRevealBlur: (() -> Void)?
+
+    /// Whether to cover the thumbnail with the NSFW blur overlay.
+    var isBlurred: Bool = false {
+        didSet { blurOverlay.setRevealed(!isBlurred) }
+    }
+
     var thumbnailType: ThumbnailType = .none {
         didSet {
             imageView.image = nil
@@ -153,6 +161,15 @@ class PostListThumbnailImageView: UIView {
         return imageView
     }()
 
+    /// Tap-to-reveal NSFW overlay, hidden unless `isBlurred` is set.
+    private lazy var blurOverlay: NsfwBlurOverlayView = {
+        let overlay = NsfwBlurOverlayView()
+        overlay.showsCaption = false // 64pt square: glyph only
+        overlay.isHidden = true
+        overlay.onReveal = { [weak self] in self?.onRevealBlur?() }
+        return overlay
+    }()
+
     // MARK: Functions
 
     init() {
@@ -164,6 +181,7 @@ class PostListThumbnailImageView: UIView {
         addSubview(stackView)
         addSubview(mediaBadgeView)
         addSubview(playIconView)
+        addSubview(blurOverlay)
 
         textPlaceholderView.addSubview(textPlaceholderImageView)
         brokenView.addSubview(brokenImageView)
@@ -191,6 +209,11 @@ class PostListThumbnailImageView: UIView {
 
             brokenImageView.centerXAnchor.constraint(equalTo: brokenView.centerXAnchor),
             brokenImageView.centerYAnchor.constraint(equalTo: brokenView.centerYAnchor),
+
+            blurOverlay.leadingAnchor.constraint(equalTo: leadingAnchor),
+            blurOverlay.trailingAnchor.constraint(equalTo: trailingAnchor),
+            blurOverlay.topAnchor.constraint(equalTo: topAnchor),
+            blurOverlay.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
     }
 
@@ -204,5 +227,7 @@ class PostListThumbnailImageView: UIView {
         badgeText = nil
         badgeSymbolName = nil
         showsPlayIcon = false
+        isBlurred = false
+        onRevealBlur = nil
     }
 }

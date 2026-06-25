@@ -18,6 +18,7 @@ struct SearchPostResult: Hashable, Identifiable {
     let numberOfComments: Int64
     let published: Date
     let thumbnailUrl: URL?
+    let isNsfw: Bool
 
     var id: Components.Schemas.PostID {
         serverPostId
@@ -30,7 +31,8 @@ struct SearchPostResult: Hashable, Identifiable {
         score: Int64,
         numberOfComments: Int64,
         published: Date,
-        thumbnailUrl: URL?
+        thumbnailUrl: URL?,
+        isNsfw: Bool
     ) {
         self.serverPostId = serverPostId
         self.title = title
@@ -39,6 +41,7 @@ struct SearchPostResult: Hashable, Identifiable {
         self.numberOfComments = numberOfComments
         self.published = published
         self.thumbnailUrl = thumbnailUrl
+        self.isNsfw = isNsfw
     }
 
     init(view: Components.Schemas.PostView) {
@@ -49,6 +52,7 @@ struct SearchPostResult: Hashable, Identifiable {
         numberOfComments = view.counts.comments
         published = view.post.published
         thumbnailUrl = view.post.thumbnail_url.flatMap { URL(string: $0) }
+        isNsfw = view.post.nsfw
     }
 }
 
@@ -63,6 +67,7 @@ struct SearchCommunityResult: Hashable, Identifiable {
     let subscribersText: String
     let iconUrl: URL?
     let subscribed: Components.Schemas.SubscribedType
+    let isNsfw: Bool
 
     var id: Components.Schemas.CommunityID {
         serverCommunityId
@@ -79,7 +84,8 @@ struct SearchCommunityResult: Hashable, Identifiable {
         instance: InstanceActorId,
         subscribersText: String,
         iconUrl: URL?,
-        subscribed: Components.Schemas.SubscribedType
+        subscribed: Components.Schemas.SubscribedType,
+        isNsfw: Bool
     ) {
         self.serverCommunityId = serverCommunityId
         self.name = name
@@ -88,6 +94,7 @@ struct SearchCommunityResult: Hashable, Identifiable {
         self.subscribersText = subscribersText
         self.iconUrl = iconUrl
         self.subscribed = subscribed
+        self.isNsfw = isNsfw
     }
 
     init?(view: Components.Schemas.CommunityView) {
@@ -105,6 +112,7 @@ struct SearchCommunityResult: Hashable, Identifiable {
         subscribersText = "\(view.counts.subscribers)"
         iconUrl = community.icon.flatMap { URL(string: $0) }
         subscribed = view.subscribed
+        isNsfw = community.nsfw
     }
 }
 
@@ -211,6 +219,17 @@ struct SearchResults {
         communities = response.communities.compactMap(SearchCommunityResult.init)
         users = response.users.compactMap(SearchUserResult.init)
         comments = response.comments.map(SearchCommentResult.init)
+    }
+
+    /// Returns a copy with NSFW communities and posts removed. Keeps NSFW
+    /// content out of search when the user has not opted in (`show_nsfw` off).
+    /// Lemmy's search API has no server NSFW filter, so this is client-side.
+    func filteringNsfw(_ removeNsfw: Bool) -> SearchResults {
+        guard removeNsfw else { return self }
+        var copy = self
+        copy.posts = posts.filter { !$0.isNsfw }
+        copy.communities = communities.filter { !$0.isNsfw }
+        return copy
     }
 
     func isEmpty(for scope: SearchScope) -> Bool {

@@ -25,7 +25,8 @@ final class NewPostViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
         HasAlertService &
-        HasImageService
+        HasImageService &
+        HasPreferencesService
     typealias Dependencies = OwnDependencies
     private let dependencies: OwnDependencies
 

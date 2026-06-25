@@ -77,6 +77,10 @@ class PostDetailViewController: UIViewController {
         outboundObservationTask?.cancel()
         loadingObservationTask?.cancel()
 
+        // Drop the previous post's reveal state so the blur is always shown for
+        // the newly-loaded post until the user explicitly taps to reveal.
+        headerNsfwRevealed = false
+
         // Drop the previous post's pending overlay so a stale outbound comment
         // can't splice into the new post's tree before the new outbound
         // observation's first emit (iPad detail-column reuse path).
@@ -179,6 +183,10 @@ class PostDetailViewController: UIViewController {
     private var configBarButtonItem: UIBarButtonItem!
     private let forcePopoverDelegate = ForcePopoverDelegate()
     private var commentDensityObservationTask: Task<Void, Never>?
+    private var blurNsfwObservationTask: Task<Void, Never>?
+    /// True once the user has tapped to reveal the NSFW blur for the currently-open
+    /// post. Reset to false whenever a different post loads.
+    private var headerNsfwRevealed = false
     /// True once the comment GRDB observation has emitted at least once; gates
     /// the single `didPrepareObservation` call.
     private var hasReceivedFirstCommentSnapshot = false
@@ -232,6 +240,7 @@ class PostDetailViewController: UIViewController {
         outboundObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
         commentDensityObservationTask?.cancel()
+        blurNsfwObservationTask?.cancel()
         loadingObservationTask?.cancel()
     }
 
@@ -288,6 +297,7 @@ class PostDetailViewController: UIViewController {
         super.viewDidLoad()
         startSwipeActionsObservation()
         startCommentDensityObservation()
+        startBlurNsfwObservation()
         startObservations()
     }
 
@@ -372,6 +382,25 @@ class PostDetailViewController: UIViewController {
                 guard density != current else { continue }
                 current = density
                 reconfigureVisibleComments()
+            }
+        }
+    }
+
+    /// Observes the blur-NSFW preference and reconfigures the header cell when it
+    /// changes. Independent of the backing post, so it is started once in `viewDidLoad`.
+    private func startBlurNsfwObservation() {
+        blurNsfwObservationTask?.cancel()
+        blurNsfwObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var current = preferencesService.blurNsfw
+            for await blurNsfw in preferencesService.blurNsfwStream {
+                if Task.isCancelled { break }
+                guard blurNsfw != current else { continue }
+                current = blurNsfw
+                guard dataSource != nil else { continue }
+                var snapshot = dataSource.snapshot()
+                snapshot.reconfigureItems([.header])
+                await dataSource.apply(snapshot, animatingDifferences: false)
             }
         }
     }
@@ -2086,13 +2115,22 @@ extension PostDetailViewController {
                 cell.appService = appService
 
                 cell.isBeingConfigured = true
-                if let row = self?.headerRow {
+                if let row = self?.headerRow, let self {
                     let viewModel = PostDetailHeaderViewModel(
                         row: row,
                         appearance: appearance,
-                        postContentDetector: postContentDetector
+                        postContentDetector: postContentDetector,
+                        blurNsfw: preferencesService.blurNsfw,
+                        isRevealed: headerNsfwRevealed
                     )
                     cell.configure(with: viewModel, imageService: imageService)
+                }
+                cell.onRevealBlur = { [weak self] in
+                    guard let self else { return }
+                    headerNsfwRevealed = true
+                    var snapshot = dataSource.snapshot()
+                    snapshot.reconfigureItems([.header])
+                    dataSource.apply(snapshot, animatingDifferences: false)
                 }
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
                 cell.linkLongPressed = { [weak self] url in self?.linkLongPressed(url) }

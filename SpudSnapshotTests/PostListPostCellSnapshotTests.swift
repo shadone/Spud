@@ -272,7 +272,8 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         isLocked: Bool = false,
         isFeaturedCommunity: Bool = false,
         isFeaturedLocal: Bool = false,
-        isDeleted: Bool = false
+        isDeleted: Bool = false,
+        isNsfw: Bool = false
     ) -> PostListRow {
         PostListRow(
             id: 1,
@@ -301,6 +302,7 @@ final class PostListPostCellSnapshotTests: XCTestCase {
             isFeaturedCommunity: isFeaturedCommunity,
             isFeaturedLocal: isFeaturedLocal,
             isDeleted: isDeleted,
+            isNsfw: isNsfw,
             published: Date(timeIntervalSinceNow: -5 * 3600)
         )
     }
