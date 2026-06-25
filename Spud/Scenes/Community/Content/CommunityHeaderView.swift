@@ -36,9 +36,11 @@ final class CommunityHeaderView: UIView {
     /// view controller before `configure(...)`.
     var imageService: ImageServiceType?
 
-    /// Fired when an inline description image finishes loading and the header's
-    /// height changes, so the host can re-measure its scrolling table header.
-    var onBodyImageLoaded: (() -> Void)?
+    /// Fired whenever the description's rendered height changes — when the async
+    /// markdown parse lands its blocks, when a spoiler toggles, or when an inline
+    /// description image finishes loading — so the host can re-measure its
+    /// scrolling table header (which does not self-size).
+    var onDescriptionHeightChanged: (() -> Void)?
 
     /// Bumped on each `configureDescription` so a slower off-main parse from an
     /// earlier call can't land its blocks after a newer one.
@@ -133,7 +135,7 @@ final class CommunityHeaderView: UIView {
         view.accessibilityIdentifier = "description"
         view.delegate = self
         view.onContentSizeChange = { [weak self] in
-            self?.onBodyImageLoaded?()
+            self?.onDescriptionHeightChanged?()
         }
         return view
     }()
@@ -292,6 +294,14 @@ final class CommunityHeaderView: UIView {
             await MarkdownBlockCache.shared.prewarm(markdown)
             guard let self, token == descriptionToken else { return }
             descriptionView.setBlocks(MarkdownBlockCache.shared.blocks(for: markdown))
+            // `setBlocks` only swaps the stacked block views; it does not fire
+            // `onContentSizeChange`. Force a layout pass so the new content height
+            // is valid, then ask the host to re-measure the scrolling table header
+            // (a `tableHeaderView` does not self-size). Without this the header
+            // keeps the too-short height it was measured at before the off-main
+            // parse landed, squishing/clipping the description.
+            layoutIfNeeded()
+            onDescriptionHeightChanged?()
         }
     }
 

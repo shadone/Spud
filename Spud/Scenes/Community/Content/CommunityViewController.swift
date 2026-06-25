@@ -168,9 +168,10 @@ class CommunityViewController: UIViewController {
             self?.openInstanceDetail()
         }
         // The header is the feed table's scrolling header, which doesn't re-measure
-        // itself; when an inline description image loads and grows the header, ask
-        // the feed to re-lay-out the header so the change is reflected.
-        headerView.onBodyImageLoaded = { [weak self] in
+        // itself; whenever the description's height changes (async markdown parse
+        // landing, spoiler toggle, or an inline image loading) ask the feed to
+        // re-lay-out the header so the change is reflected.
+        headerView.onDescriptionHeightChanged = { [weak self] in
             self?.feedViewController?.layoutScrollingHeaderIfNeeded()
         }
 
