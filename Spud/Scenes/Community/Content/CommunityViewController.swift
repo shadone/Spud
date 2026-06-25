@@ -139,7 +139,6 @@ class CommunityViewController: UIViewController {
             "More",
             comment: "Community overflow menu accessibility label"
         )
-        navigationItem.rightBarButtonItems = [overflowButton, newPostButton]
 
         headerView.imageService = imageService
         headerView.subscribeTapped = { [weak self] in
@@ -196,6 +195,19 @@ class CommunityViewController: UIViewController {
         // the top. Headers can be tall (description, rules), so pinning would eat
         // too much fixed space.
         feedViewController.setScrollingHeaderView(headerView)
+
+        // Surface the embedded feed's existing sort-order pull-down in this
+        // controller's navbar. A child VC's own `navigationItem` is ignored, so
+        // the host has to place the child's button. The feed builds it in its
+        // `init` (via `setup()`), so it's non-nil by the time `add(child:)`
+        // above has run. Order (first element = right-most): overflow, then sort,
+        // then compose.
+        let sortButton = feedViewController.feedSortMenuBarButtonItem
+        sortButton.accessibilityLabel = NSLocalizedString(
+            "Sort posts",
+            comment: "Community feed sort menu accessibility label"
+        )
+        navigationItem.rightBarButtonItems = [overflowButton, sortButton, newPostButton]
     }
 
     override func viewDidLoad() {

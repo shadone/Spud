@@ -173,6 +173,15 @@ class PostListViewController: UIViewController {
     var sortTypeBarButtonItem: UIBarButtonItem!
     var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
 
+    /// The sort-order pull-down menu bar button. Exposed so a host that owns the
+    /// navigation bar (e.g. CommunityViewController, which embeds this controller)
+    /// can surface the feed's sort control in its own navbar. Non-nil once the
+    /// controller is initialized: `setupSortTypeMenu()` runs in `setup()` from
+    /// `init`, before the view loads.
+    var feedSortMenuBarButtonItem: UIBarButtonItem {
+        sortTypeBarButtonItem
+    }
+
     var quickSwitchBarButtonItem: UIBarButtonItem!
 
     /// Keeps the Quick Switch popover a popover (not a sheet) on iPhone. The
