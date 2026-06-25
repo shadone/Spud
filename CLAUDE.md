@@ -57,7 +57,20 @@ container so the widget and extensions read the same database.
 
 Schema migrations are GRDB `DatabaseMigrator` registrations in
 `AppDatabase+Migrations.swift`. Add a new migration as the next case;
-don't edit existing ones.
+don't edit existing ones. Latest shipped is `v18_outboundContent` (next is v19).
+
+**Two durable outbox-style queues — don't confuse them.**
+`OutboxService` / `pendingOperation` (v17): idempotent **state mutations**
+(vote/save/hide), ROLLS BACK to baseline on permanent failure.
+`ComposerOutboxService` / `outboundContent` (v18): **content creation** (durable
+comment/post drafts + optimistic sends), PARKS a permanent failure as `failed`
+(keeps the content, no rollback). Separate per-account actor + table; reuses the
+outbox's `OutboxFailureClass` / `ReachabilityMonitoring` / backoff. Gotchas: don't
+route create through `OutboxService` (non-idempotent → duplicates), and the
+composer's `submit`/`retry` enqueue then drain in a detached `Task` (never `await`
+the network send) so the optimistic UI stays instant. Composing behavior lives in
+[docs/features/](docs/features/) (`replying`, `new-post`, `draft-persistence`,
+`drafts-and-outbox`).
 
 Records live in `SpudDataKit/Services/AppDatabase/Records/` (one file per
 GRDB record type: `AccountRecord`, `SiteRecord`, `PostRecord`, etc).
@@ -178,6 +191,7 @@ First internal build shipped 2026-06-23 — App Store Connect app "Spud for Lemm
 - `build_and_test.py --test --suite SpudDataKit` intermittently misfires with "Tests in the target 'SpudDataKit' can't be run because 'SpudDataKit' isn't a member of the specified test plan or scheme" (reports 0/0). Fall back to `xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan Spud -only-testing:SpudDataKitTests -destination 'platform=iOS Simulator,name=iPhone 17' -skipPackagePluginValidation -skipMacroValidation test`.
 - Snapshot a view controller by passing a fake struct conforming to its `Dependencies` composition (e.g. `StaticImageService()` + `AlertService()` + `AccountService(appDatabase: try AppDatabase.inMemory())`); fixtures with nil image URLs render placeholders deterministically (no async image loading).
 - Snapshotting a scrollable screen with `.image(on: .iPhone13Pro)` captures only the device viewport — pass a `size:` (full content height) so below-the-fold sections are in frame.
+- Snapshotting a screen VC that renders via an **async GRDB observation**: a synchronous `RunLoop.main.run(until:)` busy-spin starves the `@MainActor` observation continuation and records BLANK refs. Seed the DB first, then poll asynchronously (`await Task.sleep` / `Task.yield`) until the real view hierarchy shows the seeded content, and `XCTFail` if it never renders (so a broken render fails loudly instead of recording a blank). Example: `PendingPostSnapshotTests`.
 - In an `async` test, `appDatabase.writer.write { }` resolves to GRDB's async overload — it needs `await` (synchronous tests don't).
 - Large binaries: **git-lfs** tracks `SpudDataKit/Resources/*.lzfse` (bundled Explorer seed); **git-annex** (unlocked, scoped via `.gitattributes` to all of `SpudSnapshotTests/__Snapshots__/**`) tracks every snapshot reference. Annex content is **local-only** (origin has no git-annex) — a fresh clone needs `git annex get`; sharing needs an annex special remote.
 - Re-recording snapshot refs (git-annex): record/verify **one snapshot class at a time** and never `git annex restage` between the record and verify runs — restage reverts the just-written PNGs (verify then reports "No reference"); after a green verify, `git add` (the annex clean filter stores them). The "content availability has changed … unable to update the index" status is cosmetic (`git add`/`commit` work) but makes refs read as persistently "modified", which blocks `git merge`/`git checkout` ("local changes would be overwritten") — commit the new refs first so the tree is clean. Count written PNGs with `find`, not `ls …/*.png` (zsh aborts on no-match).
