@@ -52,7 +52,7 @@ final class NsfwBlurOverlayView: UIView {
         stack.axis = .vertical
         stack.alignment = .center
         stack.spacing = 2
-        blurView.contentView.addSubview(stack)
+        addSubview(stack)
 
         NSLayoutConstraint.activate([
             blurView.leadingAnchor.constraint(equalTo: leadingAnchor),
