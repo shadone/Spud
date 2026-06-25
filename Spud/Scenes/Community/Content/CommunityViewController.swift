@@ -24,7 +24,8 @@ class CommunityViewController: UIViewController {
         HasAlertService &
         HasAppDatabase &
         HasAppearanceService &
-        HasImageService
+        HasImageService &
+        HasPreferencesService
     /// Spelled out as a concrete protocol composition rather than
     /// `PostListViewController.Dependencies` to avoid a recursive typealias
     /// cycle (PostList -> PostDetail -> Community -> PostList). This is the same

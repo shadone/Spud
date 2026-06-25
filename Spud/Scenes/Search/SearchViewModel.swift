@@ -47,6 +47,8 @@ final class SearchViewModel {
     @ObservationIgnored
     private let alertService: AlertServiceType
     @ObservationIgnored
+    private let preferencesService: PreferencesServiceType
+    @ObservationIgnored
     private let isKnownInstance: (String) -> Bool
 
     /// The in-flight (or pending-debounce) search. Cancelled and replaced on
@@ -59,10 +61,12 @@ final class SearchViewModel {
     init(
         accountScope: AccountScope,
         alertService: AlertServiceType,
+        preferencesService: PreferencesServiceType,
         isKnownInstance: @escaping (String) -> Bool
     ) {
         self.accountScope = accountScope
         self.alertService = alertService
+        self.preferencesService = preferencesService
         self.isKnownInstance = isKnownInstance
     }
 
@@ -152,7 +156,7 @@ final class SearchViewModel {
             )
             if Task.isCancelled { return }
 
-            results = SearchResults(response: response)
+            results = SearchResults(response: response).filteringNsfw(!preferencesService.showNsfw)
             lastSearchedQuery = query
             phase = .loaded
         } catch {
