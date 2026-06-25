@@ -522,7 +522,9 @@ class CommunityViewController: UIViewController {
             postsText: viewModel.postsText,
             vitalityText: viewModel.vitalityText,
             descriptionMarkdown: viewModel.descriptionMarkdown,
-            subscribed: viewModel.subscribed
+            subscribed: viewModel.subscribed,
+            isNsfw: viewModel.isNsfw,
+            blurBanner: viewModel.isNsfw && dependencies.nested.preferencesService.blurNsfw
         )
         // The header's height changes once real content (description, rules,
         // counts) is filled in; re-measure so the feed's table header tracks it.
