@@ -60,4 +60,42 @@ final class PersonQueriesTests: XCTestCase {
         XCTAssertEqual(appDatabase.personActorIdSync(forPersonRowId: rowIdA), "https://a.test/u/x")
         XCTAssertEqual(appDatabase.personActorIdSync(forPersonRowId: rowIdB), "https://b.test/u/x")
     }
+
+    /// Regression: a remote user's profile must show THEIR OWN instance host,
+    /// not the account's home instance. Persons are stored under the account's
+    /// site, so the `person -> site -> instance` join yields the account's home
+    /// instance (here discuss.tchncs.de). The displayed host must instead come
+    /// from the person's own `actorId` (lemmy.world), or ddenis@lemmy.world
+    /// wrongly renders as ddenis@discuss.tchncs.de.
+    func test_observePersonProfile_usesPersonsOwnInstanceHost_notAccountInstance() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let personRowId: Int64 = try await appDatabase.writer.write { db in
+            // The account's home instance — the site the person is stored under.
+            try db.execute(sql: "INSERT INTO instance (actorId, createdAt) VALUES ('https://discuss.tchncs.de', ?)", arguments: [Date()])
+            let instanceId = db.lastInsertedRowID
+            try db.execute(sql: "INSERT INTO site (instanceId, createdAt, updatedAt) VALUES (?, ?, ?)", arguments: [instanceId, Date(), Date()])
+            let siteId = db.lastInsertedRowID
+            // A remote person whose own actorId lives on a DIFFERENT instance.
+            try db.execute(sql: """
+                INSERT INTO person (siteId, personId, name, actorId, isAdmin, isBanned, isBotAccount, isDeleted, isLocal, numberOfPosts, numberOfComments, createdAt, updatedAt)
+                VALUES (?, 7, 'ddenis', 'https://lemmy.world/u/ddenis', 0, 0, 0, 0, 0, 0, 0, ?, ?)
+                """, arguments: [siteId, Date(), Date()])
+            return db.lastInsertedRowID
+        }
+
+        var profile: PersonProfileRow?
+        for await value in appDatabase.observePersonProfile(personRowId: personRowId) {
+            if let value {
+                profile = value
+                break
+            }
+        }
+        let row = try XCTUnwrap(profile)
+        XCTAssertEqual(
+            row.instanceHostname,
+            "lemmy.world",
+            "Person host should be their own instance, not the account's discuss.tchncs.de"
+        )
+        XCTAssertEqual(row.actorId, "https://lemmy.world/u/ddenis")
+    }
 }

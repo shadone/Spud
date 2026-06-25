@@ -80,8 +80,17 @@ public extension AppDatabase {
                     return nil
                 }
 
-                let actorId: String = row["instanceActorId"]
-                let host = URL(string: actorId)?.host ?? actorId
+                // Derive the displayed host from the person's OWN actor_id
+                // (e.g. lemmy.world for a remote user), NOT the joined
+                // `instance.actorId`: persons are stored under the account's
+                // site, so that join yields the account's home instance, which
+                // would wrongly render every remote user as @<home-instance>.
+                // Fall back to the account instance only when the person has no
+                // actor_id yet.
+                let personActorId: String? = row["personActorId"]
+                let instanceActorId: String = row["instanceActorId"]
+                let hostSource = personActorId ?? instanceActorId
+                let host = URL(string: hostSource)?.host ?? hostSource
                 return PersonProfileRow(
                     id: row["id"],
                     name: row["name"] ?? "",
