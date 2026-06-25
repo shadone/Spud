@@ -1088,38 +1088,11 @@ class PostDetailViewController: UIViewController {
         presentShareSheet(for: url)
     }
 
+    /// Routes a tapped body-text link. Thin wrapper over the shared
+    /// ``InternalLinkRouting`` dispatch so every existing caller (long-press
+    /// sheets, context menus, comment cells) keeps working unchanged.
     private func linkTapped(_ url: URL) {
-        switch url.spud {
-        case let .person(personId, instance):
-            pushPerson(personId: personId, instance: instance)
-
-        case let .community(name, instance):
-            pushCommunity(name: name, instance: instance)
-
-        case let .post(postId, instance):
-            openPost(postId: postId, instance: instance)
-
-        case let .objectAtURL(canonicalURL):
-            // Don't retain the VC across the resolve round-trip; if it's popped
-            // mid-flight we skip the navigation rather than push onto a stack
-            // that's gone (matches the weak-self Task pattern used elsewhere here).
-            Task { @MainActor [weak self] in await self?.resolveAndOpen(canonicalURL) }
-
-        case let .instance(instance):
-            openInstance(instance)
-
-        case .none:
-            // Not an internal link. Classify it as a Lemmy URL (known-instance
-            // gated); fall back to the existing external-link handling.
-            let isKnown: (String) -> Bool = { [appDatabase] host in
-                appDatabase.explorerInstanceSync(baseurl: host) != nil
-            }
-            if let internalLink = LemmyURLParser.classify(url: url, isKnownInstance: isKnown) {
-                linkTapped(internalLink.url)
-                return
-            }
-            openExternal(url)
-        }
+        routeInternalLink(url)
     }
 
     private func pushPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId) {
@@ -1150,30 +1123,6 @@ class PostDetailViewController: UIViewController {
             return
         }
         window.display(serverPostId: postId, accountKeychainId: viewModel.accountKeychainId)
-    }
-
-    /// Resolves a federated object under the current account, then routes by
-    /// type. Comments and unresolved links fall back to the browser.
-    private func resolveAndOpen(_ canonicalURL: URL) async {
-        let lemmyService = viewModel.accountScope.lemmyService
-        let resolved: ResolvedLemmyObject
-        do {
-            resolved = try await lemmyService.resolveObject(query: canonicalURL.absoluteString)
-        } catch {
-            logger.error("resolve_object failed for \(canonicalURL.absoluteString, privacy: .public): \(String(describing: error), privacy: .public)")
-            openExternal(canonicalURL)
-            return
-        }
-        switch resolved {
-        case let .post(postId, instance):
-            openPost(postId: postId, instance: instance)
-        case let .community(name, instance):
-            pushCommunity(name: name, instance: instance)
-        case let .person(personId, instance):
-            pushPerson(personId: personId, instance: instance)
-        case .comment, .unresolved:
-            openExternal(canonicalURL)
-        }
     }
 
     /// Opens the Explorer instance detail for a known instance; falls back to
@@ -2473,5 +2422,39 @@ extension PostDetailViewController: UITableViewDelegate {
                 return UIMenu(title: "", children: children)
             }
         )
+    }
+}
+
+// MARK: - InternalLinkRouting
+
+extension PostDetailViewController: InternalLinkRouting {
+    var linkRouterAppDatabase: AppDatabase {
+        appDatabase
+    }
+
+    var linkRouterLemmyService: LemmyServiceType {
+        viewModel.accountScope.lemmyService
+    }
+
+    func routeToPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId) {
+        pushPerson(personId: personId, instance: instance)
+    }
+
+    func routeToCommunity(name: String, instance: InstanceActorId) {
+        pushCommunity(name: name, instance: instance)
+    }
+
+    func routeToPost(postId: Components.Schemas.PostID, instance: InstanceActorId) {
+        openPost(postId: postId, instance: instance)
+    }
+
+    func routeToInstance(_ instance: InstanceActorId) {
+        openInstance(instance)
+    }
+
+    /// Keeps PostDetail's richer external handling (media-type detection via
+    /// `postContentDetector`) as the routed external behavior.
+    func routeToExternal(_ url: URL) {
+        openExternal(url)
     }
 }

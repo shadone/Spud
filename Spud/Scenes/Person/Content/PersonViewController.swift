@@ -6,10 +6,13 @@
 
 import Foundation
 import LemmyKit
+import OSLog
 import SpudDataKit
 import SpudUIKit
 import SpudUtilKit
 import UIKit
+
+private let logger = Logger.app
 
 /// The person profile content: an Apollo-style header pinned above a segmented
 /// Posts / Comments list of the user's own content. Posts render as feed-style
@@ -156,7 +159,7 @@ class PersonViewController: UIViewController {
         headerView.translatesAutoresizingMaskIntoConstraints = false
         headerView.imageService = imageService
         headerView.onBodyLinkTapped = { [weak self] url in
-            self?.linkTapped(MarkdownInternalLink.resolve(url) ?? url)
+            self?.routeInternalLink(MarkdownInternalLink.resolve(url) ?? url)
         }
         headerView.onBodyImageTapped = { [weak self] url, altText, _ in
             guard let self else { return }
@@ -550,30 +553,62 @@ class PersonViewController: UIViewController {
     private func refreshTriggered() {
         viewModel.loadContent()
     }
+}
 
-    private func linkTapped(_ url: URL) {
-        switch url.spud {
-        case let .person(personId, instance):
-            let vc = PersonOrLoadingViewController(
-                personId: personId,
-                instance: instance,
-                accountKeychainId: accountKeychainId,
-                dependencies: dependencies.nested
-            )
-            navigationController?.pushViewController(vc, animated: true)
+// MARK: - InternalLinkRouting
 
-        case let .community(name, instance):
-            let vc = CommunityOrLoadingViewController(
-                communityName: name,
-                instance: instance,
-                accountKeychainId: accountKeychainId,
-                dependencies: dependencies.nested
-            )
-            navigationController?.pushViewController(vc, animated: true)
+extension PersonViewController: InternalLinkRouting {
+    var linkRouterAppDatabase: AppDatabase {
+        appDatabase
+    }
 
-        case .post, .objectAtURL, .instance, .none:
-            UIApplication.shared.open(url)
+    var linkRouterLemmyService: LemmyServiceType {
+        viewModel.accountScope.lemmyService
+    }
+
+    func routeToPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId) {
+        let vc = PersonOrLoadingViewController(
+            personId: personId,
+            instance: instance,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    func routeToCommunity(name: String, instance: InstanceActorId) {
+        let vc = CommunityOrLoadingViewController(
+            communityName: name,
+            instance: instance,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    func routeToPost(postId: Components.Schemas.PostID, instance _: InstanceActorId) {
+        guard let window = view.window as? MainWindow else {
+            logger.error("No MainWindow available to display post")
+            return
         }
+        window.display(serverPostId: postId, accountKeychainId: accountKeychainId)
+    }
+
+    func routeToInstance(_ instance: InstanceActorId) {
+        guard let record = appDatabase.explorerInstanceSync(baseurl: instance.host) else {
+            if let url = instance.url { UIApplication.shared.open(url) }
+            return
+        }
+        let vc = InstanceExploreViewController(
+            record: record,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    func routeToExternal(_ url: URL) {
+        UIApplication.shared.open(url)
     }
 }
 
