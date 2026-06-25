@@ -56,6 +56,13 @@ public protocol LemmyServiceType: Actor {
     /// client preference still governs feed filtering via the request param).
     func setShowNsfw(_ showNsfw: Bool) async throws
 
+    /// Push the account's `blur_nsfw` preference to the server via
+    /// `saveUserSettings`, then mirror the new value onto the local account
+    /// row so the cached `AccountRecord.blurNsfw` stays in sync. Requires a
+    /// signed-in account: a signed-out account is a silent no-op (blur is a
+    /// pure client-side render concern there).
+    func setBlurNsfw(_ blurNsfw: Bool) async throws
+
     func fetchPersonInfo(
         serverPersonId: Components.Schemas.PersonID
     ) async throws
@@ -861,6 +868,43 @@ public actor LemmyService: LemmyServiceType {
         } catch {
             logger.error("""
                 Mirror show_nsfw to AppDatabase failed. \(String(describing: error), privacy: .public)
+                """)
+        }
+    }
+
+    public func setBlurNsfw(_ blurNsfw: Bool) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Set blur_nsfw skipped - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
+                """)
+            return
+        }
+
+        logger.debug("""
+            Set blur_nsfw=\(blurNsfw, privacy: .public) \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
+            """)
+
+        do {
+            _ = try await api.saveUserSettings(blurNSFW: blurNsfw)
+        } catch {
+            logger.error("""
+                Set blur_nsfw failed. \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        // Mirror the new value onto the local account row so the cached
+        // `AccountRecord.blurNsfw` stays in sync with the server.
+        do {
+            try await appDatabase.setAccountBlurNsfw(
+                blurNsfw,
+                forKeychainId: accountIdentifierForLogging
+            )
+        } catch {
+            logger.error("""
+                Mirror blur_nsfw to AppDatabase failed. \(String(describing: error), privacy: .public)
                 """)
         }
     }
