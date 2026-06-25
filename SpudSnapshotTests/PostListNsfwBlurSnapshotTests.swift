@@ -92,7 +92,7 @@ final class PostListNsfwBlurSnapshotTests: XCTestCase {
 
         assertSnapshot(
             matching: cell.contentView,
-            as: .image(size: CGSize(width: width, height: height), traits: traits(style)),
+            as: .image(drawHierarchyInKeyWindow: true, size: CGSize(width: width, height: height), traits: traits(style)),
             named: style == .dark ? "dark" : "light",
             testName: testName,
             line: line
