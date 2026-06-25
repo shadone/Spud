@@ -27,6 +27,7 @@ public struct AccountRecord: Codable, Sendable, Equatable, Identifiable {
     public var showAvatars: Bool?
     public var showBotAccounts: Bool?
     public var showNsfw: Bool?
+    public var blurNsfw: Bool?
     public var showReadPosts: Bool?
     public var showScores: Bool?
     public var createdAt: Date
@@ -49,6 +50,7 @@ public struct AccountRecord: Codable, Sendable, Equatable, Identifiable {
         showAvatars: Bool? = nil,
         showBotAccounts: Bool? = nil,
         showNsfw: Bool? = nil,
+        blurNsfw: Bool? = nil,
         showReadPosts: Bool? = nil,
         showScores: Bool? = nil,
         createdAt: Date = Date(),
@@ -70,6 +72,7 @@ public struct AccountRecord: Codable, Sendable, Equatable, Identifiable {
         self.showAvatars = showAvatars
         self.showBotAccounts = showBotAccounts
         self.showNsfw = showNsfw
+        self.blurNsfw = blurNsfw
         self.showReadPosts = showReadPosts
         self.showScores = showScores
         self.createdAt = createdAt

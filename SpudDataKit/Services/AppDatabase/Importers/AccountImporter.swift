@@ -168,6 +168,21 @@ public extension AppDatabase {
         }
     }
 
+    /// Mirrors the `local_user.blur_nsfw` setting onto the account row matching
+    /// `keychainId`, so the locally-cached value stays in sync after the app
+    /// pushes a change to the server. No-op if the row hasn't been imported yet.
+    func setAccountBlurNsfw(_ blurNsfw: Bool, forKeychainId keychainId: String) async throws {
+        try await writer.write { db in
+            guard var account = try AccountRecord
+                .filter(Column("accountKeychainId") == keychainId)
+                .fetchOne(db)
+            else { return }
+            account.blurNsfw = blurNsfw
+            account.updatedAt = Date()
+            try account.update(db)
+        }
+    }
+
     /// Deletes the account row matching `keychainId`. Returns true if a row was
     /// removed. Synchronous: `AccountService.logout(...)` runs on MainActor in
     /// response to a user tap and prefers to avoid hopping off to await.
@@ -415,6 +430,7 @@ public extension AppDatabase {
         record.showAvatars = local.show_avatars
         record.showBotAccounts = local.show_bot_accounts
         record.showNsfw = local.show_nsfw
+        record.blurNsfw = local.blur_nsfw
         record.showReadPosts = local.show_read_posts
         record.showScores = local.show_scores
         record.updatedAt = now

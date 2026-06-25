@@ -610,6 +610,10 @@ extension AppDatabase {
             try db.alter(table: "post") { t in
                 t.add(column: "isNsfw", .boolean).notNull().defaults(to: false)
             }
+            // Cache the server's blur_nsfw local-user setting alongside showNsfw.
+            try db.alter(table: "account") { t in
+                t.add(column: "blurNsfw", .boolean)
+            }
         }
 
         return migrator
