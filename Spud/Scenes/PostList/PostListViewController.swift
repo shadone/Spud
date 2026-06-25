@@ -166,6 +166,10 @@ class PostListViewController: UIViewController {
     /// from under the user until the next refresh.
     private var pinnedReadIds: Set<Int64> = []
 
+    /// Posts whose NSFW media the user revealed this session (by server post id).
+    /// Not persisted; resets on relaunch.
+    private var revealedNsfwPostIds: Set<Int64> = []
+
     /// Server post ids already enqueued for a background mark-as-read (scroll-out
     /// or media-open), so we don't fire the API repeatedly for the same row.
     private var markedReadIds: Set<Int64> = []
@@ -599,6 +603,28 @@ class PostListViewController: UIViewController {
                 {
                     let scope = viewModel.accountScope
                     Task { try? await scope.lemmyService.setShowNsfw(value) }
+                }
+            }
+        })
+
+        // Blur is a pure render change — re-apply cells in-place without refetching.
+        // The stream replays the current value on subscribe, so the first element is
+        // skipped. For the frontpage feed, also push the new value to the server so
+        // the account's `local_user.blur_nsfw` stays in sync.
+        displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
+            var first = true
+            for await value in preferencesService.blurNsfwStream {
+                if Task.isCancelled { break }
+                if first { first = false
+                    continue
+                }
+                reconfigureVisibleCells()
+                if case .frontpage = viewModel.feed.feedType,
+                   !viewModel.accountScope.isSignedOut
+                {
+                    let scope = viewModel.accountScope
+                    Task { try? await scope.lemmyService.setBlurNsfw(value) }
                 }
             }
         })
@@ -1050,10 +1076,20 @@ class PostListViewController: UIViewController {
                 let viewModel = PostListPostViewModel(
                     row: row,
                     appearance: appearance,
-                    postContentDetector: postContentDetector
+                    postContentDetector: postContentDetector,
+                    blurNsfw: self?.preferencesService.blurNsfw ?? false,
+                    isRevealed: self?.revealedNsfwPostIds.contains(serverPostId) ?? false
                 )
                 cell.configure(with: viewModel, imageService: imageService)
                 cell.seenTrackingServerPostId = serverPostId
+
+                cell.revealNsfwTapped = { [weak self] in
+                    guard let self else { return }
+                    revealedNsfwPostIds.insert(serverPostId)
+                    var snapshot = dataSource.snapshot()
+                    snapshot.reconfigureItems([item])
+                    dataSource.apply(snapshot, animatingDifferences: false)
+                }
 
                 cell.imageTapped = { [weak self] imageUrl, thumbnailUrl, thumbnailImage in
                     guard let self else { return }
