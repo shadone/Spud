@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Subscribe / unsubscribe](subscribe-unsubscribe.md), [Feeds and sorting](feeds-and-sorting.md), [Feed loading and pagination](feed-loading.md), [Person / user profile](person-profile.md), [Search](search.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Subscribe / unsubscribe](subscribe-unsubscribe.md), [Feeds and sorting](feeds-and-sorting.md), [Feed loading and pagination](feed-loading.md), [Person / user profile](person-profile.md), [Search](search.md), [NSFW content visibility and blur](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -12,6 +12,7 @@ The community screen pins a header above the community's post feed. The header s
 
 - **Header above a community-scoped feed.** The body is the standard post list driven by a community feed type, embedded below the header. All of [Feed loading and pagination](feed-loading.md) and [Feeds and sorting](feeds-and-sorting.md) applies — first page on appear, cursor-based infinite scroll, default sort.
 - **Header is database-driven.** The header fields come from the local database's community observation, so they update live when the community record changes (for example after a subscribe is mirrored back).
+- **NSFW badge and blurred banner.** When a community is marked NSFW, its header shows an "NSFW" badge. If "Blur NSFW" is also on, the community banner is covered by a frosted-glass overlay. See [NSFW content visibility and blur](nsfw-content.md).
 - **Resolve-then-show.** Opening a community first resolves its server id (fetching by qualified name when not cached) behind a spinner, then swaps in the header-plus-feed content. A remote community is resolved fully-qualified so any instance can find it.
 - **Subscribe / unsubscribe from the header.** The header button toggles subscription, gated on sign-in, via the shared confirm-then-mirror path (see [Subscribe / unsubscribe](subscribe-unsubscribe.md)). The button reflects Subscribe, Subscribed, or Pending from the mirrored state.
 - **Header context menu.** Long-pressing the header offers Subscribe / Unsubscribe and Block / Unblock community.
