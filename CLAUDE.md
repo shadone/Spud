@@ -174,6 +174,7 @@ First internal build shipped 2026-06-23 — App Store Connect app "Spud for Lemm
 - No emojis in code, comments, docs, or commit messages
 - Conventional commit subjects (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`)
 - Small, focused commits; split unrelated changes
+- **Document every feature change in `docs/features/`** — update the per-capability `<capability>.md` **and** `README.md`'s capability table **and** its "Feature coverage by area" map (the two README sections drift independently), plus any adjacent doc the change touches. Convention + `_TEMPLATE.md` in `docs/features/README.md` (no `.swift` links; `Status:` accurate; `Surfaces:` = union of scenario tags).
 - Prefer many small files over few large ones
 - Inside `Task { [weak self] ... guard let self else { return } ... }`, drop the `self.` prefix on subsequent property writes — SwiftFormat's `redundantSelf` rule flags it
 
