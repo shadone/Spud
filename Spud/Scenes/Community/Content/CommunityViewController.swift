@@ -72,6 +72,7 @@ class CommunityViewController: UIViewController {
     private var overflowBarButtonItem: UIBarButtonItem?
 
     private var observationTask: Task<Void, Never>?
+    private var blurNsfwTask: Task<Void, Never>?
     private var bannerImageTask: Task<Void, Never>?
     private var iconImageTask: Task<Void, Never>?
     private var loadedBannerUrl: URL?
@@ -114,6 +115,7 @@ class CommunityViewController: UIViewController {
 
     deinit {
         observationTask?.cancel()
+        blurNsfwTask?.cancel()
         bannerImageTask?.cancel()
         iconImageTask?.cancel()
     }
@@ -235,6 +237,7 @@ class CommunityViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         startObservation()
+        startBlurNsfwObservation()
         // Resolve whether this community is already blocked so the menu shows
         // the correct Block / Unblock label.
         refreshBlockState()
@@ -507,6 +510,26 @@ class CommunityViewController: UIViewController {
             }) {
                 if Task.isCancelled { break }
                 self?.applyViewModel()
+            }
+        }
+    }
+
+    /// Re-applies the header whenever the "Blur NSFW" preference changes so the
+    /// banner blur and NSFW badge update live (mirrors how PostListViewController
+    /// observes the same stream to re-render post thumbnails). The stream replays
+    /// the current value on subscribe; skip the first emission to avoid a redundant
+    /// configure before the initial GRDB observation has landed.
+    private func startBlurNsfwObservation() {
+        blurNsfwTask?.cancel()
+        blurNsfwTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var first = true
+            for await _ in dependencies.nested.preferencesService.blurNsfwStream {
+                if Task.isCancelled { break }
+                if first { first = false
+                    continue
+                }
+                applyViewModel()
             }
         }
     }

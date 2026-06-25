@@ -161,8 +161,6 @@ final class CommunityHeaderView: UIView {
         label.textAlignment = .center
         label.layer.cornerRadius = 4
         label.layer.masksToBounds = true
-        // Horizontal insets via a fixed-width padding trick: set insets by
-        // stretching the intrinsic width with explicit padding.
         label.isHidden = true
         return label
     }()
@@ -254,12 +252,14 @@ final class CommunityHeaderView: UIView {
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
             titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -margin),
 
-            // NSFW badge: vertically centered on the title's first baseline,
-            // leading edge just after the title.
+            // NSFW badge: vertically centered on the title label, leading edge
+            // just after the title, with a min-width and a trailing cap so the
+            // pill never overflows into the trailing margin on narrow screens.
             nsfwBadge.leadingAnchor.constraint(equalTo: titleLabel.trailingAnchor, constant: 6),
             nsfwBadge.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
             nsfwBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 36),
             nsfwBadge.heightAnchor.constraint(equalToConstant: 16),
+            nsfwBadge.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -margin),
 
             handleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
             handleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
