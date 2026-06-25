@@ -240,6 +240,54 @@ class SpudUITests: XCTestCase {
         )
     }
 
+    /// Bug fix: a person's handle must show THEIR OWN instance host, not the
+    /// signed-in account's home instance. finibus is a remote user
+    /// (https://lemmy.world/u/finibus) viewed under the test's discuss.tchncs.de
+    /// account, so the handle must read @finibus@lemmy.world.
+    func test_PersonProfile_showsUsersOwnInstanceHost() {
+        navigateToFinibusProfile()
+
+        XCTAssertTrue(
+            app.staticTexts["@finibus@lemmy.world"].waitForExistence(timeout: 5),
+            "Handle should show the user's own instance host (lemmy.world)"
+        )
+        XCTAssertFalse(
+            app.staticTexts["@finibus@discuss.tchncs.de"].exists,
+            "Handle must not show the account's home instance host"
+        )
+    }
+
+    /// Bug fix: the profile header (with the bio) must live INSIDE the scrollable
+    /// table so a long bio scrolls instead of overflowing a fixed top region.
+    /// Asserting the bio is a descendant of the table proves the header is hosted
+    /// as the table's scrolling header rather than pinned outside it.
+    func test_PersonProfile_headerLivesInScrollableTable() {
+        navigateToFinibusProfile()
+
+        XCTAssertTrue(
+            app.tables.descendants(matching: .any)["bio"].waitForExistence(timeout: 5),
+            "The bio (and header) must live inside the scrollable table so a long bio can scroll"
+        )
+    }
+
+    /// Opens finibus's profile by tapping the post creator's link in the detail
+    /// header (the same path a user takes from a post/comment author).
+    private func navigateToFinibusProfile() {
+        let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
+        XCTAssertTrue(firstCell.waitForExistence(timeout: 10), "Feed should load")
+        firstCell.tap()
+
+        let detailHeaderCell = app.cells["postDetailHeader"]
+        XCTAssertTrue(detailHeaderCell.waitForExistence(timeout: 5))
+        let creatorLink = detailHeaderCell.links["Nunc Finibus Augue"]
+        XCTAssertTrue(creatorLink.waitForExistence(timeout: 5))
+        creatorLink.tap()
+        XCTAssertTrue(
+            detailHeaderCell.waitForNonExistence(timeout: 5),
+            "Tapping the creator should push their profile"
+        )
+    }
+
     /// Captures full-screen renders of the primary surfaces (feed, then post
     /// detail) as test attachments, so the end-to-end UX can be reviewed against
     /// the Apollo bar without a device. Asserts the surfaces appear; the
