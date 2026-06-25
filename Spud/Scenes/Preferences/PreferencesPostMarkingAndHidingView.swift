@@ -16,6 +16,8 @@ import SwiftUI
 struct PreferencesPostMarkingAndHidingView: View {
     @Bindable var viewModel: PreferencesViewModel
 
+    @State private var showingAgeGate = false
+
     private var markPostsRead: Binding<Bool> {
         .init { viewModel.markPostsRead } set: { viewModel.updateMarkPostsRead($0) }
     }
@@ -33,7 +35,13 @@ struct PreferencesPostMarkingAndHidingView: View {
     }
 
     private var showNsfw: Binding<Bool> {
-        .init { viewModel.showNsfw } set: { viewModel.updateShowNsfw($0) }
+        .init { viewModel.showNsfw } set: { newValue in
+            if newValue, !viewModel.hasAcknowledgedNsfwAge {
+                showingAgeGate = true
+            } else {
+                viewModel.updateShowNsfw(newValue)
+            }
+        }
     }
 
     private var blurNsfw: Binding<Bool> {
@@ -110,6 +118,18 @@ struct PreferencesPostMarkingAndHidingView: View {
             }
         }
         .navigationTitle("Post Marking & Hiding")
+        .alert(
+            NSLocalizedString("Show adult content?", comment: "Age gate alert title for enabling Show NSFW"),
+            isPresented: $showingAgeGate
+        ) {
+            Button(NSLocalizedString("Cancel", comment: "Age gate: dismiss without enabling NSFW"), role: .cancel) { }
+            Button(NSLocalizedString("Show NSFW", comment: "Age gate: confirm and enable NSFW")) {
+                viewModel.acknowledgeNsfwAge()
+                viewModel.updateShowNsfw(true)
+            }
+        } message: {
+            Text("By continuing you confirm you are of legal age to view adult material.")
+        }
     }
 }
 

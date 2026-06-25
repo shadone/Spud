@@ -29,6 +29,7 @@ final class QuickSwitchViewModel {
     var showVoteButtons: Bool
     var showNsfw: Bool
     var blurNsfw: Bool
+    var hasAcknowledgedNsfwAge: Bool
     var currentSort: Components.Schemas.SortType
 
     init(
@@ -44,6 +45,7 @@ final class QuickSwitchViewModel {
         showVoteButtons = preferencesService.showVoteButtons
         showNsfw = preferencesService.showNsfw
         blurNsfw = preferencesService.blurNsfw
+        hasAcknowledgedNsfwAge = preferencesService.hasAcknowledgedNsfwAge
     }
 
     func updatePostDensity(_ value: PostDensity) {
@@ -62,6 +64,11 @@ final class QuickSwitchViewModel {
         showVoteButtons = value
         preferencesService.showVoteButtons = value
         Haptics.tap()
+    }
+
+    func acknowledgeNsfwAge() {
+        hasAcknowledgedNsfwAge = true
+        preferencesService.hasAcknowledgedNsfwAge = true
     }
 
     /// Writes the NSFW preference straight through `PreferencesService`. The

@@ -117,6 +117,7 @@ final class PreferencesViewModel {
 
     var showNsfw: Bool
     var blurNsfw: Bool
+    var hasAcknowledgedNsfwAge: Bool
 
     var markPostsRead: Bool
     var markPostsReadOnScroll: Bool
@@ -195,6 +196,7 @@ final class PreferencesViewModel {
         showVoteButtons = dependencies.preferencesService.showVoteButtons
         showNsfw = dependencies.preferencesService.showNsfw
         blurNsfw = dependencies.preferencesService.blurNsfw
+        hasAcknowledgedNsfwAge = dependencies.preferencesService.hasAcknowledgedNsfwAge
         markPostsRead = dependencies.preferencesService.markPostsRead
         markPostsReadOnScroll = dependencies.preferencesService.markPostsReadOnScroll
         hideReadPosts = dependencies.preferencesService.hideReadPosts
@@ -384,6 +386,7 @@ final class PreferencesViewModel {
         showVoteButtons = true
         showNsfw = false
         blurNsfw = true
+        hasAcknowledgedNsfwAge = false
         markPostsRead = true
         markPostsReadOnScroll = false
         hideReadPosts = false
@@ -549,6 +552,11 @@ final class PreferencesViewModel {
         showVoteButtons = value
         preferencesService?.showVoteButtons = value
         Haptics.tap()
+    }
+
+    func acknowledgeNsfwAge() {
+        hasAcknowledgedNsfwAge = true
+        preferencesService?.hasAcknowledgedNsfwAge = true
     }
 
     func updateShowNsfw(_ value: Bool) {

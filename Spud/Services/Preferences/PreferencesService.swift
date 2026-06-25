@@ -104,6 +104,10 @@ protocol PreferencesServiceType: AnyObject {
     var blurNsfw: Bool { get set }
     var blurNsfwStream: AsyncStream<Bool> { get }
 
+    /// Whether the user has acknowledged the age gate for viewing adult content.
+    /// Set to `true` once on first confirmation; never reset to `false` in the app.
+    var hasAcknowledgedNsfwAge: Bool { get set }
+
     // MARK: Mark-read / hide (M8)
 
     /// Whether posts interacted with (opened, voted) are marked read. Default
@@ -286,6 +290,9 @@ class PreferencesService: PreferencesServiceType {
     var blurNsfwStream: AsyncStream<Bool> {
         $blurNsfw
     }
+
+    @UserDefaultsBacked(key: "hasAcknowledgedNsfwAge")
+    var hasAcknowledgedNsfwAge: Bool = false
 
     // MARK: Mark-read / hide (M8)
 
