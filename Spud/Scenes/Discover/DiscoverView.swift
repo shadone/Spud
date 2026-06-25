@@ -353,7 +353,7 @@ struct DiscoverCommunityRow: View {
                         .foregroundStyle(Color(.label))
                         .lineLimit(1)
                     if row.isNsfw {
-                        nsfwBadge
+                        NsfwBadge()
                     }
                 }
                 Text(handle)
@@ -395,15 +395,6 @@ struct DiscoverCommunityRow: View {
     private var handle: String {
         let lead = showsQualifiedHandle ? "c/\(row.name)@\(row.instanceHost)" : row.name
         return "\(lead) · \(Self.compact(row.numberOfSubscribers)) · \(Self.compact(row.usersActiveWeek))/wk"
-    }
-
-    private var nsfwBadge: some View {
-        Text("NSFW")
-            .font(.system(size: 9, weight: .heavy))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .background(Color(.systemRed), in: RoundedRectangle(cornerRadius: 4))
     }
 
     private var accessibilityLabel: String {
