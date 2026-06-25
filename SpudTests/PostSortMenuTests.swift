@@ -37,4 +37,21 @@ final class PostSortMenuTests: XCTestCase {
         )
         XCTAssertEqual(PostSortMenu.all.count, 18)
     }
+
+    /// The menu (shared by the post list, the Community screen, and the Person
+    /// profile) must expose exactly the sort types the Lemmy API accepts — no
+    /// invented or dropped options — so it stays in lock-step with the generated
+    /// `SortType` if the API gains or removes a sort.
+    func testAllCoversEveryApiSortTypeExactlyOnce() {
+        XCTAssertEqual(
+            Set(PostSortMenu.all),
+            Set(Components.Schemas.SortType.allCases),
+            "Sort menu must expose exactly the API's SortType set"
+        )
+        XCTAssertEqual(
+            PostSortMenu.all.count,
+            Set(PostSortMenu.all).count,
+            "No sort type should appear twice"
+        )
+    }
 }

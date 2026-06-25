@@ -270,6 +270,33 @@ class SpudUITests: XCTestCase {
         )
     }
 
+    /// The person profile navbar offers an overflow menu (sharing, like the
+    /// Community / Post Detail screens) and a sort button, both always present.
+    func test_PersonProfile_navbarHasOverflowMenuAndSort() {
+        navigateToFinibusProfile()
+
+        XCTAssertTrue(
+            app.buttons["Sort"].waitForExistence(timeout: 5),
+            "Person profile should expose a Sort button"
+        )
+
+        let overflow = app.buttons["More"]
+        XCTAssertTrue(
+            overflow.waitForExistence(timeout: 5),
+            "Person profile should expose a More overflow menu"
+        )
+        overflow.tap()
+
+        XCTAssertTrue(
+            app.buttons["Open in Browser"].waitForExistence(timeout: 5),
+            "Overflow menu should offer Open in Browser"
+        )
+        XCTAssertTrue(
+            app.buttons["Copy handle"].exists,
+            "Overflow menu should offer Copy handle"
+        )
+    }
+
     /// Opens finibus's profile by tapping the post creator's link in the detail
     /// header (the same path a user takes from a post/comment author).
     private func navigateToFinibusProfile() {

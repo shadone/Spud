@@ -27,6 +27,9 @@ final class PersonViewModel {
     var avatarUrl: URL?
     var bannerUrl: URL?
     var bioMarkdown: String?
+    /// The person's canonical profile URL (their federated actor id), used for
+    /// the Share / Copy Link / Open in Browser actions. Nil until resolved.
+    var profileURL: URL?
     var numberOfPosts: String = ""
     var numberOfComments: String = ""
     var cakeDay: String = ""
@@ -59,8 +62,11 @@ final class PersonViewModel {
     let accountScope: AccountScope
     @ObservationIgnored
     private let accountService: AccountServiceType
+    /// The sort applied to the profile's posts and comments (one fetch covers
+    /// both). Mutable so the navbar sort menu can change it; per-screen only,
+    /// it does not change the account's default sort.
     @ObservationIgnored
-    private let sortType: Components.Schemas.SortType
+    private(set) var sortType: Components.Schemas.SortType
 
     @ObservationIgnored
     private var observationTask: Task<Void, Never>?
@@ -104,6 +110,7 @@ final class PersonViewModel {
         avatarUrl = row.avatarUrl.flatMap { URL(string: $0) }
         bannerUrl = row.bannerUrl.flatMap { URL(string: $0) }
         bioMarkdown = row.bio
+        profileURL = row.actorId.flatMap { URL(string: $0) }
         numberOfPosts = CommentsFormatter.string(from: row.numberOfPosts)
         numberOfComments = CommentsFormatter.string(from: row.numberOfComments)
         if let createdDate = row.personCreatedDate {
@@ -166,6 +173,15 @@ final class PersonViewModel {
     func tabChanged(_ newTab: PersonContentTab) {
         guard newTab != tab else { return }
         tab = newTab
+    }
+
+    /// Changes the sort order for the profile's posts and comments and reloads.
+    /// A single fetch returns both tabs, so one sort applies to the whole
+    /// profile. Per-screen only; does not change the account default.
+    func changeSortType(_ newSort: Components.Schemas.SortType) {
+        guard newSort != sortType else { return }
+        sortType = newSort
+        loadContent()
     }
 
     // MARK: Block

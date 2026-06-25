@@ -66,6 +66,11 @@ class PersonViewController: UIViewController {
 
     private let headerView = PersonHeaderView()
 
+    /// Retained so the share sheet's iPad popover can anchor to it.
+    private var overflowBarButtonItem: UIBarButtonItem?
+    private var sortTypeBarButtonItem: UIBarButtonItem!
+    private var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
+
     private var headerObservationTask: Task<Void, Never>?
     private var contentObservationTask: Task<Void, Never>?
     private var bannerImageTask: Task<Void, Never>?
@@ -231,45 +236,135 @@ class PersonViewController: UIViewController {
         let interaction = UIContextMenuInteraction(delegate: self)
         headerView.addInteraction(interaction)
 
-        configureMessageButton()
+        configureNavigationBar()
     }
 
-    /// A "Message" button plus an overflow menu (Block / Unblock) are offered
-    /// when the viewer is signed in and the profile is not their own. The
-    /// overflow menu uses a deferred element so the Block/Unblock label always
-    /// reflects the latest `isBlocked` state.
-    private func configureMessageButton() {
-        guard !viewModel.accountScope.isSignedOut else { return }
-        let ownPersonId = appDatabase
-            .accountOwnPersonIdsSync(forKeychainId: accountKeychainId)
-            .map { Components.Schemas.PersonID($0.serverPersonId) }
-        guard ownPersonId != viewModel.serverPersonId else { return }
+    /// Builds the navbar: an overflow (`···`) menu and a sort button, in the
+    /// same spirit as the Community screen. Both are always shown — sharing and
+    /// sort need no sign-in; Message / Block live inside the overflow and only
+    /// appear when signed in and viewing someone else's profile.
+    private func configureNavigationBar() {
+        setupSortTypeMenu()
 
-        let messageButton = UIBarButtonItem(
-            image: UIImage(systemName: "envelope"),
-            style: .plain,
-            target: self,
-            action: #selector(messageTapped)
-        )
-        messageButton.accessibilityLabel = NSLocalizedString(
-            "Message",
-            comment: "Person profile message button accessibility label"
-        )
-
+        let shareGroup = UIMenu(options: .displayInline, children: [
+            UIDeferredMenuElement.uncached { [weak self] completion in
+                completion(self?.shareMenuActions() ?? [])
+            },
+        ])
+        let userGroup = UIMenu(options: .displayInline, children: [
+            UIDeferredMenuElement.uncached { [weak self] completion in
+                completion(self?.userMenuActions() ?? [])
+            },
+        ])
         let overflowButton = UIBarButtonItem(
             image: UIImage(systemName: "ellipsis.circle"),
-            menu: UIMenu(children: [
-                UIDeferredMenuElement.uncached { [weak self] completion in
-                    completion(self?.blockMenuActions() ?? [])
-                },
-            ])
+            menu: UIMenu(children: [shareGroup, userGroup])
         )
         overflowButton.accessibilityLabel = NSLocalizedString(
             "More",
             comment: "Person profile overflow menu accessibility label"
         )
+        overflowBarButtonItem = overflowButton
 
-        navigationItem.rightBarButtonItems = [overflowButton, messageButton]
+        // Order (first element = right-most): overflow, then sort.
+        navigationItem.rightBarButtonItems = [overflowButton, sortTypeBarButtonItem]
+    }
+
+    // MARK: Sort menu
+
+    private func setupSortTypeMenu() {
+        for sortType in PostSortMenu.all {
+            let menuItem = sortType.itemForMenu
+            let action = UIAction(title: menuItem.title, image: menuItem.image) { [weak self] _ in
+                self?.sortTypeChanged(to: sortType)
+            }
+            sortTypeMenuActionsBySortType[sortType] = action
+        }
+
+        let button = UIBarButtonItem(
+            title: "Sort type",
+            image: UIImage(systemName: "line.horizontal.3.decrease.circle"),
+            menu: nil
+        )
+        button.accessibilityLabel = NSLocalizedString(
+            "Sort",
+            comment: "Person profile sort menu accessibility label"
+        )
+        sortTypeBarButtonItem = button
+        rebuildSortTypeMenu(activeSortType: viewModel.sortType)
+    }
+
+    private func rebuildSortTypeMenu(activeSortType: Components.Schemas.SortType) {
+        for (sortType, action) in sortTypeMenuActionsBySortType {
+            action.state = (sortType == activeSortType) ? .on : .off
+        }
+        sortTypeBarButtonItem.menu = UIMenu(
+            title: "",
+            options: .singleSelection,
+            children: [
+                UIMenu(title: "", options: .displayInline, children: PostSortMenu.actives.compactMap { sortTypeMenuActionsBySortType[$0] }),
+                UIMenu(title: "Top", options: .singleSelection, children: PostSortMenu.tops.compactMap { sortTypeMenuActionsBySortType[$0] }),
+                UIMenu(title: "", options: .displayInline, children: PostSortMenu.comments.compactMap { sortTypeMenuActionsBySortType[$0] }),
+            ]
+        )
+    }
+
+    private func sortTypeChanged(to sortType: Components.Schemas.SortType) {
+        Haptics.tap()
+        viewModel.changeSortType(sortType)
+        rebuildSortTypeMenu(activeSortType: viewModel.sortType)
+    }
+
+    // MARK: Overflow menu
+
+    /// Copy handle (always available) plus the URL-based sharing actions, which
+    /// appear once the person's profile URL has resolved.
+    private func shareMenuActions() -> [UIMenuElement] {
+        let copyHandle = UIAction(
+            title: NSLocalizedString("Copy handle", comment: "Overflow action to copy the @user@instance handle"),
+            image: UIImage(systemName: "at")
+        ) { [weak self] _ in
+            Haptics.tap()
+            UIPasteboard.general.string = self?.viewModel.handle
+        }
+
+        guard let url = viewModel.profileURL else { return [copyHandle] }
+
+        let copyLink = UIAction(
+            title: NSLocalizedString("Copy Link", comment: "Overflow action to copy a user's profile link"),
+            image: UIImage(systemName: "doc.on.doc")
+        ) { _ in
+            Haptics.tap()
+            UIPasteboard.general.url = url
+        }
+        let share = UIAction(
+            title: NSLocalizedString("Share…", comment: "Overflow action to share a user's profile"),
+            image: UIImage(systemName: "square.and.arrow.up")
+        ) { [weak self] _ in
+            self?.presentShareSheet(for: url, sourceItem: self?.overflowBarButtonItem)
+        }
+        let openInBrowser = UIAction(
+            title: NSLocalizedString("Open in Browser", comment: "Overflow action to open a user's profile in the browser"),
+            image: UIImage(systemName: "safari")
+        ) { _ in
+            Haptics.tap()
+            UIApplication.shared.open(url)
+        }
+        return [copyHandle, copyLink, share, openInBrowser]
+    }
+
+    /// Message + Block / Unblock, shown only when signed in and viewing someone
+    /// else's profile. Evaluated each time the menu opens so Block/Unblock
+    /// reflects the latest state.
+    private func userMenuActions() -> [UIMenuElement] {
+        guard !viewModel.accountScope.isSignedOut, !isOwnProfile else { return [] }
+        let message = UIAction(
+            title: NSLocalizedString("Message", comment: "Overflow action to send a user a private message"),
+            image: UIImage(systemName: "envelope")
+        ) { [weak self] _ in
+            self?.messageTapped()
+        }
+        return [message] + blockMenuActions()
     }
 
     /// Builds the Block / Unblock action for the overflow menu, reflecting the
