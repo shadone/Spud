@@ -99,6 +99,11 @@ protocol PreferencesServiceType: AnyObject {
     var showNsfw: Bool { get set }
     var showNsfwStream: AsyncStream<Bool> { get }
 
+    /// Whether NSFW content (posts, images, comments) are visually blurred when shown.
+    /// Default `true` (blur on). Independent of ``showNsfw``.
+    var blurNsfw: Bool { get set }
+    var blurNsfwStream: AsyncStream<Bool> { get }
+
     // MARK: Mark-read / hide (M8)
 
     /// Whether posts interacted with (opened, voted) are marked read. Default
@@ -273,6 +278,13 @@ class PreferencesService: PreferencesServiceType {
 
     var showNsfwStream: AsyncStream<Bool> {
         $showNsfw
+    }
+
+    @UserDefaultsBacked(key: "blurNsfw")
+    var blurNsfw: Bool = true
+
+    var blurNsfwStream: AsyncStream<Bool> {
+        $blurNsfw
     }
 
     // MARK: Mark-read / hide (M8)
