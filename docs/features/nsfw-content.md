@@ -16,7 +16,8 @@ preferences govern the experience:
   overlay until tapped. Default on.
 
 Both preferences are surfaced in Settings → Post Marking & Hiding and in the Quick Switch
-popover. For a signed-in account both choices are also pushed to the server so they stick
+popover. (Settings uses the labels "Show NSFW Content" and "Blur NSFW Content"; the Quick
+Switch popover uses the shorter "Show NSFW" and "Blur NSFW".) For a signed-in account both choices are also pushed to the server so they stick
 across devices.
 
 ## Behavior and rules
@@ -78,8 +79,9 @@ across devices.
     tap (or tapping the cell body) opens as normal. A post is considered NSFW when either the
     post's own NSFW flag or its community's NSFW flag is set.
   - **Post-detail header image.** The lead image in the post detail header is blurred with the
-    same frosted-glass overlay when the post is NSFW and blur is on. Tapping reveals it for
-    the rest of the session.
+    same frosted-glass overlay when the post is NSFW and blur is on. Tapping reveals it while
+    viewing that post; the reveal resets when a different post is loaded (relevant on iPad where
+    the detail column is reused across navigations).
   - **Community art (icons and banners).** NSFW community icons in Discover and the community
     banner on the community screen are blurred when shown and blur is on. Community art does not
     support tap-to-reveal in v1 — it remains blurred for the duration of the session while
@@ -144,7 +146,7 @@ across devices.
 - **Given** Show NSFW is on and Blur NSFW is on
 - **When** I open an NSFW post's detail screen
 - **Then** the lead header image is covered by the frosted-glass overlay
-- **And** tapping the overlay reveals the image for the rest of the session
+- **And** tapping the overlay reveals the image while viewing that post; navigating to a different post resets the reveal
 
 ### Community art is blurred in Discover and on the community screen
 

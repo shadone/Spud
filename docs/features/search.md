@@ -68,7 +68,7 @@ Search the connected instance for posts, communities, users, or comments. A scop
 
 ## Not supported / out of scope
 
-- **NSFW gating.** When "Show NSFW" is off, NSFW communities and posts are filtered from results client-side. When "Show NSFW" is on and "Blur NSFW" is on, NSFW post thumbnails in results are blurred. See [NSFW content visibility and blur](nsfw-content.md).
+- **NSFW gating.** When "Show NSFW" is off, NSFW posts and communities are omitted from search results entirely (filtered client-side). When "Show NSFW" is on, NSFW results appear — their thumbnails are not blurred (the blur overlay applies to the feed and post-detail, not search result cells). See [NSFW content visibility and blur](nsfw-content.md).
 - No pagination on results — search returns a single page; there is no infinite scroll or "load more".
 - The result sort and listing type are fixed (top-of-all-time, All); there is no in-screen sort or listing picker for search.
 - Only community results expose an inline subscribe action; post, user, and comment rows do not.
