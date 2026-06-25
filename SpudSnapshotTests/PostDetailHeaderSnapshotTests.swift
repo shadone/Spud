@@ -122,6 +122,48 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - Logic
+
+    func test_isImageBlurred_logic() {
+        // Blurred when all three conditions are true.
+        let nsfw = row(url: imageUrl, isNsfw: true)
+        let blurredVM = makeViewModel(row: nsfw, blurNsfw: true, isRevealed: false)
+        XCTAssertTrue(blurredVM.isImageBlurred, "NSFW + blurNsfw + unrevealed => blurred")
+
+        // Not blurred when the preference is off.
+        let prefOffVM = makeViewModel(row: nsfw, blurNsfw: false, isRevealed: false)
+        XCTAssertFalse(prefOffVM.isImageBlurred, "blurNsfw=false => not blurred")
+
+        // Not blurred after the user reveals.
+        let revealedVM = makeViewModel(row: nsfw, blurNsfw: true, isRevealed: true)
+        XCTAssertFalse(revealedVM.isImageBlurred, "isRevealed => not blurred")
+
+        // Not blurred when the post is not NSFW.
+        let clean = row(url: imageUrl, isNsfw: false)
+        let cleanVM = makeViewModel(row: clean, blurNsfw: true, isRevealed: false)
+        XCTAssertFalse(cleanVM.isImageBlurred, "non-NSFW post => not blurred")
+    }
+
+    // MARK: - NSFW blur
+
+    /// A blurred NSFW header cell. UIVisualEffectView only renders when drawn
+    /// through the key window, so this test uses `drawHierarchyInKeyWindow: true`
+    /// rather than the offscreen `.image(size:traits:)` path used by other header
+    /// tests.
+    func test_image_nsfwBlurred() async {
+        let cell = await renderCell(
+            row: row(url: imageUrl, isNsfw: true),
+            imageService: ScriptedImageService([.ready(photo())]),
+            driveRetry: false,
+            blurNsfw: true,
+            isRevealed: false
+        )
+
+        for style in [UIUserInterfaceStyle.light, UIUserInterfaceStyle.dark] {
+            snapshotBlur(cell, style: style)
+        }
+    }
+
     // MARK: - Rendering
 
     private func assertHeader(
@@ -144,7 +186,9 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
     private func renderCell(
         row: PostDetailHeaderRow,
         imageService: ImageServiceType,
-        driveRetry: Bool
+        driveRetry: Bool,
+        blurNsfw: Bool = false,
+        isRevealed: Bool = false
     ) async -> PostDetailHeaderCell {
         let cell = PostDetailHeaderCell(style: .default, reuseIdentifier: nil)
         // Pin the accent on the snapshot root: the `.image` strategy reparents
@@ -163,7 +207,10 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         cell.tableView = table
         cell.isBeingConfigured = true
 
-        cell.configure(with: makeViewModel(row: row), imageService: imageService)
+        cell.configure(
+            with: makeViewModel(row: row, blurNsfw: blurNsfw, isRevealed: isRevealed),
+            imageService: imageService
+        )
         await settle()
 
         if driveRetry {
@@ -197,6 +244,36 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         )
     }
 
+    /// Snapshot path for views containing `UIVisualEffectView`: blur only renders
+    /// when the view hierarchy is connected to the key window. Uses
+    /// `drawHierarchyInKeyWindow: true` so the blur effect is visible in the ref.
+    private func snapshotBlur(
+        _ cell: PostDetailHeaderCell,
+        style: UIUserInterfaceStyle,
+        testName: String = #function,
+        line: UInt = #line
+    ) {
+        cell.frame = CGRect(x: 0, y: 0, width: width, height: 2000)
+        cell.layoutIfNeeded()
+        let height = cell.contentView.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+
+        assertSnapshot(
+            matching: cell.contentView,
+            as: .image(
+                drawHierarchyInKeyWindow: true,
+                size: CGSize(width: width, height: height),
+                traits: traits(style)
+            ),
+            named: style == .dark ? "dark" : "light",
+            testName: testName,
+            line: line
+        )
+    }
+
     /// Let the cell's image-load Task drain its scripted stream and apply the
     /// resulting layout before we measure and snapshot.
     private func settle() async {
@@ -223,12 +300,18 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         ])
     }
 
-    private func makeViewModel(row: PostDetailHeaderRow) -> PostDetailHeaderViewModel {
+    private func makeViewModel(
+        row: PostDetailHeaderRow,
+        blurNsfw: Bool = false,
+        isRevealed: Bool = false
+    ) -> PostDetailHeaderViewModel {
         let appearance = AppearanceService(preferencesService: PreferencesService())
         return PostDetailHeaderViewModel(
             row: row,
             appearance: appearance,
-            postContentDetector: PostContentDetectorService()
+            postContentDetector: PostContentDetectorService(),
+            blurNsfw: blurNsfw,
+            isRevealed: isRevealed
         )
     }
 
@@ -264,7 +347,8 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         imageWidth: Int? = nil,
         imageHeight: Int? = nil,
         urlEmbedTitle: String? = nil,
-        urlEmbedDescription: String? = nil
+        urlEmbedDescription: String? = nil,
+        isNsfw: Bool = false
     ) -> PostDetailHeaderRow {
         PostDetailHeaderRow(
             id: 1,
@@ -294,6 +378,7 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
             isFeaturedCommunity: false,
             isFeaturedLocal: false,
             isDeleted: false,
+            isNsfw: isNsfw,
             published: Date(timeIntervalSinceNow: -5 * 3600)
         )
     }

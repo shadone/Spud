@@ -56,6 +56,9 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
     public let isFeaturedCommunity: Bool
     public let isFeaturedLocal: Bool
     public let isDeleted: Bool
+    /// True when the post or its community is marked as NSFW. Drives the
+    /// blur overlay in the header cell when the "blur NSFW" preference is on.
+    public let isNsfw: Bool
     public let published: Date
 
     public init(
@@ -86,6 +89,7 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
         isFeaturedCommunity: Bool,
         isFeaturedLocal: Bool,
         isDeleted: Bool,
+        isNsfw: Bool,
         published: Date
     ) {
         self.id = id
@@ -115,6 +119,7 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
         self.isFeaturedCommunity = isFeaturedCommunity
         self.isFeaturedLocal = isFeaturedLocal
         self.isDeleted = isDeleted
+        self.isNsfw = isNsfw
         self.published = published
     }
 }
@@ -275,6 +280,7 @@ public extension AppDatabase {
                             post.isFeaturedCommunity   AS isFeaturedCommunity,
                             post.isFeaturedLocal       AS isFeaturedLocal,
                             post.isDeleted             AS isDeleted,
+                            (post.isNsfw OR community.isNsfw) AS isNsfw,
                             post.published             AS published,
                             community.communityId      AS serverCommunityId,
                             community.name             AS communityName,
@@ -323,6 +329,7 @@ public extension AppDatabase {
                     isFeaturedCommunity: row["isFeaturedCommunity"],
                     isFeaturedLocal: row["isFeaturedLocal"],
                     isDeleted: row["isDeleted"],
+                    isNsfw: row["isNsfw"],
                     published: row["published"]
                 )
             }

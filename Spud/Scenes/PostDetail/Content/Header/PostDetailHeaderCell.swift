@@ -389,6 +389,18 @@ class PostDetailHeaderCell: UITableViewCellBase {
     /// to reserve the exact image height before it loads. nil when unknown.
     private var postImageSize: CGSize?
 
+    /// Blur overlay placed on top of the lead image. Shown while the post is NSFW,
+    /// the preference is on, and the user hasn't tapped to reveal yet.
+    private lazy var blurOverlay = NsfwBlurOverlayView()
+
+    /// Whether the image is currently blurred. Setting this shows/hides the overlay.
+    var isBlurred: Bool = false {
+        didSet { blurOverlay.setRevealed(!isBlurred) }
+    }
+
+    /// Callback invoked when the user taps the blur overlay to reveal the image.
+    var onRevealBlur: (() -> Void)?
+
     // MARK: Functions
 
     /// Pins the body to the full content width of `postContentVerticalStackView`.
@@ -424,6 +436,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
         postImageContainer.addSubview(mediaBadgeView)
         postImageContainer.addSubview(playIconView)
         postImageContainer.addSubview(loadingSpinner)
+        blurOverlay.showsCaption = true
+        postImageContainer.addSubview(blurOverlay)
+        blurOverlay.onReveal = { [weak self] in self?.onRevealBlur?() }
         contentView.addSubview(mainVerticalStackView)
 
         let postImageContainerHeightConstraint = postImageContainer.heightAnchor.constraint(equalToConstant: 0)
@@ -455,6 +470,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
             loadingSpinner.centerXAnchor.constraint(equalTo: postImageContainer.centerXAnchor),
             loadingSpinner.centerYAnchor.constraint(equalTo: postImageContainer.centerYAnchor),
+
+            blurOverlay.leadingAnchor.constraint(equalTo: postImageContainer.leadingAnchor),
+            blurOverlay.trailingAnchor.constraint(equalTo: postImageContainer.trailingAnchor),
+            blurOverlay.topAnchor.constraint(equalTo: postImageContainer.topAnchor),
+            blurOverlay.bottomAnchor.constraint(equalTo: postImageContainer.bottomAnchor),
 
             postImageContainerHeightConstraint,
         ])
@@ -516,6 +536,9 @@ class PostDetailHeaderCell: UITableViewCellBase {
         imageFailureView?.onRetry = nil
         imageFailureView?.onOpenInBrowser = nil
         imageFailureView?.setRetrying(false)
+
+        isBlurred = false
+        onRevealBlur = nil
     }
 
     func configure(with viewModel: PostDetailHeaderViewModel, imageService: ImageServiceType) {
@@ -563,6 +586,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
         subtitleScoreLabel.accessibilityLabel = viewModel.subtitleScoreAccessibilityLabel
         subtitleCommentLabel.accessibilityLabel = viewModel.subtitleCommentsAccessibilityLabel
         subtitleAgeLabel.accessibilityLabel = viewModel.subtitleAgeAccessibilityLabel
+
+        isBlurred = viewModel.isImageBlurred
 
         imageLoadTask?.cancel()
         mediaBadgeView.text = nil
