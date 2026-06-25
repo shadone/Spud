@@ -32,6 +32,10 @@ struct QuickSwitchView: View {
         .init { viewModel.showNsfw } set: { viewModel.updateShowNsfw($0) }
     }
 
+    private var blurNsfw: Binding<Bool> {
+        .init { viewModel.blurNsfw } set: { viewModel.updateBlurNsfw($0) }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -63,8 +67,16 @@ struct QuickSwitchView: View {
                     Toggle(isOn: showNsfw) {
                         Label("Show NSFW", systemImage: viewModel.showNsfw ? "eye" : "eye.slash")
                     }
+                    Toggle(isOn: blurNsfw) {
+                        Label("Blur NSFW", systemImage: "drop.fill")
+                    }
+                    .disabled(!viewModel.showNsfw)
                 } footer: {
-                    Text("Show posts marked not-safe-for-work.")
+                    Text(
+                        viewModel.showNsfw
+                            ? "Blur NSFW media until you tap to reveal."
+                            : "Show posts marked not-safe-for-work."
+                    )
                 }
 
                 Section {
