@@ -14,6 +14,7 @@ The Posts tab is a split view whose primary column is a sidebar listing the stan
 - **Standard feed entries.** The sidebar always offers Local (posts from your home instance) and All (posts from all federated instances). Subscribed (posts from your subscriptions) is offered only when signed in.
 - **Saved entry, signed in only.** A Saved entry, listing posts you have saved, is shown only for a signed-in account — saved posts require authentication. See [Saving](saving.md).
 - **Subscribed communities section.** When you follow any communities, a "Subscribed communities" section lists them, each as an icon-plus-name row. The list is driven live from the local database's followed-communities observation, so subscribing or unsubscribing elsewhere updates it without a manual refresh.
+- **Favorites pinned to the top.** Communities you have favorited (from the Community screen's overflow menu) are pinned above the rest of the list and flagged with a filled star, sorted among themselves by the active sort. Favorites are a local, per-account concern, driven live from the favorited-communities observation, so toggling a favorite re-pins the row without a manual refresh. A favorited community you are not subscribed to does not appear here — the list only pins among the communities it already shows.
 - **Feed entries open the post list.** Tapping Subscribed, Local, All, or Saved builds the matching feed at your default sort and pushes the post list. The selected feed loads and pages like any other (see [Feeds and sorting](feeds-and-sorting.md)).
 - **Community entries open the Community screen.** Tapping a subscribed community opens the full Community screen — header plus feed — rather than a bare post list, so subscribe / unsubscribe and the community header are available from the sidebar path too.
 - **Regular vs compact.** On a regular-width split (iPad) the sidebar and post list are side by side. On compact width (iPhone, or a narrow iPad multitasking split) the columns collapse into one navigation stack; the post list is shown and the sidebar is the previous screen.
@@ -54,6 +55,13 @@ The Posts tab is a split view whose primary column is a sidebar listing the stan
 - **Given** the sidebar with the "Subscribed communities" section visible
 - **When** I subscribe to a new community from the Community screen or search
 - **Then** that community appears in the section without a manual refresh
+
+### Favorites pin to the top
+
+- **Surfaces:** `ipad`
+- **Given** the "Subscribed communities" section with a community I have favorited
+- **When** I look at the list
+- **Then** the favorited community appears at the top with a star, above the non-favorited communities
 
 ## Not supported / out of scope
 

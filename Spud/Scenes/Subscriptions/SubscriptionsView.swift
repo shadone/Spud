@@ -131,6 +131,12 @@ struct SubscriptionsCommunityView: View {
                     .font(.footnote)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            if row.isFavorite {
+                Image(systemName: "star.fill")
+                    .font(.footnote)
+                    .foregroundStyle(.yellow)
+                    .accessibilityLabel(Text("Favorite", comment: "Accessibility label for the favorited-community star"))
+            }
         }
         .contentShape(Rectangle())
     }

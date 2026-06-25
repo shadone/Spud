@@ -67,6 +67,8 @@ class CommunityViewController: UIViewController {
 
     private let headerView = CommunityHeaderView()
     private var feedViewController: PostListViewController?
+    /// Retained so the share sheet's iPad popover can anchor to it.
+    private var overflowBarButtonItem: UIBarButtonItem?
 
     private var observationTask: Task<Void, Never>?
     private var bannerImageTask: Task<Void, Never>?
@@ -124,21 +126,40 @@ class CommunityViewController: UIViewController {
             target: self,
             action: #selector(newPostTapped)
         )
+        // Group 1: state-dependent actions (subscribe + favorite), deferred so
+        // they reflect live subscription / favorite state each time the menu
+        // opens. Group 2: mute + block. Group 3: sharing. Inline groups keep the
+        // three visually separated.
+        let stateGroup = UIMenu(options: .displayInline, children: [
+            UIDeferredMenuElement.uncached { [weak self] completion in
+                completion(self?.subscribeMenuActions() ?? [])
+            },
+            UIDeferredMenuElement.uncached { [weak self] completion in
+                completion(self?.favoriteMenuActions() ?? [])
+            },
+        ])
+        let moderationGroup = UIMenu(options: .displayInline, children: [
+            UIDeferredMenuElement.uncached { [weak self] completion in
+                completion(self?.muteMenuActions() ?? [])
+            },
+            UIDeferredMenuElement.uncached { [weak self] completion in
+                completion(self?.blockMenuActions() ?? [])
+            },
+        ])
+        let sharingGroup = UIMenu(options: .displayInline, children: [
+            UIDeferredMenuElement.uncached { [weak self] completion in
+                completion(self?.sharingMenuActions() ?? [])
+            },
+        ])
         let overflowButton = UIBarButtonItem(
             image: UIImage(systemName: "ellipsis.circle"),
-            menu: UIMenu(children: [
-                UIDeferredMenuElement.uncached { [weak self] completion in
-                    completion(self?.muteMenuActions() ?? [])
-                },
-                UIDeferredMenuElement.uncached { [weak self] completion in
-                    completion(self?.blockMenuActions() ?? [])
-                },
-            ])
+            menu: UIMenu(children: [stateGroup, moderationGroup, sharingGroup])
         )
         overflowButton.accessibilityLabel = NSLocalizedString(
             "More",
             comment: "Community overflow menu accessibility label"
         )
+        overflowBarButtonItem = overflowButton
 
         headerView.imageService = imageService
         headerView.subscribeTapped = { [weak self] in
@@ -356,6 +377,91 @@ class CommunityViewController: UIViewController {
             forKeychainId: accountKeychainId,
             communityActorId: actorId
         )
+    }
+
+    /// Builds the Subscribe / Unsubscribe action for the overflow menu,
+    /// reflecting the current subscription state. Mirrors the context-menu
+    /// action; the underlying `toggleSubscribed()` is sign-in gated.
+    private func subscribeMenuActions() -> [UIMenuElement] {
+        let subscribed = viewModel.subscribed.isSubscribed
+        return [UIAction(
+            title: subscribed
+                ? NSLocalizedString("Unsubscribe", comment: "Overflow action to unsubscribe from a community")
+                : NSLocalizedString("Subscribe", comment: "Overflow action to subscribe to a community"),
+            image: UIImage(systemName: subscribed ? "minus.circle" : "plus.circle")
+        ) { [weak self] _ in
+            self?.toggleSubscribed()
+        }]
+    }
+
+    /// Builds the Add to Favorites / Remove from Favorites action for the
+    /// overflow menu, reflecting the current favorite state. Favorites are a
+    /// local concern (like muting), so this isn't sign-in gated.
+    private func favoriteMenuActions() -> [UIMenuElement] {
+        guard let actorId = viewModel.actorId else { return [] }
+        let favorited = appDatabase.isCommunityFavoritedSync(
+            forKeychainId: accountKeychainId,
+            communityActorId: actorId
+        )
+        return [UIAction(
+            title: favorited
+                ? NSLocalizedString("Remove from Favorites", comment: "Overflow action to unfavorite a community")
+                : NSLocalizedString("Add to Favorites", comment: "Overflow action to favorite a community"),
+            image: UIImage(systemName: favorited ? "star.slash" : "star")
+        ) { [weak self] _ in
+            self?.toggleFavorite()
+        }]
+    }
+
+    private func toggleFavorite() {
+        guard let actorId = viewModel.actorId else { return }
+        Haptics.tap()
+        let favorited = appDatabase.isCommunityFavoritedSync(
+            forKeychainId: accountKeychainId,
+            communityActorId: actorId
+        )
+        if favorited {
+            appDatabase.unfavoriteCommunitySync(
+                forKeychainId: accountKeychainId,
+                communityActorId: actorId
+            )
+        } else {
+            appDatabase.favoriteCommunitySync(
+                forKeychainId: accountKeychainId,
+                communityActorId: actorId
+            )
+        }
+    }
+
+    /// Builds the sharing actions (Copy Link, Share, Open in Browser) for the
+    /// overflow menu. Omitted when the community has no valid actor-id URL.
+    private func sharingMenuActions() -> [UIMenuElement] {
+        guard
+            let actorId = viewModel.actorId,
+            let url = URL(string: actorId)
+        else { return [] }
+
+        let copyLink = UIAction(
+            title: NSLocalizedString("Copy Link", comment: "Overflow action to copy a community's link"),
+            image: UIImage(systemName: "doc.on.doc")
+        ) { _ in
+            Haptics.tap()
+            UIPasteboard.general.url = url
+        }
+        let share = UIAction(
+            title: NSLocalizedString("Share…", comment: "Overflow action to share a community"),
+            image: UIImage(systemName: "square.and.arrow.up")
+        ) { [weak self] _ in
+            self?.presentShareSheet(for: url, sourceItem: self?.overflowBarButtonItem)
+        }
+        let openInBrowser = UIAction(
+            title: NSLocalizedString("Open in Browser", comment: "Overflow action to open a community in the browser"),
+            image: UIImage(systemName: "safari")
+        ) { _ in
+            Haptics.tap()
+            UIApplication.shared.open(url)
+        }
+        return [copyLink, share, openInBrowser]
     }
 
     private func applyBlockCommunity(_ blocked: Bool) async {

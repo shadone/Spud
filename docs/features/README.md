@@ -73,7 +73,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Search](search.md) | `iphone`, `ipad` | shipped |
 | [Subscriptions sidebar](subscriptions-sidebar.md) | `ipad` | shipped |
 | [Subscribe / unsubscribe](subscribe-unsubscribe.md) | `iphone`, `ipad` | shipped |
-| [Community screen](community-screen.md) | `iphone`, `ipad` | shipped |
+| [Community screen](community-screen.md) | `iphone`, `ipad` | shipped — overflow: subscribe, favorite, mute, block, share |
 | [Person / user profile](person-profile.md) | `iphone`, `ipad` | shipped |
 | [Accounts and switching](accounts-and-switching.md) | `iphone`, `ipad` | shipped |
 | [Signed-out browsing](signed-out-browsing.md) | `iphone`, `ipad` | shipped |
@@ -141,9 +141,10 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 
 **Discovery**
 - [x] Search (posts / comments / communities / users) + inline subscribe
-- [x] Subscriptions sidebar (iPad / regular-width only; no iPhone-portrait entry point)
+- [x] Subscriptions sidebar (iPad / regular-width only; no iPhone-portrait entry point) + favorites pinned to top
 - [x] Subscribe / unsubscribe
-- [x] Community screen (header + feed)
+- [x] Community screen (header + feed; overflow: subscribe, favorite, mute, block, copy link / share / open in browser)
+- [x] Per-account community favorites (local, pinned in the Communities list)
 - [x] Person / user profile
 
 **Account & auth**

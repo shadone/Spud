@@ -30,34 +30,51 @@ final class SubscriptionsViewModel {
     let isSignedIn: Bool
     var followCommunities: [SubscriptionsCommunityRow] = []
 
+    /// Community actor ids the active account has favorited. Updated live from
+    /// `observeFavoritedCommunityActorIds`; folded into the rows so favorites
+    /// pin to the top and show a star.
+    var favoriteActorIds: Set<String> = []
+
     /// Live filter text from the search bar.
     var searchText: String = ""
     /// Active ordering for the community list.
     var sortOrder: SortOrder = .alphabetical
 
     /// The subscribed communities after applying the search filter and the
-    /// active sort. Drives the list so search / sort stay purely client-side.
+    /// active sort, with favorites pinned to the top. Favorited rows come first
+    /// (sorted among themselves by the active sort), then the rest. Drives the
+    /// list so search / sort / favorites stay purely client-side.
     var displayedCommunities: [SubscriptionsCommunityRow] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let flagged = followCommunities.map { row -> SubscriptionsCommunityRow in
+            var row = row
+            row.isFavorite = favoriteActorIds.contains(row.communityActorId)
+            return row
+        }
         let filtered = query.isEmpty
-            ? followCommunities
-            : followCommunities.filter {
+            ? flagged
+            : flagged.filter {
                 $0.name.lowercased().contains(query)
                     || $0.instanceActorId.host.lowercased().contains(query)
             }
 
+        let sorted = filtered.sorted(by: ordering)
+        // Stable partition: favorites first, preserving the active sort within
+        // each group.
+        return sorted.filter(\.isFavorite) + sorted.filter { !$0.isFavorite }
+    }
+
+    /// The active-sort comparator, shared by `displayedCommunities` so favorites
+    /// and non-favorites order consistently.
+    private func ordering(_ lhs: SubscriptionsCommunityRow, _ rhs: SubscriptionsCommunityRow) -> Bool {
         switch sortOrder {
         case .alphabetical:
-            return filtered.sorted {
-                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-            }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         case .byInstance:
-            return filtered.sorted {
-                if $0.instanceActorId.host != $1.instanceActorId.host {
-                    return $0.instanceActorId.host.localizedCaseInsensitiveCompare($1.instanceActorId.host) == .orderedAscending
-                }
-                return $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
+            if lhs.instanceActorId.host != rhs.instanceActorId.host {
+                return lhs.instanceActorId.host.localizedCaseInsensitiveCompare(rhs.instanceActorId.host) == .orderedAscending
             }
+            return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
     }
 
@@ -65,6 +82,8 @@ final class SubscriptionsViewModel {
     private let onExploreRequested: () -> Void
     @ObservationIgnored
     private var observationTask: Task<Void, Never>?
+    @ObservationIgnored
+    private var favoritesObservationTask: Task<Void, Never>?
 
     init(
         accountRowId: Int64?,
@@ -86,10 +105,18 @@ final class SubscriptionsViewModel {
                 await MainActor.run { self?.followCommunities = rows }
             }
         }
+
+        favoritesObservationTask = Task { [weak self] in
+            for await actorIds in appDatabase.observeFavoritedCommunityActorIds(forAccountId: accountRowId) {
+                if Task.isCancelled { break }
+                await MainActor.run { self?.favoriteActorIds = actorIds }
+            }
+        }
     }
 
     deinit {
         observationTask?.cancel()
+        favoritesObservationTask?.cancel()
     }
 
     func loadFeed(_ value: SubscriptionsViewItemType) {
@@ -113,7 +140,8 @@ final class SubscriptionsViewModel {
         return SubscriptionsCommunityRow(
             id: id,
             name: name,
-            instanceActorId: instance
+            instanceActorId: instance,
+            communityActorId: actorIdString
         )
     }
 }

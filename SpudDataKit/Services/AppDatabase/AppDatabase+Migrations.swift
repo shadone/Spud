@@ -586,6 +586,24 @@ extension AppDatabase {
             )
         }
 
+        migrator.registerMigration("v19_favoritedCommunity") { db in
+            // Client-local community favorites. Unlike mutes these are permanent
+            // (no expiry): a favorited community is pinned to the top of the
+            // subscriptions list. Scoped per account, keyed by the community's
+            // federation actor id so it matches regardless of which feed surfaced
+            // it.
+            try db.create(table: "favoritedCommunity") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("accountId", .integer)
+                    .notNull()
+                    .indexed()
+                    .references("account", onDelete: .cascade)
+                t.column("communityActorId", .text).notNull()
+                t.column("createdAt", .datetime).notNull()
+                t.uniqueKey(["accountId", "communityActorId"])
+            }
+        }
+
         return migrator
     }
 }
