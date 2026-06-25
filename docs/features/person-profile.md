@@ -2,23 +2,24 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Community screen](community-screen.md), [Search](search.md), [Post detail and comments](post-detail-and-comments.md), [Feeds and sorting](feeds-and-sorting.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Community screen](community-screen.md), [Search](search.md), [Post detail and comments](post-detail-and-comments.md), [Feeds and sorting](feeds-and-sorting.md), [Sharing](sharing.md), [Moderation actions](moderation-actions.md), [Private messages](private-messages.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
-The person profile shows a header above a segmented Posts / Comments list of that user's own content. The header shows an optional banner, an overlapping circular avatar, the display name, the canonical `@name@instance` handle (the user's own home instance, even for a remote user viewed from another account), a stats line (post count, comment count, and cake day), and a rendered markdown bio. The segmented control switches between the user's posts (feed-style rows) and comments (comment-with-context rows); tapping a post opens it in Post detail, and tapping a comment opens its post. The screen is reached from a user search result or a user mention link and works on iPhone and iPad.
+The person profile shows a header above a segmented Posts / Comments list of that user's own content. The header shows an optional banner, an overlapping circular avatar, the display name, the canonical `@name@instance` handle (the user's own home instance, even for a remote user viewed from another account), a stats line (post count, comment count, and cake day), and a rendered markdown bio. The segmented control switches between the user's posts (feed-style rows) and comments (comment-with-context rows); tapping a post opens it in Post detail, and tapping a comment opens its post. The navigation bar carries a sort button and a `···` overflow menu (sharing, plus Message / Block when signed in). The screen is reached from a user search result or a user mention link and works on iPhone and iPad.
 
 ## Behavior and rules
 
 - **Header scrolls with the content.** The header and the Posts / Comments segmented control are hosted inside the list as its scrolling header, so a long bio scrolls away with the content instead of overflowing a fixed region at the top. The selected tab's list fills the rest below.
 - **Own-instance handle.** The `@name@instance` handle uses the person's own home instance (derived from their federated `actorId`), not the viewing account's home instance — so a remote user reads e.g. `@ddenis@lemmy.world`, not `@ddenis@<your-instance>`.
 - **Header is database-driven.** Header fields come from the local database's person-profile observation, so the avatar, banner, handle, stats, and bio update live as the record changes.
-- **Content is a fetched snapshot.** The posts and comments are fetched one page at a time for the profile (at the account default sort) and held in memory — a snapshot of the requested page, like search results, not a persistent paging feed. The two lists are decoded from a single response and the segmented control switches between them.
+- **Content is a fetched snapshot.** The posts and comments are fetched one page at a time for the profile (at the active sort — the account default initially, changeable from the navbar sort button) and held in memory — a snapshot of the requested page, like search results, not a persistent paging feed. The two lists are decoded from a single response and the segmented control switches between them.
 - **Resolve-then-show.** Opening a profile first fetches the person's info behind a "Loading…" spinner; once the local row appears the header-plus-content screen is shown.
 - **Pull to refresh.** The content list has pull-to-refresh, which re-fetches the active tab.
 - **Designed states.** Each tab shows a spinner while loading, an empty state ("No posts" / "No comments") when that tab is empty, and an error state with a pull-to-refresh hint on failure.
-- **Message and block, signed in only.** When signed in and viewing someone else's profile, a Message button opens a private-message composer to that user, and an overflow menu offers Block / Unblock user. These are suppressed on your own profile and when signed out. The block state is resolved from the server's block list on appear; blocking asks for confirmation.
-- **Copy handle.** Long-pressing the header offers Copy handle (the `@name@instance` string), plus Block / Unblock when not your own profile.
+- **Sort.** A navigation-bar sort button reorders the profile. A single fetch returns both Posts and Comments, so one sort applies to the whole screen; it offers exactly the set the API accepts (Active / Hot / New / Old / Controversial / Scaled / Top 6h–All / Most Comments / New Comments), grouped like the Community sort. Per-screen only — it does not change the account default.
+- **Overflow menu.** A navigation-bar `···` menu groups sharing — Copy handle, Copy Link, Share…, and Open in Browser (the link / share / browser actions need the resolved profile URL, so they appear once it loads) — and, when signed in and viewing someone else's profile, Message and Block / Unblock. The sharing group is always available; Message / Block are evaluated each time the menu opens, so Block / Unblock reflects live state. Blocking asks for confirmation, and the block state is resolved from the server's block list on appear.
+- **Copy handle.** Long-pressing the header also offers Copy handle (the `@name@instance` string), plus Block / Unblock when not your own profile — the same actions available in the overflow menu.
 - **Bio links.** Links in the bio open inline: a person link opens another Person profile, a community link opens the [Community screen](community-screen.md), and other links open externally.
 
 ## Scenarios
