@@ -107,13 +107,14 @@ final class OutboundContentListSnapshotTests: XCTestCase {
                 accountId: accountId,
                 now: now - 200
             )
-            let failedRowId = try try await XCTUnwrap(dependencies.appDatabase.writer.read { db in
+            let failedRowIdValue = try await dependencies.appDatabase.writer.read { db in
                 try Int64.fetchOne(
                     db,
                     sql: "SELECT id FROM outboundContent WHERE clientToken = ?",
                     arguments: [failedToken]
                 )
-            })
+            }
+            let failedRowId = try XCTUnwrap(failedRowIdValue)
             try await dependencies.appDatabase.markOutboundFailed(
                 id: failedRowId,
                 lastError: "Server returned 500",

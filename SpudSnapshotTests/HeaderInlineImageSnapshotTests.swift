@@ -107,7 +107,7 @@ final class HeaderInlineImageSnapshotTests: XCTestCase {
         let header = CommunityHeaderView()
         header.imageService = service
         var loaded = false
-        header.onBodyImageLoaded = { loaded = true }
+        header.onDescriptionHeightChanged = { loaded = true }
         header.configure(
             title: "Technology",
             qualifiedName: "!technology@lemmy.world",
