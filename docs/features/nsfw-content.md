@@ -7,10 +7,12 @@
 ## What it does
 
 Controls whether posts and communities marked not-safe-for-work appear in feeds and the
-community directory. The default is to hide NSFW content. A single client preference governs
-it everywhere — the frontpage, community, and saved feeds, the Quick Switch popover, and the
-Discover directory all read the same setting — and for a signed-in account the choice is also
-pushed to the server so it sticks across devices.
+community directory, and whether thumbnails for shown NSFW posts are blurred until tapped.
+A single client preference governs content visibility everywhere — the frontpage, community,
+and saved feeds, the Quick Switch popover, and the Discover directory all read the same
+setting — and for a signed-in account the choice is also pushed to the server so it sticks
+across devices. A separate "blur NSFW thumbnails" preference lets users who want to see NSFW
+posts still hide thumbnail images behind a tap-to-reveal overlay.
 
 ## Behavior and rules
 
@@ -20,6 +22,7 @@ pushed to the server so it sticks across devices.
 - **Changing it reloads the open feed.** Because the filter is applied by the server at fetch time, flipping the toggle re-fetches the current feed from the top under the new setting rather than filtering in place.
 - **Read at fetch time.** The current preference is read on every page fetch, so a change is honoured on the next page or reload.
 - **Synced to the server when signed in.** For a signed-in account, changing the preference also writes `show_nsfw` to the account's server-side user settings (best-effort) and mirrors the new value onto the locally cached account row. To avoid duplicate writes from the several post lists that observe the change, only the frontpage feed performs this sync; community and saved feeds reload but do not sync. A signed-out account skips the server write — the local preference still filters its feeds.
+- **Blur NSFW thumbnails (separate preference).** When NSFW content is shown, users can enable "Blur NSFW Thumbnails" to cover post-list thumbnails for NSFW posts with a frosted-glass overlay. Tapping the overlay reveals that post's thumbnail for the rest of the session (reveal state is in-memory, not persisted). The blur/reveal preference is also synced to the server for signed-in frontpage feeds (via `blurNsfw` / `setBlurNsfw`). The blur overlay is the `NsfwBlurOverlayView` component; reveal tracking lives in `PostListViewController.revealedNsfwPostIds`.
 - **Discover agrees with the feeds.** The Discover community directory reads the same client preference: when off, NSFW communities are filtered out of the directory and network search results; when on, they appear (badged). Curated rails (starter packs, trending) stay clean regardless.
 
 ## Scenarios
@@ -50,6 +53,13 @@ pushed to the server so it sticks across devices.
 - **Then** NSFW posts are filtered out by the server via the request parameter
 - **And** no account setting is read or written
 
+### Blur NSFW thumbnails in the feed
+
+- **Given** Show NSFW is on and Blur NSFW Thumbnails is on
+- **When** I browse a feed containing NSFW posts
+- **Then** NSFW posts appear in the list but their thumbnails are covered by a frosted-glass overlay
+- **And** tapping the overlay on a post reveals that post's thumbnail for the rest of the session
+
 ### Discover follows the same setting
 
 - **Given** Show NSFW is off
@@ -58,7 +68,7 @@ pushed to the server so it sticks across devices.
 
 ## Not supported / out of scope
 
-- There is no separate "blur NSFW" mode — content is either shown or hidden, not blurred.
+- The blur overlay applies only to post-list thumbnails; post-detail images and inline media are not blurred (the user has explicitly opened the post at that point).
 - The Home Screen widget always hides NSFW (it has no access to the in-app preference).
 - The preference is global; there is no per-community or per-feed NSFW override.
 - Marking your own new post NSFW is a separate control on the post composer (see new-post.md), independent of this visibility preference.

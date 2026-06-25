@@ -123,7 +123,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Inline thumbnails (text / link / image / video) + media badges
 - [x] Context-menu peek on posts
 - [x] Marking posts read / hiding read posts
-- [x] NSFW content visibility — hidden by default; server-side filter, synced for signed-in accounts (nsfw-content.md)
+- [x] NSFW content visibility — hidden by default; server-side filter, synced for signed-in accounts; blur-thumbnails overlay with tap-to-reveal (nsfw-content.md)
 - [x] Configurable swipe actions (posts)
 
 **Posts & comments**
