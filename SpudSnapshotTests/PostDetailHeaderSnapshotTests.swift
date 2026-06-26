@@ -364,6 +364,7 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
             urlEmbedDescription: urlEmbedDescription,
             altText: nil,
             communityName: "photography",
+            communityTitle: "Photography",
             communityActorId: "https://lemmy.world/c/photography",
             serverCommunityId: 1,
             creatorName: "ansel",

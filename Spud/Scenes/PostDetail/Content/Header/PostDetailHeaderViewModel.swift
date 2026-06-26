@@ -164,11 +164,36 @@ struct PostDetailHeaderViewModel {
         subtitleCommentsAccessibilityLabel = CommentsAccessibility.label(count: row.numberOfComments)
         subtitleAgeAccessibilityLabel = row.published.relativeString
 
-        let inString = NSAttributedString(string: "in ", attributes: secondaryAttributes)
-        let communityName = NSAttributedString(string: row.communityName, attributes: communityAttributes)
-        let byString = NSAttributedString(string: " by ", attributes: secondaryAttributes)
-        let creator = NSAttributedString(string: row.creatorName, attributes: creatorAttributes)
-        attribution = [inString, communityName, byString, creator].joined()
+        // The `@instance` host stays quiet (tertiary) so it reads as metadata, never
+        // competing with the community / creator display name — matching the muted
+        // host style in the post-list rows.
+        var instanceAttributes = secondaryAttributes
+        instanceAttributes[.foregroundColor] = UIColor.tertiaryLabel
+
+        // Prefer the community's display name (title); fall back to its handle.
+        let communityDisplayName: String = {
+            let title = row.communityTitle?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if let title, !title.isEmpty { return title }
+            return row.communityName
+        }()
+        let communityHost = row.communityActorId.flatMap { InstanceActorId(from: $0)?.host }
+        let creatorHost = InstanceActorId(from: row.creatorInstanceActorId)?.host
+
+        // "in <Community>@host by <Creator>@host" — the names carry the tap targets
+        // (host suffix excluded so the link's accessibility label stays the name).
+        var pieces: [NSAttributedString] = [
+            NSAttributedString(string: "in ", attributes: secondaryAttributes),
+            NSAttributedString(string: communityDisplayName, attributes: communityAttributes),
+        ]
+        if let communityHost {
+            pieces.append(NSAttributedString(string: "@\(communityHost)", attributes: instanceAttributes))
+        }
+        pieces.append(NSAttributedString(string: " by ", attributes: secondaryAttributes))
+        pieces.append(NSAttributedString(string: row.creatorName, attributes: creatorAttributes))
+        if let creatorHost {
+            pieces.append(NSAttributedString(string: "@\(creatorHost)", attributes: instanceAttributes))
+        }
+        attribution = pieces.joined()
 
         let urlValue = row.url.flatMap { URL(string: $0) }
         let thumbnailUrlValue = row.thumbnailUrl.flatMap { URL(string: $0) }

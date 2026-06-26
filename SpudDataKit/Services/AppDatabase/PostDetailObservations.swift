@@ -34,6 +34,9 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
     /// caption when the header image is opened full-screen.
     public let altText: String?
     public let communityName: String
+    /// The community's display name (`community.title`), shown in the post-detail
+    /// header attribution. nil/empty falls back to `communityName`.
+    public let communityTitle: String?
     /// The community's federation actor id (e.g.
     /// "https://lemmy.world/c/world"). Used to derive the home instance for a
     /// community deep link. nil if the community row has no actorId.
@@ -75,6 +78,7 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
         urlEmbedDescription: String?,
         altText: String?,
         communityName: String,
+        communityTitle: String? = nil,
         communityActorId: String?,
         serverCommunityId: Int64,
         creatorName: String,
@@ -105,6 +109,7 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
         self.urlEmbedDescription = urlEmbedDescription
         self.altText = altText
         self.communityName = communityName
+        self.communityTitle = communityTitle
         self.communityActorId = communityActorId
         self.serverCommunityId = serverCommunityId
         self.creatorName = creatorName
@@ -284,6 +289,7 @@ public extension AppDatabase {
                             post.published             AS published,
                             community.communityId      AS serverCommunityId,
                             community.name             AS communityName,
+                            community.title            AS communityTitle,
                             community.actorId          AS communityActorId,
                             creator.name               AS creatorName,
                             creator.displayName        AS creatorDisplayName,
@@ -315,6 +321,7 @@ public extension AppDatabase {
                     urlEmbedDescription: row["urlEmbedDescription"],
                     altText: row["altText"],
                     communityName: row["communityName"] ?? "",
+                    communityTitle: row["communityTitle"],
                     communityActorId: row["communityActorId"],
                     serverCommunityId: row["serverCommunityId"],
                     creatorName: rawCreatorName ?? "",
