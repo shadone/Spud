@@ -65,24 +65,31 @@ final class PostDetailHeaderAttributionTests: XCTestCase {
         XCTAssertEqual(attribution().string, "in News@lemmy.world by Tony@beehaw.org")
     }
 
-    func test_communityHostIsMutedAndNameIsLinked() {
+    func test_communityHostIsMutedAndWholeHandleIsLinked() {
         let s = attribution()
         let ns = s.string as NSString
 
         let hostRange = ns.range(of: "@lemmy.world")
+        // Host stays muted...
         let hostColor = s.attribute(.foregroundColor, at: hostRange.location, effectiveRange: nil) as? UIColor
         XCTAssertEqual(hostColor, .tertiaryLabel)
 
+        // ...but the whole "News@lemmy.world" handle is the tap target: name and host
+        // carry the same link (so they read as one link range).
         let nameRange = ns.range(of: "News")
-        XCTAssertNotNil(s.attribute(.link, at: nameRange.location, effectiveRange: nil))
-        // The muted host suffix is not part of the tap target.
-        XCTAssertNil(s.attribute(.link, at: hostRange.location, effectiveRange: nil))
+        let nameLink = s.attribute(.link, at: nameRange.location, effectiveRange: nil) as? URL
+        let hostLink = s.attribute(.link, at: hostRange.location, effectiveRange: nil) as? URL
+        XCTAssertNotNil(nameLink)
+        XCTAssertEqual(nameLink, hostLink)
     }
 
-    func test_creatorNameIsLinked() {
+    func test_creatorHandleIsLinked() {
         let s = attribution()
-        let nameRange = (s.string as NSString).range(of: "Tony")
-        XCTAssertNotNil(s.attribute(.link, at: nameRange.location, effectiveRange: nil))
+        let ns = s.string as NSString
+        let nameLink = s.attribute(.link, at: ns.range(of: "Tony").location, effectiveRange: nil) as? URL
+        let hostLink = s.attribute(.link, at: ns.range(of: "@beehaw.org").location, effectiveRange: nil) as? URL
+        XCTAssertNotNil(nameLink)
+        XCTAssertEqual(nameLink, hostLink)
     }
 
     func test_fallsBackToHandleWhenTitleMissing() {

@@ -177,9 +177,12 @@ class SpudUITests: XCTestCase {
         let detailHeaderCell = app.cells["postDetailHeader"]
         XCTAssertTrue(detailHeaderCell.waitForExistence(timeout: 5))
 
-        // The creator renders as the display name "Nunc Finibus Augue" and is
-        // exposed as a link element inside the attribution label.
-        let creatorLink = detailHeaderCell.links["Nunc Finibus Augue"]
+        // The creator renders as "Nunc Finibus Augue@<host>" (display name + muted
+        // host) as a single link element inside the attribution label.
+        // The whole handle is one link, so match by prefix.
+        let creatorLink = detailHeaderCell.links
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Nunc Finibus Augue"))
+            .firstMatch
         XCTAssertTrue(
             creatorLink.waitForExistence(timeout: 5),
             "Creator link should be exposed as an accessibility element"
@@ -306,7 +309,10 @@ class SpudUITests: XCTestCase {
 
         let detailHeaderCell = app.cells["postDetailHeader"]
         XCTAssertTrue(detailHeaderCell.waitForExistence(timeout: 5))
-        let creatorLink = detailHeaderCell.links["Nunc Finibus Augue"]
+        // The whole handle ("Nunc Finibus Augue@<host>") is one link, so match by prefix.
+        let creatorLink = detailHeaderCell.links
+            .matching(NSPredicate(format: "label BEGINSWITH %@", "Nunc Finibus Augue"))
+            .firstMatch
         XCTAssertTrue(creatorLink.waitForExistence(timeout: 5))
         creatorLink.tap()
         XCTAssertTrue(
