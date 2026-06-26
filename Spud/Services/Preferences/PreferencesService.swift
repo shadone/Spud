@@ -104,6 +104,12 @@ protocol PreferencesServiceType: AnyObject {
     var blurNsfw: Bool { get set }
     var blurNsfwStream: AsyncStream<Bool> { get }
 
+    /// Whether the app fetches link-embed metadata (thumbnail + title) for video
+    /// links in comment/post bodies. Default `true`. Off ⇒ in-body link cards
+    /// stay local (anchor text + host), with no third-party fetch.
+    var fetchLinkEmbeds: Bool { get set }
+    var fetchLinkEmbedsStream: AsyncStream<Bool> { get }
+
     /// Whether the user has acknowledged the age gate for viewing adult content.
     /// Set to `true` once on first confirmation; never reset to `false` in the app.
     var hasAcknowledgedNsfwAge: Bool { get set }
@@ -289,6 +295,13 @@ class PreferencesService: PreferencesServiceType {
 
     var blurNsfwStream: AsyncStream<Bool> {
         $blurNsfw
+    }
+
+    @UserDefaultsBacked(key: "fetchLinkEmbeds")
+    var fetchLinkEmbeds: Bool = true
+
+    var fetchLinkEmbedsStream: AsyncStream<Bool> {
+        $fetchLinkEmbeds
     }
 
     @UserDefaultsBacked(key: "hasAcknowledgedNsfwAge")

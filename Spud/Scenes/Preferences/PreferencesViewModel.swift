@@ -117,6 +117,7 @@ final class PreferencesViewModel {
 
     var showNsfw: Bool
     var blurNsfw: Bool
+    var fetchLinkEmbeds: Bool
     var hasAcknowledgedNsfwAge: Bool
 
     var markPostsRead: Bool
@@ -196,6 +197,7 @@ final class PreferencesViewModel {
         showVoteButtons = dependencies.preferencesService.showVoteButtons
         showNsfw = dependencies.preferencesService.showNsfw
         blurNsfw = dependencies.preferencesService.blurNsfw
+        fetchLinkEmbeds = dependencies.preferencesService.fetchLinkEmbeds
         hasAcknowledgedNsfwAge = dependencies.preferencesService.hasAcknowledgedNsfwAge
         markPostsRead = dependencies.preferencesService.markPostsRead
         markPostsReadOnScroll = dependencies.preferencesService.markPostsReadOnScroll
@@ -316,6 +318,12 @@ final class PreferencesViewModel {
         })
 
         preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.fetchLinkEmbedsStream {
+                self?.fetchLinkEmbeds = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
             for await value in preferencesService.markPostsReadStream {
                 self?.markPostsRead = value
             }
@@ -386,6 +394,7 @@ final class PreferencesViewModel {
         showVoteButtons = true
         showNsfw = false
         blurNsfw = true
+        fetchLinkEmbeds = true
         hasAcknowledgedNsfwAge = false
         markPostsRead = true
         markPostsReadOnScroll = false
@@ -578,6 +587,12 @@ final class PreferencesViewModel {
         // mirrors the value to the server for signed-in accounts.
         preferencesService?.blurNsfw = value
         Haptics.tap()
+    }
+
+    func updateFetchLinkEmbeds(_ value: Bool) {
+        guard value != fetchLinkEmbeds else { return }
+        fetchLinkEmbeds = value
+        preferencesService?.fetchLinkEmbeds = value
     }
 
     func updateMarkPostsRead(_ value: Bool) {

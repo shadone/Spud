@@ -67,6 +67,10 @@ struct PreferencesGeneralView: View {
         }
     }
 
+    private var fetchLinkEmbeds: Binding<Bool> {
+        .init { viewModel.fetchLinkEmbeds } set: { viewModel.updateFetchLinkEmbeds($0) }
+    }
+
     var body: some View {
         Form {
             Section {
@@ -144,10 +148,19 @@ struct PreferencesGeneralView: View {
                 } label: {
                     Label("Privacy & Link Cleaning", systemImage: "hand.raised")
                 }
+
+                Toggle(isOn: fetchLinkEmbeds) {
+                    Label(
+                        NSLocalizedString("Load Link Previews", comment: "Settings toggle: fetch link preview thumbnails/titles"),
+                        systemImage: "rectangle.and.text.magnifyingglass"
+                    )
+                }
             } header: {
                 Text("Links")
             } footer: {
                 VStack(alignment: .leading) {
+                    Text("Fetch thumbnails and titles for video links in comments and posts. Turn off to keep link previews local and avoid contacting third-party sites.")
+                    Spacer(minLength: 8)
                     Text("Testing area:")
                     HStack(spacing: 4) {
                         Text("    - Normal link: [example.com](https://example.com)")
