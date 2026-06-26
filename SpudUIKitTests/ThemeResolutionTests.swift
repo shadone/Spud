@@ -4,67 +4,74 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Testing
 import UIKit
-import XCTest
 @testable import SpudUIKit
 
-final class ThemeResolutionTests: XCTestCase {
+struct ThemeResolutionTests {
     // MARK: AppTheme -> UIUserInterfaceStyle
 
-    func test_appTheme_userInterfaceStyle() {
-        XCTAssertEqual(AppTheme.system.userInterfaceStyle, .unspecified)
-        XCTAssertEqual(AppTheme.light.userInterfaceStyle, .light)
-        XCTAssertEqual(AppTheme.dark.userInterfaceStyle, .dark)
+    @Test
+    func appTheme_userInterfaceStyle() {
+        #expect(AppTheme.system.userInterfaceStyle == .unspecified)
+        #expect(AppTheme.light.userInterfaceStyle == .light)
+        #expect(AppTheme.dark.userInterfaceStyle == .dark)
         // True Black is a dark variant — same interface style as Dark.
-        XCTAssertEqual(AppTheme.trueBlack.userInterfaceStyle, .dark)
+        #expect(AppTheme.trueBlack.userInterfaceStyle == .dark)
     }
 
-    func test_appTheme_usesTrueBlackBackgrounds() {
-        XCTAssertFalse(AppTheme.system.usesTrueBlackBackgrounds)
-        XCTAssertFalse(AppTheme.light.usesTrueBlackBackgrounds)
-        XCTAssertFalse(AppTheme.dark.usesTrueBlackBackgrounds)
-        XCTAssertTrue(AppTheme.trueBlack.usesTrueBlackBackgrounds)
+    @Test
+    func appTheme_usesTrueBlackBackgrounds() {
+        #expect(!AppTheme.system.usesTrueBlackBackgrounds)
+        #expect(!AppTheme.light.usesTrueBlackBackgrounds)
+        #expect(!AppTheme.dark.usesTrueBlackBackgrounds)
+        #expect(AppTheme.trueBlack.usesTrueBlackBackgrounds)
     }
 
-    func test_appTheme_roundTripsThroughRawValue() {
+    @Test
+    func appTheme_roundTripsThroughRawValue() {
         for theme in AppTheme.allCases {
-            XCTAssertEqual(AppTheme(rawValue: theme.rawValue), theme)
+            #expect(AppTheme(rawValue: theme.rawValue) == theme)
         }
     }
 
     // MARK: AccentColor -> UIColor
 
-    func test_accentColor_lemmyIsTheBrandTeal() {
+    @Test
+    func accentColor_lemmyIsTheBrandTeal() {
         var red: CGFloat = 0
         var green: CGFloat = 0
         var blue: CGFloat = 0
         var alpha: CGFloat = 0
         AccentColor.lemmy.color.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-        XCTAssertEqual(red, 0.0, accuracy: 0.01)
-        XCTAssertEqual(green, 0.59, accuracy: 0.01)
-        XCTAssertEqual(blue, 0.53, accuracy: 0.01)
-        XCTAssertEqual(alpha, 1.0, accuracy: 0.01)
+        #expect(abs(red - 0.0) <= 0.01)
+        #expect(abs(green - 0.59) <= 0.01)
+        #expect(abs(blue - 0.53) <= 0.01)
+        #expect(abs(alpha - 1.0) <= 0.01)
     }
 
-    func test_accentColor_distinctColorsPerCase() {
+    @Test
+    func accentColor_distinctColorsPerCase() {
         // Each accent should resolve to a distinct concrete color in the
         // light trait environment.
         let light = UITraitCollection(userInterfaceStyle: .light)
         let resolved = AccentColor.allCases.map { $0.color.resolvedColor(with: light) }
         for (lhsIndex, lhs) in resolved.enumerated() {
             for rhs in resolved[(lhsIndex + 1)...] {
-                XCTAssertNotEqual(lhs, rhs)
+                #expect(lhs != rhs)
             }
         }
     }
 
-    func test_accentColor_roundTripsThroughRawValue() {
+    @Test
+    func accentColor_roundTripsThroughRawValue() {
         for accent in AccentColor.allCases {
-            XCTAssertEqual(AccentColor(rawValue: accent.rawValue), accent)
+            #expect(AccentColor(rawValue: accent.rawValue) == accent)
         }
     }
 
-    func test_accentColor_defaultIsLemmy() {
-        XCTAssertEqual(AccentColor.allCases.first, .lemmy)
+    @Test
+    func accentColor_defaultIsLemmy() {
+        #expect(AccentColor.allCases.first == .lemmy)
     }
 }
