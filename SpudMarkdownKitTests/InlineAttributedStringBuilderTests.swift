@@ -36,6 +36,51 @@ final class InlineAttributedStringBuilderTests: XCTestCase {
         XCTAssertEqual(s.attribute(.link, at: 0, effectiveRange: nil) as? URL, url)
     }
 
+    func test_explicitUserLinkResolvesToInternalMention() throws {
+        // Lemmy renders @autotldr@lemmings.world as a plain link to /u/autotldr;
+        // it must route in-app, not to Safari.
+        let url = try XCTUnwrap(URL(string: "https://lemmings.world/u/autotldr"))
+        let s = build([.link(text: [.text("@autotldr@lemmings.world")], url: url)])
+        let link = try XCTUnwrap(s.attribute(.link, at: 0, effectiveRange: nil) as? URL)
+        XCTAssertEqual(link.scheme, "spud-markdown")
+        XCTAssertEqual(link.host, "mention")
+        let components = try XCTUnwrap(URLComponents(url: link, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(components.queryItems?.first { $0.name == "name" }?.value, "autotldr")
+        XCTAssertEqual(components.queryItems?.first { $0.name == "instance" }?.value, "lemmings.world")
+    }
+
+    func test_explicitCommunityLinkResolvesToInternalCommunity() throws {
+        let url = try XCTUnwrap(URL(string: "https://lemmy.world/c/news"))
+        let s = build([.link(text: [.text("news")], url: url)])
+        let link = try XCTUnwrap(s.attribute(.link, at: 0, effectiveRange: nil) as? URL)
+        XCTAssertEqual(link.scheme, "spud-markdown")
+        XCTAssertEqual(link.host, "community")
+    }
+
+    func test_federatedUserLinkUsesHomeInstanceFromPath() throws {
+        // /u/<name>@<home> — the home instance in the path wins over the URL host.
+        let url = try XCTUnwrap(URL(string: "https://lemmy.world/u/bob@beehaw.org"))
+        let internalURL = try XCTUnwrap(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+        let components = try XCTUnwrap(URLComponents(url: internalURL, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(components.host, "mention")
+        XCTAssertEqual(components.queryItems?.first { $0.name == "name" }?.value, "bob")
+        XCTAssertEqual(components.queryItems?.first { $0.name == "instance" }?.value, "beehaw.org")
+    }
+
+    func test_ordinaryLinkIsUnchanged() throws {
+        // Non-user/community links (including Lemmy /post/) keep their URL.
+        for raw in [
+            "https://lemmy.world/post/1",
+            "https://example.com/u/foo/bar",
+            "https://example.com/article",
+        ] {
+            let url = try XCTUnwrap(URL(string: raw))
+            XCTAssertNil(InlineAttributedStringBuilder.lemmyReferenceURL(for: url), "\(raw)")
+            let s = build([.link(text: [.text("x")], url: url)])
+            XCTAssertEqual(s.attribute(.link, at: 0, effectiveRange: nil) as? URL, url, "\(raw)")
+        }
+    }
+
     func test_highlightHasBackground() {
         let s = build([.highlight([.text("x")])])
         XCTAssertNotNil(s.attribute(.backgroundColor, at: 0, effectiveRange: nil))

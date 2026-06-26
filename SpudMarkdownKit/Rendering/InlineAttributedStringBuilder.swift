@@ -34,6 +34,45 @@ enum InlineAttributedStringBuilder {
         internalURL(host: "community", name: name, instance: instance)
     }
 
+    /// If `url` is an explicit Lemmy user (`/u/<name>`) or community (`/c/<name>`)
+    /// link, returns the equivalent internal `spud-markdown://` URL so the host
+    /// resolves it in-app instead of opening a browser. Lemmy renders an
+    /// `@user@instance` / `!community@instance` reference as a plain link to
+    /// `https://<instance>/u/<name>` (or `/c/<name>`); the path may itself carry a
+    /// federated handle (`/u/<name>@<home-instance>`), in which case the home
+    /// instance wins. Returns nil for anything that is not a recognizable Lemmy
+    /// user/community URL, so ordinary links fall through unchanged.
+    static func lemmyReferenceURL(for url: URL) -> URL? {
+        guard
+            let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
+            let urlHost = url.host, urlHost.contains(".")
+        else {
+            return nil
+        }
+        let segments = url.path.split(separator: "/", omittingEmptySubsequences: true)
+        guard segments.count == 2, segments[0] == "u" || segments[0] == "c" else { return nil }
+
+        // The handle is "name" (local) or "name@home-instance" (federated).
+        let handle = segments[1].split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false)
+        let name = String(handle[0])
+        let instance = handle.count == 2 ? String(handle[1]) : urlHost
+        guard isLemmyName(name), isLemmyHost(instance) else { return nil }
+
+        return segments[0] == "u"
+            ? mentionURL(name: name, instance: instance)
+            : communityURL(name: name, instance: instance)
+    }
+
+    /// A Lemmy local username / community name: ASCII word characters only.
+    private static func isLemmyName(_ s: String) -> Bool {
+        !s.isEmpty && s.allSatisfy { $0 == "_" || $0.isASCII && $0.isLetter || $0.isNumber }
+    }
+
+    /// A plausible instance host: dotted domain of host characters.
+    private static func isLemmyHost(_ s: String) -> Bool {
+        s.contains(".") && s.allSatisfy { $0 == "." || $0 == "-" || $0.isASCII && ($0.isLetter || $0.isNumber) }
+    }
+
     /// Builds a `spud-markdown://<host>?name=…&instance=…` URL, percent-encoding
     /// the query values. The scheme/host are literals, so `components.url` is
     /// non-nil; the fallback keeps this total without a force-unwrap on input.
@@ -101,9 +140,12 @@ enum InlineAttributedStringBuilder {
         case let .link(text, url):
             let inner = mapChildren(text, context: context, baseFont: baseFont)
             let m = NSMutableAttributedString(attributedString: inner)
+            // A plain link to a Lemmy user/community resolves in-app rather than
+            // opening Safari; ordinary links keep their URL.
+            let linkURL = lemmyReferenceURL(for: url) ?? url
             m.addAttributes(
                 [
-                    .link: url,
+                    .link: linkURL,
                     .foregroundColor: context.accentColor,
                     .underlineStyle: NSUnderlineStyle.single.rawValue,
                 ],
