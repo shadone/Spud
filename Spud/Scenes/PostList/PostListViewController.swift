@@ -170,6 +170,15 @@ class PostListViewController: UIViewController {
     /// Not persisted; resets on relaunch.
     private var revealedNsfwPostIds: Set<Int64> = []
 
+    /// Server post ids of revealed-NSFW thumbnails currently on screen. Drives the
+    /// feed's privacy registration so a revealed NSFW thumbnail is hidden from the
+    /// app-switcher snapshot / screen capture (see PrivacyScreen).
+    private var visibleRevealedNsfwPostIds: Set<Int64> = []
+    /// Whether the feed is currently on-screen; gates the privacy registration so a
+    /// revealed thumbnail under a pushed detail screen doesn't keep covering.
+    private var isViewVisible = false
+    private let feedSensitiveToken = SensitiveContentToken()
+
     /// Server post ids already enqueued for a background mark-as-read (scroll-out
     /// or media-open), so we don't fire the API repeatedly for the same row.
     private var markedReadIds: Set<Int64> = []
@@ -407,6 +416,8 @@ class PostListViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
+        isViewVisible = true
+        updateFeedPrivacy()
         seenFlushTimer?.invalidate()
         seenFlushTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self else { return }
@@ -416,9 +427,21 @@ class PostListViewController: UIViewController {
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        isViewVisible = false
+        updateFeedPrivacy()
         seenFlushTimer?.invalidate()
         seenFlushTimer = nil
         flushSeen()
+    }
+
+    /// True when the post is NSFW and the user has revealed its thumbnail this session.
+    private func isRevealedNsfw(_ serverPostId: Int64) -> Bool {
+        (rowsByServerPostId[serverPostId]?.isNsfw ?? false) && revealedNsfwPostIds.contains(serverPostId)
+    }
+
+    /// Registers feed sensitivity while a revealed NSFW thumbnail is on screen.
+    private func updateFeedPrivacy() {
+        feedSensitiveToken.set(isViewVisible && !visibleRevealedNsfwPostIds.isEmpty)
     }
 
     private func startObservations() {
@@ -1099,6 +1122,9 @@ class PostListViewController: UIViewController {
                 cell.revealNsfwTapped = { [weak self] in
                     guard let self else { return }
                     revealedNsfwPostIds.insert(serverPostId)
+                    // The revealed cell is on screen now — it's sensitive content.
+                    visibleRevealedNsfwPostIds.insert(serverPostId)
+                    updateFeedPrivacy()
                     var snapshot = dataSource.snapshot()
                     snapshot.reconfigureItems([item])
                     dataSource.apply(snapshot, animatingDifferences: false)
@@ -1632,6 +1658,10 @@ extension PostListViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
         guard case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath) else { return }
         seenDwellTracker.didAppear(serverPostId: serverPostId, at: Date())
+        if isRevealedNsfw(serverPostId) {
+            visibleRevealedNsfwPostIds.insert(serverPostId)
+            updateFeedPrivacy()
+        }
     }
 
     /// Marks a post read as it scrolls out of view, when the
@@ -1650,6 +1680,13 @@ extension PostListViewController: UITableViewDelegate {
            let seen = seenDwellTracker.didDisappear(serverPostId: serverPostId, at: Date())
         {
             recordSeen([seen])
+        }
+
+        // A revealed NSFW thumbnail left the screen — drop it from the privacy set.
+        if let serverPostId = (cell as? PostListPostCell)?.seenTrackingServerPostId,
+           visibleRevealedNsfwPostIds.remove(serverPostId) != nil
+        {
+            updateFeedPrivacy()
         }
 
         guard markPostsRead, markPostsReadOnScroll else { return }

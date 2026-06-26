@@ -95,17 +95,20 @@ across devices.
 
 ### Privacy screen (app switcher and screen capture)
 
-- **NSFW media is hidden from the app-switcher snapshot.** While the full-screen media viewer
-  is showing an NSFW post's media, backgrounding the app covers the window with an opaque
-  "Hidden for privacy" screen before iOS snapshots it, so the NSFW image does not appear in the
-  app switcher. The cover is removed when the app returns to the foreground.
+- **NSFW media is hidden from the app-switcher snapshot.** While NSFW media is on screen,
+  backgrounding the app covers the window with an opaque "Hidden for privacy" screen before iOS
+  snapshots it, so the NSFW image does not appear in the app switcher. The cover is removed when
+  the app returns to the foreground.
 - **NSFW media is hidden during screen capture.** While that media is on screen and the screen
   is being recorded or mirrored (`UIScreen.isCaptured`), the same cover is shown; it lifts once
-  the media viewer is closed or the capture stops.
-- **Only while NSFW media is on screen, and independent of the blur preference.** The cover is
-  driven by the full-screen media viewer being open on an NSFW post — it is a privacy measure
-  about what leaks off-screen, so it applies even if Blur NSFW is turned off. The rest of the
-  app is never covered, and content stays visible while you are actively using the app.
+  the media is no longer shown or the capture stops.
+- **Which surfaces count as on-screen NSFW media.** The full-screen media viewer opened on an
+  NSFW post; a *revealed* NSFW post-detail header image; and *revealed* NSFW feed thumbnails
+  while the feed is the visible screen. Still-blurred media is already obscured by the blur
+  overlay, so only revealed media needs covering.
+- **Independent of the blur preference.** It is a privacy measure about what leaks off-screen,
+  so it applies even if Blur NSFW is turned off. The rest of the app is never covered, and
+  content stays visible while you are actively using the app.
 - **Screenshots can't be blocked.** iOS provides no way to prevent a manually-taken screenshot;
   this covers the app-switcher snapshot and active screen capture only.
 
@@ -173,10 +176,10 @@ across devices.
 
 ### NSFW media is hidden from the app switcher and screen recording
 
-- **Given** I have opened an NSFW post's media in the full-screen viewer
+- **Given** NSFW media is on screen — the full-screen media viewer, or a revealed NSFW header image or feed thumbnail
 - **When** I background the app, or the screen is being recorded or mirrored
 - **Then** the window is covered by an opaque "Hidden for privacy" screen so the media does not appear in the app-switcher snapshot or the capture
-- **And** the cover is removed when I return to the app or close the media viewer
+- **And** the cover is removed when I return to the app or the NSFW media is no longer shown
 
 ### Blur toggle is disabled when Show NSFW is off
 

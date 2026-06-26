@@ -80,6 +80,7 @@ class PostDetailViewController: UIViewController {
         // Drop the previous post's reveal state so the blur is always shown for
         // the newly-loaded post until the user explicitly taps to reveal.
         headerNsfwRevealed = false
+        updateHeaderPrivacy()
 
         // Drop the previous post's pending overlay so a stale outbound comment
         // can't splice into the new post's tree before the new outbound
@@ -188,6 +189,11 @@ class PostDetailViewController: UIViewController {
     /// True once the user has tapped to reveal the NSFW blur for the currently-open
     /// post. Reset to false whenever a different post loads.
     private var headerNsfwRevealed = false
+    /// Whether the screen is currently on-screen; gates the privacy registration.
+    private var isViewVisible = false
+    /// Privacy-screen registration: a revealed NSFW header image is sensitive, so it
+    /// is hidden from the app-switcher snapshot and screen capture (see PrivacyScreen).
+    private let sensitiveContentToken = SensitiveContentToken()
     /// True once the comment GRDB observation has emitted at least once; gates
     /// the single `didPrepareObservation` call.
     private var hasReceivedFirstCommentSnapshot = false
@@ -428,13 +434,23 @@ class PostDetailViewController: UIViewController {
         }
         isFirstAppearance = false
 
+        isViewVisible = true
+        updateHeaderPrivacy()
         updateUserActivity()
     }
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
+        isViewVisible = false
+        updateHeaderPrivacy()
         userActivity?.resignCurrent()
         userActivity = nil
+    }
+
+    /// A revealed NSFW header image counts as sensitive content on screen. Call on
+    /// every change to the inputs (visibility, reveal, the loaded post).
+    private func updateHeaderPrivacy() {
+        sensitiveContentToken.set(isViewVisible && headerNsfwRevealed && (headerRow?.isNsfw ?? false))
     }
 
     /// Vends a Handoff/Spotlight/Prediction activity for this post, keyed by its
@@ -518,6 +534,7 @@ class PostDetailViewController: UIViewController {
             for await row in appDatabase.observePostDetailHeader(postRowId: postRowId) {
                 if Task.isCancelled { break }
                 headerRow = row
+                updateHeaderPrivacy()
                 // Rebuild so the Save/Unsave label, Mute target, and the
                 // own-post-gated Report/Block items reflect the latest row.
                 overflowBarButtonItem.menu = makePostOverflowMenu()
@@ -2106,6 +2123,7 @@ extension PostDetailViewController {
                 cell.onRevealBlur = { [weak self] in
                     guard let self else { return }
                     headerNsfwRevealed = true
+                    updateHeaderPrivacy()
                     var snapshot = dataSource.snapshot()
                     snapshot.reconfigureItems([.header])
                     dataSource.apply(snapshot, animatingDifferences: false)

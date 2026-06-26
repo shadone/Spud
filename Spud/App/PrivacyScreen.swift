@@ -47,6 +47,27 @@ final class PrivacyScreenMonitor {
     }
 }
 
+/// A balanced on/off registration with `PrivacyScreenMonitor` for a single
+/// surface. Call `set(_:)` with the desired state on every relevant change; the
+/// underlying begin/end fire only on transitions, so the monitor's count can't
+/// leak or double-count. A surface that may show NSFW media non-modally (the feed,
+/// the post-detail header) owns one of these and reconciles it from its lifecycle
+/// and reveal events.
+@MainActor
+final class SensitiveContentToken {
+    private var isActive = false
+
+    func set(_ active: Bool) {
+        guard active != isActive else { return }
+        isActive = active
+        if active {
+            PrivacyScreenMonitor.shared.beginSensitiveContent()
+        } else {
+            PrivacyScreenMonitor.shared.endSensitiveContent()
+        }
+    }
+}
+
 /// Covers a window with an opaque privacy screen so NSFW content cannot leak into
 /// the iOS app-switcher snapshot (taken as the scene resigns active) or a screen
 /// recording / mirror (`UIScreen.isCaptured`).

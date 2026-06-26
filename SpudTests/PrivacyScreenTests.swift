@@ -56,6 +56,35 @@ final class PrivacyScreenTests: XCTestCase {
         XCTAssertEqual(monitor.sensitiveCount, 0)
     }
 
+    func test_sensitiveContentToken_balancesMonitor() {
+        resetMonitor()
+        let monitor = PrivacyScreenMonitor.shared
+        let token = SensitiveContentToken()
+
+        token.set(true)
+        XCTAssertTrue(monitor.isShowingSensitiveContent)
+        token.set(true) // idempotent — no double-count
+        token.set(false)
+        XCTAssertFalse(monitor.isShowingSensitiveContent)
+        token.set(false) // idempotent
+        XCTAssertEqual(monitor.sensitiveCount, 0)
+    }
+
+    func test_twoTokens_trackedIndependently() {
+        resetMonitor()
+        let monitor = PrivacyScreenMonitor.shared
+        let a = SensitiveContentToken()
+        let b = SensitiveContentToken()
+
+        a.set(true)
+        b.set(true)
+        XCTAssertEqual(monitor.sensitiveCount, 2)
+        a.set(false)
+        XCTAssertTrue(monitor.isShowingSensitiveContent, "b is still active")
+        b.set(false)
+        XCTAssertFalse(monitor.isShowingSensitiveContent)
+    }
+
     func test_monitor_postsNotificationOnlyOnBooleanTransition() {
         resetMonitor()
         let monitor = PrivacyScreenMonitor.shared
