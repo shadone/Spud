@@ -14,6 +14,7 @@ Settings → General → Links controls how external links from posts and commen
 - **Reader Mode (in-app only).** When on, the in-app Safari view is configured to enter Reader automatically if the page supports it. The default is on. It has no effect in system-browser mode.
 - **Open in Apps / universal links (in-app only).** When on (the default), tapping a link first asks iOS to open it in an installed app that registered for it (a universal link); only if no app handles it does the in-app Safari view open. With it off, the link goes straight to the in-app Safari view. This check applies in In-App Safari mode; in system-browser mode the link is handed to the OS directly, which applies its own universal-link routing.
 - **Same path for link previews.** The in-app Safari view used for context-menu link previews is built with the same Reader-Mode configuration, so previews match the opened result.
+- **Load Link Previews (default on).** When on, in-body link preview cards for YouTube, Invidious, and PeerTube video links fetch a thumbnail and title via oEmbed before displaying. When off, those cards show only the anchor text and host without making any third-party network request. This preference lives in Settings → General → Links and only gates the client-side embed fetch; tapping a card always opens the link through the open-mode setting above.
 - **Settings testing area.** The Links section footer has a normal link and a universal link that, when tapped, route through the same open path so you can verify your settings without leaving Settings.
 - **This governs external links only.** Opening the post's own page on its instance (the "open in browser" action) always uses an in-app Safari view; that is part of [sharing.md](sharing.md), not this preference.
 
@@ -43,6 +44,19 @@ Settings → General → Links controls how external links from posts and commen
 - **Given** Open External Links is set to Safari
 - **When** I tap a link
 - **Then** it is handed to the system default browser
+
+### Load Link Previews on — video card shows thumbnail and title
+
+- **Given** Load Link Previews is on
+- **And** a post or comment body contains a YouTube, Invidious, or PeerTube link
+- **Then** the in-body preview card shows the video thumbnail (with a play badge) and the video title fetched via oEmbed
+
+### Load Link Previews off — anchor text only, no fetch
+
+- **Given** Load Link Previews is off
+- **And** a post or comment body contains a video link
+- **Then** the in-body preview card shows only the anchor text and the host
+- **And** no third-party network request is made to fetch embed metadata
 
 ### Try a link from Settings
 

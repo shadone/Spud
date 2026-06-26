@@ -33,6 +33,7 @@ account has them.
 - **Per-comment context menu.** Long-pressing a comment offers Upvote, Downvote, Reply, Save / Unsave, and Share, then Report (only on other people's comments), then a Moderation submenu when the account can moderate.
 - **Per-post context menu.** Long-pressing the post header offers Share, then Report (only when it is not your own post), then the same Moderation submenu when applicable. The post is saved from the toolbar / header action bar, not from this menu.
 - **Moderator and admin actions are capability-gated.** The account's moderation capability is fetched from the server when the screen appears (`fetchModerationCapability`). The Moderation submenu only appears when the account moderates this post's community, or is a site admin; otherwise it is absent. A signed-out account never sees it.
+- **In-body link preview cards.** Links in post bodies and comment bodies render as a tappable preview card that always shows the link's anchor text (the `[label](url)` text from markdown). For YouTube, Invidious, and PeerTube video links, when the "Load Link Previews" setting is on, the card additionally shows a thumbnail with a play badge and the video title fetched via oEmbed; when the setting is off, the card shows only the anchor text and host. The post-header link card (for link-type posts) always shows the server-provided title and thumbnail regardless of this setting. Tapping any card opens the link through the external-link preference — see [External link handling](external-link-handling.md).
 - **The post's vote / save / reply / report behaviors** are documented in their own features — see [Voting](voting.md), [Saving](saving.md), [Replying](replying.md), [Sharing](sharing.md).
 
 ## Scenarios
@@ -97,6 +98,21 @@ account has them.
 - **Given** an open post
 - **When** I pull down
 - **Then** the comment thread refetches for the current sort
+
+### Link preview cards in post and comment bodies
+
+- **Given** a post or comment body that contains a markdown link
+- **Then** a tappable preview card renders at the link's position, showing the anchor text
+- **And** when "Load Link Previews" is on and the link is a YouTube, Invidious, or PeerTube video, the card additionally shows a thumbnail with a play badge and the video title
+- **And** when "Load Link Previews" is off, the card shows only the anchor text and host — no third-party fetch is made
+- **When** I tap the card
+- **Then** the link opens through the external-link preference
+
+### Post-header link card shows server-provided title and thumbnail
+
+- **Given** a link-type post
+- **When** I open its detail screen
+- **Then** the header shows a link preview card with the server-provided title and thumbnail
 
 ## Not supported / out of scope
 

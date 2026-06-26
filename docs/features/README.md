@@ -127,7 +127,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Configurable swipe actions (posts)
 
 **Posts & comments**
-- [x] Post detail (header + comment tree)
+- [x] Post detail (header + comment tree); in-body link preview cards (anchor text always; video thumbnail + title when "Load Link Previews" is on; post-header link card uses server-provided title + thumbnail)
 - [x] Upvote / downvote (post & comment)
 - [x] Save / unsave (post & comment)
 - [x] Threaded comment collapse + jump-to-next-top-level
@@ -180,7 +180,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Themes (System / Light / Dark / True Black) + accent color
 - [x] Post density + thumbnail position + text scale
 - [~] Default post / comment sort — comment sort persisted; default post sort not persisted
-- [x] External-link handling
+- [x] External-link handling — open mode (in-app / system browser), Reader Mode, universal links, "Load Link Previews" (oEmbed fetch for video cards)
 - [x] App icon variants — switching is wired; alternate art is placeholder (grid's "not wired" was stale)
 - [x] Acknowledgements; logs viewer + backup export
 
