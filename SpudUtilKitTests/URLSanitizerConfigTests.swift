@@ -5,39 +5,43 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudUtilKit
 
-final class URLSanitizerConfigTests: XCTestCase {
-    func test_default_safeStepsOn_frontEndsOff() {
+struct URLSanitizerConfigTests {
+    @Test
+    func default_safeStepsOn_frontEndsOff() {
         let config = URLSanitizerConfig.default
-        XCTAssertTrue(config.isEnabled)
-        XCTAssertTrue(config.stripTrackingParams)
-        XCTAssertTrue(config.unwrapRedirectors)
-        XCTAssertTrue(config.upgradeToHTTPS)
-        XCTAssertTrue(config.deAMP)
-        XCTAssertFalse(config.redirectToFrontEnds)
-        XCTAssertEqual(config.frontEnds.count, FrontEndService.allCases.count)
-        XCTAssertTrue(config.frontEnds.allSatisfy { !$0.isEnabled })
+        #expect(config.isEnabled)
+        #expect(config.stripTrackingParams)
+        #expect(config.unwrapRedirectors)
+        #expect(config.upgradeToHTTPS)
+        #expect(config.deAMP)
+        #expect(!(config.redirectToFrontEnds))
+        #expect(config.frontEnds.count == FrontEndService.allCases.count)
+        #expect(config.frontEnds.allSatisfy { !$0.isEnabled })
     }
 
-    func test_default_frontEndHostsMatchCatalog() {
+    @Test
+    func default_frontEndHostsMatchCatalog() {
         let config = URLSanitizerConfig.default
-        XCTAssertEqual(config.setting(for: .twitter).host, "xcancel.com")
-        XCTAssertEqual(config.setting(for: .youtube).host, "yewtu.be")
-        XCTAssertEqual(config.setting(for: .reddit).host, "redlib.catsarch.com")
-        XCTAssertEqual(config.setting(for: .imgur).host, "rimgo.app")
+        #expect(config.setting(for: .twitter).host == "xcancel.com")
+        #expect(config.setting(for: .youtube).host == "yewtu.be")
+        #expect(config.setting(for: .reddit).host == "redlib.catsarch.com")
+        #expect(config.setting(for: .imgur).host == "rimgo.app")
     }
 
-    func test_settingFor_fallsBackToCatalogDefaultWhenMissing() {
+    @Test
+    func settingFor_fallsBackToCatalogDefaultWhenMissing() {
         var config = URLSanitizerConfig.default
         config.frontEnds = [] // simulate an older stored config missing entries
         let twitter = config.setting(for: .twitter)
-        XCTAssertEqual(twitter.host, "xcancel.com")
-        XCTAssertFalse(twitter.isEnabled)
+        #expect(twitter.host == "xcancel.com")
+        #expect(!(twitter.isEnabled))
     }
 
-    func test_codableRoundTrip() throws {
+    @Test
+    func codableRoundTrip() throws {
         var config = URLSanitizerConfig.default
         config.redirectToFrontEnds = true
         config.frontEnds = config.frontEnds.map { entry in
@@ -49,8 +53,8 @@ final class URLSanitizerConfigTests: XCTestCase {
         }
         let data = try JSONEncoder().encode(config)
         let decoded = try JSONDecoder().decode(URLSanitizerConfig.self, from: data)
-        XCTAssertEqual(decoded, config)
-        XCTAssertEqual(decoded.setting(for: .youtube).host, "invidious.example")
-        XCTAssertTrue(decoded.setting(for: .youtube).isEnabled)
+        #expect(decoded == config)
+        #expect(decoded.setting(for: .youtube).host == "invidious.example")
+        #expect(decoded.setting(for: .youtube).isEnabled)
     }
 }

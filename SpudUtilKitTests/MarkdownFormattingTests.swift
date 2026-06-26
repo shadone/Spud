@@ -5,10 +5,10 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudUtilKit
 
-final class MarkdownFormattingTests: XCTestCase {
+struct MarkdownFormattingTests {
     // MARK: Helpers
 
     /// Applies `action` to `text` with the selection expressed as integer
@@ -30,141 +30,161 @@ final class MarkdownFormattingTests: XCTestCase {
 
     // MARK: Bold
 
-    func test_bold_wrapsSelection() {
+    @Test
+    func bold_wrapsSelection() {
         let result = apply(.bold, to: "hello world", from: 6, to: 11)
-        XCTAssertEqual(result.text, "hello **world**")
+        #expect(result.text == "hello **world**")
         // The wrapped word remains selected (between the markers).
-        XCTAssertEqual(result.lower, 8)
-        XCTAssertEqual(result.upper, 13)
-        XCTAssertEqual(slice(result), "world")
+        #expect(result.lower == 8)
+        #expect(result.upper == 13)
+        #expect(slice(result) == "world")
     }
 
-    func test_bold_emptySelection_insertsPlaceholderSelected() {
+    @Test
+    func bold_emptySelection_insertsPlaceholderSelected() {
         let result = apply(.bold, to: "", from: 0, to: 0)
-        XCTAssertEqual(result.text, "**bold text**")
-        XCTAssertEqual(slice(result), "bold text")
+        #expect(result.text == "**bold text**")
+        #expect(slice(result) == "bold text")
     }
 
-    func test_bold_togglesOffWhenSelectionAlreadyWrapped() {
+    @Test
+    func bold_togglesOffWhenSelectionAlreadyWrapped() {
         // Selection covers the full "**world**".
         let result = apply(.bold, to: "hello **world**", from: 6, to: 15)
-        XCTAssertEqual(result.text, "hello world")
-        XCTAssertEqual(slice(result), "world")
+        #expect(result.text == "hello world")
+        #expect(slice(result) == "world")
     }
 
-    func test_bold_togglesOffWhenMarkersSurroundSelection() {
+    @Test
+    func bold_togglesOffWhenMarkersSurroundSelection() {
         // Selection covers only "world", markers sit just outside.
         let result = apply(.bold, to: "hello **world**", from: 8, to: 13)
-        XCTAssertEqual(result.text, "hello world")
-        XCTAssertEqual(slice(result), "world")
+        #expect(result.text == "hello world")
+        #expect(slice(result) == "world")
     }
 
     // MARK: Italic / strikethrough / code
 
-    func test_italic_wrapsSelection() {
+    @Test
+    func italic_wrapsSelection() {
         let result = apply(.italic, to: "abc", from: 0, to: 3)
-        XCTAssertEqual(result.text, "*abc*")
-        XCTAssertEqual(slice(result), "abc")
+        #expect(result.text == "*abc*")
+        #expect(slice(result) == "abc")
     }
 
-    func test_strikethrough_wrapsSelection() {
+    @Test
+    func strikethrough_wrapsSelection() {
         let result = apply(.strikethrough, to: "abc", from: 0, to: 3)
-        XCTAssertEqual(result.text, "~~abc~~")
-        XCTAssertEqual(slice(result), "abc")
+        #expect(result.text == "~~abc~~")
+        #expect(slice(result) == "abc")
     }
 
-    func test_inlineCode_wrapsSelection() {
+    @Test
+    func inlineCode_wrapsSelection() {
         let result = apply(.code, to: "let x = 1", from: 0, to: 3)
-        XCTAssertEqual(result.text, "`let` x = 1")
-        XCTAssertEqual(slice(result), "let")
+        #expect(result.text == "`let` x = 1")
+        #expect(slice(result) == "let")
     }
 
     // MARK: Link
 
-    func test_link_wrapsSelection_andSelectsUrlPlaceholder() {
+    @Test
+    func link_wrapsSelection_andSelectsUrlPlaceholder() {
         let result = apply(.link, to: "click here", from: 6, to: 10)
-        XCTAssertEqual(result.text, "click [here](url)")
+        #expect(result.text == "click [here](url)")
         // Caret/selection lands on the "url" placeholder.
-        XCTAssertEqual(slice(result), "url")
+        #expect(slice(result) == "url")
     }
 
-    func test_link_emptySelection_insertsTemplate_andSelectsTextPlaceholder() {
+    @Test
+    func link_emptySelection_insertsTemplate_andSelectsTextPlaceholder() {
         let result = apply(.link, to: "", from: 0, to: 0)
-        XCTAssertEqual(result.text, "[text](url)")
-        XCTAssertEqual(slice(result), "text")
+        #expect(result.text == "[text](url)")
+        #expect(slice(result) == "text")
     }
 
     // MARK: Quote / lists (line prefixes)
 
-    func test_quote_prefixesSingleLine() {
+    @Test
+    func quote_prefixesSingleLine() {
         let result = apply(.quote, to: "hello", from: 0, to: 0)
-        XCTAssertEqual(result.text, "> hello")
+        #expect(result.text == "> hello")
     }
 
-    func test_quote_togglesOffWhenAlreadyPrefixed() {
+    @Test
+    func quote_togglesOffWhenAlreadyPrefixed() {
         let result = apply(.quote, to: "> hello", from: 0, to: 0)
-        XCTAssertEqual(result.text, "hello")
+        #expect(result.text == "hello")
     }
 
-    func test_unorderedList_prefixesEverySelectedLine() {
+    @Test
+    func unorderedList_prefixesEverySelectedLine() {
         let text = "one\ntwo\nthree"
         let result = apply(.unorderedList, to: text, from: 0, to: text.count)
-        XCTAssertEqual(result.text, "- one\n- two\n- three")
+        #expect(result.text == "- one\n- two\n- three")
     }
 
-    func test_unorderedList_togglesOffWhenAllPrefixed() {
+    @Test
+    func unorderedList_togglesOffWhenAllPrefixed() {
         let text = "- one\n- two"
         let result = apply(.unorderedList, to: text, from: 0, to: text.count)
-        XCTAssertEqual(result.text, "one\ntwo")
+        #expect(result.text == "one\ntwo")
     }
 
-    func test_orderedList_numbersEverySelectedLine() {
+    @Test
+    func orderedList_numbersEverySelectedLine() {
         let text = "one\ntwo\nthree"
         let result = apply(.orderedList, to: text, from: 0, to: text.count)
-        XCTAssertEqual(result.text, "1. one\n2. two\n3. three")
+        #expect(result.text == "1. one\n2. two\n3. three")
     }
 
-    func test_orderedList_togglesOffWhenAllNumbered() {
+    @Test
+    func orderedList_togglesOffWhenAllNumbered() {
         let text = "1. one\n2. two"
         let result = apply(.orderedList, to: text, from: 0, to: text.count)
-        XCTAssertEqual(result.text, "one\ntwo")
+        #expect(result.text == "one\ntwo")
     }
 
-    func test_linePrefix_appliesToPartialMultilineSelection() {
+    @Test
+    func linePrefix_appliesToPartialMultilineSelection() {
         // Selection starts mid-first-line and ends mid-second-line; both whole
         // lines should be prefixed.
         let text = "alpha\nbeta\ngamma"
         let result = apply(.quote, to: text, from: 2, to: 8)
-        XCTAssertEqual(result.text, "> alpha\n> beta\ngamma")
+        #expect(result.text == "> alpha\n> beta\ngamma")
     }
 
     // MARK: Code block
 
-    func test_codeBlock_wrapsSelectionInFence() {
+    @Test
+    func codeBlock_wrapsSelectionInFence() {
         let result = apply(.codeBlock, to: "", from: 0, to: 0)
-        XCTAssertEqual(result.text, "```\ncode\n```\n")
-        XCTAssertEqual(slice(result), "code")
+        #expect(result.text == "```\ncode\n```\n")
+        #expect(slice(result) == "code")
     }
 
-    func test_codeBlock_insertsLeadingNewlineWhenMidText() {
+    @Test
+    func codeBlock_insertsLeadingNewlineWhenMidText() {
         let text = "intro"
         let result = apply(.codeBlock, to: text, from: 5, to: 5)
-        XCTAssertEqual(result.text, "intro\n```\ncode\n```\n")
+        #expect(result.text == "intro\n```\ncode\n```\n")
     }
 
     // MARK: Spoiler
 
-    func test_spoiler_wrapsInLemmySpoilerBlock_andSelectsTitle() {
+    @Test
+    func spoiler_wrapsInLemmySpoilerBlock_andSelectsTitle() {
         let result = apply(.spoiler, to: "", from: 0, to: 0)
-        XCTAssertEqual(result.text, "::: spoiler title\nspoiler content\n:::\n")
-        XCTAssertEqual(slice(result), "title")
+        #expect(result.text == "::: spoiler title\nspoiler content\n:::\n")
+        #expect(slice(result) == "title")
     }
 
-    func test_spoiler_wrapsExistingSelectionAsBody() {
+    @Test
+    func spoiler_wrapsExistingSelectionAsBody() {
         let text = "secret"
         let result = apply(.spoiler, to: text, from: 0, to: 6)
-        XCTAssertEqual(result.text, "::: spoiler title\nsecret\n:::\n")
-        XCTAssertEqual(slice(result), "title")
+        #expect(result.text == "::: spoiler title\nsecret\n:::\n")
+        #expect(slice(result) == "title")
     }
 
     // MARK: Slice helper

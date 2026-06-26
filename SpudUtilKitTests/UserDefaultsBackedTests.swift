@@ -5,7 +5,7 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudUtilKit
 
 /// UserDefaults is documented as thread-safe; `nonisolated(unsafe)` is the
@@ -38,8 +38,8 @@ private struct TestData {
     var optionalStringValue: String?
 }
 
-class UserDefaultsBackedTests: XCTestCase {
-    override func setUp() async throws {
+struct UserDefaultsBackedTests {
+    init() {
         resetDefaults()
     }
 
@@ -50,13 +50,14 @@ class UserDefaultsBackedTests: XCTestCase {
         }
     }
 
-    func testWriting() {
-        XCTAssertNil(defaultsForTesting.value(forKey: "i-am-integer-value"))
-        XCTAssertNil(defaultsForTesting.value(forKey: "i-am-float-value"))
-        XCTAssertNil(defaultsForTesting.value(forKey: "i-am-bool-value"))
-        XCTAssertNil(defaultsForTesting.value(forKey: "i-am-string-value"))
-        XCTAssertNil(defaultsForTesting.value(forKey: "i-am-compound-value"))
-        XCTAssertNil(defaultsForTesting.value(forKey: "i-am-optional-string-value"))
+    @Test
+    func writing() {
+        #expect(defaultsForTesting.value(forKey: "i-am-integer-value") == nil)
+        #expect(defaultsForTesting.value(forKey: "i-am-float-value") == nil)
+        #expect(defaultsForTesting.value(forKey: "i-am-bool-value") == nil)
+        #expect(defaultsForTesting.value(forKey: "i-am-string-value") == nil)
+        #expect(defaultsForTesting.value(forKey: "i-am-compound-value") == nil)
+        #expect(defaultsForTesting.value(forKey: "i-am-optional-string-value") == nil)
 
         var testData = TestData()
         testData.integerValue = 99
@@ -68,34 +69,34 @@ class UserDefaultsBackedTests: XCTestCase {
 
         let secondData = TestData()
 
-        XCTAssertEqual(testData.integerValue, 99)
-        XCTAssertEqual(testData.integerValue, secondData.integerValue)
+        #expect(testData.integerValue == 99)
+        #expect(testData.integerValue == secondData.integerValue)
 
-        XCTAssertEqual(testData.floatValue, 42.42)
-        XCTAssertEqual(testData.floatValue, secondData.floatValue)
+        #expect(testData.floatValue == 42.42)
+        #expect(testData.floatValue == secondData.floatValue)
 
-        XCTAssertEqual(testData.boolValue, true)
-        XCTAssertEqual(testData.boolValue, secondData.boolValue)
+        #expect(testData.boolValue == true)
+        #expect(testData.boolValue == secondData.boolValue)
 
-        XCTAssertEqual(testData.stringValue, "Hello World")
-        XCTAssertEqual(testData.stringValue, secondData.stringValue)
+        #expect(testData.stringValue == "Hello World")
+        #expect(testData.stringValue == secondData.stringValue)
 
-        XCTAssertEqual(testData.compoundValue.stringValue, "foo")
-        XCTAssertEqual(testData.compoundValue.intValue, 88)
-        XCTAssertEqual(testData.compoundValue.boolValue, true)
-        XCTAssertEqual(testData.compoundValue, secondData.compoundValue)
+        #expect(testData.compoundValue.stringValue == "foo")
+        #expect(testData.compoundValue.intValue == 88)
+        #expect(testData.compoundValue.boolValue == true)
+        #expect(testData.compoundValue == secondData.compoundValue)
 
-        XCTAssertEqual(testData.optionalStringValue, "Duh")
-        XCTAssertEqual(testData.optionalStringValue, secondData.optionalStringValue)
+        #expect(testData.optionalStringValue == "Duh")
+        #expect(testData.optionalStringValue == secondData.optionalStringValue)
 
-        XCTAssertEqual(
-            defaultsForTesting.integer(forKey: "i-am-integer-value"),
-            99
+        #expect(
+            defaultsForTesting.integer(forKey: "i-am-integer-value") ==
+                99
         )
 
-        XCTAssertEqual(
-            defaultsForTesting.string(forKey: "i-am-string-value"),
-            "\"Hello World\""
+        #expect(
+            defaultsForTesting.string(forKey: "i-am-string-value") ==
+                "\"Hello World\""
         )
     }
 }

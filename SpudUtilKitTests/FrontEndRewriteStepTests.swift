@@ -5,10 +5,10 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudUtilKit
 
-final class FrontEndRewriteStepTests: XCTestCase {
+struct FrontEndRewriteStepTests {
     /// A config with every front-end enabled at its catalog default host.
     private func allEnabled() -> URLSanitizerConfig {
         var config = URLSanitizerConfig.default
@@ -24,60 +24,68 @@ final class FrontEndRewriteStepTests: XCTestCase {
         return FrontEndRewriteStep().apply(url, config: config).absoluteString
     }
 
-    func test_rewritesTwitterAndXIncludingSubdomains() {
+    @Test
+    func rewritesTwitterAndXIncludingSubdomains() {
         let c = allEnabled()
-        XCTAssertEqual(rewritten("https://twitter.com/jack/status/20", c), "https://xcancel.com/jack/status/20")
-        XCTAssertEqual(rewritten("https://x.com/jack", c), "https://xcancel.com/jack")
-        XCTAssertEqual(rewritten("https://mobile.twitter.com/jack", c), "https://xcancel.com/jack")
-        XCTAssertEqual(rewritten("https://www.x.com/jack", c), "https://xcancel.com/jack")
+        #expect(rewritten("https://twitter.com/jack/status/20", c) == "https://xcancel.com/jack/status/20")
+        #expect(rewritten("https://x.com/jack", c) == "https://xcancel.com/jack")
+        #expect(rewritten("https://mobile.twitter.com/jack", c) == "https://xcancel.com/jack")
+        #expect(rewritten("https://www.x.com/jack", c) == "https://xcancel.com/jack")
     }
 
-    func test_rewritesYouTubeRedditImgur() {
+    @Test
+    func rewritesYouTubeRedditImgur() {
         let c = allEnabled()
-        XCTAssertEqual(rewritten("https://youtu.be/abc?t=5", c), "https://yewtu.be/abc?t=5")
-        XCTAssertEqual(rewritten("https://www.youtube.com/watch?v=abc", c), "https://yewtu.be/watch?v=abc")
-        XCTAssertEqual(rewritten("https://reddit.com/r/swift", c), "https://redlib.catsarch.com/r/swift")
-        XCTAssertEqual(rewritten("https://imgur.com/gallery/x", c), "https://rimgo.app/gallery/x")
+        #expect(rewritten("https://youtu.be/abc?t=5", c) == "https://yewtu.be/abc?t=5")
+        #expect(rewritten("https://www.youtube.com/watch?v=abc", c) == "https://yewtu.be/watch?v=abc")
+        #expect(rewritten("https://reddit.com/r/swift", c) == "https://redlib.catsarch.com/r/swift")
+        #expect(rewritten("https://imgur.com/gallery/x", c) == "https://rimgo.app/gallery/x")
     }
 
-    func test_usesUserOverriddenHost() {
+    @Test
+    func usesUserOverriddenHost() {
         var c = allEnabled()
         c.frontEnds = c.frontEnds.map { entry in
             guard entry.service == .twitter else { return entry }
             return FrontEndConfig(service: .twitter, isEnabled: true, host: "nitter.example")
         }
-        XCTAssertEqual(rewritten("https://x.com/jack", c), "https://nitter.example/jack")
+        #expect(rewritten("https://x.com/jack", c) == "https://nitter.example/jack")
     }
 
-    func test_doesNotRewriteWhenCategoryMasterOff() {
+    @Test
+    func doesNotRewriteWhenCategoryMasterOff() {
         var c = allEnabled()
         c.redirectToFrontEnds = false
-        XCTAssertEqual(rewritten("https://x.com/jack", c), "https://x.com/jack")
+        #expect(rewritten("https://x.com/jack", c) == "https://x.com/jack")
     }
 
-    func test_doesNotRewriteWhenServiceDisabled() {
+    @Test
+    func doesNotRewriteWhenServiceDisabled() {
         var c = allEnabled()
         c.frontEnds = c.frontEnds.map { entry in
             guard entry.service == .twitter else { return entry }
             return FrontEndConfig(service: .twitter, isEnabled: false, host: entry.host)
         }
-        XCTAssertEqual(rewritten("https://x.com/jack", c), "https://x.com/jack")
+        #expect(rewritten("https://x.com/jack", c) == "https://x.com/jack")
     }
 
-    func test_leavesUnlistedSubdomainsAndLookalikesUnchanged() {
+    @Test
+    func leavesUnlistedSubdomainsAndLookalikesUnchanged() {
         let c = allEnabled()
-        XCTAssertEqual(rewritten("https://api.twitter.com/2/tweets", c), "https://api.twitter.com/2/tweets")
-        XCTAssertEqual(rewritten("https://notx.com/jack", c), "https://notx.com/jack")
-        XCTAssertEqual(rewritten("https://mozilla.org/x.com", c), "https://mozilla.org/x.com")
+        #expect(rewritten("https://api.twitter.com/2/tweets", c) == "https://api.twitter.com/2/tweets")
+        #expect(rewritten("https://notx.com/jack", c) == "https://notx.com/jack")
+        #expect(rewritten("https://mozilla.org/x.com", c) == "https://mozilla.org/x.com")
     }
 
-    func test_isCaseInsensitiveOnHost() {
+    @Test
+    func isCaseInsensitiveOnHost() {
         let c = allEnabled()
-        XCTAssertEqual(rewritten("https://Twitter.com/jack", c), "https://xcancel.com/jack")
+        #expect(rewritten("https://Twitter.com/jack", c) == "https://xcancel.com/jack")
     }
 
-    func test_returnsSelfWhenNoHost() {
+    @Test
+    func returnsSelfWhenNoHost() {
         let c = allEnabled()
-        XCTAssertEqual(rewritten("mailto:jack@twitter.com", c), "mailto:jack@twitter.com")
+        #expect(rewritten("mailto:jack@twitter.com", c) == "mailto:jack@twitter.com")
     }
 }

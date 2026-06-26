@@ -4,20 +4,21 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import SpudUtilKit
 
-final class BroadcasterTests: XCTestCase {
-    func testSubscribeReplaysCurrentThenReceivesUpdates() async {
+struct BroadcasterTests {
+    @Test
+    func subscribeReplaysCurrentThenReceivesUpdates() async {
         let broadcaster = Broadcaster<Int>(1)
         var iterator = broadcaster.subscribe().makeAsyncIterator()
 
         let first = await iterator.next()
-        XCTAssertEqual(first, 1)
+        #expect(first == 1)
 
         broadcaster.send(2)
         let second = await iterator.next()
-        XCTAssertEqual(second, 2)
-        XCTAssertEqual(broadcaster.current, 2)
+        #expect(second == 2)
+        #expect(broadcaster.current == 2)
     }
 }

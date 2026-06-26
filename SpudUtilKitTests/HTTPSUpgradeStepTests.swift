@@ -5,39 +5,44 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudUtilKit
 
-final class HTTPSUpgradeStepTests: XCTestCase {
+struct HTTPSUpgradeStepTests {
     private func upgraded(_ string: String) -> String? {
         guard let url = URL(string: string) else { return nil }
         return HTTPSUpgradeStep().apply(url, config: .default).absoluteString
     }
 
-    func test_upgradesHTTPToHTTPS() {
-        XCTAssertEqual(upgraded("http://example.com/path?q=1"), "https://example.com/path?q=1")
+    @Test
+    func upgradesHTTPToHTTPS() {
+        #expect(upgraded("http://example.com/path?q=1") == "https://example.com/path?q=1")
     }
 
-    func test_leavesHTTPSUnchanged() {
-        XCTAssertEqual(upgraded("https://example.com"), "https://example.com")
+    @Test
+    func leavesHTTPSUnchanged() {
+        #expect(upgraded("https://example.com") == "https://example.com")
     }
 
-    func test_skipsLocalhostAndIPAndOnion() {
-        XCTAssertEqual(upgraded("http://localhost:8080/x"), "http://localhost:8080/x")
-        XCTAssertEqual(upgraded("http://127.0.0.1/x"), "http://127.0.0.1/x")
-        XCTAssertEqual(upgraded("http://[::1]/x"), "http://[::1]/x")
-        XCTAssertEqual(upgraded("http://abcdefghij.onion/x"), "http://abcdefghij.onion/x")
+    @Test
+    func skipsLocalhostAndIPAndOnion() {
+        #expect(upgraded("http://localhost:8080/x") == "http://localhost:8080/x")
+        #expect(upgraded("http://127.0.0.1/x") == "http://127.0.0.1/x")
+        #expect(upgraded("http://[::1]/x") == "http://[::1]/x")
+        #expect(upgraded("http://abcdefghij.onion/x") == "http://abcdefghij.onion/x")
     }
 
-    func test_leavesNonHTTPSchemesUnchanged() {
-        XCTAssertEqual(upgraded("mailto:jack@example.com"), "mailto:jack@example.com")
-        XCTAssertEqual(upgraded("ftp://example.com/file"), "ftp://example.com/file")
+    @Test
+    func leavesNonHTTPSchemesUnchanged() {
+        #expect(upgraded("mailto:jack@example.com") == "mailto:jack@example.com")
+        #expect(upgraded("ftp://example.com/file") == "ftp://example.com/file")
     }
 
-    func test_doesNotUpgradeWhenDisabled() throws {
+    @Test
+    func doesNotUpgradeWhenDisabled() throws {
         var config = URLSanitizerConfig.default
         config.upgradeToHTTPS = false
-        let url = try XCTUnwrap(URL(string: "http://example.com/path"))
-        XCTAssertEqual(HTTPSUpgradeStep().apply(url, config: config).absoluteString, "http://example.com/path")
+        let url = try #require(URL(string: "http://example.com/path"))
+        #expect(HTTPSUpgradeStep().apply(url, config: config).absoluteString == "http://example.com/path")
     }
 }

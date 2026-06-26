@@ -5,30 +5,35 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudUtilKit
 
-class URLCanonicalHostTests: XCTestCase {
-    func test_stripsLeadingWww() {
-        XCTAssertEqual(URL(string: "https://www.google.com")?.canonicalHost, "google.com")
-        XCTAssertEqual(URL(string: "https://www.thesun.co.uk/article")?.canonicalHost, "thesun.co.uk")
+struct URLCanonicalHostTests {
+    @Test
+    func stripsLeadingWww() {
+        #expect(URL(string: "https://www.google.com")?.canonicalHost == "google.com")
+        #expect(URL(string: "https://www.thesun.co.uk/article")?.canonicalHost == "thesun.co.uk")
     }
 
-    func test_stripsWwwCaseInsensitively() {
-        XCTAssertEqual(URL(string: "https://WWW.Example.com")?.canonicalHost, "Example.com")
+    @Test
+    func stripsWwwCaseInsensitively() {
+        #expect(URL(string: "https://WWW.Example.com")?.canonicalHost == "Example.com")
     }
 
-    func test_passesThroughHostWithoutWww() {
-        XCTAssertEqual(URL(string: "https://mozilla.org")?.canonicalHost, "mozilla.org")
-        XCTAssertEqual(URL(string: "https://theverge.com/2026/a/b")?.canonicalHost, "theverge.com")
+    @Test
+    func passesThroughHostWithoutWww() {
+        #expect(URL(string: "https://mozilla.org")?.canonicalHost == "mozilla.org")
+        #expect(URL(string: "https://theverge.com/2026/a/b")?.canonicalHost == "theverge.com")
     }
 
-    func test_doesNotStripWwwWithoutDot() {
+    @Test
+    func doesNotStripWwwWithoutDot() {
         // "www" must be its own label (followed by a dot) to be stripped.
-        XCTAssertEqual(URL(string: "https://wwwsomething.com")?.canonicalHost, "wwwsomething.com")
+        #expect(URL(string: "https://wwwsomething.com")?.canonicalHost == "wwwsomething.com")
     }
 
-    func test_returnsNilWhenNoHost() {
-        XCTAssertNil(URL(string: "mailto:someone@example.com")?.canonicalHost)
+    @Test
+    func returnsNilWhenNoHost() {
+        #expect(URL(string: "mailto:someone@example.com")?.canonicalHost == nil)
     }
 }

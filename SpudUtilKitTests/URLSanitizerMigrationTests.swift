@@ -5,27 +5,30 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudUtilKit
 
-final class URLSanitizerMigrationTests: XCTestCase {
-    func test_legacyOn_andNotYetMigrated_seedsTwitterFrontEnd() throws {
-        let migrated = try XCTUnwrap(
+struct URLSanitizerMigrationTests {
+    @Test
+    func legacyOn_andNotYetMigrated_seedsTwitterFrontEnd() throws {
+        let migrated = try #require(
             URLSanitizerConfig.migratingFromLegacyXcancel(legacyEnabled: true, alreadyMigrated: false)
         )
-        XCTAssertTrue(migrated.redirectToFrontEnds)
+        #expect(migrated.redirectToFrontEnds)
         let twitter = migrated.setting(for: .twitter)
-        XCTAssertTrue(twitter.isEnabled)
-        XCTAssertEqual(twitter.host, "xcancel.com")
+        #expect(twitter.isEnabled)
+        #expect(twitter.host == "xcancel.com")
         // Other services remain off.
-        XCTAssertFalse(migrated.setting(for: .youtube).isEnabled)
+        #expect(!(migrated.setting(for: .youtube).isEnabled))
     }
 
-    func test_legacyOff_returnsNil() {
-        XCTAssertNil(URLSanitizerConfig.migratingFromLegacyXcancel(legacyEnabled: false, alreadyMigrated: false))
+    @Test
+    func legacyOff_returnsNil() {
+        #expect(URLSanitizerConfig.migratingFromLegacyXcancel(legacyEnabled: false, alreadyMigrated: false) == nil)
     }
 
-    func test_alreadyMigrated_returnsNil() {
-        XCTAssertNil(URLSanitizerConfig.migratingFromLegacyXcancel(legacyEnabled: true, alreadyMigrated: true))
+    @Test
+    func alreadyMigrated_returnsNil() {
+        #expect(URLSanitizerConfig.migratingFromLegacyXcancel(legacyEnabled: true, alreadyMigrated: true) == nil)
     }
 }

@@ -5,10 +5,10 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudUtilKit
 
-final class URLSanitizerTests: XCTestCase {
+struct URLSanitizerTests {
     private func sanitized(_ string: String, _ config: URLSanitizerConfig) -> String? {
         guard let url = URL(string: string) else { return nil }
         return URLSanitizer.sanitize(url, config: config).absoluteString
@@ -23,33 +23,37 @@ final class URLSanitizerTests: XCTestCase {
         return config
     }
 
-    func test_masterOff_returnsInputUnchanged() {
+    @Test
+    func masterOff_returnsInputUnchanged() {
         var config = allEnabled()
         config.isEnabled = false
-        XCTAssertEqual(sanitized("http://x.com/jack?utm_source=a", config), "http://x.com/jack?utm_source=a")
+        #expect(sanitized("http://x.com/jack?utm_source=a", config) == "http://x.com/jack?utm_source=a")
     }
 
-    func test_runsStepsInOrder_unwrapThenUpgradeThenStripThenFrontEnd() {
+    @Test
+    func runsStepsInOrder_unwrapThenUpgradeThenStripThenFrontEnd() {
         // Google-wrapped, http, tracker-laden twitter link -> unwrapped,
         // https-upgraded, stripped, then rewritten to xcancel.
         let inner = "http://twitter.com/jack?utm_source=news&s=20"
         let wrapped = "https://www.google.com/url?q=\(inner.addingPercentEncoding(withAllowedCharacters: .alphanumerics)!)"
-        XCTAssertEqual(sanitized(wrapped, allEnabled()), "https://xcancel.com/jack?s=20")
+        #expect(sanitized(wrapped, allEnabled()) == "https://xcancel.com/jack?s=20")
     }
 
-    func test_idempotent() throws {
+    @Test
+    func idempotent() throws {
         let config = allEnabled()
-        let once = try XCTUnwrap(sanitized("http://x.com/jack?utm_source=a&t=1", config))
-        let twiceURL = try XCTUnwrap(URL(string: once))
+        let once = try #require(sanitized("http://x.com/jack?utm_source=a&t=1", config))
+        let twiceURL = try #require(URL(string: once))
         let twice = URLSanitizer.sanitize(twiceURL, config: config).absoluteString
-        XCTAssertEqual(once, twice)
+        #expect(once == twice)
     }
 
-    func test_defaultConfig_cleansButDoesNotRedirectFrontEnds() {
+    @Test
+    func defaultConfig_cleansButDoesNotRedirectFrontEnds() {
         // default has front-ends OFF: tracker stripped, host preserved.
-        XCTAssertEqual(
-            sanitized("https://x.com/jack?utm_source=a", .default),
-            "https://x.com/jack"
+        #expect(
+            sanitized("https://x.com/jack?utm_source=a", .default) ==
+                "https://x.com/jack"
         )
     }
 }

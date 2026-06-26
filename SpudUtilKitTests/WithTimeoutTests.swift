@@ -4,34 +4,37 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import SpudUtilKit
 
-final class WithTimeoutTests: XCTestCase {
-    func testReturnsValueWhenOperationFinishesInTime() async throws {
+struct WithTimeoutTests {
+    @Test
+    func returnsValueWhenOperationFinishesInTime() async throws {
         let value = try await withTimeout(.seconds(10)) { 42 }
-        XCTAssertEqual(value, 42)
+        #expect(value == 42)
     }
 
-    func testThrowsTimeoutErrorWhenOperationIsTooSlow() async {
+    @Test
+    func throwsTimeoutErrorWhenOperationIsTooSlow() async {
         do {
             _ = try await withTimeout(.milliseconds(20)) {
                 try await Task.sleep(for: .seconds(10))
                 return 0
             }
-            XCTFail("expected TimeoutError")
+            Issue.record("expected TimeoutError")
         } catch {
-            XCTAssertEqual(error as? TimeoutError, TimeoutError())
+            #expect(error as? TimeoutError == TimeoutError())
         }
     }
 
-    func testRethrowsOperationError() async {
+    @Test
+    func rethrowsOperationError() async {
         struct Boom: Error, Equatable { }
         do {
             _ = try await withTimeout(.seconds(10)) { throw Boom() }
-            XCTFail("expected Boom")
+            Issue.record("expected Boom")
         } catch {
-            XCTAssertEqual(error as? Boom, Boom())
+            #expect(error as? Boom == Boom())
         }
     }
 }

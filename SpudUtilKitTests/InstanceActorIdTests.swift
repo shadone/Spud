@@ -5,115 +5,124 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudUtilKit
 
-class InstanceActorIdTests: XCTestCase {
-    func test_string_invalid() {
-        XCTAssertNil(InstanceActorId(from: ""))
-        XCTAssertNil(InstanceActorId(from: "mkyong,com"))
+struct InstanceActorIdTests {
+    @Test
+    func string_invalid() {
+        #expect(InstanceActorId(from: "") == nil)
+        #expect(InstanceActorId(from: "mkyong,com") == nil)
     }
 
-    func test_string_valid() {
-        XCTAssertEqual(
-            InstanceActorId(from: "www.google.com")?.actorId,
-            "https://www.google.com"
+    @Test
+    func string_valid() {
+        #expect(
+            InstanceActorId(from: "www.google.com")?.actorId ==
+                "https://www.google.com"
         )
-        XCTAssertEqual(
-            InstanceActorId(from: "google.com")?.actorId,
-            "https://google.com"
+        #expect(
+            InstanceActorId(from: "google.com")?.actorId ==
+                "https://google.com"
         )
-        XCTAssertEqual(
-            InstanceActorId(from: "mkyong123.com")?.actorId,
-            "https://mkyong123.com"
+        #expect(
+            InstanceActorId(from: "mkyong123.com")?.actorId ==
+                "https://mkyong123.com"
         )
-        XCTAssertEqual(
-            InstanceActorId(from: "mkyong-info.com")?.actorId,
-            "https://mkyong-info.com"
+        #expect(
+            InstanceActorId(from: "mkyong-info.com")?.actorId ==
+                "https://mkyong-info.com"
         )
-        XCTAssertEqual(
-            InstanceActorId(from: "sub.mkyong.com")?.actorId,
-            "https://sub.mkyong.com"
+        #expect(
+            InstanceActorId(from: "sub.mkyong.com")?.actorId ==
+                "https://sub.mkyong.com"
         )
-        XCTAssertEqual(
-            InstanceActorId(from: "sub.mkyong-info.com")?.actorId,
-            "https://sub.mkyong-info.com"
+        #expect(
+            InstanceActorId(from: "sub.mkyong-info.com")?.actorId ==
+                "https://sub.mkyong-info.com"
         )
-        XCTAssertEqual(
-            InstanceActorId(from: "mkyong.com.au")?.actorId,
-            "https://mkyong.com.au"
+        #expect(
+            InstanceActorId(from: "mkyong.com.au")?.actorId ==
+                "https://mkyong.com.au"
         )
-        XCTAssertEqual(
-            InstanceActorId(from: "g.co")?.actorId,
-            "https://g.co"
+        #expect(
+            InstanceActorId(from: "g.co")?.actorId ==
+                "https://g.co"
         )
-        XCTAssertEqual(
-            InstanceActorId(from: "mkyong.t.t.co")?.actorId,
-            "https://mkyong.t.t.co"
+        #expect(
+            InstanceActorId(from: "mkyong.t.t.co")?.actorId ==
+                "https://mkyong.t.t.co"
         )
     }
 
-    func test_string_simple() {
+    @Test
+    func string_simple() {
         let foobar = InstanceActorId(from: "foobar.com")
-        XCTAssertNotNil(foobar)
-        XCTAssertEqual(foobar?.host, "foobar.com")
-        XCTAssertNil(foobar?.port)
-        XCTAssertEqual(foobar?.actorId, "https://foobar.com")
+        #expect(foobar != nil)
+        #expect(foobar?.host == "foobar.com")
+        #expect(foobar?.port == nil)
+        #expect(foobar?.actorId == "https://foobar.com")
 
         let caseSensitive = InstanceActorId(from: "FoObAr.CoM")
-        XCTAssertNotNil(caseSensitive)
-        XCTAssertEqual(caseSensitive?.host, "foobar.com")
-        XCTAssertNil(caseSensitive?.port)
-        XCTAssertEqual(caseSensitive?.actorId, "https://foobar.com")
+        #expect(caseSensitive != nil)
+        #expect(caseSensitive?.host == "foobar.com")
+        #expect(caseSensitive?.port == nil)
+        #expect(caseSensitive?.actorId == "https://foobar.com")
     }
 
-    func test_string_scheme() {
+    @Test
+    func string_scheme() {
         let foobar = InstanceActorId(from: "https://foobar.com")
-        XCTAssertNotNil(foobar)
-        XCTAssertEqual(foobar?.host, "foobar.com")
-        XCTAssertNil(foobar?.port)
-        XCTAssertEqual(foobar?.actorId, "https://foobar.com")
+        #expect(foobar != nil)
+        #expect(foobar?.host == "foobar.com")
+        #expect(foobar?.port == nil)
+        #expect(foobar?.actorId == "https://foobar.com")
     }
 
-    func test_string_port() {
+    @Test
+    func string_port() {
         let foobar = InstanceActorId(from: "foobar.com:8080")
-        XCTAssertNotNil(foobar)
-        XCTAssertEqual(foobar?.host, "foobar.com")
-        XCTAssertEqual(foobar?.port, 8080)
-        XCTAssertEqual(foobar?.actorId, "https://foobar.com:8080")
+        #expect(foobar != nil)
+        #expect(foobar?.host == "foobar.com")
+        #expect(foobar?.port == 8080)
+        #expect(foobar?.actorId == "https://foobar.com:8080")
     }
 
-    func test_string_schemeAndPort() {
+    @Test
+    func string_schemeAndPort() {
         let foobar = InstanceActorId(from: "https://foobar.com:8080")
-        XCTAssertNotNil(foobar)
-        XCTAssertEqual(foobar?.host, "foobar.com")
-        XCTAssertEqual(foobar?.port, 8080)
-        XCTAssertEqual(foobar?.actorId, "https://foobar.com:8080")
+        #expect(foobar != nil)
+        #expect(foobar?.host == "foobar.com")
+        #expect(foobar?.port == 8080)
+        #expect(foobar?.actorId == "https://foobar.com:8080")
     }
 
-    func test_url_invalid() throws {
-        XCTAssertNil(try InstanceActorId(from: XCTUnwrap(URL(string: "https://"))))
+    @Test
+    func url_invalid() throws {
+        #expect(try InstanceActorId(from: #require(URL(string: "https://"))) == nil)
     }
 
-    func test_url() throws {
-        let foobar = try InstanceActorId(from: XCTUnwrap(URL(string: "https://foobar.com")))
-        XCTAssertNotNil(foobar)
-        XCTAssertEqual(foobar?.host, "foobar.com")
-        XCTAssertNil(foobar?.port)
-        XCTAssertEqual(foobar?.actorId, "https://foobar.com")
+    @Test
+    func url() throws {
+        let foobar = try InstanceActorId(from: #require(URL(string: "https://foobar.com")))
+        #expect(foobar != nil)
+        #expect(foobar?.host == "foobar.com")
+        #expect(foobar?.port == nil)
+        #expect(foobar?.actorId == "https://foobar.com")
 
-        let caseSensitive = try InstanceActorId(from: XCTUnwrap(URL(string: "https://FoObAr.CoM")))
-        XCTAssertNotNil(caseSensitive)
-        XCTAssertEqual(caseSensitive?.host, "foobar.com")
-        XCTAssertNil(caseSensitive?.port)
-        XCTAssertEqual(caseSensitive?.actorId, "https://foobar.com")
+        let caseSensitive = try InstanceActorId(from: #require(URL(string: "https://FoObAr.CoM")))
+        #expect(caseSensitive != nil)
+        #expect(caseSensitive?.host == "foobar.com")
+        #expect(caseSensitive?.port == nil)
+        #expect(caseSensitive?.actorId == "https://foobar.com")
     }
 
-    func test_url_port() throws {
-        let foobar = try InstanceActorId(from: XCTUnwrap(URL(string: "https://foobar.com:8080")))
-        XCTAssertNotNil(foobar)
-        XCTAssertEqual(foobar?.host, "foobar.com")
-        XCTAssertEqual(foobar?.port, 8080)
-        XCTAssertEqual(foobar?.actorId, "https://foobar.com:8080")
+    @Test
+    func url_port() throws {
+        let foobar = try InstanceActorId(from: #require(URL(string: "https://foobar.com:8080")))
+        #expect(foobar != nil)
+        #expect(foobar?.host == "foobar.com")
+        #expect(foobar?.port == 8080)
+        #expect(foobar?.actorId == "https://foobar.com:8080")
     }
 }

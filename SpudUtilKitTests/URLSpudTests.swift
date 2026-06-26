@@ -5,151 +5,163 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudUtilKit
 
-class URLSpudTests: XCTestCase {
+struct URLSpudTests {
     // MARK: - Post
 
-    func test_parsePost_noScheme() throws {
-        let post = try XCTUnwrap(URL(string: "info.ddenis.spud://internal/post?postId=123&instance=example.com"))
+    @Test
+    func parsePost_noScheme() throws {
+        let post = try #require(URL(string: "info.ddenis.spud://internal/post?postId=123&instance=example.com"))
         switch post.spud {
         case let .post(postId, instance):
-            XCTAssertEqual(postId, 123)
-            XCTAssertEqual(instance.actorId, "https://example.com")
+            #expect(postId == 123)
+            #expect(instance.actorId == "https://example.com")
 
         default:
-            XCTFail()
+            Issue.record()
         }
     }
 
-    func test_parsePost_scheme() throws {
-        let post = try XCTUnwrap(URL(string: "info.ddenis.spud://internal/post?postId=123&instance=https://example.com"))
+    @Test
+    func parsePost_scheme() throws {
+        let post = try #require(URL(string: "info.ddenis.spud://internal/post?postId=123&instance=https://example.com"))
         switch post.spud {
         case let .post(postId, instance):
-            XCTAssertEqual(postId, 123)
-            XCTAssertEqual(instance.actorId, "https://example.com")
+            #expect(postId == 123)
+            #expect(instance.actorId == "https://example.com")
 
         default:
-            XCTFail()
+            Issue.record()
         }
     }
 
-    func test_parsePost_schemeUrlEncoded() throws {
-        let post = try XCTUnwrap(URL(string: "info.ddenis.spud://internal/post?postId=123&instance=https%3A%2F%2Fexample.com"))
+    @Test
+    func parsePost_schemeUrlEncoded() throws {
+        let post = try #require(URL(string: "info.ddenis.spud://internal/post?postId=123&instance=https%3A%2F%2Fexample.com"))
         switch post.spud {
         case let .post(postId, instance):
-            XCTAssertEqual(postId, 123)
-            XCTAssertEqual(instance.actorId, "https://example.com")
+            #expect(postId == 123)
+            #expect(instance.actorId == "https://example.com")
 
         default:
-            XCTFail()
+            Issue.record()
         }
     }
 
-    func test_parsePost_queryParamsOrder() throws {
-        let post = try XCTUnwrap(URL(string: "info.ddenis.spud://internal/post?instance=example.com&postId=123"))
+    @Test
+    func parsePost_queryParamsOrder() throws {
+        let post = try #require(URL(string: "info.ddenis.spud://internal/post?instance=example.com&postId=123"))
         switch post.spud {
         case let .post(postId, instance):
-            XCTAssertEqual(postId, 123)
-            XCTAssertEqual(instance.actorId, "https://example.com")
+            #expect(postId == 123)
+            #expect(instance.actorId == "https://example.com")
 
         default:
-            XCTFail()
+            Issue.record()
         }
     }
 
-    func test_parsePost_invalid() {
+    @Test
+    func parsePost_invalid() {
         // invalid scheme
-        XCTAssertNil(URL(string: "info.ddenis.dups://internal/post?postId=123&instance=https%3A%2F%2Fexample.com")?.spud)
+        #expect(URL(string: "info.ddenis.dups://internal/post?postId=123&instance=https%3A%2F%2Fexample.com")?.spud == nil)
         // invalid host
-        XCTAssertNil(URL(string: "info.ddenis.spud://unknownhost/post?instance=example.com&postId=123")?.spud)
+        #expect(URL(string: "info.ddenis.spud://unknownhost/post?instance=example.com&postId=123")?.spud == nil)
         // invalid path
-        XCTAssertNil(URL(string: "info.ddenis.spud://internal/unknownpath?instance=example.com&postId=123")?.spud)
+        #expect(URL(string: "info.ddenis.spud://internal/unknownpath?instance=example.com&postId=123")?.spud == nil)
         // missing "instance" query param
-        XCTAssertNil(URL(string: "info.ddenis.spud://internal/post?postId=123")?.spud)
+        #expect(URL(string: "info.ddenis.spud://internal/post?postId=123")?.spud == nil)
         // missing "postId" query param
-        XCTAssertNil(URL(string: "info.ddenis.spud://internal/post?instance=example.com")?.spud)
+        #expect(URL(string: "info.ddenis.spud://internal/post?instance=example.com")?.spud == nil)
     }
 
-    func test_makePost() throws {
+    @Test
+    func makePost() throws {
         let url = try URL.SpudInternalLink
-            .post(postId: 123, instance: XCTUnwrap(.init(from: "example.com"))).url
-        XCTAssertEqual(
-            url.absoluteString,
-            "info.ddenis.spud://internal/post?postId=123&instance=https://example.com"
+            .post(postId: 123, instance: #require(.init(from: "example.com"))).url
+        #expect(
+            url.absoluteString ==
+                "info.ddenis.spud://internal/post?postId=123&instance=https://example.com"
         )
     }
 
     // MARK: - Person
 
-    func test_parsePerson_noScheme() throws {
-        let post = try XCTUnwrap(URL(string: "info.ddenis.spud://internal/person?personId=123&instance=example.com"))
+    @Test
+    func parsePerson_noScheme() throws {
+        let post = try #require(URL(string: "info.ddenis.spud://internal/person?personId=123&instance=example.com"))
         switch post.spud {
         case let .person(personId, instance):
-            XCTAssertEqual(personId, 123)
-            XCTAssertEqual(instance.actorId, "https://example.com")
+            #expect(personId == 123)
+            #expect(instance.actorId == "https://example.com")
 
         default:
-            XCTFail()
+            Issue.record()
         }
     }
 
-    func test_parsePerson_scheme() throws {
-        let post = try XCTUnwrap(URL(string: "info.ddenis.spud://internal/person?personId=123&instance=https://example.com"))
+    @Test
+    func parsePerson_scheme() throws {
+        let post = try #require(URL(string: "info.ddenis.spud://internal/person?personId=123&instance=https://example.com"))
         switch post.spud {
         case let .person(personId, instance):
-            XCTAssertEqual(personId, 123)
-            XCTAssertEqual(instance.actorId, "https://example.com")
+            #expect(personId == 123)
+            #expect(instance.actorId == "https://example.com")
 
         default:
-            XCTFail()
+            Issue.record()
         }
     }
 
-    func test_parsePerson_schemeUrlEncoded() throws {
-        let post = try XCTUnwrap(URL(string: "info.ddenis.spud://internal/person?personId=123&instance=https%3A%2F%2Fexample.com"))
+    @Test
+    func parsePerson_schemeUrlEncoded() throws {
+        let post = try #require(URL(string: "info.ddenis.spud://internal/person?personId=123&instance=https%3A%2F%2Fexample.com"))
         switch post.spud {
         case let .person(personId, instance):
-            XCTAssertEqual(personId, 123)
-            XCTAssertEqual(instance.actorId, "https://example.com")
+            #expect(personId == 123)
+            #expect(instance.actorId == "https://example.com")
 
         default:
-            XCTFail()
+            Issue.record()
         }
     }
 
-    func test_parsePerson_queryParamsOrder() throws {
-        let post = try XCTUnwrap(URL(string: "info.ddenis.spud://internal/person?instance=example.com&personId=123"))
+    @Test
+    func parsePerson_queryParamsOrder() throws {
+        let post = try #require(URL(string: "info.ddenis.spud://internal/person?instance=example.com&personId=123"))
         switch post.spud {
         case let .person(personId, instance):
-            XCTAssertEqual(personId, 123)
-            XCTAssertEqual(instance.actorId, "https://example.com")
+            #expect(personId == 123)
+            #expect(instance.actorId == "https://example.com")
 
         default:
-            XCTFail()
+            Issue.record()
         }
     }
 
-    func test_parsePerson_invalid() {
+    @Test
+    func parsePerson_invalid() {
         // invalid scheme
-        XCTAssertNil(URL(string: "info.ddenis.dups://internal/person?personId=123&instance=https%3A%2F%2Fexample.com")?.spud)
+        #expect(URL(string: "info.ddenis.dups://internal/person?personId=123&instance=https%3A%2F%2Fexample.com")?.spud == nil)
         // invalid host
-        XCTAssertNil(URL(string: "info.ddenis.spud://unknownhost/person?instance=example.com&personId=123")?.spud)
+        #expect(URL(string: "info.ddenis.spud://unknownhost/person?instance=example.com&personId=123")?.spud == nil)
         // invalid path
-        XCTAssertNil(URL(string: "info.ddenis.spud://internal/unknownpath?instance=example.com&personId=123")?.spud)
+        #expect(URL(string: "info.ddenis.spud://internal/unknownpath?instance=example.com&personId=123")?.spud == nil)
         // missing "instance" query param
-        XCTAssertNil(URL(string: "info.ddenis.spud://internal/person?personId=123")?.spud)
+        #expect(URL(string: "info.ddenis.spud://internal/person?personId=123")?.spud == nil)
         // missing "postId" query param
-        XCTAssertNil(URL(string: "info.ddenis.spud://internal/person?instance=example.com")?.spud)
+        #expect(URL(string: "info.ddenis.spud://internal/person?instance=example.com")?.spud == nil)
     }
 
-    func test_makePerson() throws {
+    @Test
+    func makePerson() throws {
         let url = try URL.SpudInternalLink
-            .person(personId: 123, instance: XCTUnwrap(.init(from: "example.com"))).url
-        XCTAssertEqual(
-            url.absoluteString,
-            "info.ddenis.spud://internal/person?personId=123&instance=https://example.com"
+            .person(personId: 123, instance: #require(.init(from: "example.com"))).url
+        #expect(
+            url.absoluteString ==
+                "info.ddenis.spud://internal/person?personId=123&instance=https://example.com"
         )
     }
 }
