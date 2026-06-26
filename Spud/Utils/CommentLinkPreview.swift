@@ -27,6 +27,8 @@ struct CommentLinkPreview: Equatable {
     /// The link's anchor text (`[Foobar](url)` -> "Foobar"); nil when it equals the
     /// URL (a bare autolink).
     let anchorText: String?
+    /// `.video` for a recognized YouTube / Invidious / PeerTube link (the card may
+    /// fetch a thumbnail + title), `.generic` otherwise.
     let kind: LinkPreviewKind
 }
 

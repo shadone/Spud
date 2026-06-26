@@ -66,5 +66,6 @@ final class VideoLinkParserTests: XCTestCase {
         XCTAssertNil(parse("https://example.com/image.jpg"))
         XCTAssertNil(parse("https://lemmy.world/c/games/p/1/slug"))
         XCTAssertNil(parse("https://example.com/watch?v=short")) // id too short for YT shape
+        XCTAssertNil(parse("https://youtu.be/dQw4w9WgXcQ/extra")) // youtu.be id must be the sole segment
     }
 }

@@ -43,9 +43,10 @@ public enum VideoLinkParser {
         }
         let segments = url.path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
 
-        // YouTube (definitive, by host).
-        if host == "youtu.be", let id = segments.first, isYouTubeId(id) {
-            return youTube(id: id, original: url)
+        // YouTube (definitive, by host). youtu.be carries the id as the sole path
+        // segment; require exactly one so `/youtu.be/<id>/extra` doesn't match.
+        if host == "youtu.be", segments.count == 1, isYouTubeId(segments[0]) {
+            return youTube(id: segments[0], original: url)
         }
         if youTubeHosts.contains(host), segments.first == "watch", let id = queryValue("v", url), isYouTubeId(id) {
             return youTube(id: id, original: url)
