@@ -17,6 +17,7 @@ account has them.
 ## Behavior and rules
 
 - **Pinned header + comment tree.** The post is the first row and stays at the top of the scroll; the comment tree follows it. The header renders the post title, body (markdown), the community-and-author attribution, a score / comment-count / age subtitle, and any media (image, video, or link preview), plus an inline action bar with **upvote, downvote, and save**.
+- **Voting and saving update the header in place.** Tapping upvote / downvote / save optimistically updates the action bar and score without restarting the post's image load or rebuilding its body link-preview cards, so the header doesn't flicker or reflow on a vote. The media is only reloaded when it actually changes (e.g. a refresh fills in a thumbnail).
 - **Attribution shows full handles.** The attribution reads "in `<Community>`@`<instance>` by `<Author>`@`<instance>`": the community's display name and the author's display name show their home instance host in a muted style (matching how instance hosts are dimmed in the post-list rows). The whole handle — display name plus `@instance` — is the tap target (to the community screen and the person profile respectively). A purely local handle still shows its own instance host.
 - **Navigation bar actions.** The post's toolbar carries four buttons: open in Safari, reply to the post, share, and save (the save button shows a filled bookmark when the post is saved).
 - **Threaded comments with depth rails.** A nested comment draws one colored rail per ancestor level on its leading edge, oldest ancestor first. Rail colors cycle through the active comment-ribbon theme so the same depth always reads as the same color; top-level comments draw no rail.
@@ -113,6 +114,13 @@ account has them.
 - **Given** a link-type post
 - **When** I open its detail screen
 - **Then** the header shows a link preview card with the server-provided title and thumbnail
+
+### Voting does not flicker the post media
+
+- **Given** I am viewing a post with an image or body link-preview cards
+- **When** I upvote, downvote, or save it
+- **Then** the action bar and score update in place
+- **And** the post image and link-preview cards stay put — no flicker, reload, or reflow
 
 ## Not supported / out of scope
 

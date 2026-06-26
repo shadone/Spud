@@ -376,6 +376,19 @@ class PostDetailHeaderCell: UITableViewCellBase {
     /// stack view so fonts reflect the updated preference.
     private var bodyViewTextScale: CGFloat = 0
 
+    /// The media (`viewModel.image`) the cell is currently displaying. Used to
+    /// skip restarting the image load when a reconfigure leaves the media
+    /// unchanged (e.g. an optimistic vote/save), which would otherwise clear the
+    /// shown image to a placeholder and repaint it — a visible flicker. Reset in
+    /// `prepareForReuse` so a recycled cell always reloads.
+    private var configuredImage: PostDetailHeaderViewModel.HeaderImage?
+
+    /// The body link previews the cards currently reflect. Used to skip rebuilding
+    /// the cards when a reconfigure leaves the links unchanged (e.g. a vote/save),
+    /// which would otherwise tear the cards down, repaint them, and re-fetch each
+    /// embed. Reset in `prepareForReuse`.
+    private var configuredLinkPreviews: [CommentLinkPreview]?
+
     private var postImageContainerHeightConstraint: NSLayoutConstraint!
     private var imageLoadTask: Task<Void, Never>?
 
@@ -522,6 +535,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
         imageLoadTask?.cancel()
         imageLoadTask = nil
+        configuredImage = nil
+        configuredLinkPreviews = nil
 
         tappableImageUrl = nil
         tappableThumbnailUrl = nil
@@ -595,7 +610,13 @@ class PostDetailHeaderCell: UITableViewCellBase {
             return nil
         }
         bodyView.setBlocks(viewModel.bodyBlocks)
-        configureBodyLinkPreviews(viewModel)
+        // Rebuild the body link-preview cards only when the links changed. A
+        // vote/save reconfigure carries the same links; rebuilding tears the
+        // cards down, repaints them, and re-fetches each embed — a flicker.
+        if viewModel.linkPreviews != configuredLinkPreviews {
+            configuredLinkPreviews = viewModel.linkPreviews
+            configureBodyLinkPreviews(viewModel)
+        }
         attributionLabel.attributedText = viewModel.attribution
         subtitleScoreLabel.attributedText = viewModel.subtitleScore
         subtitleCommentLabel.attributedText = viewModel.subtitleComments
@@ -617,6 +638,17 @@ class PostDetailHeaderCell: UITableViewCellBase {
         subtitleAgeLabel.accessibilityLabel = viewModel.subtitleAgeAccessibilityLabel
 
         isBlurred = viewModel.isImageBlurred
+
+        // Only (re)load the media when it actually changed. A vote/save
+        // optimistically updates the row and reconfigures the header cell in
+        // place with the same image but a new score; re-running the load clears
+        // the shown image to a loading placeholder and repaints the cached image
+        // near-instantly, which flickers. Blur reveal also reconfigures with the
+        // same media, and is handled by `isBlurred` above — independent of the
+        // media identity — so skipping the reload keeps the revealed image.
+        // The media block must remain the last work in `configure`.
+        guard viewModel.image != configuredImage else { return }
+        configuredImage = viewModel.image
 
         imageLoadTask?.cancel()
         mediaBadgeView.text = nil
