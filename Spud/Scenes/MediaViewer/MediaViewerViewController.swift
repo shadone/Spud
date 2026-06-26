@@ -33,6 +33,11 @@ final class MediaViewerViewController: UIViewController {
     private let imageService: ImageServiceType
     private var currentIndex: Int
 
+    /// True when any item is NSFW; gates privacy-screen registration.
+    private let containsSensitiveContent: Bool
+    /// Tracks the balanced begin/end of the sensitive-content registration.
+    private var didRegisterSensitive = false
+
     /// Distance the user must drag down (after the gesture resolves to a
     /// dismiss) before release commits the dismissal.
     private let dismissThreshold: CGFloat = 120
@@ -174,6 +179,7 @@ final class MediaViewerViewController: UIViewController {
         precondition(!items.isEmpty, "MediaViewer requires at least one item")
         self.items = items
         currentIndex = min(max(0, startIndex), items.count - 1)
+        containsSensitiveContent = items.contains { $0.isNsfw }
         imageService = dependencies.imageService
         super.init(nibName: nil, bundle: nil)
 
@@ -235,6 +241,26 @@ final class MediaViewerViewController: UIViewController {
 
         // Start with the chrome hidden; a single tap reveals it.
         setBar(hidden: true, animated: false)
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        // While NSFW media is on screen, register it as sensitive so the privacy
+        // screen hides it from the app-switcher snapshot and screen captures.
+        // Registration persists across backgrounding (appear/disappear don't fire
+        // then) and is balanced on dismissal in viewWillDisappear.
+        if containsSensitiveContent, !didRegisterSensitive {
+            didRegisterSensitive = true
+            PrivacyScreenMonitor.shared.beginSensitiveContent()
+        }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        if didRegisterSensitive {
+            didRegisterSensitive = false
+            PrivacyScreenMonitor.shared.endSensitiveContent()
+        }
     }
 
     private func setupTopBar() {

@@ -17,13 +17,15 @@ extension UIViewController {
         thumbnailUrl: URL?,
         preloadedImage: UIImage?,
         altText: String? = nil,
+        isNsfw: Bool = false,
         dependencies: MediaViewerViewController.Dependencies
     ) {
         let item = MediaItem(
             imageUrl: imageUrl,
             thumbnailUrl: thumbnailUrl,
             preloadedImage: preloadedImage,
-            altText: altText
+            altText: altText,
+            isNsfw: isNsfw
         )
         let viewer = MediaViewerViewController.make(items: [item], dependencies: dependencies)
         present(viewer, animated: true)

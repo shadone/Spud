@@ -1299,6 +1299,9 @@ class PostDetailViewController: UIViewController {
             thumbnailUrl: thumbnailUrl,
             preloadedImage: preloadedImage,
             altText: altText,
+            // All media opened from this post (header, body, or comment images)
+            // inherits the post's NSFW state for the privacy screen.
+            isNsfw: headerRow?.isNsfw ?? false,
             dependencies: dependencies.own
         )
     }

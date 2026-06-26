@@ -28,16 +28,23 @@ struct MediaItem: Equatable {
     /// detector.
     let isAnimated: Bool
 
+    /// True when this media belongs to an NSFW post (or community). Drives the
+    /// privacy screen that hides the viewer from the app-switcher snapshot and
+    /// screen captures.
+    let isNsfw: Bool
+
     init(
         imageUrl: URL,
         thumbnailUrl: URL? = nil,
         preloadedImage: UIImage? = nil,
-        altText: String? = nil
+        altText: String? = nil,
+        isNsfw: Bool = false
     ) {
         self.imageUrl = imageUrl
         self.thumbnailUrl = thumbnailUrl
         self.preloadedImage = preloadedImage
         self.altText = altText
+        self.isNsfw = isNsfw
         isAnimated = imageUrl.pathExtension.lowercased() == "gif"
     }
 }

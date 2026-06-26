@@ -1110,7 +1110,8 @@ class PostListViewController: UIViewController {
                         imageUrl: imageUrl,
                         thumbnailUrl: thumbnailUrl,
                         preloadedImage: thumbnailImage,
-                        altText: row.altText
+                        altText: row.altText,
+                        isNsfw: row.isNsfw
                     )
                     // Viewing a post's media counts as opening it, so mark it
                     // read like tapping into the post does (master toggle only).
@@ -1469,13 +1470,15 @@ class PostListViewController: UIViewController {
         imageUrl: URL,
         thumbnailUrl: URL?,
         preloadedImage: UIImage?,
-        altText: String? = nil
+        altText: String? = nil,
+        isNsfw: Bool = false
     ) {
         presentMediaViewer(
             imageUrl: imageUrl,
             thumbnailUrl: thumbnailUrl,
             preloadedImage: preloadedImage,
             altText: altText,
+            isNsfw: isNsfw,
             dependencies: dependencies.own
         )
     }

@@ -13,6 +13,10 @@ private let logger = Logger.app
 class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var window: MainWindow?
 
+    /// Covers the window with a privacy screen when NSFW content is on screen and
+    /// the app backgrounds (the app-switcher snapshot) or the screen is captured.
+    private var privacyScreen: PrivacyScreen?
+
     func scene(
         _ scene: UIScene,
         willConnectTo session: UISceneSession,
@@ -29,6 +33,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             dependencies: AppCoordinator.shared.dependencies
         )
         self.window = window
+        privacyScreen = PrivacyScreen(window: window)
 
         // Register the window as the live navigation surface and replay any
         // navigation an App Intent requested before the UI was ready.
@@ -60,11 +65,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         if let window {
             AppCoordinator.shared.setActiveWindow(window)
         }
+        privacyScreen?.sceneDidBecomeActive()
     }
 
     func sceneWillResignActive(_ scene: UIScene) {
         // Called when the scene will move from an active state to an inactive state.
         // This may occur due to temporary interruptions (ex. an incoming phone call).
+        // Cover NSFW content before iOS snapshots the app for the app switcher.
+        privacyScreen?.sceneWillResignActive()
     }
 
     func sceneWillEnterForeground(_ scene: UIScene) {
