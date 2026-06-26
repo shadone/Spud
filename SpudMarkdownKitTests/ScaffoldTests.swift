@@ -4,23 +4,25 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import SpudMarkdownKit
 
-final class ModelTests: XCTestCase {
-    func test_blocksAreEquatable() {
+struct ModelTests {
+    @Test
+    func blocksAreEquatable() {
         let a: MarkdownBlock = .paragraph([.text("hi"), .strong([.text("there")])])
         let b: MarkdownBlock = .paragraph([.text("hi"), .strong([.text("there")])])
-        XCTAssertEqual(a, b)
+        #expect(a == b)
     }
 
-    func test_tableModelHoldsAlignmentsHeadRows() {
+    @Test
+    func tableModelHoldsAlignmentsHeadRows() {
         let table = MarkdownTable(
             alignments: [.left, .right],
             head: [[.text("A")], [.text("B")]],
             rows: [[[.text("1")], [.text("2")]]]
         )
-        XCTAssertEqual(table.alignments, [.left, .right])
-        XCTAssertEqual(table.rows.count, 1)
+        #expect(table.alignments == [.left, .right])
+        #expect(table.rows.count == 1)
     }
 }

@@ -4,13 +4,15 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import SpudMarkdownKit
 
-final class BlockParserTests: XCTestCase {
-    func test_paragraphWithBoldAndExtension() {
+struct BlockParserTests {
+    @Test
+    func paragraphWithBoldAndExtension() {
         let blocks = BlockParser.document("Valve **finally** shipped ==SteamOS==")
-        XCTAssertEqual(blocks, [
+        #expect(blocks == [
             .paragraph([
                 .text("Valve "),
                 .strong([.text("finally")]),
@@ -20,23 +22,27 @@ final class BlockParserTests: XCTestCase {
         ])
     }
 
-    func test_headings() {
-        XCTAssertEqual(BlockParser.document("# Title"), [.heading(level: 1, [.text("Title")])])
-        XCTAssertEqual(BlockParser.document("### Topic"), [.heading(level: 3, [.text("Topic")])])
+    @Test
+    func headings() {
+        #expect(BlockParser.document("# Title") == [.heading(level: 1, [.text("Title")])])
+        #expect(BlockParser.document("### Topic") == [.heading(level: 3, [.text("Topic")])])
     }
 
-    func test_thematicBreak() {
-        XCTAssertEqual(BlockParser.document("---"), [.thematicBreak])
+    @Test
+    func thematicBreak() {
+        #expect(BlockParser.document("---") == [.thematicBreak])
     }
 
-    func test_codeBlock() {
+    @Test
+    func codeBlock() {
         let blocks = BlockParser.document("```bash\necho hi\n```")
-        XCTAssertEqual(blocks, [.codeBlock(language: "bash", code: "echo hi")])
+        #expect(blocks == [.codeBlock(language: "bash", code: "echo hi")])
     }
 
-    func test_orderedListWithStart() {
+    @Test
+    func orderedListWithStart() {
         let blocks = BlockParser.document("3. first\n4. second")
-        XCTAssertEqual(blocks, [
+        #expect(blocks == [
             .orderedList(start: 3, [
                 MarkdownListItem(blocks: [.paragraph([.text("first")])]),
                 MarkdownListItem(blocks: [.paragraph([.text("second")])]),
@@ -44,9 +50,10 @@ final class BlockParserTests: XCTestCase {
         ])
     }
 
-    func test_nestedUnorderedList() {
+    @Test
+    func nestedUnorderedList() {
         let blocks = BlockParser.document("- a\n    - b")
-        XCTAssertEqual(blocks, [
+        #expect(blocks == [
             .unorderedList([
                 MarkdownListItem(blocks: [
                     .paragraph([.text("a")]),
@@ -56,9 +63,10 @@ final class BlockParserTests: XCTestCase {
         ])
     }
 
-    func test_nestedBlockQuote() {
+    @Test
+    func nestedBlockQuote() {
         let blocks = BlockParser.document("> outer\n>\n> > inner")
-        XCTAssertEqual(blocks, [
+        #expect(blocks == [
             .blockQuote([
                 .paragraph([.text("outer")]),
                 .blockQuote([.paragraph([.text("inner")])]),
@@ -66,13 +74,14 @@ final class BlockParserTests: XCTestCase {
         ])
     }
 
-    func test_table() {
+    @Test
+    func table() {
         let source = """
             | Sub | OK |
             |:---|---:|
             | Suspend | yes |
             """
-        XCTAssertEqual(BlockParser.document(source), [
+        #expect(BlockParser.document(source) == [
             .table(MarkdownTable(
                 alignments: [.left, .right],
                 head: [[.text("Sub")], [.text("OK")]],
@@ -81,13 +90,17 @@ final class BlockParserTests: XCTestCase {
         ])
     }
 
-    func test_standaloneImage() throws {
+    @Test
+    func standaloneImage() throws {
         let blocks = BlockParser.document("![a cat](https://x/cat.jpg)")
-        XCTAssertEqual(blocks, try [.image(MarkdownImage(url: XCTUnwrap(URL(string: "https://x/cat.jpg")), altText: "a cat"))])
+        let url = try #require(URL(string: "https://x/cat.jpg"))
+        #expect(blocks == [.image(MarkdownImage(url: url, altText: "a cat"))])
     }
 
-    func test_standaloneVideoLinkBecomesVideoBlock() throws {
+    @Test
+    func standaloneVideoLinkBecomesVideoBlock() throws {
         let blocks = BlockParser.document("![clip](https://x/clip.mp4)")
-        XCTAssertEqual(blocks, try [.video(url: XCTUnwrap(URL(string: "https://x/clip.mp4")))])
+        let url = try #require(URL(string: "https://x/clip.mp4"))
+        #expect(blocks == [.video(url: url)])
     }
 }

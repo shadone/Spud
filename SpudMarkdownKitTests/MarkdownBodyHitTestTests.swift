@@ -4,12 +4,12 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Testing
 import UIKit
-import XCTest
 @testable import SpudMarkdownKit
 
 @MainActor
-final class MarkdownBodyHitTestTests: XCTestCase {
+struct MarkdownBodyHitTestTests {
     /// Builds a laid-out body sized to its fitting size at a fixed width, so the
     /// rendered block frames are tight enough to hit-test against.
     private func laidOutBody(_ blocks: [MarkdownBlock]) -> MarkdownBodyView {
@@ -36,17 +36,19 @@ final class MarkdownBodyHitTestTests: XCTestCase {
 
     /// Proves the regression is fixed: a plain paragraph with no links must NOT
     /// be treated as link-like, so the collapse-tap still collapses.
-    func test_plainParagraph_doesNotHandleTap() {
+    @Test
+    func plainParagraph_doesNotHandleTap() {
         let blocks = MarkdownParser.parse("Just some plain text with no links at all.")
         let body = laidOutBody(blocks)
-        XCTAssertFalse(body.handlesTap(at: center(of: body)))
+        #expect(!body.handlesTap(at: center(of: body)))
     }
 
     /// A media tile is tappable across its whole frame.
-    func test_imageBlock_handlesTapAnywhere() {
+    @Test
+    func imageBlock_handlesTapAnywhere() {
         let blocks = MarkdownParser.parse("![alt](https://example.com/x.png)")
         let body = laidOutBody(blocks)
-        XCTAssertTrue(body.handlesTap(at: center(of: body)))
+        #expect(body.handlesTap(at: center(of: body)))
     }
 
     /// A paragraph that is entirely a link: a tap landing on the link's own
@@ -54,19 +56,22 @@ final class MarkdownBodyHitTestTests: XCTestCase {
     /// derived from the link's actual rect rather than the prose view's geometric
     /// center, because a short link does not span the full prose width (the prose
     /// view is laid out full-width, so its center can sit past the text).
-    func test_linkParagraph_handlesTapOnLink() {
+    @Test
+    func linkParagraph_handlesTapOnLink() {
         let blocks = MarkdownParser.parse("[click here](https://example.com)")
         let body = laidOutBody(blocks)
 
         guard let prose = firstProseBlockView(in: body) else {
-            return XCTFail("expected a ProseBlockView for a link-only paragraph")
+            Issue.record("expected a ProseBlockView for a link-only paragraph")
+            return
         }
         guard let linkRect = firstLinkRect(in: prose) else {
-            return XCTFail("expected a link selection rect in the link-only paragraph")
+            Issue.record("expected a link selection rect in the link-only paragraph")
+            return
         }
         let pointInProse = CGPoint(x: linkRect.midX, y: linkRect.midY)
         let pointInBody = prose.convert(pointInProse, to: body)
-        XCTAssertTrue(body.handlesTap(at: pointInBody))
+        #expect(body.handlesTap(at: pointInBody))
     }
 
     /// A collapsed spoiler installs its own tap recognizer on the disclosure
@@ -74,10 +79,11 @@ final class MarkdownBodyHitTestTests: XCTestCase {
     /// the spoiler block's bounds equal just the header — a tap at the body's
     /// center lands on the header and must defer to the spoiler, not collapse the
     /// comment thread.
-    func test_spoilerHeader_handlesTap() {
+    @Test
+    func spoilerHeader_handlesTap() {
         let blocks = MarkdownParser.parse("::: spoiler Secret\nhidden body text\n:::")
         let body = laidOutBody(blocks)
-        XCTAssertTrue(body.handlesTap(at: center(of: body)))
+        #expect(body.handlesTap(at: center(of: body)))
     }
 
     /// Returns the selection rect of the first `.link` range in `prose`, in the

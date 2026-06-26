@@ -4,23 +4,27 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import SpudMarkdownKit
 
-final class MarkdownInlinePlainTextTests: XCTestCase {
-    func test_plainText_flattensTextAndEmphasis() {
+struct MarkdownInlinePlainTextTests {
+    @Test
+    func plainText_flattensTextAndEmphasis() {
         let inlines: [MarkdownInline] = [.text("Foo "), .strong([.text("bar")])]
-        XCTAssertEqual(inlines.plainText, "Foo bar")
+        #expect(inlines.plainText == "Foo bar")
     }
 
-    func test_plainText_code_and_mentions() {
-        XCTAssertEqual([MarkdownInline.code("ls")].plainText, "ls")
-        XCTAssertEqual([MarkdownInline.mention(name: "alice", instance: "lemmy.world")].plainText, "alice@lemmy.world")
-        XCTAssertEqual([MarkdownInline.community(name: "tech", instance: "beehaw.org")].plainText, "tech@beehaw.org")
+    @Test
+    func plainText_code_and_mentions() {
+        #expect([MarkdownInline.code("ls")].plainText == "ls")
+        #expect([MarkdownInline.mention(name: "alice", instance: "lemmy.world")].plainText == "alice@lemmy.world")
+        #expect([MarkdownInline.community(name: "tech", instance: "beehaw.org")].plainText == "tech@beehaw.org")
     }
 
-    func test_plainText_link_usesItsOwnText() throws {
-        let link = try MarkdownInline.link(text: [.text("Foobar")], url: XCTUnwrap(URL(string: "https://example.com")))
-        XCTAssertEqual([link].plainText, "Foobar")
+    @Test
+    func plainText_link_usesItsOwnText() throws {
+        let link = try MarkdownInline.link(text: [.text("Foobar")], url: #require(URL(string: "https://example.com")))
+        #expect([link].plainText == "Foobar")
     }
 }

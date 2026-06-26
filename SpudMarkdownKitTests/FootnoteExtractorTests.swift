@@ -4,36 +4,40 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import SpudMarkdownKit
 
-final class FootnoteExtractorTests: XCTestCase {
-    func test_extractsDefinitionsAndLeavesReferences() {
+struct FootnoteExtractorTests {
+    @Test
+    func extractsDefinitionsAndLeavesReferences() {
         let source = "Thanks.[^1]\n\n[^1]: Re-download over wired."
         let result = FootnoteExtractor.extract(source)
-        XCTAssertEqual(result.source.trimmingCharacters(in: .whitespacesAndNewlines), "Thanks.[^1]")
-        XCTAssertEqual(result.definitions.count, 1)
-        XCTAssertEqual(result.definitions.first?.label, "1")
-        XCTAssertEqual(result.definitions.first?.text, "Re-download over wired.")
+        #expect(result.source.trimmingCharacters(in: .whitespacesAndNewlines) == "Thanks.[^1]")
+        #expect(result.definitions.count == 1)
+        #expect(result.definitions.first?.label == "1")
+        #expect(result.definitions.first?.text == "Re-download over wired.")
     }
 
-    func test_noFootnotes() {
+    @Test
+    func noFootnotes() {
         let result = FootnoteExtractor.extract("Just text.")
-        XCTAssertEqual(result.source, "Just text.")
-        XCTAssertTrue(result.definitions.isEmpty)
+        #expect(result.source == "Just text.")
+        #expect(result.definitions.isEmpty)
     }
 
-    func test_doesNotExtractDefinitionInsideFencedCode() {
+    @Test
+    func doesNotExtractDefinitionInsideFencedCode() {
         let source = "```\n[^1]: not a footnote\n```"
         let result = FootnoteExtractor.extract(source)
-        XCTAssertTrue(result.definitions.isEmpty)
-        XCTAssertEqual(result.source, source)
+        #expect(result.definitions.isEmpty)
+        #expect(result.source == source)
     }
 
-    func test_extractsDefinitionAfterClosedFence() {
+    @Test
+    func extractsDefinitionAfterClosedFence() {
         let source = "```\ncode\n```\n[^1]: real note"
         let result = FootnoteExtractor.extract(source)
-        XCTAssertEqual(result.definitions.map(\.label), ["1"])
-        XCTAssertEqual(result.definitions.first?.text, "real note")
+        #expect(result.definitions.map(\.label) == ["1"])
+        #expect(result.definitions.first?.text == "real note")
     }
 }

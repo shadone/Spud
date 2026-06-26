@@ -4,24 +4,29 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import SpudMarkdownKit
 
-final class MediaDetectorTests: XCTestCase {
-    func test_image() throws {
-        XCTAssertEqual(try MediaDetector.kind(of: XCTUnwrap(URL(string: "https://x/y.jpg"))), .image)
-        XCTAssertEqual(try MediaDetector.kind(of: XCTUnwrap(URL(string: "https://x/y.PNG"))), .image)
+struct MediaDetectorTests {
+    @Test
+    func image() throws {
+        #expect(try MediaDetector.kind(of: #require(URL(string: "https://x/y.jpg"))) == .image)
+        #expect(try MediaDetector.kind(of: #require(URL(string: "https://x/y.PNG"))) == .image)
     }
 
-    func test_audio() throws {
-        XCTAssertEqual(try MediaDetector.kind(of: XCTUnwrap(URL(string: "https://x/clip.mp3"))), .audio)
+    @Test
+    func audio() throws {
+        #expect(try MediaDetector.kind(of: #require(URL(string: "https://x/clip.mp3"))) == .audio)
     }
 
-    func test_video() throws {
-        XCTAssertEqual(try MediaDetector.kind(of: XCTUnwrap(URL(string: "https://x/clip.mp4"))), .video)
+    @Test
+    func video() throws {
+        #expect(try MediaDetector.kind(of: #require(URL(string: "https://x/clip.mp4"))) == .video)
     }
 
-    func test_unknownDefaultsToImage() throws {
-        XCTAssertEqual(try MediaDetector.kind(of: XCTUnwrap(URL(string: "https://x/pictrs/image/abc"))), .image)
+    @Test
+    func unknownDefaultsToImage() throws {
+        #expect(try MediaDetector.kind(of: #require(URL(string: "https://x/pictrs/image/abc"))) == .image)
     }
 }

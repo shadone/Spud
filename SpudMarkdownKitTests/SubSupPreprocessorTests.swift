@@ -4,29 +4,34 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import SpudMarkdownKit
 
-final class SubSupPreprocessorTests: XCTestCase {
-    func test_protectsSuperscript() {
-        XCTAssertEqual(SubSupPreprocessor.protectText("x^2^"), "x\u{E010}sup:2\u{E011}")
+struct SubSupPreprocessorTests {
+    @Test
+    func protectsSuperscript() {
+        #expect(SubSupPreprocessor.protectText("x^2^") == "x\u{E010}sup:2\u{E011}")
     }
 
-    func test_protectsSubscript() {
-        XCTAssertEqual(SubSupPreprocessor.protectText("H~2~O"), "H\u{E010}sub:2\u{E011}O")
+    @Test
+    func protectsSubscript() {
+        #expect(SubSupPreprocessor.protectText("H~2~O") == "H\u{E010}sub:2\u{E011}O")
     }
 
-    func test_leavesDoubleTildeStrikethroughAlone() {
-        XCTAssertEqual(SubSupPreprocessor.protectText("~~gone~~"), "~~gone~~")
+    @Test
+    func leavesDoubleTildeStrikethroughAlone() {
+        #expect(SubSupPreprocessor.protectText("~~gone~~") == "~~gone~~")
     }
 
-    func test_doesNotProtectInsideFencedCode() {
+    @Test
+    func doesNotProtectInsideFencedCode() {
         let source = "```\nx^2^ and H~2~O\n```"
-        XCTAssertEqual(SubSupPreprocessor.protectText(source), source)
+        #expect(SubSupPreprocessor.protectText(source) == source)
     }
 
-    func test_protectsAfterClosedFence() {
+    @Test
+    func protectsAfterClosedFence() {
         let source = "```\ncode\n```\nx^2^"
-        XCTAssertEqual(SubSupPreprocessor.protectText(source), "```\ncode\n```\nx\u{E010}sup:2\u{E011}")
+        #expect(SubSupPreprocessor.protectText(source) == "```\ncode\n```\nx\u{E010}sup:2\u{E011}")
     }
 }

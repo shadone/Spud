@@ -4,151 +4,169 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Testing
 import UIKit
-import XCTest
 @testable import SpudMarkdownKit
 
 @MainActor
-final class InlineAttributedStringBuilderTests: XCTestCase {
+struct InlineAttributedStringBuilderTests {
     private func build(_ inlines: [MarkdownInline]) -> NSAttributedString {
         InlineAttributedStringBuilder.build(inlines, context: MarkdownContext(kind: .post))
     }
 
-    func test_plainText() {
-        XCTAssertEqual(build([.text("hello")]).string, "hello")
+    @Test
+    func plainText() {
+        #expect(build([.text("hello")]).string == "hello")
     }
 
-    func test_strongIsBold() {
+    @Test
+    func strongIsBold() {
         let s = build([.strong([.text("x")])])
         let font = s.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
-        XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.traitBold) ?? false)
+        #expect(font?.fontDescriptor.symbolicTraits.contains(.traitBold) ?? false)
     }
 
-    func test_emphasisIsItalic() {
+    @Test
+    func emphasisIsItalic() {
         let s = build([.emphasis([.text("x")])])
         let font = s.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
-        XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.traitItalic) ?? false)
+        #expect(font?.fontDescriptor.symbolicTraits.contains(.traitItalic) ?? false)
     }
 
-    func test_linkCarriesURL() throws {
+    @Test
+    func linkCarriesURL() throws {
         // A plain external link keeps its URL (not a Lemmy user/community/post link).
-        let url = try XCTUnwrap(URL(string: "https://example.com/article"))
+        let url = try #require(URL(string: "https://example.com/article"))
         let s = build([.link(text: [.text("here")], url: url)])
-        XCTAssertEqual(s.attribute(.link, at: 0, effectiveRange: nil) as? URL, url)
+        #expect(s.attribute(.link, at: 0, effectiveRange: nil) as? URL == url)
     }
 
-    func test_explicitUserLinkResolvesToInternalMention() throws {
+    @Test
+    func explicitUserLinkResolvesToInternalMention() throws {
         // Lemmy renders @autotldr@lemmings.world as a plain link to /u/autotldr;
         // it must route in-app, not to Safari.
-        let url = try XCTUnwrap(URL(string: "https://lemmings.world/u/autotldr"))
+        let url = try #require(URL(string: "https://lemmings.world/u/autotldr"))
         let s = build([.link(text: [.text("@autotldr@lemmings.world")], url: url)])
-        let link = try XCTUnwrap(s.attribute(.link, at: 0, effectiveRange: nil) as? URL)
-        XCTAssertEqual(link.scheme, "spud-markdown")
-        XCTAssertEqual(link.host, "mention")
-        let components = try XCTUnwrap(URLComponents(url: link, resolvingAgainstBaseURL: false))
-        XCTAssertEqual(components.queryItems?.first { $0.name == "name" }?.value, "autotldr")
-        XCTAssertEqual(components.queryItems?.first { $0.name == "instance" }?.value, "lemmings.world")
+        let link = try #require(s.attribute(.link, at: 0, effectiveRange: nil) as? URL)
+        #expect(link.scheme == "spud-markdown")
+        #expect(link.host == "mention")
+        let components = try #require(URLComponents(url: link, resolvingAgainstBaseURL: false))
+        #expect(components.queryItems?.first { $0.name == "name" }?.value == "autotldr")
+        #expect(components.queryItems?.first { $0.name == "instance" }?.value == "lemmings.world")
     }
 
-    func test_explicitCommunityLinkResolvesToInternalCommunity() throws {
-        let url = try XCTUnwrap(URL(string: "https://lemmy.world/c/news"))
+    @Test
+    func explicitCommunityLinkResolvesToInternalCommunity() throws {
+        let url = try #require(URL(string: "https://lemmy.world/c/news"))
         let s = build([.link(text: [.text("news")], url: url)])
-        let link = try XCTUnwrap(s.attribute(.link, at: 0, effectiveRange: nil) as? URL)
-        XCTAssertEqual(link.scheme, "spud-markdown")
-        XCTAssertEqual(link.host, "community")
+        let link = try #require(s.attribute(.link, at: 0, effectiveRange: nil) as? URL)
+        #expect(link.scheme == "spud-markdown")
+        #expect(link.host == "community")
     }
 
-    func test_federatedUserLinkUsesHomeInstanceFromPath() throws {
+    @Test
+    func federatedUserLinkUsesHomeInstanceFromPath() throws {
         // /u/<name>@<home> — the home instance in the path wins over the URL host.
-        let url = try XCTUnwrap(URL(string: "https://lemmy.world/u/bob@beehaw.org"))
-        let internalURL = try XCTUnwrap(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
-        let components = try XCTUnwrap(URLComponents(url: internalURL, resolvingAgainstBaseURL: false))
-        XCTAssertEqual(components.host, "mention")
-        XCTAssertEqual(components.queryItems?.first { $0.name == "name" }?.value, "bob")
-        XCTAssertEqual(components.queryItems?.first { $0.name == "instance" }?.value, "beehaw.org")
+        let url = try #require(URL(string: "https://lemmy.world/u/bob@beehaw.org"))
+        let internalURL = try #require(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+        let components = try #require(URLComponents(url: internalURL, resolvingAgainstBaseURL: false))
+        #expect(components.host == "mention")
+        #expect(components.queryItems?.first { $0.name == "name" }?.value == "bob")
+        #expect(components.queryItems?.first { $0.name == "instance" }?.value == "beehaw.org")
     }
 
-    func test_explicitPostLinkResolvesToObject() throws {
-        let url = try XCTUnwrap(URL(string: "https://lemmy.world/post/12345"))
+    @Test
+    func explicitPostLinkResolvesToObject() throws {
+        let url = try #require(URL(string: "https://lemmy.world/post/12345"))
         let s = build([.link(text: [.text("a post")], url: url)])
-        let link = try XCTUnwrap(s.attribute(.link, at: 0, effectiveRange: nil) as? URL)
-        XCTAssertEqual(link.scheme, "spud-markdown")
-        XCTAssertEqual(link.host, "object")
-        let components = try XCTUnwrap(URLComponents(url: link, resolvingAgainstBaseURL: false))
-        XCTAssertEqual(components.queryItems?.first { $0.name == "url" }?.value, "https://lemmy.world/post/12345")
+        let link = try #require(s.attribute(.link, at: 0, effectiveRange: nil) as? URL)
+        #expect(link.scheme == "spud-markdown")
+        #expect(link.host == "object")
+        let components = try #require(URLComponents(url: link, resolvingAgainstBaseURL: false))
+        #expect(components.queryItems?.first { $0.name == "url" }?.value == "https://lemmy.world/post/12345")
     }
 
-    func test_frontendPostLink_resolvesToCanonicalObject() throws {
+    @Test
+    func frontendPostLink_resolvesToCanonicalObject() throws {
         // The form some instances use: /c/<community>/p/<id>[/<slug>].
-        let url = try XCTUnwrap(URL(string: "https://feddit.online/c/opensource/p/1784296/favorite-open-source-game"))
-        let internalURL = try XCTUnwrap(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
-        XCTAssertEqual(internalURL.host, "object")
-        let components = try XCTUnwrap(URLComponents(url: internalURL, resolvingAgainstBaseURL: false))
-        XCTAssertEqual(components.queryItems?.first { $0.name == "url" }?.value, "https://feddit.online/post/1784296")
+        let url = try #require(URL(string: "https://feddit.online/c/opensource/p/1784296/favorite-open-source-game"))
+        let internalURL = try #require(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+        #expect(internalURL.host == "object")
+        let components = try #require(URLComponents(url: internalURL, resolvingAgainstBaseURL: false))
+        #expect(components.queryItems?.first { $0.name == "url" }?.value == "https://feddit.online/post/1784296")
     }
 
-    func test_frontendPostLink_withoutSlug() throws {
-        let url = try XCTUnwrap(URL(string: "https://feddit.online/c/opensource/p/1784296"))
-        let internalURL = try XCTUnwrap(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
-        XCTAssertEqual(internalURL.host, "object")
+    @Test
+    func frontendPostLink_withoutSlug() throws {
+        let url = try #require(URL(string: "https://feddit.online/c/opensource/p/1784296"))
+        let internalURL = try #require(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+        #expect(internalURL.host == "object")
     }
 
-    func test_frontendPostLink_nonNumericId_isNil() throws {
-        let url = try XCTUnwrap(URL(string: "https://feddit.online/c/opensource/p/abc/slug"))
-        XCTAssertNil(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+    @Test
+    func frontendPostLink_nonNumericId_isNil() throws {
+        let url = try #require(URL(string: "https://feddit.online/c/opensource/p/abc/slug"))
+        #expect(InlineAttributedStringBuilder.lemmyReferenceURL(for: url) == nil)
     }
 
-    func test_plainCommunityLink_stillResolvesToCommunity() throws {
+    @Test
+    func plainCommunityLink_stillResolvesToCommunity() throws {
         // A 2-segment /c/<name> is a community link, not the frontend post form.
-        let url = try XCTUnwrap(URL(string: "https://lemmy.world/c/news"))
-        let internalURL = try XCTUnwrap(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
-        XCTAssertEqual(internalURL.host, "community")
+        let url = try #require(URL(string: "https://lemmy.world/c/news"))
+        let internalURL = try #require(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+        #expect(internalURL.host == "community")
     }
 
-    func test_explicitCommentLinkResolvesToObject() throws {
-        let url = try XCTUnwrap(URL(string: "https://lemmy.world/comment/678"))
-        let internalURL = try XCTUnwrap(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
-        XCTAssertEqual(internalURL.host, "object")
-        let components = try XCTUnwrap(URLComponents(url: internalURL, resolvingAgainstBaseURL: false))
-        XCTAssertEqual(components.queryItems?.first { $0.name == "url" }?.value, "https://lemmy.world/comment/678")
+    @Test
+    func explicitCommentLinkResolvesToObject() throws {
+        let url = try #require(URL(string: "https://lemmy.world/comment/678"))
+        let internalURL = try #require(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+        #expect(internalURL.host == "object")
+        let components = try #require(URLComponents(url: internalURL, resolvingAgainstBaseURL: false))
+        #expect(components.queryItems?.first { $0.name == "url" }?.value == "https://lemmy.world/comment/678")
     }
 
-    func test_nonNumericPostIdIsNotRewritten() throws {
+    @Test
+    func nonNumericPostIdIsNotRewritten() throws {
         // /post/<non-numeric> is not a Lemmy post URL.
-        let url = try XCTUnwrap(URL(string: "https://example.com/post/hello-world"))
-        XCTAssertNil(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+        let url = try #require(URL(string: "https://example.com/post/hello-world"))
+        #expect(InlineAttributedStringBuilder.lemmyReferenceURL(for: url) == nil)
     }
 
-    func test_nonAsciiUsernameIsNotRewritten() throws {
+    @Test
+    func nonAsciiUsernameIsNotRewritten() throws {
         // Lemmy usernames are ASCII-only; a /u/ path of non-ASCII digits is not a
         // valid handle and must not be rewritten to an internal mention.
-        let url = try XCTUnwrap(URL(string: "https://lemmy.world/u/\u{0661}\u{0662}\u{0663}"))
-        XCTAssertNil(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+        let url = try #require(URL(string: "https://lemmy.world/u/\u{0661}\u{0662}\u{0663}"))
+        #expect(InlineAttributedStringBuilder.lemmyReferenceURL(for: url) == nil)
     }
 
-    func test_ordinaryLinkIsUnchanged() throws {
+    @Test
+    func ordinaryLinkIsUnchanged() throws {
         // Non-Lemmy-reference links keep their URL.
         for raw in [
             "https://example.com/u/foo/bar",
             "https://example.com/article",
             "https://lemmy.world/u/foo/bar",
         ] {
-            let url = try XCTUnwrap(URL(string: raw))
-            XCTAssertNil(InlineAttributedStringBuilder.lemmyReferenceURL(for: url), "\(raw)")
+            let url = try #require(URL(string: raw))
+            #expect(InlineAttributedStringBuilder.lemmyReferenceURL(for: url) == nil, "\(raw)")
             let s = build([.link(text: [.text("x")], url: url)])
-            XCTAssertEqual(s.attribute(.link, at: 0, effectiveRange: nil) as? URL, url, "\(raw)")
+            #expect(s.attribute(.link, at: 0, effectiveRange: nil) as? URL == url, "\(raw)")
         }
     }
 
-    func test_highlightHasBackground() {
+    @Test
+    func highlightHasBackground() {
         let s = build([.highlight([.text("x")])])
-        XCTAssertNotNil(s.attribute(.backgroundColor, at: 0, effectiveRange: nil))
+        #expect(s.attribute(.backgroundColor, at: 0, effectiveRange: nil) != nil)
     }
 
-    func test_inlineCodeUsesMonospace() {
+    @Test
+    func inlineCodeUsesMonospace() {
         let s = build([.code("ls")])
         let font = s.attribute(.font, at: 0, effectiveRange: nil) as? UIFont
-        XCTAssertTrue(font?.fontDescriptor.symbolicTraits.contains(.traitMonoSpace) ?? false)
+        #expect(font?.fontDescriptor.symbolicTraits.contains(.traitMonoSpace) ?? false)
     }
 
     private func chipFillAndLink(_ s: NSAttributedString) -> (fill: UIColor, url: URL)? {
@@ -165,40 +183,45 @@ final class InlineAttributedStringBuilderTests: XCTestCase {
         return (fill, url)
     }
 
-    func test_mentionRendersHandleTextWithChipFillAndLink() throws {
+    @Test
+    func mentionRendersHandleTextWithChipFillAndLink() throws {
         let s = build([.mention(name: "alice", instance: "lemmy.world")])
-        XCTAssertTrue(s.string.contains("alice@lemmy.world"))
-        let chip = try XCTUnwrap(chipFillAndLink(s))
-        XCTAssertEqual(chip.url.scheme, "spud-markdown")
-        XCTAssertEqual(chip.url.host, "mention")
+        #expect(s.string.contains("alice@lemmy.world"))
+        let chip = try #require(chipFillAndLink(s))
+        #expect(chip.url.scheme == "spud-markdown")
+        #expect(chip.url.host == "mention")
     }
 
-    func test_communityRendersHandleTextWithChipFillAndLink() throws {
+    @Test
+    func communityRendersHandleTextWithChipFillAndLink() throws {
         let s = build([.community(name: "linux", instance: "lemmy.world")])
-        XCTAssertTrue(s.string.contains("linux@lemmy.world"))
-        let chip = try XCTUnwrap(chipFillAndLink(s))
-        XCTAssertEqual(chip.url.host, "community")
+        #expect(s.string.contains("linux@lemmy.world"))
+        let chip = try #require(chipFillAndLink(s))
+        #expect(chip.url.host == "community")
     }
 
-    func test_superscriptRaised() {
+    @Test
+    func superscriptRaised() {
         let s = build([.text("x"), .superscript([.text("2")])])
         let offset = s.attribute(.baselineOffset, at: s.length - 1, effectiveRange: nil) as? CGFloat
-        XCTAssertNotNil(offset)
-        XCTAssertGreaterThan(offset ?? 0, 0)
+        #expect(offset != nil)
+        #expect((offset ?? 0) > 0)
     }
 
-    func test_footnoteReferenceCarriesDefinitionLink() {
+    @Test
+    func footnoteReferenceCarriesDefinitionLink() {
         let s = build([.footnoteReference("1")])
         let url = s.attribute(.link, at: 0, effectiveRange: nil) as? URL
-        XCTAssertEqual(url.flatMap(MarkdownFootnoteLink.init), .toDefinition(label: "1"))
+        #expect(url.flatMap(MarkdownFootnoteLink.init) == .toDefinition(label: "1"))
     }
 
-    func test_mentionWithUnsafeCharactersDoesNotCrash() throws {
+    @Test
+    func mentionWithUnsafeCharactersDoesNotCrash() throws {
         // A name with a space would crash a force-unwrapped URL(string:) — it must
         // not, and the chip must still carry a valid spud-markdown URL.
         let s = build([.mention(name: "alice smith", instance: "lemmy.world")])
-        let chip = try XCTUnwrap(chipFillAndLink(s))
-        XCTAssertEqual(chip.url.scheme, "spud-markdown")
-        XCTAssertEqual(chip.url.host, "mention")
+        let chip = try #require(chipFillAndLink(s))
+        #expect(chip.url.scheme == "spud-markdown")
+        #expect(chip.url.host == "mention")
     }
 }

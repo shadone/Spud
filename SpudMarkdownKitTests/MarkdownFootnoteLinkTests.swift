@@ -4,29 +4,34 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import SpudMarkdownKit
 
-final class MarkdownFootnoteLinkTests: XCTestCase {
-    func test_definitionRoundTrips() {
+struct MarkdownFootnoteLinkTests {
+    @Test
+    func definitionRoundTrips() {
         let url = MarkdownFootnoteLink.url(.toDefinition(label: "3"))
-        XCTAssertEqual(MarkdownFootnoteLink(url), .toDefinition(label: "3"))
+        #expect(MarkdownFootnoteLink(url) == .toDefinition(label: "3"))
     }
 
-    func test_referenceRoundTrips() {
+    @Test
+    func referenceRoundTrips() {
         let url = MarkdownFootnoteLink.url(.toReference(label: "note-a"))
-        XCTAssertEqual(MarkdownFootnoteLink(url), .toReference(label: "note-a"))
+        #expect(MarkdownFootnoteLink(url) == .toReference(label: "note-a"))
     }
 
-    func test_definitionAndReferenceURLsDiffer() {
-        XCTAssertNotEqual(
-            MarkdownFootnoteLink.url(.toDefinition(label: "1")),
-            MarkdownFootnoteLink.url(.toReference(label: "1"))
+    @Test
+    func definitionAndReferenceURLsDiffer() {
+        #expect(
+            MarkdownFootnoteLink.url(.toDefinition(label: "1")) !=
+                MarkdownFootnoteLink.url(.toReference(label: "1"))
         )
     }
 
-    func test_rejectsNonFootnoteURLs() throws {
-        XCTAssertNil(try MarkdownFootnoteLink(XCTUnwrap(URL(string: "https://example.com"))))
-        XCTAssertNil(try MarkdownFootnoteLink(XCTUnwrap(URL(string: "spud-markdown://mention?name=a&instance=b"))))
+    @Test
+    func rejectsNonFootnoteURLs() throws {
+        #expect(try MarkdownFootnoteLink(#require(URL(string: "https://example.com"))) == nil)
+        #expect(try MarkdownFootnoteLink(#require(URL(string: "spud-markdown://mention?name=a&instance=b"))) == nil)
     }
 }

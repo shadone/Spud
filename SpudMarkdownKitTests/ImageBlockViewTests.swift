@@ -4,17 +4,17 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Testing
 import UIKit
-import XCTest
 @testable import SpudMarkdownKit
 
 @MainActor
-final class ImageBlockViewTests: XCTestCase {
+struct ImageBlockViewTests {
     private func makeView(
         altText: String?,
         onTapImage: ((URL, String?, CGRect) -> Void)? = nil
     ) throws -> (ImageBlockView, URL) {
-        let url = try XCTUnwrap(URL(string: "https://example.com/a.jpg"))
+        let url = try #require(URL(string: "https://example.com/a.jpg"))
         let view = ImageBlockView(
             image: MarkdownImage(url: url, altText: altText),
             context: MarkdownContext(kind: .post),
@@ -26,37 +26,41 @@ final class ImageBlockViewTests: XCTestCase {
         return (view, url)
     }
 
-    func test_loadedImageIsActivatableAccessibilityElement() throws {
+    @Test
+    func loadedImageIsActivatableAccessibilityElement() throws {
         var tapped: URL?
         let (view, url) = try makeView(altText: "A grey cat") { tappedURL, _, _ in tapped = tappedURL }
         view.apply(state: .loaded(UIImage()))
 
-        XCTAssertTrue(view.isAccessibilityElement)
-        XCTAssertEqual(view.accessibilityLabel, "A grey cat")
-        XCTAssertEqual(view.accessibilityHint, "Tap to zoom")
-        XCTAssertTrue(view.accessibilityTraits.contains(.image))
-        XCTAssertTrue(view.accessibilityTraits.contains(.button))
+        #expect(view.isAccessibilityElement)
+        #expect(view.accessibilityLabel == "A grey cat")
+        #expect(view.accessibilityHint == "Tap to zoom")
+        #expect(view.accessibilityTraits.contains(.image))
+        #expect(view.accessibilityTraits.contains(.button))
 
-        XCTAssertTrue(view.accessibilityActivate())
-        XCTAssertEqual(tapped, url)
+        #expect(view.accessibilityActivate())
+        #expect(tapped == url)
     }
 
-    func test_loadedImageWithoutAltUsesGenericLabel() throws {
+    @Test
+    func loadedImageWithoutAltUsesGenericLabel() throws {
         let (view, _) = try makeView(altText: nil)
         view.apply(state: .loaded(UIImage()))
-        XCTAssertEqual(view.accessibilityLabel, "Image")
+        #expect(view.accessibilityLabel == "Image")
     }
 
-    func test_failedImageIsNotAnAccessibilityElement() throws {
+    @Test
+    func failedImageIsNotAnAccessibilityElement() throws {
         let (view, _) = try makeView(altText: "alt")
         view.apply(state: .failed)
-        XCTAssertFalse(view.isAccessibilityElement)
+        #expect(!view.isAccessibilityElement)
     }
 
-    func test_loadingImageIsNotActivatable() throws {
+    @Test
+    func loadingImageIsNotActivatable() throws {
         let (view, _) = try makeView(altText: "alt")
         view.apply(state: .loading)
-        XCTAssertFalse(view.isAccessibilityElement)
-        XCTAssertFalse(view.accessibilityActivate())
+        #expect(!view.isAccessibilityElement)
+        #expect(!view.accessibilityActivate())
     }
 }

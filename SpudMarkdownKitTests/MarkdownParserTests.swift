@@ -4,36 +4,41 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import SpudMarkdownKit
 
-final class MarkdownParserTests: XCTestCase {
-    func test_spoilerBecomesSpoilerBlockWithParsedChildren() {
+struct MarkdownParserTests {
+    @Test
+    func spoilerBecomesSpoilerBlockWithParsedChildren() {
         let blocks = MarkdownParser.parse("::: spoiler Numbers\nLocked **60** fps.\n:::")
-        XCTAssertEqual(blocks, [
+        #expect(blocks == [
             .spoiler(title: [.text("Numbers")], children: [
                 .paragraph([.text("Locked "), .strong([.text("60")]), .text(" fps.")]),
             ]),
         ])
     }
 
-    func test_footnotesAppendedAsBlock() {
+    @Test
+    func footnotesAppendedAsBlock() {
         let blocks = MarkdownParser.parse("Thanks.[^1]\n\n[^1]: Over wired.")
-        XCTAssertEqual(blocks, [
+        #expect(blocks == [
             .paragraph([.text("Thanks."), .footnoteReference("1")]),
             .footnotes([MarkdownFootnote(label: "1", content: [.text("Over wired.")])]),
         ])
     }
 
-    func test_emptySourceProducesNoBlocks() {
-        XCTAssertEqual(MarkdownParser.parse(""), [])
+    @Test
+    func emptySourceProducesNoBlocks() {
+        #expect(MarkdownParser.parse("") == [])
     }
 
-    func test_plainParagraph() {
-        XCTAssertEqual(MarkdownParser.parse("Hello world"), [.paragraph([.text("Hello world")])])
+    @Test
+    func plainParagraph() {
+        #expect(MarkdownParser.parse("Hello world") == [.paragraph([.text("Hello world")])])
     }
 
-    func test_spoilerInsideListItemBecomesSpoilerBlock() {
+    @Test
+    func spoilerInsideListItemBecomesSpoilerBlock() {
         let source = "- first\n- second\n\n  ::: spoiler More\n  details\n  :::"
         let blocks = MarkdownParser.parse(source)
         let listItemSpoiler = blocks.contains { block in
@@ -44,18 +49,20 @@ final class MarkdownParserTests: XCTestCase {
                 }
             }
         }
-        XCTAssertTrue(listItemSpoiler, "spoiler should be reinjected inside the list item, got: \(blocks)")
-        XCTAssertFalse("\(blocks)".contains("spoiler:0"), "sentinel leaked as literal text: \(blocks)")
+        #expect(listItemSpoiler, "spoiler should be reinjected inside the list item, got: \(blocks)")
+        #expect(!("\(blocks)".contains("spoiler:0")), "sentinel leaked as literal text: \(blocks)")
     }
 
-    func test_fencedCodeKeepsMarkdownTokensLiteral() {
+    @Test
+    func fencedCodeKeepsMarkdownTokensLiteral() {
         let source = "```\n[^1]: not a note\n::: spoiler x\nH~2~O x^2^\n```"
-        XCTAssertEqual(MarkdownParser.parse(source), [
+        #expect(MarkdownParser.parse(source) == [
             .codeBlock(language: nil, code: "[^1]: not a note\n::: spoiler x\nH~2~O x^2^"),
         ])
     }
 
-    func test_kitchenSinkStructuralShape() {
+    @Test
+    func kitchenSinkStructuralShape() {
         let blocks = MarkdownParser.parse(KitchenSink.post)
 
         func kind(_ block: MarkdownBlock) -> String {
@@ -91,15 +98,16 @@ final class MarkdownParserTests: XCTestCase {
             "thematicBreak",
             "footnotes",
         ] {
-            XCTAssertTrue(kinds.contains(expected), "missing \(expected) in \(kinds)")
+            #expect(kinds.contains(expected), "missing \(expected) in \(kinds)")
         }
 
         guard case let .footnotes(notes) = blocks.last else {
-            return XCTFail("last block should be footnotes, got \(kinds)")
+            Issue.record("last block should be footnotes, got \(kinds)")
+            return
         }
-        XCTAssertEqual(notes.map(\.label), ["1"])
+        #expect(notes.map(\.label) == ["1"])
 
-        XCTAssertTrue(blocks.contains { if case .video = $0 { return true }
+        #expect(blocks.contains { if case .video = $0 { return true }
             return false
         })
 
@@ -107,16 +115,17 @@ final class MarkdownParserTests: XCTestCase {
             if case let .spoiler(_, children) = $0 { return children.isEmpty }
             return false
         }
-        XCTAssertTrue(emptyBodySpoiler, "body-less spoiler should be present")
+        #expect(emptyBodySpoiler, "body-less spoiler should be present")
     }
 
-    func test_kitchenSinkSubscriptSurvives() {
+    @Test
+    func kitchenSinkSubscriptSurvives() {
         let blocks = MarkdownParser.parse(KitchenSink.post)
         let hasSubscript = blocks.contains { block in
             if case let .paragraph(inlines) = block { return containsSubscript(inlines) }
             return false
         }
-        XCTAssertTrue(hasSubscript, "H~2~O subscript was lost (swift-markdown likely ate single tildes)")
+        #expect(hasSubscript, "H~2~O subscript was lost (swift-markdown likely ate single tildes)")
     }
 
     private func containsSubscript(_ inlines: [MarkdownInline]) -> Bool {

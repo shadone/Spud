@@ -4,49 +4,54 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import SpudMarkdownKit
 
-final class SpoilerPreprocessorTests: XCTestCase {
-    func test_extractsSpoilerWithTitleAndInner() throws {
+struct SpoilerPreprocessorTests {
+    @Test
+    func extractsSpoilerWithTitleAndInner() throws {
         let source = "Intro\n\n::: spoiler Benchmarks\nLocked 60 fps.\n:::\n\nOutro"
         let result = SpoilerPreprocessor.preprocess(source)
 
-        XCTAssertEqual(result.spoilers.count, 1)
+        #expect(result.spoilers.count == 1)
         let spoiler = result.spoilers.values.first
-        XCTAssertEqual(spoiler?.title, "Benchmarks")
-        XCTAssertEqual(spoiler?.inner.trimmingCharacters(in: .whitespacesAndNewlines), "Locked 60 fps.")
+        #expect(spoiler?.title == "Benchmarks")
+        #expect(spoiler?.inner.trimmingCharacters(in: .whitespacesAndNewlines) == "Locked 60 fps.")
 
-        XCTAssertFalse(result.source.contains("::: spoiler"))
-        XCTAssertTrue(result.source.contains("Intro"))
-        XCTAssertTrue(result.source.contains("Outro"))
-        let id = try XCTUnwrap(result.spoilers.keys.first)
-        XCTAssertTrue(result.source.contains(SpoilerPreprocessor.sentinel(for: id)))
+        #expect(!result.source.contains("::: spoiler"))
+        #expect(result.source.contains("Intro"))
+        #expect(result.source.contains("Outro"))
+        let id = try #require(result.spoilers.keys.first)
+        #expect(result.source.contains(SpoilerPreprocessor.sentinel(for: id)))
     }
 
-    func test_emptyTitle() {
+    @Test
+    func emptyTitle() {
         let result = SpoilerPreprocessor.preprocess("::: spoiler\nhidden\n:::")
-        XCTAssertEqual(result.spoilers.values.first?.title, "")
+        #expect(result.spoilers.values.first?.title == "")
     }
 
-    func test_noSpoiler() {
+    @Test
+    func noSpoiler() {
         let result = SpoilerPreprocessor.preprocess("plain text")
-        XCTAssertEqual(result.source, "plain text")
-        XCTAssertTrue(result.spoilers.isEmpty)
+        #expect(result.source == "plain text")
+        #expect(result.spoilers.isEmpty)
     }
 
-    func test_doesNotLiftSpoilerInsideFencedCode() {
+    @Test
+    func doesNotLiftSpoilerInsideFencedCode() {
         let source = "```\n::: spoiler secret\nhidden\n:::\n```"
         let result = SpoilerPreprocessor.preprocess(source)
-        XCTAssertTrue(result.spoilers.isEmpty)
-        XCTAssertEqual(result.source, source)
+        #expect(result.spoilers.isEmpty)
+        #expect(result.source == source)
     }
 
-    func test_liftsSpoilerAfterClosedFence() {
+    @Test
+    func liftsSpoilerAfterClosedFence() {
         let source = "```\ncode\n```\n\n::: spoiler Real\ninner\n:::"
         let result = SpoilerPreprocessor.preprocess(source)
-        XCTAssertEqual(result.spoilers.count, 1)
-        XCTAssertEqual(result.spoilers.values.first?.title, "Real")
-        XCTAssertTrue(result.source.contains("```\ncode\n```"))
+        #expect(result.spoilers.count == 1)
+        #expect(result.spoilers.values.first?.title == "Real")
+        #expect(result.source.contains("```\ncode\n```"))
     }
 }
