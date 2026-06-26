@@ -8,6 +8,11 @@ import Foundation
 import SpudMarkdownKit
 import SpudUtilKit
 
+enum LinkPreviewKind: Equatable {
+    case video
+    case generic
+}
+
 /// A previewable link found in a comment body, rendered below the text as a
 /// `LinkPreviewView` card.
 ///
@@ -19,6 +24,10 @@ import SpudUtilKit
 struct CommentLinkPreview: Equatable {
     let displayURL: URL
     let tapURL: URL
+    /// The link's anchor text (`[Foobar](url)` -> "Foobar"); nil when it equals the
+    /// URL (a bare autolink).
+    let anchorText: String?
+    let kind: LinkPreviewKind
 }
 
 extension [MarkdownBlock] {
@@ -91,8 +100,8 @@ private func collectLinkPreviews(
 ) {
     guard result.count < limit else { return }
     switch inline {
-    case let .link(_, url):
-        if let preview = webLinkPreview(for: url) {
+    case let .link(text, url):
+        if let preview = webLinkPreview(for: url, anchorText: text.plainText) {
             appendPreview(preview, into: &result, seen: &seen)
         }
 
@@ -124,11 +133,15 @@ private func appendPreview(
 }
 
 /// A card for a plain `http(s)` link: it both displays and taps as itself.
-private func webLinkPreview(for url: URL) -> CommentLinkPreview? {
+private func webLinkPreview(for url: URL, anchorText: String) -> CommentLinkPreview? {
     guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
         return nil
     }
-    return CommentLinkPreview(displayURL: url, tapURL: url)
+    let trimmed = anchorText.trimmingCharacters(in: .whitespacesAndNewlines)
+    // Drop anchor text that is just the URL (bare autolink) — the host line already shows it.
+    let anchor = (trimmed.isEmpty || trimmed == url.absoluteString) ? nil : trimmed
+    let kind: LinkPreviewKind = VideoLinkParser.parse(url) != nil ? .video : .generic
+    return CommentLinkPreview(displayURL: url, tapURL: url, anchorText: anchor, kind: kind)
 }
 
 /// A card for a `!community@instance` shorthand: it displays the canonical
@@ -143,5 +156,5 @@ private func communityLinkPreview(name: String, instance: String) -> CommentLink
         return nil
     }
     let tapURL = URL.SpudInternalLink.community(name: name, instance: instanceActorId).url
-    return CommentLinkPreview(displayURL: displayURL, tapURL: tapURL)
+    return CommentLinkPreview(displayURL: displayURL, tapURL: tapURL, anchorText: nil, kind: .generic)
 }

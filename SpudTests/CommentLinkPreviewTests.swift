@@ -30,7 +30,7 @@ final class CommentLinkPreviewTests: XCTestCase {
 
         XCTAssertEqual(
             blocks.commentLinkPreviews(limit: 3),
-            [CommentLinkPreview(displayURL: url, tapURL: url)]
+            [CommentLinkPreview(displayURL: url, tapURL: url, anchorText: "this", kind: .generic)]
         )
     }
 
@@ -46,7 +46,7 @@ final class CommentLinkPreviewTests: XCTestCase {
         let a = try XCTUnwrap(URL(string: "https://a.example/1"))
         let blocks = paragraph(.link(text: [.text("first")], url: a), .text(" "), .link(text: [.text("again")], url: a))
 
-        XCTAssertEqual(blocks.commentLinkPreviews(limit: 3), [CommentLinkPreview(displayURL: a, tapURL: a)])
+        XCTAssertEqual(blocks.commentLinkPreviews(limit: 3), [CommentLinkPreview(displayURL: a, tapURL: a, anchorText: "first", kind: .generic)])
     }
 
     func test_capLimitsCount_keepingFirst() throws {
@@ -64,7 +64,7 @@ final class CommentLinkPreviewTests: XCTestCase {
         let expectedDisplay = try XCTUnwrap(URL(string: "https://lemmy.world/c/news"))
         XCTAssertEqual(
             blocks.commentLinkPreviews(limit: 3),
-            [CommentLinkPreview(displayURL: expectedDisplay, tapURL: expectedTap)]
+            [CommentLinkPreview(displayURL: expectedDisplay, tapURL: expectedTap, anchorText: nil, kind: .generic)]
         )
     }
 
@@ -82,7 +82,7 @@ final class CommentLinkPreviewTests: XCTestCase {
     func test_linkNestedInEmphasis_isFound() throws {
         let url = try XCTUnwrap(URL(string: "https://example.com/x"))
         let blocks = paragraph(.emphasis([.link(text: [.text("x")], url: url)]))
-        XCTAssertEqual(blocks.commentLinkPreviews(limit: 3), [CommentLinkPreview(displayURL: url, tapURL: url)])
+        XCTAssertEqual(blocks.commentLinkPreviews(limit: 3), [CommentLinkPreview(displayURL: url, tapURL: url, anchorText: "x", kind: .generic)])
     }
 
     func test_linksInQuoteAndList_areFound_inOrder() throws {
@@ -101,5 +101,24 @@ final class CommentLinkPreviewTests: XCTestCase {
 
     func test_emptyBlocks_returnsEmpty() {
         XCTAssertEqual([MarkdownBlock]().commentLinkPreviews(limit: 3), [])
+    }
+
+    func test_webLink_carriesAnchorTextAndKind() throws {
+        let blocks: [MarkdownBlock] = try [.paragraph([
+            .link(text: [.text("Foobar")], url: XCTUnwrap(URL(string: "https://example.com"))),
+        ])]
+        let previews = blocks.commentLinkPreviews(limit: 3)
+        XCTAssertEqual(previews.count, 1)
+        XCTAssertEqual(previews[0].anchorText, "Foobar")
+        XCTAssertEqual(previews[0].kind, .generic)
+    }
+
+    func test_youtubeLink_isVideoKind() throws {
+        let blocks: [MarkdownBlock] = try [.paragraph([
+            .link(text: [.text("a video")], url: XCTUnwrap(URL(string: "https://youtu.be/dQw4w9WgXcQ"))),
+        ])]
+        let previews = blocks.commentLinkPreviews(limit: 3)
+        XCTAssertEqual(previews.first?.kind, .video)
+        XCTAssertEqual(previews.first?.anchorText, "a video")
     }
 }
