@@ -63,9 +63,11 @@ enum InlineAttributedStringBuilder {
             : communityURL(name: name, instance: instance)
     }
 
-    /// A Lemmy local username / community name: ASCII word characters only.
+    /// A Lemmy local username / community name: ASCII word characters only. The
+    /// `isASCII` guard must cover `isNumber` too, or non-ASCII digits (e.g.
+    /// Arabic-Indic) would slip through.
     private static func isLemmyName(_ s: String) -> Bool {
-        !s.isEmpty && s.allSatisfy { $0 == "_" || $0.isASCII && $0.isLetter || $0.isNumber }
+        !s.isEmpty && s.allSatisfy { $0 == "_" || ($0.isASCII && ($0.isLetter || $0.isNumber)) }
     }
 
     /// A plausible instance host: dotted domain of host characters.

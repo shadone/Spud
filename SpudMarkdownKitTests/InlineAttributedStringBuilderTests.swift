@@ -67,6 +67,13 @@ final class InlineAttributedStringBuilderTests: XCTestCase {
         XCTAssertEqual(components.queryItems?.first { $0.name == "instance" }?.value, "beehaw.org")
     }
 
+    func test_nonAsciiUsernameIsNotRewritten() throws {
+        // Lemmy usernames are ASCII-only; a /u/ path of non-ASCII digits is not a
+        // valid handle and must not be rewritten to an internal mention.
+        let url = try XCTUnwrap(URL(string: "https://lemmy.world/u/\u{0661}\u{0662}\u{0663}"))
+        XCTAssertNil(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+    }
+
     func test_ordinaryLinkIsUnchanged() throws {
         // Non-user/community links (including Lemmy /post/) keep their URL.
         for raw in [
