@@ -78,6 +78,33 @@ final class InlineAttributedStringBuilderTests: XCTestCase {
         XCTAssertEqual(components.queryItems?.first { $0.name == "url" }?.value, "https://lemmy.world/post/12345")
     }
 
+    func test_frontendPostLink_resolvesToCanonicalObject() throws {
+        // The form some instances use: /c/<community>/p/<id>[/<slug>].
+        let url = try XCTUnwrap(URL(string: "https://feddit.online/c/opensource/p/1784296/favorite-open-source-game"))
+        let internalURL = try XCTUnwrap(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+        XCTAssertEqual(internalURL.host, "object")
+        let components = try XCTUnwrap(URLComponents(url: internalURL, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(components.queryItems?.first { $0.name == "url" }?.value, "https://feddit.online/post/1784296")
+    }
+
+    func test_frontendPostLink_withoutSlug() throws {
+        let url = try XCTUnwrap(URL(string: "https://feddit.online/c/opensource/p/1784296"))
+        let internalURL = try XCTUnwrap(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+        XCTAssertEqual(internalURL.host, "object")
+    }
+
+    func test_frontendPostLink_nonNumericId_isNil() throws {
+        let url = try XCTUnwrap(URL(string: "https://feddit.online/c/opensource/p/abc/slug"))
+        XCTAssertNil(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+    }
+
+    func test_plainCommunityLink_stillResolvesToCommunity() throws {
+        // A 2-segment /c/<name> is a community link, not the frontend post form.
+        let url = try XCTUnwrap(URL(string: "https://lemmy.world/c/news"))
+        let internalURL = try XCTUnwrap(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+        XCTAssertEqual(internalURL.host, "community")
+    }
+
     func test_explicitCommentLinkResolvesToObject() throws {
         let url = try XCTUnwrap(URL(string: "https://lemmy.world/comment/678"))
         let internalURL = try XCTUnwrap(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))

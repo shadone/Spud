@@ -51,8 +51,10 @@ enum InlineAttributedStringBuilder {
     /// `!community@instance` reference as a plain link to `https://<instance>/u/<name>`
     /// (or `/c/<name>`); the path may itself carry a federated handle
     /// (`/u/<name>@<home-instance>`), in which case the home instance wins. Posts and
-    /// comments carry a numeric id. Returns nil for anything that is not a
-    /// recognizable Lemmy link, so ordinary links fall through unchanged.
+    /// comments carry a numeric id. The frontend post form some instances use
+    /// (`/c/<community>/p/<id>[/<slug>]`, e.g. feddit.online) maps to the canonical
+    /// post. Returns nil for anything that is not a recognizable Lemmy link, so
+    /// ordinary links fall through unchanged.
     static func lemmyReferenceURL(for url: URL) -> URL? {
         guard
             let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
@@ -61,6 +63,15 @@ enum InlineAttributedStringBuilder {
             return nil
         }
         let segments = url.path.split(separator: "/", omittingEmptySubsequences: true)
+
+        // Frontend post URL: /c/<community>/p/<id>[/<slug>] -> canonical post.
+        if segments.count >= 4, segments[0] == "c", segments[2] == "p" {
+            let id = String(segments[3])
+            guard !id.isEmpty, id.allSatisfy(\.isNumber) else { return nil }
+            guard let resolved = URL(string: "https://\(urlHost)/post/\(id)") else { return nil }
+            return objectURL(forResolved: resolved)
+        }
+
         guard segments.count == 2 else { return nil }
         let kind = String(segments[0])
 
