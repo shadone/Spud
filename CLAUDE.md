@@ -32,7 +32,7 @@ Open the generated `Spud.xcodeproj` (run `make project` first on a fresh checkou
 | `SpudUtilKit` | Framework | Foundation extensions, `UserDefaultsBacked`, `Atomic`, `Logger`, etc. |
 | `SpudMarkdownKit` | Framework | Markdown parsing + rendering: `MarkdownParser` → `[MarkdownBlock]` → `MarkdownBodyView`. No app/data deps (uses `apple/swift-markdown`) |
 | `SpudTests` / `SpudDataKitTests` / `SpudUtilKitTests` | Unit tests | Per-framework |
-| `SpudSnapshotTests` | Snapshot tests | Uses `pointfreeco/swift-snapshot-testing` — locked to **iPhone 14 Pro, portrait** |
+| `SpudSnapshotTests` | Snapshot tests | Uses `pointfreeco/swift-snapshot-testing` — references recorded on **iPhone 17 Pro, portrait** (migrated from iPhone 14 Pro in 2026-06; that device has no iOS 18+ runtime) |
 | `SpudUITests` | UI tests | Uses `SBTUITestTunnel` for in-app stubbing |
 | `SpudMarkdownKitTests` / `SpudMarkdownKitSnapshotTests` | Unit / Snapshot tests | `SpudMarkdownKit` parser + block-render coverage |
 | `MarkdownLab` | iOS app | Standalone dev harness to preview `SpudMarkdownKit` rendering in isolation |
@@ -47,7 +47,7 @@ Dependency direction: `Spud` → `SpudDataKit` → `SpudUtilKit`; `Spud` → `Sp
 - `SpudDataKit.xcscheme` — framework dev loop
 - `SpudWidgetExtension.xcscheme` — widget dev loop
 - `SpudUITests.xcscheme` — UI tests in isolation
-- `SpudSnapshots.xctestplan` — snapshot tests only; **must run on iPhone 14 Pro simulator in portrait**, otherwise reference images won't match
+- `SpudSnapshots.xctestplan` — snapshot tests only; **run on iPhone 17 Pro in portrait** (the reference device — iPhone 14 Pro was retired, no iOS 18+ runtime), otherwise reference images won't match
 
 ## Persistence
 
@@ -134,10 +134,12 @@ xcodebuild -project Spud.xcodeproj -scheme Spud \
 xcodebuild -project Spud.xcodeproj -scheme Spud \
   -testPlan Spud -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
 
-# Snapshot tests — iPhone 14 Pro is required
+# Snapshot tests — run on iPhone 17 Pro. The old reference device (iPhone 14 Pro)
+# no longer has a runnable iOS 18+ runtime; refs were re-recorded on iPhone 17 Pro
+# (2026-06). first run records missing refs + fails, rerun verifies.
 xcodebuild -project Spud.xcodeproj -scheme Spud \
   -testPlan SpudSnapshots \
-  -destination 'platform=iOS Simulator,name=iPhone 14 Pro' test
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
 
 # Run a single snapshot class (the build_and_test.py wrapper has no --testPlan, so use
 # xcodebuild). Newer screen snapshots pin a config (.image(on: .iPhone13Pro, traits:)) so
@@ -272,7 +274,7 @@ What's next:
 ## Deferred (not blocking)
 
 - **LemmyKit regeneration** — current API contract still working in practice. Regen when an endpoint we need has changed, or when SpudDataKit's data layer is being rewritten anyway.
-- **Snapshot test refresh** — re-record on iPhone 14 Pro / portrait if/when UI changes. Reference device may want updating eventually.
+- **Snapshot test refresh** — re-record on iPhone 17 Pro / portrait if/when UI changes (the reference device was migrated from iPhone 14 Pro to iPhone 17 Pro in 2026-06, when the whole suite was refreshed).
 - **`CHANGELOG.md` / `CONTRIBUTING.md`** — only if the project goes public.
 
 See [README.md](README.md) for the user-facing overview.
