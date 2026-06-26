@@ -88,7 +88,8 @@ final class SearchResultCellsSnapshotTests: XCTestCase {
                 score: 1234,
                 numberOfComments: 56,
                 published: Date(timeIntervalSinceNow: -5 * 3600),
-                thumbnailUrl: thumbnailUrl
+                thumbnailUrl: thumbnailUrl,
+                isNsfw: false
             ),
             imageService: StaticImageService()
         )
@@ -104,7 +105,8 @@ final class SearchResultCellsSnapshotTests: XCTestCase {
                 instance: instance("https://lemmy.world"),
                 subscribersText: "48.2K",
                 iconUrl: iconUrl,
-                subscribed: .NotSubscribed
+                subscribed: .NotSubscribed,
+                isNsfw: false
             ),
             imageService: StaticImageService()
         )

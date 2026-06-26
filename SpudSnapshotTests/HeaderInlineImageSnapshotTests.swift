@@ -102,6 +102,31 @@ final class HeaderInlineImageSnapshotTests: XCTestCase {
         )
     }
 
+    /// A person header in a serious state: a temporary instance ban (banner),
+    /// Admin and Bot badges, and a Matrix contact row.
+    func test_personHeader_bannedWithBadgesAndMatrix() {
+        let header = PersonHeaderView()
+        header.configure(
+            title: "Ada Lovelace",
+            handle: "@ada@lemmy.world",
+            statsText: "1.2k post · 3.4k comment karma",
+            bioMarkdown: "Mathematician and writer.",
+            status: PersonHeaderStatus(
+                banText: "Banned · until 3 Mar 2027",
+                isDeleted: false,
+                isBot: true,
+                isAdmin: true,
+                matrixUserId: "@ada:matrix.org"
+            )
+        )
+
+        let (view, height) = fit(header) { true }
+        assertSnapshot(
+            matching: view,
+            as: .image(size: CGSize(width: width, height: height), traits: traits(.light))
+        )
+    }
+
     func test_communityDescription_withInlineImage_rendersImage() {
         let service = StubImageService(image: solidImage(CGSize(width: 280, height: 140), color: .systemGreen))
         let header = CommunityHeaderView()
@@ -115,7 +140,9 @@ final class HeaderInlineImageSnapshotTests: XCTestCase {
             postsText: "8.1k",
             vitalityText: nil,
             descriptionMarkdown: "A community for tech news.\n\n![banner](https://example.com/tech.png)\n\nBe nice.",
-            subscribed: .notSubscribed
+            subscribed: .notSubscribed,
+            isNsfw: false,
+            blurBanner: false
         )
 
         let (view, height) = fit(header) { loaded }
