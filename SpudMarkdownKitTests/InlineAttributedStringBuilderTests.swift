@@ -31,7 +31,8 @@ final class InlineAttributedStringBuilderTests: XCTestCase {
     }
 
     func test_linkCarriesURL() throws {
-        let url = try XCTUnwrap(URL(string: "https://lemmy.world/post/1"))
+        // A plain external link keeps its URL (not a Lemmy user/community/post link).
+        let url = try XCTUnwrap(URL(string: "https://example.com/article"))
         let s = build([.link(text: [.text("here")], url: url)])
         XCTAssertEqual(s.attribute(.link, at: 0, effectiveRange: nil) as? URL, url)
     }
@@ -67,6 +68,30 @@ final class InlineAttributedStringBuilderTests: XCTestCase {
         XCTAssertEqual(components.queryItems?.first { $0.name == "instance" }?.value, "beehaw.org")
     }
 
+    func test_explicitPostLinkResolvesToObject() throws {
+        let url = try XCTUnwrap(URL(string: "https://lemmy.world/post/12345"))
+        let s = build([.link(text: [.text("a post")], url: url)])
+        let link = try XCTUnwrap(s.attribute(.link, at: 0, effectiveRange: nil) as? URL)
+        XCTAssertEqual(link.scheme, "spud-markdown")
+        XCTAssertEqual(link.host, "object")
+        let components = try XCTUnwrap(URLComponents(url: link, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(components.queryItems?.first { $0.name == "url" }?.value, "https://lemmy.world/post/12345")
+    }
+
+    func test_explicitCommentLinkResolvesToObject() throws {
+        let url = try XCTUnwrap(URL(string: "https://lemmy.world/comment/678"))
+        let internalURL = try XCTUnwrap(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+        XCTAssertEqual(internalURL.host, "object")
+        let components = try XCTUnwrap(URLComponents(url: internalURL, resolvingAgainstBaseURL: false))
+        XCTAssertEqual(components.queryItems?.first { $0.name == "url" }?.value, "https://lemmy.world/comment/678")
+    }
+
+    func test_nonNumericPostIdIsNotRewritten() throws {
+        // /post/<non-numeric> is not a Lemmy post URL.
+        let url = try XCTUnwrap(URL(string: "https://example.com/post/hello-world"))
+        XCTAssertNil(InlineAttributedStringBuilder.lemmyReferenceURL(for: url))
+    }
+
     func test_nonAsciiUsernameIsNotRewritten() throws {
         // Lemmy usernames are ASCII-only; a /u/ path of non-ASCII digits is not a
         // valid handle and must not be rewritten to an internal mention.
@@ -75,11 +100,11 @@ final class InlineAttributedStringBuilderTests: XCTestCase {
     }
 
     func test_ordinaryLinkIsUnchanged() throws {
-        // Non-user/community links (including Lemmy /post/) keep their URL.
+        // Non-Lemmy-reference links keep their URL.
         for raw in [
-            "https://lemmy.world/post/1",
             "https://example.com/u/foo/bar",
             "https://example.com/article",
+            "https://lemmy.world/u/foo/bar",
         ] {
             let url = try XCTUnwrap(URL(string: raw))
             XCTAssertNil(InlineAttributedStringBuilder.lemmyReferenceURL(for: url), "\(raw)")

@@ -60,6 +60,21 @@ final class MarkdownInternalLinkTests: XCTestCase {
         XCTAssertEqual(instance.host, "beehaw.org")
     }
 
+    // MARK: - Object (post / comment)
+
+    func test_objectURL_resolvesToObjectAtURL() throws {
+        let result = try XCTUnwrap(resolve("spud-markdown://object?url=https%3A%2F%2Flemmy.world%2Fpost%2F12345"))
+        let link = try XCTUnwrap(result.spud)
+        guard case let .objectAtURL(url) = link else {
+            return XCTFail("expected .objectAtURL, got \(link)")
+        }
+        XCTAssertEqual(url.absoluteString, "https://lemmy.world/post/12345")
+    }
+
+    func test_objectURL_missingURL_returnsNil() {
+        XCTAssertNil(resolve("spud-markdown://object"))
+    }
+
     // MARK: - Non-spud-markdown URLs return nil
 
     func test_httpsURL_returnsNil() {

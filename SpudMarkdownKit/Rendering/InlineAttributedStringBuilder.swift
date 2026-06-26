@@ -34,33 +34,56 @@ enum InlineAttributedStringBuilder {
         internalURL(host: "community", name: name, instance: instance)
     }
 
-    /// If `url` is an explicit Lemmy user (`/u/<name>`) or community (`/c/<name>`)
-    /// link, returns the equivalent internal `spud-markdown://` URL so the host
-    /// resolves it in-app instead of opening a browser. Lemmy renders an
-    /// `@user@instance` / `!community@instance` reference as a plain link to
-    /// `https://<instance>/u/<name>` (or `/c/<name>`); the path may itself carry a
-    /// federated handle (`/u/<name>@<home-instance>`), in which case the home
-    /// instance wins. Returns nil for anything that is not a recognizable Lemmy
-    /// user/community URL, so ordinary links fall through unchanged.
+    /// Internal destination URL for a Lemmy object (post/comment) the host resolves
+    /// by its federation URL (via `resolve_object`).
+    static func objectURL(forResolved url: URL) -> URL {
+        var components = URLComponents()
+        components.scheme = "spud-markdown"
+        components.host = "object"
+        components.queryItems = [URLQueryItem(name: "url", value: url.absoluteString)]
+        return components.url ?? URL(string: "spud-markdown://object")!
+    }
+
+    /// If `url` is an explicit Lemmy user (`/u/<name>`), community (`/c/<name>`),
+    /// post (`/post/<id>`), or comment (`/comment/<id>`) link, returns the
+    /// equivalent internal `spud-markdown://` URL so the host resolves it in-app
+    /// instead of opening a browser. Lemmy renders an `@user@instance` /
+    /// `!community@instance` reference as a plain link to `https://<instance>/u/<name>`
+    /// (or `/c/<name>`); the path may itself carry a federated handle
+    /// (`/u/<name>@<home-instance>`), in which case the home instance wins. Posts and
+    /// comments carry a numeric id. Returns nil for anything that is not a
+    /// recognizable Lemmy link, so ordinary links fall through unchanged.
     static func lemmyReferenceURL(for url: URL) -> URL? {
         guard
             let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
-            let urlHost = url.host, urlHost.contains(".")
+            let urlHost = url.host, isLemmyHost(urlHost)
         else {
             return nil
         }
         let segments = url.path.split(separator: "/", omittingEmptySubsequences: true)
-        guard segments.count == 2, segments[0] == "u" || segments[0] == "c" else { return nil }
+        guard segments.count == 2 else { return nil }
+        let kind = String(segments[0])
 
-        // The handle is "name" (local) or "name@home-instance" (federated).
-        let handle = segments[1].split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false)
-        let name = String(handle[0])
-        let instance = handle.count == 2 ? String(handle[1]) : urlHost
-        guard isLemmyName(name), isLemmyHost(instance) else { return nil }
+        switch kind {
+        case "u", "c":
+            // The handle is "name" (local) or "name@home-instance" (federated).
+            let handle = segments[1].split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false)
+            let name = String(handle[0])
+            let instance = handle.count == 2 ? String(handle[1]) : urlHost
+            guard isLemmyName(name), isLemmyHost(instance) else { return nil }
+            return kind == "u"
+                ? mentionURL(name: name, instance: instance)
+                : communityURL(name: name, instance: instance)
 
-        return segments[0] == "u"
-            ? mentionURL(name: name, instance: instance)
-            : communityURL(name: name, instance: instance)
+        case "post", "comment":
+            let id = String(segments[1])
+            guard !id.isEmpty, id.allSatisfy(\.isNumber) else { return nil }
+            guard let resolved = URL(string: "https://\(urlHost)/\(kind)/\(id)") else { return nil }
+            return objectURL(forResolved: resolved)
+
+        default:
+            return nil
+        }
     }
 
     /// A Lemmy local username / community name: ASCII word characters only. The

@@ -7,9 +7,9 @@
 import Foundation
 import SpudUtilKit
 
-/// Translates a `spud-markdown://mention|community?name=…&instance=…` URL (as
-/// produced by `SpudMarkdownKit`'s `InlineAttributedStringBuilder`) into the
-/// app's internal link URL (the same scheme decoded by `URL.spud`).
+/// Translates a `spud-markdown://mention|community|object?…` URL (as produced by
+/// `SpudMarkdownKit`'s `InlineAttributedStringBuilder`) into the app's internal
+/// link URL (the same scheme decoded by `URL.spud`).
 ///
 /// Returns `nil` for any URL that is not a `spud-markdown://` link, so the
 /// caller can fall through to normal link handling.
@@ -26,6 +26,16 @@ enum MarkdownInternalLink {
         let instanceString = components.queryItems?.first(where: { $0.name == "instance" })?.value
 
         switch components.host {
+        case "object":
+            // A post/comment resolved by its federation URL.
+            guard
+                let urlString = components.queryItems?.first(where: { $0.name == "url" })?.value,
+                let objectURL = URL(string: urlString)
+            else {
+                return nil
+            }
+            return URL.SpudInternalLink.objectAtURL(url: objectURL).url
+
         case "mention":
             guard
                 let name,
