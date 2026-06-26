@@ -73,6 +73,7 @@ class PersonViewController: UIViewController {
 
     private var headerObservationTask: Task<Void, Never>?
     private var contentObservationTask: Task<Void, Never>?
+    private var statusObservationTask: Task<Void, Never>?
     private var bannerImageTask: Task<Void, Never>?
     private var avatarImageTask: Task<Void, Never>?
     private var loadedBannerUrl: URL?
@@ -175,6 +176,7 @@ class PersonViewController: UIViewController {
     deinit {
         headerObservationTask?.cancel()
         contentObservationTask?.cancel()
+        statusObservationTask?.cancel()
         bannerImageTask?.cancel()
         avatarImageTask?.cancel()
     }
@@ -208,6 +210,10 @@ class PersonViewController: UIViewController {
         // height so the table can scroll the taller content.
         headerView.onBodyImageLoaded = { [weak self] in
             self?.layoutHeaderContainerIfNeeded()
+        }
+        headerView.onMatrixTapped = { matrix in
+            Haptics.tap()
+            UIPasteboard.general.string = matrix
         }
 
         tableView.refreshControl = refreshControl
@@ -512,11 +518,20 @@ class PersonViewController: UIViewController {
     private func startObservations() {
         headerObservationTask?.cancel()
         contentObservationTask?.cancel()
+        statusObservationTask?.cancel()
 
         let viewModel = viewModel
         headerObservationTask = Task { @MainActor [weak self] in
             for await _ in ObservationStream.values(of: {
                 (viewModel.title, viewModel.handle, viewModel.statsText, viewModel.bioMarkdown, viewModel.avatarUrl, viewModel.bannerUrl)
+            }) {
+                if Task.isCancelled { break }
+                self?.applyHeader()
+            }
+        }
+        statusObservationTask = Task { @MainActor [weak self] in
+            for await _ in ObservationStream.values(of: {
+                (viewModel.isBanned, viewModel.banExpires, viewModel.isDeleted, viewModel.isBotAccount, viewModel.isAdmin, viewModel.matrixUserId)
             }) {
                 if Task.isCancelled { break }
                 self?.applyHeader()
@@ -539,7 +554,14 @@ class PersonViewController: UIViewController {
             title: viewModel.title,
             handle: viewModel.handle,
             statsText: viewModel.statsText,
-            bioMarkdown: viewModel.bioMarkdown
+            bioMarkdown: viewModel.bioMarkdown,
+            status: PersonHeaderStatus(
+                banText: viewModel.banStatusText,
+                isDeleted: viewModel.isDeleted,
+                isBot: viewModel.isBotAccount,
+                isAdmin: viewModel.isAdmin,
+                matrixUserId: viewModel.matrixUserId
+            )
         )
         // The bio just changed, so the header's height may have changed; re-size
         // the table header to match (async markdown growth is handled by

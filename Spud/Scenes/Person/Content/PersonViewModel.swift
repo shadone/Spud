@@ -30,6 +30,22 @@ final class PersonViewModel {
     /// The person's canonical profile URL (their federated actor id), used for
     /// the Share / Copy Link / Open in Browser actions. Nil until resolved.
     var profileURL: URL?
+
+    // MARK: Account status (observed from the database)
+
+    var isBanned: Bool = false
+    var banExpires: Date?
+    var isDeleted: Bool = false
+    var isBotAccount: Bool = false
+    var isAdmin: Bool = false
+    var matrixUserId: String?
+
+    /// User-facing instance-ban status (with expiry for a temporary ban), or
+    /// nil when the user is not banned.
+    var banStatusText: String? {
+        PersonFormatter.banStatus(isBanned: isBanned, banExpires: banExpires)
+    }
+
     var numberOfPosts: String = ""
     var numberOfComments: String = ""
     var cakeDay: String = ""
@@ -111,6 +127,12 @@ final class PersonViewModel {
         bannerUrl = row.bannerUrl.flatMap { URL(string: $0) }
         bioMarkdown = row.bio
         profileURL = row.actorId.flatMap { URL(string: $0) }
+        isBanned = row.isBanned
+        banExpires = row.banExpires
+        isDeleted = row.isDeleted
+        isBotAccount = row.isBotAccount
+        isAdmin = row.isAdmin
+        matrixUserId = row.matrixUserId
         numberOfPosts = CommentsFormatter.string(from: row.numberOfPosts)
         numberOfComments = CommentsFormatter.string(from: row.numberOfComments)
         if let createdDate = row.personCreatedDate {

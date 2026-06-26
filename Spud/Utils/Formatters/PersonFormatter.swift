@@ -19,4 +19,27 @@ enum PersonFormatter {
         formatter.timeStyle = .none
         return formatter.string(from: date)
     }
+
+    /// A user-facing instance-ban status, or nil when the user is not banned.
+    /// A temporary ban includes its expiry date; a permanent ban (banned with
+    /// no expiry) reads simply "Banned".
+    static func banStatus(isBanned: Bool, banExpires: Date?) -> String? {
+        guard isBanned else { return nil }
+        guard let banExpires else {
+            return NSLocalizedString(
+                "Banned",
+                comment: "Profile status: the user is permanently banned from their instance"
+            )
+        }
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return String(
+            format: NSLocalizedString(
+                "Banned · until %@",
+                comment: "Profile status: temporary ban with expiry; %@ is the date"
+            ),
+            formatter.string(from: banExpires)
+        )
+    }
 }

@@ -98,4 +98,37 @@ final class PersonQueriesTests: XCTestCase {
         )
         XCTAssertEqual(row.actorId, "https://lemmy.world/u/ddenis")
     }
+
+    /// The profile observation must surface the account-status fields (ban /
+    /// deleted / bot / admin / matrix) so the header can show them.
+    func test_observePersonProfile_surfacesAccountStatusFields() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let banExpires = Date(timeIntervalSince1970: 1_800_000_000)
+        let personRowId: Int64 = try await appDatabase.writer.write { db in
+            try db.execute(sql: "INSERT INTO instance (actorId, createdAt) VALUES ('https://lemmy.world', ?)", arguments: [Date()])
+            let instanceId = db.lastInsertedRowID
+            try db.execute(sql: "INSERT INTO site (instanceId, createdAt, updatedAt) VALUES (?, ?, ?)", arguments: [instanceId, Date(), Date()])
+            let siteId = db.lastInsertedRowID
+            try db.execute(sql: """
+                INSERT INTO person (siteId, personId, name, actorId, isAdmin, isBanned, banExpires, isBotAccount, isDeleted, isLocal, matrixUserId, numberOfPosts, numberOfComments, createdAt, updatedAt)
+                VALUES (?, 7, 'alice', 'https://lemmy.world/u/alice', 1, 1, ?, 1, 0, 1, '@alice:matrix.org', 0, 0, ?, ?)
+                """, arguments: [siteId, banExpires, Date(), Date()])
+            return db.lastInsertedRowID
+        }
+
+        var profile: PersonProfileRow?
+        for await value in appDatabase.observePersonProfile(personRowId: personRowId) {
+            if let value {
+                profile = value
+                break
+            }
+        }
+        let row = try XCTUnwrap(profile)
+        XCTAssertTrue(row.isBanned)
+        XCTAssertNotNil(row.banExpires)
+        XCTAssertFalse(row.isDeleted)
+        XCTAssertTrue(row.isBotAccount)
+        XCTAssertTrue(row.isAdmin)
+        XCTAssertEqual(row.matrixUserId, "@alice:matrix.org")
+    }
 }

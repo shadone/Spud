@@ -11,12 +11,43 @@ import SpudMarkdownKit
 import SpudUIKit
 import UIKit
 
-/// Apollo-style person header: optional banner image, overlapping circular
-/// avatar, display name, "@name@instance" handle, a stats line with post /
-/// comment karma and the account's cake day, and a markdown bio.
+/// Account-status info shown in the person header beyond the basic profile
+/// fields. All optional; the default value renders nothing.
+struct PersonHeaderStatus: Equatable {
+    /// A user-facing instance-ban string (with expiry) or nil when not banned.
+    var banText: String?
+    var isDeleted: Bool = false
+    var isBot: Bool = false
+    var isAdmin: Bool = false
+    var matrixUserId: String?
+
+    static let none = PersonHeaderStatus()
+}
+
+/// A `UILabel` that draws with insets — used for the small status pills.
+private final class PillLabel: UILabel {
+    var insets = UIEdgeInsets(top: 1, left: 5, bottom: 1, right: 5)
+
+    override func drawText(in rect: CGRect) {
+        super.drawText(in: rect.inset(by: insets))
+    }
+
+    override var intrinsicContentSize: CGSize {
+        let size = super.intrinsicContentSize
+        return CGSize(
+            width: size.width + insets.left + insets.right,
+            height: size.height + insets.top + insets.bottom
+        )
+    }
+}
+
+/// Apollo-style person header: an optional instance-ban / deleted banner, an
+/// optional banner image, an overlapping circular avatar, the display name with
+/// Bot / Admin badges, the "@name@instance" handle, a stats line (karma + cake
+/// day), an optional Matrix contact row, and a markdown bio.
 ///
 /// Layout-only; the owning view controller drives it via `configure(...)`,
-/// loads images, and wires the bio-link callback.
+/// loads images, and wires the bio-link and matrix-tap callbacks.
 final class PersonHeaderView: UIView {
     /// Fired when a link inside the markdown bio is tapped (raw renderer URL;
     /// the host resolves `spud-markdown://` mentions).
@@ -27,6 +58,8 @@ final class PersonHeaderView: UIView {
     var onBodyVideoTapped: ((URL) -> Void)?
     /// Fired when an inline bio audio tile is tapped.
     var onBodyAudioTapped: ((URL) -> Void)?
+    /// Fired when the Matrix contact row is tapped (the host copies it).
+    var onMatrixTapped: ((String) -> Void)?
 
     /// The image loader used for inline bio images. Set by the owning view
     /// controller before `configure(...)`.
@@ -38,8 +71,56 @@ final class PersonHeaderView: UIView {
 
     private let bannerHeight: CGFloat = 100
     private let avatarSize: CGFloat = 72
+    private let margin: CGFloat = 16
+
+    private var matrixUserId: String?
 
     // MARK: Subviews
+
+    private lazy var statusBannerIcon: UIImageView = {
+        let view = UIImageView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.tintColor = .white
+        view.contentMode = .scaleAspectFit
+        view.setContentHuggingPriority(.required, for: .horizontal)
+        return view
+    }()
+
+    private lazy var statusBannerLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.font = .preferredFont(forTextStyle: .subheadline)
+        label.adjustsFontForContentSizeCategory = true
+        label.textColor = .white
+        label.numberOfLines = 0
+        return label
+    }()
+
+    private lazy var statusBannerView: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.accessibilityIdentifier = "statusBanner"
+        view.isAccessibilityElement = true
+
+        let stack = UIStackView(arrangedSubviews: [statusBannerIcon, statusBannerLabel])
+        stack.axis = .horizontal
+        stack.spacing = 6
+        stack.alignment = .center
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stack)
+
+        let bottom = stack.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -6)
+        bottom.priority = UILayoutPriority(999)
+        NSLayoutConstraint.activate([
+            stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 6),
+            stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: margin),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -margin),
+            bottom,
+        ])
+        return view
+    }()
+
+    private lazy var statusBannerZeroHeight = statusBannerView.heightAnchor.constraint(equalToConstant: 0)
 
     private lazy var bannerImageView: UIImageView = {
         let view = UIImageView()
@@ -66,16 +147,22 @@ final class PersonHeaderView: UIView {
 
     private lazy var titleLabel: UILabel = {
         let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
         label.font = UIFont.boldSystemFont(ofSize: UIFont.preferredFont(forTextStyle: .title2).pointSize)
         label.adjustsFontForContentSizeCategory = true
         label.numberOfLines = 2
         return label
     }()
 
+    private lazy var badgeRow: UIStackView = {
+        let stack = UIStackView()
+        stack.axis = .horizontal
+        stack.spacing = 6
+        stack.alignment = .center
+        return stack
+    }()
+
     private lazy var handleLabel: UILabel = {
         let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
         label.font = .preferredFont(forTextStyle: .subheadline)
         label.adjustsFontForContentSizeCategory = true
         label.textColor = .secondaryLabel
@@ -85,11 +172,22 @@ final class PersonHeaderView: UIView {
 
     private lazy var statsLabel: UILabel = {
         let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
         label.font = .preferredFont(forTextStyle: .footnote)
         label.adjustsFontForContentSizeCategory = true
         label.textColor = .secondaryLabel
         label.numberOfLines = 1
+        return label
+    }()
+
+    private lazy var matrixLabel: UILabel = {
+        let label = UILabel()
+        label.font = .preferredFont(forTextStyle: .footnote)
+        label.adjustsFontForContentSizeCategory = true
+        label.textColor = .link
+        label.numberOfLines = 1
+        label.accessibilityIdentifier = "matrix"
+        label.isUserInteractionEnabled = true
+        label.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(matrixTapped)))
         return label
     }()
 
@@ -103,6 +201,25 @@ final class PersonHeaderView: UIView {
             self?.onBodyImageLoaded?()
         }
         return view
+    }()
+
+    /// The labels above the bio. Stacked (not the bio) so the badge / matrix
+    /// rows collapse cleanly when absent — a stack only spaces visible arranged
+    /// subviews — while the bio keeps its original direct constraints so its
+    /// inline-image rendering is byte-for-byte unchanged from before.
+    private lazy var topStack: UIStackView = {
+        let stack = UIStackView(arrangedSubviews: [
+            titleLabel, badgeRow, handleLabel, statsLabel, matrixLabel,
+        ])
+        stack.axis = .vertical
+        stack.alignment = .fill
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        // Spacings match the original chain so the no-status layout is unchanged.
+        stack.setCustomSpacing(2, after: titleLabel)
+        stack.setCustomSpacing(6, after: badgeRow)
+        stack.setCustomSpacing(6, after: handleLabel)
+        stack.setCustomSpacing(12, after: statsLabel)
+        return stack
     }()
 
     private lazy var separator: UIView = {
@@ -132,18 +249,19 @@ final class PersonHeaderView: UIView {
     private func setup() {
         backgroundColor = Theme.background
 
+        addSubview(statusBannerView)
         addSubview(bannerImageView)
         addSubview(avatarImageView)
-        addSubview(titleLabel)
-        addSubview(handleLabel)
-        addSubview(statsLabel)
+        addSubview(topStack)
         addSubview(bodyView)
         addSubview(separator)
 
-        let margin: CGFloat = 16
-
         NSLayoutConstraint.activate([
-            bannerImageView.topAnchor.constraint(equalTo: topAnchor),
+            statusBannerView.topAnchor.constraint(equalTo: topAnchor),
+            statusBannerView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            statusBannerView.trailingAnchor.constraint(equalTo: trailingAnchor),
+
+            bannerImageView.topAnchor.constraint(equalTo: statusBannerView.bottomAnchor),
             bannerImageView.leadingAnchor.constraint(equalTo: leadingAnchor),
             bannerImageView.trailingAnchor.constraint(equalTo: trailingAnchor),
             bannerImageView.heightAnchor.constraint(equalToConstant: bannerHeight),
@@ -153,19 +271,11 @@ final class PersonHeaderView: UIView {
             avatarImageView.widthAnchor.constraint(equalToConstant: avatarSize),
             avatarImageView.heightAnchor.constraint(equalToConstant: avatarSize),
 
-            titleLabel.topAnchor.constraint(equalTo: avatarImageView.bottomAnchor, constant: 8),
-            titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
-            titleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
+            topStack.topAnchor.constraint(equalTo: avatarImageView.bottomAnchor, constant: 8),
+            topStack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
+            topStack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
 
-            handleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
-            handleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
-            handleLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
-
-            statsLabel.topAnchor.constraint(equalTo: handleLabel.bottomAnchor, constant: 6),
-            statsLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
-            statsLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
-
-            bodyView.topAnchor.constraint(equalTo: statsLabel.bottomAnchor, constant: 12),
+            bodyView.topAnchor.constraint(equalTo: topStack.bottomAnchor, constant: 12),
             bodyView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
             bodyView.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
 
@@ -175,6 +285,8 @@ final class PersonHeaderView: UIView {
             separator.heightAnchor.constraint(equalToConstant: 1 / UIScreen.main.scale),
             separator.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
+
+        hideBanner()
     }
 
     // MARK: Configuration
@@ -183,12 +295,96 @@ final class PersonHeaderView: UIView {
         title: String,
         handle: String,
         statsText: String,
-        bioMarkdown: String?
+        bioMarkdown: String?,
+        status: PersonHeaderStatus = .none
     ) {
         titleLabel.text = title
         handleLabel.text = handle
         statsLabel.text = statsText
         configureBio(markdown: bioMarkdown)
+        configureStatus(status)
+    }
+
+    private func configureStatus(_ status: PersonHeaderStatus) {
+        // Banner: a ban takes precedence over a self-deleted account.
+        if let banText = status.banText {
+            showBanner(text: banText, background: .systemRed, symbol: "exclamationmark.triangle.fill")
+        } else if status.isDeleted {
+            showBanner(
+                text: NSLocalizedString("Account deleted", comment: "Profile status banner: the user deleted their account"),
+                background: .systemGray,
+                symbol: "person.fill.xmark"
+            )
+        } else {
+            hideBanner()
+        }
+
+        for view in badgeRow.arrangedSubviews {
+            badgeRow.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        if status.isAdmin {
+            badgeRow.addArrangedSubview(makePill(
+                text: NSLocalizedString("ADMIN", comment: "Profile badge: instance admin"),
+                color: .systemIndigo
+            ))
+        }
+        if status.isBot {
+            badgeRow.addArrangedSubview(makePill(
+                text: NSLocalizedString("BOT", comment: "Profile badge: bot account"),
+                color: .systemGray
+            ))
+        }
+        if !badgeRow.arrangedSubviews.isEmpty {
+            let spacer = UIView()
+            spacer.setContentHuggingPriority(.defaultLow, for: .horizontal)
+            spacer.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+            badgeRow.addArrangedSubview(spacer)
+        }
+        badgeRow.isHidden = badgeRow.arrangedSubviews.isEmpty
+
+        matrixUserId = status.matrixUserId
+        if let matrix = status.matrixUserId {
+            matrixLabel.text = String(
+                format: NSLocalizedString("Matrix · %@", comment: "Profile contact row; %@ is the matrix id"),
+                matrix
+            )
+            matrixLabel.isHidden = false
+        } else {
+            matrixLabel.isHidden = true
+        }
+    }
+
+    private func showBanner(text: String, background: UIColor, symbol: String) {
+        statusBannerView.isHidden = false
+        statusBannerZeroHeight.isActive = false
+        statusBannerView.backgroundColor = background
+        statusBannerIcon.image = UIImage(systemName: symbol)
+        statusBannerLabel.text = text
+        statusBannerView.accessibilityLabel = text
+    }
+
+    private func hideBanner() {
+        statusBannerView.isHidden = true
+        statusBannerZeroHeight.isActive = true
+    }
+
+    private func makePill(text: String, color: UIColor) -> UILabel {
+        let label = PillLabel()
+        label.text = text
+        label.font = .systemFont(ofSize: 9, weight: .heavy)
+        label.textColor = .white
+        label.backgroundColor = color
+        label.layer.cornerRadius = 4
+        label.layer.masksToBounds = true
+        label.accessibilityIdentifier = "badge.\(text)"
+        return label
+    }
+
+    @objc
+    private func matrixTapped() {
+        guard let matrixUserId else { return }
+        onMatrixTapped?(matrixUserId)
     }
 
     private func configureBio(markdown: String?) {

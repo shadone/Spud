@@ -24,6 +24,18 @@ public struct PersonProfileRow: Sendable, Equatable, Identifiable {
     public let numberOfPosts: Int64
     public let numberOfComments: Int64
     public let personCreatedDate: Date?
+    /// Whether the person is banned at the instance level. `banExpires` is the
+    /// expiry of a temporary ban (nil = permanent when `isBanned`, or simply not
+    /// banned).
+    public let isBanned: Bool
+    public let banExpires: Date?
+    /// The user deleted their own account.
+    public let isDeleted: Bool
+    public let isBotAccount: Bool
+    /// Whether the person is an admin of the instance. Only known after a full
+    /// `PersonView` import (a bare creator import leaves it false).
+    public let isAdmin: Bool
+    public let matrixUserId: String?
 }
 
 public extension AppDatabase {
@@ -70,6 +82,12 @@ public extension AppDatabase {
                             person.numberOfPosts     AS numberOfPosts,
                             person.numberOfComments  AS numberOfComments,
                             person.personCreatedDate AS personCreatedDate,
+                            person.isBanned          AS isBanned,
+                            person.banExpires        AS banExpires,
+                            person.isDeleted         AS isDeleted,
+                            person.isBotAccount      AS isBotAccount,
+                            person.isAdmin           AS isAdmin,
+                            person.matrixUserId      AS matrixUserId,
                             instance.actorId         AS instanceActorId
                         FROM person
                         JOIN site     ON site.id = person.siteId
@@ -102,7 +120,13 @@ public extension AppDatabase {
                     actorId: row["personActorId"],
                     numberOfPosts: row["numberOfPosts"],
                     numberOfComments: row["numberOfComments"],
-                    personCreatedDate: row["personCreatedDate"]
+                    personCreatedDate: row["personCreatedDate"],
+                    isBanned: row["isBanned"],
+                    banExpires: row["banExpires"],
+                    isDeleted: row["isDeleted"],
+                    isBotAccount: row["isBotAccount"],
+                    isAdmin: row["isAdmin"],
+                    matrixUserId: row["matrixUserId"]
                 )
             }
             .removeDuplicates()
