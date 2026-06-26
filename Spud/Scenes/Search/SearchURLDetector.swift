@@ -25,10 +25,10 @@ struct SearchURLSuggestion {
 ///
 /// Known-instance URLs and mentions go through `LemmyURLParser.classify`. As a
 /// fallback, Lemmy-shaped paths on UNKNOWN hosts (`/post/<id>`, `/comment/<id>`,
-/// `/c/<name>`, `/u/<name>`) are still offered — the path is a strong Lemmy
-/// signal — and resolved federally on tap via `.objectAtURL`. A bare host with
-/// no Lemmy-shaped path on an unknown instance is not offered (it cannot be
-/// identified as Lemmy).
+/// `/c/<name>`, `/u/<name>`, and the frontend post form `/c/<community>/p/<id>`)
+/// are still offered — the path is a strong Lemmy signal — and resolved federally
+/// on tap via `.objectAtURL`. A bare host with no Lemmy-shaped path on an unknown
+/// instance is not offered (it cannot be identified as Lemmy).
 enum SearchURLDetector {
     static func detect(query: String, isKnownInstance: (String) -> Bool) -> SearchURLSuggestion? {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -51,6 +51,12 @@ enum SearchURLDetector {
         }
 
         // Unknown-host fallback: trust Lemmy-shaped paths, resolve federally.
+        // Frontend post URLs (`/c/<community>/p/<id>[/<slug>]`) first, since they
+        // have more than two path segments.
+        if let canonical = LemmyURLParser.frontendPostURL(for: url) {
+            return SearchURLSuggestion(kind: .post, link: .objectAtURL(url: canonical), displayURL: displayString(url))
+        }
+
         let parts = url.path.split(separator: "/").map(String.init)
         guard parts.count == 2 else { return nil }
         let kind: SearchURLSuggestion.Kind

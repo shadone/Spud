@@ -18,6 +18,7 @@ Search the connected instance for posts, communities, users, or comments. A scop
 - **Designed states.** The screen shows an initial prompt before any query, a spinner while a query is in flight, a no-results state that quotes the term that returned nothing, and an error state if the request fails.
 - **Inline subscribe from community results.** A community result row carries a Subscribe / Subscribed button. Tapping it subscribes or unsubscribes in place without leaving search (see Scenarios and [Subscribe / unsubscribe](subscribe-unsubscribe.md)).
 - **Tapping a result navigates.** A post or comment result opens the post in Post detail; a community result opens the [Community screen](community-screen.md); a user result opens the [Person profile](person-profile.md).
+- **Paste a Lemmy URL to open it in Spud.** When the search field contains a Lemmy link — a post, comment, community, user, or a bare instance — an "Open in Spud" row appears above the results that opens it in-app on tap (resolving the object federally when needed) instead of a web browser. Both canonical URLs (`/post/<id>`, `/c/<name>`, `/u/<name>`, `/comment/<id>`) and the frontend post form some instances use (`/c/<community>/p/<id>/<slug>`) are recognized, including links to instances not in the local directory.
 - **Keyboard dismisses on scroll.** Dragging the results list dismisses the keyboard.
 
 ## Scenarios
@@ -28,6 +29,13 @@ Search the connected instance for posts, communities, users, or comments. A scop
 - **When** I type a query and pause
 - **Then** after a short debounce the query runs and matching post rows appear
 - **And** each row shows the title with a community / score / comment-count subtitle and an optional thumbnail
+
+### Paste a Lemmy link to open it in Spud
+
+- **Given** the Search tab
+- **When** I paste a Lemmy post / community / user / instance URL into the field — including a frontend post URL like `https://feddit.online/c/opensource/p/1784296/favorite-open-source-game`, even for an instance not in my directory
+- **Then** an "Open in Spud" row appears
+- **And** tapping it opens that content in-app (resolving it federally) rather than in a browser
 
 ### Switch scope re-runs the query
 

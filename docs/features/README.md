@@ -142,7 +142,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Animated GIF playback; inline video
 
 **Discovery**
-- [x] Search (posts / comments / communities / users) + inline subscribe
+- [x] Search (posts / comments / communities / users) + inline subscribe + paste-a-Lemmy-URL "Open in Spud" (canonical + frontend `/c/../p/<id>` form)
 - [x] Subscriptions sidebar (iPad / regular-width only; no iPhone-portrait entry point) + favorites pinned to top
 - [x] Subscribe / unsubscribe
 - [x] Community screen (header + feed; overflow: subscribe, favorite, mute, block, copy link / share / open in browser)

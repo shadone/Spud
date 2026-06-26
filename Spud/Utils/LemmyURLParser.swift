@@ -42,6 +42,12 @@ enum LemmyURLParser {
         // Content paths are only trusted on known instances.
         guard isKnownInstance(host) else { return nil }
 
+        // Frontend post URL (`/c/<community>/p/<id>[/<slug>]`) → resolve the
+        // canonical post server-side.
+        if let canonical = frontendPostURL(for: url) {
+            return .objectAtURL(url: canonical)
+        }
+
         switch (parts.first, parts.count) {
         case ("post", 2):
             guard Int32(parts[1]) != nil else { return nil }
@@ -61,6 +67,18 @@ enum LemmyURLParser {
         default:
             return nil
         }
+    }
+
+    /// Some Lemmy frontends (e.g. feddit.online) render a post at
+    /// `/c/<community>/p/<id>[/<slug>]` instead of the canonical `/post/<id>`.
+    /// Returns the canonical `https://<host>/post/<id>` URL for such a path (so the
+    /// app resolves it server-side), or nil if the path isn't that shape.
+    static func frontendPostURL(for url: URL) -> URL? {
+        guard let host = url.host?.lowercased() else { return nil }
+        let parts = url.path.split(separator: "/").map(String.init)
+        guard parts.count >= 4, parts[0] == "c", parts[2] == "p", Int32(parts[3]) != nil else { return nil }
+        let hostPort = url.port.map { "\(host):\($0)" } ?? host
+        return URL(string: "https://\(hostPort)/post/\(parts[3])")
     }
 
     /// Splits a `/c/` segment into (name, home instance). A bare `name` is homed

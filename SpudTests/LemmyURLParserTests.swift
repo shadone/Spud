@@ -77,6 +77,34 @@ final class LemmyURLParserTests: XCTestCase {
         XCTAssertNil(classify("https://lemmy.world/comment/notanumber"))
     }
 
+    // MARK: - Frontend post URL (/c/<community>/p/<id>[/<slug>])
+
+    func test_frontendPostURL_withSlug_resolvesCanonicalPost() {
+        guard case let .objectAtURL(parsed)? =
+            classify("https://lemmy.world/c/opensource/p/1784296/favorite-open-source-game")
+        else {
+            return XCTFail("expected .objectAtURL")
+        }
+        XCTAssertEqual(parsed.absoluteString, "https://lemmy.world/post/1784296")
+    }
+
+    func test_frontendPostURL_withoutSlug_resolvesCanonicalPost() {
+        guard case let .objectAtURL(parsed)? = classify("https://lemmy.world/c/opensource/p/1784296") else {
+            return XCTFail("expected .objectAtURL")
+        }
+        XCTAssertEqual(parsed.absoluteString, "https://lemmy.world/post/1784296")
+    }
+
+    func test_frontendPostURL_onUnknownInstance_isNil() {
+        // classify gates content paths on known instances; the search detector's
+        // fallback is what offers unknown-host frontend post URLs.
+        XCTAssertNil(classify("https://feddit.online/c/opensource/p/1784296/slug"))
+    }
+
+    func test_frontendPostURL_withNonNumericId_isNil() {
+        XCTAssertNil(classify("https://lemmy.world/c/opensource/p/notanumber/slug"))
+    }
+
     func test_communityMention_isCommunity() {
         let mentions = LemmyURLParser.mentions(in: "see !technology@beehaw.org now")
         XCTAssertEqual(mentions.count, 1)

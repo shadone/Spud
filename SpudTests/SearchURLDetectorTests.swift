@@ -83,6 +83,29 @@ final class SearchURLDetectorTests: XCTestCase {
         XCTAssertEqual(instance.host, "beehaw.org")
     }
 
+    // MARK: Frontend post URL (/c/<community>/p/<id>[/<slug>]).
+
+    func test_unknownFrontendPost_isOffered_canonicalObjectAtURL() throws {
+        // The reported case: a frontend post URL on an unknown instance.
+        let s = try XCTUnwrap(detect("https://feddit.online/c/opensource/p/1784296/favorite-open-source-game"))
+        XCTAssertEqual(s.kind, .post)
+        guard case let .objectAtURL(url) = s.link else { return XCTFail("expected .objectAtURL") }
+        XCTAssertEqual(url.absoluteString, "https://feddit.online/post/1784296")
+        // The row still shows what the user pasted.
+        XCTAssertEqual(s.displayURL, "feddit.online/c/opensource/p/1784296/favorite-open-source-game")
+    }
+
+    func test_knownFrontendPost_isOffered() throws {
+        let s = try XCTUnwrap(detect("https://lemmy.world/c/opensource/p/42"))
+        XCTAssertEqual(s.kind, .post)
+        guard case let .objectAtURL(url) = s.link else { return XCTFail("expected .objectAtURL") }
+        XCTAssertEqual(url.absoluteString, "https://lemmy.world/post/42")
+    }
+
+    func test_frontendPost_nonNumericId_isNil() {
+        XCTAssertNil(detect("https://feddit.online/c/opensource/p/abc/slug"))
+    }
+
     // MARK: Negatives.
 
     func test_bareUnknownHost_isNil() {
