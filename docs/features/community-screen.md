@@ -11,6 +11,7 @@ The community screen pins a header above the community's post feed. The header s
 ## Behavior and rules
 
 - **Header above a community-scoped feed.** The body is the standard post list driven by a community feed type, embedded below the header. All of [Feed loading and pagination](feed-loading.md) and [Feeds and sorting](feeds-and-sorting.md) applies — first page on appear, cursor-based infinite scroll, default sort.
+- **Loading skeleton sits below the header.** While the first page loads, the feed's skeleton placeholder is inset to start below the community header rather than behind it, so the opaque header never covers the top skeleton rows. The inset tracks the header's height as it resolves (the community info loads asynchronously).
 - **Header is database-driven.** The header fields come from the local database's community observation, so they update live when the community record changes (for example after a subscribe is mirrored back).
 - **NSFW badge and blurred banner.** When a community is marked NSFW, its header shows an "NSFW" badge. If "Blur NSFW" is also on, the community banner is covered by a frosted-glass overlay. See [NSFW content visibility and blur](nsfw-content.md).
 - **Resolve-then-show.** Opening a community first resolves its server id (fetching by qualified name when not cached) behind a spinner, then swaps in the header-plus-feed content. A remote community is resolved fully-qualified so any instance can find it.
