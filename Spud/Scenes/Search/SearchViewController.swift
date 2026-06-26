@@ -35,6 +35,7 @@ final class SearchViewController: UIViewController {
         HasAppService &
         HasAppearanceService &
         HasImageService &
+        HasLinkEmbedService &
         HasPostContentDetectorService &
         HasPreferencesService &
         HasReachabilityMonitor &

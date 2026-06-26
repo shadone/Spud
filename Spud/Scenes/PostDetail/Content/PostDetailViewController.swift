@@ -24,6 +24,7 @@ class PostDetailViewController: UIViewController {
         HasAppService &
         HasAppearanceService &
         HasImageService &
+        HasLinkEmbedService &
         HasPostContentDetectorService &
         HasPreferencesService
     typealias NestedDependencies =
@@ -55,6 +56,10 @@ class PostDetailViewController: UIViewController {
 
     var imageService: ImageServiceType {
         dependencies.own.imageService
+    }
+
+    var linkEmbedService: LinkEmbedServiceType {
+        dependencies.own.linkEmbedService
     }
 
     var postContentDetector: PostContentDetectorServiceType {
@@ -2093,6 +2098,7 @@ extension PostDetailViewController {
     private func setupDataSource() {
         let appearance = appearanceService
         let imageService = imageService
+        let linkEmbedService = linkEmbedService
         let postContentDetector = postContentDetector
         let appService = appService
 
@@ -2237,9 +2243,10 @@ extension PostDetailViewController {
                     collapsedDescendantCount: collapsedCount,
                     collapsedNewDescendantCount: collapsedNewCount,
                     isBlockedRevealed: isBlockedRevealed,
-                    isNew: self?.viewModel.isNewComment(elementId: elementId) ?? false
+                    isNew: self?.viewModel.isNewComment(elementId: elementId) ?? false,
+                    fetchLinkEmbeds: self?.preferencesService.fetchLinkEmbeds ?? false
                 )
-                cell.configure(with: viewModel, imageService: imageService)
+                cell.configure(with: viewModel, imageService: imageService, linkEmbedService: linkEmbedService)
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
                 cell.linkLongPressed = { [weak self] url in self?.linkLongPressed(url) }
                 cell.linkPreviewContextMenu = { [weak self] url in self?.linkContextMenuConfiguration(for: url) }

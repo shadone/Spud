@@ -35,6 +35,7 @@ class PersonViewController: UIViewController {
         HasAppService &
         HasAppearanceService &
         HasImageService &
+        HasLinkEmbedService &
         HasPostContentDetectorService &
         HasPreferencesService &
         HasReachabilityMonitor &

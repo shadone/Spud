@@ -14,6 +14,7 @@ struct DependencyContainer:
     HasSiteService,
     HasAccountService,
     HasImageService,
+    HasLinkEmbedService,
     HasSchedulerService,
     HasPostContentDetectorService,
     HasAppearanceService,
@@ -28,6 +29,7 @@ struct DependencyContainer:
     let siteService: SiteServiceType
     let accountService: AccountServiceType
     let imageService: ImageServiceType
+    let linkEmbedService: LinkEmbedServiceType
     let schedulerService: SchedulerServiceType
     let postContentDetectorService: PostContentDetectorServiceType
     let appearanceService: AppearanceServiceType
@@ -46,6 +48,7 @@ struct DependencyContainer:
         } else {
             imageService = ImageService(alertService: alertService)
         }
+        linkEmbedService = LinkEmbedService()
 
         do {
             appDatabase = try AppDatabase()

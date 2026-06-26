@@ -13,6 +13,11 @@ public protocol LinkEmbedServiceType: Sendable {
     func embed(for url: URL) async -> LinkEmbed?
 }
 
+@MainActor
+public protocol HasLinkEmbedService {
+    var linkEmbedService: LinkEmbedServiceType { get }
+}
+
 public final class LinkEmbedService: LinkEmbedServiceType {
     private let fetch: @Sendable (URL) async -> Data?
     private let cache = LinkEmbedCache()

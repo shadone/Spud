@@ -49,6 +49,11 @@ struct PostDetailCommentViewModel {
     /// comments without previewable links.
     let linkPreviews: [CommentLinkPreview]
 
+    /// When `true`, the cell fetches video embed metadata (title + thumbnail) for
+    /// recognised video link cards. Reflects `PreferencesService.fetchLinkEmbeds`
+    /// at the time the view model is built.
+    let fetchLinkEmbeds: Bool
+
     let subtitle: NSAttributedString
     let isMore: Bool
     let moreText: NSAttributedString?
@@ -112,7 +117,8 @@ struct PostDetailCommentViewModel {
         collapsedDescendantCount: Int? = nil,
         collapsedNewDescendantCount: Int? = nil,
         isBlockedRevealed: Bool = false,
-        isNew: Bool = false
+        isNew: Bool = false,
+        fetchLinkEmbeds: Bool = false
     ) {
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
         self.textSizeAdjustment = textSizeAdjustment
@@ -257,6 +263,7 @@ struct PostDetailCommentViewModel {
         // Link preview cards under the body, capped to keep long comments tidy.
         // Empty for deleted/removed placeholders (their block tree is empty).
         linkPreviews = bodyBlocks.commentLinkPreviews(limit: 3)
+        self.fetchLinkEmbeds = fetchLinkEmbeds
 
         // MARK: Blocked-user fold
 

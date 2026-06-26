@@ -349,6 +349,17 @@ class PostDetailCommentCell: UITableViewCell {
 
     // MARK: Private
 
+    /// Retained so async body image-loading closures can call `imageService.fetch`.
+    private var imageService: ImageServiceType?
+
+    /// Retained so `configureLinkPreviews` can fire async embed look-ups for
+    /// recognised video cards. `nil` when the caller doesn't provide one (tests).
+    private var linkEmbedService: LinkEmbedServiceType?
+
+    /// Per-configure token; incremented at the start of `configureLinkPreviews`
+    /// so in-flight `Task`s from a prior configure can detect cell reuse and bail.
+    private var linkEmbedToken = UUID()
+
     /// Maps each rendered `LinkPreviewView` card to its tap URL, so the context
     /// menu delegate can resolve the URL from the interaction's view.
     private var linkPreviewTapURLs: [ObjectIdentifier: URL] = [:]
@@ -470,16 +481,34 @@ class PostDetailCommentCell: UITableViewCell {
 
         guard !bodyView.isHidden, !viewModel.linkPreviews.isEmpty else { return }
 
+        let token = UUID()
+        linkEmbedToken = token
+
         linkPreviewsStackView.isHidden = false
         for preview in viewModel.linkPreviews {
             let view = LinkPreviewView()
             view.translatesAutoresizingMaskIntoConstraints = false
             view.url = preview.displayURL
+            view.anchorText = preview.anchorText
+            view.isVideo = preview.kind == .video
             let tapURL = preview.tapURL
             view.tapped = { [weak self] _ in self?.linkTapped?(tapURL) }
             view.addInteraction(UIContextMenuInteraction(delegate: self))
             linkPreviewTapURLs[ObjectIdentifier(view)] = tapURL
             linkPreviewsStackView.addArrangedSubview(view)
+
+            guard viewModel.fetchLinkEmbeds, preview.kind == .video, let service = linkEmbedService else { continue }
+            Task { [weak self, weak view] in
+                guard let embed = await service.embed(for: preview.displayURL) else { return }
+                guard let self, linkEmbedToken == token, let view else { return }
+                if let title = embed.title { view.title = title }
+                guard let thumbnailURL = embed.thumbnailURL else { return }
+                guard let imageService else { return }
+                for await state in imageService.fetch(thumbnailURL) {
+                    guard linkEmbedToken == token else { return }
+                    if case let .ready(image) = state { view.thumbnailImage = image }
+                }
+            }
         }
     }
 
@@ -563,7 +592,14 @@ class PostDetailCommentCell: UITableViewCell {
         depthRailsView.railColors = Array(repeating: UIColor.lightGray, count: railCount)
     }
 
-    func configure(with viewModel: PostDetailCommentViewModel, imageService: ImageServiceType) {
+    func configure(
+        with viewModel: PostDetailCommentViewModel,
+        imageService: ImageServiceType,
+        linkEmbedService: LinkEmbedServiceType? = nil
+    ) {
+        self.imageService = imageService
+        self.linkEmbedService = linkEmbedService
+
         let accent = tintColor ?? .systemTeal
 
         if viewModel.isMore {
