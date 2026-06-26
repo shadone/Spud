@@ -80,6 +80,10 @@ final class PrivacyScreen {
         )
     }
 
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+
     func sceneWillResignActive() {
         isSceneActive = false
         update()
