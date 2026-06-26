@@ -32,6 +32,19 @@ final class FeedLoadingSkeletonView: SkeletonView {
         return label
     }()
 
+    /// The top constraint of the row stack, whose constant is driven by `topInset`.
+    private var stackTopConstraint: NSLayoutConstraint!
+
+    /// Extra space above the first skeleton row. An embedding host that installs a
+    /// scrolling header (e.g. `CommunityViewController`'s community header, hosted
+    /// as the feed's `tableHeaderView`) sets this to the header's height so the
+    /// skeleton starts below the opaque header instead of rendering behind it.
+    /// Zero for a standalone feed.
+    var topInset: CGFloat {
+        get { stackTopConstraint.constant }
+        set { stackTopConstraint.constant = newValue }
+    }
+
     override init(frame: CGRect) {
         super.init(frame: frame)
         backgroundColor = .clear
@@ -39,8 +52,9 @@ final class FeedLoadingSkeletonView: SkeletonView {
 
         addSubview(stack)
         addSubview(slowLabel)
+        stackTopConstraint = stack.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor),
+            stackTopConstraint,
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(equalTo: trailingAnchor),
 

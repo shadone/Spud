@@ -144,6 +144,40 @@ final class LoadingStatesSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - FeedLoadingSkeletonView (scrolling-header inset)
+
+    func test_skeletonHeaderInset_light() {
+        assertSkeletonHeaderInset(style: .light)
+    }
+
+    func test_skeletonHeaderInset_dark() {
+        assertSkeletonHeaderInset(style: .dark)
+    }
+
+    /// Skeleton with a top inset, as installed by an embedding host with a
+    /// scrolling header (e.g. Community): the rows start below the inset gap rather
+    /// than at the top, so an opaque header hosted above can't cover them.
+    private func assertSkeletonHeaderInset(
+        style: UIUserInterfaceStyle,
+        testName: String = #function,
+        line: UInt = #line
+    ) {
+        let size = CGSize(width: width, height: 600)
+        let view = FeedLoadingSkeletonView(frame: CGRect(origin: .zero, size: size))
+        view.backgroundColor = .systemBackground
+        view.topInset = 140
+        view.stopAnimating()
+        view.layoutIfNeeded()
+
+        assertSnapshot(
+            matching: view,
+            as: .image(size: size, traits: traits(style)),
+            named: style == .dark ? "dark" : "light",
+            testName: testName,
+            line: line
+        )
+    }
+
     // MARK: - FeedLoadingSkeletonView (slow-hint)
 
     func test_skeletonSlow_light() {

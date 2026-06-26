@@ -308,6 +308,10 @@ class PostListViewController: UIViewController {
         header.frame.size.height = height
         // Reassigning is what makes the table adopt the new header height.
         tableView.tableHeaderView = header
+        // Keep the loading skeleton clear of the (now-resized) header. The header
+        // height often resolves after the skeleton is already showing (community
+        // info loads asynchronously).
+        syncSkeletonHeaderInset()
     }
 
     /// Installs the trailing nav-bar buttons. The sort menu is always present; on
@@ -768,8 +772,17 @@ class PostListViewController: UIViewController {
     /// fetch; removed once the first snapshot (or a failure) arrives.
     private func showLoadingSkeleton() {
         guard tableView.backgroundView !== loadingSkeletonView else { return }
+        syncSkeletonHeaderInset()
         tableView.backgroundView = loadingSkeletonView
         loadingSkeletonView.startAnimating()
+    }
+
+    /// Insets the loading skeleton below the scrolling header (if any). The
+    /// skeleton is the table's `backgroundView`, which sits behind the
+    /// `tableHeaderView`, so without this the opaque community header would cover
+    /// the skeleton's top rows. Re-applied whenever the header is (re)measured.
+    private func syncSkeletonHeaderInset() {
+        loadingSkeletonView.topInset = scrollingHeaderView?.frame.height ?? 0
     }
 
     private func hideLoadingSkeleton() {
