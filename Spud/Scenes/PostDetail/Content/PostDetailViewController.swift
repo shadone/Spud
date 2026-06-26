@@ -2122,9 +2122,10 @@ extension PostDetailViewController {
                         appearance: appearance,
                         postContentDetector: postContentDetector,
                         blurNsfw: preferencesService.blurNsfw,
-                        isRevealed: headerNsfwRevealed
+                        isRevealed: headerNsfwRevealed,
+                        fetchLinkEmbeds: preferencesService.fetchLinkEmbeds
                     )
-                    cell.configure(with: viewModel, imageService: imageService)
+                    cell.configure(with: viewModel, imageService: imageService, linkEmbedService: linkEmbedService)
                 }
                 cell.onRevealBlur = { [weak self] in
                     guard let self else { return }

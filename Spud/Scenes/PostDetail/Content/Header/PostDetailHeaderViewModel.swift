@@ -31,6 +31,12 @@ struct PostDetailHeaderViewModel {
 
     let title: NSAttributedString
     let bodyBlocks: [MarkdownBlock]
+    /// Link-preview cards extracted from `bodyBlocks` (up to 3), shown below the
+    /// post body in the header cell.
+    let linkPreviews: [CommentLinkPreview]
+    /// Mirrors `PreferencesService.fetchLinkEmbeds` at configure time — when true,
+    /// the header cell asynchronously enriches video cards with title + thumbnail.
+    let fetchLinkEmbeds: Bool
     /// The text-size preference used to size `bodyBlocks`. Exposed so the cell can
     /// rebuild `MarkdownBodyView` with a matching context when the preference
     /// changes between configure calls.
@@ -67,7 +73,8 @@ struct PostDetailHeaderViewModel {
         appearance: AppearanceServiceType,
         postContentDetector: PostContentDetectorServiceType,
         blurNsfw: Bool = false,
-        isRevealed: Bool = false
+        isRevealed: Bool = false,
+        fetchLinkEmbeds: Bool = false
     ) {
         isNsfw = row.isNsfw
         self.blurNsfw = blurNsfw
@@ -133,6 +140,8 @@ struct PostDetailHeaderViewModel {
         // so the header re-rendering on every vote/save is a cache hit here.
         let bodyMarkdown = row.body ?? ""
         bodyBlocks = MarkdownBlockCache.shared.blocks(for: bodyMarkdown)
+        linkPreviews = bodyBlocks.commentLinkPreviews(limit: 3)
+        self.fetchLinkEmbeds = fetchLinkEmbeds
 
         var creatorAttributes = secondaryHighlightedAttributes
         if

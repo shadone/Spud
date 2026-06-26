@@ -479,37 +479,27 @@ class PostDetailCommentCell: UITableViewCell {
     private func configureLinkPreviews(_ viewModel: PostDetailCommentViewModel) {
         clearLinkPreviews()
 
-        guard !bodyView.isHidden, !viewModel.linkPreviews.isEmpty else { return }
+        guard !bodyView.isHidden, !viewModel.linkPreviews.isEmpty, let imageService else { return }
 
         let token = UUID()
         linkEmbedToken = token
 
         linkPreviewsStackView.isHidden = false
-        for preview in viewModel.linkPreviews {
-            let view = LinkPreviewView()
-            view.translatesAutoresizingMaskIntoConstraints = false
-            view.url = preview.displayURL
-            view.anchorText = preview.anchorText
-            view.isVideo = preview.kind == .video
-            let tapURL = preview.tapURL
-            view.tapped = { [weak self] _ in self?.linkTapped?(tapURL) }
-            view.addInteraction(UIContextMenuInteraction(delegate: self))
-            linkPreviewTapURLs[ObjectIdentifier(view)] = tapURL
-            linkPreviewsStackView.addArrangedSubview(view)
-
-            guard viewModel.fetchLinkEmbeds, preview.kind == .video, let service = linkEmbedService else { continue }
-            Task { [weak self, weak view] in
-                guard let embed = await service.embed(for: preview.displayURL) else { return }
-                guard let self, linkEmbedToken == token, let view else { return }
-                if let title = embed.title { view.title = title }
-                guard let thumbnailURL = embed.thumbnailURL else { return }
-                guard let imageService else { return }
-                for await state in imageService.fetch(thumbnailURL) {
-                    guard linkEmbedToken == token else { return }
-                    if case let .ready(image) = state { view.thumbnailImage = image }
-                }
+        LinkPreviewCardFactory.populate(
+            linkPreviewsStackView,
+            previews: viewModel.linkPreviews,
+            fetchLinkEmbeds: viewModel.fetchLinkEmbeds,
+            imageService: imageService,
+            linkEmbedService: linkEmbedService,
+            token: token,
+            currentToken: { [weak self] in self?.linkEmbedToken ?? token },
+            onTap: { [weak self] url in self?.linkTapped?(url) },
+            registerContextMenu: { [weak self] view, tapURL in
+                guard let self else { return }
+                linkPreviewTapURLs[ObjectIdentifier(view)] = tapURL
+                view.addInteraction(UIContextMenuInteraction(delegate: self))
             }
-        }
+        )
     }
 
     private func clearLinkPreviews() {

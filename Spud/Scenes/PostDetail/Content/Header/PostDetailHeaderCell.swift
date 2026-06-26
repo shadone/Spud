@@ -142,6 +142,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
             postImageContainer,
             titleLabel,
             bodyView,
+            linkPreviewsStackView,
             linkPreviewView,
             attributionLabel,
             subtitleHorizontalStackView,
@@ -165,6 +166,18 @@ class PostDetailHeaderCell: UITableViewCellBase {
     /// changes, since `MarkdownBodyView` bakes the context (fonts, spacing) at
     /// init time. For a typical session only one instance is ever needed.
     private(set) lazy var bodyView: MarkdownBodyView = makeBodyView(textScale: 0)
+
+    /// Holds one `LinkPreviewView` card per previewable link in the post body,
+    /// stacked below the body. Hidden when the post has no body link cards to show.
+    lazy var linkPreviewsStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .vertical
+        stackView.spacing = 4
+        stackView.isHidden = true
+        stackView.accessibilityIdentifier = "linkPreviews"
+        return stackView
+    }()
 
     lazy var linkPreviewView: LinkPreviewView = {
         let view = LinkPreviewView()
@@ -375,6 +388,14 @@ class PostDetailHeaderCell: UITableViewCellBase {
     /// `configure` has returned.
     private var imageService: ImageServiceType?
 
+    /// Retained so `configureBodyLinkPreviews` can fire async embed look-ups for
+    /// recognised video cards. `nil` when the caller doesn't provide one (tests).
+    private var linkEmbedService: LinkEmbedServiceType?
+
+    /// Per-configure token; incremented at the start of `configureBodyLinkPreviews`
+    /// so in-flight `Task`s from a prior configure can detect cell reuse and bail.
+    private var linkEmbedToken = UUID()
+
     /// The image-load failure plate, created lazily on first failure and kept
     /// for reuse. Sits on top of `postImageView`, filling `postImageContainer`.
     private var imageFailureView: ImageLoadFailureView?
@@ -521,6 +542,8 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
         bodyView.setBlocks([])
 
+        clearBodyLinkPreviews()
+
         linkPreviewView.isHidden = true
         linkPreviewView.prepareForReuse()
 
@@ -541,8 +564,13 @@ class PostDetailHeaderCell: UITableViewCellBase {
         onRevealBlur = nil
     }
 
-    func configure(with viewModel: PostDetailHeaderViewModel, imageService: ImageServiceType) {
+    func configure(
+        with viewModel: PostDetailHeaderViewModel,
+        imageService: ImageServiceType,
+        linkEmbedService: LinkEmbedServiceType? = nil
+    ) {
         self.imageService = imageService
+        self.linkEmbedService = linkEmbedService
         titleLabel.attributedText = viewModel.title
 
         // Rebuild the body view when the text-scale preference changes so fonts
@@ -567,6 +595,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
             return nil
         }
         bodyView.setBlocks(viewModel.bodyBlocks)
+        configureBodyLinkPreviews(viewModel)
         attributionLabel.attributedText = viewModel.attribution
         subtitleScoreLabel.attributedText = viewModel.subtitleScore
         subtitleCommentLabel.attributedText = viewModel.subtitleComments
@@ -672,6 +701,41 @@ class PostDetailHeaderCell: UITableViewCellBase {
             }
             adjustHeightForChange()
         }
+    }
+
+    private func clearBodyLinkPreviews() {
+        for view in linkPreviewsStackView.arrangedSubviews {
+            linkPreviewsStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        linkPreviewsStackView.isHidden = true
+    }
+
+    /// Rebuilds the body link-preview stack from the view model. Cards appear
+    /// below the post body when the body contains previewable links. A tap fires
+    /// `linkTapped`. No context-menu delegate is needed here — the header cell
+    /// already handles the `linkPreviewView` context menu; body link cards rely
+    /// on the tap closure only.
+    private func configureBodyLinkPreviews(_ viewModel: PostDetailHeaderViewModel) {
+        clearBodyLinkPreviews()
+
+        guard !viewModel.linkPreviews.isEmpty, let imageService else { return }
+
+        let token = UUID()
+        linkEmbedToken = token
+
+        linkPreviewsStackView.isHidden = false
+        LinkPreviewCardFactory.populate(
+            linkPreviewsStackView,
+            previews: viewModel.linkPreviews,
+            fetchLinkEmbeds: viewModel.fetchLinkEmbeds,
+            imageService: imageService,
+            linkEmbedService: linkEmbedService,
+            token: token,
+            currentToken: { [weak self] in self?.linkEmbedToken ?? token },
+            onTap: { [weak self] url in self?.linkTapped?(url) },
+            registerContextMenu: { _, _ in }
+        )
     }
 
     /// Fetches the post image, driving the header through loading → ready /
