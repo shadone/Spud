@@ -1579,10 +1579,12 @@ extension PostListViewController: UITableViewDelegate {
     }
 
     func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
-        // A manual scroll means the user moved on - drop the armed undo (and its
-        // hint toast). Only touch the toast when we actually had one armed.
+        // A manual scroll disarms the toggle (and its hint toast), but keeps the
+        // deepest saved position: scrolling partway back down toward where you
+        // were is part of recovering, so a later status-bar tap can still offer to
+        // return there. Only touch the toast when we actually had one armed.
         let wasArmed = scrollUndo.pending != nil
-        scrollUndo.invalidate()
+        scrollUndo.userDidScroll()
         if wasArmed {
             ToastPresenter.shared.dismiss()
         }

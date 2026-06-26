@@ -18,6 +18,7 @@ Spud's post list shows one feed at a time: a frontpage listing (All, Local, or S
 - **Sort options.** The menu offers, as a top group: Active, Hot, New, Old, Controversial, Scaled. A nested "Top" submenu offers the time ranges below. A final group offers Most Comments and New Comments.
 - **Top time ranges.** The Top submenu is single-selection and lists: Six Hours, Twelve Hours, Day, Week, Month, Three Months, Six Months, Nine Months, Year, All. (There is no "Top Hour" — the finest grain is six hours.)
 - **Sort changes feel like a new feed.** Picking a sort builds a fresh feed with the same listing/community but the chosen sort, resets pagination to the head, and the list reloads from the server.
+- **Undo an accidental scroll-to-top.** Tapping the status bar scrolls the feed to the top (the standard iOS gesture). When that happens from at least a screen deep it is often accidental, so a "Jumped to top" toast offers a one-tap **Undo** that snaps back to where you were (the restored row pulses); a second status-bar tap while the undo is armed toggles back too. Manually scrolling dismisses the hint, but the saved position survives: if you scroll partway back down and tap the status bar again, the undo still returns you to the deepest place you were, not the shallower spot you stopped at. The saved position resets once you use the undo or the feed changes.
 
 ## Scenarios
 
@@ -56,6 +57,12 @@ Spud's post list shows one feed at a time: a frontpage listing (All, Local, or S
 - **When** I open the sort menu, open Top, and choose Week
 - **Then** the feed reloads showing the top posts of the past week
 - **And** the menu remembers Top → Week as the active selection
+
+### Undo a re-jump after scrolling partway back
+
+- **Given** I am a screen or more deep in a feed
+- **When** I tap the status bar to jump to the top, ignore the toast, scroll partway back down, then tap the status bar again
+- **Then** the undo offers to return me to my original deep position, not the shallower spot I stopped at
 
 ## Not supported / out of scope
 
