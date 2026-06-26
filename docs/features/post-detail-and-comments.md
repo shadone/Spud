@@ -26,6 +26,7 @@ account has them.
 - **"Load more replies" rows.** Where the server truncated a deep thread, a "N more replies" placeholder row appears. It is not collapsible and carries no per-comment actions.
 - **Your just-posted comment appears immediately.** A comment you post shows up inline in the tree at its position right away in a dimmed "Sending…" state (and "Failed — tap to retry" if the send fails), before the server confirms it; on success it becomes a normal comment. The compose / draft / retry flow behind this is documented in [Replying](replying.md) and [Drafts & Outbox](drafts-and-outbox.md).
 - **Jump to next top-level comment.** A floating chevron button at the bottom-trailing corner scrolls to the next top-level (depth-1) comment below the current position. It appears only while there is a next top-level comment to jump to and fades out otherwise.
+- **Loading and empty placeholders sit below the post.** While comments load, a comment-shaped skeleton row shows directly under the post header; once the fetch settles with no comments, a centered "No comments yet — Be the first to comment." row takes its place. Both are in-flow rows that scroll with the content (right where the comments will appear), not a fixed background, so the pinned post header never covers them.
 - **Pull to refresh.** Pulling down refetches the comment thread for the current sort.
 - **Comment sort follows the default-sort preference.** The thread is sorted by the account's default comment sort (Hot, Top, New, Old, or Controversial). It is read once when the post opens; there is no in-screen control to change the sort for a single post.
 - **Per-comment context menu.** Long-pressing a comment offers Upvote, Downvote, Reply, Save / Unsave, and Share, then Report (only on other people's comments), then a Moderation submenu when the account can moderate.
@@ -40,6 +41,12 @@ account has them.
 - **Given** I open a post
 - **Then** the post content shows at the top with an inline upvote / downvote / save bar
 - **And** the comment tree scrolls below it
+
+### A post with no comments shows the empty state below it
+
+- **Given** I open a post that has no comments
+- **Then** a "No comments yet — Be the first to comment." placeholder appears directly below the post content
+- **And** it is not hidden behind the pinned post header
 
 ### Collapse a comment by tapping it
 
