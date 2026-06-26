@@ -650,10 +650,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
                 adjustHeightForChange()
             }
 
-        case let .linkPreview(url, thumbnailUrl):
+        case let .linkPreview(url, thumbnailUrl, title):
             postImageContainer.isHidden = true
             linkPreviewView.isHidden = false
             linkPreviewView.url = url
+            linkPreviewView.title = title
             if let thumbnailUrl {
                 imageLoadTask = Task { [weak self] in
                     for await state in imageService.fetch(thumbnailUrl) {

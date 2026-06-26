@@ -26,7 +26,7 @@ struct PostDetailHeaderViewModel {
         /// image loads. nil when the instance didn't report them.
         case post(URL, thumbnailUrl: URL?, imageSize: CGSize?)
         case video(videoUrl: URL, thumbnailUrl: URL?)
-        case linkPreview(url: URL, thumbnailUrl: URL?)
+        case linkPreview(url: URL, thumbnailUrl: URL?, title: String?)
     }
 
     let title: NSAttributedString
@@ -223,7 +223,7 @@ struct PostDetailHeaderViewModel {
         case let .video(video):
             image = .video(videoUrl: video.videoUrl, thumbnailUrl: video.thumbnailUrl)
         case let .externalLink(link):
-            image = .linkPreview(url: link.url, thumbnailUrl: thumbnailUrlValue)
+            image = .linkPreview(url: link.url, thumbnailUrl: thumbnailUrlValue, title: row.urlEmbedTitle)
         case .textOrEmpty:
             image = .none
         }
