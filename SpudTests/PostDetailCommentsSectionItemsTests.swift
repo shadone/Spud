@@ -8,10 +8,10 @@ import XCTest
 @testable import Spud
 
 /// Covers `PostDetailViewController.commentsSectionItems(background:commentItems:)`:
-/// the loading skeleton replaces the comment rows as a single in-flow row while
-/// `.skeleton` is the active background; the empty/hidden placeholders draw as the
-/// table background and so contribute no rows (the comment items pass through
-/// unchanged).
+/// the loading skeleton and the empty "No comments yet" state each replace the
+/// comment rows with a single in-flow placeholder row while they are the active
+/// background; `.hidden` (and the defensive case of `.empty` with comments somehow
+/// present) passes the comment items through unchanged.
 final class PostDetailCommentsSectionItemsTests: XCTestCase {
     func testSkeletonWithNoCommentsIsSingleSkeletonRow() {
         let items = PostDetailViewController.commentsSectionItems(
@@ -33,12 +33,12 @@ final class PostDetailCommentsSectionItemsTests: XCTestCase {
         XCTAssertEqual(items, [.commentLoadingSkeleton])
     }
 
-    func testEmptyWithNoCommentsHasNoRows() {
+    func testEmptyWithNoCommentsIsSingleEmptyRow() {
         let items = PostDetailViewController.commentsSectionItems(
             background: .empty,
             commentItems: []
         )
-        XCTAssertEqual(items, [])
+        XCTAssertEqual(items, [.commentsEmpty])
     }
 
     func testHiddenPassesCommentItemsThrough() {

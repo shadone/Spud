@@ -109,6 +109,7 @@ class PostDetailViewController: UIViewController {
         tableView.register(PostDetailNewSinceBannerCell.self, forCellReuseIdentifier: PostDetailNewSinceBannerCell.reuseIdentifier)
         tableView.register(PostDetailCommentCell.self, forCellReuseIdentifier: PostDetailCommentCell.reuseIdentifier)
         tableView.register(PostDetailCommentLoadingCell.self, forCellReuseIdentifier: PostDetailCommentLoadingCell.reuseIdentifier)
+        tableView.register(PostDetailEmptyCommentsCell.self, forCellReuseIdentifier: PostDetailEmptyCommentsCell.reuseIdentifier)
         return tableView
     }()
 
@@ -194,8 +195,6 @@ class PostDetailViewController: UIViewController {
     /// true -> false); gates the "No comments yet" empty state.
     private var hasCompletedCommentFetch = false
     private var loadingObservationTask: Task<Void, Never>?
-
-    private lazy var emptyCommentsView = PostDetailEmptyCommentsView()
 
     /// The active comment swipe-action config, sanitized for comments. Seeded
     /// from the preference and kept live via `swipeActionsObservationTask`;
@@ -618,9 +617,9 @@ class PostDetailViewController: UIViewController {
     }
 
     /// Observes the view model's comment-loading flag and re-applies the snapshot
-    /// on each change (so the loading skeleton row is added/removed and the
-    /// empty/hidden table background follows), recording the first fetch completion
-    /// (the true -> false edge) so the empty state can show only once a fetch settles.
+    /// on each change (so the loading-skeleton / empty-state placeholder rows are
+    /// added/removed), recording the first fetch completion (the true -> false edge)
+    /// so the empty state can show only once a fetch settles.
     private func startLoadingObservation() {
         loadingObservationTask?.cancel()
         loadingObservationTask = Task { @MainActor [weak self] in
@@ -634,54 +633,29 @@ class PostDetailViewController: UIViewController {
                     hasCompletedCommentFetch = true
                 }
                 wasLoading = isLoading
-                // The skeleton is a row now: re-apply the snapshot so it is added
-                // or removed as the loading flag flips. applySnapshot() also calls
-                // updateCommentsBackground() for the empty/hidden background.
+                // The skeleton and empty-state are rows now: re-apply the snapshot
+                // so the placeholder is added or removed as the loading flag flips.
                 applySnapshot()
             }
         }
     }
 
-    /// Picks the comments-region table background (empty / none). The loading
-    /// skeleton is no longer a background view — it is an in-flow row in the
-    /// comments section (see `applySnapshot` / `commentsSectionItems`), so the
-    /// `.skeleton` case only clears any stale background. The empty "No comments
-    /// yet" placeholder stays a centered background view. Idempotent — safe to
-    /// call freely.
-    private func updateCommentsBackground() {
-        switch CommentsBackground.decide(
-            isLoadingComments: viewModel.isLoadingComments,
-            hasCompletedFetch: hasCompletedCommentFetch,
-            hasComments: !viewModel.orderedComments.isEmpty
-        ) {
-        case .skeleton:
-            // The loading skeleton is now a row in the comments section (see
-            // applySnapshot), not a table background. Ensure no stale background shows.
-            if tableView.backgroundView != nil {
-                tableView.backgroundView = nil
-            }
-        case .empty:
-            if tableView.backgroundView !== emptyCommentsView {
-                tableView.backgroundView = emptyCommentsView
-            }
-        case .hidden:
-            if tableView.backgroundView != nil {
-                tableView.backgroundView = nil
-            }
-        }
-    }
-
-    /// Items for the comments section given the current placeholder state. While
-    /// the loading skeleton should show, the section is a single skeleton row (so
-    /// it scrolls with content, below the header). Otherwise it is the comment
-    /// rows. The empty/hidden placeholders are drawn as the table background, not
-    /// as rows, so they contribute no items here.
+    /// Items for the comments section given the current placeholder state. Both
+    /// placeholders are in-flow rows in the comments section (so they scroll with
+    /// content, below the pinned header, where the comments will appear): the
+    /// loading skeleton while a fetch is in flight, and the "No comments yet"
+    /// empty-state row once a fetch settles with no comments. `.hidden` (and the
+    /// defensive case of `.empty` with comments somehow present) passes the comment
+    /// rows through unchanged.
     static func commentsSectionItems(
         background: CommentsBackground,
         commentItems: [Item]
     ) -> [Item] {
         if background == .skeleton {
             return [.commentLoadingSkeleton]
+        }
+        if background == .empty, commentItems.isEmpty {
+            return [.commentsEmpty]
         }
         return commentItems
     }
@@ -728,14 +702,14 @@ class PostDetailViewController: UIViewController {
         let commentItems = mergedCommentItems(visibleRows: visible.rows)
         let sectionItems = Self.commentsSectionItems(background: background, commentItems: commentItems)
         snapshot.appendItems(sectionItems, toSection: .comments)
-        // Only comment rows need reconfiguring; the skeleton row has no per-row state.
-        // When the skeleton is showing, `commentItems` is empty, so this is a no-op.
+        // Only comment rows need reconfiguring; the skeleton / empty rows have no
+        // per-row state. When a placeholder is showing, `commentItems` is empty, so
+        // this is a no-op.
         snapshot.reconfigureItems(commentItems)
 
         let animate = animated && !UIAccessibility.isReduceMotionEnabled
         dataSource.apply(snapshot, animatingDifferences: animate)
         updateJumpButtonVisibility()
-        updateCommentsBackground()
     }
 
     /// The synthetic diffable element id for a pending outbound comment row. A
@@ -2092,6 +2066,7 @@ extension PostDetailViewController {
         case header
         case newSinceBanner
         case commentLoadingSkeleton
+        case commentsEmpty
         case comment(elementId: Int64)
     }
 
@@ -2201,6 +2176,12 @@ extension PostDetailViewController {
                 ) as! PostDetailCommentLoadingCell
                 cell.startAnimating()
                 return cell
+
+            case .commentsEmpty:
+                return tableView.dequeueReusableCell(
+                    withIdentifier: PostDetailEmptyCommentsCell.reuseIdentifier,
+                    for: indexPath
+                ) as! PostDetailEmptyCommentsCell
 
             case let .comment(elementId):
                 let cell = tableView.dequeueReusableCell(

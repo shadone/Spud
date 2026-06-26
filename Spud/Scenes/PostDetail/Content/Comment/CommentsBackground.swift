@@ -6,11 +6,12 @@
 
 import Foundation
 
-/// Which placeholder, if any, the post-detail comments region shows. The
-/// `.skeleton` state renders as an in-flow row in the comments section (right
-/// after the header, so it scrolls with content and lands where the comments will
-/// appear); the `.empty` "No comments yet" state renders as a centered table
-/// background view. `.hidden` shows no placeholder.
+/// Which placeholder, if any, the post-detail comments region shows. Both the
+/// `.skeleton` (fetch in flight) and `.empty` ("No comments yet") states render as
+/// in-flow rows in the comments section — right after the header, so they scroll
+/// with content and land where the comments will appear, instead of being centered
+/// behind the pinned header the way a table background view would be. `.hidden`
+/// shows no placeholder.
 enum CommentsBackground: Equatable {
     /// A fetch is in flight, or the screen has just opened and no fetch has
     /// completed yet — and there are no comments on screen.

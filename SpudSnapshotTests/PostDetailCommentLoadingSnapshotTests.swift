@@ -10,11 +10,11 @@ import XCTest
 @testable import Spud
 
 /// Snapshots of the post-detail comment loading states: the comment-shaped
-/// skeleton placeholder and the "No comments yet" empty view, each in light and
-/// dark. Both render at a fixed size and pinned display scale, so the references
-/// are device-independent. The skeleton's pulse is an infinite layer animation,
-/// so `stopAnimating()` is called (and `startAnimating()` never is) to pin a
-/// static, full-opacity frame.
+/// skeleton placeholder and the "No comments yet" empty-state row, each in light
+/// and dark. Both are now self-sizing in-flow rows (so they scroll below the post
+/// header), rendered at their natural fitting height and a pinned display scale.
+/// The skeleton's pulse is an infinite layer animation, so `stopAnimating()` is
+/// called (and `startAnimating()` never is) to pin a static, full-opacity frame.
 @MainActor
 final class PostDetailCommentLoadingSnapshotTests: XCTestCase {
     private let width: CGFloat = 390
@@ -78,13 +78,25 @@ final class PostDetailCommentLoadingSnapshotTests: XCTestCase {
         testName: String = #function,
         line: UInt = #line
     ) {
-        let size = CGSize(width: width, height: 320)
-        let view = PostDetailEmptyCommentsView(frame: CGRect(origin: .zero, size: size))
-        view.backgroundColor = .systemBackground
-        view.layoutIfNeeded()
+        // The empty state is a self-sizing in-flow cell now: render its content view
+        // at its natural fitting height rather than a fixed height (which would let
+        // the top-pinned stack float to the vertical center).
+        let cell = PostDetailEmptyCommentsCell(style: .default, reuseIdentifier: nil)
+        let content = cell.contentView
+        content.translatesAutoresizingMaskIntoConstraints = false
+        content.backgroundColor = .systemBackground
+        content.widthAnchor.constraint(equalToConstant: width).isActive = true
+        let height = content.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+        let size = CGSize(width: width, height: height)
+        content.frame = CGRect(origin: .zero, size: size)
+        content.layoutIfNeeded()
 
         assertSnapshot(
-            matching: view,
+            matching: content,
             as: .image(size: size, traits: traits(style)),
             named: style == .dark ? "dark" : "light",
             testName: testName,

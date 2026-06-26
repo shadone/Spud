@@ -6,14 +6,23 @@
 
 import UIKit
 
-/// The "No comments yet" placeholder shown in a post's comments region once a
-/// comment fetch settles with no comments. A plain view used as the table
-/// background, so it sits below the post header rather than overlaying it the way
-/// `UIContentUnavailableConfiguration` would.
-final class PostDetailEmptyCommentsView: UIView {
-    override init(frame: CGRect) {
-        super.init(frame: frame)
+/// In-flow "No comments yet" empty-state row, shown in the comments section once a
+/// comment fetch settles with no comments. Rendered as a row below the post header
+/// (and scrolling with it) rather than as a centered table background, so the pinned
+/// header never obscures it. Self-sizing: the icon/title/subtitle stack is pinned to
+/// the content view top and bottom (with vertical padding), so the cell takes its
+/// natural height. The table's separator is suppressed for this row.
+final class PostDetailEmptyCommentsCell: UITableViewCell {
+    static let reuseIdentifier = "PostDetailEmptyCommentsCell"
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+
+        selectionStyle = .none
         backgroundColor = .clear
+
+        // Empty-state row draws no separator; push the line off the leading edge.
+        separatorInset = UIEdgeInsets(top: 0, left: .greatestFiniteMagnitude, bottom: 0, right: 0)
 
         let titleText = NSLocalizedString(
             "No comments yet",
@@ -51,13 +60,14 @@ final class PostDetailEmptyCommentsView: UIView {
         stack.spacing = 8
         stack.setCustomSpacing(12, after: icon)
         stack.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(stack)
+        contentView.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            stack.centerXAnchor.constraint(equalTo: centerXAnchor),
-            stack.centerYAnchor.constraint(equalTo: centerYAnchor),
-            stack.leadingAnchor.constraint(greaterThanOrEqualTo: leadingAnchor, constant: 32),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -32),
+            stack.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 48),
+            stack.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -32),
+            stack.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            stack.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 32),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -32),
         ])
 
         isAccessibilityElement = true
