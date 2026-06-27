@@ -166,19 +166,15 @@ class DiscoverViewController: UIViewController {
 
     /// Push the richer "before you commit" instance detail screen (health band,
     /// stat grid, federation, sign-up actions) for `host`, reached by tapping the
-    /// instance lens card. No-op when the directory has no record for the host —
-    /// the lens card only offers the tap when its instance info resolved.
+    /// instance lens card. Known hosts open from the directory immediately;
+    /// unknown but Lemmy-API-compatible hosts are resolved via a live probe.
     private func openInstanceDetail(host: String) {
-        guard let record = dependencies.own.appDatabase.explorerInstanceSync(baseurl: host) else {
-            logger.error("Discover: no Explorer instance record for \(host, privacy: .public)")
-            return
-        }
-        let detail = InstanceExploreViewController(
-            record: record,
+        InstanceRouter.openInstance(
+            host: host,
+            from: self,
             accountKeychainId: accountKeychainId,
             dependencies: dependencies.nested
         )
-        navigationController?.pushViewController(detail, animated: true)
     }
 
     private func openCommunity(_ row: CommunityListRow) {

@@ -447,11 +447,12 @@ final class SearchViewController: UIViewController {
     }
 
     private func openInstance(_ instance: InstanceActorId) {
-        guard let record = appDatabase.explorerInstanceSync(baseurl: instance.host) else {
-            Haptics.warning()
-            return
-        }
-        openInstance(record: record)
+        InstanceRouter.openInstance(
+            host: instance.host,
+            from: self,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
     }
 
     /// Pushes the in-app instance screen for an Explorer directory record. Shared

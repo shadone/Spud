@@ -1011,16 +1011,12 @@ extension PersonViewController: InternalLinkRouting {
     }
 
     func routeToInstance(_ instance: InstanceActorId) {
-        guard let record = appDatabase.explorerInstanceSync(baseurl: instance.host) else {
-            if let url = instance.url { UIApplication.shared.open(url) }
-            return
-        }
-        let vc = InstanceExploreViewController(
-            record: record,
+        InstanceRouter.openInstance(
+            host: instance.host,
+            from: self,
             accountKeychainId: accountKeychainId,
             dependencies: dependencies.nested
         )
-        navigationController?.pushViewController(vc, animated: true)
     }
 
     func routeToExternal(_ url: URL) {

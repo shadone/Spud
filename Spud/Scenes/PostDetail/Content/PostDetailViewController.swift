@@ -1150,19 +1150,16 @@ class PostDetailViewController: UIViewController {
         window.display(serverPostId: postId, accountKeychainId: viewModel.accountKeychainId)
     }
 
-    /// Opens the Explorer instance detail for a known instance; falls back to
-    /// the browser when the host is not in the directory.
+    /// Opens the in-app instance screen for an instance; known hosts resolve
+    /// from the Explorer directory, unknown but Lemmy-API-compatible hosts via a
+    /// live probe, and anything else falls back to the browser.
     private func openInstance(_ instance: InstanceActorId) {
-        guard let record = appDatabase.explorerInstanceSync(baseurl: instance.host) else {
-            if let url = instance.url { openExternal(url) }
-            return
-        }
-        let vc = InstanceExploreViewController(
-            record: record,
+        InstanceRouter.openInstance(
+            host: instance.host,
+            from: self,
             accountKeychainId: viewModel.accountKeychainId,
             dependencies: dependencies.nested
         )
-        navigationController?.pushViewController(vc, animated: true)
     }
 
     /// The original external-link behavior: image/video viewers or the browser.

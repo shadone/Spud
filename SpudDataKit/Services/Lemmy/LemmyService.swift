@@ -49,6 +49,16 @@ public protocol LemmyServiceType: Actor {
 
     func fetchSiteInfo() async throws
 
+    /// Probe `/api/v3/site` and return the decoded response, mirroring it into
+    /// the database exactly like ``fetchSiteInfo()`` does. Unlike that method,
+    /// the raw `GetSiteResponse` is handed back so the caller can read the
+    /// instance's identity / stats directly (used to open the in-app instance
+    /// screen for an arbitrary host that isn't in the Explorer directory). A
+    /// successful return doubles as the Lemmy-API-compatibility test for the
+    /// host (any server that answers `/api/v3/site`, including PieFed).
+    @discardableResult
+    func getSiteInfo() async throws -> Components.Schemas.GetSiteResponse
+
     /// Push the account's `show_nsfw` preference to the server via
     /// `saveUserSettings`, then mirror the new value onto the local account
     /// row so the cached `AccountRecord.showNsfw` stays in sync. Requires a
@@ -798,6 +808,11 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func fetchSiteInfo() async throws {
+        _ = try await getSiteInfo()
+    }
+
+    @discardableResult
+    public func getSiteInfo() async throws -> Components.Schemas.GetSiteResponse {
         logger.debug("Fetch site for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
 
         let response: Components.Schemas.GetSiteResponse
@@ -830,6 +845,8 @@ public actor LemmyService: LemmyServiceType {
         } catch {
             logger.error("AppDatabase fetchSiteInfo upsert failed: \(String(describing: error), privacy: .public)")
         }
+
+        return response
     }
 
     public func setShowNsfw(_ showNsfw: Bool) async throws {

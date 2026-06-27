@@ -645,16 +645,12 @@ class CommunityViewController: UIViewController {
             let url = URL(string: actorId),
             let host = url.host
         else { return }
-        guard let record = appDatabase.explorerInstanceSync(baseurl: host) else {
-            if let instanceURL = URL(string: "https://\(host)") { UIApplication.shared.open(instanceURL) }
-            return
-        }
-        let vc = InstanceExploreViewController(
-            record: record,
+        InstanceRouter.openInstance(
+            host: host,
+            from: self,
             accountKeychainId: accountKeychainId,
             dependencies: dependencies.nested
         )
-        navigationController?.pushViewController(vc, animated: true)
     }
 }
 
@@ -698,16 +694,12 @@ extension CommunityViewController: InternalLinkRouting {
     }
 
     func routeToInstance(_ instance: InstanceActorId) {
-        guard let record = appDatabase.explorerInstanceSync(baseurl: instance.host) else {
-            if let url = instance.url { UIApplication.shared.open(url) }
-            return
-        }
-        let vc = InstanceExploreViewController(
-            record: record,
+        InstanceRouter.openInstance(
+            host: instance.host,
+            from: self,
             accountKeychainId: accountKeychainId,
             dependencies: dependencies.nested
         )
-        navigationController?.pushViewController(vc, animated: true)
     }
 
     func routeToExternal(_ url: URL) {
