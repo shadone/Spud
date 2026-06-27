@@ -38,6 +38,11 @@ private struct TestData {
     var optionalStringValue: String?
 }
 
+/// Each test resets and mutates the same shared `defaultsForTesting` suite, so
+/// the tests must not run concurrently. Swift Testing parallelizes tests within a
+/// suite by default; `.serialized` restores the one-at-a-time behavior XCTest gave
+/// these by running a class's methods serially.
+@Suite(.serialized)
 struct UserDefaultsBackedTests {
     init() {
         resetDefaults()
