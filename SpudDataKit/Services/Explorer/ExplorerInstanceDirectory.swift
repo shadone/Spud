@@ -88,6 +88,25 @@ public enum ExplorerInstanceDirectory {
         Set(rows.flatMap(\.languageCodes)).sorted()
     }
 
+    /// Distinct, sorted language codes present among the rows that survive the
+    /// non-language parts of `filter` (registration-open / hide-NSFW). The
+    /// language filter itself is deliberately ignored, so the result is the set
+    /// of languages the user can still pick and get at least one matching
+    /// instance — offering a language with zero survivors would be noise.
+    public static func availableLanguages(
+        in rows: [SiteListRow],
+        matching filter: ExplorerInstanceFilter
+    ) -> [String] {
+        var survivors = rows
+        if filter.registrationOpenOnly {
+            survivors = survivors.filter(\.isOpenRegistration)
+        }
+        if filter.hideNsfw {
+            survivors = survivors.filter { !$0.isNsfw }
+        }
+        return availableLanguages(in: survivors)
+    }
+
     private static func ordered(_ a: SiteListRow, before b: SiteListRow, by sort: ExplorerInstanceSort) -> Bool {
         switch sort {
         case .recommended:

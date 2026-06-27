@@ -28,6 +28,9 @@ final class SiteListSiteViewModel {
     let row: SiteListRow
     let title: AttributedString
     let descriptionText: AttributedString
+    /// Compact, muted stats line surfacing the metrics the picker can sort by
+    /// (total users, monthly active, all-time uptime). Empty when none are known.
+    let statsText: AttributedString
 
     var iconState: ImageLoadingState?
 
@@ -46,6 +49,10 @@ final class SiteListSiteViewModel {
             .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 2, weight: .regular),
             .foregroundColor: UIColor.label,
         ]))
+        statsText = AttributedString(Self.statsString(for: row), attributes: .init([
+            .font: UIFont.systemFont(ofSize: UIFont.systemFontSize - 3, weight: .regular),
+            .foregroundColor: UIColor.secondaryLabel,
+        ]))
 
         if let iconUrl = row.iconUrl {
             let stream = imageService.fetch(iconUrl)
@@ -62,5 +69,30 @@ final class SiteListSiteViewModel {
 
     deinit {
         iconFetchTask?.cancel()
+    }
+
+    // MARK: - Stats formatting
+
+    /// Builds the compact stats line, e.g. "12.3K users · 1.9K active · 99% uptime".
+    /// Each component is omitted when its value is nil — never shown as "0" or "nil".
+    /// `uptimeAllTime` is a 0...100 percentage (see `ExplorerInstanceRecord`),
+    /// rendered as a whole-number percent.
+    private static func statsString(for row: SiteListRow) -> String {
+        var parts: [String] = []
+        if let users = row.usersTotal {
+            parts.append("\(abbreviatedCount(users)) users")
+        }
+        if let active = row.usersActiveMonth {
+            parts.append("\(abbreviatedCount(active)) active")
+        }
+        if let uptime = row.uptimeAllTime {
+            parts.append("\(Int(uptime.rounded()))% uptime")
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// Compact, locale-aware K/M abbreviation (e.g. 12300 -> "12.3K").
+    private static func abbreviatedCount(_ value: Int64) -> String {
+        value.formatted(.number.notation(.compactName))
     }
 }

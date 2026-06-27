@@ -99,6 +99,49 @@ struct ExplorerInstanceDirectoryTests {
     }
 
     @Test
+    mutating func availableLanguagesMatching_excludesLanguagesOnlyOnFilteredOutRows() {
+        // "de" lives only on a closed-registration instance; "fr" only on an NSFW
+        // instance; "en" survives both filters. Offering "de"/"fr" once the user
+        // turns on "registration open" + "hide NSFW" would yield zero matches.
+        let rows = [
+            row("open-en.test", nsfw: false, open: true, langs: ["en"]),
+            row("closed-de.test", nsfw: false, open: false, langs: ["de"]),
+            row("nsfw-fr.test", nsfw: true, open: true, langs: ["fr"]),
+        ]
+        let filter = ExplorerInstanceFilter(registrationOpenOnly: true, hideNsfw: true)
+        #expect(
+            ExplorerInstanceDirectory.availableLanguages(in: rows, matching: filter) == ["en"]
+        )
+    }
+
+    @Test
+    mutating func availableLanguagesMatching_includesAllWhenNoFiltersActive() {
+        let rows = [
+            row("a.test", open: false, langs: ["de"]),
+            row("b.test", nsfw: true, langs: ["fr"]),
+            row("c.test", langs: ["en"]),
+        ]
+        #expect(
+            ExplorerInstanceDirectory.availableLanguages(in: rows, matching: .init())
+                == ["de", "en", "fr"]
+        )
+    }
+
+    @Test
+    mutating func availableLanguagesMatching_ignoresLanguageFilterItself() {
+        // The language filter must NOT prune the offered list — picking "de"
+        // shouldn't make "en" disappear from the menu.
+        let rows = [
+            row("a.test", open: true, langs: ["en"]),
+            row("b.test", open: true, langs: ["de"]),
+        ]
+        let filter = ExplorerInstanceFilter(registrationOpenOnly: true, language: "de")
+        #expect(
+            ExplorerInstanceDirectory.availableLanguages(in: rows, matching: filter) == ["de", "en"]
+        )
+    }
+
+    @Test
     mutating func filterIsActive() {
         #expect(!(ExplorerInstanceFilter().isActive))
         #expect(ExplorerInstanceFilter(hideNsfw: true).isActive)

@@ -77,6 +77,7 @@ class SiteListSiteCell: UITableViewCell {
         let subviews = [
             titleLabel,
             subtitleLabel,
+            statsLabel,
             contentBottomSpacerView,
         ]
         for view in subviews {
@@ -84,6 +85,7 @@ class SiteListSiteCell: UITableViewCell {
         }
 
         stackView.setCustomSpacing(8, after: titleLabel)
+        stackView.setCustomSpacing(4, after: subtitleLabel)
 
         return stackView
     }()
@@ -100,6 +102,14 @@ class SiteListSiteCell: UITableViewCell {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.accessibilityIdentifier = "subtitle"
+        label.numberOfLines = 0
+        return label
+    }()
+
+    lazy var statsLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.accessibilityIdentifier = "stats"
         label.numberOfLines = 0
         return label
     }()
@@ -152,6 +162,10 @@ class SiteListSiteCell: UITableViewCell {
     func configure(with viewModel: SiteListSiteViewModel) {
         titleLabel.attributedText = NSAttributedString(viewModel.title)
         subtitleLabel.attributedText = NSAttributedString(viewModel.descriptionText)
+
+        let stats = NSAttributedString(viewModel.statsText)
+        statsLabel.attributedText = stats
+        statsLabel.isHidden = stats.length == 0
 
         iconObservationTask?.cancel()
         iconObservationTask = Task { @MainActor [weak self, viewModel] in

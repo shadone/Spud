@@ -200,8 +200,21 @@ class SiteListViewController: UIViewController {
             refreshMenus()
             applyFilter()
         }
-        let languageActions = ExplorerInstanceDirectory.availableLanguages(in: allRows).map { code in
-            UIAction(title: code.uppercased(), state: filter.language == code ? .on : .off) { [weak self] _ in
+        // Offer only languages that still match the OTHER active filters
+        // (registration-open / hide-NSFW), so every choice yields >= 1 instance.
+        // Title each by its localized display name and order by that name, not the
+        // raw code, so the menu reads "English / German / ..." not "EN / DE / ...".
+        let languageCodes = ExplorerInstanceDirectory
+            .availableLanguages(in: allRows, matching: filter)
+            .sorted { lhs, rhs in
+                Self.languageDisplayName(lhs)
+                    .localizedStandardCompare(Self.languageDisplayName(rhs)) == .orderedAscending
+            }
+        let languageActions = languageCodes.map { code in
+            UIAction(
+                title: Self.languageDisplayName(code),
+                state: filter.language == code ? .on : .off
+            ) { [weak self] _ in
                 guard let self else { return }
                 filter.language = code
                 refreshMenus()
@@ -211,6 +224,13 @@ class SiteListViewController: UIViewController {
         let languageMenu = UIMenu(title: "Language", children: [anyLanguage] + languageActions)
 
         return UIMenu(title: "Filter", children: [toggles, languageMenu])
+    }
+
+    /// Human-readable name for a language code ("en" -> "English"), falling back
+    /// to the uppercased code when the system has no localized name for it.
+    private static func languageDisplayName(_ code: String) -> String {
+        Locale.current.localizedString(forLanguageCode: code)?.localizedCapitalized
+            ?? code.uppercased()
     }
 
     private func refreshMenus() {

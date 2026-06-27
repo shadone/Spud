@@ -56,6 +56,22 @@ final class InstancesAccountsCellsSnapshotTests: XCTestCase {
         )
     }
 
+    /// Stats line with only some metrics known: total users is nil, so the line
+    /// renders just "… active · …% uptime" (nil components are omitted, never "0").
+    func test_site_partialStats() async {
+        await assertSiteCell(
+            row: siteRow(
+                hostname: "partial.example",
+                descriptionText: "Known active users and uptime, but no total-user count.",
+                iconUrl: nil,
+                usersTotal: nil,
+                uptimeAllTime: 100,
+                usersActiveMonth: 1900
+            ),
+            imageService: StaticImageService()
+        )
+    }
+
     // MARK: - SiteListIconImageView
 
     func test_icon_image() {
@@ -245,6 +261,7 @@ final class InstancesAccountsCellsSnapshotTests: XCTestCase {
         hostname: String,
         descriptionText: String?,
         iconUrl: URL?,
+        usersTotal: Int64? = 1_200_000,
         uptimeAllTime: Double? = nil,
         usersActiveMonth: Int64? = nil
     ) -> SiteListRow {
@@ -256,7 +273,7 @@ final class InstancesAccountsCellsSnapshotTests: XCTestCase {
             descriptionText: descriptionText,
             iconUrl: iconUrl,
             score: 0.9,
-            usersTotal: 1_200_000,
+            usersTotal: usersTotal,
             usersActiveMonth: usersActiveMonth,
             uptimeAllTime: uptimeAllTime,
             isNsfw: false,
