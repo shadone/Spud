@@ -7,28 +7,23 @@
 import Foundation
 import LemmyKit
 
-/// The transient posts + comments for a person, decoded from one page of a
-/// `GetPersonDetailsResponse`. Reuses the `SearchPostResult` /
-/// `SearchCommentResult` value types (and thus the search result cells) since
-/// the rendering is identical: feed-style post rows and comment-with-context
-/// rows. Like search results these are a snapshot of the requested page rather
-/// than rows in a persistent feed; a tap navigates by the server-side ids.
+/// The transient comments for a person, decoded from one page of a
+/// `GetPersonDetailsResponse`. Reuses the `SearchCommentResult` value type (and
+/// thus the comment-with-context cell) since the rendering is identical. Like
+/// search results these are a snapshot of the requested page rather than rows
+/// in a persistent feed; a tap navigates by the server-side ids.
+///
+/// The person's *posts* are NOT held here: they are persisted as real
+/// `PostRecord`s by `fetchPersonContent` and read back as `PostListRow`s (so
+/// the Posts tab renders with the canonical `PostListPostCell`); the view model
+/// observes them via `postRows`.
 struct PersonContent {
-    var posts: [SearchPostResult] = []
     var comments: [SearchCommentResult] = []
 
     init() { }
 
     init(response: Components.Schemas.GetPersonDetailsResponse) {
-        posts = response.posts.map(SearchPostResult.init)
         comments = response.comments.map(SearchCommentResult.init)
-    }
-
-    func isEmpty(for tab: PersonContentTab) -> Bool {
-        switch tab {
-        case .posts: posts.isEmpty
-        case .comments: comments.isEmpty
-        }
     }
 }
 

@@ -54,10 +54,21 @@ final class PersonViewModel {
     /// Canonical "@name@instance" handle.
     var handle: String = ""
 
-    // MARK: Content state (transient)
+    // MARK: Content state
 
     var tab: PersonContentTab = .posts
     var phase: PersonContentPhase = .loading
+
+    /// The person's posts, persisted as real `PostRecord`s and read back as
+    /// `PostListRow`s so the Posts tab renders with the canonical
+    /// `PostListPostCell` (vote state, saved badge, density, NSFW blur, status
+    /// badges) and updates live as votes / saves flow through the GRDB
+    /// observation — exactly like the main feed. Empty until the post
+    /// observation produces its first snapshot.
+    private(set) var postRows: [PostListRow] = []
+
+    /// The person's comments — still transient (`SearchCommentResult`), rendered
+    /// by the comment-with-context cell, mirroring how Search returns results.
     private(set) var content = PersonContent()
 
     // MARK: Block state (transient, sourced from getSite -> my_user)
@@ -85,9 +96,18 @@ final class PersonViewModel {
     private(set) var sortType: Components.Schemas.SortType
 
     @ObservationIgnored
+    private let appDatabase: AppDatabase
+    @ObservationIgnored
+    private let personRowId: Int64?
+
+    @ObservationIgnored
     private var observationTask: Task<Void, Never>?
     @ObservationIgnored
     private var contentTask: Task<Void, Never>?
+    /// The live GRDB observation feeding `postRows`. Restarted whenever the sort
+    /// changes (a different `ORDER BY`) or a reload completes.
+    @ObservationIgnored
+    private var postObservationTask: Task<Void, Never>?
 
     init(
         personRowId: Int64?,
@@ -99,6 +119,8 @@ final class PersonViewModel {
         self.serverPersonId = serverPersonId
         self.accountScope = accountScope
         self.accountService = accountService
+        self.appDatabase = appDatabase
+        self.personRowId = personRowId
         sortType = accountService.defaultSortType(forAccountKeychainId: accountScope.accountKeychainId)
 
         if let personRowId {
@@ -110,11 +132,41 @@ final class PersonViewModel {
                 }
             }
         }
+
+        startPostObservation()
     }
 
     deinit {
         observationTask?.cancel()
         contentTask?.cancel()
+        postObservationTask?.cancel()
+    }
+
+    /// Starts (or restarts) the live observation of the person's persisted posts
+    /// as `PostListRow`s, ordered by the current sort. Resolved against the
+    /// person's row id and the backing account's row id. A no-op when either id
+    /// is unresolved (e.g. a profile reached before its row exists) — `postRows`
+    /// stays empty until the next fetch persists posts and a restart picks them
+    /// up.
+    private func startPostObservation() {
+        postObservationTask?.cancel()
+        guard
+            let personRowId,
+            let accountId = appDatabase.accountRowIdSync(forKeychainId: accountScope.accountKeychainId)
+        else { return }
+
+        let appDatabase = appDatabase
+        let sortType = sortType
+        postObservationTask = Task { [weak self] in
+            for await rows in appDatabase.observePersonPostListRows(
+                personRowId: personRowId,
+                accountId: accountId,
+                sort: sortType
+            ) {
+                if Task.isCancelled { break }
+                await MainActor.run { self?.postRows = rows }
+            }
+        }
     }
 
     private func apply(row: PersonProfileRow) {
@@ -165,7 +217,9 @@ final class PersonViewModel {
     // MARK: Content loading
 
     /// Loads (or reloads) the active tab's content. The header observation runs
-    /// independently; this only drives the posts/comments lists.
+    /// independently. The fetch persists the person's posts as real
+    /// `PostRecord`s (picked up by the live `postRows` observation) and returns
+    /// the comments transiently.
     func loadContent() {
         contentTask?.cancel()
         phase = .loading
@@ -182,6 +236,10 @@ final class PersonViewModel {
                 )
                 if Task.isCancelled { return }
                 content = PersonContent(response: response)
+                // The posts are now persisted; (re)start the live observation so
+                // a profile reached before its person row existed, or before any
+                // post was cached, still picks them up.
+                startPostObservation()
                 phase = .loaded
             } catch {
                 if Task.isCancelled { return }
@@ -197,12 +255,24 @@ final class PersonViewModel {
         tab = newTab
     }
 
+    /// Whether the active tab currently has nothing to show. Posts read from the
+    /// live `postRows` observation; comments from the transient content.
+    func isEmpty(for tab: PersonContentTab) -> Bool {
+        switch tab {
+        case .posts: postRows.isEmpty
+        case .comments: content.comments.isEmpty
+        }
+    }
+
     /// Changes the sort order for the profile's posts and comments and reloads.
     /// A single fetch returns both tabs, so one sort applies to the whole
-    /// profile. Per-screen only; does not change the account default.
+    /// profile. Per-screen only; does not change the account default. Restarts
+    /// the post observation immediately so the already-cached posts reorder
+    /// without waiting on the network, then re-fetches for the new sort.
     func changeSortType(_ newSort: Components.Schemas.SortType) {
         guard newSort != sortType else { return }
         sortType = newSort
+        startPostObservation()
         loadContent()
     }
 

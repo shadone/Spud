@@ -973,11 +973,32 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        // Mirror the profile so the header can be observed like any other
-        // person; the posts/comments stay transient (returned to the caller).
+        // Persist the posts as real PostRecords first (so the profile's Posts
+        // tab renders them with the canonical PostListPostCell and gets live
+        // vote/save updates). The post import also upserts each post's bare
+        // creator person, so mirror the richer `person_view` profile AFTER that
+        // — the full profile (display name, bio, banner, counts) must win over
+        // the lean creator embedded on a post. The comments stay transient
+        // (returned to the caller).
+        await mirrorPersonPostsToAppDatabase(posts: response.posts)
         await mirrorPersonInfoToAppDatabase(personView: response.person_view)
 
         return response
+    }
+
+    /// Persists the person's posts so the profile's Posts tab can observe them
+    /// as `PostListRow`s (feed parity). Best-effort: a failure leaves the posts
+    /// unpersisted (the caller's transient comments are unaffected).
+    private func mirrorPersonPostsToAppDatabase(
+        posts: [Components.Schemas.PostView]
+    ) async {
+        guard !posts.isEmpty else { return }
+        do {
+            guard let (accountId, siteId) = try await accountSiteIds() else { return }
+            try await appDatabase.upsertPosts(from: posts, accountId: accountId, siteId: siteId)
+        } catch {
+            logger.error("Failed to mirror person posts to AppDatabase: \(String(describing: error), privacy: .public)")
+        }
     }
 
     private func mirrorPersonInfoToAppDatabase(

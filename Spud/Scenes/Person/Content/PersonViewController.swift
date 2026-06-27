@@ -23,7 +23,11 @@ class PersonViewController: UIViewController {
         HasAccountService &
         HasAlertService &
         HasAppDatabase &
-        HasImageService
+        HasAppService &
+        HasAppearanceService &
+        HasImageService &
+        HasPostContentDetectorService &
+        HasPreferencesService
     /// Spelled out as a concrete protocol composition rather than the child
     /// VCs' `Dependencies` typealiases to avoid a recursive typealias cycle
     /// (Person -> Community -> PostList -> PostDetail -> Person). This is the
@@ -59,6 +63,22 @@ class PersonViewController: UIViewController {
         dependencies.own.appDatabase
     }
 
+    var appService: AppServiceType {
+        dependencies.own.appService
+    }
+
+    var appearanceService: AppearanceServiceType {
+        dependencies.own.appearanceService
+    }
+
+    var preferencesService: PreferencesServiceType {
+        dependencies.own.preferencesService
+    }
+
+    var postContentDetector: PostContentDetectorServiceType {
+        dependencies.own.postContentDetectorService
+    }
+
     // MARK: Private
 
     private let accountKeychainId: String
@@ -85,9 +105,26 @@ class PersonViewController: UIViewController {
     }
 
     private enum Item: Hashable {
-        case post(SearchPostResult)
+        /// Server-assigned post id (`PostListRow.serverPostId`), matching the
+        /// feed's item identity so a GRDB re-emission reconfigures the cell in
+        /// place (live vote / save / read state) rather than rebuilding the row.
+        case post(serverPostId: Int64)
         case comment(SearchCommentResult)
     }
+
+    /// The latest `PostListRow` per server post id, so the data source's cell
+    /// provider can resolve a row from an `Item.post` identity. Mirrors the
+    /// feed's `PostListViewController.rowsByServerPostId`.
+    private var rowsByServerPostId: [Int64: PostListRow] = [:]
+
+    /// Posts whose NSFW thumbnail the user revealed this session (by server post
+    /// id). Not persisted; resets on relaunch. Mirrors the feed.
+    private var revealedNsfwPostIds: Set<Int64> = []
+
+    /// The post swipe-action config, sanitized for posts. Seeded from the
+    /// preference (kept in lockstep on cell configure); drives the same vote /
+    /// save / reply / share swipe actions as the feed.
+    private var swipeActionConfig: SwipeActionConfig = .defaultPosts
 
     private lazy var segmentedControl: UISegmentedControl = {
         let control = UISegmentedControl(items: PersonContentTab.allCases.map(\.title))
@@ -103,7 +140,7 @@ class PersonViewController: UIViewController {
         tableView.rowHeight = UITableView.automaticDimension
         tableView.estimatedRowHeight = 80
         tableView.delegate = self
-        tableView.register(SearchPostCell.self, forCellReuseIdentifier: SearchPostCell.reuseIdentifier)
+        tableView.register(PostListPostCell.self, forCellReuseIdentifier: PostListPostCell.reuseIdentifier)
         tableView.register(SearchCommentCell.self, forCellReuseIdentifier: SearchCommentCell.reuseIdentifier)
         return tableView
     }()
@@ -165,6 +202,10 @@ class PersonViewController: UIViewController {
         )
 
         super.init(nibName: nil, bundle: nil)
+
+        swipeActionConfig = dependencies.preferencesService
+            .postSwipeActions
+            .sanitized(for: .post)
 
         setup()
     }
@@ -540,7 +581,7 @@ class PersonViewController: UIViewController {
         }
         contentObservationTask = Task { @MainActor [weak self] in
             for await _ in ObservationStream.values(of: {
-                (viewModel.phase, viewModel.tab, viewModel.content.posts, viewModel.content.comments)
+                (viewModel.phase, viewModel.tab, viewModel.postRows, viewModel.content.comments)
             }) {
                 if Task.isCancelled { break }
                 self?.render()
@@ -616,7 +657,7 @@ class PersonViewController: UIViewController {
             refreshControl.endRefreshing()
             applyContentSnapshot()
             updateContentUnavailable(
-                viewModel.content.isEmpty(for: viewModel.tab) ? .empty : .none
+                viewModel.isEmpty(for: viewModel.tab) ? .empty : .none
             )
         case .error:
             loadingIndicator.stopAnimating()
@@ -630,8 +671,16 @@ class PersonViewController: UIViewController {
         let items: [Item]
         switch viewModel.tab {
         case .posts:
-            items = viewModel.content.posts.map(Item.post)
+            // Keep the row map in lockstep with the snapshot so the cell
+            // provider always resolves a `PostListRow` from an `Item.post`
+            // identity (mirrors the feed's `apply(rows:)`).
+            let rows = viewModel.postRows
+            rowsByServerPostId = Dictionary(
+                uniqueKeysWithValues: rows.map { ($0.serverPostId, $0) }
+            )
+            items = rows.map { Item.post(serverPostId: $0.serverPostId) }
         case .comments:
+            rowsByServerPostId.removeAll()
             items = viewModel.content.comments.map(Item.comment)
         }
         applySnapshot(items)
@@ -641,6 +690,11 @@ class PersonViewController: UIViewController {
         var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
         snapshot.appendSections([.content])
         snapshot.appendItems(items, toSection: .content)
+        // A GRDB re-emission that only changes a post's data (vote, save, read)
+        // keeps the same `serverPostId` identity, so reconfigure those cells in
+        // place — otherwise a survived item's cell stays stale. Matches the
+        // feed's `apply(rows:)`.
+        snapshot.reconfigureItems(items)
         dataSource.apply(snapshot, animatingDifferences: false)
     }
 
@@ -701,13 +755,8 @@ class PersonViewController: UIViewController {
         UITableViewDiffableDataSource<Section, Item>(tableView: tableView) { [weak self] tableView, indexPath, item in
             guard let self else { return UITableViewCell() }
             switch item {
-            case let .post(result):
-                let cell = tableView.dequeueReusableCell(
-                    withIdentifier: SearchPostCell.reuseIdentifier,
-                    for: indexPath
-                ) as! SearchPostCell
-                cell.configure(with: result, imageService: imageService)
-                return cell
+            case let .post(serverPostId):
+                return makePostCell(tableView, indexPath: indexPath, serverPostId: serverPostId)
 
             case let .comment(result):
                 let cell = tableView.dequeueReusableCell(
@@ -717,6 +766,193 @@ class PersonViewController: UIViewController {
                 cell.configure(with: result)
                 return cell
             }
+        }
+    }
+
+    /// Configures a `PostListPostCell` for the person's post identified by
+    /// `serverPostId`, mirroring the feed's cell provider: the same view model,
+    /// the same callbacks (vote / media / link / reveal), so the row looks and
+    /// behaves like a feed row.
+    private func makePostCell(
+        _ tableView: UITableView,
+        indexPath: IndexPath,
+        serverPostId: Int64
+    ) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(
+            withIdentifier: PostListPostCell.reuseIdentifier,
+            for: indexPath
+        ) as! PostListPostCell
+
+        guard let row = rowsByServerPostId[serverPostId] else {
+            logger.assertionFailure("Missing PostListRow for serverPostId \(serverPostId)")
+            return cell
+        }
+
+        let cellViewModel = PostListPostViewModel(
+            row: row,
+            appearance: appearanceService,
+            postContentDetector: postContentDetector,
+            blurNsfw: preferencesService.blurNsfw,
+            isRevealed: revealedNsfwPostIds.contains(serverPostId)
+        )
+        cell.configure(with: cellViewModel, imageService: imageService)
+
+        cell.revealNsfwTapped = { [weak self] in
+            guard let self else { return }
+            revealedNsfwPostIds.insert(serverPostId)
+            var snapshot = dataSource.snapshot()
+            snapshot.reconfigureItems([.post(serverPostId: serverPostId)])
+            dataSource.apply(snapshot, animatingDifferences: false)
+        }
+
+        cell.imageTapped = { [weak self] imageUrl, thumbnailUrl, thumbnailImage in
+            guard let self else { return }
+            presentMediaViewer(
+                imageUrl: imageUrl,
+                thumbnailUrl: thumbnailUrl,
+                preloadedImage: thumbnailImage,
+                altText: row.altText,
+                isNsfw: row.isNsfw,
+                dependencies: dependencies.own
+            )
+        }
+
+        cell.videoTapped = { [weak self] videoUrl in
+            self?.presentVideoPlayer(url: videoUrl)
+        }
+
+        cell.linkTapped = { [weak self] linkUrl in
+            self?.openExternalLink(linkUrl)
+        }
+
+        cell.swipeActionConfiguration = swipeActionConfig.viewConfiguration(
+            state: SwipeActionState(
+                isSaved: row.isSaved,
+                isUpvoted: row.voteStatus == 1,
+                isDownvoted: row.voteStatus == 0
+            ),
+            appearance: appearanceService.general
+        )
+        cell.swipeActionTriggered = { [weak self] trigger in
+            guard let self else { return }
+            let action = swipeActionConfig.action(for: SwipeActionSlot(trigger: trigger))
+            performSwipeAction(action, serverPostId: serverPostId)
+        }
+
+        cell.voteTapped = { [weak self] action in
+            guard let self else { return }
+            Task { await self.vote(serverPostId: serverPostId, action: action) }
+        }
+
+        return cell
+    }
+
+    // MARK: Post actions (feed parity)
+
+    /// Dispatches a configured swipe action for a post. The save / vote paths go
+    /// through the SAME per-account optimistic `LemmyService` calls the feed
+    /// uses (the durable outbox), never a direct network write.
+    private func performSwipeAction(_ action: SwipeAction, serverPostId: Int64) {
+        switch action {
+        case .none, .collapse:
+            break
+        case .upvote:
+            Task { await vote(serverPostId: serverPostId, action: .upvote) }
+        case .downvote:
+            Task { await vote(serverPostId: serverPostId, action: .downvote) }
+        case .save:
+            toggleSaved(serverPostId: serverPostId)
+        case .reply:
+            replyToPost(serverPostId: serverPostId)
+        case .share:
+            sharePost(serverPostId: serverPostId)
+        }
+    }
+
+    /// Votes on the post through the per-account optimistic outbox path (the
+    /// same `lemmyService.vote` the feed calls): the local write applies
+    /// synchronously and flows back through the `postRows` observation; network
+    /// failures are retried by the outbox.
+    private func vote(serverPostId: Int64, action: VoteStatus.Action) async {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to vote", comment: "Sign-in gate title when a signed-out user tries to vote")
+            )
+            return
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        do {
+            try await viewModel.accountScope.lemmyService
+                .vote(serverPostId: Components.Schemas.PostID(serverPostId), vote: action)
+        } catch {
+            alertService.handle(error, for: .vote)
+        }
+    }
+
+    /// Toggles saved against the currently observed value, gating on sign-in.
+    /// Routes through `lemmyService.setSaved` — the optimistic outbox path.
+    private func toggleSaved(serverPostId: Int64) {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to save", comment: "Sign-in gate title when a signed-out user tries to save a post")
+            )
+            return
+        }
+        let currentlySaved = rowsByServerPostId[serverPostId]?.isSaved ?? false
+        Task { await setSaved(serverPostId: serverPostId, saved: !currentlySaved) }
+    }
+
+    private func setSaved(serverPostId: Int64, saved: Bool) async {
+        Haptics.tap()
+        do {
+            try await viewModel.accountScope.lemmyService
+                .setSaved(serverPostId: Components.Schemas.PostID(serverPostId), saved: saved)
+        } catch {
+            alertService.handle(error, for: .save)
+        }
+    }
+
+    /// Opens the composer to reply to the post (a top-level comment), gating on
+    /// sign-in.
+    private func replyToPost(serverPostId: Int64) {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to comment", comment: "Sign-in gate title when a signed-out user tries to comment")
+            )
+            return
+        }
+        Haptics.tap()
+        let composer = ComposerViewController.makeSheet(
+            target: .postReply(serverPostId: Components.Schemas.PostID(serverPostId)),
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        present(composer, animated: true)
+    }
+
+    /// Shares the post's canonical URL, preferring its `ap_id` permalink.
+    private func sharePost(serverPostId: Int64) {
+        let instanceActorId = appDatabase.accountInstanceActorIdSync(
+            forKeychainId: accountKeychainId
+        )
+        guard let url = LinkURL.forPost(
+            instance: preferencesService.shareLinkInstance,
+            originalPostUrl: rowsByServerPostId[serverPostId]?.originalPostUrl,
+            serverPostId: serverPostId,
+            instanceActorId: instanceActorId
+        ) else {
+            Haptics.warning()
+            return
+        }
+        presentShareSheet(for: url, sourceView: view)
+    }
+
+    /// Opens an external-link post's url, honoring the user's "Open External
+    /// Links in" preference.
+    private func openExternalLink(_ url: URL) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await appService.open(url: url, on: self)
         }
     }
 
@@ -801,8 +1037,11 @@ extension PersonViewController: UITableViewDelegate {
         guard let window = view.window as? MainWindow else { return }
 
         switch item {
-        case let .post(result):
-            window.display(serverPostId: result.serverPostId, accountKeychainId: accountKeychainId)
+        case let .post(serverPostId):
+            window.display(
+                serverPostId: Components.Schemas.PostID(serverPostId),
+                accountKeychainId: accountKeychainId
+            )
         case let .comment(result):
             window.display(serverPostId: result.serverPostId, accountKeychainId: accountKeychainId)
         }

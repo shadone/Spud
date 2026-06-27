@@ -75,7 +75,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Subscriptions sidebar](subscriptions-sidebar.md) | `ipad` | shipped |
 | [Subscribe / unsubscribe](subscribe-unsubscribe.md) | `iphone`, `ipad` | shipped |
 | [Community screen](community-screen.md) | `iphone`, `ipad` | shipped — overflow: subscribe, favorite, mute, block, share |
-| [Person / user profile](person-profile.md) | `iphone`, `ipad` | shipped |
+| [Person / user profile](person-profile.md) | `iphone`, `ipad` | shipped — Posts tab renders with the feed cell (vote / save, live state) |
 | [Accounts and switching](accounts-and-switching.md) | `iphone`, `ipad` | shipped |
 | [Signed-out browsing](signed-out-browsing.md) | `iphone`, `ipad` | shipped |
 | [Login](login.md) | `iphone`, `ipad` | partial — no 2FA (TOTP) |
@@ -147,7 +147,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Subscribe / unsubscribe
 - [x] Community screen (header + feed; overflow: subscribe, favorite, mute, block, copy link / share / open in browser)
 - [x] Per-account community favorites (local, pinned in the Communities list)
-- [x] Person / user profile
+- [x] Person / user profile (Posts tab uses the feed cell — vote / save through the optimistic outbox, live state; Comments tab is the comment-with-context cell)
 
 **Account & auth**
 - [x] Multi-account, multi-instance + account switcher

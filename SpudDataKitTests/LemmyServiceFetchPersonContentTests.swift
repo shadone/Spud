@@ -168,6 +168,17 @@ struct LemmyServiceFetchPersonContentTests {
         #expect(mirrored?.0 == "alice")
         #expect(mirrored?.1 == 42)
         #expect(mirrored?.2 == 7)
+
+        // The posts are persisted as real PostRecords (so the profile's Posts
+        // tab can render them with the canonical PostListPostCell). The profile
+        // mirror runs AFTER the post import, so the richer person_view name
+        // ("alice") still wins over the post's bare creator.
+        let persistedPost = try await appDatabase.writer.read { db -> String? in
+            try Row.fetchOne(db, sql: """
+                    SELECT title FROM post WHERE postId = ?
+                """, arguments: [Int64(post.id)])?["title"]
+        }
+        #expect(persistedPost == "Hello world", "the person's post should be persisted")
     }
 
     @Test
