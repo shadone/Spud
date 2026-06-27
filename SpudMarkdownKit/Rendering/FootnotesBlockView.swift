@@ -40,7 +40,11 @@ final class FootnotesBlockView: UIView {
             ])
             m.append(InlineAttributedStringBuilder.build(note.content, context: context))
             m.append(NSAttributedString(string: " ", attributes: [.font: context.smallFont]))
-            m.append(NSAttributedString(string: "\u{21A9}", attributes: [
+            // U+FE0E (text variation selector) forces text presentation of the
+            // return arrow; without it the system falls back to the color emoji
+            // ↩️ (which ignores `accentColor`) or, on runtimes lacking the glyph,
+            // a missing-glyph box.
+            m.append(NSAttributedString(string: "\u{21A9}\u{FE0E}", attributes: [
                 .font: context.smallFont,
                 .foregroundColor: context.accentColor,
                 .link: MarkdownFootnoteLink.url(.toReference(label: note.label)),
