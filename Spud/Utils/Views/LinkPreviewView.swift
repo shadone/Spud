@@ -63,7 +63,7 @@ class LinkPreviewView: UIButton {
         let label = UILabel()
         label.translatesAutoresizingMaskIntoConstraints = false
         label.numberOfLines = 2
-        label.font = .preferredFont(forTextStyle: .subheadline)
+        label.font = .preferredFont(forTextStyle: .footnote)
         label.adjustsFontForContentSizeCategory = true
         label.textColor = .label
         label.isHidden = true
@@ -84,7 +84,7 @@ class LinkPreviewView: UIButton {
         let stack = UIStackView(arrangedSubviews: [primaryLabel, linkLabel])
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.axis = .vertical
-        stack.spacing = 2
+        stack.spacing = 5
         return stack
     }()
 
@@ -122,7 +122,7 @@ class LinkPreviewView: UIButton {
         NSLayoutConstraint.activate([
             thumbnailImageView.topAnchor.constraint(equalTo: stackView.topAnchor),
             thumbnailImageView.bottomAnchor.constraint(equalTo: stackView.bottomAnchor),
-            thumbnailImageView.widthAnchor.constraint(equalToConstant: 64),
+            thumbnailImageView.widthAnchor.constraint(equalToConstant: 72),
             thumbnailImageView.heightAnchor.constraint(equalTo: thumbnailImageView.widthAnchor),
 
             chevronImageView.widthAnchor.constraint(equalToConstant: 12),
@@ -206,7 +206,7 @@ class LinkPreviewView: UIButton {
                 paragraph.lineBreakMode = .byTruncatingTail
                 return paragraph
             }(),
-            .foregroundColor: UIColor.label,
+            .foregroundColor: UIColor.secondaryLabel,
         ]
         let pathAttributes: [NSAttributedString.Key: Any] = [
             .paragraphStyle: {
@@ -214,7 +214,7 @@ class LinkPreviewView: UIButton {
                 paragraph.lineBreakMode = .byTruncatingTail
                 return paragraph
             }(),
-            .foregroundColor: UIColor.secondaryLabel,
+            .foregroundColor: UIColor.tertiaryLabel,
         ]
 
         guard let hostString = url.canonicalHost else {
