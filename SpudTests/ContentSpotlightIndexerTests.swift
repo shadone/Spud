@@ -4,13 +4,15 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import SpudUtilKit
-import XCTest
+import Testing
 @testable import Spud
 @testable import SpudDataKit
 
-final class ContentSpotlightIndexerTests: XCTestCase {
-    func test_makeItem_buildsRoutingIdentifierAndTitle() throws {
+struct ContentSpotlightIndexerTests {
+    @Test
+    func makeItem_buildsRoutingIdentifierAndTitle() throws {
         let row = IndexableContentRow(
             serverPostId: 5,
             title: "Hello world",
@@ -18,17 +20,18 @@ final class ContentSpotlightIndexerTests: XCTestCase {
             thumbnailUrl: "https://lemmy.world/pic.jpg",
             communityName: "programming"
         )
-        let item = try XCTUnwrap(ContentSpotlightIndexer.makeItem(from: row))
+        let item = try #require(ContentSpotlightIndexer.makeItem(from: row))
 
-        let expected = try URL.SpudInternalLink.objectAtURL(url: XCTUnwrap(URL(string: "https://lemmy.world/post/5"))).url.absoluteString
-        XCTAssertEqual(item.uniqueIdentifier, expected)
-        XCTAssertEqual(item.domainIdentifier, "content")
-        XCTAssertEqual(item.attributeSet.title, "Hello world")
-        XCTAssertEqual(item.attributeSet.thumbnailURL, URL(string: "https://lemmy.world/pic.jpg"))
-        XCTAssertEqual(item.attributeSet.contentDescription, "!programming")
+        let expected = try URL.SpudInternalLink.objectAtURL(url: #require(URL(string: "https://lemmy.world/post/5"))).url.absoluteString
+        #expect(item.uniqueIdentifier == expected)
+        #expect(item.domainIdentifier == "content")
+        #expect(item.attributeSet.title == "Hello world")
+        #expect(item.attributeSet.thumbnailURL == URL(string: "https://lemmy.world/pic.jpg"))
+        #expect(item.attributeSet.contentDescription == "!programming")
     }
 
-    func test_makeItem_returnsNilWhenNoCanonicalURL() {
+    @Test
+    func makeItem_returnsNilWhenNoCanonicalURL() {
         let row = IndexableContentRow(
             serverPostId: 5,
             title: "No URL",
@@ -36,6 +39,6 @@ final class ContentSpotlightIndexerTests: XCTestCase {
             thumbnailUrl: nil,
             communityName: nil
         )
-        XCTAssertNil(ContentSpotlightIndexer.makeItem(from: row))
+        #expect(ContentSpotlightIndexer.makeItem(from: row) == nil)
     }
 }

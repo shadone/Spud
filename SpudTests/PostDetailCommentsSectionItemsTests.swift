@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import Spud
 
 /// Covers `PostDetailViewController.commentsSectionItems(background:commentItems:)`:
@@ -12,36 +12,40 @@ import XCTest
 /// comment rows with a single in-flow placeholder row while they are the active
 /// background; `.hidden` (and the defensive case of `.empty` with comments somehow
 /// present) passes the comment items through unchanged.
-final class PostDetailCommentsSectionItemsTests: XCTestCase {
-    func testSkeletonWithNoCommentsIsSingleSkeletonRow() {
+struct PostDetailCommentsSectionItemsTests {
+    @Test
+    func skeletonWithNoCommentsIsSingleSkeletonRow() {
         let items = PostDetailViewController.commentsSectionItems(
             background: .skeleton,
             commentItems: []
         )
-        XCTAssertEqual(items, [.commentLoadingSkeleton])
+        #expect(items == [.commentLoadingSkeleton])
     }
 
     // Defensive: documents the helper's contract in isolation. The production
     // caller cannot produce this state — `CommentsBackground.decide` returns
     // `.skeleton` only when there are no comments, so `commentItems` is always
     // empty in the skeleton case.
-    func testSkeletonWinsOverPresentCommentItems() {
+    @Test
+    func skeletonWinsOverPresentCommentItems() {
         let items = PostDetailViewController.commentsSectionItems(
             background: .skeleton,
             commentItems: [.comment(elementId: 1), .comment(elementId: 2)]
         )
-        XCTAssertEqual(items, [.commentLoadingSkeleton])
+        #expect(items == [.commentLoadingSkeleton])
     }
 
-    func testEmptyWithNoCommentsIsSingleEmptyRow() {
+    @Test
+    func emptyWithNoCommentsIsSingleEmptyRow() {
         let items = PostDetailViewController.commentsSectionItems(
             background: .empty,
             commentItems: []
         )
-        XCTAssertEqual(items, [.commentsEmpty])
+        #expect(items == [.commentsEmpty])
     }
 
-    func testHiddenPassesCommentItemsThrough() {
+    @Test
+    func hiddenPassesCommentItemsThrough() {
         let commentItems: [PostDetailViewController.Item] = [
             .comment(elementId: 1),
             .comment(elementId: 2),
@@ -50,10 +54,11 @@ final class PostDetailCommentsSectionItemsTests: XCTestCase {
             background: .hidden,
             commentItems: commentItems
         )
-        XCTAssertEqual(items, commentItems)
+        #expect(items == commentItems)
     }
 
-    func testEmptyPassesCommentItemsThrough() {
+    @Test
+    func emptyPassesCommentItemsThrough() {
         let commentItems: [PostDetailViewController.Item] = [
             .comment(elementId: 1),
             .comment(elementId: 2),
@@ -62,6 +67,6 @@ final class PostDetailCommentsSectionItemsTests: XCTestCase {
             background: .empty,
             commentItems: commentItems
         )
-        XCTAssertEqual(items, commentItems)
+        #expect(items == commentItems)
     }
 }

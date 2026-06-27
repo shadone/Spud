@@ -4,12 +4,13 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import SpudDataKit
-import XCTest
+import Testing
 @testable import Spud
 
 @MainActor
-final class PostDetailCommentViewModelAccessibilityTests: XCTestCase {
+struct PostDetailCommentViewModelAccessibilityTests {
     // MARK: - Helpers
 
     private func makeRow() -> PostDetailCommentRow {
@@ -54,23 +55,26 @@ final class PostDetailCommentViewModelAccessibilityTests: XCTestCase {
 
     // MARK: - Tests
 
-    func testIsNewAddsVoiceOverPhrase() {
+    @Test
+    func isNewAddsVoiceOverPhrase() {
         let vm = makeViewModel(isNew: true)
-        XCTAssertTrue(
+        #expect(
             (vm.subtitleAccessibilityLabel ?? "").contains("New comment"),
             "subtitleAccessibilityLabel should contain 'New comment' when isNew is true"
         )
     }
 
-    func testIsNotNewDoesNotAddVoiceOverPhrase() {
+    @Test
+    func isNotNewDoesNotAddVoiceOverPhrase() {
         let vm = makeViewModel(isNew: false)
-        XCTAssertFalse(
-            (vm.subtitleAccessibilityLabel ?? "").contains("New comment"),
+        #expect(
+            !((vm.subtitleAccessibilityLabel ?? "").contains("New comment")),
             "subtitleAccessibilityLabel should not contain 'New comment' when isNew is false"
         )
     }
 
-    func testCollapsedWithNewDescendantsAddsNewClauseAndExposesCount() {
+    @Test
+    func collapsedWithNewDescendantsAddsNewClauseAndExposesCount() {
         let appearance = AppearanceService(preferencesService: PreferencesService())
         let vm = PostDetailCommentViewModel(
             row: makeRow(),
@@ -80,12 +84,13 @@ final class PostDetailCommentViewModelAccessibilityTests: XCTestCase {
             collapsedNewDescendantCount: 5
         )
         let label = vm.subtitleAccessibilityLabel ?? ""
-        XCTAssertTrue(label.contains("22 hidden"), "expected hidden count in: \(label)")
-        XCTAssertTrue(label.contains("5 new"), "expected new count in: \(label)")
-        XCTAssertEqual(vm.collapsedNewDescendantCount, 5)
+        #expect(label.contains("22 hidden"), "expected hidden count in: \(label)")
+        #expect(label.contains("5 new"), "expected new count in: \(label)")
+        #expect(vm.collapsedNewDescendantCount == 5)
     }
 
-    func testCollapsedWithZeroNewDescendantsHasNoNewCount() {
+    @Test
+    func collapsedWithZeroNewDescendantsHasNoNewCount() {
         let appearance = AppearanceService(preferencesService: PreferencesService())
         let vm = PostDetailCommentViewModel(
             row: makeRow(),
@@ -94,7 +99,7 @@ final class PostDetailCommentViewModelAccessibilityTests: XCTestCase {
             collapsedDescendantCount: 8,
             collapsedNewDescendantCount: 0
         )
-        XCTAssertNil(vm.collapsedNewDescendantCount)
-        XCTAssertFalse((vm.subtitleAccessibilityLabel ?? "").contains(" new"))
+        #expect(vm.collapsedNewDescendantCount == nil)
+        #expect(!((vm.subtitleAccessibilityLabel ?? "").contains(" new")))
     }
 }

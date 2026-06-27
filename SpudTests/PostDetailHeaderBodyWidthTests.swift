@@ -5,8 +5,8 @@
 //
 
 import SpudDataKit
+import Testing
 import UIKit
-import XCTest
 @testable import Spud
 
 /// Regression coverage for a post-detail body that collapses to a narrow column.
@@ -17,7 +17,7 @@ import XCTest
 /// the full content width; otherwise the re-measure lets the body shrink to its
 /// intrinsic (word-width) size and the whole body renders as a ~80pt column.
 @MainActor
-final class PostDetailHeaderBodyWidthTests: XCTestCase {
+struct PostDetailHeaderBodyWidthTests {
     private let width: CGFloat = 390
 
     /// Returns a fixed image synchronously so an inline body image resolves to
@@ -37,7 +37,8 @@ final class PostDetailHeaderBodyWidthTests: XCTestCase {
         }
     }
 
-    func test_bodyWithInlineImage_fillsCellWidth() async {
+    @Test
+    func bodyWithInlineImage_fillsCellWidth() async {
         let cell = await renderCell(
             body: """
                 A reasonably long paragraph of body text that should wrap across the \
@@ -50,14 +51,14 @@ final class PostDetailHeaderBodyWidthTests: XCTestCase {
         )
 
         let bodyWidth = cell.bodyView.frame.width
-        XCTAssertGreaterThan(
-            bodyWidth,
-            width - 40,
+        #expect(
+            bodyWidth > width - 40,
             "Post body collapsed to \(bodyWidth)pt instead of filling the cell width"
         )
     }
 
-    func test_bodyWithSpoileredImage_fillsCellWidth() async {
+    @Test
+    func bodyWithSpoileredImage_fillsCellWidth() async {
         // Mirrors the reported post: paragraphs followed by a spoiler whose only
         // child is an inline image.
         let cell = await renderCell(
@@ -74,9 +75,8 @@ final class PostDetailHeaderBodyWidthTests: XCTestCase {
         )
 
         let bodyWidth = cell.bodyView.frame.width
-        XCTAssertGreaterThan(
-            bodyWidth,
-            width - 40,
+        #expect(
+            bodyWidth > width - 40,
             "Post body collapsed to \(bodyWidth)pt instead of filling the cell width"
         )
     }

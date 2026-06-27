@@ -4,11 +4,12 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import Spud
 
 @MainActor
-final class PrivacyScreenTests: XCTestCase {
+struct PrivacyScreenTests {
     private func resetMonitor() {
         let monitor = PrivacyScreenMonitor.shared
         while monitor.isShowingSensitiveContent {
@@ -16,61 +17,66 @@ final class PrivacyScreenTests: XCTestCase {
         }
     }
 
-    func test_shouldCover_truthTable() {
+    @Test
+    func shouldCover_truthTable() {
         // Not sensitive: never cover, regardless of scene / capture state.
-        XCTAssertFalse(PrivacyScreen.shouldCover(isSensitive: false, isSceneActive: true, isCaptured: false))
-        XCTAssertFalse(PrivacyScreen.shouldCover(isSensitive: false, isSceneActive: false, isCaptured: false))
-        XCTAssertFalse(PrivacyScreen.shouldCover(isSensitive: false, isSceneActive: false, isCaptured: true))
+        #expect(!PrivacyScreen.shouldCover(isSensitive: false, isSceneActive: true, isCaptured: false))
+        #expect(!PrivacyScreen.shouldCover(isSensitive: false, isSceneActive: false, isCaptured: false))
+        #expect(!PrivacyScreen.shouldCover(isSensitive: false, isSceneActive: false, isCaptured: true))
 
         // Sensitive + active + not captured: stay visible — the user opened it.
-        XCTAssertFalse(PrivacyScreen.shouldCover(isSensitive: true, isSceneActive: true, isCaptured: false))
+        #expect(!PrivacyScreen.shouldCover(isSensitive: true, isSceneActive: true, isCaptured: false))
 
         // Sensitive + backgrounded: cover for the app-switcher snapshot.
-        XCTAssertTrue(PrivacyScreen.shouldCover(isSensitive: true, isSceneActive: false, isCaptured: false))
+        #expect(PrivacyScreen.shouldCover(isSensitive: true, isSceneActive: false, isCaptured: false))
 
         // Sensitive + captured: cover for screen recording / mirroring, even while active.
-        XCTAssertTrue(PrivacyScreen.shouldCover(isSensitive: true, isSceneActive: true, isCaptured: true))
+        #expect(PrivacyScreen.shouldCover(isSensitive: true, isSceneActive: true, isCaptured: true))
     }
 
-    func test_monitor_countsAndBoolean() {
+    @Test
+    func monitor_countsAndBoolean() {
         resetMonitor()
         let monitor = PrivacyScreenMonitor.shared
-        XCTAssertFalse(monitor.isShowingSensitiveContent)
+        #expect(!monitor.isShowingSensitiveContent)
 
         monitor.beginSensitiveContent()
-        XCTAssertTrue(monitor.isShowingSensitiveContent)
+        #expect(monitor.isShowingSensitiveContent)
 
         // Two overlapping surfaces: the flag clears only when both end.
         monitor.beginSensitiveContent()
         monitor.endSensitiveContent()
-        XCTAssertTrue(monitor.isShowingSensitiveContent)
+        #expect(monitor.isShowingSensitiveContent)
         monitor.endSensitiveContent()
-        XCTAssertFalse(monitor.isShowingSensitiveContent)
+        #expect(!monitor.isShowingSensitiveContent)
     }
 
-    func test_monitor_doesNotGoNegative() {
+    @Test
+    func monitor_doesNotGoNegative() {
         resetMonitor()
         let monitor = PrivacyScreenMonitor.shared
         monitor.endSensitiveContent() // underflow guard
-        XCTAssertFalse(monitor.isShowingSensitiveContent)
-        XCTAssertEqual(monitor.sensitiveCount, 0)
+        #expect(!monitor.isShowingSensitiveContent)
+        #expect(monitor.sensitiveCount == 0)
     }
 
-    func test_sensitiveContentToken_balancesMonitor() {
+    @Test
+    func sensitiveContentToken_balancesMonitor() {
         resetMonitor()
         let monitor = PrivacyScreenMonitor.shared
         let token = SensitiveContentToken()
 
         token.set(true)
-        XCTAssertTrue(monitor.isShowingSensitiveContent)
+        #expect(monitor.isShowingSensitiveContent)
         token.set(true) // idempotent — no double-count
         token.set(false)
-        XCTAssertFalse(monitor.isShowingSensitiveContent)
+        #expect(!monitor.isShowingSensitiveContent)
         token.set(false) // idempotent
-        XCTAssertEqual(monitor.sensitiveCount, 0)
+        #expect(monitor.sensitiveCount == 0)
     }
 
-    func test_twoTokens_trackedIndependently() {
+    @Test
+    func twoTokens_trackedIndependently() {
         resetMonitor()
         let monitor = PrivacyScreenMonitor.shared
         let a = SensitiveContentToken()
@@ -78,14 +84,15 @@ final class PrivacyScreenTests: XCTestCase {
 
         a.set(true)
         b.set(true)
-        XCTAssertEqual(monitor.sensitiveCount, 2)
+        #expect(monitor.sensitiveCount == 2)
         a.set(false)
-        XCTAssertTrue(monitor.isShowingSensitiveContent, "b is still active")
+        #expect(monitor.isShowingSensitiveContent, "b is still active")
         b.set(false)
-        XCTAssertFalse(monitor.isShowingSensitiveContent)
+        #expect(!monitor.isShowingSensitiveContent)
     }
 
-    func test_monitor_postsNotificationOnlyOnBooleanTransition() {
+    @Test
+    func monitor_postsNotificationOnlyOnBooleanTransition() {
         resetMonitor()
         let monitor = PrivacyScreenMonitor.shared
 
@@ -101,6 +108,6 @@ final class PrivacyScreenTests: XCTestCase {
         monitor.beginSensitiveContent() // 1 -> 2: no post
         monitor.endSensitiveContent() //   2 -> 1: no post
         monitor.endSensitiveContent() //   1 -> 0: posts
-        XCTAssertEqual(notifications, 2)
+        #expect(notifications == 2)
     }
 }

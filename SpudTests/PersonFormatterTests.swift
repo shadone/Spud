@@ -4,25 +4,29 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import Spud
 
-final class PersonFormatterTests: XCTestCase {
-    func test_banStatus_notBanned_isNil() {
-        XCTAssertNil(PersonFormatter.banStatus(isBanned: false, banExpires: nil))
-        XCTAssertNil(PersonFormatter.banStatus(isBanned: false, banExpires: Date(timeIntervalSince1970: 1_800_000_000)))
+struct PersonFormatterTests {
+    @Test
+    func banStatus_notBanned_isNil() {
+        #expect(PersonFormatter.banStatus(isBanned: false, banExpires: nil) == nil)
+        #expect(PersonFormatter.banStatus(isBanned: false, banExpires: Date(timeIntervalSince1970: 1_800_000_000)) == nil)
     }
 
-    func test_banStatus_permanent_whenBannedWithNoExpiry() {
-        XCTAssertEqual(PersonFormatter.banStatus(isBanned: true, banExpires: nil), "Banned")
+    @Test
+    func banStatus_permanent_whenBannedWithNoExpiry() {
+        #expect(PersonFormatter.banStatus(isBanned: true, banExpires: nil) == "Banned")
     }
 
-    func test_banStatus_temporary_includesExpiry() {
+    @Test
+    func banStatus_temporary_includesExpiry() {
         let status = PersonFormatter.banStatus(
             isBanned: true,
             banExpires: Date(timeIntervalSince1970: 1_800_000_000)
         )
         // The exact date string is locale/timezone-dependent; assert the shape.
-        XCTAssertEqual(status?.hasPrefix("Banned · until "), true)
+        #expect(status?.hasPrefix("Banned · until ") == true)
     }
 }

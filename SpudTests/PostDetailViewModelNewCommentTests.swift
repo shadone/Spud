@@ -7,7 +7,7 @@
 import Foundation
 import LemmyKit
 import SpudDataKit
-import XCTest
+import Testing
 @testable import Spud
 
 private struct TestDependencies:
@@ -26,7 +26,7 @@ private struct TestDependencies:
 }
 
 @MainActor
-final class PostDetailViewModelNewCommentTests: XCTestCase {
+struct PostDetailViewModelNewCommentTests {
     private func makeRow(id: Int64, publishedOffset: TimeInterval, creatorPersonId: Int64 = 1) -> PostDetailCommentRow {
         PostDetailCommentRow(
             id: id, position: id, depth: 1,
@@ -53,16 +53,18 @@ final class PostDetailViewModelNewCommentTests: XCTestCase {
         )
     }
 
-    func testNoPriorVisitFlagsNothing() {
+    @Test
+    func noPriorVisitFlagsNothing() {
         let vm = makeViewModel()
         vm.previousVisitAt = nil
         vm.updateOrderedComments([makeRow(id: 1, publishedOffset: 500)])
-        XCTAssertEqual(vm.newCommentCount, 0)
-        XCTAssertFalse(vm.isNewComment(elementId: 1))
-        XCTAssertNil(vm.firstNewCommentElementId)
+        #expect(vm.newCommentCount == 0)
+        #expect(!vm.isNewComment(elementId: 1))
+        #expect(vm.firstNewCommentElementId == nil)
     }
 
-    func testFlagsCommentsAfterPriorVisit() {
+    @Test
+    func flagsCommentsAfterPriorVisit() {
         let vm = makeViewModel()
         vm.previousVisitAt = Date(timeIntervalSince1970: 1_000_000 + 100)
         vm.currentAccountPersonId = nil
@@ -70,21 +72,23 @@ final class PostDetailViewModelNewCommentTests: XCTestCase {
             makeRow(id: 1, publishedOffset: 50),
             makeRow(id: 2, publishedOffset: 300),
         ])
-        XCTAssertEqual(vm.newCommentCount, 1)
-        XCTAssertTrue(vm.isNewComment(elementId: 2))
-        XCTAssertFalse(vm.isNewComment(elementId: 1))
-        XCTAssertEqual(vm.firstNewCommentElementId, 2)
+        #expect(vm.newCommentCount == 1)
+        #expect(vm.isNewComment(elementId: 2))
+        #expect(!vm.isNewComment(elementId: 1))
+        #expect(vm.firstNewCommentElementId == 2)
     }
 
-    func testOwnCommentExcluded() {
+    @Test
+    func ownCommentExcluded() {
         let vm = makeViewModel()
         vm.previousVisitAt = Date(timeIntervalSince1970: 1_000_000 + 100)
         vm.currentAccountPersonId = 99
         vm.updateOrderedComments([makeRow(id: 5, publishedOffset: 300, creatorPersonId: 99)])
-        XCTAssertEqual(vm.newCommentCount, 0)
+        #expect(vm.newCommentCount == 0)
     }
 
-    func testOrderedNewCommentElementIdsAreInDisplayOrderAndOnlyNew() {
+    @Test
+    func orderedNewCommentElementIdsAreInDisplayOrderAndOnlyNew() {
         let vm = makeViewModel()
         vm.previousVisitAt = Date(timeIntervalSince1970: 1_000_000 + 100)
         vm.currentAccountPersonId = nil
@@ -93,13 +97,14 @@ final class PostDetailViewModelNewCommentTests: XCTestCase {
             makeRow(id: 11, publishedOffset: 200), // new
             makeRow(id: 12, publishedOffset: 300), // new
         ])
-        XCTAssertEqual(vm.orderedNewCommentElementIds, [11, 12])
+        #expect(vm.orderedNewCommentElementIds == [11, 12])
     }
 
-    func testOrderedNewCommentElementIdsEmptyOnFirstVisit() {
+    @Test
+    func orderedNewCommentElementIdsEmptyOnFirstVisit() {
         let vm = makeViewModel()
         vm.previousVisitAt = nil
         vm.updateOrderedComments([makeRow(id: 1, publishedOffset: 500)])
-        XCTAssertEqual(vm.orderedNewCommentElementIds, [])
+        #expect(vm.orderedNewCommentElementIds == [])
     }
 }

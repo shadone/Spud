@@ -7,11 +7,11 @@
 import Foundation
 import LemmyKit
 import SpudDataKit
-import XCTest
+import Testing
 @testable import Spud
 
 @MainActor
-final class PostDetailViewModelLoadingTests: XCTestCase {
+struct PostDetailViewModelLoadingTests {
     private struct TestDependencies:
         HasAccountService, HasAlertService, HasPreferencesService
     {
@@ -36,7 +36,8 @@ final class PostDetailViewModelLoadingTests: XCTestCase {
         )
     }
 
-    func testIsLoadingCommentsDefaultsFalse() {
-        XCTAssertFalse(makeViewModel().isLoadingComments)
+    @Test
+    func isLoadingCommentsDefaultsFalse() {
+        #expect(!makeViewModel().isLoadingComments)
     }
 }

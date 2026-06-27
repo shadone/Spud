@@ -5,7 +5,7 @@
 //
 
 import Observation
-import XCTest
+import Testing
 @testable import Spud
 
 @Observable
@@ -14,13 +14,14 @@ private final class ObservableCounter {
 }
 
 @MainActor
-final class ObservationStreamTests: XCTestCase {
+struct ObservationStreamTests {
     /// The stream must keep emitting after the observed property changes — not
     /// just deliver the initial value. Regression test for the scheduler being
     /// deallocated as soon as the build closure returned, which left every
     /// `ObservationStream`-bound property one-shot (e.g. the login button stuck
     /// disabled no matter what the user typed).
-    func test_values_reemitsAfterObservedChange() async {
+    @Test
+    func values_reemitsAfterObservedChange() async {
         let model = ObservableCounter()
         let stream = ObservationStream.values(of: { model.value })
 
@@ -46,12 +47,13 @@ final class ObservationStreamTests: XCTestCase {
         let values = await collected.value
         timeout.cancel()
 
-        XCTAssertEqual(
-            values,
-            [0, 42],
-            "Expected the initial value followed by the post-change value; "
-                + "got \(values). A single element means the observation was "
-                + "never re-registered."
+        #expect(
+            values == [0, 42],
+            Comment(
+                rawValue: "Expected the initial value followed by the post-change value; "
+                    + "got \(values). A single element means the observation was "
+                    + "never re-registered."
+            )
         )
     }
 }

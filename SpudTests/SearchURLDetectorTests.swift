@@ -6,10 +6,10 @@
 
 import Foundation
 import SpudUtilKit
-import XCTest
+import Testing
 @testable import Spud
 
-final class SearchURLDetectorTests: XCTestCase {
+struct SearchURLDetectorTests {
     private let known: (String) -> Bool = { ["lemmy.world", "beehaw.org"].contains($0) }
 
     private func detect(_ s: String) -> SearchURLSuggestion? {
@@ -18,125 +18,163 @@ final class SearchURLDetectorTests: XCTestCase {
 
     // MARK: Known instance: classify drives kind + link.
 
-    func test_knownPost_isPostKind_objectAtURL() throws {
-        let s = try XCTUnwrap(detect("https://lemmy.world/post/123"))
-        XCTAssertEqual(s.kind, .post)
-        guard case let .objectAtURL(url) = s.link else { return XCTFail("expected .objectAtURL") }
-        XCTAssertEqual(url.absoluteString, "https://lemmy.world/post/123")
+    @Test
+    func knownPost_isPostKind_objectAtURL() throws {
+        let s = try #require(detect("https://lemmy.world/post/123"))
+        #expect(s.kind == .post)
+        guard case let .objectAtURL(url) = s.link else { Issue.record("expected .objectAtURL")
+            return
+        }
+        #expect(url.absoluteString == "https://lemmy.world/post/123")
     }
 
-    func test_knownComment_isCommentKind() throws {
-        let s = try XCTUnwrap(detect("https://lemmy.world/comment/9"))
-        XCTAssertEqual(s.kind, .comment)
-        guard case .objectAtURL = s.link else { return XCTFail("expected .objectAtURL") }
+    @Test
+    func knownComment_isCommentKind() throws {
+        let s = try #require(detect("https://lemmy.world/comment/9"))
+        #expect(s.kind == .comment)
+        guard case .objectAtURL = s.link else { Issue.record("expected .objectAtURL")
+            return
+        }
     }
 
-    func test_knownUser_isUserKind() throws {
-        let s = try XCTUnwrap(detect("https://beehaw.org/u/alice"))
-        XCTAssertEqual(s.kind, .user)
+    @Test
+    func knownUser_isUserKind() throws {
+        let s = try #require(detect("https://beehaw.org/u/alice"))
+        #expect(s.kind == .user)
     }
 
-    func test_knownCommunity_isCommunityKind_communityLink() throws {
-        let s = try XCTUnwrap(detect("https://lemmy.world/c/technology"))
-        XCTAssertEqual(s.kind, .community)
-        guard case let .community(name, instance) = s.link else { return XCTFail("expected .community") }
-        XCTAssertEqual(name, "technology")
-        XCTAssertEqual(instance.host, "lemmy.world")
+    @Test
+    func knownCommunity_isCommunityKind_communityLink() throws {
+        let s = try #require(detect("https://lemmy.world/c/technology"))
+        #expect(s.kind == .community)
+        guard case let .community(name, instance) = s.link else { Issue.record("expected .community")
+            return
+        }
+        #expect(name == "technology")
+        #expect(instance.host == "lemmy.world")
     }
 
-    func test_bareKnownInstance_isInstanceKind() throws {
-        let s = try XCTUnwrap(detect("https://beehaw.org"))
-        XCTAssertEqual(s.kind, .instance)
-        guard case .instance = s.link else { return XCTFail("expected .instance") }
+    @Test
+    func bareKnownInstance_isInstanceKind() throws {
+        let s = try #require(detect("https://beehaw.org"))
+        #expect(s.kind == .instance)
+        guard case .instance = s.link else { Issue.record("expected .instance")
+            return
+        }
     }
 
     // MARK: Unknown host: path-shape fallback -> objectAtURL with derived kind.
 
-    func test_unknownPost_isOffered_objectAtURL() throws {
-        let s = try XCTUnwrap(detect("https://small.example/post/1"))
-        XCTAssertEqual(s.kind, .post)
-        guard case let .objectAtURL(url) = s.link else { return XCTFail("expected .objectAtURL") }
-        XCTAssertEqual(url.absoluteString, "https://small.example/post/1")
+    @Test
+    func unknownPost_isOffered_objectAtURL() throws {
+        let s = try #require(detect("https://small.example/post/1"))
+        #expect(s.kind == .post)
+        guard case let .objectAtURL(url) = s.link else { Issue.record("expected .objectAtURL")
+            return
+        }
+        #expect(url.absoluteString == "https://small.example/post/1")
     }
 
-    func test_unknownComment_isOffered() throws {
-        let s = try XCTUnwrap(detect("https://small.example/comment/7"))
-        XCTAssertEqual(s.kind, .comment)
+    @Test
+    func unknownComment_isOffered() throws {
+        let s = try #require(detect("https://small.example/comment/7"))
+        #expect(s.kind == .comment)
     }
 
-    func test_unknownUser_isOffered() throws {
-        let s = try XCTUnwrap(detect("https://small.example/u/bob"))
-        XCTAssertEqual(s.kind, .user)
+    @Test
+    func unknownUser_isOffered() throws {
+        let s = try #require(detect("https://small.example/u/bob"))
+        #expect(s.kind == .user)
     }
 
-    func test_unknownCommunity_isOffered_objectAtURL() throws {
-        let s = try XCTUnwrap(detect("https://small.example/c/games"))
-        XCTAssertEqual(s.kind, .community)
-        guard case .objectAtURL = s.link else { return XCTFail("expected .objectAtURL for unknown host") }
+    @Test
+    func unknownCommunity_isOffered_objectAtURL() throws {
+        let s = try #require(detect("https://small.example/c/games"))
+        #expect(s.kind == .community)
+        guard case .objectAtURL = s.link else { Issue.record("expected .objectAtURL for unknown host")
+            return
+        }
     }
 
-    func test_knownCommunity_qualifiedName_usesQualifiedHost() throws {
-        let s = try XCTUnwrap(detect("https://lemmy.world/c/games@beehaw.org"))
-        XCTAssertEqual(s.kind, .community)
-        guard case let .community(name, instance) = s.link else { return XCTFail("expected .community") }
-        XCTAssertEqual(name, "games")
-        XCTAssertEqual(instance.host, "beehaw.org")
+    @Test
+    func knownCommunity_qualifiedName_usesQualifiedHost() throws {
+        let s = try #require(detect("https://lemmy.world/c/games@beehaw.org"))
+        #expect(s.kind == .community)
+        guard case let .community(name, instance) = s.link else { Issue.record("expected .community")
+            return
+        }
+        #expect(name == "games")
+        #expect(instance.host == "beehaw.org")
     }
 
     // MARK: Frontend post URL (/c/<community>/p/<id>[/<slug>]).
 
-    func test_unknownFrontendPost_isOffered_canonicalObjectAtURL() throws {
+    @Test
+    func unknownFrontendPost_isOffered_canonicalObjectAtURL() throws {
         // The reported case: a frontend post URL on an unknown instance.
-        let s = try XCTUnwrap(detect("https://feddit.online/c/opensource/p/1784296/favorite-open-source-game"))
-        XCTAssertEqual(s.kind, .post)
-        guard case let .objectAtURL(url) = s.link else { return XCTFail("expected .objectAtURL") }
-        XCTAssertEqual(url.absoluteString, "https://feddit.online/post/1784296")
+        let s = try #require(detect("https://feddit.online/c/opensource/p/1784296/favorite-open-source-game"))
+        #expect(s.kind == .post)
+        guard case let .objectAtURL(url) = s.link else { Issue.record("expected .objectAtURL")
+            return
+        }
+        #expect(url.absoluteString == "https://feddit.online/post/1784296")
         // The row still shows what the user pasted.
-        XCTAssertEqual(s.displayURL, "feddit.online/c/opensource/p/1784296/favorite-open-source-game")
+        #expect(s.displayURL == "feddit.online/c/opensource/p/1784296/favorite-open-source-game")
     }
 
-    func test_knownFrontendPost_isOffered() throws {
-        let s = try XCTUnwrap(detect("https://lemmy.world/c/opensource/p/42"))
-        XCTAssertEqual(s.kind, .post)
-        guard case let .objectAtURL(url) = s.link else { return XCTFail("expected .objectAtURL") }
-        XCTAssertEqual(url.absoluteString, "https://lemmy.world/post/42")
+    @Test
+    func knownFrontendPost_isOffered() throws {
+        let s = try #require(detect("https://lemmy.world/c/opensource/p/42"))
+        #expect(s.kind == .post)
+        guard case let .objectAtURL(url) = s.link else { Issue.record("expected .objectAtURL")
+            return
+        }
+        #expect(url.absoluteString == "https://lemmy.world/post/42")
     }
 
-    func test_frontendPost_nonNumericId_isNil() {
-        XCTAssertNil(detect("https://feddit.online/c/opensource/p/abc/slug"))
+    @Test
+    func frontendPost_nonNumericId_isNil() {
+        #expect(detect("https://feddit.online/c/opensource/p/abc/slug") == nil)
     }
 
     // MARK: Negatives.
 
-    func test_bareUnknownHost_isNil() {
-        XCTAssertNil(detect("https://example.com"))
+    @Test
+    func bareUnknownHost_isNil() {
+        #expect(detect("https://example.com") == nil)
     }
 
-    func test_plainText_isNil() {
-        XCTAssertNil(detect("cats"))
-        XCTAssertNil(detect("how to make pasta"))
+    @Test
+    func plainText_isNil() {
+        #expect(detect("cats") == nil)
+        #expect(detect("how to make pasta") == nil)
     }
 
-    func test_nonHttpScheme_isNil() {
-        XCTAssertNil(detect("mailto:a@b.com"))
-        XCTAssertNil(detect("info.ddenis.spud://internal/post?postId=1&instance=x"))
+    @Test
+    func nonHttpScheme_isNil() {
+        #expect(detect("mailto:a@b.com") == nil)
+        #expect(detect("info.ddenis.spud://internal/post?postId=1&instance=x") == nil)
     }
 
-    func test_unknownNonLemmyPath_isNil() {
-        XCTAssertNil(detect("https://news.example/article/abc"))
+    @Test
+    func unknownNonLemmyPath_isNil() {
+        #expect(detect("https://news.example/article/abc") == nil)
     }
 
-    func test_postWithNonNumericId_isNil() {
-        XCTAssertNil(detect("https://small.example/post/notanumber"))
+    @Test
+    func postWithNonNumericId_isNil() {
+        #expect(detect("https://small.example/post/notanumber") == nil)
     }
 
-    func test_displayURL_dropsScheme() throws {
-        let s = try XCTUnwrap(detect("https://lemmy.world/post/123"))
-        XCTAssertEqual(s.displayURL, "lemmy.world/post/123")
+    @Test
+    func displayURL_dropsScheme() throws {
+        let s = try #require(detect("https://lemmy.world/post/123"))
+        #expect(s.displayURL == "lemmy.world/post/123")
     }
 
-    func test_whitespaceIsTrimmed() throws {
-        let s = try XCTUnwrap(detect("  https://lemmy.world/post/123  "))
-        XCTAssertEqual(s.kind, .post)
+    @Test
+    func whitespaceIsTrimmed() throws {
+        let s = try #require(detect("  https://lemmy.world/post/123  "))
+        #expect(s.kind == .post)
     }
 }

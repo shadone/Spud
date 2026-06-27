@@ -7,7 +7,7 @@
 import Foundation
 import LemmyKit
 import SpudDataKit
-import XCTest
+import Testing
 @testable import Spud
 
 private struct TestDependencies:
@@ -26,7 +26,7 @@ private struct TestDependencies:
 }
 
 @MainActor
-final class PostDetailViewModelExpandAncestorsTests: XCTestCase {
+struct PostDetailViewModelExpandAncestorsTests {
     private func row(id: Int64, depth: Int64, publishedOffset: TimeInterval = 0) -> PostDetailCommentRow {
         PostDetailCommentRow(
             id: id, position: id, depth: depth,
@@ -53,34 +53,38 @@ final class PostDetailViewModelExpandAncestorsTests: XCTestCase {
         )
     }
 
-    func testExpandAncestorsRevealsCollapsedParent() {
+    @Test
+    func expandAncestorsRevealsCollapsedParent() {
         let vm = makeViewModel()
         vm.updateOrderedComments([row(id: 1, depth: 1), row(id: 2, depth: 2), row(id: 3, depth: 3)])
         vm.toggleCollapse(elementId: 1)
-        XCTAssertTrue(vm.isCollapsed(elementId: 1))
+        #expect(vm.isCollapsed(elementId: 1))
 
-        XCTAssertTrue(vm.expandAncestors(toReveal: 3))
-        XCTAssertFalse(vm.isCollapsed(elementId: 1))
+        #expect(vm.expandAncestors(toReveal: 3))
+        #expect(!vm.isCollapsed(elementId: 1))
     }
 
-    func testExpandAncestorsRemovesNestedCollapsedAncestors() {
+    @Test
+    func expandAncestorsRemovesNestedCollapsedAncestors() {
         let vm = makeViewModel()
         vm.updateOrderedComments([row(id: 1, depth: 1), row(id: 2, depth: 2), row(id: 3, depth: 3)])
         vm.toggleCollapse(elementId: 1)
         vm.toggleCollapse(elementId: 2)
 
-        XCTAssertTrue(vm.expandAncestors(toReveal: 3))
-        XCTAssertFalse(vm.isCollapsed(elementId: 1))
-        XCTAssertFalse(vm.isCollapsed(elementId: 2))
+        #expect(vm.expandAncestors(toReveal: 3))
+        #expect(!vm.isCollapsed(elementId: 1))
+        #expect(!vm.isCollapsed(elementId: 2))
     }
 
-    func testExpandAncestorsIsIdempotentWhenAlreadyVisible() {
+    @Test
+    func expandAncestorsIsIdempotentWhenAlreadyVisible() {
         let vm = makeViewModel()
         vm.updateOrderedComments([row(id: 1, depth: 1), row(id: 2, depth: 2)])
-        XCTAssertFalse(vm.expandAncestors(toReveal: 2))
+        #expect(!vm.expandAncestors(toReveal: 2))
     }
 
-    func testVisibleCommentTreeSurfacesCollapsedNewCounts() {
+    @Test
+    func visibleCommentTreeSurfacesCollapsedNewCounts() {
         let vm = makeViewModel()
         vm.previousVisitAt = Date(timeIntervalSince1970: 1_000_000 + 100)
         vm.currentAccountPersonId = nil
@@ -93,7 +97,7 @@ final class PostDetailViewModelExpandAncestorsTests: XCTestCase {
         vm.toggleCollapse(elementId: 1)
 
         let tree = vm.visibleCommentTree()
-        XCTAssertEqual(tree.collapsedDescendantCounts[1], 2)
-        XCTAssertEqual(tree.collapsedNewDescendantCounts[1], 1)
+        #expect(tree.collapsedDescendantCounts[1] == 2)
+        #expect(tree.collapsedNewDescendantCounts[1] == 1)
     }
 }

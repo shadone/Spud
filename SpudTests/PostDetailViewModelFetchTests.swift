@@ -7,7 +7,7 @@
 import Foundation
 import LemmyKit
 import SpudDataKit
-import XCTest
+import Testing
 @testable import Spud
 
 /// Counts error-handling calls so the cancel-and-replace tests can assert a
@@ -31,7 +31,7 @@ private final class SpyAlertService: AlertServiceType, @unchecked Sendable {
 }
 
 @MainActor
-final class PostDetailViewModelFetchTests: XCTestCase {
+struct PostDetailViewModelFetchTests {
     private struct TestDependencies:
         HasAccountService, HasAlertService, HasPreferencesService
     {
@@ -60,62 +60,69 @@ final class PostDetailViewModelFetchTests: XCTestCase {
         )
     }
 
-    func testLoadingFlagTrueWhileFetchingThenFalse() async {
+    @Test
+    func loadingFlagTrueWhileFetchingThenFalse() async {
         var release: CheckedContinuation<Void, Never>?
-        let started = expectation(description: "operation started")
+        let (started, startedContinuation) = AsyncStream<Void>.makeStream()
         let vm = makeViewModel { _ in
-            started.fulfill()
+            startedContinuation.yield(())
             await withCheckedContinuation { release = $0 }
         }
-
-        let task = Task { await vm.fetchComments() }
-        await fulfillment(of: [started], timeout: 1)
-        XCTAssertTrue(vm.isLoadingComments)
+        let fetchTask = Task { await vm.fetchComments() }
+        for await _ in started {
+            break
+        } // wait until the fetch has started
+        #expect(vm.isLoadingComments)
 
         release?.resume()
-        await task.value
-        XCTAssertFalse(vm.isLoadingComments)
+        await fetchTask.value
+        #expect(!vm.isLoadingComments)
     }
 
-    func testCancelAndReplaceKeepsFlagAndSilencesSupersededFetch() async {
+    @Test
+    func cancelAndReplaceKeepsFlagAndSilencesSupersededFetch() async {
         var release1: CheckedContinuation<Void, any Error>?
         var release2: CheckedContinuation<Void, Never>?
-        let started1 = expectation(description: "op1 started")
-        let started2 = expectation(description: "op2 started")
         var callCount = 0
         let alert = SpyAlertService()
+        let (started1, started1Continuation) = AsyncStream<Void>.makeStream()
+        let (started2, started2Continuation) = AsyncStream<Void>.makeStream()
 
         let vm = makeViewModel(alertService: alert) { _ in
             callCount += 1
             if callCount == 1 {
-                started1.fulfill()
+                started1Continuation.yield(())
                 try await withCheckedThrowingContinuation { release1 = $0 }
             } else {
-                started2.fulfill()
+                started2Continuation.yield(())
                 await withCheckedContinuation { release2 = $0 }
             }
         }
-
         let t1 = Task { await vm.fetchComments() }
-        await fulfillment(of: [started1], timeout: 1)
+        for await _ in started1 {
+            break
+        }
 
         let t2 = Task { await vm.fetchComments() } // supersedes t1
-        await fulfillment(of: [started2], timeout: 1)
-        XCTAssertTrue(vm.isLoadingComments)
+        for await _ in started2 {
+            break
+        }
+        #expect(vm.isLoadingComments)
 
         // Release t1 with a cancellation error; as the superseded fetch it must
         // not clear the flag or surface an error.
         release1?.resume(throwing: CancellationError())
         await t1.value
-        XCTAssertTrue(vm.isLoadingComments)
+        #expect(vm.isLoadingComments)
 
         release2?.resume()
         await t2.value
-        XCTAssertFalse(vm.isLoadingComments)
-        XCTAssertTrue(alert.handledRequests.isEmpty)
+        #expect(!vm.isLoadingComments)
+        #expect(alert.handledRequests.isEmpty)
     }
 
-    func testSupersededFetchThrowingNonCancellationErrorIsSilent() async {
+    @Test
+    func supersededFetchThrowingNonCancellationErrorIsSilent() async {
         // Production path: LemmyService wraps all errors (including underlying
         // cancellation) as LemmyServiceError, so the superseded task hits the
         // generic `catch` branch — not `catch is CancellationError`. Silence is
@@ -123,57 +130,62 @@ final class PostDetailViewModelFetchTests: XCTestCase {
         struct Boom: Error { }
         var release1: CheckedContinuation<Void, any Error>?
         var release2: CheckedContinuation<Void, Never>?
-        let started1 = expectation(description: "op1 started")
-        let started2 = expectation(description: "op2 started")
         var callCount = 0
         let alert = SpyAlertService()
+        let (started1, started1Continuation) = AsyncStream<Void>.makeStream()
+        let (started2, started2Continuation) = AsyncStream<Void>.makeStream()
 
         let vm = makeViewModel(alertService: alert) { _ in
             callCount += 1
             if callCount == 1 {
-                started1.fulfill()
+                started1Continuation.yield(())
                 try await withCheckedThrowingContinuation { (c: CheckedContinuation<Void, any Error>) in
                     release1 = c
                 }
             } else {
-                started2.fulfill()
+                started2Continuation.yield(())
                 await withCheckedContinuation { release2 = $0 }
             }
         }
-
         let t1 = Task { await vm.fetchComments() }
-        await fulfillment(of: [started1], timeout: 1)
+        for await _ in started1 {
+            break
+        }
 
         let t2 = Task { await vm.fetchComments() } // supersedes t1
-        await fulfillment(of: [started2], timeout: 1)
-        XCTAssertTrue(vm.isLoadingComments)
+        for await _ in started2 {
+            break
+        }
+        #expect(vm.isLoadingComments)
 
         // Release t1 with a non-cancellation error; it was superseded, so the
         // generic `catch` branch fires but `!Task.isCancelled` silences it.
         release1?.resume(throwing: Boom())
         await t1.value
-        XCTAssertTrue(vm.isLoadingComments, "superseded task must not clear the flag")
-        XCTAssertTrue(alert.handledRequests.isEmpty, "superseded task must not surface an error")
+        #expect(vm.isLoadingComments, "superseded task must not clear the flag")
+        #expect(alert.handledRequests.isEmpty, "superseded task must not surface an error")
 
         release2?.resume()
         await t2.value
-        XCTAssertFalse(vm.isLoadingComments)
+        #expect(!vm.isLoadingComments)
     }
 
-    func testGenuineErrorIsSurfacedAndClearsFlag() async {
+    @Test
+    func genuineErrorIsSurfacedAndClearsFlag() async {
         struct Boom: Error { }
         let alert = SpyAlertService()
         let vm = makeViewModel(alertService: alert) { _ in throw Boom() }
 
         await vm.fetchComments()
 
-        XCTAssertFalse(vm.isLoadingComments)
-        XCTAssertEqual(alert.handledRequests, [.fetchComments])
+        #expect(!vm.isLoadingComments)
+        #expect(alert.handledRequests == [.fetchComments])
     }
 
-    func testSetCommentSortTypeUpdatesValue() {
+    @Test
+    func setCommentSortTypeUpdatesValue() {
         let vm = makeViewModel { _ in }
         vm.setCommentSortType(.New)
-        XCTAssertEqual(vm.commentSortType, .New)
+        #expect(vm.commentSortType == .New)
     }
 }

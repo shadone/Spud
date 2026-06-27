@@ -4,24 +4,27 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import Spud
 
 @MainActor
-final class LinkInstancePreferenceTests: XCTestCase {
-    func test_defaults_preserveCurrentBehavior() {
+struct LinkInstancePreferenceTests {
+    @Test
+    func defaults_preserveCurrentBehavior() {
         // Clear any persisted values so we observe the declared defaults.
         UserDefaults.standard.removeObject(forKey: "openInBrowserInstance")
         UserDefaults.standard.removeObject(forKey: "shareLinkInstance")
 
         let service = PreferencesService()
 
-        XCTAssertEqual(service.openInBrowserInstance, .myInstance)
-        XCTAssertEqual(service.shareLinkInstance, .originalInstance)
+        #expect(service.openInBrowserInstance == .myInstance)
+        #expect(service.shareLinkInstance == .originalInstance)
     }
 
-    func test_title_isStable() {
-        XCTAssertEqual(Preferences.LinkInstance.myInstance.title, "My Instance")
-        XCTAssertEqual(Preferences.LinkInstance.originalInstance.title, "Original Instance")
+    @Test
+    func title_isStable() {
+        #expect(Preferences.LinkInstance.myInstance.title == "My Instance")
+        #expect(Preferences.LinkInstance.originalInstance.title == "Original Instance")
     }
 }

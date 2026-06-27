@@ -6,145 +6,176 @@
 
 import Foundation
 import SpudUtilKit
-import XCTest
+import Testing
 @testable import Spud
 
-final class LemmyURLParserTests: XCTestCase {
+struct LemmyURLParserTests {
     private let known: (String) -> Bool = { ["lemmy.world", "beehaw.org"].contains($0) }
 
     private func classify(_ s: String) -> URL.SpudInternalLink? {
         LemmyURLParser.classify(url: URL(string: s)!, isKnownInstance: known)
     }
 
-    func test_postURL_onKnownInstance_isObjectAtURL() throws {
-        let url = try XCTUnwrap(URL(string: "https://lemmy.world/post/123"))
+    @Test
+    func postURL_onKnownInstance_isObjectAtURL() throws {
+        let url = try #require(URL(string: "https://lemmy.world/post/123"))
         guard case let .objectAtURL(parsed)? = classify(url.absoluteString) else {
-            return XCTFail("expected .objectAtURL")
+            Issue.record("expected .objectAtURL")
+            return
         }
-        XCTAssertEqual(parsed, url)
+        #expect(parsed == url)
     }
 
-    func test_userURL_onKnownInstance_isObjectAtURL() {
+    @Test
+    func userURL_onKnownInstance_isObjectAtURL() {
         guard case .objectAtURL? = classify("https://beehaw.org/u/alice") else {
-            return XCTFail("expected .objectAtURL")
+            Issue.record("expected .objectAtURL")
+            return
         }
     }
 
-    func test_communityURL_localName_isCommunityAtLinkHost() {
+    @Test
+    func communityURL_localName_isCommunityAtLinkHost() {
         guard case let .community(name, instance)? = classify("https://lemmy.world/c/technology") else {
-            return XCTFail("expected .community")
+            Issue.record("expected .community")
+            return
         }
-        XCTAssertEqual(name, "technology")
-        XCTAssertEqual(instance.host, "lemmy.world")
+        #expect(name == "technology")
+        #expect(instance.host == "lemmy.world")
     }
 
-    func test_communityURL_qualifiedName_usesQualifiedHost() {
+    @Test
+    func communityURL_qualifiedName_usesQualifiedHost() {
         guard case let .community(name, instance)? = classify("https://lemmy.world/c/technology@beehaw.org") else {
-            return XCTFail("expected .community")
+            Issue.record("expected .community")
+            return
         }
-        XCTAssertEqual(name, "technology")
-        XCTAssertEqual(instance.host, "beehaw.org")
+        #expect(name == "technology")
+        #expect(instance.host == "beehaw.org")
     }
 
-    func test_bareKnownInstance_isInstance() {
+    @Test
+    func bareKnownInstance_isInstance() {
         guard case let .instance(instance)? = classify("https://beehaw.org") else {
-            return XCTFail("expected .instance")
+            Issue.record("expected .instance")
+            return
         }
-        XCTAssertEqual(instance.host, "beehaw.org")
+        #expect(instance.host == "beehaw.org")
     }
 
-    func test_bareUnknownDomain_isNil() {
-        XCTAssertNil(classify("https://example.com"))
+    @Test
+    func bareUnknownDomain_isNil() {
+        #expect(classify("https://example.com") == nil)
     }
 
-    func test_postPathOnUnknownDomain_isNil() {
-        XCTAssertNil(classify("https://example.com/post/1"))
+    @Test
+    func postPathOnUnknownDomain_isNil() {
+        #expect(classify("https://example.com/post/1") == nil)
     }
 
-    func test_commentURL_onKnownInstance_isObjectAtURL() throws {
-        let url = try XCTUnwrap(URL(string: "https://lemmy.world/comment/9"))
+    @Test
+    func commentURL_onKnownInstance_isObjectAtURL() throws {
+        let url = try #require(URL(string: "https://lemmy.world/comment/9"))
         guard case let .objectAtURL(parsed)? = classify(url.absoluteString) else {
-            return XCTFail("expected .objectAtURL")
+            Issue.record("expected .objectAtURL")
+            return
         }
-        XCTAssertEqual(parsed, url)
+        #expect(parsed == url)
     }
 
-    func test_commentPathOnUnknownDomain_isNil() {
-        XCTAssertNil(classify("https://example.com/comment/9"))
+    @Test
+    func commentPathOnUnknownDomain_isNil() {
+        #expect(classify("https://example.com/comment/9") == nil)
     }
 
-    func test_commentURL_withNonNumericId_isNil() {
-        XCTAssertNil(classify("https://lemmy.world/comment/notanumber"))
+    @Test
+    func commentURL_withNonNumericId_isNil() {
+        #expect(classify("https://lemmy.world/comment/notanumber") == nil)
     }
 
     // MARK: - Frontend post URL (/c/<community>/p/<id>[/<slug>])
 
-    func test_frontendPostURL_withSlug_resolvesCanonicalPost() {
+    @Test
+    func frontendPostURL_withSlug_resolvesCanonicalPost() {
         guard case let .objectAtURL(parsed)? =
             classify("https://lemmy.world/c/opensource/p/1784296/favorite-open-source-game")
         else {
-            return XCTFail("expected .objectAtURL")
+            Issue.record("expected .objectAtURL")
+            return
         }
-        XCTAssertEqual(parsed.absoluteString, "https://lemmy.world/post/1784296")
+        #expect(parsed.absoluteString == "https://lemmy.world/post/1784296")
     }
 
-    func test_frontendPostURL_withoutSlug_resolvesCanonicalPost() {
+    @Test
+    func frontendPostURL_withoutSlug_resolvesCanonicalPost() {
         guard case let .objectAtURL(parsed)? = classify("https://lemmy.world/c/opensource/p/1784296") else {
-            return XCTFail("expected .objectAtURL")
+            Issue.record("expected .objectAtURL")
+            return
         }
-        XCTAssertEqual(parsed.absoluteString, "https://lemmy.world/post/1784296")
+        #expect(parsed.absoluteString == "https://lemmy.world/post/1784296")
     }
 
-    func test_frontendPostURL_onUnknownInstance_isNil() {
+    @Test
+    func frontendPostURL_onUnknownInstance_isNil() {
         // classify gates content paths on known instances; the search detector's
         // fallback is what offers unknown-host frontend post URLs.
-        XCTAssertNil(classify("https://feddit.online/c/opensource/p/1784296/slug"))
+        #expect(classify("https://feddit.online/c/opensource/p/1784296/slug") == nil)
     }
 
-    func test_frontendPostURL_withNonNumericId_isNil() {
-        XCTAssertNil(classify("https://lemmy.world/c/opensource/p/notanumber/slug"))
+    @Test
+    func frontendPostURL_withNonNumericId_isNil() {
+        #expect(classify("https://lemmy.world/c/opensource/p/notanumber/slug") == nil)
     }
 
-    func test_communityMention_isCommunity() {
+    @Test
+    func communityMention_isCommunity() {
         let mentions = LemmyURLParser.mentions(in: "see !technology@beehaw.org now")
-        XCTAssertEqual(mentions.count, 1)
+        #expect(mentions.count == 1)
         guard case let .community(name, instance) = mentions[0].link else {
-            return XCTFail("expected .community")
+            Issue.record("expected .community")
+            return
         }
-        XCTAssertEqual(name, "technology")
-        XCTAssertEqual(instance.host, "beehaw.org")
+        #expect(name == "technology")
+        #expect(instance.host == "beehaw.org")
     }
 
-    func test_userMention_isObjectAtURL_toUserPath() {
+    @Test
+    func userMention_isObjectAtURL_toUserPath() {
         let mentions = LemmyURLParser.mentions(in: "ping @alice@lemmy.world ok")
-        XCTAssertEqual(mentions.count, 1)
+        #expect(mentions.count == 1)
         guard case let .objectAtURL(url) = mentions[0].link else {
-            return XCTFail("expected .objectAtURL")
+            Issue.record("expected .objectAtURL")
+            return
         }
-        XCTAssertEqual(url.absoluteString, "https://lemmy.world/u/alice")
+        #expect(url.absoluteString == "https://lemmy.world/u/alice")
     }
 
-    func test_mentions_returnedInTextOrder() {
+    @Test
+    func mentions_returnedInTextOrder() {
         // A user mention appears before a community mention in the text; the
         // result must reflect appearance order, not match-pass order.
         let mentions = LemmyURLParser.mentions(in: "@alice@a.example !tech@b.example")
-        XCTAssertEqual(mentions.count, 2)
+        #expect(mentions.count == 2)
         guard case .objectAtURL = mentions[0].link else {
-            return XCTFail("first mention should be the user mention")
+            Issue.record("first mention should be the user mention")
+            return
         }
         guard case .community = mentions[1].link else {
-            return XCTFail("second mention should be the community mention")
+            Issue.record("second mention should be the community mention")
+            return
         }
-        XCTAssertLessThan(mentions[0].range.location, mentions[1].range.location)
+        #expect(mentions[0].range.location < mentions[1].range.location)
     }
 
-    func test_communityMention_atStringStart_matches() {
+    @Test
+    func communityMention_atStringStart_matches() {
         let mentions = LemmyURLParser.mentions(in: "!tech@beehaw.org leads the line")
-        XCTAssertEqual(mentions.count, 1)
-        XCTAssertEqual(mentions[0].range.location, 0)
+        #expect(mentions.count == 1)
+        #expect(mentions[0].range.location == 0)
     }
 
-    func test_postURL_withNonNumericId_isNil() {
-        XCTAssertNil(classify("https://lemmy.world/post/notanumber"))
+    @Test
+    func postURL_withNonNumericId_isNil() {
+        #expect(classify("https://lemmy.world/post/notanumber") == nil)
     }
 }

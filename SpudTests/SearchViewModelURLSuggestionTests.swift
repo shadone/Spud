@@ -4,13 +4,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import SpudDataKit
 import SpudUtilKit
-import XCTest
+import Testing
 @testable import Spud
 
 @MainActor
-final class SearchViewModelURLSuggestionTests: XCTestCase {
+struct SearchViewModelURLSuggestionTests {
     private func makeViewModel(
         isKnownInstance: @escaping (String) -> Bool = { _ in false }
     ) throws -> SearchViewModel {
@@ -25,48 +26,53 @@ final class SearchViewModelURLSuggestionTests: XCTestCase {
         )
     }
 
-    func test_urlQuery_setsSuggestion_andDoesNotSearch() throws {
+    @Test
+    func urlQuery_setsSuggestion_andDoesNotSearch() throws {
         let viewModel = try makeViewModel()
         viewModel.queryChanged("https://small.example/post/1")
-        XCTAssertNotNil(viewModel.urlSuggestion)
-        XCTAssertEqual(viewModel.urlSuggestion?.kind, .post)
+        #expect(viewModel.urlSuggestion != nil)
+        #expect(viewModel.urlSuggestion?.kind == .post)
         // No search was scheduled: phase stays .initial (scheduleSearch sets .loading).
-        XCTAssertEqual(viewModel.phase, .initial)
+        #expect(viewModel.phase == .initial)
     }
 
-    func test_plainTextQuery_clearsSuggestion_andSearches() throws {
+    @Test
+    func plainTextQuery_clearsSuggestion_andSearches() throws {
         let viewModel = try makeViewModel()
         viewModel.queryChanged("https://small.example/post/1")
-        XCTAssertNotNil(viewModel.urlSuggestion)
+        #expect(viewModel.urlSuggestion != nil)
 
         viewModel.queryChanged("cats")
-        XCTAssertNil(viewModel.urlSuggestion)
+        #expect(viewModel.urlSuggestion == nil)
         // A search was scheduled: scheduleSearch sets phase to .loading synchronously.
-        XCTAssertEqual(viewModel.phase, .loading)
+        #expect(viewModel.phase == .loading)
     }
 
-    func test_emptyQuery_clearsSuggestion() throws {
+    @Test
+    func emptyQuery_clearsSuggestion() throws {
         let viewModel = try makeViewModel()
         viewModel.queryChanged("https://small.example/post/1")
         viewModel.queryChanged("")
-        XCTAssertNil(viewModel.urlSuggestion)
-        XCTAssertEqual(viewModel.phase, .initial)
+        #expect(viewModel.urlSuggestion == nil)
+        #expect(viewModel.phase == .initial)
     }
 
-    func test_submit_withURLQuery_doesNotSearch() throws {
+    @Test
+    func submit_withURLQuery_doesNotSearch() throws {
         let viewModel = try makeViewModel()
         viewModel.queryChanged("https://small.example/post/1")
         viewModel.submit()
-        XCTAssertNotNil(viewModel.urlSuggestion)
+        #expect(viewModel.urlSuggestion != nil)
         // submit() must not call scheduleSearch; phase stays .initial.
-        XCTAssertEqual(viewModel.phase, .initial)
+        #expect(viewModel.phase == .initial)
     }
 
-    func test_scopeChanged_withURLQuery_doesNotSearch() throws {
+    @Test
+    func scopeChanged_withURLQuery_doesNotSearch() throws {
         let viewModel = try makeViewModel()
         viewModel.queryChanged("https://small.example/post/1")
         viewModel.scopeChanged(.communities)
         // scopeChanged() must not call scheduleSearch when a URL suggestion is active.
-        XCTAssertEqual(viewModel.phase, .initial)
+        #expect(viewModel.phase == .initial)
     }
 }

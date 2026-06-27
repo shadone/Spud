@@ -5,15 +5,15 @@
 //
 
 import SpudDataKit
+import Testing
 import UIKit
-import XCTest
 @testable import Spud
 
 /// Covers the post-detail header attribution: "in <Community>@host by <Creator>@host",
 /// where the community uses its display name (title) and both `@host` suffixes render
 /// muted, while the names keep the tap targets.
 @MainActor
-final class PostDetailHeaderAttributionTests: XCTestCase {
+struct PostDetailHeaderAttributionTests {
     private func attribution(
         communityName: String = "news",
         communityTitle: String? = "News",
@@ -61,43 +61,48 @@ final class PostDetailHeaderAttributionTests: XCTestCase {
         return vm.attribution
     }
 
-    func test_showsDisplayNameAndMutedHosts() {
-        XCTAssertEqual(attribution().string, "in News@lemmy.world by Tony@beehaw.org")
+    @Test
+    func showsDisplayNameAndMutedHosts() {
+        #expect(attribution().string == "in News@lemmy.world by Tony@beehaw.org")
     }
 
-    func test_communityHostIsMutedAndWholeHandleIsLinked() {
+    @Test
+    func communityHostIsMutedAndWholeHandleIsLinked() {
         let s = attribution()
         let ns = s.string as NSString
 
         let hostRange = ns.range(of: "@lemmy.world")
         // Host stays muted...
         let hostColor = s.attribute(.foregroundColor, at: hostRange.location, effectiveRange: nil) as? UIColor
-        XCTAssertEqual(hostColor, .tertiaryLabel)
+        #expect(hostColor == .tertiaryLabel)
 
         // ...but the whole "News@lemmy.world" handle is the tap target: name and host
         // carry the same link (so they read as one link range).
         let nameRange = ns.range(of: "News")
         let nameLink = s.attribute(.link, at: nameRange.location, effectiveRange: nil) as? URL
         let hostLink = s.attribute(.link, at: hostRange.location, effectiveRange: nil) as? URL
-        XCTAssertNotNil(nameLink)
-        XCTAssertEqual(nameLink, hostLink)
+        #expect(nameLink != nil)
+        #expect(nameLink == hostLink)
     }
 
-    func test_creatorHandleIsLinked() {
+    @Test
+    func creatorHandleIsLinked() {
         let s = attribution()
         let ns = s.string as NSString
         let nameLink = s.attribute(.link, at: ns.range(of: "Tony").location, effectiveRange: nil) as? URL
         let hostLink = s.attribute(.link, at: ns.range(of: "@beehaw.org").location, effectiveRange: nil) as? URL
-        XCTAssertNotNil(nameLink)
-        XCTAssertEqual(nameLink, hostLink)
+        #expect(nameLink != nil)
+        #expect(nameLink == hostLink)
     }
 
-    func test_fallsBackToHandleWhenTitleMissing() {
-        XCTAssertTrue(attribution(communityTitle: nil).string.hasPrefix("in news@"))
-        XCTAssertTrue(attribution(communityTitle: "   ").string.hasPrefix("in news@"))
+    @Test
+    func fallsBackToHandleWhenTitleMissing() {
+        #expect(attribution(communityTitle: nil).string.hasPrefix("in news@"))
+        #expect(attribution(communityTitle: "   ").string.hasPrefix("in news@"))
     }
 
-    func test_omitsHostWhenActorIdMissing() {
-        XCTAssertEqual(attribution(communityActorId: nil).string, "in News by Tony@beehaw.org")
+    @Test
+    func omitsHostWhenActorIdMissing() {
+        #expect(attribution(communityActorId: nil).string == "in News by Tony@beehaw.org")
     }
 }

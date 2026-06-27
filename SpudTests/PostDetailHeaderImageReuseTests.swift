@@ -5,8 +5,8 @@
 //
 
 import SpudDataKit
+import Testing
 import UIKit
-import XCTest
 @testable import Spud
 
 /// Regression coverage for the post-detail header image flickering on every vote.
@@ -19,7 +19,7 @@ import XCTest
 /// near-instantly, which reads as a flicker. When the post's media is unchanged,
 /// the displayed image must stay in place across `configure`.
 @MainActor
-final class PostDetailHeaderImageReuseTests: XCTestCase {
+struct PostDetailHeaderImageReuseTests {
     private let width: CGFloat = 390
 
     /// Returns a fixed image synchronously so the post image resolves to `.ready`
@@ -39,7 +39,8 @@ final class PostDetailHeaderImageReuseTests: XCTestCase {
         }
     }
 
-    func test_voteReconfigure_keepsLoadedImage() async {
+    @Test
+    func voteReconfigure_keepsLoadedImage() async {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 150)).image { context in
             UIColor.systemBlue.setFill()
             context.fill(CGRect(x: 0, y: 0, width: 300, height: 150))
@@ -57,19 +58,20 @@ final class PostDetailHeaderImageReuseTests: XCTestCase {
         cell.configure(with: makeViewModel(voteStatus: nil), imageService: imageService)
         cell.frame = CGRect(x: 0, y: 0, width: width, height: 2000)
         await drain(cell)
-        XCTAssertNotNil(cell.postImageView.image, "Post image never loaded on first configure")
+        #expect(cell.postImageView.image != nil, "Post image never loaded on first configure")
 
         // Simulate an optimistic upvote: the cell is reconfigured in place with
         // the same media but a changed vote. The already-loaded image must NOT be
         // cleared (clearing it and repainting is the flicker).
         cell.configure(with: makeViewModel(voteStatus: 1), imageService: imageService)
-        XCTAssertNotNil(
-            cell.postImageView.image,
+        #expect(
+            cell.postImageView.image != nil,
             "Voting cleared the already-loaded post image (flicker)"
         )
     }
 
-    func test_voteReconfigure_keepsBodyLinkPreviewCards() {
+    @Test
+    func voteReconfigure_keepsBodyLinkPreviewCards() {
         let imageService = StubImageService(image: UIImage())
 
         let cell = PostDetailHeaderCell(style: .default, reuseIdentifier: nil)
@@ -85,14 +87,13 @@ final class PostDetailHeaderImageReuseTests: XCTestCase {
         cell.layoutIfNeeded()
 
         let card = cell.linkPreviewsStackView.arrangedSubviews.first
-        XCTAssertNotNil(card, "Body link-preview card was never built on first configure")
+        #expect(card != nil, "Body link-preview card was never built on first configure")
 
         // Voting reconfigures with the same body links; the card must NOT be torn
         // down and rebuilt (which flickers and re-fetches its embed).
         cell.configure(with: makeViewModel(voteStatus: 1, body: body), imageService: imageService)
-        XCTAssertIdentical(
-            cell.linkPreviewsStackView.arrangedSubviews.first,
-            card,
+        #expect(
+            cell.linkPreviewsStackView.arrangedSubviews.first === card,
             "Voting rebuilt the body link-preview card (flicker + redundant embed fetch)"
         )
     }
@@ -102,7 +103,7 @@ final class PostDetailHeaderImageReuseTests: XCTestCase {
     /// Polls until the post image's load Task paints the image, or gives up after
     /// 2s. Condition-based so it returns as soon as the (synchronous) stub image
     /// arrives instead of always burning the full budget; the caller's
-    /// `XCTAssertNotNil` is the failure point if it never renders.
+    /// `#expect` is the failure point if it never renders.
     private func drain(_ cell: PostDetailHeaderCell) async {
         let deadline = Date().addingTimeInterval(2)
         while cell.postImageView.image == nil, Date() < deadline {

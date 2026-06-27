@@ -4,35 +4,41 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import Spud
 
 /// Locks the temporary-filename derivation used when sharing an animated GIF:
 /// the shared file must always end in `.gif` so the share sheet treats it as an
 /// animated image (sharing the decoded `UIImage` would flatten the animation).
-final class MediaViewerShareTests: XCTestCase {
-    func test_gifUrl_keepsItsFilename() throws {
-        let url = try XCTUnwrap(URL(string: "https://example.test/media/cat.gif"))
-        XCTAssertEqual(MediaViewerViewController.temporaryGIFFilename(for: url), "cat.gif")
+struct MediaViewerShareTests {
+    @Test
+    func gifUrl_keepsItsFilename() throws {
+        let url = try #require(URL(string: "https://example.test/media/cat.gif"))
+        #expect(MediaViewerViewController.temporaryGIFFilename(for: url) == "cat.gif")
     }
 
-    func test_uppercaseGifExtension_isNotDoubled() throws {
-        let url = try XCTUnwrap(URL(string: "https://example.test/media/CAT.GIF"))
-        XCTAssertEqual(MediaViewerViewController.temporaryGIFFilename(for: url), "CAT.GIF")
+    @Test
+    func uppercaseGifExtension_isNotDoubled() throws {
+        let url = try #require(URL(string: "https://example.test/media/CAT.GIF"))
+        #expect(MediaViewerViewController.temporaryGIFFilename(for: url) == "CAT.GIF")
     }
 
-    func test_nonGifExtension_getsGifAppended() throws {
-        let url = try XCTUnwrap(URL(string: "https://example.test/media/clip.mp4"))
-        XCTAssertEqual(MediaViewerViewController.temporaryGIFFilename(for: url), "clip.mp4.gif")
+    @Test
+    func nonGifExtension_getsGifAppended() throws {
+        let url = try #require(URL(string: "https://example.test/media/clip.mp4"))
+        #expect(MediaViewerViewController.temporaryGIFFilename(for: url) == "clip.mp4.gif")
     }
 
-    func test_noExtension_getsGifAppended() throws {
-        let url = try XCTUnwrap(URL(string: "https://example.test/media/raw"))
-        XCTAssertEqual(MediaViewerViewController.temporaryGIFFilename(for: url), "raw.gif")
+    @Test
+    func noExtension_getsGifAppended() throws {
+        let url = try #require(URL(string: "https://example.test/media/raw"))
+        #expect(MediaViewerViewController.temporaryGIFFilename(for: url) == "raw.gif")
     }
 
-    func test_rootUrl_fallsBackToImageGif() throws {
-        let url = try XCTUnwrap(URL(string: "https://example.test"))
-        XCTAssertEqual(MediaViewerViewController.temporaryGIFFilename(for: url), "image.gif")
+    @Test
+    func rootUrl_fallsBackToImageGif() throws {
+        let url = try #require(URL(string: "https://example.test"))
+        #expect(MediaViewerViewController.temporaryGIFFilename(for: url) == "image.gif")
     }
 }

@@ -4,10 +4,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import Spud
 
-final class AccountEntityQueryTests: XCTestCase {
+struct AccountEntityQueryTests {
     private let world = AccountAppEntity(id: "kc-1", nickname: "alice", instanceHost: "lemmy.world")
     private let beehaw = AccountAppEntity(id: "kc-2", nickname: "bob", instanceHost: "beehaw.org")
 
@@ -16,13 +16,15 @@ final class AccountEntityQueryTests: XCTestCase {
         return AccountEntityQuery(load: { entities })
     }
 
-    func test_suggestedEntities_returnsAll() async throws {
+    @Test
+    func suggestedEntities_returnsAll() async throws {
         let result = try await query().suggestedEntities()
-        XCTAssertEqual(result.map(\.id), ["kc-1", "kc-2"])
+        #expect(result.map(\.id) == ["kc-1", "kc-2"])
     }
 
-    func test_entitiesForIds_roundTripsById() async throws {
+    @Test
+    func entitiesForIds_roundTripsById() async throws {
         let result = try await query().entities(for: ["kc-2"])
-        XCTAssertEqual(result.map(\.id), ["kc-2"])
+        #expect(result.map(\.id) == ["kc-2"])
     }
 }

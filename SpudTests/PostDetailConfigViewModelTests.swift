@@ -6,12 +6,13 @@
 
 import LemmyKit
 import SpudUIKit
-import XCTest
+import Testing
 @testable import Spud
 
 @MainActor
-final class PostDetailConfigViewModelTests: XCTestCase {
-    func testSeedsFromPreferencesAndCurrentSort() {
+struct PostDetailConfigViewModelTests {
+    @Test
+    func seedsFromPreferencesAndCurrentSort() {
         let prefs = PreferencesService()
         prefs.commentDensity = .compact
         let viewModel = PostDetailConfigViewModel(
@@ -19,11 +20,12 @@ final class PostDetailConfigViewModelTests: XCTestCase {
             currentSort: .New,
             onSelectSort: { _ in }
         )
-        XCTAssertEqual(viewModel.commentDensity, .compact)
-        XCTAssertEqual(viewModel.currentSort, .New)
+        #expect(viewModel.commentDensity == .compact)
+        #expect(viewModel.currentSort == .New)
     }
 
-    func testUpdateCommentDensityWritesThrough() {
+    @Test
+    func updateCommentDensityWritesThrough() {
         let prefs = PreferencesService()
         prefs.commentDensity = .comfortable
         let viewModel = PostDetailConfigViewModel(
@@ -32,11 +34,12 @@ final class PostDetailConfigViewModelTests: XCTestCase {
             onSelectSort: { _ in }
         )
         viewModel.updateCommentDensity(.compact)
-        XCTAssertEqual(viewModel.commentDensity, .compact)
-        XCTAssertEqual(prefs.commentDensity, .compact)
+        #expect(viewModel.commentDensity == .compact)
+        #expect(prefs.commentDensity == .compact)
     }
 
-    func testSelectSortRoutesAndUpdates() {
+    @Test
+    func selectSortRoutesAndUpdates() {
         var selected: Components.Schemas.CommentSortType?
         let viewModel = PostDetailConfigViewModel(
             preferencesService: PreferencesService(),
@@ -44,7 +47,7 @@ final class PostDetailConfigViewModelTests: XCTestCase {
             onSelectSort: { selected = $0 }
         )
         viewModel.selectSort(.Top)
-        XCTAssertEqual(viewModel.currentSort, .Top)
-        XCTAssertEqual(selected, .Top)
+        #expect(viewModel.currentSort == .Top)
+        #expect(selected == .Top)
     }
 }

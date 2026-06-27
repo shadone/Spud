@@ -4,10 +4,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import Spud
 
-final class CommunityEntityQueryTests: XCTestCase {
+struct CommunityEntityQueryTests {
     private let tech = CommunityAppEntity(
         id: "technology@lemmy.world",
         name: "technology",
@@ -26,18 +26,21 @@ final class CommunityEntityQueryTests: XCTestCase {
         return CommunityEntityQuery(load: { entities })
     }
 
-    func test_suggestedEntities_returnsAll() async throws {
+    @Test
+    func suggestedEntities_returnsAll() async throws {
         let result = try await query().suggestedEntities()
-        XCTAssertEqual(result.map(\.id), ["technology@lemmy.world", "askscience@beehaw.org"])
+        #expect(result.map(\.id) == ["technology@lemmy.world", "askscience@beehaw.org"])
     }
 
-    func test_entitiesMatching_filtersByNameCaseInsensitively() async throws {
+    @Test
+    func entitiesMatching_filtersByNameCaseInsensitively() async throws {
         let result = try await query().entities(matching: "TECH")
-        XCTAssertEqual(result.map(\.name), ["technology"])
+        #expect(result.map(\.name) == ["technology"])
     }
 
-    func test_entitiesForIds_roundTripsById() async throws {
+    @Test
+    func entitiesForIds_roundTripsById() async throws {
         let result = try await query().entities(for: ["askscience@beehaw.org"])
-        XCTAssertEqual(result.map(\.id), ["askscience@beehaw.org"])
+        #expect(result.map(\.id) == ["askscience@beehaw.org"])
     }
 }

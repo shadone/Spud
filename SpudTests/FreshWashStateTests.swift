@@ -4,25 +4,29 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import Spud
 
-final class FreshWashStateTests: XCTestCase {
-    func testNotNewIsNone() {
-        XCTAssertEqual(FreshWashState.resolve(isNew: false, hasAnimated: false, reduceMotion: false), .none)
-        XCTAssertEqual(FreshWashState.resolve(isNew: false, hasAnimated: true, reduceMotion: true), .none)
+struct FreshWashStateTests {
+    @Test
+    func notNewIsNone() {
+        #expect(FreshWashState.resolve(isNew: false, hasAnimated: false, reduceMotion: false) == .none)
+        #expect(FreshWashState.resolve(isNew: false, hasAnimated: true, reduceMotion: true) == .none)
     }
 
-    func testReduceMotionNewIsStaticTint() {
-        XCTAssertEqual(FreshWashState.resolve(isNew: true, hasAnimated: false, reduceMotion: true), .staticTint)
-        XCTAssertEqual(FreshWashState.resolve(isNew: true, hasAnimated: true, reduceMotion: true), .staticTint)
+    @Test
+    func reduceMotionNewIsStaticTint() {
+        #expect(FreshWashState.resolve(isNew: true, hasAnimated: false, reduceMotion: true) == .staticTint)
+        #expect(FreshWashState.resolve(isNew: true, hasAnimated: true, reduceMotion: true) == .staticTint)
     }
 
-    func testNewNotYetAnimatedFadesFromTint() {
-        XCTAssertEqual(FreshWashState.resolve(isNew: true, hasAnimated: false, reduceMotion: false), .fadeFromTint)
+    @Test
+    func newNotYetAnimatedFadesFromTint() {
+        #expect(FreshWashState.resolve(isNew: true, hasAnimated: false, reduceMotion: false) == .fadeFromTint)
     }
 
-    func testNewAlreadyAnimatedIsNone() {
-        XCTAssertEqual(FreshWashState.resolve(isNew: true, hasAnimated: true, reduceMotion: false), .none)
+    @Test
+    func newAlreadyAnimatedIsNone() {
+        #expect(FreshWashState.resolve(isNew: true, hasAnimated: true, reduceMotion: false) == .none)
     }
 }

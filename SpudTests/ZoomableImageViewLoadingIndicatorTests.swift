@@ -6,8 +6,8 @@
 
 import Foundation
 import SpudDataKit
+import Testing
 import UIKit
-import XCTest
 @testable import Spud
 
 /// Verifies the full-screen media viewer shows its loading indicator only while
@@ -15,7 +15,7 @@ import XCTest
 /// so a fast load or cache hit never flashes the spinner — and hides it on
 /// `.ready` / `.failure`.
 @MainActor
-final class ZoomableImageViewLoadingIndicatorTests: XCTestCase {
+struct ZoomableImageViewLoadingIndicatorTests {
     private let screen = CGSize(width: 390, height: 844)
 
     private func solidImage(
@@ -41,7 +41,8 @@ final class ZoomableImageViewLoadingIndicatorTests: XCTestCase {
 
     /// With a preloaded thumbnail, `startLoading()` must not start the spinner
     /// synchronously — the grace task has not fired, so there's no flash.
-    func test_indicatorDoesNotShowSynchronously() {
+    @Test
+    func indicatorDoesNotShowSynchronously() {
         let item = MediaItem(
             imageUrl: URL(filePath: "/full.png"),
             thumbnailUrl: URL(filePath: "/thumb.png"),
@@ -54,12 +55,13 @@ final class ZoomableImageViewLoadingIndicatorTests: XCTestCase {
 
         view.startLoading()
 
-        XCTAssertFalse(view.isLoadingIndicatorVisible)
+        #expect(!view.isLoadingIndicatorVisible)
     }
 
     /// When the grace timer fires while the final image is still loading, the
     /// decision method starts the spinner.
-    func test_indicatorShowsWhenGraceFiresWhileStillLoading() {
+    @Test
+    func indicatorShowsWhenGraceFiresWhileStillLoading() {
         let item = MediaItem(imageUrl: URL(filePath: "/full.png"))
         let view = makeView(
             item: item,
@@ -69,12 +71,13 @@ final class ZoomableImageViewLoadingIndicatorTests: XCTestCase {
         view.startLoading()
         view.presentIndicatorIfStillLoading()
 
-        XCTAssertTrue(view.isLoadingIndicatorVisible)
+        #expect(view.isLoadingIndicatorVisible)
     }
 
     /// A cache hit / fast load resolves to `.ready` before the grace timer; the
     /// decision method called afterwards must be a no-op (spinner stays hidden).
-    func test_indicatorIsNoOpAfterReady() async {
+    @Test
+    func indicatorIsNoOpAfterReady() async {
         let item = MediaItem(imageUrl: URL(filePath: "/full.png"))
         let view = makeView(
             item: item,
@@ -86,12 +89,13 @@ final class ZoomableImageViewLoadingIndicatorTests: XCTestCase {
 
         view.presentIndicatorIfStillLoading()
 
-        XCTAssertFalse(view.isLoadingIndicatorVisible)
+        #expect(!view.isLoadingIndicatorVisible)
     }
 
     /// A failure resolves the load; the decision method called afterwards must be
     /// a no-op (the spinner stays hidden even if the grace decision runs).
-    func test_indicatorIsNoOpAfterFailure() async {
+    @Test
+    func indicatorIsNoOpAfterFailure() async {
         let item = MediaItem(imageUrl: URL(filePath: "/full.png"))
         let view = makeView(
             item: item,
@@ -103,12 +107,13 @@ final class ZoomableImageViewLoadingIndicatorTests: XCTestCase {
 
         view.presentIndicatorIfStillLoading()
 
-        XCTAssertFalse(view.isLoadingIndicatorVisible)
+        #expect(!view.isLoadingIndicatorVisible)
     }
 
     /// On failure with no preloaded image, the spinner is hidden and the
     /// broken-image icon is shown.
-    func test_failureHidesIndicatorAndShowsError() async {
+    @Test
+    func failureHidesIndicatorAndShowsError() async {
         let item = MediaItem(imageUrl: URL(filePath: "/full.png"))
         let view = makeView(
             item: item,
@@ -118,9 +123,9 @@ final class ZoomableImageViewLoadingIndicatorTests: XCTestCase {
         view.startLoading()
         await view.awaitLoadForTesting()
 
-        XCTAssertFalse(view.isLoadingIndicatorVisible)
-        XCTAssertNil(view.image)
-        XCTAssertFalse(view.isErrorIconHiddenForTesting)
+        #expect(!view.isLoadingIndicatorVisible)
+        #expect(view.image == nil)
+        #expect(!view.isErrorIconHiddenForTesting)
     }
 }
 

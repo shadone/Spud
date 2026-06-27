@@ -5,28 +5,31 @@
 //
 
 import SpudDataKit
-import XCTest
+import Testing
 @testable import Spud
 
 @MainActor
-final class HistoryViewModelTests: XCTestCase {
-    func testDefaultsToReadModeAndEmptySearch() {
+struct HistoryViewModelTests {
+    @Test
+    func defaultsToReadModeAndEmptySearch() {
         let vm = HistoryViewModel(accountKeychainId: "kc-1")
-        XCTAssertEqual(vm.mode, .read)
-        XCTAssertNil(vm.searchQuery)
+        #expect(vm.mode == .read)
+        #expect(vm.searchQuery == nil)
     }
 
-    func testSearchTextNormalizesToNilWhenBlank() {
+    @Test
+    func searchTextNormalizesToNilWhenBlank() {
         let vm = HistoryViewModel(accountKeychainId: "kc-1")
         vm.searchText = "  "
-        XCTAssertNil(vm.searchQuery)
+        #expect(vm.searchQuery == nil)
         vm.searchText = "  swift "
-        XCTAssertEqual(vm.searchQuery, "swift")
+        #expect(vm.searchQuery == "swift")
     }
 
-    func testModeIsMutable() {
+    @Test
+    func modeIsMutable() {
         let vm = HistoryViewModel(accountKeychainId: "kc-1")
         vm.mode = .saved
-        XCTAssertEqual(vm.mode, .saved)
+        #expect(vm.mode == .saved)
     }
 }

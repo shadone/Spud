@@ -5,36 +5,40 @@
 //
 
 import SpudDataKit
-import XCTest
+import Testing
 @testable import Spud
 
-final class FeedStatePresenterTests: XCTestCase {
-    func testOfflineDescriptor() {
+struct FeedStatePresenterTests {
+    @Test
+    func offlineDescriptor() {
         let d = FeedStatePresenter.descriptor(for: .offline, host: "lemmy.world")
-        XCTAssertEqual(d.symbolName, "wifi.slash")
-        XCTAssertEqual(d.title, "You're offline")
-        XCTAssertEqual(d.primary.action, .retry)
-        XCTAssertNil(d.secondary)
+        #expect(d.symbolName == "wifi.slash")
+        #expect(d.title == "You're offline")
+        #expect(d.primary.action == .retry)
+        #expect(d.secondary == nil)
     }
 
-    func testUnreachableDescriptorInterpolatesHost() {
+    @Test
+    func unreachableDescriptorInterpolatesHost() {
         let d = FeedStatePresenter.descriptor(for: .unreachable, host: "lemmy.world")
-        XCTAssertEqual(d.symbolName, "globe")
-        XCTAssertEqual(d.title, "Couldn't reach lemmy.world")
-        XCTAssertEqual(d.primary.action, .retry)
-        XCTAssertEqual(d.secondary?.action, .workOffline)
+        #expect(d.symbolName == "globe")
+        #expect(d.title == "Couldn't reach lemmy.world")
+        #expect(d.primary.action == .retry)
+        #expect(d.secondary?.action == .workOffline)
     }
 
-    func testUnreachableFallsBackWhenHostNil() {
+    @Test
+    func unreachableFallsBackWhenHostNil() {
         let d = FeedStatePresenter.descriptor(for: .unreachable, host: nil)
-        XCTAssertEqual(d.title, "Couldn't reach the server")
+        #expect(d.title == "Couldn't reach the server")
     }
 
-    func testMalformedDescriptorOffersCopyDetails() {
+    @Test
+    func malformedDescriptorOffersCopyDetails() {
         let d = FeedStatePresenter.descriptor(for: .malformedResponse, host: "lemmy.world")
-        XCTAssertEqual(d.symbolName, "exclamationmark.triangle")
-        XCTAssertEqual(d.title, "Something went wrong")
-        XCTAssertEqual(d.primary.action, .retry)
-        XCTAssertEqual(d.secondary?.action, .copyDetails)
+        #expect(d.symbolName == "exclamationmark.triangle")
+        #expect(d.title == "Something went wrong")
+        #expect(d.primary.action == .retry)
+        #expect(d.secondary?.action == .copyDetails)
     }
 }

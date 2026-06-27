@@ -6,11 +6,11 @@
 
 import LemmyKit
 import SpudUIKit
-import XCTest
+import Testing
 @testable import Spud
 
 @MainActor
-final class QuickSwitchViewModelTests: XCTestCase {
+struct QuickSwitchViewModelTests {
     private func makeViewModel(
         preferences: PreferencesService,
         currentSort: Components.Schemas.SortType = .Hot,
@@ -23,7 +23,8 @@ final class QuickSwitchViewModelTests: XCTestCase {
         )
     }
 
-    func testSeedsFromPreferences() {
+    @Test
+    func seedsFromPreferences() {
         let prefs = PreferencesService()
         prefs.postDensity = .compact
         prefs.thumbnailPosition = .right
@@ -31,58 +32,63 @@ final class QuickSwitchViewModelTests: XCTestCase {
 
         let viewModel = makeViewModel(preferences: prefs, currentSort: .New)
 
-        XCTAssertEqual(viewModel.postDensity, .compact)
-        XCTAssertEqual(viewModel.thumbnailPosition, .right)
-        XCTAssertEqual(viewModel.showVoteButtons, false)
-        XCTAssertEqual(viewModel.currentSort, .New)
+        #expect(viewModel.postDensity == .compact)
+        #expect(viewModel.thumbnailPosition == .right)
+        #expect(viewModel.showVoteButtons == false)
+        #expect(viewModel.currentSort == .New)
     }
 
-    func testUpdatePostDensityWritesThrough() {
+    @Test
+    func updatePostDensityWritesThrough() {
         let prefs = PreferencesService()
         prefs.postDensity = .comfortable
         let viewModel = makeViewModel(preferences: prefs)
 
         viewModel.updatePostDensity(.compact)
 
-        XCTAssertEqual(viewModel.postDensity, .compact)
-        XCTAssertEqual(prefs.postDensity, .compact)
+        #expect(viewModel.postDensity == .compact)
+        #expect(prefs.postDensity == .compact)
     }
 
-    func testUpdateThumbnailPositionWritesThrough() {
+    @Test
+    func updateThumbnailPositionWritesThrough() {
         let prefs = PreferencesService()
         prefs.thumbnailPosition = .left
         let viewModel = makeViewModel(preferences: prefs)
 
         viewModel.updateThumbnailPosition(.hidden)
 
-        XCTAssertEqual(viewModel.thumbnailPosition, .hidden)
-        XCTAssertEqual(prefs.thumbnailPosition, .hidden)
+        #expect(viewModel.thumbnailPosition == .hidden)
+        #expect(prefs.thumbnailPosition == .hidden)
     }
 
-    func testUpdateShowVoteButtonsWritesThrough() {
+    @Test
+    func updateShowVoteButtonsWritesThrough() {
         let prefs = PreferencesService()
         prefs.showVoteButtons = true
         let viewModel = makeViewModel(preferences: prefs)
 
         viewModel.updateShowVoteButtons(false)
 
-        XCTAssertEqual(viewModel.showVoteButtons, false)
-        XCTAssertEqual(prefs.showVoteButtons, false)
+        #expect(viewModel.showVoteButtons == false)
+        #expect(prefs.showVoteButtons == false)
     }
 
-    func testUpdateShowNsfwWritesThrough() {
+    @Test
+    func updateShowNsfwWritesThrough() {
         let prefs = PreferencesService()
         prefs.showNsfw = false
         let viewModel = makeViewModel(preferences: prefs)
-        XCTAssertEqual(viewModel.showNsfw, false)
+        #expect(viewModel.showNsfw == false)
 
         viewModel.updateShowNsfw(true)
 
-        XCTAssertEqual(viewModel.showNsfw, true)
-        XCTAssertEqual(prefs.showNsfw, true)
+        #expect(viewModel.showNsfw == true)
+        #expect(prefs.showNsfw == true)
     }
 
-    func testSelectSortInvokesCallbackAndUpdatesCurrent() {
+    @Test
+    func selectSortInvokesCallbackAndUpdatesCurrent() {
         let prefs = PreferencesService()
         var selected: Components.Schemas.SortType?
         let viewModel = makeViewModel(
@@ -93,7 +99,7 @@ final class QuickSwitchViewModelTests: XCTestCase {
 
         viewModel.selectSort(.New)
 
-        XCTAssertEqual(selected, .New)
-        XCTAssertEqual(viewModel.currentSort, .New)
+        #expect(selected == .New)
+        #expect(viewModel.currentSort == .New)
     }
 }

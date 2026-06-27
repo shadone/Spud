@@ -4,14 +4,15 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import Spud
 @testable import SpudDataKit
 
 /// Locks the thumbnail-URL derivation that drives feed image prefetching, so an
 /// image post warms the cache ahead of scroll and a text/link post does not.
 @MainActor
-final class PostListPrefetchTests: XCTestCase {
+struct PostListPrefetchTests {
     private let detector = PostContentDetectorService()
 
     private func row(url: String?, thumbnailUrl: String?) -> PostListRow {
@@ -47,15 +48,17 @@ final class PostListPrefetchTests: XCTestCase {
         )
     }
 
-    func test_imagePost_prefetchesTheImageUrl() {
+    @Test
+    func imagePost_prefetchesTheImageUrl() {
         let url = PostListPostViewModel.prefetchThumbnailUrl(
             for: row(url: "https://example.test/cat.jpg", thumbnailUrl: nil),
             postContentDetector: detector
         )
-        XCTAssertEqual(url?.absoluteString, "https://example.test/cat.jpg")
+        #expect(url?.absoluteString == "https://example.test/cat.jpg")
     }
 
-    func test_imagePost_prefersThumbnailWhenPresent() {
+    @Test
+    func imagePost_prefersThumbnailWhenPresent() {
         let url = PostListPostViewModel.prefetchThumbnailUrl(
             for: row(
                 url: "https://example.test/cat.png",
@@ -63,26 +66,29 @@ final class PostListPrefetchTests: XCTestCase {
             ),
             postContentDetector: detector
         )
-        XCTAssertEqual(url?.absoluteString, "https://example.test/cat_thumb.png")
+        #expect(url?.absoluteString == "https://example.test/cat_thumb.png")
     }
 
-    func test_externalLinkPost_hasNothingToPrefetch() {
+    @Test
+    func externalLinkPost_hasNothingToPrefetch() {
         let url = PostListPostViewModel.prefetchThumbnailUrl(
             for: row(url: "https://example.test/article", thumbnailUrl: nil),
             postContentDetector: detector
         )
-        XCTAssertNil(url)
+        #expect(url == nil)
     }
 
-    func test_textPost_hasNothingToPrefetch() {
+    @Test
+    func textPost_hasNothingToPrefetch() {
         let url = PostListPostViewModel.prefetchThumbnailUrl(
             for: row(url: nil, thumbnailUrl: nil),
             postContentDetector: detector
         )
-        XCTAssertNil(url)
+        #expect(url == nil)
     }
 
-    func test_externalLinkWithEmbedThumbnail_prefetchesTheThumbnail() {
+    @Test
+    func externalLinkWithEmbedThumbnail_prefetchesTheThumbnail() {
         let url = PostListPostViewModel.prefetchThumbnailUrl(
             for: row(
                 url: "https://example.test/article",
@@ -90,21 +96,23 @@ final class PostListPrefetchTests: XCTestCase {
             ),
             postContentDetector: detector
         )
-        XCTAssertEqual(url?.absoluteString, "https://example.test/embed.jpg")
+        #expect(url?.absoluteString == "https://example.test/embed.jpg")
     }
 
     // MARK: thumbnail kind
 
-    func test_thumbnail_imagePost_isImage() throws {
+    @Test
+    func thumbnail_imagePost_isImage() throws {
         let (thumbnail, fullImageUrl) = PostListPostViewModel.thumbnail(
             for: row(url: "https://example.test/cat.jpg", thumbnailUrl: nil),
             postContentDetector: detector
         )
-        XCTAssertEqual(thumbnail, try .image(thumbnailUrl: XCTUnwrap(URL(string: "https://example.test/cat.jpg"))))
-        XCTAssertEqual(fullImageUrl?.absoluteString, "https://example.test/cat.jpg")
+        #expect(try thumbnail == .image(thumbnailUrl: #require(URL(string: "https://example.test/cat.jpg"))))
+        #expect(fullImageUrl?.absoluteString == "https://example.test/cat.jpg")
     }
 
-    func test_thumbnail_externalLinkWithEmbed_isLinkImage_andHasNoFullImage() throws {
+    @Test
+    func thumbnail_externalLinkWithEmbed_isLinkImage_andHasNoFullImage() throws {
         let (thumbnail, fullImageUrl) = PostListPostViewModel.thumbnail(
             for: row(
                 url: "https://example.test/article",
@@ -112,32 +120,35 @@ final class PostListPrefetchTests: XCTestCase {
             ),
             postContentDetector: detector
         )
-        XCTAssertEqual(thumbnail, try .linkImage(
-            thumbnailUrl: XCTUnwrap(URL(string: "https://example.test/embed.jpg")),
-            linkUrl: XCTUnwrap(URL(string: "https://example.test/article"))
+        #expect(try thumbnail == .linkImage(
+            thumbnailUrl: #require(URL(string: "https://example.test/embed.jpg")),
+            linkUrl: #require(URL(string: "https://example.test/article"))
         ))
-        XCTAssertNil(fullImageUrl, "a link preview does not open the image viewer")
+        #expect(fullImageUrl == nil, "a link preview does not open the image viewer")
     }
 
-    func test_thumbnail_externalLinkWithoutEmbed_isLink_andHasNoFullImage() throws {
+    @Test
+    func thumbnail_externalLinkWithoutEmbed_isLink_andHasNoFullImage() throws {
         let (thumbnail, fullImageUrl) = PostListPostViewModel.thumbnail(
             for: row(url: "https://example.test/article", thumbnailUrl: nil),
             postContentDetector: detector
         )
-        XCTAssertEqual(thumbnail, try .link(linkUrl: XCTUnwrap(URL(string: "https://example.test/article"))))
-        XCTAssertNil(fullImageUrl, "a link post does not open the image viewer")
+        #expect(try thumbnail == .link(linkUrl: #require(URL(string: "https://example.test/article"))))
+        #expect(fullImageUrl == nil, "a link post does not open the image viewer")
     }
 
-    func test_thumbnail_textPost_isText() {
+    @Test
+    func thumbnail_textPost_isText() {
         let (thumbnail, fullImageUrl) = PostListPostViewModel.thumbnail(
             for: row(url: nil, thumbnailUrl: nil),
             postContentDetector: detector
         )
-        XCTAssertEqual(thumbnail, .text)
-        XCTAssertNil(fullImageUrl)
+        #expect(thumbnail == .text)
+        #expect(fullImageUrl == nil)
     }
 
-    func test_thumbnail_videoPost_isVideo_withPosterAndNoFullImage() throws {
+    @Test
+    func thumbnail_videoPost_isVideo_withPosterAndNoFullImage() throws {
         let (thumbnail, fullImageUrl) = PostListPostViewModel.thumbnail(
             for: row(
                 url: "https://example.test/clip.mp4",
@@ -145,14 +156,15 @@ final class PostListPrefetchTests: XCTestCase {
             ),
             postContentDetector: detector
         )
-        XCTAssertEqual(thumbnail, try .video(
-            posterUrl: XCTUnwrap(URL(string: "https://example.test/poster.jpg")),
-            videoUrl: XCTUnwrap(URL(string: "https://example.test/clip.mp4"))
+        #expect(try thumbnail == .video(
+            posterUrl: #require(URL(string: "https://example.test/poster.jpg")),
+            videoUrl: #require(URL(string: "https://example.test/clip.mp4"))
         ))
-        XCTAssertNil(fullImageUrl, "video posts do not open the image viewer")
+        #expect(fullImageUrl == nil, "video posts do not open the image viewer")
     }
 
-    func test_videoPost_prefetchesThePoster() {
+    @Test
+    func videoPost_prefetchesThePoster() {
         let url = PostListPostViewModel.prefetchThumbnailUrl(
             for: row(
                 url: "https://example.test/clip.mp4",
@@ -160,6 +172,6 @@ final class PostListPrefetchTests: XCTestCase {
             ),
             postContentDetector: detector
         )
-        XCTAssertEqual(url?.absoluteString, "https://example.test/poster.jpg")
+        #expect(url?.absoluteString == "https://example.test/poster.jpg")
     }
 }

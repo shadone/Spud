@@ -4,48 +4,47 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import Spud
 
-final class CommentsBackgroundTests: XCTestCase {
-    func testCommentsPresentIsAlwaysHidden() {
+struct CommentsBackgroundTests {
+    @Test
+    func commentsPresentIsAlwaysHidden() {
         for loading in [true, false] {
             for completed in [true, false] {
-                XCTAssertEqual(
+                #expect(
                     CommentsBackground.decide(
                         isLoadingComments: loading,
                         hasCompletedFetch: completed,
                         hasComments: true
-                    ),
-                    .hidden,
+                    ) == .hidden,
                     "loading=\(loading) completed=\(completed)"
                 )
             }
         }
     }
 
-    func testLoadingWithNoCommentsShowsSkeleton() {
-        XCTAssertEqual(
-            CommentsBackground.decide(isLoadingComments: true, hasCompletedFetch: false, hasComments: false),
-            .skeleton
+    @Test
+    func loadingWithNoCommentsShowsSkeleton() {
+        #expect(
+            CommentsBackground.decide(isLoadingComments: true, hasCompletedFetch: false, hasComments: false) == .skeleton
         )
-        XCTAssertEqual(
-            CommentsBackground.decide(isLoadingComments: true, hasCompletedFetch: true, hasComments: false),
-            .skeleton
-        )
-    }
-
-    func testSettledWithNoCommentsShowsEmpty() {
-        XCTAssertEqual(
-            CommentsBackground.decide(isLoadingComments: false, hasCompletedFetch: true, hasComments: false),
-            .empty
+        #expect(
+            CommentsBackground.decide(isLoadingComments: true, hasCompletedFetch: true, hasComments: false) == .skeleton
         )
     }
 
-    func testInitialBeforeFetchShowsSkeleton() {
-        XCTAssertEqual(
-            CommentsBackground.decide(isLoadingComments: false, hasCompletedFetch: false, hasComments: false),
-            .skeleton
+    @Test
+    func settledWithNoCommentsShowsEmpty() {
+        #expect(
+            CommentsBackground.decide(isLoadingComments: false, hasCompletedFetch: true, hasComments: false) == .empty
+        )
+    }
+
+    @Test
+    func initialBeforeFetchShowsSkeleton() {
+        #expect(
+            CommentsBackground.decide(isLoadingComments: false, hasCompletedFetch: false, hasComments: false) == .skeleton
         )
     }
 }

@@ -6,11 +6,11 @@
 
 import LemmyKit
 import SpudUtilKit
-import XCTest
+import Testing
 @testable import Spud
 
 @MainActor
-final class AppNavigationRoutingTests: XCTestCase {
+struct AppNavigationRoutingTests {
     private final class SpyNavigator: AppNavigating {
         var calls: [String] = []
         func selectFeed(listing: Components.Schemas.ListingType, sort: Components.Schemas.SortType?) {
@@ -38,7 +38,8 @@ final class AppNavigationRoutingTests: XCTestCase {
         }
     }
 
-    func test_navigate_withActiveWindow_routesImmediately() {
+    @Test
+    func navigate_withActiveWindow_routesImmediately() {
         let coordinator = AppCoordinator.shared
         let spy = SpyNavigator()
         coordinator.setActiveWindow(spy)
@@ -46,35 +47,37 @@ final class AppNavigationRoutingTests: XCTestCase {
         coordinator.navigate(.inbox)
         coordinator.navigate(.search(query: "cats"))
 
-        XCTAssertEqual(spy.calls, ["inbox", "search:cats"])
-        XCTAssertNil(coordinator.pendingNavigation)
+        #expect(spy.calls == ["inbox", "search:cats"])
+        #expect(coordinator.pendingNavigation == nil)
 
         coordinator.setActiveWindow(nil)
     }
 
-    func test_navigate_savedFeed_routesToSavedFeed() {
+    @Test
+    func navigate_savedFeed_routesToSavedFeed() {
         let coordinator = AppCoordinator.shared
         let spy = SpyNavigator()
         coordinator.setActiveWindow(spy)
 
         coordinator.navigate(.savedFeed(sort: nil))
 
-        XCTAssertEqual(spy.calls, ["savedFeed:nil"])
+        #expect(spy.calls == ["savedFeed:nil"])
         coordinator.setActiveWindow(nil)
     }
 
-    func test_navigate_withNoWindow_storesPending_thenReplaysOnRegister() {
+    @Test
+    func navigate_withNoWindow_storesPending_thenReplaysOnRegister() {
         let coordinator = AppCoordinator.shared
         coordinator.setActiveWindow(nil)
 
         coordinator.navigate(.newPost)
-        XCTAssertEqual(coordinator.pendingNavigation, .newPost)
+        #expect(coordinator.pendingNavigation == .newPost)
 
         let spy = SpyNavigator()
         coordinator.setActiveWindow(spy) // registering a window drains pending
 
-        XCTAssertEqual(spy.calls, ["newPost"])
-        XCTAssertNil(coordinator.pendingNavigation)
+        #expect(spy.calls == ["newPost"])
+        #expect(coordinator.pendingNavigation == nil)
 
         coordinator.setActiveWindow(nil)
     }

@@ -5,11 +5,11 @@
 //
 
 import SpudUtilKit
-import XCTest
+import Testing
 @testable import Spud
 
 @MainActor
-final class SearchResultsNsfwFilterTests: XCTestCase {
+struct SearchResultsNsfwFilterTests {
     // MARK: Helpers
 
     private func makeSfwPost(id: Int32) -> SearchPostResult {
@@ -66,31 +66,34 @@ final class SearchResultsNsfwFilterTests: XCTestCase {
 
     // MARK: Tests
 
-    func test_filteringNsfw_true_dropsNsfwPostsAndCommunities() {
+    @Test
+    func filteringNsfw_true_dropsNsfwPostsAndCommunities() {
         var results = SearchResults()
         results.posts = [makeSfwPost(id: 1), makeNsfwPost(id: 2), makeSfwPost(id: 3)]
         results.communities = [makeSfwCommunity(id: 10), makeNsfwCommunity(id: 11)]
 
         let filtered = results.filteringNsfw(true)
 
-        XCTAssertEqual(filtered.posts.count, 2)
-        XCTAssertTrue(filtered.posts.allSatisfy { !$0.isNsfw })
-        XCTAssertEqual(filtered.communities.count, 1)
-        XCTAssertTrue(filtered.communities.allSatisfy { !$0.isNsfw })
+        #expect(filtered.posts.count == 2)
+        #expect(filtered.posts.allSatisfy { !$0.isNsfw })
+        #expect(filtered.communities.count == 1)
+        #expect(filtered.communities.allSatisfy { !$0.isNsfw })
     }
 
-    func test_filteringNsfw_false_keepsAll() {
+    @Test
+    func filteringNsfw_false_keepsAll() {
         var results = SearchResults()
         results.posts = [makeSfwPost(id: 1), makeNsfwPost(id: 2)]
         results.communities = [makeSfwCommunity(id: 10), makeNsfwCommunity(id: 11)]
 
         let filtered = results.filteringNsfw(false)
 
-        XCTAssertEqual(filtered.posts.count, 2)
-        XCTAssertEqual(filtered.communities.count, 2)
+        #expect(filtered.posts.count == 2)
+        #expect(filtered.communities.count == 2)
     }
 
-    func test_filteringNsfw_true_preservesUsersAndComments() {
+    @Test
+    func filteringNsfw_true_preservesUsersAndComments() {
         // users and comments have no NSFW flag; they must be left untouched
         var results = SearchResults()
         results.posts = [makeNsfwPost(id: 1)]
@@ -99,20 +102,21 @@ final class SearchResultsNsfwFilterTests: XCTestCase {
 
         let filtered = results.filteringNsfw(true)
 
-        XCTAssertTrue(filtered.posts.isEmpty)
-        XCTAssertTrue(filtered.communities.isEmpty)
-        XCTAssertTrue(filtered.users.isEmpty)
-        XCTAssertTrue(filtered.comments.isEmpty)
+        #expect(filtered.posts.isEmpty)
+        #expect(filtered.communities.isEmpty)
+        #expect(filtered.users.isEmpty)
+        #expect(filtered.comments.isEmpty)
     }
 
-    func test_filteringNsfw_true_allSfw_keepsAll() {
+    @Test
+    func filteringNsfw_true_allSfw_keepsAll() {
         var results = SearchResults()
         results.posts = [makeSfwPost(id: 1), makeSfwPost(id: 2)]
         results.communities = [makeSfwCommunity(id: 10)]
 
         let filtered = results.filteringNsfw(true)
 
-        XCTAssertEqual(filtered.posts.count, 2)
-        XCTAssertEqual(filtered.communities.count, 1)
+        #expect(filtered.posts.count == 2)
+        #expect(filtered.communities.count == 1)
     }
 }

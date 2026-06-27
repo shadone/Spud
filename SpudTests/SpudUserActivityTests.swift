@@ -1,34 +1,39 @@
 // SpudTests/SpudUserActivityTests.swift
 import CoreSpotlight
-import XCTest
+import Foundation
+import Testing
 @testable import Spud
 
-final class SpudUserActivityTests: XCTestCase {
+struct SpudUserActivityTests {
     private let postURL = URL(string: "info.ddenis.spud://internal/resolve?url=https://lemmy.world/post/5")!
 
-    func test_viewPost_setsTypeURLAndEligibility() {
+    @Test
+    func viewPost_setsTypeURLAndEligibility() {
         let activity = SpudUserActivity.viewPost(routingURL: postURL, title: "Hello")
-        XCTAssertEqual(activity.activityType, SpudUserActivity.viewPostType)
-        XCTAssertEqual(activity.userInfo?["url"] as? String, postURL.absoluteString)
-        XCTAssertEqual(activity.persistentIdentifier, postURL.absoluteString)
-        XCTAssertTrue(activity.isEligibleForHandoff)
-        XCTAssertTrue(activity.isEligibleForSearch)
-        XCTAssertTrue(activity.isEligibleForPrediction)
+        #expect(activity.activityType == SpudUserActivity.viewPostType)
+        #expect(activity.userInfo?["url"] as? String == postURL.absoluteString)
+        #expect(activity.persistentIdentifier == postURL.absoluteString)
+        #expect(activity.isEligibleForHandoff)
+        #expect(activity.isEligibleForSearch)
+        #expect(activity.isEligibleForPrediction)
     }
 
-    func test_routingURL_decodesOwnActivity() {
+    @Test
+    func routingURL_decodesOwnActivity() {
         let activity = SpudUserActivity.viewPost(routingURL: postURL, title: "Hello")
-        XCTAssertEqual(SpudUserActivity.routingURL(from: activity), postURL)
+        #expect(SpudUserActivity.routingURL(from: activity) == postURL)
     }
 
-    func test_routingURL_decodesSpotlightItemTap() {
+    @Test
+    func routingURL_decodesSpotlightItemTap() {
         let activity = NSUserActivity(activityType: CSSearchableItemActionType)
         activity.userInfo = [CSSearchableItemActivityIdentifier: postURL.absoluteString]
-        XCTAssertEqual(SpudUserActivity.routingURL(from: activity), postURL)
+        #expect(SpudUserActivity.routingURL(from: activity) == postURL)
     }
 
-    func test_routingURL_returnsNilForUnknownActivity() {
+    @Test
+    func routingURL_returnsNilForUnknownActivity() {
         let activity = NSUserActivity(activityType: "com.example.other")
-        XCTAssertNil(SpudUserActivity.routingURL(from: activity))
+        #expect(SpudUserActivity.routingURL(from: activity) == nil)
     }
 }
