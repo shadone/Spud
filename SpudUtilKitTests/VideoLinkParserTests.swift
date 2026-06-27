@@ -37,6 +37,56 @@ struct VideoLinkParserTests {
     }
 
     @Test
+    func youtubeEmbed_idFromPath() throws {
+        let v = try #require(parse("https://www.youtube.com/embed/hwq-xr2fDBU"))
+        #expect(v.host == .youtube)
+        #expect(v.videoId == "hwq-xr2fDBU")
+        #expect(v.thumbnailURL?.host == "i.ytimg.com")
+        #expect(v.thumbnailURL?.absoluteString == "https://i.ytimg.com/vi/hwq-xr2fDBU/hqdefault.jpg")
+        // oEmbed 404s on the /embed form, so the url= param MUST be the canonical watch URL.
+        let oEmbed = try #require(v.oEmbedURL)
+        #expect(oEmbed.host == "www.youtube.com")
+        #expect(oEmbed.path == "/oembed")
+        let oEmbedComponents = try #require(URLComponents(url: oEmbed, resolvingAgainstBaseURL: false))
+        let urlParam = try #require(oEmbedComponents.queryItems?.first { $0.name == "url" }?.value)
+        #expect(urlParam == "https://www.youtube.com/watch?v=hwq-xr2fDBU")
+    }
+
+    @Test
+    func youtubeOEmbedUrlIsCanonicalWatch_forYoutuBe() throws {
+        // youtu.be original must still produce a canonical watch oEmbed url= param.
+        let v = try #require(parse("https://youtu.be/dQw4w9WgXcQ"))
+        let oEmbed = try #require(v.oEmbedURL)
+        let oEmbedComponents = try #require(URLComponents(url: oEmbed, resolvingAgainstBaseURL: false))
+        let urlParam = try #require(oEmbedComponents.queryItems?.first { $0.name == "url" }?.value)
+        #expect(urlParam == "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+    }
+
+    @Test
+    func redirectInvidious_watchIsYouTube() throws {
+        // redirect.invidious.io is a privacy redirect pointing at real YouTube videos;
+        // it is NOT a hostable Invidious instance, so treat it as YouTube content.
+        let v = try #require(parse("https://redirect.invidious.io/watch?v=hwq-xr2fDBU"))
+        #expect(v.host == .youtube)
+        #expect(v.videoId == "hwq-xr2fDBU")
+        #expect(v.thumbnailURL?.host == "i.ytimg.com")
+        #expect(v.thumbnailURL?.absoluteString == "https://i.ytimg.com/vi/hwq-xr2fDBU/hqdefault.jpg")
+        let oEmbed = try #require(v.oEmbedURL)
+        #expect(oEmbed.host == "www.youtube.com")
+        let oEmbedComponents = try #require(URLComponents(url: oEmbed, resolvingAgainstBaseURL: false))
+        let urlParam = try #require(oEmbedComponents.queryItems?.first { $0.name == "url" }?.value)
+        #expect(urlParam == "https://www.youtube.com/watch?v=hwq-xr2fDBU")
+    }
+
+    @Test
+    func redirectInvidious_embedIsYouTube() throws {
+        let v = try #require(parse("https://redirect.invidious.io/embed/hwq-xr2fDBU"))
+        #expect(v.host == .youtube)
+        #expect(v.videoId == "hwq-xr2fDBU")
+        #expect(v.thumbnailURL?.absoluteString == "https://i.ytimg.com/vi/hwq-xr2fDBU/hqdefault.jpg")
+    }
+
+    @Test
     func invidious_watchShape() throws {
         let v = try #require(parse("https://yewtu.be/watch?v=dQw4w9WgXcQ"))
         #expect(v.host == .invidious)

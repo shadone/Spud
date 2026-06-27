@@ -46,10 +46,28 @@ public enum VideoLinkParser {
         // YouTube (definitive, by host). youtu.be carries the id as the sole path
         // segment; require exactly one so `/youtu.be/<id>/extra` doesn't match.
         if host == "youtu.be", segments.count == 1, isYouTubeId(segments[0]) {
-            return youTube(id: segments[0], original: url)
+            return youTube(id: segments[0])
         }
         if youTubeHosts.contains(host), segments.first == "watch", let id = queryValue("v", url), isYouTubeId(id) {
-            return youTube(id: id, original: url)
+            return youTube(id: id)
+        }
+        // YouTube /embed/<id> (iframe form). oEmbed 404s on /embed, so youTube(id:)
+        // rebuilds the canonical watch URL for the oEmbed url= param.
+        if youTubeHosts.contains(host), segments.count == 2, segments[0] == "embed", isYouTubeId(segments[1]) {
+            return youTube(id: segments[1])
+        }
+
+        // redirect.invidious.io is a privacy redirect that points at real YouTube
+        // videos by id; it is NOT a hostable Invidious instance (its /oembed and
+        // /vi/<id>.jpg fail), so treat it as YouTube. Must precede the generic
+        // Invidious heuristic below.
+        if host == "redirect.invidious.io" {
+            if segments.first == "watch", let id = queryValue("v", url), isYouTubeId(id) {
+                return youTube(id: id)
+            }
+            if segments.count == 2, segments[0] == "embed", isYouTubeId(segments[1]) {
+                return youTube(id: segments[1])
+            }
         }
 
         // Invidious (heuristic): non-YouTube host, /watch?v=<yt-id>.
@@ -73,12 +91,15 @@ public enum VideoLinkParser {
         return nil
     }
 
-    private static func youTube(id: String, original: URL) -> VideoLink {
-        VideoLink(
+    private static func youTube(id: String) -> VideoLink {
+        // YouTube's oEmbed endpoint 404s on the /embed form and is most reliable on
+        // the canonical watch URL, so always build url= from the id (never `original`).
+        let canonicalWatchURL = URL(string: "https://www.youtube.com/watch?v=\(id)")
+        return VideoLink(
             host: .youtube,
             videoId: id,
             thumbnailURL: URL(string: "https://i.ytimg.com/vi/\(id)/hqdefault.jpg"),
-            oEmbedURL: oEmbedURL(host: "www.youtube.com", path: "/oembed", original: original)
+            oEmbedURL: oEmbedURL(host: "www.youtube.com", path: "/oembed", original: canonicalWatchURL)
         )
     }
 
@@ -91,8 +112,10 @@ public enum VideoLinkParser {
         )
     }
 
-    /// `https://<host><path>?url=<original>&format=json`.
-    private static func oEmbedURL(host: String, path: String, original: URL) -> URL? {
+    /// `https://<host><path>?url=<original>&format=json`. Returns nil if `original`
+    /// is nil (the canonical YouTube watch URL is built from the id and can fail).
+    private static func oEmbedURL(host: String, path: String, original: URL?) -> URL? {
+        guard let original else { return nil }
         var components = URLComponents()
         components.scheme = "https"
         components.host = host
