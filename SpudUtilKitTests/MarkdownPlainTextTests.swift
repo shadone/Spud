@@ -9,198 +9,58 @@ import Testing
 @testable import SpudUtilKit
 
 struct MarkdownPlainTextTests {
-    // MARK: Headings
-
-    @Test
-    func atxHeading_stripsLeadingHashes() {
-        #expect(
-            MarkdownPlainText.preview(from: "##### This is an automated archive") ==
-                "This is an automated archive"
-        )
+    /// One plain-text-preview rule: `MarkdownPlainText.preview(from: input)` must
+    /// equal `expected`. `name` documents the rule and is shown in test output.
+    struct Case: CustomTestStringConvertible {
+        let name: String
+        let input: String
+        let expected: String
+        var testDescription: String {
+            name
+        }
     }
 
-    @Test
-    func atxHeading_stripsTrailingHashes() {
-        #expect(MarkdownPlainText.preview(from: "# Title #") == "Title")
-    }
+    @Test(arguments: [
+        // Headings
+        Case(name: "atxHeading_stripsLeadingHashes", input: "##### This is an automated archive", expected: "This is an automated archive"),
+        Case(name: "atxHeading_stripsTrailingHashes", input: "# Title #", expected: "Title"),
+        Case(name: "multiBlock_collapsesToOneLine", input: "# Heading\n\nSome intro text.", expected: "Heading Some intro text."),
 
-    @Test
-    func multiBlock_collapsesToOneLine() {
-        #expect(
-            MarkdownPlainText.preview(from: "# Heading\n\nSome intro text.") ==
-                "Heading Some intro text."
-        )
-    }
+        // Emphasis
+        Case(name: "emphasisMarkers_removed", input: "This is **bold** and *italic* and ~~gone~~.", expected: "This is bold and italic and gone."),
+        Case(name: "boldItalicCombo_removed", input: "***wow***", expected: "wow"),
+        Case(name: "inlineCode_backticksRemoved", input: "`let x = 1`", expected: "let x = 1"),
+        Case(name: "intrawordDoubleUnderscore_survives", input: "call foo__bar__baz now", expected: "call foo__bar__baz now"),
+        Case(name: "standaloneDoubleUnderscoreBold_stripped", input: "this __word__ here", expected: "this word here"),
+        Case(name: "escapedAsterisks_survivesAsLiteral", input: "\\*not italic\\*", expected: "*not italic*"),
 
-    // MARK: Emphasis
+        // Links / images
+        Case(name: "inlineLink_keepsTextDropsUrl", input: "see [the docs](https://example.com) now", expected: "see the docs now"),
+        Case(name: "image_keepsAltDropsUrl", input: "![a cat](https://example.com/cat.png)", expected: "a cat"),
+        Case(name: "referenceStyleLink_keepsText", input: "see [the docs][1] please", expected: "see the docs please"),
+        Case(name: "autolink_keepsBareUrl", input: "<https://example.com>", expected: "https://example.com"),
 
-    @Test
-    func emphasisMarkers_removed() {
-        #expect(
-            MarkdownPlainText.preview(from: "This is **bold** and *italic* and ~~gone~~.") ==
-                "This is bold and italic and gone."
-        )
-    }
+        // Block markers
+        Case(name: "blockquoteMarker_removed", input: "> quoted line", expected: "quoted line"),
+        Case(name: "multiLevelBlockquote_markersRemoved", input: "> > deep quote", expected: "deep quote"),
+        Case(name: "fencedCode_withInfoString_dropsDelimiterAndTag", input: "```swift\nlet x = 1\n```", expected: "let x = 1"),
+        Case(name: "tildeFence_dropsDelimiter", input: "~~~\ncode\n~~~", expected: "code"),
+        Case(name: "spoilerBlock_titleAndContentKept", input: "::: spoiler Big reveal\nhidden text\n:::", expected: "Big reveal hidden text"),
+        Case(name: "unorderedList_markersRemovedAndItemsJoined", input: "- one\n- two", expected: "one two"),
+        Case(name: "orderedList_markersRemoved", input: "1. first\n2. second", expected: "first second"),
+        Case(name: "thematicBreak_lineDropped", input: "before\n\n---\n\nafter", expected: "before after"),
 
-    @Test
-    func boldItalicCombo_removed() {
-        #expect(MarkdownPlainText.preview(from: "***wow***") == "wow")
-    }
+        // Whitespace / empties
+        Case(name: "whitespace_collapsedAndTrimmed", input: "   lots   of    space   ", expected: "lots of space"),
+        Case(name: "emptyInput_returnsEmpty", input: "", expected: ""),
+        Case(name: "whitespaceOnlyInput_returnsEmpty", input: "   \n\t  \n ", expected: ""),
 
-    @Test
-    func inlineCode_backticksRemoved() {
-        #expect(MarkdownPlainText.preview(from: "`let x = 1`") == "let x = 1")
-    }
-
-    @Test
-    func intrawordDoubleUnderscore_survives() {
-        #expect(
-            MarkdownPlainText.preview(from: "call foo__bar__baz now") ==
-                "call foo__bar__baz now"
-        )
-    }
-
-    @Test
-    func standaloneDoubleUnderscoreBold_stripped() {
-        #expect(
-            MarkdownPlainText.preview(from: "this __word__ here") ==
-                "this word here"
-        )
-    }
-
-    @Test
-    func escapedAsterisks_survivesAsLiteral() {
-        #expect(
-            MarkdownPlainText.preview(from: "\\*not italic\\*") ==
-                "*not italic*"
-        )
-    }
-
-    // MARK: Links / images
-
-    @Test
-    func inlineLink_keepsTextDropsUrl() {
-        #expect(
-            MarkdownPlainText.preview(from: "see [the docs](https://example.com) now") ==
-                "see the docs now"
-        )
-    }
-
-    @Test
-    func image_keepsAltDropsUrl() {
-        #expect(
-            MarkdownPlainText.preview(from: "![a cat](https://example.com/cat.png)") ==
-                "a cat"
-        )
-    }
-
-    @Test
-    func referenceStyleLink_keepsText() {
-        #expect(
-            MarkdownPlainText.preview(from: "see [the docs][1] please") ==
-                "see the docs please"
-        )
-    }
-
-    @Test
-    func autolink_keepsBareUrl() {
-        #expect(
-            MarkdownPlainText.preview(from: "<https://example.com>") ==
-                "https://example.com"
-        )
-    }
-
-    // MARK: Block markers
-
-    @Test
-    func blockquoteMarker_removed() {
-        #expect(MarkdownPlainText.preview(from: "> quoted line") == "quoted line")
-    }
-
-    @Test
-    func multiLevelBlockquote_markersRemoved() {
-        #expect(MarkdownPlainText.preview(from: "> > deep quote") == "deep quote")
-    }
-
-    @Test
-    func fencedCode_withInfoString_dropsDelimiterAndTag() {
-        #expect(
-            MarkdownPlainText.preview(from: "```swift\nlet x = 1\n```") ==
-                "let x = 1"
-        )
-    }
-
-    @Test
-    func tildeFence_dropsDelimiter() {
-        #expect(MarkdownPlainText.preview(from: "~~~\ncode\n~~~") == "code")
-    }
-
-    @Test
-    func spoilerBlock_titleAndContentKept() {
-        #expect(
-            MarkdownPlainText.preview(from: "::: spoiler Big reveal\nhidden text\n:::") ==
-                "Big reveal hidden text"
-        )
-    }
-
-    @Test
-    func unorderedList_markersRemovedAndItemsJoined() {
-        #expect(MarkdownPlainText.preview(from: "- one\n- two") == "one two")
-    }
-
-    @Test
-    func orderedList_markersRemoved() {
-        #expect(MarkdownPlainText.preview(from: "1. first\n2. second") == "first second")
-    }
-
-    @Test
-    func thematicBreak_lineDropped() {
-        #expect(
-            MarkdownPlainText.preview(from: "before\n\n---\n\nafter") ==
-                "before after"
-        )
-    }
-
-    // MARK: Whitespace / empties
-
-    @Test
-    func whitespace_collapsedAndTrimmed() {
-        #expect(
-            MarkdownPlainText.preview(from: "   lots   of    space   ") ==
-                "lots of space"
-        )
-    }
-
-    @Test
-    func emptyInput_returnsEmpty() {
-        #expect(MarkdownPlainText.preview(from: "") == "")
-    }
-
-    @Test
-    func whitespaceOnlyInput_returnsEmpty() {
-        #expect(MarkdownPlainText.preview(from: "   \n\t  \n ") == "")
-    }
-
-    // MARK: Plain text untouched
-
-    @Test
-    func plainParagraph_returnedUnchanged() {
-        #expect(MarkdownPlainText.preview(from: "Just plain text.") == "Just plain text.")
-    }
-
-    @Test
-    func snakeCase_notMangled() {
-        #expect(
-            MarkdownPlainText.preview(from: "call some_function_name here") ==
-                "call some_function_name here"
-        )
-    }
-
-    @Test
-    func bareUrl_leftIntact() {
-        #expect(
-            MarkdownPlainText.preview(from: "visit https://example.com today") ==
-                "visit https://example.com today"
-        )
+        // Plain text untouched
+        Case(name: "plainParagraph_returnedUnchanged", input: "Just plain text.", expected: "Just plain text."),
+        Case(name: "snakeCase_notMangled", input: "call some_function_name here", expected: "call some_function_name here"),
+        Case(name: "bareUrl_leftIntact", input: "visit https://example.com today", expected: "visit https://example.com today"),
+    ])
+    func preview(_ testCase: Case) {
+        #expect(MarkdownPlainText.preview(from: testCase.input) == testCase.expected)
     }
 }
