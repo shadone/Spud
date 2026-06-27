@@ -651,9 +651,19 @@ class PersonViewController: UIViewController {
     }
 
     private func updateContentUnavailable(_ state: ContentUnavailable) {
+        // Render the empty/error state INSIDE the table's content area (its
+        // `backgroundView`) rather than via the view-controller-level
+        // `contentUnavailableConfiguration`, which overlays a content-unavailable
+        // view across the WHOLE view (including the always-visible profile
+        // header hosted as `tableView.tableHeaderView`) and so overlapped it.
+        // The table fills the content region, so its background view centers
+        // below the header and never collides with it; pull-to-refresh still
+        // works because the header/refresh control are unaffected. Keep
+        // `contentUnavailableConfiguration` nil so no lingering VC overlay
+        // remains.
         switch state {
         case .none:
-            contentUnavailableConfiguration = nil
+            tableView.backgroundView = nil
         case .empty:
             var config = UIContentUnavailableConfiguration.empty()
             switch viewModel.tab {
@@ -672,7 +682,7 @@ class PersonViewController: UIViewController {
                     comment: "Person profile empty comments message"
                 )
             }
-            contentUnavailableConfiguration = config
+            tableView.backgroundView = config.makeContentView()
         case .error:
             var config = UIContentUnavailableConfiguration.empty()
             config.image = UIImage(systemName: "exclamationmark.triangle")
@@ -681,7 +691,7 @@ class PersonViewController: UIViewController {
                 "Check your connection and pull to refresh.",
                 comment: "Person profile error state message"
             )
-            contentUnavailableConfiguration = config
+            tableView.backgroundView = config.makeContentView()
         }
     }
 
