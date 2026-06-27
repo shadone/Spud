@@ -120,6 +120,19 @@ public protocol LemmyServiceType: Actor {
         page: Int64
     ) async throws -> Components.Schemas.SearchResponse
 
+    /// List communities on the backing instance via `/api/v3/community/list`
+    /// and return the decoded `CommunityView`s. Like `search`, the results are
+    /// transient (a live snapshot) and are NOT mirrored into the persistent
+    /// feed. Used to populate the in-app instance screen with the instance's
+    /// own communities when the bundled Explorer directory has none (e.g. a
+    /// remote/synthesized instance resolved live via `/api/v3/site`). Works for
+    /// both signed-in and signed-out accounts.
+    func listCommunities(
+        type: Components.Schemas.ListingType,
+        sort: Components.Schemas.SortType?,
+        limit: Int64?
+    ) async throws -> [Components.Schemas.CommunityView]
+
     /// Subscribe to or unsubscribe from `serverCommunityId` for the backing
     /// account. Throws `LemmyServiceError.requiresAuthentication` if this
     /// service is backed by a signed-out account.
@@ -1124,6 +1137,40 @@ public actor LemmyService: LemmyServiceType {
         }
 
         return response
+    }
+
+    public func listCommunities(
+        type: Components.Schemas.ListingType,
+        sort: Components.Schemas.SortType?,
+        limit: Int64?
+    ) async throws -> [Components.Schemas.CommunityView] {
+        logger.debug("""
+            List communities. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            type=\(type.rawValue, privacy: .public) \
+            sort=\(sort?.rawValue ?? "default", privacy: .public) \
+            limit=\(limit ?? -1, privacy: .public)
+            """)
+
+        let response: Components.Schemas.ListCommunitiesResponse
+        do {
+            response = try await api.listCommunities(
+                type: type,
+                sort: sort,
+                showNSFW: nil,
+                page: nil,
+                limit: limit
+            )
+        } catch {
+            logger.error("""
+                List communities failed. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                type=\(type.rawValue, privacy: .public). \
+                \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        return response.communities
     }
 
     public func setSubscribed(

@@ -78,6 +78,31 @@ final class InstanceExploreViewModel {
             return
         }
 
+        // The bundled directory has no communities for a synthesized/remote
+        // instance (and for directory instances with nothing seeded). Fetch the
+        // instance's own communities live so the list isn't empty. Failure
+        // (non-Lemmy / unreachable host) leaves the list empty without crashing.
+        if communities.isEmpty {
+            let accountService = accountService
+            tasks.append(Task { @MainActor [weak self] in
+                let keychainId = accountService.accountForSignedOut(
+                    forInstance: instance,
+                    isServiceAccount: true
+                )
+                let service = accountService.scope(forAccountKeychainId: keychainId).lemmyService
+                let views = try? await service.listCommunities(
+                    type: .Local,
+                    sort: .TopAll,
+                    limit: 50
+                )
+                guard !Task.isCancelled, let self, let views else { return }
+                // Only adopt the live result if the directory snapshot is still
+                // empty (don't clobber a populated list if one arrived since).
+                guard communities.isEmpty else { return }
+                communities = views.map(CommunityListRow.init(communityView:))
+            })
+        }
+
         // Synchronous cache-first reads so the initial layout shows seeded data
         // without waiting for the async network refresh.
         let cachedAdmins = appDatabase.siteAdminsSync(forInstanceActorId: instance)
