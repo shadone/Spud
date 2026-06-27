@@ -109,6 +109,15 @@ public protocol AccountServiceType: AnyObject {
     /// The account's preferred sort type. Falls back to `.Hot` if not set.
     func defaultSortType(forAccountKeychainId keychainId: String) -> Components.Schemas.SortType
 
+    /// Persists the account's preferred POST sort type to its stored record so
+    /// the choice survives relaunch. The value is read back by
+    /// `defaultSortType(forAccountKeychainId:)`. No-op if the account isn't
+    /// registered.
+    func setDefaultSortType(
+        _ sortType: Components.Schemas.SortType,
+        forAccountKeychainId keychainId: String
+    )
+
     /// The actor id of the instance the account is homed on (e.g. the one
     /// behind `lemmy.world`). Resolves account -> site -> instance. Returns
     /// nil when the account or its instance can't be found. Used to name the
@@ -289,6 +298,17 @@ public class AccountService: AccountServiceType {
         } catch {
             logger.error("Failed to read defaultSortType: \(error.localizedDescription, privacy: .public)")
             return .Hot
+        }
+    }
+
+    public func setDefaultSortType(
+        _ sortType: Components.Schemas.SortType,
+        forAccountKeychainId keychainId: String
+    ) {
+        do {
+            try appDatabase.setAccountDefaultSortType(sortType, forKeychainId: keychainId)
+        } catch {
+            logger.error("Failed to write defaultSortType: \(error.localizedDescription, privacy: .public)")
         }
     }
 

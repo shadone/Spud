@@ -429,7 +429,10 @@ final class PreferencesViewModel {
 
     func updateDefaultPostSort(_ value: Components.Schemas.SortType) {
         defaultPostSortType = value
-        // TODO: persist via /user/save_user_settings once accountService supports it.
+        // The default post sort is a per-account value (the getter reads it from
+        // the account's stored record), so it must persist to the account store,
+        // not UserDefaults. Without this it reset to the baseline on relaunch.
+        accountService?.setDefaultSortType(value, forAccountKeychainId: accountKeychainId)
     }
 
     func updateDefaultCommentSort(_ value: Components.Schemas.CommentSortType) {

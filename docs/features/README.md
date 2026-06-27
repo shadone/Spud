@@ -97,7 +97,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Moderator / admin actions](moderation-actions.md) | `iphone`, `ipad` | shipped |
 | [Themes and accent color](themes-and-accent.md) | `iphone`, `ipad` | shipped |
 | [Display density and text size](display-density-and-text.md) | `iphone`, `ipad` | shipped |
-| [Default sort](default-sort.md) | `iphone`, `ipad` | partial — default post sort not persisted |
+| [Default sort](default-sort.md) | `iphone`, `ipad` | shipped |
 | [External link handling](external-link-handling.md) | `iphone`, `ipad` | shipped |
 | [App icon](app-icon.md) | `iphone`, `ipad` | shipped — placeholder art |
 | [Acknowledgements](acknowledgements.md) | `iphone`, `ipad` | shipped |
@@ -181,7 +181,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 **Customization & settings**
 - [x] Themes (System / Light / Dark / True Black) + accent color
 - [x] Post density + thumbnail position + text scale
-- [~] Default post / comment sort — comment sort persisted; default post sort not persisted
+- [x] Default post / comment sort — comment sort persisted in preferences; default post sort persisted per account
 - [x] External-link handling — open mode (in-app / system browser), Reader Mode, universal links, "Load Link Previews" (oEmbed fetch for video cards)
 - [x] App icon variants — switching is wired; alternate art is placeholder (grid's "not wired" was stale)
 - [x] Acknowledgements; logs viewer + backup export

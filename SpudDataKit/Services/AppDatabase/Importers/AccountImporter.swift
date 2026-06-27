@@ -183,6 +183,28 @@ public extension AppDatabase {
         }
     }
 
+    /// Persists the per-account default POST sort onto the account row matching
+    /// `keychainId`, storing the OpenAPI enum's raw value (the same column a
+    /// `MyUserInfo` import writes via `local_user.default_sort_type`). Read back
+    /// by `AccountRecord.resolvedDefaultSortType`. Synchronous:
+    /// `AccountService.setDefaultSortType(...)` runs on MainActor in response to
+    /// a settings-picker tap and avoids hopping off to await. No-op if the row
+    /// hasn't been imported yet.
+    func setAccountDefaultSortType(
+        _ sortType: Components.Schemas.SortType,
+        forKeychainId keychainId: String
+    ) throws {
+        try writer.write { db in
+            guard var account = try AccountRecord
+                .filter(Column("accountKeychainId") == keychainId)
+                .fetchOne(db)
+            else { return }
+            account.defaultSortType = sortType.rawValue
+            account.updatedAt = Date()
+            try account.update(db)
+        }
+    }
+
     /// Deletes the account row matching `keychainId`. Returns true if a row was
     /// removed. Synchronous: `AccountService.logout(...)` runs on MainActor in
     /// response to a user tap and prefers to avoid hopping off to await.
