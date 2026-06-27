@@ -4,7 +4,7 @@
 # and is gitignored. project.yml is the source of truth. Regenerate after pulling
 # changes to project.yml or adding/removing source files.
 
-.PHONY: project release-project bootstrap explorer-seed safari-matches
+.PHONY: project release-project bootstrap explorer-seed safari-matches verify-archive verify-ipa
 
 # Regenerate Spud.xcodeproj from project.yml.
 project:
@@ -35,3 +35,17 @@ safari-matches:
 bootstrap:
 	mint bootstrap
 	xcodegen generate
+
+# Release pre-flight entitlement gate. A release archived with
+# CODE_SIGNING_ALLOWED=NO (or otherwise mis-signed at export) silently drops the
+# App Group / keychain entitlements; the app then crashes at launch AND iOS wipes
+# its container, deleting user data (build 12 shipped exactly this). Run BOTH the
+# archive and the exported IPA through this gate before `asc builds upload` — a
+# non-zero exit must block the upload.
+#   make verify-archive ARCHIVE=.asc/artifacts/Spud.xcarchive
+#   make verify-ipa     IPA=.asc/artifacts/Spud.ipa
+verify-archive:
+	scripts/check-app-entitlements.sh "$(ARCHIVE)"
+
+verify-ipa:
+	scripts/check-app-entitlements.sh "$(IPA)"
