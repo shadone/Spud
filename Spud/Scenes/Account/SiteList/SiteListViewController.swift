@@ -33,6 +33,11 @@ class SiteListViewController: UIViewController {
 
     var cancelBarButtonItem: UIBarButtonItem!
 
+    /// Whether to show the leading "Cancel" item (which dismisses). True when
+    /// presented modally (the add-account flow); false when pushed onto an
+    /// existing nav stack (onboarding), where the system back button is wanted.
+    private let showsCancelButton: Bool
+
     lazy var tableView: UITableView = {
         let tableView = UITableView(frame: .zero, style: .plain)
         tableView.translatesAutoresizingMaskIntoConstraints = false
@@ -61,8 +66,9 @@ class SiteListViewController: UIViewController {
 
     // MARK: Functions
 
-    init(dependencies: Dependencies) {
+    init(dependencies: Dependencies, showsCancelButton: Bool = true) {
         self.dependencies = (own: dependencies, nested: dependencies)
+        self.showsCancelButton = showsCancelButton
 
         super.init(nibName: nil, bundle: nil)
 
@@ -79,13 +85,14 @@ class SiteListViewController: UIViewController {
     }
 
     private func setup() {
-        cancelBarButtonItem = UIBarButtonItem(
-            barButtonSystemItem: .cancel,
-            target: self,
-            action: #selector(cancelTapped)
-        )
-
-        navigationItem.leftBarButtonItems = [cancelBarButtonItem]
+        if showsCancelButton {
+            cancelBarButtonItem = UIBarButtonItem(
+                barButtonSystemItem: .cancel,
+                target: self,
+                action: #selector(cancelTapped)
+            )
+            navigationItem.leftBarButtonItems = [cancelBarButtonItem]
+        }
 
         sortBarButtonItem = UIBarButtonItem(
             title: nil,

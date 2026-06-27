@@ -436,7 +436,9 @@ final class OnboardingHomeBaseViewController: UIViewController {
     }
 
     private func pushSiteList() {
-        let siteList = SiteListViewController(dependencies: dependencies.nested)
+        // Pushed onto the onboarding nav stack, so omit the "Cancel" item and
+        // let UIKit show the system back button instead.
+        let siteList = SiteListViewController(dependencies: dependencies.nested, showsCancelButton: false)
         navigationController?.pushViewController(siteList, animated: true)
     }
 
