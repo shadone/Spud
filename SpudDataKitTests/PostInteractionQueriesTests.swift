@@ -6,10 +6,10 @@
 
 import Foundation
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class PostInteractionQueriesTests: XCTestCase {
+struct PostInteractionQueriesTests {
     private let t0 = Date(timeIntervalSince1970: 1_000_000)
 
     private func snapshot() -> PostInteractionSnapshot {
@@ -37,22 +37,24 @@ final class PostInteractionQueriesTests: XCTestCase {
         }
     }
 
-    func testLastOpenedAtSyncReturnsPriorValue() async throws {
+    @Test
+    func lastOpenedAtSyncReturnsPriorValue() async throws {
         let appDatabase = try AppDatabase.inMemory()
         try seedAccount(appDatabase, keychainId: "kc-1", personServerId: nil)
-        XCTAssertNil(appDatabase.lastOpenedAtSync(forKeychainId: "kc-1", serverPostId: 9))
+        #expect(appDatabase.lastOpenedAtSync(forKeychainId: "kc-1", serverPostId: 9) == nil)
 
         try await appDatabase.recordPostOpened(accountKeychainId: "kc-1", serverPostId: 9, commentCount: nil, snapshot: snapshot(), now: t0)
-        XCTAssertEqual(appDatabase.lastOpenedAtSync(forKeychainId: "kc-1", serverPostId: 9), t0)
+        #expect(appDatabase.lastOpenedAtSync(forKeychainId: "kc-1", serverPostId: 9) == t0)
     }
 
-    func testAccountPersonServerIdSync() throws {
+    @Test
+    func accountPersonServerIdSync() throws {
         let appDatabase = try AppDatabase.inMemory()
         try seedAccount(appDatabase, keychainId: "kc-1", personServerId: 555)
         try seedAccount(appDatabase, keychainId: "kc-signedout", personServerId: nil)
 
-        XCTAssertEqual(appDatabase.accountPersonServerIdSync(forKeychainId: "kc-1"), 555)
-        XCTAssertNil(appDatabase.accountPersonServerIdSync(forKeychainId: "kc-signedout"))
-        XCTAssertNil(appDatabase.accountPersonServerIdSync(forKeychainId: "missing"))
+        #expect(appDatabase.accountPersonServerIdSync(forKeychainId: "kc-1") == 555)
+        #expect(appDatabase.accountPersonServerIdSync(forKeychainId: "kc-signedout") == nil)
+        #expect(appDatabase.accountPersonServerIdSync(forKeychainId: "missing") == nil)
     }
 }

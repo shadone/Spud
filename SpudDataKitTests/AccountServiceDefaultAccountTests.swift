@@ -5,30 +5,32 @@
 //
 
 import SpudUtilKit
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 @MainActor
-final class AccountServiceDefaultAccountTests: XCTestCase {
+struct AccountServiceDefaultAccountTests {
     private func makeService() throws -> (AccountService, AppDatabase) {
         let db = try AppDatabase.inMemory()
         return (AccountService(appDatabase: db), db)
     }
 
-    func test_emptyDatabase_returnsNil_doesNotCrash() throws {
+    @Test
+    func emptyDatabase_returnsNil_doesNotCrash() throws {
         let (service, _) = try makeService()
-        XCTAssertNil(service.currentDefaultAccountKeychainId())
+        #expect(service.currentDefaultAccountKeychainId() == nil)
     }
 
-    func test_withAccount_returnsItsKeychainId() throws {
+    @Test
+    func withAccount_returnsItsKeychainId() throws {
         let (service, db) = try makeService()
-        let instance = try XCTUnwrap(InstanceActorId(from: "https://lemmy.world"))
+        let instance = try #require(InstanceActorId(from: "https://lemmy.world"))
         let keychainId = try db.ensureSignedOutAccountKeychainId(
             forInstance: instance,
             isServiceAccount: false
         )
         try db.setDefaultAccountSync(keychainId: keychainId)
 
-        XCTAssertEqual(service.currentDefaultAccountKeychainId(), keychainId)
+        #expect(service.currentDefaultAccountKeychainId() == keychainId)
     }
 }

@@ -4,13 +4,15 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import GRDB
 import LemmyKit
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class SiteAdminImportTests: XCTestCase {
-    func test_upsertSite_storesAdminsInOrder() async throws {
+struct SiteAdminImportTests {
+    @Test
+    func upsertSite_storesAdminsInOrder() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let response = Self.makeGetSiteResponse(
             actorId: "https://lemmy.world",
@@ -28,13 +30,14 @@ final class SiteAdminImportTests: XCTestCase {
                 .order(SiteAdminRecord.Columns.ordinal)
                 .fetchAll(db)
         }
-        XCTAssertEqual(admins.map(\.personName), ["ruud", "milan"])
-        XCTAssertEqual(admins.map(\.ordinal), [0, 1])
-        XCTAssertEqual(admins[0].displayName, "Ruud")
-        XCTAssertNil(admins[1].displayName)
+        #expect(admins.map(\.personName) == ["ruud", "milan"])
+        #expect(admins.map(\.ordinal) == [0, 1])
+        #expect(admins[0].displayName == "Ruud")
+        #expect(admins[1].displayName == nil)
     }
 
-    func test_upsertSite_replacesAdminsOnReimport() async throws {
+    @Test
+    func upsertSite_replacesAdminsOnReimport() async throws {
         let appDatabase = try AppDatabase.inMemory()
         _ = try await appDatabase.upsertSite(from: Self.makeGetSiteResponse(
             actorId: "https://lemmy.world",
@@ -48,7 +51,7 @@ final class SiteAdminImportTests: XCTestCase {
         let names = try await appDatabase.writer.read { db in
             try SiteAdminRecord.filter(SiteAdminRecord.Columns.siteId == siteId).fetchAll(db).map(\.personName)
         }
-        XCTAssertEqual(names, ["new"])
+        #expect(names == ["new"])
     }
 }
 

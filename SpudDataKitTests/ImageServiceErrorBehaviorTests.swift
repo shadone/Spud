@@ -4,8 +4,9 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import Nuke
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 /// Records image errors so tests can assert whether the service alerted.
@@ -19,9 +20,10 @@ final class SpyAlertService: AlertServiceType, @unchecked Sendable {
     }
 }
 
-final class ImageServiceErrorBehaviorTests: XCTestCase {
-    func test_transportFailure_yieldsFailure_andAlerts() async throws {
-        let url = try XCTUnwrap(URL(string: "https://example.com/x.png"))
+struct ImageServiceErrorBehaviorTests {
+    @Test
+    func transportFailure_yieldsFailure_andAlerts() async throws {
+        let url = try #require(URL(string: "https://example.com/x.png"))
         let alert = SpyAlertService()
         let pipeline = ImagePipeline { config in
             config.dataLoader = StubDataLoader(result: .failure(URLError(.timedOut)))
@@ -33,7 +35,7 @@ final class ImageServiceErrorBehaviorTests: XCTestCase {
         for await state in service.fetch(url, downsampleTo: CGSize(width: 64, height: 64)) {
             if case .failure = state { sawFailure = true }
         }
-        XCTAssertTrue(sawFailure)
-        XCTAssertEqual(alert.imageErrors, [url])
+        #expect(sawFailure)
+        #expect(alert.imageErrors == [url])
     }
 }

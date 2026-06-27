@@ -4,8 +4,9 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import LemmyKit
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias Person = Components.Schemas.Person
@@ -14,8 +15,9 @@ private typealias Post = Components.Schemas.Post
 private typealias Comment = Components.Schemas.Comment
 private typealias CommentView = Components.Schemas.CommentView
 
-class CommentHelperTests: XCTestCase {
-    func testFindCommentsWithMissingChildren() {
+struct CommentHelperTests {
+    @Test
+    func findCommentsWithMissingChildren() {
         let person = Person.fake
         let community = Community.fake
         let post = Post.fake(creator: person, community: community)
@@ -95,16 +97,16 @@ class CommentHelperTests: XCTestCase {
         ]
 
         let result = LemmyCommentImportHelper.findCommentsWithMissingChildren(comments)
-        XCTAssertEqual(
-            result.map(\.comment.path),
-            [
+        #expect(
+            result.map(\.comment.path) == [
                 "0.4.5",
                 "0.7.8",
             ]
         )
     }
 
-    func testNoMissingChildren() {
+    @Test
+    func noMissingChildren() {
         // this is a silly test that replicates one of the oldest Lemmy posts.
         // The app was crashing on parsing the comments, but in the end it was
         // something odd in the build as clean build solved it. ¯\_(ツ)_/¯
@@ -228,13 +230,13 @@ class CommentHelperTests: XCTestCase {
         ]
 
         let result = LemmyCommentImportHelper.findCommentsWithMissingChildren(comments)
-        XCTAssertEqual(
-            result.map(\.comment.path),
-            []
+        #expect(
+            result.map(\.comment.path) == []
         )
     }
 
-    func testSort() {
+    @Test
+    func sort() {
         let person = Person.fake
         let community = Community.fake
         let post = Post.fake(creator: person, community: community)
@@ -334,9 +336,8 @@ class CommentHelperTests: XCTestCase {
 
         let sortedComments = LemmyCommentImportHelper.sort(comments: comments)
         let sortedCommentIds = sortedComments.map(\.comment.id)
-        XCTAssertEqual(
-            sortedCommentIds,
-            [123, 789, 555, 222, 456, 129, 245, 987, 249]
+        #expect(
+            sortedCommentIds == [123, 789, 555, 222, 456, 129, 245, 987, 249]
         )
     }
 }

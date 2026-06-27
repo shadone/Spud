@@ -5,7 +5,7 @@
 //
 
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 /// Locks the fix for the GRDB `row["a"] ?? row["b"]` nil-coalescing footgun.
@@ -16,7 +16,7 @@ import XCTest
 /// expression to `nil` instead of falling through to the right column, so the
 /// username was lost. `Row.coalescingString(_:)` reads each column on its own
 /// and must coalesce correctly.
-final class RowCoalescingStringTests: XCTestCase {
+struct RowCoalescingStringTests {
     /// Round-trips the values through a real statement-backed row (NULL handled
     /// the same way the observation queries see it).
     private func coalesce(displayName: String?, name: String?) throws -> String? {
@@ -32,20 +32,24 @@ final class RowCoalescingStringTests: XCTestCase {
         }
     }
 
-    func testNullDisplayNameFallsBackToName() throws {
+    @Test
+    func nullDisplayNameFallsBackToName() throws {
         // The reported bug: a null display_name must show the username, not blank.
-        XCTAssertEqual(try coalesce(displayName: nil, name: "manmachine"), "manmachine")
+        #expect(try coalesce(displayName: nil, name: "manmachine") == "manmachine")
     }
 
-    func testDisplayNameWinsWhenPresent() throws {
-        XCTAssertEqual(try coalesce(displayName: "HobbitFoot", name: "hobbit"), "HobbitFoot")
+    @Test
+    func displayNameWinsWhenPresent() throws {
+        #expect(try coalesce(displayName: "HobbitFoot", name: "hobbit") == "HobbitFoot")
     }
 
-    func testNullNameStillReturnsDisplayName() throws {
-        XCTAssertEqual(try coalesce(displayName: "Display", name: nil), "Display")
+    @Test
+    func nullNameStillReturnsDisplayName() throws {
+        #expect(try coalesce(displayName: "Display", name: nil) == "Display")
     }
 
-    func testBothNullReturnsNil() throws {
-        XCTAssertNil(try coalesce(displayName: nil, name: nil))
+    @Test
+    func bothNullReturnsNil() throws {
+        #expect(try coalesce(displayName: nil, name: nil) == nil)
     }
 }

@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias Person = Components.Schemas.Person
@@ -59,17 +59,13 @@ private final class StubSearchTransport: ClientTransport, @unchecked Sendable {
 }
 
 @MainActor
-final class LemmyServiceSearchTests: XCTestCase {
+struct LemmyServiceSearchTests {
     private let keychainId = "keychain-1"
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     @discardableResult
@@ -119,7 +115,8 @@ final class LemmyServiceSearchTests: XCTestCase {
         )
     }
 
-    func testSearchReturnsResponseWithDecodedResults() async throws {
+    @Test
+    func searchReturnsResponseWithDecodedResults() async throws {
         try await seedAccountAndSite()
 
         let community = CommunityView.fake(community: .fake, subscribed: .NotSubscribed)
@@ -143,21 +140,22 @@ final class LemmyServiceSearchTests: XCTestCase {
             page: 1
         )
 
-        XCTAssertTrue(transport.didSendSearch, "search should call the search api")
+        #expect(transport.didSendSearch, "search should call the search api")
 
-        XCTAssertEqual(result.communities.count, 1)
-        XCTAssertEqual(result.communities.first?.community.id, community.community.id)
-        XCTAssertEqual(result.communities.first?.community.name, "world")
+        #expect(result.communities.count == 1)
+        #expect(result.communities.first?.community.id == community.community.id)
+        #expect(result.communities.first?.community.name == "world")
 
-        XCTAssertEqual(result.users.count, 1)
-        XCTAssertEqual(result.users.first?.person.id, 7)
-        XCTAssertEqual(result.users.first?.person.name, "alice")
+        #expect(result.users.count == 1)
+        #expect(result.users.first?.person.id == 7)
+        #expect(result.users.first?.person.name == "alice")
 
-        XCTAssertTrue(result.posts.isEmpty)
-        XCTAssertTrue(result.comments.isEmpty)
+        #expect(result.posts.isEmpty)
+        #expect(result.comments.isEmpty)
     }
 
-    func testSearchReturnsEmptyResultsWhenNothingMatches() async throws {
+    @Test
+    func searchReturnsEmptyResultsWhenNothingMatches() async throws {
         try await seedAccountAndSite()
 
         let response = SearchResponse(
@@ -179,10 +177,10 @@ final class LemmyServiceSearchTests: XCTestCase {
             page: 1
         )
 
-        XCTAssertTrue(transport.didSendSearch)
-        XCTAssertEqual(result.communities.count, 0)
-        XCTAssertTrue(result.users.isEmpty)
-        XCTAssertTrue(result.posts.isEmpty)
-        XCTAssertTrue(result.comments.isEmpty)
+        #expect(transport.didSendSearch)
+        #expect(result.communities.isEmpty)
+        #expect(result.users.isEmpty)
+        #expect(result.posts.isEmpty)
+        #expect(result.comments.isEmpty)
     }
 }

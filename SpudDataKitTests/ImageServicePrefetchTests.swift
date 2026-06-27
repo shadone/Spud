@@ -4,22 +4,25 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import Nuke
+import Testing
 import UIKit
-import XCTest
 @testable import SpudDataKit
 
-final class ImageServicePrefetchTests: XCTestCase {
-    func test_downsampleRequest_matchesFetchTarget() throws {
-        let url = try XCTUnwrap(URL(string: "https://example.com/x.png"))
+struct ImageServicePrefetchTests {
+    @Test
+    func downsampleRequest_matchesFetchTarget() throws {
+        let url = try #require(URL(string: "https://example.com/x.png"))
         let size = CGSize(width: 64, height: 64)
         let request = ImageService.downsampleRequest(url: url, pointSize: size)
-        XCTAssertEqual(request.url, url)
-        XCTAssertEqual(request.processors.count, 1, "exactly the resize processor")
+        #expect(request.url == url)
+        #expect(request.processors.count == 1, "exactly the resize processor")
     }
 
-    func test_prefetch_callsAreSafe() throws {
-        let url = try XCTUnwrap(URL(string: "https://example.com/y.png"))
+    @Test
+    func prefetch_callsAreSafe() throws {
+        let url = try #require(URL(string: "https://example.com/y.png"))
         let pipeline = ImagePipeline { config in
             config.dataLoader = StubDataLoader(result: .success((ImageFixture.pngData(), ImageFixture.httpResponse(url))))
             config.imageCache = nil

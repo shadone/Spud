@@ -1,10 +1,11 @@
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class ImagePipelineFactoryTests: XCTestCase {
-    func test_urlSessionConfiguration_carriesAppUserAgent() {
+struct ImagePipelineFactoryTests {
+    @Test
+    func urlSessionConfiguration_carriesAppUserAgent() {
         let config = ImagePipelineFactory.makeURLSessionConfiguration()
         let ua = config.httpAdditionalHeaders?["User-Agent"] as? String
-        XCTAssertEqual(ua, AppUserAgent.value)
+        #expect(ua == AppUserAgent.value)
     }
 }

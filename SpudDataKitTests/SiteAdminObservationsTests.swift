@@ -4,13 +4,15 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import GRDB
 import SpudUtilKit
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class SiteAdminObservationsTests: XCTestCase {
-    func test_siteAdminsSync_returnsAdminsForInstanceOrdered() throws {
+struct SiteAdminObservationsTests {
+    @Test
+    func siteAdminsSync_returnsAdminsForInstanceOrdered() throws {
         let appDatabase = try AppDatabase.inMemory()
         let actorId = "https://lemmy.world"
         try appDatabase.writer.write { db in
@@ -24,15 +26,16 @@ final class SiteAdminObservationsTests: XCTestCase {
             }
         }
 
-        let instance = try XCTUnwrap(InstanceActorId(from: actorId))
+        let instance = try #require(InstanceActorId(from: actorId))
         let admins = appDatabase.siteAdminsSync(forInstanceActorId: instance)
-        XCTAssertEqual(admins.map(\.personName), ["ruud", "milan"])
+        #expect(admins.map(\.personName) == ["ruud", "milan"])
     }
 
-    func test_observeSiteAdmins_emitsInitialThenUpdatesOnChange() async throws {
+    @Test
+    func observeSiteAdmins_emitsInitialThenUpdatesOnChange() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let actorId = "https://lemmy.world"
-        let instance = try XCTUnwrap(InstanceActorId(from: actorId))
+        let instance = try #require(InstanceActorId(from: actorId))
 
         let siteId: Int64 = try await appDatabase.writer.write { db in
             var inst = InstanceRecord(actorId: actorId, createdAt: Date(), updatedAt: Date())
@@ -48,7 +51,7 @@ final class SiteAdminObservationsTests: XCTestCase {
 
         // The first emission reflects the seeded admin.
         let initial = await iterator.next()
-        XCTAssertEqual(initial?.map(\.personName), ["ruud"])
+        #expect(initial?.map(\.personName) == ["ruud"])
 
         // Inserting another admin emits a fresh, ordered snapshot.
         try await appDatabase.writer.write { db in
@@ -57,6 +60,6 @@ final class SiteAdminObservationsTests: XCTestCase {
         }
 
         let updated = await iterator.next()
-        XCTAssertEqual(updated?.map(\.personName), ["ruud", "milan"])
+        #expect(updated?.map(\.personName) == ["ruud", "milan"])
     }
 }

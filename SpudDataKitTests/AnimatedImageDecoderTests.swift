@@ -4,13 +4,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import ImageIO
+import Testing
 import UIKit
 import UniformTypeIdentifiers
-import XCTest
 @testable import SpudDataKit
 
-final class AnimatedImageDecoderTests: XCTestCase {
+struct AnimatedImageDecoderTests {
     private func solidFrame(_ color: UIColor) -> CGImage {
         let size = CGSize(width: 4, height: 4)
         let image = UIGraphicsImageRenderer(size: size).image { context in
@@ -36,25 +37,28 @@ final class AnimatedImageDecoderTests: XCTestCase {
                 kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: delay],
             ] as CFDictionary)
         }
-        XCTAssertTrue(CGImageDestinationFinalize(destination))
+        #expect(CGImageDestinationFinalize(destination))
         return data as Data
     }
 
-    func test_multiFrameGif_decodesToAnimatedImage() {
+    @Test
+    func multiFrameGif_decodesToAnimatedImage() {
         let image = AnimatedImageDecoder.animatedImage(from: makeGifData(frameCount: 3, delay: 0.2))
-        XCTAssertNotNil(image)
-        XCTAssertEqual(image?.images?.count, 3)
-        XCTAssertEqual(image?.duration ?? 0, 0.6, accuracy: 0.05)
+        #expect(image != nil)
+        #expect(image?.images?.count == 3)
+        #expect(abs((image?.duration ?? 0) - 0.6) <= 0.05)
     }
 
-    func test_singleFrameGif_returnsNil() {
-        XCTAssertNil(
-            AnimatedImageDecoder.animatedImage(from: makeGifData(frameCount: 1)),
+    @Test
+    func singleFrameGif_returnsNil() {
+        #expect(
+            AnimatedImageDecoder.animatedImage(from: makeGifData(frameCount: 1)) == nil,
             "a single-frame image is not animated"
         )
     }
 
-    func test_nonImageData_returnsNil() {
-        XCTAssertNil(AnimatedImageDecoder.animatedImage(from: Data("not an image".utf8)))
+    @Test
+    func nonImageData_returnsNil() {
+        #expect(AnimatedImageDecoder.animatedImage(from: Data("not an image".utf8)) == nil)
     }
 }

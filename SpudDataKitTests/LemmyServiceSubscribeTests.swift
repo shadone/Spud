@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias Community = Components.Schemas.Community
@@ -58,18 +58,14 @@ private final class StubFollowCommunityTransport: ClientTransport, @unchecked Se
 }
 
 @MainActor
-final class LemmyServiceSubscribeTests: XCTestCase {
+struct LemmyServiceSubscribeTests {
     private let keychainId = "keychain-1"
     private let serverCommunityId: Components.Schemas.CommunityID = 1
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     /// Seeds account + site and returns the account row id.
@@ -114,7 +110,8 @@ final class LemmyServiceSubscribeTests: XCTestCase {
 
     // MARK: Subscribe
 
-    func testSetSubscribedMirrorsSubscribedStateIntoDatabase() async throws {
+    @Test
+    func setSubscribedMirrorsSubscribedStateIntoDatabase() async throws {
         let accountId = try await seedAccountAndSite()
 
         // The confirmed view returned by the server carries subscribed = .Subscribed.
@@ -126,7 +123,7 @@ final class LemmyServiceSubscribeTests: XCTestCase {
 
         try await service.setSubscribed(serverCommunityId: serverCommunityId, subscribed: true)
 
-        XCTAssertTrue(transport.didSendFollowCommunity, "setSubscribed should call the followCommunity api")
+        #expect(transport.didSendFollowCommunity, "setSubscribed should call the followCommunity api")
 
         let serverCommunityId = serverCommunityId
         let storedState = try await appDatabase.writer.read { db -> String? in
@@ -136,10 +133,11 @@ final class LemmyServiceSubscribeTests: XCTestCase {
                 .fetchOne(db)?
                 .subscribedState
         }
-        XCTAssertEqual(storedState, "Subscribed")
+        #expect(storedState == "Subscribed")
     }
 
-    func testSubscribingAddsRowToFollowedCommunitiesJunction() async throws {
+    @Test
+    func subscribingAddsRowToFollowedCommunitiesJunction() async throws {
         let accountId = try await seedAccountAndSite()
 
         let subscribedView = CommunityView.fake(community: .fake, subscribed: .Subscribed)
@@ -154,10 +152,11 @@ final class LemmyServiceSubscribeTests: XCTestCase {
                 .filter(Column("accountId") == accountId)
                 .fetchCount(db)
         }
-        XCTAssertEqual(followedCount, 1, "subscribing should add the community to the followed-communities junction")
+        #expect(followedCount == 1, "subscribing should add the community to the followed-communities junction")
     }
 
-    func testUnsubscribingRemovesRowFromFollowedCommunitiesJunction() async throws {
+    @Test
+    func unsubscribingRemovesRowFromFollowedCommunitiesJunction() async throws {
         let accountId = try await seedAccountAndSite()
 
         // First subscribe so the junction has the row.
@@ -181,10 +180,11 @@ final class LemmyServiceSubscribeTests: XCTestCase {
                 .filter(Column("accountId") == accountId)
                 .fetchCount(db)
         }
-        XCTAssertEqual(followedCount, 0, "unsubscribing should remove the community from the followed-communities junction")
+        #expect(followedCount == 0, "unsubscribing should remove the community from the followed-communities junction")
     }
 
-    func testSetSubscribedOnSignedOutAccountThrowsAndSkipsApi() async throws {
+    @Test
+    func setSubscribedOnSignedOutAccountThrowsAndSkipsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubFollowCommunityTransport(communityResponse: nil)
@@ -192,13 +192,13 @@ final class LemmyServiceSubscribeTests: XCTestCase {
 
         do {
             try await service.setSubscribed(serverCommunityId: serverCommunityId, subscribed: true)
-            XCTFail("Expected setSubscribed to throw on a signed-out account")
+            Issue.record("Expected setSubscribed to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
 
-        XCTAssertFalse(
-            transport.didSendFollowCommunity,
+        #expect(
+            !(transport.didSendFollowCommunity),
             "setSubscribed must not hit the api when the account is signed out"
         )
     }

@@ -4,10 +4,11 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import SpudDataKit
 
-final class StarterPackCatalogTests: XCTestCase {
+struct StarterPackCatalogTests {
     private func row(_ url: String, name: String, members: Int64) -> CommunityListRow {
         CommunityListRow(
             id: Int64(abs(url.hashValue % 1_000_000)),
@@ -18,7 +19,8 @@ final class StarterPackCatalogTests: XCTestCase {
         )
     }
 
-    func test_resolve_attachesMatchedCommunitiesInCuratedOrder() {
+    @Test
+    func resolve_attachesMatchedCommunitiesInCuratedOrder() {
         let pack = StarterPack(
             id: "p",
             title: "Pack",
@@ -35,21 +37,23 @@ final class StarterPackCatalogTests: XCTestCase {
         ]
 
         let resolved = StarterPackCatalog.resolve([pack], using: rows)
-        XCTAssertEqual(resolved.count, 1)
+        #expect(resolved.count == 1)
         // Curated order is preserved, and the missing URL is skipped.
-        XCTAssertEqual(resolved[0].communities.map(\.name), ["technology", "linux"])
-        XCTAssertEqual(resolved[0].communityCount, 2)
-        XCTAssertEqual(resolved[0].totalSubscribers, 400)
+        #expect(resolved[0].communities.map(\.name) == ["technology", "linux"])
+        #expect(resolved[0].communityCount == 2)
+        #expect(resolved[0].totalSubscribers == 400)
     }
 
-    func test_resolve_dropsPacksWithNoMatches() {
+    @Test
+    func resolve_dropsPacksWithNoMatches() {
         let pack = StarterPack(id: "p", title: "Pack", blurb: "b", communityUrls: ["https://nope.test/c/x"])
-        XCTAssertTrue(StarterPackCatalog.resolve([pack], using: []).isEmpty)
+        #expect(StarterPackCatalog.resolve([pack], using: []).isEmpty)
     }
 
-    func test_catalog_isNonEmptyAndUniqueIds() {
+    @Test
+    func catalog_isNonEmptyAndUniqueIds() {
         let ids = StarterPackCatalog.all.map(\.id)
-        XCTAssertFalse(ids.isEmpty)
-        XCTAssertEqual(ids.count, Set(ids).count, "pack ids are unique")
+        #expect(!(ids.isEmpty))
+        #expect(ids.count == Set(ids).count, "pack ids are unique")
     }
 }

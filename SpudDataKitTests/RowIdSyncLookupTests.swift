@@ -6,21 +6,17 @@
 
 import Foundation
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 /// Tests for the account-keyed row-id sync helpers:
 ///   - `personRowIdSync(forKeychainId:personId:)`
 ///   - `communityRowIdSync(forAccountId:serverCommunityId:)`
-final class RowIdSyncLookupTests: XCTestCase {
-    private var appDatabase: AppDatabase!
+struct RowIdSyncLookupTests {
+    private var appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     // MARK: - Helpers
@@ -52,7 +48,8 @@ final class RowIdSyncLookupTests: XCTestCase {
     // MARK: - personRowIdSync(forKeychainId:personId:)
 
     /// Person stored under account's site is found by (keychainId, personId).
-    func testPersonRowIdSyncByKeychainIdFindsPersonUnderAccountSite() async throws {
+    @Test
+    func personRowIdSyncByKeychainIdFindsPersonUnderAccountSite() async throws {
         let keychainId = "test-keychain-1"
         let (siteId, _) = try await seedInstanceSiteAccount(keychainId: keychainId)
 
@@ -70,15 +67,15 @@ final class RowIdSyncLookupTests: XCTestCase {
 
         // Known keychainId + personId -> returns the row id.
         let result = appDatabase.personRowIdSync(forKeychainId: keychainId, personId: serverPersonId)
-        XCTAssertEqual(result, personRowId)
+        #expect(result == personRowId)
 
         // Unknown personId -> nil.
         let missingPersonId = appDatabase.personRowIdSync(forKeychainId: keychainId, personId: 9999)
-        XCTAssertNil(missingPersonId)
+        #expect(missingPersonId == nil)
 
         // Unknown keychainId -> nil.
         let missingKeychainId = appDatabase.personRowIdSync(forKeychainId: "no-such-keychain", personId: serverPersonId)
-        XCTAssertNil(missingKeychainId)
+        #expect(missingKeychainId == nil)
     }
 
     /// Regression: a federated (remote) person has an actorId on a different
@@ -86,7 +83,8 @@ final class RowIdSyncLookupTests: XCTestCase {
     /// ACCOUNT's siteId. The account-keyed lookup must still find it (a
     /// home-instance-keyed lookup would fail, since it joins through
     /// instance.actorId which won't match the person's remote host).
-    func testPersonRowIdSyncByKeychainIdIgnoresPersonHomeInstance() async throws {
+    @Test
+    func personRowIdSyncByKeychainIdIgnoresPersonHomeInstance() async throws {
         let keychainId = "test-keychain-2"
         // Account's home instance is "https://example.com".
         let (siteId, _) = try await seedInstanceSiteAccount(
@@ -109,13 +107,14 @@ final class RowIdSyncLookupTests: XCTestCase {
 
         // Account-keyed lookup finds the remote person via the account's siteId.
         let result = appDatabase.personRowIdSync(forKeychainId: keychainId, personId: serverPersonId)
-        XCTAssertEqual(result, personRowId)
+        #expect(result == personRowId)
     }
 
     // MARK: - communityRowIdSync(forAccountId:serverCommunityId:)
 
     /// Community stored under an account is found by (accountId, serverCommunityId).
-    func testCommunityRowIdSyncFindsByAccountAndServerId() async throws {
+    @Test
+    func communityRowIdSyncFindsByAccountAndServerId() async throws {
         let keychainId = "test-keychain-3"
         let (_, accountId) = try await seedInstanceSiteAccount(keychainId: keychainId)
 
@@ -135,20 +134,20 @@ final class RowIdSyncLookupTests: XCTestCase {
             forAccountId: accountId,
             serverCommunityId: serverCommunityId
         )
-        XCTAssertEqual(result, communityRowId)
+        #expect(result == communityRowId)
 
         // Unknown serverCommunityId -> nil.
         let missingCommunity = appDatabase.communityRowIdSync(
             forAccountId: accountId,
             serverCommunityId: 9999
         )
-        XCTAssertNil(missingCommunity)
+        #expect(missingCommunity == nil)
 
         // Unknown accountId -> nil.
         let missingAccount = appDatabase.communityRowIdSync(
             forAccountId: 9999,
             serverCommunityId: serverCommunityId
         )
-        XCTAssertNil(missingAccount)
+        #expect(missingAccount == nil)
     }
 }

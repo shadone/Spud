@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias Person = Components.Schemas.Person
@@ -59,18 +59,14 @@ private final class StubCreateCommentTransport: ClientTransport, @unchecked Send
 }
 
 @MainActor
-final class LemmyServiceCreateCommentTests: XCTestCase {
+struct LemmyServiceCreateCommentTests {
     private let keychainId = "keychain-1"
     private let serverPostId: Components.Schemas.PostID = 1
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     /// Seeds the minimal account + site + post so that the comment mirror can
@@ -128,7 +124,8 @@ final class LemmyServiceCreateCommentTests: XCTestCase {
         )
     }
 
-    func testCreateCommentUpsertsReturnedCommentIntoDatabase() async throws {
+    @Test
+    func createCommentUpsertsReturnedCommentIntoDatabase() async throws {
         try await seedAccountSiteAndPost()
 
         let newCommentId: Components.Schemas.CommentID = 42
@@ -159,7 +156,7 @@ final class LemmyServiceCreateCommentTests: XCTestCase {
             parentCommentId: nil
         )
 
-        XCTAssertTrue(transport.didSendCreateComment, "createComment should call the api")
+        #expect(transport.didSendCreateComment, "createComment should call the api")
 
         // The mirrored comment must now be queryable via its server id.
         let storedBody = try await appDatabase.writer.read { db -> String? in
@@ -168,10 +165,11 @@ final class LemmyServiceCreateCommentTests: XCTestCase {
                 .fetchOne(db)?
                 .body
         }
-        XCTAssertEqual(storedBody, comment.content)
+        #expect(storedBody == comment.content)
     }
 
-    func testCreateCommentOnSignedOutAccountThrowsAndSkipsApi() async throws {
+    @Test
+    func createCommentOnSignedOutAccountThrowsAndSkipsApi() async throws {
         try await seedAccountSiteAndPost()
 
         // The transport should never be reached; encode an arbitrary response.
@@ -196,13 +194,13 @@ final class LemmyServiceCreateCommentTests: XCTestCase {
                 content: "hello",
                 parentCommentId: nil
             )
-            XCTFail("Expected createComment to throw on a signed-out account")
+            Issue.record("Expected createComment to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
 
-        XCTAssertFalse(
-            transport.didSendCreateComment,
+        #expect(
+            !transport.didSendCreateComment,
             "createComment must not hit the api when the account is signed out"
         )
     }

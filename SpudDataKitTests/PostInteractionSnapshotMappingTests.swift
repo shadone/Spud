@@ -5,10 +5,10 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class PostInteractionSnapshotMappingTests: XCTestCase {
+struct PostInteractionSnapshotMappingTests {
     private func row(communityActorId: String?) -> PostListRow {
         PostListRow(
             id: 1, serverPostId: 9, title: "Hello", body: nil,
@@ -22,17 +22,19 @@ final class PostInteractionSnapshotMappingTests: XCTestCase {
         )
     }
 
-    func testMapsFieldsAndDerivesInstanceHost() {
+    @Test
+    func mapsFieldsAndDerivesInstanceHost() {
         let snap = PostInteractionSnapshot(postListRow: row(communityActorId: "https://lemmy.world/c/programming"))
-        XCTAssertEqual(snap.titleSnapshot, "Hello")
-        XCTAssertEqual(snap.communityName, "programming")
-        XCTAssertEqual(snap.instanceHost, "lemmy.world")
-        XCTAssertEqual(snap.thumbnailUrl, "https://img.test/t.png")
-        XCTAssertEqual(snap.author, "alice")
+        #expect(snap.titleSnapshot == "Hello")
+        #expect(snap.communityName == "programming")
+        #expect(snap.instanceHost == "lemmy.world")
+        #expect(snap.thumbnailUrl == "https://img.test/t.png")
+        #expect(snap.author == "alice")
     }
 
-    func testInstanceHostEmptyWhenActorIdMissing() {
+    @Test
+    func instanceHostEmptyWhenActorIdMissing() {
         let snap = PostInteractionSnapshot(postListRow: row(communityActorId: nil))
-        XCTAssertEqual(snap.instanceHost, "")
+        #expect(snap.instanceHost == "")
     }
 }

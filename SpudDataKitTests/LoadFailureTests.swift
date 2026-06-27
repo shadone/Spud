@@ -7,95 +7,109 @@
 import Foundation
 import LemmyKit
 import SpudUtilKit
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class LoadFailureTests: XCTestCase {
-    func testOfflineWhenMonitorReportsOffline() {
+struct LoadFailureTests {
+    @Test
+    func offlineWhenMonitorReportsOffline() {
         let failure = LoadFailure.classify(URLError(.timedOut), isOnline: false)
-        XCTAssertEqual(failure.kind, .offline)
+        #expect(failure.kind == .offline)
     }
 
-    func testNotConnectedURLErrorIsOffline() {
+    @Test
+    func notConnectedURLErrorIsOffline() {
         let failure = LoadFailure.classify(URLError(.notConnectedToInternet), isOnline: true)
-        XCTAssertEqual(failure.kind, .offline)
+        #expect(failure.kind == .offline)
     }
 
-    func testTimedOutURLErrorIsUnreachable() {
+    @Test
+    func timedOutURLErrorIsUnreachable() {
         let failure = LoadFailure.classify(URLError(.timedOut), isOnline: true)
-        XCTAssertEqual(failure.kind, .unreachable)
+        #expect(failure.kind == .unreachable)
     }
 
-    func testCannotConnectURLErrorIsUnreachable() {
+    @Test
+    func cannotConnectURLErrorIsUnreachable() {
         let failure = LoadFailure.classify(URLError(.cannotConnectToHost), isOnline: true)
-        XCTAssertEqual(failure.kind, .unreachable)
+        #expect(failure.kind == .unreachable)
     }
 
-    func testTimeoutErrorIsUnreachable() {
+    @Test
+    func timeoutErrorIsUnreachable() {
         let failure = LoadFailure.classify(TimeoutError(), isOnline: true)
-        XCTAssertEqual(failure.kind, .unreachable)
+        #expect(failure.kind == .unreachable)
     }
 
-    func testDecodingErrorIsMalformed() {
+    @Test
+    func decodingErrorIsMalformed() {
         let decoding = DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "bad"))
         let failure = LoadFailure.classify(decoding, isOnline: true)
-        XCTAssertEqual(failure.kind, .malformedResponse)
+        #expect(failure.kind == .malformedResponse)
     }
 
-    func testInternalInconsistencyIsUnreachable() {
+    @Test
+    func internalInconsistencyIsUnreachable() {
         let failure = LoadFailure.classify(
             LemmyServiceError.internalInconsistency(description: "unexpected"),
             isOnline: true
         )
-        XCTAssertEqual(failure.kind, .unreachable)
+        #expect(failure.kind == .unreachable)
     }
 
-    func testRequiresAuthenticationIsUnreachable() {
+    @Test
+    func requiresAuthenticationIsUnreachable() {
         let failure = LoadFailure.classify(LemmyServiceError.requiresAuthentication, isOnline: true)
-        XCTAssertEqual(failure.kind, .unreachable)
+        #expect(failure.kind == .unreachable)
     }
 
-    func testUnknownErrorDefaultsToUnreachable() {
+    @Test
+    func unknownErrorDefaultsToUnreachable() {
         struct Mystery: Error { }
         let failure = LoadFailure.classify(Mystery(), isOnline: true)
-        XCTAssertEqual(failure.kind, .unreachable)
+        #expect(failure.kind == .unreachable)
     }
 
-    func testDiagnosticsAreNonEmpty() {
+    @Test
+    func diagnosticsAreNonEmpty() {
         let failure = LoadFailure.classify(URLError(.timedOut), isOnline: true)
-        XCTAssertFalse(failure.diagnostics.isEmpty)
+        #expect(!(failure.diagnostics.isEmpty))
     }
 
-    func testApiErrorWrappingDeserializeFailureIsMalformed() {
+    @Test
+    func apiErrorWrappingDeserializeFailureIsMalformed() {
         let decoding = DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "bad"))
         let failure = LoadFailure.classify(
             LemmyServiceError.apiError(.failedToDeserializeResponse(underlyingError: decoding)),
             isOnline: true
         )
-        XCTAssertEqual(failure.kind, .malformedResponse)
+        #expect(failure.kind == .malformedResponse)
     }
 
-    func testApiErrorWrappingNotConnectedURLErrorIsOffline() {
+    @Test
+    func apiErrorWrappingNotConnectedURLErrorIsOffline() {
         let failure = LoadFailure.classify(
             LemmyServiceError.apiError(.network(URLError(.notConnectedToInternet))),
             isOnline: true
         )
-        XCTAssertEqual(failure.kind, .offline)
+        #expect(failure.kind == .offline)
     }
 
-    func testApiErrorWrappingTimedOutURLErrorIsUnreachable() {
+    @Test
+    func apiErrorWrappingTimedOutURLErrorIsUnreachable() {
         let failure = LoadFailure.classify(
             LemmyServiceError.apiError(.network(URLError(.timedOut))),
             isOnline: true
         )
-        XCTAssertEqual(failure.kind, .unreachable)
+        #expect(failure.kind == .unreachable)
     }
 
-    func testApiErrorUnknownServerErrorIsUnreachable() {
+    @Test
+    func apiErrorUnknownServerErrorIsUnreachable() {
         let failure = LoadFailure.classify(
             LemmyServiceError.apiError(.unknownServerError(httpStatusCode: 500, error: nil)),
             isOnline: true
         )
-        XCTAssertEqual(failure.kind, .unreachable)
+        #expect(failure.kind == .unreachable)
     }
 }

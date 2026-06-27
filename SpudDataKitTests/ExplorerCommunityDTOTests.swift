@@ -4,14 +4,16 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import SpudDataKit
 
-final class ExplorerCommunityDTOTests: XCTestCase {
+struct ExplorerCommunityDTOTests {
     /// The lemmyverse community payload carries the community's creation date as a
     /// top-level `published` in Unix epoch *milliseconds*. The DTO must surface it
     /// and `makeRecord` must convert ms -> seconds (not treat it as seconds).
-    func test_decode_publishedEpochMillis_mapsToCreationDate() throws {
+    @Test
+    func decode_publishedEpochMillis_mapsToCreationDate() throws {
         let json = Data("""
             {
                 "baseurl": "lemmy.world",
@@ -27,25 +29,25 @@ final class ExplorerCommunityDTOTests: XCTestCase {
             """.utf8)
 
         let dto = try JSONDecoder().decode(ExplorerCommunityDTO.self, from: json)
-        XCTAssertEqual(dto.published, 1_691_620_436_000)
+        #expect(dto.published == 1_691_620_436_000)
 
         let record = dto.makeRecord(updatedAt: Date(timeIntervalSince1970: 0))
-        XCTAssertEqual(
-            record.publishedAt,
-            Date(timeIntervalSince1970: 1_691_620_436),
+        #expect(
+            record.publishedAt == Date(timeIntervalSince1970: 1_691_620_436),
             "epoch ms must be divided by 1000"
         )
     }
 
     /// A community with no `published` (older crawls) decodes with a nil date
     /// rather than failing or defaulting to the epoch.
-    func test_decode_missingPublished_isNil() throws {
+    @Test
+    func decode_missingPublished_isNil() throws {
         let json = Data("""
             { "baseurl": "lemmy.world", "url": "https://lemmy.world/c/x", "name": "x" }
             """.utf8)
 
         let dto = try JSONDecoder().decode(ExplorerCommunityDTO.self, from: json)
-        XCTAssertNil(dto.published)
-        XCTAssertNil(dto.makeRecord(updatedAt: Date(timeIntervalSince1970: 0)).publishedAt)
+        #expect(dto.published == nil)
+        #expect(dto.makeRecord(updatedAt: Date(timeIntervalSince1970: 0)).publishedAt == nil)
     }
 }

@@ -5,11 +5,12 @@
 //
 
 import LemmyKit
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class PostNsfwImportTests: XCTestCase {
-    func test_upsertPost_persistsNsfwFlagFromPostView() async throws {
+struct PostNsfwImportTests {
+    @Test
+    func upsertPost_persistsNsfwFlagFromPostView() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let (accountId, siteId) = try await appDatabase.writer.write { db -> (Int64, Int64) in
             var instance = InstanceRecord(actorId: "https://example.com")
@@ -37,6 +38,6 @@ final class PostNsfwImportTests: XCTestCase {
         let record = try await appDatabase.writer.read { db in
             try PostRecord.filter(key: rowId).fetchOne(db)
         }
-        XCTAssertEqual(record?.isNsfw, true)
+        #expect(record?.isNsfw == true)
     }
 }

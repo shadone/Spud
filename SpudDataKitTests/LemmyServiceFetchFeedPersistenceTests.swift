@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias GetPostsResponse = Components.Schemas.GetPostsResponse
@@ -48,17 +48,13 @@ private final class StubGetPostsTransport: ClientTransport, @unchecked Sendable 
 }
 
 @MainActor
-final class LemmyServiceFetchFeedPersistenceTests: XCTestCase {
+struct LemmyServiceFetchFeedPersistenceTests {
     private let keychainId = "keychain-persistence-1"
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     /// Seeds an account + site so `fetchFeed`'s `appendFeedPage` mirror can
@@ -103,7 +99,8 @@ final class LemmyServiceFetchFeedPersistenceTests: XCTestCase {
     /// than silently succeeding and leaving the feed row uncreated. This
     /// exercises the nil-return path of `accountSiteIds()` inside
     /// `mirrorFeedPageToAppDatabase`.
-    func testFetchFeedThrowsWhenAccountRowMissing() async throws {
+    @Test
+    func fetchFeedThrowsWhenAccountRowMissing() async throws {
         // Intentionally do NOT seed an account/site row.
 
         let transport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
@@ -116,7 +113,7 @@ final class LemmyServiceFetchFeedPersistenceTests: XCTestCase {
 
         do {
             _ = try await service.fetchFeed(feed, pageCursor: nil, showNsfw: false)
-            XCTFail("Expected fetchFeed to throw when no account/site row exists")
+            Issue.record("Expected fetchFeed to throw when no account/site row exists")
         } catch {
             // Any thrown error is acceptable — what matters is that it did not
             // silently succeed.
@@ -124,12 +121,13 @@ final class LemmyServiceFetchFeedPersistenceTests: XCTestCase {
 
         // The feed row must NOT have been created.
         let feedRowId = appDatabase.feedRowIdSync(forFeedKey: feed.feedKey)
-        XCTAssertNil(feedRowId, "No feed row should be created when account/site row is missing")
+        #expect(feedRowId == nil, "No feed row should be created when account/site row is missing")
     }
 
     /// Regression guard: when the account and site rows are present, `fetchFeed`
     /// must succeed and produce a feed row (even for an empty page).
-    func testFetchFeedSucceedsAndCreatesFeedRowWhenSeeded() async throws {
+    @Test
+    func fetchFeedSucceedsAndCreatesFeedRowWhenSeeded() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
@@ -146,6 +144,6 @@ final class LemmyServiceFetchFeedPersistenceTests: XCTestCase {
         // The feed row must have been created (appendFeedPage upserts even for
         // an empty page).
         let feedRowId = appDatabase.feedRowIdSync(forFeedKey: feed.feedKey)
-        XCTAssertNotNil(feedRowId, "A feed row should be created after a successful fetchFeed")
+        #expect(feedRowId != nil, "A feed row should be created after a successful fetchFeed")
     }
 }

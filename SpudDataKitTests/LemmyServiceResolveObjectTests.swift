@@ -6,13 +6,14 @@
 
 import LemmyKit
 import SpudUtilKit
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class LemmyServiceResolveObjectTests: XCTestCase {
+struct LemmyServiceResolveObjectTests {
     private let home = InstanceActorId(from: "https://lemmy.world")!
 
-    func test_mapsPostResponse_toPostCaseWithHomeInstance() {
+    @Test
+    func mapsPostResponse_toPostCaseWithHomeInstance() {
         var post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
         post.id = 77
         let view = Components.Schemas.PostView.fake(post: post, creator: .fake, community: .fake)
@@ -21,13 +22,15 @@ final class LemmyServiceResolveObjectTests: XCTestCase {
             homeInstance: home
         )
         guard case let .post(postId, instance) = resolved else {
-            return XCTFail("expected .post")
+            Issue.record("expected .post")
+            return
         }
-        XCTAssertEqual(postId, 77)
-        XCTAssertEqual(instance.host, "lemmy.world")
+        #expect(postId == 77)
+        #expect(instance.host == "lemmy.world")
     }
 
-    func test_mapsCommunityResponse_toCommunityCaseFromActorId() {
+    @Test
+    func mapsCommunityResponse_toCommunityCaseFromActorId() {
         var community = Components.Schemas.Community.fake
         community.name = "technology"
         community.actor_id = "https://beehaw.org/c/technology"
@@ -37,23 +40,27 @@ final class LemmyServiceResolveObjectTests: XCTestCase {
             homeInstance: home
         )
         guard case let .community(name, instance) = resolved else {
-            return XCTFail("expected .community")
+            Issue.record("expected .community")
+            return
         }
-        XCTAssertEqual(name, "technology")
-        XCTAssertEqual(instance.host, "beehaw.org")
+        #expect(name == "technology")
+        #expect(instance.host == "beehaw.org")
     }
 
-    func test_emptyResponse_isUnresolved() {
+    @Test
+    func emptyResponse_isUnresolved() {
         let resolved = ResolvedLemmyObject(
             response: Components.Schemas.ResolveObjectResponse(),
             homeInstance: home
         )
         guard case .unresolved = resolved else {
-            return XCTFail("expected .unresolved")
+            Issue.record("expected .unresolved")
+            return
         }
     }
 
-    func test_mapsPersonResponse_toPersonCase() {
+    @Test
+    func mapsPersonResponse_toPersonCase() {
         var person = Components.Schemas.Person.fake
         person.id = 55
         let view = Components.Schemas.PersonView.fake(person: person)
@@ -62,13 +69,15 @@ final class LemmyServiceResolveObjectTests: XCTestCase {
             homeInstance: home
         )
         guard case let .person(personId, instance) = resolved else {
-            return XCTFail("expected .person")
+            Issue.record("expected .person")
+            return
         }
-        XCTAssertEqual(personId, 55)
-        XCTAssertEqual(instance.host, "lemmy.world")
+        #expect(personId == 55)
+        #expect(instance.host == "lemmy.world")
     }
 
-    func test_mapsCommentResponse_toCommentCaseWithPostAndCommentIds() {
+    @Test
+    func mapsCommentResponse_toCommentCaseWithPostAndCommentIds() {
         var post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
         post.id = 42
         let comment = Components.Schemas.Comment.fake(
@@ -89,10 +98,11 @@ final class LemmyServiceResolveObjectTests: XCTestCase {
             homeInstance: home
         )
         guard case let .comment(postId, commentId, instance) = resolved else {
-            return XCTFail("expected .comment")
+            Issue.record("expected .comment")
+            return
         }
-        XCTAssertEqual(postId, 42)
-        XCTAssertEqual(commentId, 7)
-        XCTAssertEqual(instance.host, "lemmy.world")
+        #expect(postId == 42)
+        #expect(commentId == 7)
+        #expect(instance.host == "lemmy.world")
     }
 }

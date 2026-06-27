@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 /// Stub `ClientTransport` that answers the `saveUserSettings` operation and
@@ -41,17 +41,13 @@ private final class StubBlurNsfwTransport: ClientTransport, @unchecked Sendable 
 }
 
 @MainActor
-final class LemmyServiceBlurNsfwTests: XCTestCase {
+struct LemmyServiceBlurNsfwTests {
     private let keychainId = "keychain-blur-nsfw-service-test"
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     private func seedAccountAndSite() async throws {
@@ -92,7 +88,8 @@ final class LemmyServiceBlurNsfwTests: XCTestCase {
 
     // MARK: Signed in
 
-    func test_setBlurNsfw_signedIn_callsSaveUserSettings() async throws {
+    @Test
+    func setBlurNsfw_signedIn_callsSaveUserSettings() async throws {
         try await seedAccountAndSite()
 
         let transport = StubBlurNsfwTransport()
@@ -100,13 +97,14 @@ final class LemmyServiceBlurNsfwTests: XCTestCase {
 
         try await service.setBlurNsfw(false)
 
-        XCTAssertTrue(
+        #expect(
             transport.didSendSaveUserSettings,
             "setBlurNsfw should call the saveUserSettings api when signed in"
         )
     }
 
-    func test_setBlurNsfw_signedIn_mirrorsValueIntoDatabase() async throws {
+    @Test
+    func setBlurNsfw_signedIn_mirrorsValueIntoDatabase() async throws {
         try await seedAccountAndSite()
 
         let transport = StubBlurNsfwTransport()
@@ -118,19 +116,20 @@ final class LemmyServiceBlurNsfwTests: XCTestCase {
         let account = try await appDatabase.writer.read { db in
             try AccountRecord.filter(Column("accountKeychainId") == keychainId).fetchOne(db)
         }
-        XCTAssertEqual(account?.blurNsfw, false)
+        #expect(account?.blurNsfw == false)
     }
 
     // MARK: Signed out
 
-    func test_setBlurNsfw_signedOut_isNoOp() async throws {
+    @Test
+    func setBlurNsfw_signedOut_isNoOp() async throws {
         let transport = StubBlurNsfwTransport()
         let service = makeService(accountIsSignedOut: true, transport: transport)
 
         try await service.setBlurNsfw(false)
 
-        XCTAssertFalse(
-            transport.didSendSaveUserSettings,
+        #expect(
+            !transport.didSendSaveUserSettings,
             "setBlurNsfw must not call the api when the account is signed out"
         )
     }

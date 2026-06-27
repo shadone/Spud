@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 // MARK: - Type aliases
@@ -56,7 +56,7 @@ private final class StubGetPostTransport: ClientTransport, @unchecked Sendable {
     }
 }
 
-// MARK: - Test class
+// MARK: - Test struct
 
 /// Counters (comment count, score) shown in the UI live on `PostRecord` and are
 /// only refreshed when the app imports a full `PostView`. This locks in the
@@ -66,17 +66,13 @@ private final class StubGetPostTransport: ClientTransport, @unchecked Sendable {
 /// count (e.g. "1 comment" under three rendered comments). Lemmy's getComments
 /// response carries no post counters, so a fresh getPost is the only source.
 @MainActor
-final class LemmyServicePostCounterHarvestTests: XCTestCase {
+struct LemmyServicePostCounterHarvestTests {
     private let keychainId = "keychain-1"
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     // MARK: - Helpers
@@ -145,7 +141,8 @@ final class LemmyServicePostCounterHarvestTests: XCTestCase {
     /// Importing a fresh `PostView` must overwrite an existing row's stale
     /// comment count, so the post-detail header recovers once a counter-bearing
     /// response (getPost) arrives.
-    func testFetchPostInfoUpdatesStaleCommentCount() async throws {
+    @Test
+    func fetchPostInfoUpdatesStaleCommentCount() async throws {
         let ids = try await seedAccountAndSite()
 
         // Seed the post locally with a STALE comment count of 1.
@@ -157,7 +154,7 @@ final class LemmyServicePostCounterHarvestTests: XCTestCase {
             siteId: ids.siteId
         )
         let before = try await storedCommentCount(accountId: ids.accountId, serverPostId: serverPostId)
-        XCTAssertEqual(before, 1, "precondition: stored count starts stale at 1")
+        #expect(before == 1, "precondition: stored count starts stale at 1")
 
         // Server now reports 3 comments via getPost.
         let freshPostView = makePostView(commentCount: 3)
@@ -172,13 +169,14 @@ final class LemmyServicePostCounterHarvestTests: XCTestCase {
         try await service.fetchPostInfo(serverPostId: serverPostId)
 
         let after = try await storedCommentCount(accountId: ids.accountId, serverPostId: serverPostId)
-        XCTAssertEqual(after, 3, "importing a fresh PostView must refresh the stored comment count")
+        #expect(after == 3, "importing a fresh PostView must refresh the stored comment count")
     }
 
     /// `getPost` returns the post's `cross_posts` as full `PostView`s. Their
     /// counters should be harvested too (in a single batched transaction), so a
     /// cross-post seen here stays fresh without a separate fetch.
-    func testFetchPostInfoHarvestsCrossPostCounters() async throws {
+    @Test
+    func fetchPostInfoHarvestsCrossPostCounters() async throws {
         let ids = try await seedAccountAndSite()
 
         let mainView = makePostView(postId: 1, commentCount: 3)
@@ -197,8 +195,8 @@ final class LemmyServicePostCounterHarvestTests: XCTestCase {
         let mainCount = try await storedCommentCount(accountId: ids.accountId, serverPostId: mainView.post.id)
         let crossCountA = try await storedCommentCount(accountId: ids.accountId, serverPostId: crossA.post.id)
         let crossCountB = try await storedCommentCount(accountId: ids.accountId, serverPostId: crossB.post.id)
-        XCTAssertEqual(mainCount, 3, "main post counter must be harvested")
-        XCTAssertEqual(crossCountA, 7, "first cross-post counter must be harvested from getPost's cross_posts")
-        XCTAssertEqual(crossCountB, 11, "second cross-post counter must be harvested in the same batch")
+        #expect(mainCount == 3, "main post counter must be harvested")
+        #expect(crossCountA == 7, "first cross-post counter must be harvested from getPost's cross_posts")
+        #expect(crossCountB == 11, "second cross-post counter must be harvested in the same batch")
     }
 }

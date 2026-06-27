@@ -6,19 +6,21 @@
 
 import Foundation
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class PostInteractionMigrationTests: XCTestCase {
-    func testPostInteractionTableExistsAfterMigration() throws {
+struct PostInteractionMigrationTests {
+    @Test
+    func postInteractionTableExistsAfterMigration() throws {
         let appDatabase = try AppDatabase.inMemory()
         let exists = try appDatabase.writer.read { db in
             try db.tableExists("postInteraction")
         }
-        XCTAssertTrue(exists)
+        #expect(exists)
     }
 
-    func testUniqueOnAccountAndPostServerId() throws {
+    @Test
+    func uniqueOnAccountAndPostServerId() throws {
         let appDatabase = try AppDatabase.inMemory()
         try appDatabase.writer.write { db in
             try db.execute(sql: "INSERT INTO instance (actorId, createdAt) VALUES ('https://a.test', ?)", arguments: [Date()])
@@ -38,7 +40,7 @@ final class PostInteractionMigrationTests: XCTestCase {
         try appDatabase.writer.write { db in
             let accountId = try Int64.fetchOne(db, sql: "SELECT id FROM account LIMIT 1")!
             var duplicate = PostInteractionRecord(accountId: accountId, postServerId: 100)
-            XCTAssertThrowsError(try duplicate.insert(db))
+            #expect(throws: (any Error).self) { try duplicate.insert(db) }
         }
     }
 }

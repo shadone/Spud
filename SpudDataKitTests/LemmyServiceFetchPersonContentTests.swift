@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias Person = Components.Schemas.Person
@@ -59,17 +59,13 @@ private final class StubGetPersonDetailsTransport: ClientTransport, @unchecked S
 }
 
 @MainActor
-final class LemmyServiceFetchPersonContentTests: XCTestCase {
+struct LemmyServiceFetchPersonContentTests {
     private let keychainId = "keychain-1"
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     @discardableResult
@@ -117,7 +113,8 @@ final class LemmyServiceFetchPersonContentTests: XCTestCase {
         )
     }
 
-    func testFetchPersonContentReturnsPostsAndCommentsAndMirrorsProfile() async throws {
+    @Test
+    func fetchPersonContentReturnsPostsAndCommentsAndMirrorsProfile() async throws {
         try await seedAccountAndSite()
 
         let person = Person.fake
@@ -150,13 +147,13 @@ final class LemmyServiceFetchPersonContentTests: XCTestCase {
             page: 1
         )
 
-        XCTAssertTrue(transport.didSendGetPersonDetails, "fetchPersonContent should call getPersonDetails")
+        #expect(transport.didSendGetPersonDetails, "fetchPersonContent should call getPersonDetails")
 
         // Transient content is returned directly.
-        XCTAssertEqual(result.posts.count, 1)
-        XCTAssertEqual(result.posts.first?.post.id, post.id)
-        XCTAssertEqual(result.comments.count, 1)
-        XCTAssertEqual(result.comments.first?.comment.id, 11)
+        #expect(result.posts.count == 1)
+        #expect(result.posts.first?.post.id == post.id)
+        #expect(result.comments.count == 1)
+        #expect(result.comments.first?.comment.id == 11)
 
         // The profile (person_view) is mirrored into the database.
         let mirrored = try await appDatabase.writer.read { db -> (String?, Int64, Int64)? in
@@ -168,12 +165,13 @@ final class LemmyServiceFetchPersonContentTests: XCTestCase {
             else { return nil }
             return (row["name"], row["numberOfPosts"], row["numberOfComments"])
         }
-        XCTAssertEqual(mirrored?.0, "alice")
-        XCTAssertEqual(mirrored?.1, 42)
-        XCTAssertEqual(mirrored?.2, 7)
+        #expect(mirrored?.0 == "alice")
+        #expect(mirrored?.1 == 42)
+        #expect(mirrored?.2 == 7)
     }
 
-    func testFetchPersonContentReturnsEmptyListsWhenNoContent() async throws {
+    @Test
+    func fetchPersonContentReturnsEmptyListsWhenNoContent() async throws {
         try await seedAccountAndSite()
 
         let person = Person.fake
@@ -194,8 +192,8 @@ final class LemmyServiceFetchPersonContentTests: XCTestCase {
             page: 1
         )
 
-        XCTAssertTrue(transport.didSendGetPersonDetails)
-        XCTAssertTrue(result.posts.isEmpty)
-        XCTAssertTrue(result.comments.isEmpty)
+        #expect(transport.didSendGetPersonDetails)
+        #expect(result.posts.isEmpty)
+        #expect(result.comments.isEmpty)
     }
 }

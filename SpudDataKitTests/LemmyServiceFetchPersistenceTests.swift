@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 // MARK: - Type aliases
@@ -132,24 +132,20 @@ private final class StubGetCommentsTransport: ClientTransport, @unchecked Sendab
     }
 }
 
-// MARK: - Test class
+// MARK: - Test struct
 
 /// Covers the "persistence-or-throw" contract for fetchPostInfo, fetchPersonInfo,
 /// and fetchComments: each must throw when the mirror cannot persist the row,
 /// rather than silently returning success and leaving the loading spinner stuck.
 @MainActor
-final class LemmyServiceFetchPersistenceTests: XCTestCase {
+struct LemmyServiceFetchPersistenceTests {
     private let keychainId = "keychain-1"
     private let instanceActorId = "https://example.com"
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     // MARK: - Seed helpers
@@ -238,7 +234,8 @@ final class LemmyServiceFetchPersistenceTests: XCTestCase {
     /// Without account/site seeded, mirrorPostInfoToAppDatabase swallows the
     /// failure and no post row appears. fetchPostInfo must detect this and throw
     /// rather than returning success with a missing row.
-    func testFetchPostInfoThrowsWhenNotPersisted() async throws {
+    @Test
+    func fetchPostInfoThrowsWhenNotPersisted() async throws {
         // Do NOT seed account/site - the mirror will silently no-op.
         let response = makeGetPostResponse()
         let serverPostId = response.post_view.post.id
@@ -248,7 +245,7 @@ final class LemmyServiceFetchPersistenceTests: XCTestCase {
 
         do {
             try await service.fetchPostInfo(serverPostId: serverPostId)
-            XCTFail("fetchPostInfo should throw when the post row was not persisted")
+            Issue.record("fetchPostInfo should throw when the post row was not persisted")
         } catch {
             // Expected - any throw is acceptable here.
         }
@@ -258,12 +255,13 @@ final class LemmyServiceFetchPersistenceTests: XCTestCase {
             forKeychainId: keychainId,
             serverPostId: Int64(serverPostId)
         )
-        XCTAssertNil(rowId, "post row must not exist when persistence failed")
+        #expect(rowId == nil, "post row must not exist when persistence failed")
     }
 
     /// Regression: when account/site IS seeded the mirror succeeds and
     /// fetchPostInfo must NOT throw.
-    func testFetchPostInfoSucceedsWhenSeeded() async throws {
+    @Test
+    func fetchPostInfoSucceedsWhenSeeded() async throws {
         try await seedAccountAndSite()
 
         let response = makeGetPostResponse()
@@ -275,21 +273,22 @@ final class LemmyServiceFetchPersistenceTests: XCTestCase {
         do {
             try await service.fetchPostInfo(serverPostId: serverPostId)
         } catch {
-            XCTFail("fetchPostInfo should not throw when seeded, but got: \(error)")
+            Issue.record("fetchPostInfo should not throw when seeded, but got: \(error)")
         }
 
         let rowId = appDatabase.postRowIdSync(
             forKeychainId: keychainId,
             serverPostId: Int64(serverPostId)
         )
-        XCTAssertNotNil(rowId, "post row must exist after a successful fetch")
+        #expect(rowId != nil, "post row must exist after a successful fetch")
     }
 
     // MARK: - fetchPersonInfo tests
 
     /// Without account/site seeded, mirrorPersonInfoToAppDatabase swallows the
     /// failure and no person row appears. fetchPersonInfo must detect this and throw.
-    func testFetchPersonInfoThrowsWhenNotPersisted() async throws {
+    @Test
+    func fetchPersonInfoThrowsWhenNotPersisted() async throws {
         // Do NOT seed account/site.
         let response = makeGetPersonDetailsResponse()
         let serverPersonId = response.person_view.person.id
@@ -299,7 +298,7 @@ final class LemmyServiceFetchPersistenceTests: XCTestCase {
 
         do {
             try await service.fetchPersonInfo(serverPersonId: serverPersonId)
-            XCTFail("fetchPersonInfo should throw when the person row was not persisted")
+            Issue.record("fetchPersonInfo should throw when the person row was not persisted")
         } catch {
             // Expected.
         }
@@ -308,12 +307,13 @@ final class LemmyServiceFetchPersistenceTests: XCTestCase {
             forKeychainId: keychainId,
             personId: Int64(serverPersonId)
         )
-        XCTAssertNil(rowId, "person row must not exist when persistence failed")
+        #expect(rowId == nil, "person row must not exist when persistence failed")
     }
 
     /// Regression: when account/site IS seeded the mirror succeeds and
     /// fetchPersonInfo must NOT throw.
-    func testFetchPersonInfoSucceedsWhenSeeded() async throws {
+    @Test
+    func fetchPersonInfoSucceedsWhenSeeded() async throws {
         try await seedAccountAndSite()
 
         let response = makeGetPersonDetailsResponse()
@@ -325,14 +325,14 @@ final class LemmyServiceFetchPersistenceTests: XCTestCase {
         do {
             try await service.fetchPersonInfo(serverPersonId: serverPersonId)
         } catch {
-            XCTFail("fetchPersonInfo should not throw when seeded, but got: \(error)")
+            Issue.record("fetchPersonInfo should not throw when seeded, but got: \(error)")
         }
 
         let rowId = appDatabase.personRowIdSync(
             forKeychainId: keychainId,
             personId: Int64(serverPersonId)
         )
-        XCTAssertNotNil(rowId, "person row must exist after a successful fetch")
+        #expect(rowId != nil, "person row must exist after a successful fetch")
     }
 
     // MARK: - fetchComments tests
@@ -340,7 +340,8 @@ final class LemmyServiceFetchPersistenceTests: XCTestCase {
     /// Without account/site seeded, mirrorCommentsToAppDatabase has no account/site
     /// ids to resolve, so it throws (after the fix). fetchComments must propagate
     /// this throw rather than swallowing it.
-    func testFetchCommentsThrowsWhenNotPersisted() async throws {
+    @Test
+    func fetchCommentsThrowsWhenNotPersisted() async throws {
         // Do NOT seed account/site.
         let serverPostId: Components.Schemas.PostID = 1
         let response = makeGetCommentsResponse()
@@ -353,7 +354,7 @@ final class LemmyServiceFetchPersistenceTests: XCTestCase {
                 serverPostId: serverPostId,
                 sortType: .Hot
             )
-            XCTFail("fetchComments should throw when comments could not be persisted")
+            Issue.record("fetchComments should throw when comments could not be persisted")
         } catch {
             // Expected.
         }

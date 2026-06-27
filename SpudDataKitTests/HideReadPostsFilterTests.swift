@@ -4,10 +4,11 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import SpudDataKit
 
-final class HideReadPostsFilterTests: XCTestCase {
+struct HideReadPostsFilterTests {
     /// Builds a PostListRow with only the fields the hide-read filter reads:
     /// `serverPostId` and `isRead`. Everything else is filler.
     private func row(serverPostId: Int64, isRead: Bool) -> PostListRow {
@@ -52,27 +53,30 @@ final class HideReadPostsFilterTests: XCTestCase {
         ]
     }
 
-    func testDisabledReturnsAllRowsUnchanged() {
+    @Test
+    func disabledReturnsAllRowsUnchanged() {
         let rows = sampleFeed()
         let result = HideReadPostsFilter.filter(
             rows: rows,
             enabled: false,
             mode: .live
         )
-        XCTAssertEqual(result.map(\.serverPostId), [1, 2, 3])
+        #expect(result.map(\.serverPostId) == [1, 2, 3])
     }
 
-    func testLiveModeDropsEveryReadRow() {
+    @Test
+    func liveModeDropsEveryReadRow() {
         let rows = sampleFeed()
         let result = HideReadPostsFilter.filter(
             rows: rows,
             enabled: true,
             mode: .live
         )
-        XCTAssertEqual(result.map(\.serverPostId), [2])
+        #expect(result.map(\.serverPostId) == [2])
     }
 
-    func testLiveModePreservesOrderOfRemainingRows() {
+    @Test
+    func liveModePreservesOrderOfRemainingRows() {
         let rows = [
             row(serverPostId: 10, isRead: false),
             row(serverPostId: 11, isRead: true),
@@ -84,10 +88,11 @@ final class HideReadPostsFilterTests: XCTestCase {
             enabled: true,
             mode: .live
         )
-        XCTAssertEqual(result.map(\.serverPostId), [10, 12, 13])
+        #expect(result.map(\.serverPostId) == [10, 12, 13])
     }
 
-    func testOnRefreshHidesOnlyPinnedReadRows() {
+    @Test
+    func onRefreshHidesOnlyPinnedReadRows() {
         // #1 and #3 are read; only #1 was read at refresh time. #3 became read
         // during the session and should remain visible until the next refresh.
         let rows = sampleFeed()
@@ -97,10 +102,11 @@ final class HideReadPostsFilterTests: XCTestCase {
             mode: .onRefresh,
             pinnedReadIds: [1]
         )
-        XCTAssertEqual(result.map(\.serverPostId), [2, 3])
+        #expect(result.map(\.serverPostId) == [2, 3])
     }
 
-    func testOnRefreshWithNoPinnedReadIdsHidesNothing() {
+    @Test
+    func onRefreshWithNoPinnedReadIdsHidesNothing() {
         let rows = sampleFeed()
         let result = HideReadPostsFilter.filter(
             rows: rows,
@@ -108,10 +114,11 @@ final class HideReadPostsFilterTests: XCTestCase {
             mode: .onRefresh,
             pinnedReadIds: []
         )
-        XCTAssertEqual(result.map(\.serverPostId), [1, 2, 3])
+        #expect(result.map(\.serverPostId) == [1, 2, 3])
     }
 
-    func testOnRefreshPinnedButNowUnreadRowStaysVisible() {
+    @Test
+    func onRefreshPinnedButNowUnreadRowStaysVisible() {
         // A row pinned as read that has since been marked unread (e.g. via the
         // server) is not hidden — the filter checks the row's current isRead.
         let rows = [
@@ -124,19 +131,21 @@ final class HideReadPostsFilterTests: XCTestCase {
             mode: .onRefresh,
             pinnedReadIds: [1, 2]
         )
-        XCTAssertEqual(result.map(\.serverPostId), [1])
+        #expect(result.map(\.serverPostId) == [1])
     }
 
-    func testReadIdsCollectsReadServerPostIds() {
+    @Test
+    func readIdsCollectsReadServerPostIds() {
         let ids = HideReadPostsFilter.readIds(in: sampleFeed())
-        XCTAssertEqual(ids, [1, 3])
+        #expect(ids == [1, 3])
     }
 
-    func testReadIdsEmptyWhenNothingRead() {
+    @Test
+    func readIdsEmptyWhenNothingRead() {
         let rows = [
             row(serverPostId: 1, isRead: false),
             row(serverPostId: 2, isRead: false),
         ]
-        XCTAssertTrue(HideReadPostsFilter.readIds(in: rows).isEmpty)
+        #expect(HideReadPostsFilter.readIds(in: rows).isEmpty)
     }
 }

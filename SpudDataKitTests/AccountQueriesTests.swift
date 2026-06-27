@@ -6,10 +6,10 @@
 
 import Foundation
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class AccountQueriesTests: XCTestCase {
+struct AccountQueriesTests {
     private static func seedAccount(_ db: Database, keychainId: String, host: String, isDefault: Bool, signedOut: Bool) throws {
         try db.execute(sql: "INSERT INTO instance (actorId, createdAt) VALUES (?, ?)", arguments: ["https://\(host)", Date()])
         let instanceId = db.lastInsertedRowID
@@ -21,21 +21,23 @@ final class AccountQueriesTests: XCTestCase {
             """, arguments: [siteId, keychainId, isDefault, signedOut, Date(), Date()])
     }
 
-    func test_accountsSync_returnsNonServiceAccountsWithHosts() async throws {
+    @Test
+    func accountsSync_returnsNonServiceAccountsWithHosts() async throws {
         let appDatabase = try AppDatabase.inMemory()
         try await appDatabase.writer.write { db in
             try Self.seedAccount(db, keychainId: "kc-1", host: "lemmy.world", isDefault: true, signedOut: false)
             try Self.seedAccount(db, keychainId: "kc-2", host: "beehaw.org", isDefault: false, signedOut: true)
         }
         let rows = appDatabase.accountsSync()
-        XCTAssertEqual(Set(rows.map(\.accountKeychainId)), ["kc-1", "kc-2"])
-        XCTAssertEqual(Set(rows.map(\.instanceHostname)), ["lemmy.world", "beehaw.org"])
-        XCTAssertEqual(rows.first(where: { $0.accountKeychainId == "kc-1" })?.isDefault, true)
+        #expect(Set(rows.map(\.accountKeychainId)) == ["kc-1", "kc-2"])
+        #expect(Set(rows.map(\.instanceHostname)) == ["lemmy.world", "beehaw.org"])
+        #expect(rows.first(where: { $0.accountKeychainId == "kc-1" })?.isDefault == true)
     }
 
     /// Service accounts are internal bookkeeping rows and must never appear in
     /// the account list exposed to the UI or Spotlight indexing.
-    func test_accountsSync_excludesServiceAccounts() async throws {
+    @Test
+    func accountsSync_excludesServiceAccounts() async throws {
         let appDatabase = try AppDatabase.inMemory()
         try await appDatabase.writer.write { db in
             try Self.seedAccount(db, keychainId: "kc-user", host: "lemmy.world", isDefault: true, signedOut: false)
@@ -50,7 +52,7 @@ final class AccountQueriesTests: XCTestCase {
                 """, arguments: [siteId, Date(), Date()])
         }
         let rows = appDatabase.accountsSync()
-        XCTAssertEqual(rows.map(\.accountKeychainId), ["kc-user"])
-        XCTAssertFalse(rows.contains(where: { $0.accountKeychainId == "kc-service" }))
+        #expect(rows.map(\.accountKeychainId) == ["kc-user"])
+        #expect(!(rows.contains(where: { $0.accountKeychainId == "kc-service" })))
     }
 }

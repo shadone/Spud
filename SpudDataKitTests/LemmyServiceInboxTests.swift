@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias Person = Components.Schemas.Person
@@ -67,17 +67,13 @@ private final class StubInboxTransport: ClientTransport, @unchecked Sendable {
 }
 
 @MainActor
-final class LemmyServiceInboxTests: XCTestCase {
+struct LemmyServiceInboxTests {
     private let keychainId = "keychain-1"
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     @discardableResult
@@ -165,7 +161,8 @@ final class LemmyServiceInboxTests: XCTestCase {
 
     // MARK: unread count
 
-    func testUnreadCountMapsThrough() async throws {
+    @Test
+    func unreadCountMapsThrough() async throws {
         try await seedAccountAndSite()
 
         let transport = StubInboxTransport()
@@ -177,14 +174,15 @@ final class LemmyServiceInboxTests: XCTestCase {
 
         let count = try await service.unreadCount()
 
-        XCTAssertTrue(transport.sentOperationIds.contains("getUnreadCount"))
-        XCTAssertEqual(count.replies, 3)
-        XCTAssertEqual(count.mentions, 2)
-        XCTAssertEqual(count.privateMessages, 5)
-        XCTAssertEqual(count.total, 10)
+        #expect(transport.sentOperationIds.contains("getUnreadCount"))
+        #expect(count.replies == 3)
+        #expect(count.mentions == 2)
+        #expect(count.privateMessages == 5)
+        #expect(count.total == 10)
     }
 
-    func testUnreadCountSignedOutThrowsAndSkipsApi() async throws {
+    @Test
+    func unreadCountSignedOutThrowsAndSkipsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = StubInboxTransport()
@@ -192,16 +190,17 @@ final class LemmyServiceInboxTests: XCTestCase {
 
         do {
             _ = try await service.unreadCount()
-            XCTFail("Expected unreadCount to throw on a signed-out account")
+            Issue.record("Expected unreadCount to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
-        XCTAssertTrue(transport.sentOperationIds.isEmpty)
+        #expect(transport.sentOperationIds.isEmpty)
     }
 
     // MARK: replies
 
-    func testFetchRepliesMapsThrough() async throws {
+    @Test
+    func fetchRepliesMapsThrough() async throws {
         try await seedAccountAndSite()
 
         let transport = StubInboxTransport()
@@ -216,12 +215,13 @@ final class LemmyServiceInboxTests: XCTestCase {
 
         let response = try await service.fetchReplies(unreadOnly: false, page: 1)
 
-        XCTAssertTrue(transport.sentOperationIds.contains("getReplies"))
-        XCTAssertEqual(response.replies.count, 2)
-        XCTAssertEqual(response.replies.first?.comment_reply.id, 10)
+        #expect(transport.sentOperationIds.contains("getReplies"))
+        #expect(response.replies.count == 2)
+        #expect(response.replies.first?.comment_reply.id == 10)
     }
 
-    func testFetchRepliesSignedOutThrows() async throws {
+    @Test
+    func fetchRepliesSignedOutThrows() async throws {
         try await seedAccountAndSite()
 
         let transport = StubInboxTransport()
@@ -229,16 +229,17 @@ final class LemmyServiceInboxTests: XCTestCase {
 
         do {
             _ = try await service.fetchReplies(unreadOnly: false, page: 1)
-            XCTFail("Expected fetchReplies to throw on a signed-out account")
+            Issue.record("Expected fetchReplies to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
-        XCTAssertTrue(transport.sentOperationIds.isEmpty)
+        #expect(transport.sentOperationIds.isEmpty)
     }
 
     // MARK: mark read
 
-    func testMarkReplyAsReadHitsApi() async throws {
+    @Test
+    func markReplyAsReadHitsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = StubInboxTransport()
@@ -250,12 +251,13 @@ final class LemmyServiceInboxTests: XCTestCase {
 
         try await service.markReplyAsRead(commentReplyId: 10, read: true)
 
-        XCTAssertTrue(transport.sentOperationIds.contains("markCommentReplyAsRead"))
+        #expect(transport.sentOperationIds.contains("markCommentReplyAsRead"))
     }
 
     // MARK: send private message
 
-    func testSendPrivateMessageHitsApiAndReturnsView() async throws {
+    @Test
+    func sendPrivateMessageHitsApiAndReturnsView() async throws {
         try await seedAccountAndSite()
 
         var creator = Person.fake
@@ -274,12 +276,13 @@ final class LemmyServiceInboxTests: XCTestCase {
 
         let view = try await service.sendPrivateMessage(content: "hi there", recipientId: 7)
 
-        XCTAssertTrue(transport.sentOperationIds.contains("createPrivateMessage"))
-        XCTAssertEqual(view.private_message.id, 99)
-        XCTAssertEqual(view.private_message.content, "hi there")
+        #expect(transport.sentOperationIds.contains("createPrivateMessage"))
+        #expect(view.private_message.id == 99)
+        #expect(view.private_message.content == "hi there")
     }
 
-    func testSendPrivateMessageSignedOutThrowsAndSkipsApi() async throws {
+    @Test
+    func sendPrivateMessageSignedOutThrowsAndSkipsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = StubInboxTransport()
@@ -287,10 +290,10 @@ final class LemmyServiceInboxTests: XCTestCase {
 
         do {
             _ = try await service.sendPrivateMessage(content: "hi", recipientId: 7)
-            XCTFail("Expected sendPrivateMessage to throw on a signed-out account")
+            Issue.record("Expected sendPrivateMessage to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
-        XCTAssertTrue(transport.sentOperationIds.isEmpty)
+        #expect(transport.sentOperationIds.isEmpty)
     }
 }

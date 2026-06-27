@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias GetPostsResponse = Components.Schemas.GetPostsResponse
@@ -55,17 +55,13 @@ private final class StubGetPostsTransport: ClientTransport, @unchecked Sendable 
 }
 
 @MainActor
-final class LemmyServiceFetchSavedFeedTests: XCTestCase {
+struct LemmyServiceFetchSavedFeedTests {
     private let keychainId = "keychain-1"
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     /// Seeds an account + site so `fetchFeed`'s `appendFeedPage` mirror can
@@ -106,7 +102,8 @@ final class LemmyServiceFetchSavedFeedTests: XCTestCase {
         )
     }
 
-    func testFetchSavedFeedRequestsSavedOnlyFilter() async throws {
+    @Test
+    func fetchSavedFeedRequestsSavedOnlyFilter() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
@@ -119,15 +116,16 @@ final class LemmyServiceFetchSavedFeedTests: XCTestCase {
 
         _ = try await service.fetchFeed(feed, pageCursor: nil, showNsfw: false)
 
-        XCTAssertTrue(transport.didSendGetPosts, "fetchFeed(.saved) should call the getPosts api")
-        let query = try XCTUnwrap(transport.lastQuery)
-        XCTAssertTrue(
+        #expect(transport.didSendGetPosts, "fetchFeed(.saved) should call the getPosts api")
+        let query = try #require(transport.lastQuery)
+        #expect(
             query.contains("saved_only=true"),
             "fetchFeed(.saved) must request the saved_only filter, got query: \(query)"
         )
     }
 
-    func testFetchFeedThreadsShowNsfwIntoGetPostsQuery() async throws {
+    @Test
+    func fetchFeedThreadsShowNsfwIntoGetPostsQuery() async throws {
         try await seedAccountAndSite()
 
         let feed = FeedHandle(
@@ -139,8 +137,8 @@ final class LemmyServiceFetchSavedFeedTests: XCTestCase {
         let hideTransport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
         let hideService = makeService(accountIsSignedOut: false, transport: hideTransport)
         _ = try await hideService.fetchFeed(feed, pageCursor: nil, showNsfw: false)
-        let hideQuery = try XCTUnwrap(hideTransport.lastQuery)
-        XCTAssertTrue(
+        let hideQuery = try #require(hideTransport.lastQuery)
+        #expect(
             hideQuery.contains("show_nsfw=false"),
             "fetchFeed(showNsfw: false) must request show_nsfw=false, got query: \(hideQuery)"
         )
@@ -149,14 +147,15 @@ final class LemmyServiceFetchSavedFeedTests: XCTestCase {
         let showTransport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
         let showService = makeService(accountIsSignedOut: false, transport: showTransport)
         _ = try await showService.fetchFeed(feed, pageCursor: nil, showNsfw: true)
-        let showQuery = try XCTUnwrap(showTransport.lastQuery)
-        XCTAssertTrue(
+        let showQuery = try #require(showTransport.lastQuery)
+        #expect(
             showQuery.contains("show_nsfw=true"),
             "fetchFeed(showNsfw: true) must request show_nsfw=true, got query: \(showQuery)"
         )
     }
 
-    func testFetchSavedFeedOnSignedOutAccountThrowsAndSkipsApi() async throws {
+    @Test
+    func fetchSavedFeedOnSignedOutAccountThrowsAndSkipsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
@@ -169,13 +168,13 @@ final class LemmyServiceFetchSavedFeedTests: XCTestCase {
 
         do {
             _ = try await service.fetchFeed(feed, pageCursor: nil, showNsfw: false)
-            XCTFail("Expected fetchFeed(.saved) to throw on a signed-out account")
+            Issue.record("Expected fetchFeed(.saved) to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
 
-        XCTAssertFalse(
-            transport.didSendGetPosts,
+        #expect(
+            !(transport.didSendGetPosts),
             "fetchFeed(.saved) must not hit the api when the account is signed out"
         )
     }

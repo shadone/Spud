@@ -10,7 +10,7 @@ import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
 import SpudUtilKit
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 /// Stub `ClientTransport` returning canned JSON for the unauthenticated
@@ -22,7 +22,8 @@ private final class StubAuthTransport: ClientTransport, @unchecked Sendable {
     private let registerJSON: Data?
     private let siteJSON: Data?
 
-    let getSiteSent: XCTestExpectation
+    let getSiteSent: AsyncStream<Void>
+    private let getSiteSentContinuation: AsyncStream<Void>.Continuation
 
     init(
         login: Components.Schemas.LoginResponse? = nil,
@@ -42,9 +43,7 @@ private final class StubAuthTransport: ClientTransport, @unchecked Sendable {
         registerJSON = try register.map { try encoder.encode($0) }
         siteJSON = try site.map { try encoder.encode($0) }
 
-        let expectation = XCTestExpectation(description: "getSite was fetched")
-        expectation.assertForOverFulfill = false
-        getSiteSent = expectation
+        (getSiteSent, getSiteSentContinuation) = AsyncStream<Void>.makeStream()
     }
 
     func send(
@@ -65,7 +64,7 @@ private final class StubAuthTransport: ClientTransport, @unchecked Sendable {
         case "register":
             if let registerJSON { return ok(registerJSON) }
         case "getSite":
-            getSiteSent.fulfill()
+            getSiteSentContinuation.yield(())
             if let siteJSON { return ok(siteJSON) }
         default:
             break
@@ -107,15 +106,11 @@ private final class InMemoryCredentialStore: CredentialStore, @unchecked Sendabl
 /// sign-in flow (credential + account persistence, and the immediate site-info
 /// fetch) is exercised without the network.
 @MainActor
-final class AccountServiceLoginTests: XCTestCase {
-    private var appDatabase: AppDatabase!
+struct AccountServiceLoginTests {
+    private var appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     private func makeSUT(
@@ -131,7 +126,7 @@ final class AccountServiceLoginTests: XCTestCase {
     }
 
     private func exampleInstance() throws -> InstanceActorId {
-        try XCTUnwrap(InstanceActorId(from: "https://example.com"))
+        try #require(InstanceActorId(from: "https://example.com"))
     }
 
     private func signedInAccountCount() throws -> Int {
@@ -153,7 +148,8 @@ final class AccountServiceLoginTests: XCTestCase {
     /// A successful login stores a signed-in default account and immediately
     /// kicks off the initial site-info fetch, so the Account screen resolves
     /// without waiting for the next SchedulerService tick.
-    func test_login_success_storesDefaultAccountAndFetchesSiteInfo() async throws {
+    @Test
+    func login_success_storesDefaultAccountAndFetchesSiteInfo() async throws {
         let transport = try StubAuthTransport(
             login: .fake(jwt: "a.jwt.token"),
             site: .fake()
@@ -164,44 +160,49 @@ final class AccountServiceLoginTests: XCTestCase {
         try await sut.login(atInstance: exampleInstance(), username: "alice", password: "secret")
 
         let account = try firstSignedInAccount()
-        XCTAssertNotNil(account, "a signed-in account row should be created")
-        XCTAssertEqual(account?.isDefault, true, "the new account becomes the default")
+        #expect(account != nil, "a signed-in account row should be created")
+        #expect(account?.isDefault == true, "the new account becomes the default")
 
         // The JWT is persisted under the new account's keychain id.
-        let stored = try credentialStore.credential(forKeychainId: XCTUnwrap(account?.accountKeychainId))
-        XCTAssertEqual(
-            stored?.toString(),
-            LemmyCredential(jwt: "a.jwt.token").toString(),
+        let stored = try credentialStore.credential(forKeychainId: #require(account?.accountKeychainId))
+        #expect(
+            stored?.toString() == LemmyCredential(jwt: "a.jwt.token").toString(),
             "the login JWT should be stored for the new account"
         )
 
-        await fulfillment(of: [transport.getSiteSent], timeout: 2)
+        for await _ in transport.getSiteSent {
+            break
+        }
     }
 
     /// A 200 login response without a JWT is an internal inconsistency, not a
     /// sign-in: it throws `.missingJwt` and leaves no account behind (so the
     /// immediate site-info fetch never runs either).
-    func test_login_withoutJwt_throwsMissingJwtAndStoresNothing() async throws {
+    @Test
+    func login_withoutJwt_throwsMissingJwtAndStoresNothing() async throws {
         let transport = try StubAuthTransport(login: .fake(jwt: nil))
         let credentialStore = InMemoryCredentialStore()
         let sut = makeSUT(transport: transport, credentialStore: credentialStore)
 
         do {
             try await sut.login(atInstance: exampleInstance(), username: "alice", password: "secret")
-            XCTFail("expected login to throw")
+            Issue.record("expected login to throw")
         } catch let error as AccountServiceLoginError {
             guard case .missingJwt = error else {
-                return XCTFail("expected .missingJwt, got \(error)")
+                Issue.record("expected .missingJwt, got \(error)")
+                return
             }
         }
 
-        XCTAssertEqual(try signedInAccountCount(), 0)
-        XCTAssertEqual(credentialStore.count, 0, "no credential should be stored")
+        #expect(try signedInAccountCount() == 0)
+        // swiftformat:disable:next isEmpty
+        #expect(credentialStore.count == 0, "no credential should be stored")
     }
 
     /// Registration that returns a JWT logs the user in: it stores the account
     /// and kicks off the same immediate site-info fetch as login.
-    func test_register_loggedIn_storesAccountAndFetchesSiteInfo() async throws {
+    @Test
+    func register_loggedIn_storesAccountAndFetchesSiteInfo() async throws {
         let transport = try StubAuthTransport(
             register: .fake(jwt: "a.jwt.token"),
             site: .fake()
@@ -221,9 +222,11 @@ final class AccountServiceLoginTests: XCTestCase {
             answer: nil
         )
 
-        XCTAssertEqual(result, .loggedIn)
-        XCTAssertEqual(try signedInAccountCount(), 1)
-        XCTAssertEqual(credentialStore.count, 1, "the registration JWT should be stored")
-        await fulfillment(of: [transport.getSiteSent], timeout: 2)
+        #expect(result == .loggedIn)
+        #expect(try signedInAccountCount() == 1)
+        #expect(credentialStore.count == 1, "the registration JWT should be stored")
+        for await _ in transport.getSiteSent {
+            break
+        }
     }
 }

@@ -4,9 +4,10 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import Nuke
+import Testing
 import UIKit
-import XCTest
 @testable import SpudDataKit
 
 /// A Nuke `DataLoading` stub that returns canned bytes (or an error) synchronously.
@@ -56,7 +57,7 @@ enum ImageFixture {
     }
 }
 
-final class ImageServiceDownsampleTests: XCTestCase {
+struct ImageServiceDownsampleTests {
     private func makeService(loader: DataLoading) -> ImageService {
         let pipeline = ImagePipeline { config in
             config.dataLoader = loader
@@ -65,8 +66,9 @@ final class ImageServiceDownsampleTests: XCTestCase {
         return ImageService(alertService: AlertService(), pipeline: pipeline)
     }
 
-    func test_downsample_yieldsReadyImage() async throws {
-        let url = try XCTUnwrap(URL(string: "https://example.com/a.png"))
+    @Test
+    func downsample_yieldsReadyImage() async throws {
+        let url = try #require(URL(string: "https://example.com/a.png"))
         let loader = StubDataLoader(result: .success((ImageFixture.pngData(), ImageFixture.httpResponse(url))))
         let service = makeService(loader: loader)
 
@@ -74,6 +76,6 @@ final class ImageServiceDownsampleTests: XCTestCase {
         for await state in service.fetch(url, downsampleTo: CGSize(width: 64, height: 64)) {
             if case let .ready(image) = state { lastImage = image }
         }
-        XCTAssertNotNil(lastImage)
+        #expect(lastImage != nil)
     }
 }

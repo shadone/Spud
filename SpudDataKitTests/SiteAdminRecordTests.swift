@@ -4,12 +4,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class SiteAdminRecordTests: XCTestCase {
-    func test_insertAndFetch_roundTrips() throws {
+struct SiteAdminRecordTests {
+    @Test
+    func insertAndFetch_roundTrips() throws {
         let appDatabase = try AppDatabase.inMemory()
         try appDatabase.writer.write { db in
             // A site row is required for the foreign key.
@@ -26,10 +28,10 @@ final class SiteAdminRecordTests: XCTestCase {
             try admin.insert(db)
 
             let fetched = try SiteAdminRecord.fetchAll(db)
-            XCTAssertEqual(fetched.count, 1)
-            XCTAssertEqual(fetched[0].personName, "ruud")
-            XCTAssertEqual(fetched[0].displayName, "Ruud")
-            XCTAssertEqual(fetched[0].ordinal, 0)
+            #expect(fetched.count == 1)
+            #expect(fetched[0].personName == "ruud")
+            #expect(fetched[0].displayName == "Ruud")
+            #expect(fetched[0].ordinal == 0)
         }
     }
 }

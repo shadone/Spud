@@ -4,13 +4,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class ExplorerSeedTests: XCTestCase {
+struct ExplorerSeedTests {
     /// Verifies the bundled Explorer seed resources are present, decompress,
     /// decode, and import into the directory tables.
-    func test_seedImportsBundledDirectory() async throws {
+    @Test
+    func seedImportsBundledDirectory() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let service = ExplorerService(appDatabase: appDatabase)
 
@@ -18,17 +19,18 @@ final class ExplorerSeedTests: XCTestCase {
 
         let instanceCount = appDatabase.explorerInstanceCountSync()
         let communityCount = appDatabase.explorerCommunityCountSync()
-        XCTAssertGreaterThan(instanceCount, 100, "instance seed should import hundreds of instances")
-        XCTAssertGreaterThan(communityCount, 1000, "community seed should import thousands of communities")
+        #expect(instanceCount > 100, "instance seed should import hundreds of instances")
+        #expect(communityCount > 1000, "community seed should import thousands of communities")
 
         // A row carries real parsed fields, not just defaults.
         let instances = appDatabase.topExplorerInstancesSync(limit: instanceCount)
-        XCTAssertTrue(instances.contains { $0.baseurl == "lemmy.world" }, "lemmy.world should be present")
-        XCTAssertTrue(instances.contains { $0.usersTotal > 0 }, "at least one instance has a user count")
+        #expect(instances.contains { $0.baseurl == "lemmy.world" }, "lemmy.world should be present")
+        #expect(instances.contains { $0.usersTotal > 0 }, "at least one instance has a user count")
     }
 
     /// Importing twice must not duplicate rows (empty-guard + replace-on-conflict).
-    func test_seedIsIdempotent() async throws {
+    @Test
+    func seedIsIdempotent() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let service = ExplorerService(appDatabase: appDatabase)
 
@@ -37,7 +39,7 @@ final class ExplorerSeedTests: XCTestCase {
         let firstCommunities = appDatabase.explorerCommunityCountSync()
 
         await service.importSeedsIfNeeded()
-        XCTAssertEqual(appDatabase.explorerInstanceCountSync(), firstInstances)
-        XCTAssertEqual(appDatabase.explorerCommunityCountSync(), firstCommunities)
+        #expect(appDatabase.explorerInstanceCountSync() == firstInstances)
+        #expect(appDatabase.explorerCommunityCountSync() == firstCommunities)
     }
 }

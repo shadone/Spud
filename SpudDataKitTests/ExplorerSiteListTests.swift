@@ -4,22 +4,23 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class ExplorerSiteListTests: XCTestCase {
+struct ExplorerSiteListTests {
     /// The instance picker's data source: SiteListRows built from the seeded
     /// Explorer directory, ranked by score, with valid instance identifiers.
-    func test_explorerSiteListRows_fromSeed() async throws {
+    @Test
+    func explorerSiteListRows_fromSeed() async throws {
         let appDatabase = try AppDatabase.inMemory()
         await ExplorerService(appDatabase: appDatabase).importSeedsIfNeeded()
 
         let rows = appDatabase.explorerSiteListRowsSync()
-        XCTAssertGreaterThan(rows.count, 100, "picker should list the Explorer directory")
-        XCTAssertTrue(rows.contains { $0.hostname == "lemmy.world" }, "well-known instance present")
+        #expect(rows.count > 100, "picker should list the Explorer directory")
+        #expect(rows.contains { $0.hostname == "lemmy.world" }, "well-known instance present")
 
-        let first = try XCTUnwrap(rows.first)
-        XCTAssertFalse(first.hostname.isEmpty)
-        XCTAssertEqual(first.instance.host, first.hostname, "row.instance matches its hostname")
+        let first = try #require(rows.first)
+        #expect(!(first.hostname.isEmpty))
+        #expect(first.instance.host == first.hostname, "row.instance matches its hostname")
     }
 }

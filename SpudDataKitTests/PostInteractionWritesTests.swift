@@ -6,10 +6,10 @@
 
 import Foundation
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class PostInteractionWritesTests: XCTestCase {
+struct PostInteractionWritesTests {
     /// Seeds the minimal account graph (instance -> site -> account) and
     /// returns the account row id. `keychainId` lets multiple accounts coexist.
     @discardableResult
@@ -43,49 +43,53 @@ final class PostInteractionWritesTests: XCTestCase {
         PostInteractionSnapshot(titleSnapshot: "Hello", communityName: "tech", instanceHost: "lemmy.world", thumbnailUrl: nil, author: "alice")
     }
 
-    func testRecordPostOpenedFirstThenSecondReturnsPrior() async throws {
+    @Test
+    func recordPostOpenedFirstThenSecondReturnsPrior() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let accountId = try seedAccount(appDatabase, keychainId: "kc-1")
 
         let first = try await appDatabase.recordPostOpened(
             accountKeychainId: "kc-1", serverPostId: 9, commentCount: 12, snapshot: snapshot(), now: t0
         )
-        XCTAssertNil(first)
+        #expect(first == nil)
 
         let second = try await appDatabase.recordPostOpened(
             accountKeychainId: "kc-1", serverPostId: 9, commentCount: 15, snapshot: nil, now: t1
         )
-        XCTAssertEqual(second, t0)
+        #expect(second == t0)
 
-        let record = try XCTUnwrap(fetchInteraction(appDatabase, accountId: accountId, postServerId: 9))
-        XCTAssertEqual(record.openedCount, 2)
-        XCTAssertEqual(record.lastOpenedAt, t1)
-        XCTAssertEqual(record.lastKnownCommentCount, 15)
-        XCTAssertEqual(record.titleSnapshot, "Hello")
+        let record = try #require(try fetchInteraction(appDatabase, accountId: accountId, postServerId: 9))
+        #expect(record.openedCount == 2)
+        #expect(record.lastOpenedAt == t1)
+        #expect(record.lastKnownCommentCount == 15)
+        #expect(record.titleSnapshot == "Hello")
     }
 
-    func testRecordPostOpenedUnknownAccountNoOps() async throws {
+    @Test
+    func recordPostOpenedUnknownAccountNoOps() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let result = try await appDatabase.recordPostOpened(
             accountKeychainId: "missing", serverPostId: 9, commentCount: nil, snapshot: nil, now: t0
         )
-        XCTAssertNil(result)
+        #expect(result == nil)
     }
 
-    func testRecordPostSeenAccumulates() async throws {
+    @Test
+    func recordPostSeenAccumulates() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let accountId = try seedAccount(appDatabase, keychainId: "kc-1")
 
         try await appDatabase.recordPostSeen(accountKeychainId: "kc-1", serverPostId: 9, snapshot: snapshot(), now: t0)
         try await appDatabase.recordPostSeen(accountKeychainId: "kc-1", serverPostId: 9, snapshot: snapshot(), now: t1)
 
-        let record = try XCTUnwrap(fetchInteraction(appDatabase, accountId: accountId, postServerId: 9))
-        XCTAssertEqual(record.seenCount, 2)
-        XCTAssertEqual(record.firstSeenAt, t0)
-        XCTAssertEqual(record.lastSeenAt, t1)
+        let record = try #require(try fetchInteraction(appDatabase, accountId: accountId, postServerId: 9))
+        #expect(record.seenCount == 2)
+        #expect(record.firstSeenAt == t0)
+        #expect(record.lastSeenAt == t1)
     }
 
-    func testPruneDeletesOldSeenKeepsRecentAndOpened() async throws {
+    @Test
+    func pruneDeletesOldSeenKeepsRecentAndOpened() async throws {
         let appDatabase = try AppDatabase.inMemory()
         try seedAccount(appDatabase, keychainId: "kc-1")
 
@@ -98,11 +102,11 @@ final class PostInteractionWritesTests: XCTestCase {
         try await appDatabase.recordPostOpened(accountKeychainId: "kc-1", serverPostId: 3, commentCount: nil, snapshot: snapshot(), now: t0)
 
         let deleted = try await appDatabase.prunePostInteractions(now: now)
-        XCTAssertEqual(deleted, 1)
+        #expect(deleted == 1)
 
         let accountId = try await appDatabase.writer.read { db in try Int64.fetchOne(db, sql: "SELECT id FROM account LIMIT 1")! }
-        XCTAssertNil(try fetchInteraction(appDatabase, accountId: accountId, postServerId: 1))
-        XCTAssertNotNil(try fetchInteraction(appDatabase, accountId: accountId, postServerId: 2))
-        XCTAssertNotNil(try fetchInteraction(appDatabase, accountId: accountId, postServerId: 3))
+        #expect(try fetchInteraction(appDatabase, accountId: accountId, postServerId: 1) == nil)
+        #expect(try fetchInteraction(appDatabase, accountId: accountId, postServerId: 2) != nil)
+        #expect(try fetchInteraction(appDatabase, accountId: accountId, postServerId: 3) != nil)
     }
 }

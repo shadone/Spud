@@ -5,11 +5,12 @@
 //
 
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class FollowedCommunitiesQueryTests: XCTestCase {
-    func test_followedCommunitiesSync_returnsFollowedOrderedByName() throws {
+struct FollowedCommunitiesQueryTests {
+    @Test
+    func followedCommunitiesSync_returnsFollowedOrderedByName() throws {
         let appDatabase = try AppDatabase.inMemory()
 
         let accountId = try appDatabase.writer.write { db -> Int64 in
@@ -59,6 +60,6 @@ final class FollowedCommunitiesQueryTests: XCTestCase {
         }
 
         let followed = appDatabase.followedCommunitiesSync(forAccountId: accountId)
-        XCTAssertEqual(followed.map(\.name), ["AskScience", "Technology"])
+        #expect(followed.map(\.name) == ["AskScience", "Technology"])
     }
 }

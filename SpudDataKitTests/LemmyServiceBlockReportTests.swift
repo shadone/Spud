@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias Person = Components.Schemas.Person
@@ -93,17 +93,13 @@ private final class StubBlockReportTransport: ClientTransport, @unchecked Sendab
 }
 
 @MainActor
-final class LemmyServiceBlockReportTests: XCTestCase {
+struct LemmyServiceBlockReportTests {
     private let keychainId = "keychain-1"
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     /// Seeds instance + site + account so the block mirror can resolve the
@@ -219,7 +215,8 @@ final class LemmyServiceBlockReportTests: XCTestCase {
 
     // MARK: setBlocked(person:)
 
-    func testSetBlockedPersonHitsApiAndMirrorsPerson() async throws {
+    @Test
+    func setBlockedPersonHitsApiAndMirrorsPerson() async throws {
         let ids = try await seedAccountAndSite()
 
         let person = Person.fake
@@ -229,7 +226,7 @@ final class LemmyServiceBlockReportTests: XCTestCase {
 
         try await service.setBlocked(serverPersonId: person.id, blocked: true)
 
-        XCTAssertTrue(transport.didSendBlockPerson, "setBlocked(person:) should call the blockPerson api")
+        #expect(transport.didSendBlockPerson, "setBlocked(person:) should call the blockPerson api")
 
         // The returned PersonView is mirrored into the person table.
         let storedPersonId = try await appDatabase.writer.read { db -> Int64? in
@@ -239,10 +236,11 @@ final class LemmyServiceBlockReportTests: XCTestCase {
                 .fetchOne(db)?
                 .personId
         }
-        XCTAssertEqual(storedPersonId, Int64(person.id))
+        #expect(storedPersonId == Int64(person.id))
     }
 
-    func testSetBlockedPersonSignedOutThrowsAndSkipsApi() async throws {
+    @Test
+    func setBlockedPersonSignedOutThrowsAndSkipsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubBlockReportTransport(blockPerson: nil)
@@ -250,17 +248,18 @@ final class LemmyServiceBlockReportTests: XCTestCase {
 
         do {
             try await service.setBlocked(serverPersonId: 1, blocked: true)
-            XCTFail("Expected setBlocked(person:) to throw on a signed-out account")
+            Issue.record("Expected setBlocked(person:) to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
 
-        XCTAssertFalse(transport.didSendBlockPerson, "must not hit the api when signed out")
+        #expect(!transport.didSendBlockPerson, "must not hit the api when signed out")
     }
 
     // MARK: setBlocked(community:)
 
-    func testSetBlockedCommunityHitsApiAndMirrorsCommunity() async throws {
+    @Test
+    func setBlockedCommunityHitsApiAndMirrorsCommunity() async throws {
         let ids = try await seedAccountAndSite()
 
         let community = Community.fake
@@ -273,7 +272,7 @@ final class LemmyServiceBlockReportTests: XCTestCase {
 
         try await service.setBlocked(serverCommunityId: community.id, blocked: true)
 
-        XCTAssertTrue(transport.didSendBlockCommunity, "setBlocked(community:) should call the blockCommunity api")
+        #expect(transport.didSendBlockCommunity, "setBlocked(community:) should call the blockCommunity api")
 
         let storedCommunityId = try await appDatabase.writer.read { db -> Int64? in
             try CommunityRecord
@@ -282,10 +281,11 @@ final class LemmyServiceBlockReportTests: XCTestCase {
                 .fetchOne(db)?
                 .communityId
         }
-        XCTAssertEqual(storedCommunityId, Int64(community.id))
+        #expect(storedCommunityId == Int64(community.id))
     }
 
-    func testSetBlockedCommunitySignedOutThrowsAndSkipsApi() async throws {
+    @Test
+    func setBlockedCommunitySignedOutThrowsAndSkipsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubBlockReportTransport(blockCommunity: nil)
@@ -293,17 +293,18 @@ final class LemmyServiceBlockReportTests: XCTestCase {
 
         do {
             try await service.setBlocked(serverCommunityId: 1, blocked: true)
-            XCTFail("Expected setBlocked(community:) to throw on a signed-out account")
+            Issue.record("Expected setBlocked(community:) to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
 
-        XCTAssertFalse(transport.didSendBlockCommunity, "must not hit the api when signed out")
+        #expect(!transport.didSendBlockCommunity, "must not hit the api when signed out")
     }
 
     // MARK: reportPost
 
-    func testReportPostHitsApi() async throws {
+    @Test
+    func reportPostHitsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubBlockReportTransport(postReport: postReportResponse())
@@ -311,10 +312,11 @@ final class LemmyServiceBlockReportTests: XCTestCase {
 
         try await service.reportPost(serverPostId: 1, reason: "spam")
 
-        XCTAssertTrue(transport.didSendReportPost, "reportPost should call the reportPost api")
+        #expect(transport.didSendReportPost, "reportPost should call the reportPost api")
     }
 
-    func testReportPostSignedOutThrowsAndSkipsApi() async throws {
+    @Test
+    func reportPostSignedOutThrowsAndSkipsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubBlockReportTransport(postReport: nil)
@@ -322,17 +324,18 @@ final class LemmyServiceBlockReportTests: XCTestCase {
 
         do {
             try await service.reportPost(serverPostId: 1, reason: "spam")
-            XCTFail("Expected reportPost to throw on a signed-out account")
+            Issue.record("Expected reportPost to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
 
-        XCTAssertFalse(transport.didSendReportPost, "must not hit the api when signed out")
+        #expect(!transport.didSendReportPost, "must not hit the api when signed out")
     }
 
     // MARK: reportComment
 
-    func testReportCommentHitsApi() async throws {
+    @Test
+    func reportCommentHitsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubBlockReportTransport(commentReport: commentReportResponse())
@@ -340,10 +343,11 @@ final class LemmyServiceBlockReportTests: XCTestCase {
 
         try await service.reportComment(serverCommentId: 7, reason: "harassment")
 
-        XCTAssertTrue(transport.didSendReportComment, "reportComment should call the reportComment api")
+        #expect(transport.didSendReportComment, "reportComment should call the reportComment api")
     }
 
-    func testReportCommentSignedOutThrowsAndSkipsApi() async throws {
+    @Test
+    func reportCommentSignedOutThrowsAndSkipsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubBlockReportTransport(commentReport: nil)
@@ -351,11 +355,11 @@ final class LemmyServiceBlockReportTests: XCTestCase {
 
         do {
             try await service.reportComment(serverCommentId: 7, reason: "harassment")
-            XCTFail("Expected reportComment to throw on a signed-out account")
+            Issue.record("Expected reportComment to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
 
-        XCTAssertFalse(transport.didSendReportComment, "must not hit the api when signed out")
+        #expect(!transport.didSendReportComment, "must not hit the api when signed out")
     }
 }

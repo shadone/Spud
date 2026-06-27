@@ -5,25 +5,27 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class PostInteractionRecordTests: XCTestCase {
-    func testConvenienceInitDefaultsAreEmpty() {
+struct PostInteractionRecordTests {
+    @Test
+    func convenienceInitDefaultsAreEmpty() {
         let record = PostInteractionRecord(accountId: 7, postServerId: 42)
-        XCTAssertNil(record.id)
-        XCTAssertEqual(record.accountId, 7)
-        XCTAssertEqual(record.postServerId, 42)
-        XCTAssertNil(record.titleSnapshot)
-        XCTAssertNil(record.firstSeenAt)
-        XCTAssertNil(record.lastSeenAt)
-        XCTAssertEqual(record.seenCount, 0)
-        XCTAssertNil(record.lastOpenedAt)
-        XCTAssertEqual(record.openedCount, 0)
-        XCTAssertNil(record.lastKnownCommentCount)
+        #expect(record.id == nil)
+        #expect(record.accountId == 7)
+        #expect(record.postServerId == 42)
+        #expect(record.titleSnapshot == nil)
+        #expect(record.firstSeenAt == nil)
+        #expect(record.lastSeenAt == nil)
+        #expect(record.seenCount == 0)
+        #expect(record.lastOpenedAt == nil)
+        #expect(record.openedCount == 0)
+        #expect(record.lastKnownCommentCount == nil)
     }
 
-    func testApplySnapshotOverwritesSnapshotFields() {
+    @Test
+    func applySnapshotOverwritesSnapshotFields() {
         var record = PostInteractionRecord(accountId: 1, postServerId: 2)
         record.apply(PostInteractionSnapshot(
             titleSnapshot: "Hello",
@@ -32,10 +34,10 @@ final class PostInteractionRecordTests: XCTestCase {
             thumbnailUrl: "https://img.test/x.png",
             author: "alice"
         ))
-        XCTAssertEqual(record.titleSnapshot, "Hello")
-        XCTAssertEqual(record.communityName, "tech")
-        XCTAssertEqual(record.instanceHost, "lemmy.world")
-        XCTAssertEqual(record.thumbnailUrl, "https://img.test/x.png")
-        XCTAssertEqual(record.author, "alice")
+        #expect(record.titleSnapshot == "Hello")
+        #expect(record.communityName == "tech")
+        #expect(record.instanceHost == "lemmy.world")
+        #expect(record.thumbnailUrl == "https://img.test/x.png")
+        #expect(record.author == "alice")
     }
 }

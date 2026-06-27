@@ -6,52 +6,57 @@
 
 import Foundation
 import LemmyKit
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 /// Unit tests for the `LoginResponse` -> `AccountServiceRegisterResult` mapping,
 /// the load-bearing logic that decides whether a successful (HTTP 200)
 /// registration logged the user in or landed in a pending / verify-email state
 /// the UI must surface.
-final class AccountServiceRegisterResultTests: XCTestCase {
-    func testJwtPresentMapsToLoggedIn() {
+struct AccountServiceRegisterResultTests {
+    @Test
+    func jwtPresentMapsToLoggedIn() {
         let response = Components.Schemas.LoginResponse.fake(jwt: "a.jwt.token")
-        XCTAssertEqual(AccountServiceRegisterResult(response: response), .loggedIn)
+        #expect(AccountServiceRegisterResult(response: response) == .loggedIn)
     }
 
-    func testJwtPresentTakesPrecedenceOverPendingFlags() {
+    @Test
+    func jwtPresentTakesPrecedenceOverPendingFlags() {
         let response = Components.Schemas.LoginResponse.fake(
             jwt: "a.jwt.token",
             registrationCreated: true,
             verifyEmailSent: true
         )
-        XCTAssertEqual(AccountServiceRegisterResult(response: response), .loggedIn)
+        #expect(AccountServiceRegisterResult(response: response) == .loggedIn)
     }
 
-    func testVerifyEmailSentMapsToVerifyEmail() {
+    @Test
+    func verifyEmailSentMapsToVerifyEmail() {
         let response = Components.Schemas.LoginResponse.fake(
             jwt: nil,
             registrationCreated: true,
             verifyEmailSent: true
         )
-        XCTAssertEqual(AccountServiceRegisterResult(response: response), .verifyEmail)
+        #expect(AccountServiceRegisterResult(response: response) == .verifyEmail)
     }
 
-    func testRegistrationCreatedWithoutEmailMapsToApplicationPending() {
+    @Test
+    func registrationCreatedWithoutEmailMapsToApplicationPending() {
         let response = Components.Schemas.LoginResponse.fake(
             jwt: nil,
             registrationCreated: true,
             verifyEmailSent: false
         )
-        XCTAssertEqual(AccountServiceRegisterResult(response: response), .applicationPending)
+        #expect(AccountServiceRegisterResult(response: response) == .applicationPending)
     }
 
-    func testNoJwtNoFlagsMapsToPending() {
+    @Test
+    func noJwtNoFlagsMapsToPending() {
         let response = Components.Schemas.LoginResponse.fake(
             jwt: nil,
             registrationCreated: false,
             verifyEmailSent: false
         )
-        XCTAssertEqual(AccountServiceRegisterResult(response: response), .pending)
+        #expect(AccountServiceRegisterResult(response: response) == .pending)
     }
 }

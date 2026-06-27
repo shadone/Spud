@@ -6,10 +6,10 @@
 
 import Foundation
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class SpotlightContentQueriesTests: XCTestCase {
+struct SpotlightContentQueriesTests {
     private static func seedGraph(_ db: Database, keychainId: String, isDefault: Bool) throws -> (accountId: Int64, communityId: Int64, personId: Int64) {
         try db.execute(sql: "INSERT INTO instance (actorId, createdAt) VALUES (?, ?)", arguments: ["https://\(keychainId).test", Date()])
         let instanceId = db.lastInsertedRowID
@@ -48,7 +48,8 @@ final class SpotlightContentQueriesTests: XCTestCase {
         try record.insert(db)
     }
 
-    func test_indexableRows_returnsSavedAndRecentOpened() async throws {
+    @Test
+    func indexableRows_returnsSavedAndRecentOpened() async throws {
         let appDatabase = try AppDatabase.inMemory()
         try await appDatabase.writer.write { db in
             let g = try Self.seedGraph(db, keychainId: "kc-1", isDefault: true)
@@ -63,14 +64,15 @@ final class SpotlightContentQueriesTests: XCTestCase {
             try Self.insertInteraction(db, accountId: g.accountId, postServerId: 3, title: "OnlySeen", lastOpenedAt: nil)
         }
         let rows = appDatabase.indexableContentRowsSync(forKeychainId: "kc-1", limit: 100)
-        XCTAssertEqual(Set(rows.map(\.serverPostId)), [1, 2])
+        #expect(Set(rows.map(\.serverPostId)) == [1, 2])
         let saved = rows.first { $0.serverPostId == 1 }
-        XCTAssertEqual(saved?.title, "Saved")
-        XCTAssertEqual(saved?.originalPostUrl, "https://x.test/post/1")
-        XCTAssertEqual(saved?.communityName, "programming")
+        #expect(saved?.title == "Saved")
+        #expect(saved?.originalPostUrl == "https://x.test/post/1")
+        #expect(saved?.communityName == "programming")
     }
 
-    func test_indexableRowsForDefaultAccount_resolvesDefault() async throws {
+    @Test
+    func indexableRowsForDefaultAccount_resolvesDefault() async throws {
         let appDatabase = try AppDatabase.inMemory()
         try await appDatabase.writer.write { db in
             let g = try Self.seedGraph(db, keychainId: "kc-default", isDefault: true)
@@ -78,13 +80,14 @@ final class SpotlightContentQueriesTests: XCTestCase {
             try Self.insertInteraction(db, accountId: g.accountId, postServerId: 1, title: "Saved", lastOpenedAt: nil)
         }
         let rows = appDatabase.indexableContentRowsForDefaultAccountSync(limit: 100)
-        XCTAssertEqual(rows.map(\.serverPostId), [1])
+        #expect(rows.map(\.serverPostId) == [1])
     }
 
     /// Spotlight indexing must be scoped to a single account. A saved post that
     /// belongs to a different account (kc-2) must NOT appear in the index for
     /// kc-1, even when both accounts exist in the same database.
-    func test_indexableRows_accountIsolation_doesNotLeakCrossAccount() async throws {
+    @Test
+    func indexableRows_accountIsolation_doesNotLeakCrossAccount() async throws {
         let appDatabase = try AppDatabase.inMemory()
         try await appDatabase.writer.write { db in
             // Account 1 — one saved post.
@@ -98,7 +101,7 @@ final class SpotlightContentQueriesTests: XCTestCase {
             try Self.insertInteraction(db, accountId: g2.accountId, postServerId: 202, title: "Account2Post", lastOpenedAt: nil)
         }
         let rows = appDatabase.indexableContentRowsSync(forKeychainId: "kc-1", limit: 100)
-        XCTAssertEqual(rows.map(\.serverPostId), [101])
-        XCTAssertFalse(rows.contains(where: { $0.serverPostId == 202 }), "account kc-2 post must not appear in kc-1 index")
+        #expect(rows.map(\.serverPostId) == [101])
+        #expect(!(rows.contains(where: { $0.serverPostId == 202 })), "account kc-2 post must not appear in kc-1 index")
     }
 }

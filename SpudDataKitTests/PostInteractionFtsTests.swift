@@ -6,10 +6,10 @@
 
 import Foundation
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class PostInteractionFtsTests: XCTestCase {
+struct PostInteractionFtsTests {
     private func seedAccount(_ appDatabase: AppDatabase, keychainId: String) throws -> Int64 {
         try appDatabase.writer.write { db in
             try db.execute(sql: "INSERT INTO instance (actorId, createdAt) VALUES (?, ?)", arguments: ["https://\(keychainId).test", Date()])
@@ -48,23 +48,26 @@ final class PostInteractionFtsTests: XCTestCase {
         }
     }
 
-    func testFtsTableExists() throws {
+    @Test
+    func ftsTableExists() throws {
         let appDatabase = try AppDatabase.inMemory()
         let exists = try appDatabase.writer.read { db in try db.tableExists("postInteractionFts") }
-        XCTAssertTrue(exists)
+        #expect(exists)
     }
 
-    func testInsertIsIndexedAndSearchable() throws {
+    @Test
+    func insertIsIndexedAndSearchable() throws {
         let appDatabase = try AppDatabase.inMemory()
         let accountId = try seedAccount(appDatabase, keychainId: "kc-1")
         _ = try insertInteraction(appDatabase, accountId: accountId, postServerId: 1, title: "Swift Concurrency explained")
 
-        XCTAssertEqual(try matchCount(appDatabase, "concurrency"), 1)
-        XCTAssertEqual(try matchCount(appDatabase, "programming"), 1) // communityName indexed
-        XCTAssertEqual(try matchCount(appDatabase, "rust"), 0)
+        #expect(try matchCount(appDatabase, "concurrency") == 1)
+        #expect(try matchCount(appDatabase, "programming") == 1) // communityName indexed
+        #expect(try matchCount(appDatabase, "rust") == 0)
     }
 
-    func testUpdateAndDeleteStayInSync() throws {
+    @Test
+    func updateAndDeleteStayInSync() throws {
         let appDatabase = try AppDatabase.inMemory()
         let accountId = try seedAccount(appDatabase, keychainId: "kc-1")
         let id = try insertInteraction(appDatabase, accountId: accountId, postServerId: 1, title: "Swift Concurrency")
@@ -73,13 +76,13 @@ final class PostInteractionFtsTests: XCTestCase {
         try appDatabase.writer.write { db in
             try db.execute(sql: "UPDATE postInteraction SET titleSnapshot = ? WHERE id = ?", arguments: ["Rust ownership", id])
         }
-        XCTAssertEqual(try matchCount(appDatabase, "concurrency"), 0)
-        XCTAssertEqual(try matchCount(appDatabase, "ownership"), 1)
+        #expect(try matchCount(appDatabase, "concurrency") == 0)
+        #expect(try matchCount(appDatabase, "ownership") == 1)
 
         // Delete; no matches remain.
         try appDatabase.writer.write { db in
             try db.execute(sql: "DELETE FROM postInteraction WHERE id = ?", arguments: [id])
         }
-        XCTAssertEqual(try matchCount(appDatabase, "ownership"), 0)
+        #expect(try matchCount(appDatabase, "ownership") == 0)
     }
 }

@@ -7,25 +7,20 @@
 import Foundation
 import GRDB
 import LemmyKit
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 /// Tests for `AccountService.logout`: it removes the account row from the
 /// database and switches the default to another registered account, or to the
 /// signed-out account on the same instance when no other account exists.
 @MainActor
-final class AccountServiceLogoutTests: XCTestCase {
-    private var appDatabase: AppDatabase!
-    private var sut: AccountService!
+struct AccountServiceLogoutTests {
+    private var appDatabase: AppDatabase
+    private var sut: AccountService
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
         sut = AccountService(appDatabase: appDatabase)
-    }
-
-    override func tearDown() {
-        sut = nil
-        appDatabase = nil
     }
 
     /// Seeds one instance/site with the given accounts. Returns the keychain
@@ -69,7 +64,8 @@ final class AccountServiceLogoutTests: XCTestCase {
         }
     }
 
-    func testLogoutRemovesAccountRow() async throws {
+    @Test
+    func logoutRemovesAccountRow() async throws {
         try await seed(accounts: [
             (keychainId: "signed-in-1", isSignedOut: false, isDefault: true),
             (keychainId: "signed-out", isSignedOut: true, isDefault: false),
@@ -77,10 +73,11 @@ final class AccountServiceLogoutTests: XCTestCase {
 
         sut.logout(forAccountKeychainId: "signed-in-1")
 
-        XCTAssertFalse(try accountExists(keychainId: "signed-in-1"), "logout should delete the account row")
+        #expect(try !accountExists(keychainId: "signed-in-1"), "logout should delete the account row")
     }
 
-    func testLogoutSwitchesDefaultToAnotherSignedInAccount() async throws {
+    @Test
+    func logoutSwitchesDefaultToAnotherSignedInAccount() async throws {
         try await seed(accounts: [
             (keychainId: "signed-in-1", isSignedOut: false, isDefault: true),
             (keychainId: "signed-in-2", isSignedOut: false, isDefault: false),
@@ -90,12 +87,13 @@ final class AccountServiceLogoutTests: XCTestCase {
         sut.logout(forAccountKeychainId: "signed-in-1")
 
         // The remaining signed-in account is preferred over the signed-out one.
-        XCTAssertEqual(try defaultKeychainId(), "signed-in-2")
-        XCTAssertTrue(try accountExists(keychainId: "signed-in-2"))
-        XCTAssertTrue(try accountExists(keychainId: "signed-out"))
+        #expect(try defaultKeychainId() == "signed-in-2")
+        #expect(try accountExists(keychainId: "signed-in-2"))
+        #expect(try accountExists(keychainId: "signed-out"))
     }
 
-    func testLogoutFallsBackToSignedOutAccountWhenNoOtherSignedInAccount() async throws {
+    @Test
+    func logoutFallsBackToSignedOutAccountWhenNoOtherSignedInAccount() async throws {
         try await seed(accounts: [
             (keychainId: "signed-in-1", isSignedOut: false, isDefault: true),
             (keychainId: "signed-out", isSignedOut: true, isDefault: false),
@@ -103,17 +101,18 @@ final class AccountServiceLogoutTests: XCTestCase {
 
         sut.logout(forAccountKeychainId: "signed-in-1")
 
-        XCTAssertFalse(try accountExists(keychainId: "signed-in-1"))
-        XCTAssertEqual(try defaultKeychainId(), "signed-out", "logout should fall back to the signed-out account")
+        #expect(try !accountExists(keychainId: "signed-in-1"))
+        #expect(try defaultKeychainId() == "signed-out", "logout should fall back to the signed-out account")
     }
 
-    func testLogoutIsNoOpForSignedOutAccount() async throws {
+    @Test
+    func logoutIsNoOpForSignedOutAccount() async throws {
         try await seed(accounts: [
             (keychainId: "signed-out", isSignedOut: true, isDefault: true),
         ])
 
         sut.logout(forAccountKeychainId: "signed-out")
 
-        XCTAssertTrue(try accountExists(keychainId: "signed-out"), "logout should not remove a signed-out account")
+        #expect(try accountExists(keychainId: "signed-out"), "logout should not remove a signed-out account")
     }
 }

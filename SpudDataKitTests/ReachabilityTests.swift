@@ -4,22 +4,23 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 @MainActor
-final class ReachabilityTests: XCTestCase {
-    func testStaticMonitorReportsInitialValueAndUpdates() async {
+struct ReachabilityTests {
+    @Test
+    func staticMonitorReportsInitialValueAndUpdates() async {
         let monitor = StaticReachabilityMonitor(isOnline: false)
-        XCTAssertFalse(monitor.isOnline)
+        #expect(!(monitor.isOnline))
 
         var iterator = monitor.statusStream.makeAsyncIterator()
         let first = await iterator.next()
-        XCTAssertEqual(first, false)
+        #expect(first == false)
 
         monitor.setOnline(true)
-        XCTAssertTrue(monitor.isOnline)
+        #expect(monitor.isOnline)
         let second = await iterator.next()
-        XCTAssertEqual(second, true)
+        #expect(second == true)
     }
 }

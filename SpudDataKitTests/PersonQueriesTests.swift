@@ -6,11 +6,12 @@
 
 import Foundation
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class PersonQueriesTests: XCTestCase {
-    func test_personActorIdSync_returnsActorId() async throws {
+struct PersonQueriesTests {
+    @Test
+    func personActorIdSync_returnsActorId() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let personRowId: Int64 = try await appDatabase.writer.write { db in
             try db.execute(sql: "INSERT INTO instance (actorId, createdAt) VALUES ('https://lemmy.world', ?)", arguments: [Date()])
@@ -23,15 +24,16 @@ final class PersonQueriesTests: XCTestCase {
                 """, arguments: [siteId, Date(), Date()])
             return db.lastInsertedRowID
         }
-        XCTAssertEqual(appDatabase.personActorIdSync(forPersonRowId: personRowId), "https://lemmy.world/u/alice")
-        XCTAssertNil(appDatabase.personActorIdSync(forPersonRowId: 999_999))
+        #expect(appDatabase.personActorIdSync(forPersonRowId: personRowId) == "https://lemmy.world/u/alice")
+        #expect(appDatabase.personActorIdSync(forPersonRowId: 999_999) == nil)
     }
 
     /// Regression: two federated sites each have a person with the same server-
     /// assigned `personId` (42) but different `actorId` values. `personActorIdSync`
     /// must return the correct actorId for each by keying on the unique primary key
     /// (`person.id`), not on the non-unique `personId` column.
-    func test_personActorIdSync_disambiguatesBySiteWhenPersonIdCollides() async throws {
+    @Test
+    func personActorIdSync_disambiguatesBySiteWhenPersonIdCollides() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let (rowIdA, rowIdB): (Int64, Int64) = try await appDatabase.writer.write { db in
             // Site A
@@ -57,8 +59,8 @@ final class PersonQueriesTests: XCTestCase {
             let rB = db.lastInsertedRowID
             return (rA, rB)
         }
-        XCTAssertEqual(appDatabase.personActorIdSync(forPersonRowId: rowIdA), "https://a.test/u/x")
-        XCTAssertEqual(appDatabase.personActorIdSync(forPersonRowId: rowIdB), "https://b.test/u/x")
+        #expect(appDatabase.personActorIdSync(forPersonRowId: rowIdA) == "https://a.test/u/x")
+        #expect(appDatabase.personActorIdSync(forPersonRowId: rowIdB) == "https://b.test/u/x")
     }
 
     /// Regression: a remote user's profile must show THEIR OWN instance host,
@@ -67,7 +69,8 @@ final class PersonQueriesTests: XCTestCase {
     /// instance (here discuss.tchncs.de). The displayed host must instead come
     /// from the person's own `actorId` (lemmy.world), or ddenis@lemmy.world
     /// wrongly renders as ddenis@discuss.tchncs.de.
-    func test_observePersonProfile_usesPersonsOwnInstanceHost_notAccountInstance() async throws {
+    @Test
+    func observePersonProfile_usesPersonsOwnInstanceHost_notAccountInstance() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let personRowId: Int64 = try await appDatabase.writer.write { db in
             // The account's home instance — the site the person is stored under.
@@ -90,18 +93,18 @@ final class PersonQueriesTests: XCTestCase {
                 break
             }
         }
-        let row = try XCTUnwrap(profile)
-        XCTAssertEqual(
-            row.instanceHostname,
-            "lemmy.world",
+        let row = try #require(profile)
+        #expect(
+            row.instanceHostname == "lemmy.world",
             "Person host should be their own instance, not the account's discuss.tchncs.de"
         )
-        XCTAssertEqual(row.actorId, "https://lemmy.world/u/ddenis")
+        #expect(row.actorId == "https://lemmy.world/u/ddenis")
     }
 
     /// The profile observation must surface the account-status fields (ban /
     /// deleted / bot / admin / matrix) so the header can show them.
-    func test_observePersonProfile_surfacesAccountStatusFields() async throws {
+    @Test
+    func observePersonProfile_surfacesAccountStatusFields() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let banExpires = Date(timeIntervalSince1970: 1_800_000_000)
         let personRowId: Int64 = try await appDatabase.writer.write { db in
@@ -123,12 +126,12 @@ final class PersonQueriesTests: XCTestCase {
                 break
             }
         }
-        let row = try XCTUnwrap(profile)
-        XCTAssertTrue(row.isBanned)
-        XCTAssertNotNil(row.banExpires)
-        XCTAssertFalse(row.isDeleted)
-        XCTAssertTrue(row.isBotAccount)
-        XCTAssertTrue(row.isAdmin)
-        XCTAssertEqual(row.matrixUserId, "@alice:matrix.org")
+        let row = try #require(profile)
+        #expect(row.isBanned)
+        #expect(row.banExpires != nil)
+        #expect(!(row.isDeleted))
+        #expect(row.isBotAccount)
+        #expect(row.isAdmin)
+        #expect(row.matrixUserId == "@alice:matrix.org")
     }
 }

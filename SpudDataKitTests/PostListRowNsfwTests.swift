@@ -6,20 +6,16 @@
 
 import Foundation
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 /// Verifies that `PostListRow.isNsfw` is `true` when the post itself is NSFW,
 /// when the community is NSFW, and `false` when both are SFW.
-final class PostListRowNsfwTests: XCTestCase {
-    private var appDatabase: AppDatabase!
+struct PostListRowNsfwTests {
+    private var appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     // MARK: - Seed helpers
@@ -160,7 +156,8 @@ final class PostListRowNsfwTests: XCTestCase {
 
     // MARK: - Tests
 
-    func test_postListRow_isNsfw_trueWhenPostOrCommunityNsfw() async throws {
+    @Test
+    func postListRow_isNsfw_trueWhenPostOrCommunityNsfw() async throws {
         let accountId = try await seedAccount()
         let siteId = try await fetchSiteId()
         let personId = try await seedPerson(siteId: siteId, personId: 1)
@@ -199,9 +196,9 @@ final class PostListRowNsfwTests: XCTestCase {
             break
         }
 
-        XCTAssertEqual(rows.count, 3)
-        XCTAssertEqual(rows.first { $0.title == "nsfw-post" }?.isNsfw, true, "post.isNsfw=true should propagate")
-        XCTAssertEqual(rows.first { $0.title == "nsfw-community" }?.isNsfw, true, "community.isNsfw=true should propagate")
-        XCTAssertEqual(rows.first { $0.title == "clean" }?.isNsfw, false, "both SFW should be false")
+        #expect(rows.count == 3)
+        #expect(rows.first { $0.title == "nsfw-post" }?.isNsfw == true, "post.isNsfw=true should propagate")
+        #expect(rows.first { $0.title == "nsfw-community" }?.isNsfw == true, "community.isNsfw=true should propagate")
+        #expect(rows.first { $0.title == "clean" }?.isNsfw == false, "both SFW should be false")
     }
 }

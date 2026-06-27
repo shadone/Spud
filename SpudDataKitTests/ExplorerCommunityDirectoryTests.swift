@@ -4,13 +4,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Foundation
+import Testing
 @testable import SpudDataKit
 
-final class ExplorerCommunityDirectoryTests: XCTestCase {
+struct ExplorerCommunityDirectoryTests {
     private var nextId: Int64 = 0
 
-    private func row(
+    private mutating func row(
         _ name: String,
         host: String = "lemmy.world",
         title: String? = nil,
@@ -46,31 +47,35 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
 
     // MARK: - Sorting
 
-    func test_sortByMembers_descending() {
+    @Test
+    mutating func sortByMembers_descending() {
         let rows = [row("a", members: 10), row("b", members: 99), row("c", members: 50)]
         let sorted = ExplorerCommunityDirectory.apply(
             to: rows, query: "", filter: .init(), sort: .members, dedupeSameName: false
         )
-        XCTAssertEqual(sorted.map(\.name), ["b", "c", "a"])
+        #expect(sorted.map(\.name) == ["b", "c", "a"])
     }
 
-    func test_sortByMostActive_descending() {
+    @Test
+    mutating func sortByMostActive_descending() {
         let rows = [row("a", week: 10), row("b", week: 99), row("c", week: 50)]
         let sorted = ExplorerCommunityDirectory.apply(
             to: rows, query: "", filter: .init(), sort: .mostActive, dedupeSameName: false
         )
-        XCTAssertEqual(sorted.map(\.name), ["b", "c", "a"])
+        #expect(sorted.map(\.name) == ["b", "c", "a"])
     }
 
-    func test_sortByName_caseInsensitiveAscending_usesDisplayName() {
+    @Test
+    mutating func sortByName_caseInsensitiveAscending_usesDisplayName() {
         let rows = [row("beta", title: "Beta"), row("alpha", title: "alpha")]
         let sorted = ExplorerCommunityDirectory.apply(
             to: rows, query: "", filter: .init(), sort: .name, dedupeSameName: false
         )
-        XCTAssertEqual(sorted.map(\.name), ["alpha", "beta"])
+        #expect(sorted.map(\.name) == ["alpha", "beta"])
     }
 
-    func test_sortByNewest_mostRecentFirst_undatedLast() {
+    @Test
+    mutating func sortByNewest_mostRecentFirst_undatedLast() {
         let day: TimeInterval = 86400
         let rows = [
             row("old", published: Date(timeIntervalSince1970: 1 * day)),
@@ -81,54 +86,57 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
         let sorted = ExplorerCommunityDirectory.apply(
             to: rows, query: "", filter: .init(), sort: .newest, dedupeSameName: false
         )
-        XCTAssertEqual(sorted.map(\.name), ["new", "mid", "old", "undated"])
+        #expect(sorted.map(\.name) == ["new", "mid", "old", "undated"])
     }
 
-    func test_sorted_reordersInPlace_withoutFiltering() {
+    @Test
+    mutating func sorted_reordersInPlace_withoutFiltering() {
         let rows = [row("a", members: 10), row("b", members: 99), row("c", members: 50)]
         let resorted = ExplorerCommunityDirectory.sorted(rows, by: .members)
-        XCTAssertEqual(resorted.map(\.name), ["b", "c", "a"])
-        XCTAssertEqual(resorted.count, rows.count, "re-sort keeps every row")
+        #expect(resorted.map(\.name) == ["b", "c", "a"])
+        #expect(resorted.count == rows.count, "re-sort keeps every row")
     }
 
     // MARK: - Filtering
 
-    func test_filterHideNsfw() {
+    @Test
+    mutating func filterHideNsfw() {
         let rows = [row("clean"), row("naughty", nsfw: true)]
         let filtered = ExplorerCommunityDirectory.apply(
             to: rows, query: "", filter: .init(hideNsfw: true), sort: .recommended, dedupeSameName: false
         )
-        XCTAssertEqual(filtered.map(\.name), ["clean"])
+        #expect(filtered.map(\.name) == ["clean"])
     }
 
-    func test_filterHideSuspicious() {
+    @Test
+    mutating func filterHideSuspicious() {
         let rows = [row("legit"), row("spammy", suspicious: true)]
         let filtered = ExplorerCommunityDirectory.apply(
             to: rows, query: "", filter: .init(hideSuspicious: true), sort: .recommended, dedupeSameName: false
         )
-        XCTAssertEqual(filtered.map(\.name), ["legit"])
+        #expect(filtered.map(\.name) == ["legit"])
     }
 
     // MARK: - Search
 
-    func test_query_matchesNameTitleAndHost() {
+    @Test
+    mutating func query_matchesNameTitleAndHost() {
         let rows = [
             row("technology", host: "lemmy.world", title: "Technology"),
             row("gaming", host: "sopuli.xyz", title: "Gaming"),
         ]
-        XCTAssertEqual(
-            ExplorerCommunityDirectory.apply(to: rows, query: "sopuli", filter: .init(), sort: .recommended, dedupeSameName: false).map(\.name),
-            ["gaming"]
+        #expect(
+            ExplorerCommunityDirectory.apply(to: rows, query: "sopuli", filter: .init(), sort: .recommended, dedupeSameName: false).map(\.name) == ["gaming"]
         )
-        XCTAssertEqual(
-            ExplorerCommunityDirectory.apply(to: rows, query: "Techno", filter: .init(), sort: .recommended, dedupeSameName: false).map(\.name),
-            ["technology"]
+        #expect(
+            ExplorerCommunityDirectory.apply(to: rows, query: "Techno", filter: .init(), sort: .recommended, dedupeSameName: false).map(\.name) == ["technology"]
         )
     }
 
     // MARK: - Same-name dedupe
 
-    func test_dedupe_collapsesSameNameToBusiestServer() throws {
+    @Test
+    mutating func dedupe_collapsesSameNameToBusiestServer() throws {
         let rows = [
             row("gaming", host: "lemmy.ml", members: 44000, week: 4200),
             row("gaming", host: "lemmy.world", members: 201_000, week: 14000),
@@ -137,24 +145,26 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
         let result = ExplorerCommunityDirectory.apply(
             to: rows, query: "", filter: .init(), sort: .recommended, dedupeSameName: true
         )
-        XCTAssertEqual(result.count, 1)
-        let canonical = try XCTUnwrap(result.first)
-        XCTAssertEqual(canonical.instanceHost, "lemmy.world", "canonical is the busiest server")
-        XCTAssertEqual(canonical.alsoOnServerCount, 2)
-        XCTAssertEqual(canonical.groupTotalSubscribers, 264_000)
+        #expect(result.count == 1)
+        let canonical = try #require(result.first)
+        #expect(canonical.instanceHost == "lemmy.world", "canonical is the busiest server")
+        #expect(canonical.alsoOnServerCount == 2)
+        #expect(canonical.groupTotalSubscribers == 264_000)
     }
 
-    func test_dedupeOff_keepsAllVariants() {
+    @Test
+    mutating func dedupeOff_keepsAllVariants() {
         let rows = [row("gaming", host: "lemmy.world"), row("gaming", host: "lemmy.ml")]
         let result = ExplorerCommunityDirectory.apply(
             to: rows, query: "", filter: .init(), sort: .name, dedupeSameName: false
         )
-        XCTAssertEqual(result.count, 2)
+        #expect(result.count == 2)
     }
 
     // MARK: - Trending
 
-    func test_trending_ranksByActiveWeek_excludingSuspiciousAndBelowFloor() {
+    @Test
+    mutating func trending_ranksByActiveWeek_excludingSuspiciousAndBelowFloor() {
         let rows = [
             row("big", members: 300_000, week: 5000),
             row("buzzy", members: 20000, week: 9000),
@@ -162,22 +172,24 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
             row("quiet", week: 10),
         ]
         let trending = ExplorerCommunityDirectory.trending(in: rows, limit: 10, minActiveWeek: 100)
-        XCTAssertEqual(trending.map(\.name), ["buzzy", "big"])
+        #expect(trending.map(\.name) == ["buzzy", "big"])
     }
 
-    func test_trending_collapsesSameName() {
+    @Test
+    mutating func trending_collapsesSameName() {
         let rows = [
             row("gaming", host: "lemmy.world", members: 201_000, week: 14000),
             row("gaming", host: "lemmy.ml", members: 44000, week: 4200),
         ]
         let trending = ExplorerCommunityDirectory.trending(in: rows, limit: 10, minActiveWeek: 100)
-        XCTAssertEqual(trending.count, 1)
-        XCTAssertEqual(trending.first?.instanceHost, "lemmy.world")
+        #expect(trending.count == 1)
+        #expect(trending.first?.instanceHost == "lemmy.world")
     }
 
     // MARK: - Rising
 
-    func test_rising_favoursSmallHighEngagement_excludingLarge() {
+    @Test
+    mutating func rising_favoursSmallHighEngagement_excludingLarge() {
         let rows = [
             row("huge", members: 500_000, week: 20000), // excluded by size ceiling
             row("gem", members: 8000, week: 4000), // high engagement for its size
@@ -186,63 +198,68 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
         let rising = ExplorerCommunityDirectory.rising(
             in: rows, limit: 10, maxSubscribers: 25000, minActiveWeek: 100
         )
-        XCTAssertEqual(rising.first?.name, "gem")
-        XCTAssertFalse(rising.contains { $0.name == "huge" })
+        #expect(rising.first?.name == "gem")
+        #expect(!(rising.contains { $0.name == "huge" }))
     }
 
     // MARK: - Variants (compare sheet)
 
-    func test_variants_returnsSameNameRankedByActivity() {
+    @Test
+    mutating func variants_returnsSameNameRankedByActivity() {
         let rows = [
             row("gaming", host: "lemmy.ml", week: 4200),
             row("gaming", host: "lemmy.world", week: 14000),
             row("technology", host: "lemmy.world", week: 22000),
         ]
         let variants = ExplorerCommunityDirectory.variants(of: "gaming", in: rows)
-        XCTAssertEqual(variants.map(\.instanceHost), ["lemmy.world", "lemmy.ml"])
+        #expect(variants.map(\.instanceHost) == ["lemmy.world", "lemmy.ml"])
     }
 
     // MARK: - Browse by instance
 
-    func test_topInstances_ranksByWeeklyActive_andAggregatesCounts() throws {
+    @Test
+    mutating func topInstances_ranksByWeeklyActive_andAggregatesCounts() throws {
         let rows = [
             row("a", host: "lemmy.world", members: 100, week: 50),
             row("b", host: "lemmy.world", members: 200, week: 80),
             row("c", host: "beehaw.org", members: 500, week: 300),
         ]
         let instances = ExplorerCommunityDirectory.topInstances(in: rows, limit: 10)
-        XCTAssertEqual(instances.map(\.host), ["beehaw.org", "lemmy.world"], "busiest server first")
+        #expect(instances.map(\.host) == ["beehaw.org", "lemmy.world"], "busiest server first")
 
-        let world = try XCTUnwrap(instances.first { $0.host == "lemmy.world" })
-        XCTAssertEqual(world.communityCount, 2)
-        XCTAssertEqual(world.totalSubscribers, 300)
-        XCTAssertEqual(world.totalActiveWeek, 130)
+        let world = try #require(instances.first { $0.host == "lemmy.world" })
+        #expect(world.communityCount == 2)
+        #expect(world.totalSubscribers == 300)
+        #expect(world.totalActiveWeek == 130)
     }
 
-    func test_topInstances_excludesSuspiciousAndNsfwFromAggregation() throws {
+    @Test
+    mutating func topInstances_excludesSuspiciousAndNsfwFromAggregation() throws {
         let rows = [
             row("clean", host: "x.org", members: 100, week: 50),
             row("naughty", host: "x.org", members: 999, week: 999, nsfw: true),
             row("spam", host: "spam.org", week: 999, suspicious: true),
         ]
         let instances = ExplorerCommunityDirectory.topInstances(in: rows, limit: 10)
-        XCTAssertEqual(instances.map(\.host), ["x.org"], "an instance with only unsafe communities drops out")
+        #expect(instances.map(\.host) == ["x.org"], "an instance with only unsafe communities drops out")
 
-        let safe = try XCTUnwrap(instances.first)
-        XCTAssertEqual(safe.communityCount, 1, "the NSFW community is not counted")
-        XCTAssertEqual(safe.totalSubscribers, 100)
+        let safe = try #require(instances.first)
+        #expect(safe.communityCount == 1, "the NSFW community is not counted")
+        #expect(safe.totalSubscribers == 100)
     }
 
-    func test_topInstances_respectsLimit() {
+    @Test
+    mutating func topInstances_respectsLimit() {
         let rows = [
             row("a", host: "h1.org", week: 100),
             row("b", host: "h2.org", week: 90),
             row("c", host: "h3.org", week: 80),
         ]
-        XCTAssertEqual(ExplorerCommunityDirectory.topInstances(in: rows, limit: 2).count, 2)
+        #expect(ExplorerCommunityDirectory.topInstances(in: rows, limit: 2).count == 2)
     }
 
-    func test_communitiesOnInstance_filtersToHost_excludesUnsafe_andSorts() {
+    @Test
+    mutating func communitiesOnInstance_filtersToHost_excludesUnsafe_andSorts() {
         let rows = [
             row("a", host: "lemmy.world", week: 10),
             row("b", host: "lemmy.world", week: 90),
@@ -252,12 +269,13 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
         let result = ExplorerCommunityDirectory.communities(
             onInstance: "lemmy.world", in: rows, sort: .mostActive
         )
-        XCTAssertEqual(result.map(\.name), ["b", "a"], "host-filtered, NSFW dropped, sorted by activity")
+        #expect(result.map(\.name) == ["b", "a"], "host-filtered, NSFW dropped, sorted by activity")
     }
 
     // MARK: - Because you follow
 
-    func test_becauseYouFollow_recommendsSameHostNotFollowed_byActivity() {
+    @Test
+    mutating func becauseYouFollow_recommendsSameHostNotFollowed_byActivity() {
         let rows = [
             row("tech", host: "lemmy.world", week: 1000),
             row("memes", host: "lemmy.world", week: 5000),
@@ -270,19 +288,21 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
             excludingUrls: ["https://lemmy.world/c/followed"],
             limit: 10
         )
-        XCTAssertEqual(result.map(\.name), ["memes", "tech"], "same-host, not-followed, busiest-first")
+        #expect(result.map(\.name) == ["memes", "tech"], "same-host, not-followed, busiest-first")
     }
 
-    func test_becauseYouFollow_emptyWhenNoFollowedHosts() {
+    @Test
+    mutating func becauseYouFollow_emptyWhenNoFollowedHosts() {
         let rows = [row("tech", host: "lemmy.world", week: 1000)]
-        XCTAssertTrue(
+        #expect(
             ExplorerCommunityDirectory.becauseYouFollow(
                 in: rows, followedHosts: [], excludingUrls: [], limit: 10
             ).isEmpty
         )
     }
 
-    func test_becauseYouFollow_excludesSuspiciousAndNsfw() {
+    @Test
+    mutating func becauseYouFollow_excludesSuspiciousAndNsfw() {
         let rows = [
             row("ok", host: "lemmy.world", week: 100),
             row("naughty", host: "lemmy.world", week: 9000, nsfw: true),
@@ -291,6 +311,6 @@ final class ExplorerCommunityDirectoryTests: XCTestCase {
         let result = ExplorerCommunityDirectory.becauseYouFollow(
             in: rows, followedHosts: ["lemmy.world"], excludingUrls: [], limit: 10
         )
-        XCTAssertEqual(result.map(\.name), ["ok"])
+        #expect(result.map(\.name) == ["ok"])
     }
 }

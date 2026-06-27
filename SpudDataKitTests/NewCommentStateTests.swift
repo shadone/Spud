@@ -5,10 +5,10 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class NewCommentStateTests: XCTestCase {
+struct NewCommentStateTests {
     /// Builds a comment row with the fields the delta reads. `more: true`
     /// produces a "load more" placeholder (no serverCommentId / published).
     private func row(
@@ -50,63 +50,73 @@ final class NewCommentStateTests: XCTestCase {
 
     private let visit = Date(timeIntervalSince1970: 1_000_000 + 100)
 
-    func testFirstVisitNilReferenceFlagsNothing() {
+    @Test
+    func firstVisitNilReferenceFlagsNothing() {
         let rows = [row(id: 1, position: 1, publishedOffset: 200)]
         let result = NewCommentState.compute(orderedComments: rows, previousVisitAt: nil, currentAccountPersonId: nil)
-        XCTAssertEqual(result.count, 0)
-        XCTAssertNil(result.firstNewElementId)
+        // swiftformat:disable:next isEmpty
+        #expect(result.count == 0)
+        #expect(result.firstNewElementId == nil)
     }
 
-    func testCommentsAfterVisitAreNew() {
+    @Test
+    func commentsAfterVisitAreNew() {
         let rows = [
             row(id: 1, position: 1, publishedOffset: 50), // before visit
             row(id: 2, position: 2, publishedOffset: 150), // after visit
             row(id: 3, position: 3, publishedOffset: 300), // after visit
         ]
         let result = NewCommentState.compute(orderedComments: rows, previousVisitAt: visit, currentAccountPersonId: nil)
-        XCTAssertEqual(result.newElementIds, [2, 3])
-        XCTAssertEqual(result.count, 2)
-        XCTAssertEqual(result.firstNewElementId, 2)
+        #expect(result.newElementIds == [2, 3])
+        #expect(result.count == 2)
+        #expect(result.firstNewElementId == 2)
     }
 
-    func testOwnCommentsExcluded() {
+    @Test
+    func ownCommentsExcluded() {
         let rows = [
             row(id: 2, position: 2, publishedOffset: 150, creatorPersonId: 99), // mine
             row(id: 3, position: 3, publishedOffset: 300, creatorPersonId: 1),
         ]
         let result = NewCommentState.compute(orderedComments: rows, previousVisitAt: visit, currentAccountPersonId: 99)
-        XCTAssertEqual(result.newElementIds, [3])
-        XCTAssertEqual(result.firstNewElementId, 3)
+        #expect(result.newElementIds == [3])
+        #expect(result.firstNewElementId == 3)
     }
 
-    func testLoadMorePlaceholdersIgnored() {
+    @Test
+    func loadMorePlaceholdersIgnored() {
         let rows = [
             row(id: 5, position: 5, publishedOffset: 0, more: true), // no published
             row(id: 6, position: 6, publishedOffset: 300),
         ]
         let result = NewCommentState.compute(orderedComments: rows, previousVisitAt: visit, currentAccountPersonId: nil)
-        XCTAssertEqual(result.newElementIds, [6])
+        #expect(result.newElementIds == [6])
     }
 
-    func testFirstNewIsLowestPositionNotArrayOrder() {
+    @Test
+    func firstNewIsLowestPositionNotArrayOrder() {
         let rows = [
             row(id: 10, position: 9, publishedOffset: 300),
             row(id: 11, position: 4, publishedOffset: 300),
         ]
         let result = NewCommentState.compute(orderedComments: rows, previousVisitAt: visit, currentAccountPersonId: nil)
-        XCTAssertEqual(result.firstNewElementId, 11)
+        #expect(result.firstNewElementId == 11)
     }
 
-    func testCommentExactlyAtVisitIsNotNew() {
+    @Test
+    func commentExactlyAtVisitIsNotNew() {
         let rows = [row(id: 1, position: 1, publishedOffset: 100)] // published == visit
         let result = NewCommentState.compute(orderedComments: rows, previousVisitAt: visit, currentAccountPersonId: nil)
-        XCTAssertEqual(result.count, 0)
-        XCTAssertFalse(result.newElementIds.contains(1))
+        // swiftformat:disable:next isEmpty
+        #expect(result.count == 0)
+        #expect(!(result.newElementIds.contains(1)))
     }
 
-    func testEmptyInputReturnsEmptyResult() {
+    @Test
+    func emptyInputReturnsEmptyResult() {
         let result = NewCommentState.compute(orderedComments: [], previousVisitAt: visit, currentAccountPersonId: nil)
-        XCTAssertEqual(result.count, 0)
-        XCTAssertNil(result.firstNewElementId)
+        // swiftformat:disable:next isEmpty
+        #expect(result.count == 0)
+        #expect(result.firstNewElementId == nil)
     }
 }

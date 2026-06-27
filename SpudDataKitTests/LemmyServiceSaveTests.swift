@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias Person = Components.Schemas.Person
@@ -78,18 +78,14 @@ private final class StubSaveTransport: ClientTransport, @unchecked Sendable {
 }
 
 @MainActor
-final class LemmyServiceSaveTests: XCTestCase {
+struct LemmyServiceSaveTests {
     private let keychainId = "keychain-1"
     private let serverPostId: Components.Schemas.PostID = 1
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     /// Seeds account + site + an (unsaved) post so the save mirror can resolve
@@ -148,7 +144,8 @@ final class LemmyServiceSaveTests: XCTestCase {
 
     // MARK: Post
 
-    func testSetSavedPostMirrorsSavedFlagIntoDatabase() async throws {
+    @Test
+    func setSavedPostMirrorsSavedFlagIntoDatabase() async throws {
         try await seedAccountSiteAndPost()
 
         // The confirmed view returned by the server carries saved = true.
@@ -164,7 +161,7 @@ final class LemmyServiceSaveTests: XCTestCase {
 
         try await service.setSaved(serverPostId: serverPostId, saved: true)
 
-        XCTAssertTrue(transport.didSendSavePost, "setSaved should call the savePost api")
+        #expect(transport.didSendSavePost, "setSaved should call the savePost api")
 
         let serverPostId = serverPostId
         let storedIsSaved = try await appDatabase.writer.read { db -> Bool? in
@@ -173,10 +170,11 @@ final class LemmyServiceSaveTests: XCTestCase {
                 .fetchOne(db)?
                 .isSaved
         }
-        XCTAssertEqual(storedIsSaved, true)
+        #expect(storedIsSaved == true)
     }
 
-    func testSetSavedPostOnSignedOutAccountThrowsAndSkipsApi() async throws {
+    @Test
+    func setSavedPostOnSignedOutAccountThrowsAndSkipsApi() async throws {
         try await seedAccountSiteAndPost()
 
         let transport = try StubSaveTransport(postResponse: nil)
@@ -184,20 +182,21 @@ final class LemmyServiceSaveTests: XCTestCase {
 
         do {
             try await service.setSaved(serverPostId: serverPostId, saved: true)
-            XCTFail("Expected setSaved to throw on a signed-out account")
+            Issue.record("Expected setSaved to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
 
-        XCTAssertFalse(
-            transport.didSendSavePost,
+        #expect(
+            !(transport.didSendSavePost),
             "setSaved must not hit the api when the account is signed out"
         )
     }
 
     // MARK: Comment
 
-    func testSetSavedCommentMirrorsSavedFlagIntoDatabase() async throws {
+    @Test
+    func setSavedCommentMirrorsSavedFlagIntoDatabase() async throws {
         try await seedAccountSiteAndPost()
 
         let serverCommentId: Components.Schemas.CommentID = 42
@@ -225,7 +224,7 @@ final class LemmyServiceSaveTests: XCTestCase {
 
         try await service.setSaved(serverCommentId: serverCommentId, saved: true)
 
-        XCTAssertTrue(transport.didSendSaveComment, "setSaved should call the saveComment api")
+        #expect(transport.didSendSaveComment, "setSaved should call the saveComment api")
 
         let storedIsSaved = try await appDatabase.writer.read { db -> Bool? in
             try CommentRecord
@@ -233,10 +232,11 @@ final class LemmyServiceSaveTests: XCTestCase {
                 .fetchOne(db)?
                 .isSaved
         }
-        XCTAssertEqual(storedIsSaved, true)
+        #expect(storedIsSaved == true)
     }
 
-    func testSetSavedCommentOnSignedOutAccountThrowsAndSkipsApi() async throws {
+    @Test
+    func setSavedCommentOnSignedOutAccountThrowsAndSkipsApi() async throws {
         try await seedAccountSiteAndPost()
 
         let transport = try StubSaveTransport(commentResponse: nil)
@@ -244,13 +244,13 @@ final class LemmyServiceSaveTests: XCTestCase {
 
         do {
             try await service.setSaved(serverCommentId: 42, saved: true)
-            XCTFail("Expected setSaved to throw on a signed-out account")
+            Issue.record("Expected setSaved to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
 
-        XCTAssertFalse(
-            transport.didSendSaveComment,
+        #expect(
+            !(transport.didSendSaveComment),
             "setSaved must not hit the api when the account is signed out"
         )
     }

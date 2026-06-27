@@ -5,10 +5,10 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class PostInteractionUpdateTests: XCTestCase {
+struct PostInteractionUpdateTests {
     private let t0 = Date(timeIntervalSince1970: 1_000_000)
     private let t1 = Date(timeIntervalSince1970: 1_000_500)
 
@@ -24,21 +24,23 @@ final class PostInteractionUpdateTests: XCTestCase {
 
     // MARK: applyingOpen
 
-    func testFirstOpenCreatesRowWithNilPrevious() {
+    @Test
+    func firstOpenCreatesRowWithNilPrevious() {
         let (record, previous) = PostInteractionUpdate.applyingOpen(
             to: nil, accountId: 1, postServerId: 9, now: t0,
             commentCount: 12, snapshot: snapshot("Hello")
         )
-        XCTAssertNil(previous)
-        XCTAssertEqual(record.lastOpenedAt, t0)
-        XCTAssertEqual(record.openedCount, 1)
-        XCTAssertEqual(record.lastKnownCommentCount, 12)
-        XCTAssertEqual(record.titleSnapshot, "Hello")
-        XCTAssertEqual(record.seenCount, 0)
-        XCTAssertNil(record.firstSeenAt)
+        #expect(previous == nil)
+        #expect(record.lastOpenedAt == t0)
+        #expect(record.openedCount == 1)
+        #expect(record.lastKnownCommentCount == 12)
+        #expect(record.titleSnapshot == "Hello")
+        #expect(record.seenCount == 0)
+        #expect(record.firstSeenAt == nil)
     }
 
-    func testSecondOpenReturnsPriorTimestampAndBumpsCount() {
+    @Test
+    func secondOpenReturnsPriorTimestampAndBumpsCount() {
         let (first, _) = PostInteractionUpdate.applyingOpen(
             to: nil, accountId: 1, postServerId: 9, now: t0,
             commentCount: 12, snapshot: snapshot("Hello")
@@ -47,15 +49,16 @@ final class PostInteractionUpdateTests: XCTestCase {
             to: first, accountId: 1, postServerId: 9, now: t1,
             commentCount: 15, snapshot: nil
         )
-        XCTAssertEqual(previous, t0)
-        XCTAssertEqual(second.lastOpenedAt, t1)
-        XCTAssertEqual(second.openedCount, 2)
-        XCTAssertEqual(second.lastKnownCommentCount, 15)
+        #expect(previous == t0)
+        #expect(second.lastOpenedAt == t1)
+        #expect(second.openedCount == 2)
+        #expect(second.lastKnownCommentCount == 15)
         // nil snapshot keeps the prior snapshot
-        XCTAssertEqual(second.titleSnapshot, "Hello")
+        #expect(second.titleSnapshot == "Hello")
     }
 
-    func testOpenWithNilCommentCountKeepsPriorCount() {
+    @Test
+    func openWithNilCommentCountKeepsPriorCount() {
         let (first, _) = PostInteractionUpdate.applyingOpen(
             to: nil, accountId: 1, postServerId: 9, now: t0,
             commentCount: 12, snapshot: nil
@@ -64,46 +67,50 @@ final class PostInteractionUpdateTests: XCTestCase {
             to: first, accountId: 1, postServerId: 9, now: t1,
             commentCount: nil, snapshot: nil
         )
-        XCTAssertEqual(second.lastKnownCommentCount, 12)
+        #expect(second.lastKnownCommentCount == 12)
     }
 
     // MARK: applyingSeen
 
-    func testFirstSeenSetsBothTimestamps() {
+    @Test
+    func firstSeenSetsBothTimestamps() {
         let record = PostInteractionUpdate.applyingSeen(
             to: nil, accountId: 1, postServerId: 9, now: t0, snapshot: snapshot("Hi")
         )
-        XCTAssertEqual(record.firstSeenAt, t0)
-        XCTAssertEqual(record.lastSeenAt, t0)
-        XCTAssertEqual(record.seenCount, 1)
-        XCTAssertEqual(record.openedCount, 0)
+        #expect(record.firstSeenAt == t0)
+        #expect(record.lastSeenAt == t0)
+        #expect(record.seenCount == 1)
+        #expect(record.openedCount == 0)
     }
 
-    func testSecondSeenKeepsFirstSeenBumpsLast() {
+    @Test
+    func secondSeenKeepsFirstSeenBumpsLast() {
         let first = PostInteractionUpdate.applyingSeen(
             to: nil, accountId: 1, postServerId: 9, now: t0, snapshot: snapshot("Hi")
         )
         let second = PostInteractionUpdate.applyingSeen(
             to: first, accountId: 1, postServerId: 9, now: t1, snapshot: snapshot("Hi")
         )
-        XCTAssertEqual(second.firstSeenAt, t0)
-        XCTAssertEqual(second.lastSeenAt, t1)
-        XCTAssertEqual(second.seenCount, 2)
+        #expect(second.firstSeenAt == t0)
+        #expect(second.lastSeenAt == t1)
+        #expect(second.seenCount == 2)
     }
 
     // MARK: shouldPrune
 
-    func testSavedPostIsNeverPruned() {
+    @Test
+    func savedPostIsNeverPruned() {
         var record = PostInteractionRecord(accountId: 1, postServerId: 9)
         record.lastSeenAt = Date(timeIntervalSince1970: 0) // ancient
         let prune = PostInteractionUpdate.shouldPrune(
             record, now: t0, isSaved: true,
             seenRetention: 1, openedRetention: 1
         )
-        XCTAssertFalse(prune)
+        #expect(!prune)
     }
 
-    func testOldSeenOnlyIsPruned() {
+    @Test
+    func oldSeenOnlyIsPruned() {
         var record = PostInteractionRecord(accountId: 1, postServerId: 9)
         record.lastSeenAt = t0
         let prune = PostInteractionUpdate.shouldPrune(
@@ -111,10 +118,11 @@ final class PostInteractionUpdateTests: XCTestCase {
             seenRetention: PostInteractionUpdate.defaultSeenRetention,
             openedRetention: PostInteractionUpdate.defaultOpenedRetention
         )
-        XCTAssertTrue(prune)
+        #expect(prune)
     }
 
-    func testRecentSeenOnlyIsKept() {
+    @Test
+    func recentSeenOnlyIsKept() {
         var record = PostInteractionRecord(accountId: 1, postServerId: 9)
         record.lastSeenAt = t0
         let prune = PostInteractionUpdate.shouldPrune(
@@ -122,10 +130,11 @@ final class PostInteractionUpdateTests: XCTestCase {
             seenRetention: PostInteractionUpdate.defaultSeenRetention,
             openedRetention: PostInteractionUpdate.defaultOpenedRetention
         )
-        XCTAssertFalse(prune)
+        #expect(!prune)
     }
 
-    func testOpenedUsesOpenedRetentionNotSeen() {
+    @Test
+    func openedUsesOpenedRetentionNotSeen() {
         // Opened 40 days ago: beyond the 30-day seen window but inside the
         // 1-year opened window, so it must be kept.
         var record = PostInteractionRecord(accountId: 1, postServerId: 9)
@@ -136,14 +145,15 @@ final class PostInteractionUpdateTests: XCTestCase {
             seenRetention: PostInteractionUpdate.defaultSeenRetention,
             openedRetention: PostInteractionUpdate.defaultOpenedRetention
         )
-        XCTAssertFalse(prune)
+        #expect(!prune)
     }
 
-    func testRecordWithNoTimestampIsNotPruned() {
+    @Test
+    func recordWithNoTimestampIsNotPruned() {
         let record = PostInteractionRecord(accountId: 1, postServerId: 9)
-        XCTAssertFalse(PostInteractionUpdate.shouldPrune(
+        #expect(!(PostInteractionUpdate.shouldPrune(
             record, now: t0, isSaved: false,
             seenRetention: 1, openedRetention: 1
-        ))
+        )))
     }
 }

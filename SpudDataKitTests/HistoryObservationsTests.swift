@@ -6,10 +6,10 @@
 
 import Foundation
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class HistoryObservationsTests: XCTestCase {
+struct HistoryObservationsTests {
     /// Seeds account + community + creator person and returns the account row id.
     private static func seedGraph(_ db: Database, keychainId: String) throws -> (accountId: Int64, communityId: Int64, personId: Int64) {
         try db.execute(sql: "INSERT INTO instance (actorId, createdAt) VALUES (?, ?)", arguments: ["https://\(keychainId).test", Date()])
@@ -59,7 +59,8 @@ final class HistoryObservationsTests: XCTestCase {
         return []
     }
 
-    func testReadModeReturnsOnlyOpenedNewestFirst() async throws {
+    @Test
+    func readModeReturnsOnlyOpenedNewestFirst() async throws {
         let t1 = Date(timeIntervalSince1970: 1_000_100)
         let t2 = Date(timeIntervalSince1970: 1_000_200)
         let appDatabase = try AppDatabase.inMemory()
@@ -73,10 +74,11 @@ final class HistoryObservationsTests: XCTestCase {
             try Self.insertInteraction(db, accountId: g.accountId, postServerId: 3, title: "Only seen", lastOpenedAt: nil, lastSeenAt: t1)
         }
         let rows = await Self.firstBatch(appDatabase.observeHistoryRows(forKeychainId: "kc-1", mode: .read, searchQuery: nil))
-        XCTAssertEqual(rows.map(\.serverPostId), [2, 1]) // newest opened first; "only seen" excluded
+        #expect(rows.map(\.serverPostId) == [2, 1]) // newest opened first; "only seen" excluded
     }
 
-    func testSeenModeReturnsEverythingEncountered() async throws {
+    @Test
+    func seenModeReturnsEverythingEncountered() async throws {
         let t1 = Date(timeIntervalSince1970: 1_000_100)
         let t2 = Date(timeIntervalSince1970: 1_000_200)
         let appDatabase = try AppDatabase.inMemory()
@@ -88,11 +90,12 @@ final class HistoryObservationsTests: XCTestCase {
             try Self.insertInteraction(db, accountId: g.accountId, postServerId: 3, title: "Only seen", lastOpenedAt: nil, lastSeenAt: t2)
         }
         let rows = await Self.firstBatch(appDatabase.observeHistoryRows(forKeychainId: "kc-1", mode: .seen, searchQuery: nil))
-        XCTAssertEqual(Set(rows.map(\.serverPostId)), [1, 3])
-        XCTAssertEqual(rows.first?.serverPostId, 3) // most-recently-encountered first (t2 > t1)
+        #expect(Set(rows.map(\.serverPostId)) == [1, 3])
+        #expect(rows.first?.serverPostId == 3) // most-recently-encountered first (t2 > t1)
     }
 
-    func testSavedModeReturnsOnlySaved() async throws {
+    @Test
+    func savedModeReturnsOnlySaved() async throws {
         let t1 = Date(timeIntervalSince1970: 1_000_100)
         let t2 = Date(timeIntervalSince1970: 1_000_200)
         let appDatabase = try AppDatabase.inMemory()
@@ -104,10 +107,11 @@ final class HistoryObservationsTests: XCTestCase {
             try Self.insertInteraction(db, accountId: g.accountId, postServerId: 2, title: "Unsaved", lastOpenedAt: t2, lastSeenAt: nil)
         }
         let rows = await Self.firstBatch(appDatabase.observeHistoryRows(forKeychainId: "kc-1", mode: .saved, searchQuery: nil))
-        XCTAssertEqual(rows.map(\.serverPostId), [1])
+        #expect(rows.map(\.serverPostId) == [1])
     }
 
-    func testSearchNarrowsByTitle() async throws {
+    @Test
+    func searchNarrowsByTitle() async throws {
         let t1 = Date(timeIntervalSince1970: 1_000_100)
         let t2 = Date(timeIntervalSince1970: 1_000_200)
         let appDatabase = try AppDatabase.inMemory()
@@ -119,10 +123,11 @@ final class HistoryObservationsTests: XCTestCase {
             try Self.insertInteraction(db, accountId: g.accountId, postServerId: 2, title: "Rust ownership", lastOpenedAt: t2, lastSeenAt: nil)
         }
         let rows = await Self.firstBatch(appDatabase.observeHistoryRows(forKeychainId: "kc-1", mode: .seen, searchQuery: "concurrency"))
-        XCTAssertEqual(rows.map(\.serverPostId), [1])
+        #expect(rows.map(\.serverPostId) == [1])
     }
 
-    func testAccountIsolationIncludingSearch() async throws {
+    @Test
+    func accountIsolationIncludingSearch() async throws {
         let t1 = Date(timeIntervalSince1970: 1_000_100)
         let t2 = Date(timeIntervalSince1970: 1_000_200)
         let appDatabase = try AppDatabase.inMemory()
@@ -138,13 +143,13 @@ final class HistoryObservationsTests: XCTestCase {
         // Plain query: account 1 sees only its own row (account 2's identical
         // post must not leak).
         let plain = await Self.firstBatch(appDatabase.observeHistoryRows(forKeychainId: "kc-1", mode: .read, searchQuery: nil))
-        XCTAssertEqual(plain.count, 1)
-        XCTAssertEqual(plain.first?.communityActorId, "https://kc-1.test/c/programming")
+        #expect(plain.count == 1)
+        #expect(plain.first?.communityActorId == "https://kc-1.test/c/programming")
 
         // FTS path: MATCH spans both accounts' tokens, but the accountId filter
         // still restricts results to account 1.
         let searched = await Self.firstBatch(appDatabase.observeHistoryRows(forKeychainId: "kc-1", mode: .seen, searchQuery: "concurrency"))
-        XCTAssertEqual(searched.count, 1)
-        XCTAssertEqual(searched.first?.communityActorId, "https://kc-1.test/c/programming")
+        #expect(searched.count == 1)
+        #expect(searched.first?.communityActorId == "https://kc-1.test/c/programming")
     }
 }

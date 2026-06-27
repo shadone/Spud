@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias Person = Components.Schemas.Person
@@ -112,17 +112,13 @@ private final class StubModerationTransport: ClientTransport, @unchecked Sendabl
 }
 
 @MainActor
-final class LemmyServiceModerationTests: XCTestCase {
+struct LemmyServiceModerationTests {
     private let keychainId = "keychain-mod-1"
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     /// Seeds instance + site + account so the mod mirror can resolve the
@@ -180,7 +176,8 @@ final class LemmyServiceModerationTests: XCTestCase {
 
     // MARK: removePost mirrors state
 
-    func testRemovePostHitsApiAndMirrorsRemovedFlag() async throws {
+    @Test
+    func removePostHitsApiAndMirrorsRemovedFlag() async throws {
         let ids = try await seedAccountAndSite()
 
         let person = Person.fake
@@ -199,7 +196,7 @@ final class LemmyServiceModerationTests: XCTestCase {
 
         try await service.removePost(serverPostId: postId, removed: true, reason: "spam")
 
-        XCTAssertTrue(transport.didSendRemovePost, "removePost should call the removePost api")
+        #expect(transport.didSendRemovePost, "removePost should call the removePost api")
 
         let accountId = ids.accountId
         let isRemoved = try await appDatabase.writer.read { db -> Bool? in
@@ -209,10 +206,11 @@ final class LemmyServiceModerationTests: XCTestCase {
                 .fetchOne(db)?
                 .isRemoved
         }
-        XCTAssertEqual(isRemoved, true, "the removed flag should be mirrored into GRDB")
+        #expect(isRemoved == true, "the removed flag should be mirrored into GRDB")
     }
 
-    func testRemovePostSignedOutThrowsAndSkipsApi() async throws {
+    @Test
+    func removePostSignedOutThrowsAndSkipsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubModerationTransport(removePost: nil)
@@ -220,17 +218,18 @@ final class LemmyServiceModerationTests: XCTestCase {
 
         do {
             try await service.removePost(serverPostId: 1, removed: true, reason: nil)
-            XCTFail("Expected removePost to throw on a signed-out account")
+            Issue.record("Expected removePost to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
 
-        XCTAssertFalse(transport.didSendRemovePost, "must not hit the api when signed out")
+        #expect(!(transport.didSendRemovePost), "must not hit the api when signed out")
     }
 
     // MARK: distinguishComment mirrors state
 
-    func testDistinguishCommentHitsApiAndMirrorsFlag() async throws {
+    @Test
+    func distinguishCommentHitsApiAndMirrorsFlag() async throws {
         let ids = try await seedAccountAndSite()
 
         let person = Person.fake
@@ -259,7 +258,7 @@ final class LemmyServiceModerationTests: XCTestCase {
 
         try await service.distinguishComment(serverCommentId: commentId, distinguished: true)
 
-        XCTAssertTrue(transport.didSendDistinguishComment, "distinguishComment should call the api")
+        #expect(transport.didSendDistinguishComment, "distinguishComment should call the api")
 
         let isDistinguished = try await appDatabase.writer.read { db -> Bool? in
             try CommentRecord
@@ -267,12 +266,13 @@ final class LemmyServiceModerationTests: XCTestCase {
                 .fetchOne(db)?
                 .isDistinguished
         }
-        XCTAssertEqual(isDistinguished, true, "the distinguished flag should be mirrored into GRDB")
+        #expect(isDistinguished == true, "the distinguished flag should be mirrored into GRDB")
     }
 
     // MARK: banFromCommunity
 
-    func testBanFromCommunitySignedOutThrowsAndSkipsApi() async throws {
+    @Test
+    func banFromCommunitySignedOutThrowsAndSkipsApi() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubModerationTransport(ban: nil)
@@ -282,17 +282,18 @@ final class LemmyServiceModerationTests: XCTestCase {
             try await service.banFromCommunity(
                 serverCommunityId: 1, serverPersonId: 2, ban: true, removeData: false, reason: nil
             )
-            XCTFail("Expected banFromCommunity to throw on a signed-out account")
+            Issue.record("Expected banFromCommunity to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
 
-        XCTAssertFalse(transport.didSendBan, "must not hit the api when signed out")
+        #expect(!(transport.didSendBan), "must not hit the api when signed out")
     }
 
     // MARK: fetchModerationCapability resolves from getSite
 
-    func testModerationCapabilityResolvesModeratedCommunitiesAndAdmin() async throws {
+    @Test
+    func moderationCapabilityResolvesModeratedCommunitiesAndAdmin() async throws {
         try await seedAccountAndSite()
 
         var modCommunity = Community.fake
@@ -303,15 +304,16 @@ final class LemmyServiceModerationTests: XCTestCase {
 
         let capability = try await service.fetchModerationCapability()
 
-        XCTAssertTrue(transport.didSendGetSite)
-        XCTAssertFalse(capability.isAdmin)
-        XCTAssertEqual(capability.moderatedCommunityIds, [42])
-        XCTAssertTrue(capability.canModerate(communityId: 42))
-        XCTAssertFalse(capability.canModerate(communityId: 99))
-        XCTAssertTrue(capability.hasAnyPower)
+        #expect(transport.didSendGetSite)
+        #expect(!(capability.isAdmin))
+        #expect(capability.moderatedCommunityIds == [42])
+        #expect(capability.canModerate(communityId: 42))
+        #expect(!(capability.canModerate(communityId: 99)))
+        #expect(capability.hasAnyPower)
     }
 
-    func testModerationCapabilityAdminCanModerateAnyCommunity() async throws {
+    @Test
+    func moderationCapabilityAdminCanModerateAnyCommunity() async throws {
         try await seedAccountAndSite()
 
         let getSite = GetSiteResponse.fake(moderates: [], isAdmin: true)
@@ -320,15 +322,16 @@ final class LemmyServiceModerationTests: XCTestCase {
 
         let capability = try await service.fetchModerationCapability()
 
-        XCTAssertTrue(capability.isAdmin)
-        XCTAssertTrue(capability.moderatedCommunityIds.isEmpty)
+        #expect(capability.isAdmin)
+        #expect(capability.moderatedCommunityIds.isEmpty)
         // Admins can moderate anywhere.
-        XCTAssertTrue(capability.canModerate(communityId: 1))
-        XCTAssertTrue(capability.canModerate(communityId: 12345))
-        XCTAssertTrue(capability.hasAnyPower)
+        #expect(capability.canModerate(communityId: 1))
+        #expect(capability.canModerate(communityId: 12345))
+        #expect(capability.hasAnyPower)
     }
 
-    func testModerationCapabilitySignedOutResolvesToNoneWithoutHittingApi() async throws {
+    @Test
+    func moderationCapabilitySignedOutResolvesToNoneWithoutHittingApi() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubModerationTransport(getSite: nil)
@@ -336,8 +339,8 @@ final class LemmyServiceModerationTests: XCTestCase {
 
         let capability = try await service.fetchModerationCapability()
 
-        XCTAssertEqual(capability, .none)
-        XCTAssertFalse(capability.hasAnyPower)
-        XCTAssertFalse(transport.didSendGetSite, "signed-out capability fetch should not hit the api")
+        #expect(capability == .none)
+        #expect(!(capability.hasAnyPower))
+        #expect(!(transport.didSendGetSite), "signed-out capability fetch should not hit the api")
     }
 }

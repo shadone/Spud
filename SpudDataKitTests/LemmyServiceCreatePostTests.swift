@@ -9,7 +9,7 @@ import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias Person = Components.Schemas.Person
@@ -58,19 +58,15 @@ private final class StubCreatePostTransport: ClientTransport, @unchecked Sendabl
 }
 
 @MainActor
-final class LemmyServiceCreatePostTests: XCTestCase {
+struct LemmyServiceCreatePostTests {
     private let keychainId = "keychain-1"
     private let serverCommunityId: Components.Schemas.CommunityID = 1
     private let newServerPostId: Components.Schemas.PostID = 99
 
-    private var appDatabase: AppDatabase!
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     /// Seeds the minimal account + site so that the post mirror can resolve the
@@ -127,7 +123,8 @@ final class LemmyServiceCreatePostTests: XCTestCase {
         return PostResponse(post_view: postView)
     }
 
-    func testCreatePostMirrorsReturnedPostIntoDatabase() async throws {
+    @Test
+    func createPostMirrorsReturnedPostIntoDatabase() async throws {
         try await seedAccountAndSite()
 
         let response = makePostResponse()
@@ -142,8 +139,8 @@ final class LemmyServiceCreatePostTests: XCTestCase {
             nsfw: false
         )
 
-        XCTAssertTrue(transport.didSendCreatePost, "createPost should call the api")
-        XCTAssertEqual(returnedId, newServerPostId, "createPost should return the new post id")
+        #expect(transport.didSendCreatePost, "createPost should call the api")
+        #expect(returnedId == newServerPostId, "createPost should return the new post id")
 
         // The mirrored post must now be queryable via its server id.
         let newServerPostId = newServerPostId
@@ -153,10 +150,11 @@ final class LemmyServiceCreatePostTests: XCTestCase {
                 .fetchOne(db)?
                 .title
         }
-        XCTAssertEqual(storedTitle, "Created from a test")
+        #expect(storedTitle == "Created from a test")
     }
 
-    func testCreatePostOnSignedOutAccountThrowsAndSkipsApi() async throws {
+    @Test
+    func createPostOnSignedOutAccountThrowsAndSkipsApi() async throws {
         try await seedAccountAndSite()
 
         let response = makePostResponse()
@@ -171,13 +169,13 @@ final class LemmyServiceCreatePostTests: XCTestCase {
                 body: "hello",
                 nsfw: false
             )
-            XCTFail("Expected createPost to throw on a signed-out account")
+            Issue.record("Expected createPost to throw on a signed-out account")
         } catch LemmyServiceError.requiresAuthentication {
             // Expected.
         }
 
-        XCTAssertFalse(
-            transport.didSendCreatePost,
+        #expect(
+            !transport.didSendCreatePost,
             "createPost must not hit the api when the account is signed out"
         )
     }

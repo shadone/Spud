@@ -4,22 +4,24 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class AppUserAgentTests: XCTestCase {
-    func test_value_identifiesTheApp() {
-        XCTAssertTrue(
+struct AppUserAgentTests {
+    @Test
+    func value_identifiesTheApp() {
+        #expect(
             AppUserAgent.value.hasPrefix("Spud/"),
             "expected a `Spud/<version>` user-agent, got \(AppUserAgent.value)"
         )
     }
 
-    func test_value_hasNoCFNetworkToken() {
+    @Test
+    func value_hasNoCFNetworkToken() {
         // The whole point: iOS' default `CFNetwork/...` token is denylisted by
         // some Lemmy instances' nginx, which 403s every request that carries it.
-        XCTAssertFalse(
-            AppUserAgent.value.contains("CFNetwork"),
+        #expect(
+            !(AppUserAgent.value.contains("CFNetwork")),
             "user-agent must not contain the denylisted CFNetwork token"
         )
     }

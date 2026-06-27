@@ -5,11 +5,12 @@
 //
 
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
-final class AccountBlurNsfwTests: XCTestCase {
-    func test_setAccountBlurNsfw_mirrorsOntoAccountRow() async throws {
+struct AccountBlurNsfwTests {
+    @Test
+    func setAccountBlurNsfw_mirrorsOntoAccountRow() async throws {
         let appDatabase = try AppDatabase.inMemory()
 
         let keychainId = "keychain-blur-nsfw-test"
@@ -31,6 +32,6 @@ final class AccountBlurNsfwTests: XCTestCase {
         let account = try await appDatabase.writer.read { db in
             try AccountRecord.filter(Column("accountKeychainId") == keychainId).fetchOne(db)
         }
-        XCTAssertEqual(account?.blurNsfw, false)
+        #expect(account?.blurNsfw == false)
     }
 }

@@ -5,7 +5,7 @@
 //
 
 import Foundation
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 /// Actor-based helpers used instead of Atomic (which is a @propertyWrapper and
@@ -24,51 +24,55 @@ private actor Flag {
     }
 }
 
-final class LinkEmbedServiceTests: XCTestCase {
+struct LinkEmbedServiceTests {
     private func youtubeOEmbedJSON(title: String) -> Data {
         #"{"title":"\#(title)","thumbnail_url":"https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"}"#.data(using: .utf8)!
     }
 
-    func test_youtube_returnsTitleAndDerivedThumbnail() async throws {
+    @Test
+    func youtube_returnsTitleAndDerivedThumbnail() async throws {
         let json = youtubeOEmbedJSON(title: "Never Gonna Give You Up")
         let service = LinkEmbedService { _ in json }
-        let result = try await service.embed(for: XCTUnwrap(URL(string: "https://youtu.be/dQw4w9WgXcQ")))
-        let embed = try XCTUnwrap(result)
-        XCTAssertEqual(embed.kind, .video)
-        XCTAssertEqual(embed.title, "Never Gonna Give You Up")
-        XCTAssertEqual(embed.thumbnailURL?.absoluteString, "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg")
+        let result = try await service.embed(for: #require(URL(string: "https://youtu.be/dQw4w9WgXcQ")))
+        let embed = try #require(result)
+        #expect(embed.kind == .video)
+        #expect(embed.title == "Never Gonna Give You Up")
+        #expect(embed.thumbnailURL?.absoluteString == "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg")
     }
 
-    func test_nonVideoLink_returnsNilWithoutFetching() async throws {
+    @Test
+    func nonVideoLink_returnsNilWithoutFetching() async throws {
         let fetched = Flag()
         let service = LinkEmbedService { _ in
             await fetched.set()
             return nil
         }
-        let embed = try await service.embed(for: XCTUnwrap(URL(string: "https://example.com/article")))
-        XCTAssertNil(embed)
+        let embed = try await service.embed(for: #require(URL(string: "https://example.com/article")))
+        #expect(embed == nil)
         let wasFetched = await fetched.value
-        XCTAssertFalse(wasFetched, "must not fetch for a non-video link")
+        #expect(!wasFetched, "must not fetch for a non-video link")
     }
 
-    func test_oEmbedFailure_keepsDerivedThumbnail() async throws {
+    @Test
+    func oEmbedFailure_keepsDerivedThumbnail() async throws {
         let service = LinkEmbedService { _ in nil } // network/JSON failure
-        let result = try await service.embed(for: XCTUnwrap(URL(string: "https://youtu.be/dQw4w9WgXcQ")))
-        let embed = try XCTUnwrap(result)
-        XCTAssertNil(embed.title)
-        XCTAssertEqual(embed.thumbnailURL?.absoluteString, "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg")
+        let result = try await service.embed(for: #require(URL(string: "https://youtu.be/dQw4w9WgXcQ")))
+        let embed = try #require(result)
+        #expect(embed.title == nil)
+        #expect(embed.thumbnailURL?.absoluteString == "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg")
     }
 
-    func test_cache_secondCallDoesNotRefetch() async throws {
+    @Test
+    func cache_secondCallDoesNotRefetch() async throws {
         let count = Counter()
         let json = youtubeOEmbedJSON(title: "t")
         let service = LinkEmbedService { _ in
             await count.bump()
             return json
         }
-        _ = try await service.embed(for: XCTUnwrap(URL(string: "https://youtu.be/dQw4w9WgXcQ")))
-        _ = try await service.embed(for: XCTUnwrap(URL(string: "https://youtu.be/dQw4w9WgXcQ")))
+        _ = try await service.embed(for: #require(URL(string: "https://youtu.be/dQw4w9WgXcQ")))
+        _ = try await service.embed(for: #require(URL(string: "https://youtu.be/dQw4w9WgXcQ")))
         let n = await count.n
-        XCTAssertEqual(n, 1)
+        #expect(n == 1)
     }
 }

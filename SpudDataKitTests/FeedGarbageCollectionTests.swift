@@ -6,22 +6,18 @@
 
 import Foundation
 import GRDB
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 /// Tests for `AppDatabase.pruneStaleFeedRows(olderThan:)`.
 ///
 /// Each test seeds data directly into an in-memory database to avoid relying
 /// on the full LemmyService import pipeline.
-final class FeedGarbageCollectionTests: XCTestCase {
-    private var appDatabase: AppDatabase!
+struct FeedGarbageCollectionTests {
+    private let appDatabase: AppDatabase
 
-    override func setUpWithError() throws {
+    init() throws {
         appDatabase = try AppDatabase.inMemory()
-    }
-
-    override func tearDown() {
-        appDatabase = nil
     }
 
     // MARK: - Seed helpers
@@ -197,7 +193,8 @@ final class FeedGarbageCollectionTests: XCTestCase {
     /// - the old feed, its page, and its pageElement are gone
     /// - the recent feed + its page + pageElement remain
     /// - the shared post row still exists (was NOT cascaded away)
-    func testPrunesFeedsOlderThanCutoffWithPagesAndElements() async throws {
+    @Test
+    func prunesFeedsOlderThanCutoffWithPagesAndElements() async throws {
         let accountId = try await seedAccount()
         let siteId = try await fetchSiteId()
         let deps = try await seedPostDependencies(accountId: accountId, siteId: siteId)
@@ -224,17 +221,18 @@ final class FeedGarbageCollectionTests: XCTestCase {
         let recentElementStillThere = try await pageElementExists(id: recentElementId)
         let postStillThere = try await postExists(id: postRowId)
 
-        XCTAssertFalse(oldFeedGone, "old feed should have been pruned")
-        XCTAssertFalse(oldPageGone, "old page should have been pruned")
-        XCTAssertFalse(oldElementGone, "old pageElement should have been pruned")
-        XCTAssertTrue(recentFeedStillThere, "recent feed should remain")
-        XCTAssertTrue(recentPageStillThere, "recent page should remain")
-        XCTAssertTrue(recentElementStillThere, "recent pageElement should remain")
-        XCTAssertTrue(postStillThere, "shared post row must NOT be deleted by feed GC")
+        #expect(!oldFeedGone, "old feed should have been pruned")
+        #expect(!oldPageGone, "old page should have been pruned")
+        #expect(!oldElementGone, "old pageElement should have been pruned")
+        #expect(recentFeedStillThere, "recent feed should remain")
+        #expect(recentPageStillThere, "recent page should remain")
+        #expect(recentElementStillThere, "recent pageElement should remain")
+        #expect(postStillThere, "shared post row must NOT be deleted by feed GC")
     }
 
     /// The return value must equal the number of stale feed rows deleted.
-    func testReturnsDeletedFeedCount() async throws {
+    @Test
+    func returnsDeletedFeedCount() async throws {
         let accountId = try await seedAccount()
 
         let oldCreatedAt = Date().addingTimeInterval(-3600)
@@ -245,12 +243,13 @@ final class FeedGarbageCollectionTests: XCTestCase {
         let deleted = try await appDatabase.pruneStaleFeedRows(olderThan: 300)
         let remaining = try await feedCount()
 
-        XCTAssertEqual(deleted, 2, "should report exactly 2 deleted feed rows")
-        XCTAssertEqual(remaining, 1, "one recent feed should remain")
+        #expect(deleted == 2, "should report exactly 2 deleted feed rows")
+        #expect(remaining == 1, "one recent feed should remain")
     }
 
     /// When no feeds are older than the cutoff, nothing is deleted and 0 is returned.
-    func testKeepsAllFeedsWhenNoneOlderThanCutoff() async throws {
+    @Test
+    func keepsAllFeedsWhenNoneOlderThanCutoff() async throws {
         let accountId = try await seedAccount()
 
         // All feeds created "now" - well within 300 s cutoff.
@@ -260,7 +259,7 @@ final class FeedGarbageCollectionTests: XCTestCase {
         let deleted = try await appDatabase.pruneStaleFeedRows(olderThan: 300)
         let remaining = try await feedCount()
 
-        XCTAssertEqual(deleted, 0, "should delete nothing when all feeds are recent")
-        XCTAssertEqual(remaining, 2, "both recent feeds should remain")
+        #expect(deleted == 0, "should delete nothing when all feeds are recent")
+        #expect(remaining == 2, "both recent feeds should remain")
     }
 }

@@ -7,7 +7,7 @@
 import Foundation
 import GRDB
 import LemmyKit
-import XCTest
+import Testing
 @testable import SpudDataKit
 
 private typealias Person = Components.Schemas.Person
@@ -19,7 +19,7 @@ private typealias ModRemoveCommentView = Components.Schemas.ModRemoveCommentView
 
 /// Covers the modlog removal-reason service path: correlating modlog entries
 /// into a `commentId -> reason` map, and mirroring those reasons onto comments.
-final class CommentRemovalReasonTests: XCTestCase {
+struct CommentRemovalReasonTests {
     // MARK: Correlation
 
     /// Builds a modlog comment-removal entry. Only `mod_remove_comment` matters
@@ -46,7 +46,8 @@ final class CommentRemovalReasonTests: XCTestCase {
         )
     }
 
-    func testRemovalReasonsKeepsNewestAndSkipsRestoresAndEmpty() {
+    @Test
+    func removalReasonsKeepsNewestAndSkipsRestoresAndEmpty() {
         let views: [ModRemoveCommentView] = [
             // Newest-first: comment 10 was removed twice — the first (most
             // recent) reason must win.
@@ -60,21 +61,23 @@ final class CommentRemovalReasonTests: XCTestCase {
 
         let reasons = LemmyService.removalReasons(from: views)
 
-        XCTAssertEqual(reasons[10], "current reason")
-        XCTAssertNil(reasons[20])
-        XCTAssertNil(reasons[21])
-        XCTAssertNil(reasons[22])
-        XCTAssertEqual(reasons[30], "spam")
-        XCTAssertEqual(reasons.count, 2)
+        #expect(reasons[10] == "current reason")
+        #expect(reasons[20] == nil)
+        #expect(reasons[21] == nil)
+        #expect(reasons[22] == nil)
+        #expect(reasons[30] == "spam")
+        #expect(reasons.count == 2)
     }
 
-    func testRemovalReasonsEmptyInput() {
-        XCTAssertTrue(LemmyService.removalReasons(from: []).isEmpty)
+    @Test
+    func removalReasonsEmptyInput() {
+        #expect(LemmyService.removalReasons(from: []).isEmpty)
     }
 
     // MARK: Mirroring
 
-    func testMirrorCommentRemovalReasonsUpdatesMatchingComment() async throws {
+    @Test
+    func mirrorCommentRemovalReasonsUpdatesMatchingComment() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let serverPostId: Int64 = 1
         let serverCommentId: Components.Schemas.CommentID = 42
@@ -129,6 +132,6 @@ final class CommentRemovalReasonTests: XCTestCase {
                 .fetchOne(db)?
                 .removedReason
         }
-        XCTAssertEqual(storedReason, "rule 2 · be civil")
+        #expect(storedReason == "rule 2 · be civil")
     }
 }

@@ -4,14 +4,16 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import Nuke
+import Testing
 import UIKit
-import XCTest
 @testable import SpudDataKit
 
-final class ImageServiceFullFetchTests: XCTestCase {
-    func test_fullFetch_yieldsReadyImage() async throws {
-        let url = try XCTUnwrap(URL(string: "https://example.com/full.png"))
+struct ImageServiceFullFetchTests {
+    @Test
+    func fullFetch_yieldsReadyImage() async throws {
+        let url = try #require(URL(string: "https://example.com/full.png"))
         let pipeline = ImagePipeline { config in
             config.dataLoader = StubDataLoader(
                 result: .success((ImageFixture.pngData(), ImageFixture.httpResponse(url)))
@@ -24,12 +26,13 @@ final class ImageServiceFullFetchTests: XCTestCase {
         for await state in service.fetch(url, thumbnail: nil) {
             if case let .ready(image) = state { lastImage = image }
         }
-        XCTAssertNotNil(lastImage)
+        #expect(lastImage != nil)
     }
 
-    func test_fullFetch_seedsThumbnailFromMemoryCache() async throws {
-        let fullUrl = try XCTUnwrap(URL(string: "https://example.com/full.png"))
-        let thumbUrl = try XCTUnwrap(URL(string: "https://example.com/thumb.png"))
+    @Test
+    func fullFetch_seedsThumbnailFromMemoryCache() async throws {
+        let fullUrl = try #require(URL(string: "https://example.com/full.png"))
+        let thumbUrl = try #require(URL(string: "https://example.com/thumb.png"))
 
         let memoryCache = ImageCache()
         let pipeline = ImagePipeline { config in
@@ -47,11 +50,12 @@ final class ImageServiceFullFetchTests: XCTestCase {
         for await state in service.fetch(fullUrl, thumbnail: thumbUrl) {
             if case let .loading(thumbnail) = state { loadingThumbnail = thumbnail }
         }
-        XCTAssertNotNil(loadingThumbnail, "Expected .loading to be seeded with the cached thumbnail image")
+        #expect(loadingThumbnail != nil, "Expected .loading to be seeded with the cached thumbnail image")
     }
 
-    func test_fullFetch_failure_yieldsFailureAndAlerts() async throws {
-        let url = try XCTUnwrap(URL(string: "https://example.com/bad.png"))
+    @Test
+    func fullFetch_failure_yieldsFailureAndAlerts() async throws {
+        let url = try #require(URL(string: "https://example.com/bad.png"))
         let alert = SpyAlertService()
         let pipeline = ImagePipeline { config in
             config.dataLoader = StubDataLoader(result: .failure(URLError(.timedOut)))
@@ -63,12 +67,13 @@ final class ImageServiceFullFetchTests: XCTestCase {
         for await state in service.fetch(url, thumbnail: nil) {
             if case .failure = state { sawFailure = true }
         }
-        XCTAssertTrue(sawFailure)
-        XCTAssertEqual(alert.imageErrors, [url])
+        #expect(sawFailure)
+        #expect(alert.imageErrors == [url])
     }
 
-    func test_fullFetch_memoryCacheHit_yieldsReady() async throws {
-        let url = try XCTUnwrap(URL(string: "https://example.com/cached.png"))
+    @Test
+    func fullFetch_memoryCacheHit_yieldsReady() async throws {
+        let url = try #require(URL(string: "https://example.com/cached.png"))
         let pipeline = ImagePipeline { config in
             config.dataLoader = StubDataLoader(result: .failure(URLError(.notConnectedToInternet)))
             config.imageCache = ImageCache()
@@ -80,11 +85,12 @@ final class ImageServiceFullFetchTests: XCTestCase {
         for await state in service.fetch(url, thumbnail: nil) {
             if case let .ready(image) = state { ready = image }
         }
-        XCTAssertNotNil(ready, "memory-cache hit must yield .ready, not hang on .loading")
+        #expect(ready != nil, "memory-cache hit must yield .ready, not hang on .loading")
     }
 
-    func test_fullFetch_throughEventStream_yieldsReady() async throws {
-        let url = try XCTUnwrap(URL(string: "https://example.com/full.png"))
+    @Test
+    func fullFetch_throughEventStream_yieldsReady() async throws {
+        let url = try #require(URL(string: "https://example.com/full.png"))
         let pipeline = ImagePipeline { config in
             config.dataLoader = StubDataLoader(result: .success((ImageFixture.pngData(), ImageFixture.httpResponse(url))))
             config.imageCache = nil
@@ -95,6 +101,6 @@ final class ImageServiceFullFetchTests: XCTestCase {
         for await state in service.fetch(url, thumbnail: nil) {
             if case let .ready(image) = state { lastImage = image }
         }
-        XCTAssertNotNil(lastImage)
+        #expect(lastImage != nil)
     }
 }
