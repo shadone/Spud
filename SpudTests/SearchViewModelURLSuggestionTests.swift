@@ -13,7 +13,8 @@ import Testing
 @MainActor
 struct SearchViewModelURLSuggestionTests {
     private func makeViewModel(
-        isKnownInstance: @escaping (String) -> Bool = { _ in false }
+        isKnownInstance: @escaping (String) -> Bool = { _ in false },
+        searchInstances: @escaping @Sendable (String) -> [SearchInstanceResult] = { _ in [] }
     ) throws -> SearchViewModel {
         let appDatabase = try AppDatabase.inMemory()
         let accountService = AccountService(appDatabase: appDatabase)
@@ -22,7 +23,8 @@ struct SearchViewModelURLSuggestionTests {
             accountScope: scope,
             alertService: AlertService(),
             preferencesService: PreferencesService(),
-            isKnownInstance: isKnownInstance
+            isKnownInstance: isKnownInstance,
+            searchInstances: searchInstances
         )
     }
 
@@ -74,5 +76,31 @@ struct SearchViewModelURLSuggestionTests {
         viewModel.scopeChanged(.communities)
         // scopeChanged() must not call scheduleSearch when a URL suggestion is active.
         #expect(viewModel.phase == .initial)
+    }
+
+    @Test
+    func instancesScope_usesClientSideSearch_notLemmyApi() async throws {
+        let record = ExplorerInstanceRecord(
+            baseurl: "programming.dev",
+            name: "Programming.dev",
+            usersTotal: 5000
+        )
+        let viewModel = try makeViewModel(searchInstances: { query in
+            #expect(query == "prog")
+            return [SearchInstanceResult(record: record)]
+        })
+        // No network: this must resolve via the injected client-side closure.
+        viewModel.scope = .instances
+        viewModel.queryChanged("prog")
+        viewModel.submit()
+
+        // The detached client-side query + main-actor apply settle on the next yields.
+        for _ in 0..<50 where viewModel.phase != .loaded {
+            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(5))
+        }
+
+        #expect(viewModel.phase == .loaded)
+        #expect(viewModel.results.instances.map(\.baseurl) == ["programming.dev"])
     }
 }

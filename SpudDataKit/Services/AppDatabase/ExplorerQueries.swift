@@ -79,4 +79,33 @@ public extension AppDatabase {
                 .fetchOne(db)
         }
     }
+
+    /// Client-side instance search over the bundled Lemmy Explorer directory.
+    /// Matches `baseurl` OR `name` case-insensitively containing `query`,
+    /// ordered by total users (largest first), capped at `limit`. Backs the
+    /// Search screen's `.instances` scope (Lemmy has no federated instance
+    /// search type). An empty/whitespace query returns nothing.
+    func searchExplorerInstancesSync(query: String, limit: Int = 50) -> [ExplorerInstanceRecord] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+
+        // Escape LIKE metacharacters so a literal "%"/"_" in the query matches
+        // literally, then wrap with wildcards for a contains match.
+        let escaped = trimmed
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "%", with: "\\%")
+            .replacingOccurrences(of: "_", with: "\\_")
+        let pattern = "%\(escaped)%"
+
+        return (try? writer.read { db in
+            try ExplorerInstanceRecord
+                .filter(
+                    ExplorerInstanceRecord.Columns.baseurl.like(pattern, escape: "\\")
+                        || ExplorerInstanceRecord.Columns.name.like(pattern, escape: "\\")
+                )
+                .order(ExplorerInstanceRecord.Columns.usersTotal.desc)
+                .limit(limit)
+                .fetchAll(db)
+        }) ?? []
+    }
 }

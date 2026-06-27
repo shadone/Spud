@@ -77,6 +77,20 @@ final class SearchResultCellsSnapshotTests: XCTestCase {
         assertCell(cell)
     }
 
+    // MARK: - Instance cell
+
+    func test_instance_withIcon() async {
+        let cell = SearchInstanceCell(style: .default, reuseIdentifier: nil)
+        await configureInstanceCell(cell, iconUrl: "https://programming.dev/pictrs/image/icon.png")
+        assertCell(cell)
+    }
+
+    func test_instance_placeholderIcon() async {
+        let cell = SearchInstanceCell(style: .default, reuseIdentifier: nil)
+        await configureInstanceCell(cell, iconUrl: nil)
+        assertCell(cell)
+    }
+
     // MARK: - Configuration
 
     private func configurePostCell(_ cell: SearchPostCell, thumbnailUrl: URL?) async {
@@ -122,6 +136,20 @@ final class SearchResultCellsSnapshotTests: XCTestCase {
                 instance: instance("https://lemmy.world"),
                 avatarUrl: avatarUrl
             ),
+            imageService: StaticImageService()
+        )
+        await settle()
+    }
+
+    private func configureInstanceCell(_ cell: SearchInstanceCell, iconUrl: String?) async {
+        let record = ExplorerInstanceRecord(
+            baseurl: "programming.dev",
+            name: "Programming.dev",
+            usersTotal: 48200,
+            iconUrl: iconUrl
+        )
+        cell.configure(
+            with: SearchInstanceResult(record: record),
             imageService: StaticImageService()
         )
         await settle()

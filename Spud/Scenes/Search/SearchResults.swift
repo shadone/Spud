@@ -6,6 +6,7 @@
 
 import Foundation
 import LemmyKit
+import SpudDataKit
 import SpudUtilKit
 
 /// A single post result. Carries the server post id so a tap can open
@@ -203,6 +204,55 @@ struct SearchCommentResult: Hashable, Identifiable {
     }
 }
 
+/// A single instance result. Sourced client-side from the bundled Lemmy
+/// Explorer directory (not federated search). Carries the full
+/// ``ExplorerInstanceRecord`` so a tap can open the in-app instance screen
+/// directly, the same way the "Open in Spud" instance row does.
+struct SearchInstanceResult: Hashable, Identifiable {
+    /// Instance host, e.g. "programming.dev". Unique within the directory.
+    let baseurl: String
+    let name: String
+    let usersTotal: Int64
+    let iconUrl: URL?
+    /// The full directory record, used to open the instance screen on tap.
+    let record: ExplorerInstanceRecord
+
+    var id: String {
+        baseurl
+    }
+
+    /// A short "N members" summary for the cell's secondary line.
+    var membersText: String {
+        let count = usersTotal.formatted(.number.notation(.compactName))
+        return String(
+            format: NSLocalizedString(
+                "%@ members",
+                comment: "Search instance row: member count summary, %@ is a formatted number"
+            ),
+            count
+        )
+    }
+
+    init(record: ExplorerInstanceRecord) {
+        baseurl = record.baseurl
+        name = record.name
+        usersTotal = record.usersTotal
+        iconUrl = record.iconUrl.flatMap { URL(string: $0) }
+        self.record = record
+    }
+
+    /// Hashable / Equatable keyed on the unique baseurl: the record is value-stable
+    /// for a given baseurl within one search, and ExplorerInstanceRecord is not
+    /// itself Hashable.
+    static func == (lhs: SearchInstanceResult, rhs: SearchInstanceResult) -> Bool {
+        lhs.baseurl == rhs.baseurl
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(baseurl)
+    }
+}
+
 /// The full set of results for one search response, partitioned by kind. Only
 /// the list matching the active scope is shown, but the response can carry
 /// more than one kind so all are decoded.
@@ -211,6 +261,8 @@ struct SearchResults {
     var communities: [SearchCommunityResult] = []
     var users: [SearchUserResult] = []
     var comments: [SearchCommentResult] = []
+    /// Client-side Explorer-directory results for the `.instances` scope.
+    var instances: [SearchInstanceResult] = []
 
     init() { }
 
@@ -238,6 +290,7 @@ struct SearchResults {
         case .communities: communities.isEmpty
         case .users: users.isEmpty
         case .comments: comments.isEmpty
+        case .instances: instances.isEmpty
         }
     }
 }

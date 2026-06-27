@@ -50,6 +50,11 @@ final class SearchViewModel {
     private let preferencesService: PreferencesServiceType
     @ObservationIgnored
     private let isKnownInstance: (String) -> Bool
+    /// Client-side instance search over the bundled Lemmy Explorer directory.
+    /// Lemmy has no federated instance search type, so the `.instances` scope is
+    /// served locally. Injected (production reads `AppDatabase`; tests stub).
+    @ObservationIgnored
+    private let searchInstances: @Sendable (String) -> [SearchInstanceResult]
 
     /// The in-flight (or pending-debounce) search. Cancelled and replaced on
     /// every new query / scope change.
@@ -62,12 +67,14 @@ final class SearchViewModel {
         accountScope: AccountScope,
         alertService: AlertServiceType,
         preferencesService: PreferencesServiceType,
-        isKnownInstance: @escaping (String) -> Bool
+        isKnownInstance: @escaping (String) -> Bool,
+        searchInstances: @escaping @Sendable (String) -> [SearchInstanceResult]
     ) {
         self.accountScope = accountScope
         self.alertService = alertService
         self.preferencesService = preferencesService
         self.isKnownInstance = isKnownInstance
+        self.searchInstances = searchInstances
     }
 
     deinit {
@@ -144,12 +151,27 @@ final class SearchViewModel {
     }
 
     private func performSearch(query: String, scope: SearchScope) async {
+        // `.instances` is served client-side from the bundled Explorer directory;
+        // Lemmy has no federated instance search type.
+        if scope.isInstances {
+            await performInstanceSearch(query: query)
+            return
+        }
+
+        guard let type = scope.searchType else {
+            // Defensive: every non-instances scope has a search type.
+            results = SearchResults()
+            lastSearchedQuery = query
+            phase = .loaded
+            return
+        }
+
         let lemmyService = accountScope.lemmyService
 
         do {
             let response = try await lemmyService.search(
                 query: query,
-                type: scope.searchType,
+                type: type,
                 sort: .TopAll,
                 listingType: .All,
                 page: 1
@@ -167,5 +189,21 @@ final class SearchViewModel {
             lastSearchedQuery = query
             phase = .error
         }
+    }
+
+    /// Runs the client-side Explorer instance search off the main actor (the
+    /// `*Sync` helper reads GRDB), then applies the results back on the main actor.
+    private func performInstanceSearch(query: String) async {
+        let searchInstances = searchInstances
+        let matches = await Task.detached(priority: .userInitiated) {
+            searchInstances(query)
+        }.value
+        if Task.isCancelled { return }
+
+        var results = SearchResults()
+        results.instances = matches
+        self.results = results
+        lastSearchedQuery = query
+        phase = .loaded
     }
 }

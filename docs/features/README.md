@@ -71,7 +71,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Replying](replying.md) | `iphone`, `ipad` | partial — no edit/delete of own comments |
 | [Sharing](sharing.md) | `iphone`, `ipad` | shipped |
 | [Media viewer and inline video](media-viewer.md) | `iphone`, `ipad` | shipped |
-| [Search](search.md) | `iphone`, `ipad` | shipped |
+| [Search](search.md) | `iphone`, `ipad` | shipped — scopes: posts / communities / users / comments (federated) + instances (local directory) |
 | [Subscriptions sidebar](subscriptions-sidebar.md) | `ipad` | shipped |
 | [Subscribe / unsubscribe](subscribe-unsubscribe.md) | `iphone`, `ipad` | shipped |
 | [Community screen](community-screen.md) | `iphone`, `ipad` | shipped — overflow: subscribe, favorite, mute, block, share |
@@ -142,7 +142,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Animated GIF playback; inline video
 
 **Discovery**
-- [x] Search (posts / comments / communities / users) + inline subscribe + paste-a-Lemmy-URL "Open in Spud" (canonical + frontend `/c/../p/<id>` form)
+- [x] Search (posts / comments / communities / users federated, + instances over the local Explorer directory) + inline subscribe + paste-a-Lemmy-URL "Open in Spud" (canonical + frontend `/c/../p/<id>` form)
 - [x] Subscriptions sidebar (iPad / regular-width only; no iPhone-portrait entry point) + favorites pinned to top
 - [x] Subscribe / unsubscribe
 - [x] Community screen (header + feed; overflow: subscribe, favorite, mute, block, copy link / share / open in browser)

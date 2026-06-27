@@ -78,6 +78,7 @@ final class SearchViewController: UIViewController {
         case community(SearchCommunityResult)
         case user(SearchUserResult)
         case comment(SearchCommentResult)
+        case instance(SearchInstanceResult)
     }
 
     private lazy var tableView: UITableView = {
@@ -91,6 +92,7 @@ final class SearchViewController: UIViewController {
         tableView.register(SearchCommunityCell.self, forCellReuseIdentifier: SearchCommunityCell.reuseIdentifier)
         tableView.register(SearchUserCell.self, forCellReuseIdentifier: SearchUserCell.reuseIdentifier)
         tableView.register(SearchCommentCell.self, forCellReuseIdentifier: SearchCommentCell.reuseIdentifier)
+        tableView.register(SearchInstanceCell.self, forCellReuseIdentifier: SearchInstanceCell.reuseIdentifier)
         tableView.register(SearchOpenURLCell.self, forCellReuseIdentifier: SearchOpenURLCell.reuseIdentifier)
         return tableView
     }()
@@ -132,7 +134,11 @@ final class SearchViewController: UIViewController {
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             alertService: dependencies.alertService,
             preferencesService: dependencies.preferencesService,
-            isKnownInstance: { host in appDatabase.explorerInstanceSync(baseurl: host) != nil }
+            isKnownInstance: { host in appDatabase.explorerInstanceSync(baseurl: host) != nil },
+            searchInstances: { query in
+                appDatabase.searchExplorerInstancesSync(query: query)
+                    .map(SearchInstanceResult.init)
+            }
         )
 
         super.init(nibName: nil, bundle: nil)
@@ -198,7 +204,7 @@ final class SearchViewController: UIViewController {
             }
         }
         resultsObservationTask = Task { @MainActor [weak self] in
-            for await _ in ObservationStream.values(of: { (viewModel.urlSuggestion?.displayURL, viewModel.results.posts, viewModel.results.communities, viewModel.results.users, viewModel.results.comments, viewModel.scope) }) {
+            for await _ in ObservationStream.values(of: { (viewModel.urlSuggestion?.displayURL, viewModel.results.posts, viewModel.results.communities, viewModel.results.users, viewModel.results.comments, viewModel.results.instances, viewModel.scope) }) {
                 if Task.isCancelled { break }
                 self?.render()
             }
@@ -247,6 +253,8 @@ final class SearchViewController: UIViewController {
             items = viewModel.results.users.map(Item.user)
         case .comments:
             items = viewModel.results.comments.map(Item.comment)
+        case .instances:
+            items = viewModel.results.instances.map(Item.instance)
         }
         applySnapshot(suggestion: nil, items: items)
     }
@@ -357,6 +365,14 @@ final class SearchViewController: UIViewController {
                 ) as! SearchCommentCell
                 cell.configure(with: result)
                 return cell
+
+            case let .instance(result):
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: SearchInstanceCell.reuseIdentifier,
+                    for: indexPath
+                ) as! SearchInstanceCell
+                cell.configure(with: result, imageService: imageService)
+                return cell
             }
         }
     }
@@ -435,6 +451,12 @@ final class SearchViewController: UIViewController {
             Haptics.warning()
             return
         }
+        openInstance(record: record)
+    }
+
+    /// Pushes the in-app instance screen for an Explorer directory record. Shared
+    /// by the "Open in Spud" instance row and the Instances-scope result tap.
+    private func openInstance(record: ExplorerInstanceRecord) {
         let vc = InstanceExploreViewController(
             record: record,
             accountKeychainId: accountKeychainId,
@@ -509,6 +531,11 @@ extension SearchViewController: UITableViewDelegate {
         case let .comment(result):
             guard let window = view.window as? MainWindow else { return }
             window.display(serverPostId: result.serverPostId, accountKeychainId: accountKeychainId)
+
+        case let .instance(result):
+            // Reuse the open-URL instance row's path: push the in-app instance
+            // screen for the Explorer record carried by the result.
+            openInstance(record: result.record)
         }
     }
 }
