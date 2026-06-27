@@ -19,7 +19,7 @@ struct PostDetailHeaderAttributionTests {
         communityTitle: String? = "News",
         communityActorId: String? = "https://lemmy.world/c/news",
         creatorName: String = "Tony",
-        creatorInstanceActorId: String = "https://beehaw.org"
+        creatorActorId: String? = "https://beehaw.org/u/Tony"
     ) -> NSAttributedString {
         let row = PostDetailHeaderRow(
             id: 1,
@@ -40,7 +40,7 @@ struct PostDetailHeaderAttributionTests {
             serverCommunityId: 1,
             creatorName: creatorName,
             creatorPersonId: 1,
-            creatorInstanceActorId: creatorInstanceActorId,
+            creatorActorId: creatorActorId,
             score: 0,
             numberOfComments: 0,
             voteStatus: nil,

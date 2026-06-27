@@ -141,7 +141,7 @@ struct PostDetailHeaderImageReuseTests {
             serverCommunityId: 1,
             creatorName: "tony",
             creatorPersonId: 1,
-            creatorInstanceActorId: "https://lemmy.world",
+            creatorActorId: "https://lemmy.world",
             score: 123,
             numberOfComments: 45,
             voteStatus: voteStatus,

@@ -143,10 +143,15 @@ struct PostDetailHeaderViewModel {
         linkPreviews = bodyBlocks.commentLinkPreviews(limit: 3)
         self.fetchLinkEmbeds = fetchLinkEmbeds
 
+        // The author's "@host" and their profile deep link both come from the
+        // author's OWN actor id (e.g. "https://beehaw.org/u/Tony"), whose host is
+        // their home instance — NOT the observing account's instance. Mirrors the
+        // community path below.
         var creatorAttributes = secondaryHighlightedAttributes
         if
-            let creatorInstanceUrl = URL(string: row.creatorInstanceActorId),
-            let creatorInstance = InstanceActorId(from: creatorInstanceUrl)
+            let creatorActorId = row.creatorActorId,
+            let creatorActorUrl = URL(string: creatorActorId),
+            let creatorInstance = InstanceActorId(from: creatorActorUrl)
         {
             creatorAttributes[.link] = URL.SpudInternalLink.person(
                 personId: Int32(truncatingIfNeeded: row.creatorPersonId),
@@ -193,7 +198,7 @@ struct PostDetailHeaderViewModel {
             return row.communityName
         }()
         let communityHost = row.communityActorId.flatMap { InstanceActorId(from: $0)?.host }
-        let creatorHost = InstanceActorId(from: row.creatorInstanceActorId)?.host
+        let creatorHost = row.creatorActorId.flatMap { InstanceActorId(from: $0)?.host }
 
         // "in <Community>@host by <Creator>@host" — the whole handle (name + host) is
         // the tap target.

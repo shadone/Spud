@@ -36,7 +36,7 @@ struct CommentCollapseStateTests {
             published: more ? nil : Date(timeIntervalSince1970: 0),
             creatorName: more ? nil : "u\(id)",
             creatorPersonId: more ? nil : id,
-            creatorInstanceActorId: more ? nil : "https://example.test",
+            creatorActorId: more ? nil : "https://example.test",
             moreChildCount: more ? 3 : nil,
             moreParentId: more ? 1 : nil
         )

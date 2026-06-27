@@ -38,7 +38,7 @@ struct PostDetailCommentViewModelAccessibilityTests {
             published: Date(timeIntervalSinceNow: -3600),
             creatorName: "alice",
             creatorPersonId: 1,
-            creatorInstanceActorId: "https://lemmy.world",
+            creatorActorId: "https://lemmy.world",
             moreChildCount: nil,
             moreParentId: nil
         )

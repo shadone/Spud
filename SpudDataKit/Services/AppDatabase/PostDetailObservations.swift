@@ -47,7 +47,12 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
     public let serverCommunityId: Int64
     public let creatorName: String
     public let creatorPersonId: Int64
-    public let creatorInstanceActorId: String
+    /// The post author's own federation actor id (e.g.
+    /// "https://beehaw.org/u/Tony"). Its host is the author's *home* instance —
+    /// the source of truth for the "@host" suffix and the person deep link.
+    /// Optional because `person.actorId` is nullable (Lemmy always provides it,
+    /// but be defensive). NOT the observing account's instance.
+    public let creatorActorId: String?
     public let score: Int64
     public let numberOfComments: Int64
     /// 1 = upvoted, 0 = downvoted, nil = no vote.
@@ -83,7 +88,7 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
         serverCommunityId: Int64,
         creatorName: String,
         creatorPersonId: Int64,
-        creatorInstanceActorId: String,
+        creatorActorId: String?,
         score: Int64,
         numberOfComments: Int64,
         voteStatus: Int64?,
@@ -114,7 +119,7 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
         self.serverCommunityId = serverCommunityId
         self.creatorName = creatorName
         self.creatorPersonId = creatorPersonId
-        self.creatorInstanceActorId = creatorInstanceActorId
+        self.creatorActorId = creatorActorId
         self.score = score
         self.numberOfComments = numberOfComments
         self.voteStatus = voteStatus
@@ -131,7 +136,7 @@ public struct PostDetailHeaderRow: Sendable, Equatable, Identifiable {
 
 /// Composite snapshot row for one entry in the comment tree. Carries
 /// element ordering metadata, the underlying comment fields when present,
-/// and the creator's name + person id + instance actor id used to build
+/// and the creator's name + person id + own actor id used to build
 /// SpudInternalLink urls in author labels.
 public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
     public let id: Int64
@@ -171,7 +176,11 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
     public let published: Date?
     public let creatorName: String?
     public let creatorPersonId: Int64?
-    public let creatorInstanceActorId: String?
+    /// The comment author's own federation actor id (e.g.
+    /// "https://beehaw.org/u/Tony"). Its host is the author's *home* instance,
+    /// used for the person deep link — NOT the observing account's instance.
+    /// nil for "load more" placeholders (and defensively for a null actorId).
+    public let creatorActorId: String?
     /// For "load more" placeholders, the number of children waiting and
     /// the parent comment id. Both nil for normal rows.
     public let moreChildCount: Int64?
@@ -201,7 +210,7 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
         published: Date?,
         creatorName: String?,
         creatorPersonId: Int64?,
-        creatorInstanceActorId: String?,
+        creatorActorId: String?,
         moreChildCount: Int64?,
         moreParentId: Int64?
     ) {
@@ -228,7 +237,7 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
         self.published = published
         self.creatorName = creatorName
         self.creatorPersonId = creatorPersonId
-        self.creatorInstanceActorId = creatorInstanceActorId
+        self.creatorActorId = creatorActorId
         self.moreChildCount = moreChildCount
         self.moreParentId = moreParentId
     }
@@ -294,12 +303,10 @@ public extension AppDatabase {
                             creator.name               AS creatorName,
                             creator.displayName        AS creatorDisplayName,
                             creator.personId           AS creatorPersonId,
-                            creatorInstance.actorId    AS creatorInstanceActorId
+                            creator.actorId            AS creatorActorId
                         FROM post
                         JOIN community  ON community.id = post.communityId
                         JOIN person     AS creator         ON creator.id = post.creatorId
-                        JOIN site       AS creatorSite     ON creatorSite.id = creator.siteId
-                        JOIN instance   AS creatorInstance ON creatorInstance.id = creatorSite.instanceId
                         WHERE post.id = ?
                     """, arguments: [postRowId])
                 else {
@@ -326,7 +333,7 @@ public extension AppDatabase {
                     serverCommunityId: row["serverCommunityId"],
                     creatorName: rawCreatorName ?? "",
                     creatorPersonId: row["creatorPersonId"],
-                    creatorInstanceActorId: row["creatorInstanceActorId"],
+                    creatorActorId: row["creatorActorId"],
                     score: row["score"],
                     numberOfComments: row["numberOfComments"],
                     voteStatus: row["voteStatus"],
@@ -390,12 +397,10 @@ public extension AppDatabase {
                             creator.isBanned               AS creatorIsSiteBanned,
                             creator.isBotAccount           AS creatorIsBot,
                             creator.isDeleted              AS creatorAccountDeleted,
-                            creatorInstance.actorId        AS creatorInstanceActorId
+                            creator.actorId                AS creatorActorId
                         FROM commentElement
                         LEFT JOIN comment ON comment.id = commentElement.commentId
                         LEFT JOIN person     AS creator         ON creator.id = comment.creatorId
-                        LEFT JOIN site       AS creatorSite     ON creatorSite.id = creator.siteId
-                        LEFT JOIN instance   AS creatorInstance ON creatorInstance.id = creatorSite.instanceId
                         WHERE commentElement.postId = ?
                           AND commentElement.sortType = ?
                         ORDER BY commentElement.position ASC
@@ -427,7 +432,7 @@ public extension AppDatabase {
                         published: row["published"],
                         creatorName: rawCreatorName,
                         creatorPersonId: row["creatorPersonId"],
-                        creatorInstanceActorId: row["creatorInstanceActorId"],
+                        creatorActorId: row["creatorActorId"],
                         moreChildCount: row["moreChildCount"],
                         moreParentId: row["moreParentId"]
                     )

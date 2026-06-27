@@ -39,7 +39,7 @@ struct PostDetailViewModelExpandAncestorsTests {
             isCreatorAccountDeleted: false, removedReason: nil,
             published: Date(timeIntervalSince1970: 1_000_000 + publishedOffset),
             creatorName: "u\(id)", creatorPersonId: id,
-            creatorInstanceActorId: "https://example.test",
+            creatorActorId: "https://example.test",
             moreChildCount: nil, moreParentId: nil
         )
     }

@@ -141,7 +141,7 @@ struct PostDetailHeaderBodyWidthTests {
             serverCommunityId: 1,
             creatorName: "peanutbuttercupola",
             creatorPersonId: 1,
-            creatorInstanceActorId: "https://hexbear.net",
+            creatorActorId: "https://hexbear.net",
             score: 123,
             numberOfComments: 45,
             voteStatus: nil,

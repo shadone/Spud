@@ -42,7 +42,7 @@ struct NewCommentStateTests {
             published: more ? nil : Date(timeIntervalSince1970: 1_000_000 + publishedOffset),
             creatorName: more ? nil : "u\(id)",
             creatorPersonId: more ? nil : creatorPersonId,
-            creatorInstanceActorId: more ? nil : "https://example.test",
+            creatorActorId: more ? nil : "https://example.test",
             moreChildCount: more ? 3 : nil,
             moreParentId: more ? 1 : nil
         )

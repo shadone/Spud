@@ -190,11 +190,12 @@ struct PostDetailCommentViewModel {
             authorAttributes[.strikethroughColor] = UIColor.systemRed
         }
         // The author links to their profile — except an account-deleted author,
-        // which has no profile to open.
+        // which has no profile to open. The instance comes from the author's own
+        // actor id (their home instance), NOT the observing account's instance.
         if
             !accountDeleted,
             let personId = row.creatorPersonId,
-            let actorIdString = row.creatorInstanceActorId,
+            let actorIdString = row.creatorActorId,
             let url = URL(string: actorIdString),
             let instance = InstanceActorId(from: url)
         {

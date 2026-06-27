@@ -334,7 +334,7 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
             published: Date(timeIntervalSinceNow: -3 * 3600),
             creatorName: "ansel",
             creatorPersonId: creatorPersonId,
-            creatorInstanceActorId: "https://lemmy.world",
+            creatorActorId: "https://lemmy.world",
             moreChildCount: nil,
             moreParentId: nil
         )

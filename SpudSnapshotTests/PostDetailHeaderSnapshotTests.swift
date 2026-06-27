@@ -369,7 +369,7 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
             serverCommunityId: 1,
             creatorName: "ansel",
             creatorPersonId: 1,
-            creatorInstanceActorId: "https://lemmy.world",
+            creatorActorId: "https://lemmy.world",
             score: 1234,
             numberOfComments: 56,
             voteStatus: nil,
