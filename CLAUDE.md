@@ -6,6 +6,20 @@ Native iOS client for [Lemmy](https://join-lemmy.org). UIKit, GRDB, SPM. Bundle 
 
 Project went dormant after June 2024. Picked back up May 2026. The previous session was mid-migration to Swift strict concurrency (project flag `SWIFT_STRICT_CONCURRENCY = complete` is already set); that WIP lives in `git stash@{0}` (`pre-pickup-2026-05 strict-concurrency WIP`) but is intentionally being redone from scratch — do not pop it without asking.
 
+## Quality bar (the standard every change is held to)
+
+The goal is a genuinely great app — top-notch UI/UX that looks and feels like a native iOS citizen, on a clean codebase that's a pleasure for both humans and LLM agents to work in. Every change (feature, fix, or refactor) is held to this bar; when a shortcut would compromise it, do it properly or flag the tradeoff — don't quietly ship the lesser version.
+
+- **Native iOS citizen.** UI/UX follows Apple's HIG and feels built-in, not ported: system controls, SF Symbols, Dynamic Type, light/dark, haptics, context menus, swipe actions, standard navigation, and smooth system-feeling animation. Adaptive across size classes — iPhone and iPad are both first-class (see the universal-app note above); exercise the regular size class / split view, not just compact.
+- **Accessibility is part of "done".** VoiceOver label/trait/actions, Dynamic Type, and adequate contrast on every interactive element — designed in, not bolted on. (Snapshot tests don't catch this; cover it deliberately.)
+- **Clean, legible architecture** (for humans and agents alike): respect the layer/dependency direction (`Spud → SpudDataKit / SpudUIKit / SpudMarkdownKit → SpudUtilKit`; frameworks never import the app); view-models are `@Observable`, reactive via AsyncSequence/Observation (no Combine, no Core Data); per-account flows take an `AccountScope`. Prefer many small, single-purpose files over large ones.
+- **DRY + consistent.** Reuse existing components/services/helpers before adding new ones; when the same logic, copy, or label appears twice, unify it. Terminology must be consistent across screens (e.g. the action on a community is "Subscribe" everywhere — this is enforced, not incidental).
+- **Documentation is paramount — three tiers, all expected on every change:**
+  1. **API docs** — `///` doc comments on public/`internal` types, methods, and non-trivial properties: what it does, important parameters, and gotchas.
+  2. **Internal comments** — explain the *why* of anything non-obvious (concurrency ordering, workarounds, platform quirks, deliberate tradeoffs). Never narrate the obvious.
+  3. **Feature docs** — every user-facing change updates `docs/features/` at a product-manager level: a `<capability>.md` with behavior/rules and **Scenarios** as Given/When/Then user stories, plus the README capability table *and* by-area map (see "Code style" → docs discipline). Keep `Status:` honest and reconcile adjacent docs.
+- **Verify, don't assume.** Build and run the relevant unit + snapshot tests before claiming done; re-record snapshots on the reference device/runtime when UI changes; run SwiftFormat before the final verify. State outcomes faithfully.
+
 ## Project layout
 
 `Spud.xcodeproj` is generated from `project.yml` via XcodeGen (`make project` / `xcodegen generate`); the generated project is gitignored, so `project.yml` is the source of truth. There is no longer a workspace — `LemmyKit` is consumed as a **versioned remote SPM package** (`url:` + `exactVersion:` in `project.yml`, currently pinned to 0.5.0), resolved from its git remote. The sibling `../LemmyKit` directory is the development checkout of that package, **not** what Spud builds against — edits there don't reach Spud until they're tagged a release and the pin is bumped.
