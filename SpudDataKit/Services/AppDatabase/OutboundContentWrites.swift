@@ -27,6 +27,7 @@ public extension AppDatabase {
                 existing.parentCommentServerId = input.parentCommentServerId
                 existing.communityServerId = input.communityServerId
                 existing.editCommentServerId = input.editCommentServerId
+                existing.editPostServerId = input.editPostServerId
                 existing.updatedAt = now
                 try existing.update(db)
                 return existing.clientToken
@@ -38,7 +39,8 @@ public extension AppDatabase {
                     postServerId: input.postServerId, parentCommentServerId: input.parentCommentServerId,
                     communityServerId: input.communityServerId, title: input.title, url: input.url,
                     nsfw: input.nsfw, postType: input.postType,
-                    editCommentServerId: input.editCommentServerId, attempts: 0, lastError: nil,
+                    editCommentServerId: input.editCommentServerId,
+                    editPostServerId: input.editPostServerId, attempts: 0, lastError: nil,
                     nextAttemptAt: nil, createdAt: now, updatedAt: now
                 )
                 try row.insert(db)

@@ -42,6 +42,11 @@ final class NewPostViewController: UIViewController {
     /// so the presenter can push the optimistic pending-post screen.
     var onQueued: ((String) -> Void)?
 
+    /// Invoked once an EDIT has been durably enqueued (its optimistic write
+    /// already applied), so the presenter can simply dismiss back to the post —
+    /// the open post header already reflects the edit via its GRDB observation.
+    var onEditQueued: (() -> Void)?
+
     // MARK: UI
 
     private lazy var scrollView: UIScrollView = {
@@ -182,14 +187,24 @@ final class NewPostViewController: UIViewController {
         serverCommunityId: Components.Schemas.CommunityID?,
         initialCommunityName: String?,
         accountKeychainId: String,
-        dependencies: Dependencies
+        dependencies: Dependencies,
+        editPostServerId: Int64? = nil,
+        initialTitle: String? = nil,
+        initialBody: String? = nil,
+        initialUrl: String? = nil,
+        initialNsfw: Bool = false
     ) {
         self.dependencies = dependencies
         viewModel = NewPostViewModel(
             serverCommunityId: serverCommunityId,
             initialCommunityName: initialCommunityName,
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
-            dependencies: dependencies
+            dependencies: dependencies,
+            editPostServerId: editPostServerId,
+            initialTitle: initialTitle,
+            initialBody: initialBody,
+            initialUrl: initialUrl,
+            initialNsfw: initialNsfw
         )
         super.init(nibName: nil, bundle: nil)
     }
@@ -241,9 +256,14 @@ final class NewPostViewController: UIViewController {
     private func setup() {
         view.backgroundColor = Theme.background
 
-        navigationItem.title = NSLocalizedString("New post", comment: "Title of the new-post composer")
+        navigationItem.title = viewModel.navigationTitle
+        postButton.title = viewModel.submitButtonTitle
         navigationItem.leftBarButtonItem = cancelButton
         navigationItem.rightBarButtonItem = postButton
+
+        // In edit mode the community is fixed: show it, but don't let the user
+        // re-target the post to a different community.
+        communityButton.isEnabled = viewModel.canChangeCommunity
 
         view.addSubview(scrollView)
         scrollView.addSubview(stackView)
@@ -372,6 +392,13 @@ final class NewPostViewController: UIViewController {
                 onQueued?(clientToken)
             }
 
+        case .editQueued:
+            view.endEditing(true)
+            Haptics.success()
+            dismiss(animated: true) { [onEditQueued] in
+                onEditQueued?()
+            }
+
         case let .failed(message):
             setFormEnabled(true)
             navigationItem.rightBarButtonItem = postButton
@@ -388,7 +415,8 @@ final class NewPostViewController: UIViewController {
         bodyModeControl.isEnabled = enabled
         postTypeControl.isEnabled = enabled
         nsfwSwitch.isEnabled = enabled
-        communityButton.isEnabled = enabled
+        // The community stays locked in edit mode regardless of form-enabled state.
+        communityButton.isEnabled = enabled && viewModel.canChangeCommunity
         attachImageButton.isEnabled = enabled
     }
 
@@ -551,6 +579,44 @@ extension NewPostViewController {
             dependencies: dependencies
         )
         composer.onQueued = onQueued
+        let navigationController = UINavigationController(rootViewController: composer)
+        if let sheet = navigationController.sheetPresentationController {
+            sheet.detents = [.large()]
+            sheet.prefersGrabberVisible = true
+        }
+        return navigationController
+    }
+
+    /// Wraps the composer in edit mode (seeded with an existing post) in a
+    /// navigation controller configured as a large detent sheet, ready to
+    /// `present(...)`. The composer self-dismisses once the edit is durably
+    /// enqueued; the open post header reflects the optimistic edit via its GRDB
+    /// observation, so no presenter callback is needed. `onEditQueued` is an
+    /// optional post-dismiss hook for any future presenter that needs one.
+    static func makeEditSheet(
+        serverPostId: Int64,
+        serverCommunityId: Components.Schemas.CommunityID,
+        communityName: String,
+        title: String,
+        body: String?,
+        url: String?,
+        nsfw: Bool,
+        accountKeychainId: String,
+        dependencies: Dependencies,
+        onEditQueued: (() -> Void)? = nil
+    ) -> UIViewController {
+        let composer = NewPostViewController(
+            serverCommunityId: serverCommunityId,
+            initialCommunityName: communityName,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies,
+            editPostServerId: serverPostId,
+            initialTitle: title,
+            initialBody: body,
+            initialUrl: url,
+            initialNsfw: nsfw
+        )
+        composer.onEditQueued = onEditQueued
         let navigationController = UINavigationController(rootViewController: composer)
         if let sheet = navigationController.sheetPresentationController {
             sheet.detents = [.large()]

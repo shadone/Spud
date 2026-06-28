@@ -54,15 +54,28 @@ public struct LemmyComposerPerformer: OutboundContentPerforming {
             )
             return nil
         case .post:
-            guard let communityServerId = record.communityServerId else { return nil }
             let trimmedBody = record.body.trimmingCharacters(in: .whitespacesAndNewlines)
-            let response = try await api.createPost(
-                communityID: Components.Schemas.CommunityID(communityServerId),
-                name: record.title ?? "",
-                url: record.url,
-                body: trimmedBody.isEmpty ? nil : trimmedBody,
-                nsfw: record.nsfw
-            )
+            let response: Components.Schemas.PostResponse
+            if let editPostServerId = record.editPostServerId {
+                // Edit of an existing post: update title/url/body/nsfw in place.
+                response = try await api.editPost(
+                    postID: Components.Schemas.PostID(editPostServerId),
+                    name: record.title,
+                    url: record.url,
+                    body: trimmedBody.isEmpty ? nil : trimmedBody,
+                    nsfw: record.nsfw
+                )
+            } else {
+                // Create a new post.
+                guard let communityServerId = record.communityServerId else { return nil }
+                response = try await api.createPost(
+                    communityID: Components.Schemas.CommunityID(communityServerId),
+                    name: record.title ?? "",
+                    url: record.url,
+                    body: trimmedBody.isEmpty ? nil : trimmedBody,
+                    nsfw: record.nsfw
+                )
+            }
             try await appDatabase.upsertPost(
                 from: response.post_view,
                 accountId: accountId,

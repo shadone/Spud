@@ -273,6 +273,20 @@ public protocol LemmyServiceType: Actor {
     /// draft can't be found or when the account row can't be resolved.
     func loadDraft(draftKey: String) async throws -> OutboundContentRecord?
 
+    /// Apply an edit's title/body/url/nsfw to the user's OWN post optimistically,
+    /// so the open post header reflects the edit immediately. The change is scoped
+    /// to the backing account's post row; the content outbox subsequently sends the
+    /// `editPost` and the post-edit reconcile guard keeps the optimistic values
+    /// from being clobbered by a refresh until the server confirms. A no-op when
+    /// the account row can't be resolved.
+    func applyOptimisticPostEdit(
+        serverPostId: Components.Schemas.PostID,
+        title: String,
+        body: String?,
+        url: String?,
+        nsfw: Bool
+    ) async
+
     /// A stream of permanent composer failures for compositions enqueued through
     /// this service. Terminates immediately (empty stream) when the composer
     /// outbox can't be built.
@@ -1983,6 +1997,31 @@ public actor LemmyService: LemmyServiceType {
     public func loadDraft(draftKey: String) async throws -> OutboundContentRecord? {
         guard let ids = try await accountSiteIds() else { return nil }
         return try await appDatabase.loadOutboundDraft(accountId: ids.0, draftKey: draftKey)
+    }
+
+    public func applyOptimisticPostEdit(
+        serverPostId: Components.Schemas.PostID,
+        title: String,
+        body: String?,
+        url: String?,
+        nsfw: Bool
+    ) async {
+        guard let ids = try? await accountSiteIds() else { return }
+        do {
+            try await appDatabase.writer.write { db in
+                try OptimisticWrites.setPostContent(
+                    db,
+                    accountId: ids.0,
+                    serverPostId: Int64(serverPostId),
+                    title: title,
+                    body: body,
+                    url: url,
+                    nsfw: nsfw
+                )
+            }
+        } catch {
+            logger.error("Optimistic post edit write failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     public func composerFailureEvents() async -> AsyncStream<ComposerOutboxFailure> {

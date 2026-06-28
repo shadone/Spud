@@ -627,6 +627,18 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v22_outboundEditPost") { db in
+            // Distinguishes a content-creation outbound row (NULL) from an EDIT of
+            // an existing post (set to that server post id). When set, the composer
+            // performer calls api.editPost(postID:...) instead of createPost, and
+            // the create-dedup is skipped (an edit targets an existing post by
+            // design). The post-edit reconcile guard preserves the local
+            // title/body/url/nsfw while such a row is sending or failed.
+            try db.alter(table: "outboundContent") { t in
+                t.add(column: "editPostServerId", .integer)
+            }
+        }
+
         return migrator
     }
 }

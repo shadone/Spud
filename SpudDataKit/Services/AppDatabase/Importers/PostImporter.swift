@@ -136,6 +136,20 @@ public extension AppDatabase {
             if pendingKinds.contains(.save) { existing.isSaved = preserved.isSaved }
             if pendingKinds.contains(.hide) { existing.isHidden = preserved.isHidden }
             if pendingKinds.contains(.delete) { existing.isDeleted = preserved.isDeleted }
+            // A content edit lives in the composer outbox (`outboundContent`), not
+            // the mutation outbox (`pendingOperation`), so it isn't covered by
+            // `pendingKinds`. While the edit is un-synced (sending or failed),
+            // preserve the locally-applied title/body/url/nsfw so a feed/`getPost`
+            // refresh can't revert the user's edit. The successful `editPost`
+            // upsert bypasses this (it passes `respectsPendingOutbox: false`).
+            if respectsPendingOutbox,
+               try AppDatabase.hasPendingOutboundPostEdit(db, accountId: accountId, serverPostId: serverPostId)
+            {
+                existing.title = preserved.title
+                existing.body = preserved.body
+                existing.url = preserved.url
+                existing.isNsfw = preserved.isNsfw
+            }
             try existing.update(db)
             return existing.id!
         }

@@ -2057,6 +2057,35 @@ class PostDetailViewController: UIViewController {
         present(composer, animated: true)
     }
 
+    /// Presents the new-post composer in EDIT mode, seeded with the current post's
+    /// title/body/url/nsfw and its (fixed) community. Sign-in gated, and only
+    /// meaningful for the user's own, non-deleted post. The optimistic content
+    /// write is applied at submit time, so the open header reflects the edit via
+    /// its GRDB observation once the sheet dismisses.
+    private func presentEditPost() {
+        guard let row = headerRow else { return }
+        let keychainId = viewModel.accountKeychainId
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to edit", comment: "Sign-in gate title when a signed-out user tries to edit a post")
+            )
+            return
+        }
+
+        let composer = NewPostViewController.makeEditSheet(
+            serverPostId: row.serverPostId,
+            serverCommunityId: Components.Schemas.CommunityID(row.serverCommunityId),
+            communityName: row.communityName,
+            title: row.title,
+            body: row.body,
+            url: row.url,
+            nsfw: row.isNsfw,
+            accountKeychainId: keychainId,
+            dependencies: dependencies.own
+        )
+        present(composer, animated: true)
+    }
+
     // MARK: - Pending (optimistic) comment actions
 
     /// Handles a tap on a pending overlay comment. Only a failed send is
@@ -2275,9 +2304,19 @@ class PostDetailViewController: UIViewController {
             children.append(UIMenu(options: .displayInline, children: [reportAction, blockAction]))
         }
 
-        // Delete / Restore only make sense on the user's own post.
+        // Edit / Delete / Restore only make sense on the user's own post.
         if isOwnContent(creatorPersonId: headerRow?.creatorPersonId) {
             let currentlyDeleted = headerRow?.isDeleted ?? false
+            var ownActions: [UIMenuElement] = []
+            // Editing a deleted post isn't offered (restore it first).
+            if !currentlyDeleted {
+                ownActions.append(UIAction(
+                    title: NSLocalizedString("Edit", comment: "Overflow-menu action to edit the user's own post"),
+                    image: UIImage(systemName: "pencil")
+                ) { [weak self] _ in
+                    self?.presentEditPost()
+                })
+            }
             let deleteAction = UIAction(
                 title: currentlyDeleted
                     ? NSLocalizedString("Restore", comment: "Overflow-menu action to restore the user's own deleted post")
@@ -2292,7 +2331,8 @@ class PostDetailViewController: UIViewController {
                     promptDeletePost(serverPostId: viewModel.serverPostId)
                 }
             }
-            children.append(UIMenu(options: .displayInline, children: [deleteAction]))
+            ownActions.append(deleteAction)
+            children.append(UIMenu(options: .displayInline, children: ownActions))
         }
 
         return UIMenu(title: "", children: children)
@@ -2802,6 +2842,16 @@ extension PostDetailViewController: UITableViewDelegate {
                 }
                 if isOwnPost {
                     let currentlyDeleted = self?.headerRow?.isDeleted ?? false
+                    // Editing a deleted post isn't offered (restore it first).
+                    if !currentlyDeleted {
+                        let editAction = UIAction(
+                            title: NSLocalizedString("Edit", comment: "Context-menu action to edit the user's own post"),
+                            image: UIImage(systemName: "pencil")
+                        ) { [weak self] _ in
+                            self?.presentEditPost()
+                        }
+                        children.append(editAction)
+                    }
                     let deleteAction = UIAction(
                         title: currentlyDeleted
                             ? NSLocalizedString("Restore", comment: "Context-menu action to restore the user's own deleted post")

@@ -37,11 +37,15 @@ public struct OutboundDraftInput: Sendable, Equatable {
     /// that server id (the performer calls `editComment` and the create-dedup is
     /// skipped). Only meaningful for `.comment`.
     public var editCommentServerId: Int64?
+    /// nil = create a new post. When set, this row EDITS the post with that server
+    /// id (the performer calls `editPost` and the create-dedup is skipped). Only
+    /// meaningful for `.post`.
+    public var editPostServerId: Int64?
 
     public init(
         kind: OutboundKind, body: String, postServerId: Int64?, parentCommentServerId: Int64?,
         communityServerId: Int64?, title: String?, url: String?, nsfw: Bool, postType: Int64,
-        editCommentServerId: Int64? = nil
+        editCommentServerId: Int64? = nil, editPostServerId: Int64? = nil
     ) {
         self.kind = kind
         self.body = body
@@ -53,6 +57,7 @@ public struct OutboundDraftInput: Sendable, Equatable {
         self.nsfw = nsfw
         self.postType = postType
         self.editCommentServerId = editCommentServerId
+        self.editPostServerId = editPostServerId
     }
 }
 
@@ -77,6 +82,10 @@ public struct OutboundContentRecord: Codable, FetchableRecord, MutablePersistabl
     /// create-dedup is skipped. Persisted by the `v21_outboundEditComment`
     /// migration.
     public var editCommentServerId: Int64?
+    /// nil = create a new post. When set, this row EDITS the post with that server
+    /// id: the performer calls `editPost(postID:...)` and the create-dedup is
+    /// skipped. Persisted by the `v22_outboundEditPost` migration.
+    public var editPostServerId: Int64?
     public var attempts: Int64
     public var lastError: String?
     public var nextAttemptAt: Double?
@@ -105,6 +114,14 @@ public struct OutboundContentRecord: Codable, FetchableRecord, MutablePersistabl
         "ec:\(serverCommentId)"
     }
 
+    /// Draft key for an EDIT of an existing post. Keyed by the edited post's server
+    /// id so it never coalesces with a new-post draft for the same community (those
+    /// use `postDraftKey`): opening Edit must not load or clobber a pending new-post
+    /// draft, and vice versa.
+    public static func editPostDraftKey(serverPostId: Int64) -> String {
+        "ep:\(serverPostId)"
+    }
+
     public static func draftKey(for input: OutboundDraftInput) -> String {
         switch input.kind {
         case .comment:
@@ -114,7 +131,11 @@ public struct OutboundContentRecord: Codable, FetchableRecord, MutablePersistabl
                 commentDraftKey(postServerId: input.postServerId ?? 0, parentCommentServerId: input.parentCommentServerId)
             }
         case .post:
-            postDraftKey(communityServerId: input.communityServerId)
+            if let editPostServerId = input.editPostServerId {
+                editPostDraftKey(serverPostId: editPostServerId)
+            } else {
+                postDraftKey(communityServerId: input.communityServerId)
+            }
         }
     }
 }

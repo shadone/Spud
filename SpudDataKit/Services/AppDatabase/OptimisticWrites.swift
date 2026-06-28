@@ -66,6 +66,29 @@ public enum OptimisticWrites {
         )
     }
 
+    /// Apply an edit's title/body/url/nsfw to the local post row optimistically so
+    /// the open post header reflects it immediately, before the content outbox
+    /// confirms it server-side. The post-edit reconcile guard keeps these values
+    /// from being clobbered by a concurrent feed/`getPost` refresh while the edit
+    /// is still pending (sending or failed).
+    public static func setPostContent(
+        _ db: Database,
+        accountId: Int64,
+        serverPostId: Int64,
+        title: String,
+        body: String?,
+        url: String?,
+        nsfw: Bool
+    ) throws {
+        try db.execute(
+            sql: """
+                UPDATE post SET title = ?, body = ?, url = ?, isNsfw = ?
+                WHERE postId = ? AND accountId = ?
+                """,
+            arguments: [title, body, url, nsfw, serverPostId, accountId]
+        )
+    }
+
     // MARK: Comment
 
     /// Comment rows carry no `accountId` column — they join to `post` via

@@ -375,4 +375,35 @@ extension AppDatabase {
         )
         return Set(raws.compactMap(OutboxKind.init(rawValue:)))
     }
+
+    /// True when a content-outbox row is editing this post and has not yet synced
+    /// (its status is `sending` or `failed`). Used by `upsertPost`'s reconcile
+    /// guard to preserve the locally-applied title/body/url/nsfw against a
+    /// concurrent feed/`getPost` refresh until the edit reaches the server.
+    ///
+    /// `draft` and `queued` rows are intentionally excluded: a draft hasn't been
+    /// submitted yet (no optimistic write applied), and a queued row is about to
+    /// be picked up by the drain whose successful `editPost` upsert bypasses the
+    /// guard anyway. Sending/failed are the windows where the optimistic write is
+    /// live but the server hasn't confirmed it.
+    static func hasPendingOutboundPostEdit(
+        _ db: Database,
+        accountId: Int64,
+        serverPostId: Int64
+    ) throws -> Bool {
+        try Bool.fetchOne(
+            db,
+            sql: """
+                SELECT 1 FROM outboundContent
+                WHERE accountId = ?
+                  AND editPostServerId = ?
+                  AND status IN (?, ?)
+                LIMIT 1
+                """,
+            arguments: [
+                accountId, serverPostId,
+                OutboundStatus.sending.rawValue, OutboundStatus.failed.rawValue,
+            ]
+        ) ?? false
+    }
 }

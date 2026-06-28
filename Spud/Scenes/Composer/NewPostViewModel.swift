@@ -43,6 +43,11 @@ enum NewPostSubmissionState: Equatable {
     /// and show the pending post screen. Carries the client token so the VC can
     /// locate the outbox row.
     case queued(clientToken: String)
+    /// An EDIT of an existing post was durably enqueued (and its optimistic write
+    /// already applied to the local post row). The view controller just dismisses
+    /// back to the post — no pending-post screen — since the open post header
+    /// already reflects the edit via its GRDB observation.
+    case editQueued
     /// Submission failed; the view controller presents `message` and keeps the
     /// draft so the user can retry.
     case failed(message: String)
@@ -67,6 +72,13 @@ final class NewPostViewModel {
 
     @ObservationIgnored
     private var saveTask: Task<Void, Never>?
+
+    /// Server id of the post being edited, or nil for a brand-new post. When set
+    /// the composer is in edit mode: the community is fixed (shown, not editable),
+    /// the chrome reads "Edit post" / "Save", and `submit()` applies the optimistic
+    /// content write + enqueues an `editPost` instead of creating a post.
+    @ObservationIgnored
+    let editPostServerId: Int64?
 
     var accountKeychainId: String {
         accountScope.accountKeychainId
@@ -102,8 +114,32 @@ final class NewPostViewModel {
     var isBusy: Bool {
         switch submissionState {
         case .uploadingImage, .submitting: true
-        case .editing, .queued, .finished, .failed: false
+        case .editing, .queued, .editQueued, .finished, .failed: false
         }
+    }
+
+    /// True when editing an existing post (vs composing a new one).
+    var isEditing: Bool {
+        editPostServerId != nil
+    }
+
+    /// Composer chrome: "Edit post" in edit mode, "New post" otherwise.
+    var navigationTitle: String {
+        isEditing
+            ? NSLocalizedString("Edit post", comment: "Composer title when editing the user's own post")
+            : NSLocalizedString("New post", comment: "Composer title when composing a new post")
+    }
+
+    /// Submit-button title: "Save" in edit mode, "Post" otherwise.
+    var submitButtonTitle: String {
+        isEditing
+            ? NSLocalizedString("Save", comment: "Composer submit button when editing a post")
+            : NSLocalizedString("Post", comment: "Composer submit button when composing a new post")
+    }
+
+    /// The community can't be changed when editing an existing post.
+    var canChangeCommunity: Bool {
+        !isEditing
     }
 
     var communityButtonTitle: String {
@@ -119,10 +155,16 @@ final class NewPostViewModel {
         serverCommunityId: Components.Schemas.CommunityID?,
         initialCommunityName: String?,
         accountScope: AccountScope,
-        dependencies: Dependencies
+        dependencies: Dependencies,
+        editPostServerId: Int64? = nil,
+        initialTitle: String? = nil,
+        initialBody: String? = nil,
+        initialUrl: String? = nil,
+        initialNsfw: Bool = false
     ) {
         self.accountScope = accountScope
         self.dependencies = dependencies
+        self.editPostServerId = editPostServerId
 
         if let serverCommunityId {
             community = NewPostCommunity(
@@ -131,12 +173,29 @@ final class NewPostViewModel {
                 title: initialCommunityName ?? ""
             )
         }
+
+        // Edit mode: seed the editable fields from the current post. A later
+        // `loadExistingDraft()` will overlay a previously-saved edit draft if one
+        // exists (keyed by `editPostDraftKey`, so it can't collide with a new-post
+        // draft for the same community).
+        if editPostServerId != nil {
+            titleText = initialTitle ?? ""
+            bodyText = initialBody ?? ""
+            urlText = initialUrl ?? ""
+            nsfw = initialNsfw
+            // Show the link field when the post has a url; otherwise keep the
+            // text affordance selected.
+            postType = (initialUrl?.isEmpty == false) ? .link : .text
+        }
     }
 
     // MARK: Draft key + input
 
     private var draftKey: String {
-        OutboundContentRecord.postDraftKey(communityServerId: community.map { Int64($0.id) })
+        if let editPostServerId {
+            return OutboundContentRecord.editPostDraftKey(serverPostId: editPostServerId)
+        }
+        return OutboundContentRecord.postDraftKey(communityServerId: community.map { Int64($0.id) })
     }
 
     private func currentInput() -> OutboundDraftInput {
@@ -149,7 +208,8 @@ final class NewPostViewModel {
             title: titleText,
             url: urlText.isEmpty ? nil : urlText,
             nsfw: nsfw,
-            postType: Int64(postType.rawValue)
+            postType: Int64(postType.rawValue),
+            editPostServerId: editPostServerId
         )
     }
 
@@ -250,6 +310,25 @@ final class NewPostViewModel {
                     comment: "New post enqueue failure"
                 )
             )
+            return
+        }
+
+        if let editPostServerId {
+            // Edit: apply the optimistic content write to the local post row so the
+            // open post header reflects the edit immediately, then enqueue the
+            // `editPost`. The VC dismisses straight back to the post (no
+            // pending-post screen).
+            let trimmedBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+            await accountScope.lemmyService.applyOptimisticPostEdit(
+                serverPostId: Components.Schemas.PostID(editPostServerId),
+                title: title,
+                body: trimmedBody.isEmpty ? nil : trimmedBody,
+                url: urlText.isEmpty ? nil : urlText,
+                nsfw: nsfw
+            )
+            await accountScope.lemmyService.submitDraft(clientToken: token)
+            clientToken = nil
+            submissionState = .editQueued
             return
         }
 

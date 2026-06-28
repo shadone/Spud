@@ -160,10 +160,12 @@ public actor ComposerOutboxService: ComposerOutboxServiceType {
             let kind = OutboundKind(rawValue: record.kind) ?? .comment
 
             // Dedup: if a prior attempt actually committed (response lost), adopt + skip.
-            // Skipped for edits (`editCommentServerId != nil`): an edit targets an
-            // existing comment by design, so a matching server comment is expected
-            // and must not short-circuit the send. `editComment` is idempotent, so
-            // a lost-response retry simply re-applies the same body.
+            // This block is comment-create only (`kind == .comment`); new-post and
+            // all edits never enter it. Skipped for comment edits
+            // (`editCommentServerId != nil`): an edit targets an existing comment by
+            // design, so a matching server comment is expected and must not
+            // short-circuit the send (`editComment` is idempotent — a lost-response
+            // retry simply re-applies the same content).
             if kind == .comment,
                record.editCommentServerId == nil,
                await (try? appDatabase.matchingServerCommentExists(
