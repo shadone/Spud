@@ -54,7 +54,7 @@ shortcuts to register a new account or to keep browsing anonymously.
 
 ## Not supported / out of scope
 
-- **Two-factor (TOTP) sign-in is not functional.** A one-time-code field exists in the layout but is permanently hidden, never populated, and no TOTP value is sent with the login request — accounts that require 2FA cannot be signed in. (A `totp2faRequired` state is defined in the data layer but is not produced or handled.)
+- **Two-factor (TOTP) sign-in is not functional — blocked on a LemmyKit release.** The Spud side is mostly built (`LoginTwoFactorViewController`, `LoginViewModel.totp2faToken`, the `totp2faRequired` error case), but the token is never sent to the server. To finish it: (1) in LemmyKit, add a `totp2faToken: String?` parameter to `LemmyApi.login(usernameOrEmail:password:)` and pass it as `totp_2fa_token` in the request body — the generated `LoginRequest` schema already supports the field, only the hand-written wrapper omits it — and map the 2FA-required/incorrect-token response to a distinct error; (2) cut a LemmyKit release and bump `exactVersion` in `Spud/project.yml`; (3) thread `totp2faToken` through `AccountService.login(...)` to `api.login`, pass `LoginViewModel.totp2faToken`, and on a `totp2faRequired` error present `LoginTwoFactorViewController` to collect the code and retry. (Spud builds the pinned remote LemmyKit, so step 1/2 must land first.)
 - No "forgot password" / password-reset flow runs in-app; the label does not act.
 - No biometric unlock or credential autofill integration beyond the system keyboard's own behavior.
 - Choosing the instance is a separate step — see [instance-picker.md](instance-picker.md).
