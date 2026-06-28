@@ -116,10 +116,13 @@ class AppCoordinator {
             case let .person(personId, instance):
                 window.display(personId: personId, instance: instance, accountKeychainId: keychainId)
 
-            case let .comment(postId, _, _):
-                // TODO(Slice D): scroll to the resolved comment. For now open the
-                // parent post so the link still lands somewhere useful.
-                window.display(serverPostId: postId, accountKeychainId: keychainId)
+            case let .comment(postId, commentId, _):
+                // Open the parent post and scroll to / highlight the resolved comment.
+                window.display(
+                    serverPostId: postId,
+                    accountKeychainId: keychainId,
+                    scrollToCommentId: commentId
+                )
 
             case .unresolved, .none:
                 logger.error("Could not resolve an object to display for: \(canonicalURL.absoluteString, privacy: .public)")

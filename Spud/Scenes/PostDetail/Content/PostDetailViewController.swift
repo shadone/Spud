@@ -76,7 +76,13 @@ class PostDetailViewController: UIViewController {
         viewModel.serverPostId
     }
 
-    func setPost(serverPostId: Components.Schemas.PostID, accountKeychainId: String) {
+    func setPost(
+        serverPostId: Components.Schemas.PostID,
+        accountKeychainId: String,
+        scrollToCommentId: Components.Schemas.CommentID? = nil
+    ) {
+        pendingPermalinkServerCommentId = scrollToCommentId.map(Int64.init)
+        permalinkHighlightElementIds.removeAll(keepingCapacity: true)
         observationTask?.cancel()
         commentObservationTask?.cancel()
         outboundObservationTask?.cancel()
@@ -176,6 +182,15 @@ class PostDetailViewController: UIViewController {
     /// Element ids of new comments whose one-time fresh-wash fade has already
     /// played this visit, so scrolling them back into view doesn't replay it.
     private var animatedNewCommentIds: Set<Int64> = []
+    /// A comment the screen was opened to anchor on (a `/comment/<id>` permalink).
+    /// Held as the Lemmy server comment id until the matching row appears in the
+    /// loaded tree, then resolved to its element id, scrolled to, and cleared
+    /// (one-shot). See ``attemptPermalinkScroll()``.
+    private var pendingPermalinkServerCommentId: Int64?
+    /// Element ids to flash once when their cell next displays, so a permalink
+    /// target washes the accent tint on arrival without being treated as a
+    /// "new since last visit" comment.
+    private var permalinkHighlightElementIds: Set<Int64> = []
     /// The `isNew` styling currently applied to the jump FAB, so the per-scroll
     /// `updateJumpButtonVisibility` only rebuilds the button configuration when
     /// the style actually flips (not on every scroll tick).
@@ -228,9 +243,11 @@ class PostDetailViewController: UIViewController {
     init(
         serverPostId: Components.Schemas.PostID,
         accountKeychainId: String,
+        scrollToCommentId: Components.Schemas.CommentID? = nil,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
+        pendingPermalinkServerCommentId = scrollToCommentId.map(Int64.init)
         viewModel = PostDetailViewModel(
             serverPostId: serverPostId,
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
@@ -613,11 +630,37 @@ class PostDetailViewController: UIViewController {
                 if Task.isCancelled { break }
 
                 applySnapshot()
+                attemptPermalinkScroll()
                 if !hasReceivedFirstCommentSnapshot {
                     hasReceivedFirstCommentSnapshot = true
                     viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
                 }
             }
+        }
+    }
+
+    /// If the screen was opened on a `/comment/<id>` permalink, try to resolve the
+    /// target server comment id to a loaded element id and scroll to it. Called
+    /// after every comment-snapshot apply: the target may not be in the local DB on
+    /// the first emit (a fresh permalink), so this no-ops until the network fetch
+    /// lands and the observation re-fires with the row present. One-shot — clears
+    /// the pending target once it scrolls, and queues a one-time highlight flash.
+    private func attemptPermalinkScroll() {
+        guard
+            let target = pendingPermalinkServerCommentId,
+            let elementId = commentRowsByElementId.values
+            .first(where: { $0.serverCommentId == target })?.id
+        else { return }
+        pendingPermalinkServerCommentId = nil
+        permalinkHighlightElementIds.insert(elementId)
+        scrollToComment(elementId: elementId)
+        // If the row is already on screen, `willDisplay` won't fire for it — flash now.
+        if
+            let indexPath = dataSource.indexPath(for: .comment(elementId: elementId)),
+            let cell = tableView.cellForRow(at: indexPath) as? PostDetailCommentCell,
+            permalinkHighlightElementIds.remove(elementId) != nil
+        {
+            cell.playPermalinkHighlight()
         }
     }
 
@@ -2529,6 +2572,9 @@ extension PostDetailViewController: UITableViewDelegate {
         )
         if didAnimate {
             animatedNewCommentIds.insert(elementId)
+        }
+        if permalinkHighlightElementIds.remove(elementId) != nil {
+            cell.playPermalinkHighlight()
         }
     }
 

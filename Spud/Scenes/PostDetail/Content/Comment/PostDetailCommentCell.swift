@@ -855,6 +855,15 @@ class PostDetailCommentCell: UITableViewCell {
         }
     }
 
+    /// One-shot highlight for arriving at a comment via a permalink: reuses the
+    /// fresh-comment fade so the linked comment briefly washes the accent tint.
+    /// Skipped under Reduce Motion, where scrolling the row to the top is the
+    /// affordance instead.
+    func playPermalinkHighlight() {
+        guard !UIAccessibility.isReduceMotionEnabled else { return }
+        playFreshFade()
+    }
+
     /// Holds the fresh tint, then fades to the resting background — the design's
     /// spudFreshFade (hold to 38%, fade to 100% over 4.2s, ease-out).
     private func playFreshFade() {

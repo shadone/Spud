@@ -82,10 +82,11 @@ links on any federated instance work, including ones the app has never seen.
 
 ## Not supported / out of scope
 
-- **No scroll-to-comment yet.** A comment link opens its parent post but does not
-  yet scroll to or highlight the specific comment. Resolving a comment to its
-  on-screen row needs the comment's context loaded into the tree; this is a planned
-  follow-up.
+- **Comment scroll covers the loaded tree.** A comment link opens its parent post,
+  scrolls to the resolved comment (expanding collapsed ancestors), and flashes it.
+  If the target isn't in the post's loaded comment tree (a very deep or paginated
+  comment beyond the fetched set), it lands on the post without scrolling rather
+  than fetching that single comment's context — a follow-up.
 - **The Safari Web Extension browser-action popup is a stub.** The toolbar-button
   popup is not implemented; the banner and the share/action extension are the
   working entry points.

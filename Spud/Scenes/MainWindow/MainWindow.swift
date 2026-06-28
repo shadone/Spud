@@ -479,10 +479,15 @@ class MainWindow: UIWindow {
         }
     }
 
-    func display(serverPostId: Components.Schemas.PostID, accountKeychainId: String) {
+    func display(
+        serverPostId: Components.Schemas.PostID,
+        accountKeychainId: String,
+        scrollToCommentId: Components.Schemas.CommentID? = nil
+    ) {
         let postDetailVC = PostDetailOrEmptyViewController(
             serverPostId: serverPostId,
             accountKeychainId: accountKeychainId,
+            scrollToCommentId: scrollToCommentId,
             dependencies: dependencies.nested
         )
         pushIntoCurrentContext(postDetailVC)

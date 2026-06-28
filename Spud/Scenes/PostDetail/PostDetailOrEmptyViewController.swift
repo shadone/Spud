@@ -61,16 +61,22 @@ class PostDetailOrEmptyViewController: UIViewController {
 
     private let accountKeychainId: String
     private var currentViewController: UIViewController?
+    /// A `/comment/<id>` permalink target to scroll to once the post detail is
+    /// shown. Consumed (set to nil) the first time a content controller is built,
+    /// so an iPad detail-column reuse with a different post doesn't reuse it.
+    private var scrollToCommentId: Components.Schemas.CommentID?
 
     // MARK: - Functions
 
     init(
         serverPostId: Components.Schemas.PostID,
         accountKeychainId: String,
+        scrollToCommentId: Components.Schemas.CommentID? = nil,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
         self.accountKeychainId = accountKeychainId
+        self.scrollToCommentId = scrollToCommentId
 
         let resolved = Self.resolveState(
             forServerPostId: serverPostId,
@@ -136,8 +142,11 @@ class PostDetailOrEmptyViewController: UIViewController {
             let contentViewController = PostDetailViewController(
                 serverPostId: serverPostId,
                 accountKeychainId: accountKeychainId,
+                scrollToCommentId: scrollToCommentId,
                 dependencies: dependencies.nested
             )
+            // One-shot: don't re-anchor on a later post selected into this column.
+            scrollToCommentId = nil
             newViewController = contentViewController
 
             // FIXME: this is hacky, make custom ChildVC base class for handling navitems

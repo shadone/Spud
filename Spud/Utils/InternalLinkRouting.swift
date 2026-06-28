@@ -98,7 +98,13 @@ extension InternalLinkRouting {
             routeToCommunity(name: name, instance: instance)
         case let .person(personId, instance):
             routeToPerson(personId: personId, instance: instance)
-        case .comment, .unresolved:
+        case let .comment(postId, _, instance):
+            // Open the comment's parent post in-app. (Scrolling a body link to the
+            // exact comment is handled for deep-link / share permalinks via
+            // AppCoordinator; here we at least keep the link in-app rather than
+            // bouncing to Safari.)
+            routeToPost(postId: postId, instance: instance)
+        case .unresolved:
             routeToExternal(canonicalURL)
         }
     }
