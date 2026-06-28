@@ -22,6 +22,7 @@ class DiscoverViewController: UIViewController {
         HasAccountService &
         HasAlertService &
         HasAppDatabase &
+        HasExplorerService &
         HasImageService &
         HasPreferencesService
     typealias NestedDependencies =
@@ -34,10 +35,21 @@ class DiscoverViewController: UIViewController {
         dependencies.own.imageService
     }
 
+    private var explorerService: ExplorerServiceType {
+        dependencies.own.explorerService
+    }
+
+    private var preferencesService: PreferencesServiceType {
+        dependencies.own.preferencesService
+    }
+
     // MARK: Private
 
     private let accountKeychainId: String
     private var viewModel: DiscoverViewModel!
+    /// Ensures the on-demand community-directory refresh is requested at most once
+    /// per visit (a fresh controller is pushed each time Discover is opened).
+    private var hasRequestedCommunityRefresh = false
 
     // MARK: Functions
 
@@ -80,6 +92,28 @@ class DiscoverViewController: UIViewController {
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        requestCommunityRefreshIfEnabled()
+    }
+
+    /// Refresh the community directory from the network when Discover is first
+    /// shown, if automatic Community Data updates are on. The directory is large,
+    /// so it is refreshed on-demand here rather than at launch (which only seeds it
+    /// from the bundle). ``ExplorerServiceType/refreshCommunitiesIfStale(maxAge:)``
+    /// no-ops while the cache is within the user's chosen refresh interval, and the
+    /// view model's live GRDB observation folds any newly-fetched data into the open
+    /// screen in place.
+    private func requestCommunityRefreshIfEnabled() {
+        guard !hasRequestedCommunityRefresh else { return }
+        hasRequestedCommunityRefresh = true
+        guard preferencesService.explorerAutoRefreshEnabled else { return }
+        let maxAge = preferencesService.explorerRefreshInterval.timeInterval
+        Task { [explorerService] in
+            await explorerService.refreshCommunitiesIfStale(maxAge: maxAge)
+        }
     }
 
     private func setup() {

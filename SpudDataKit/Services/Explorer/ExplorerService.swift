@@ -46,6 +46,12 @@ public actor ExplorerService: ExplorerServiceType {
     private static let baseURL = URL(string: "https://data.lemmyverse.net/data")!
     public static let defaultMaxAge: TimeInterval = 86400
 
+    /// Guards the on-demand community refresh (triggered when Discover appears) so
+    /// two quick opens can't start two concurrent multi-MB downloads: the staleness
+    /// check and the refresh are not atomic across `await`, so both could read
+    /// "stale" before either updates the meta timestamp.
+    private var communitiesRefreshInFlight = false
+
     public init(appDatabase: AppDatabase, session: URLSession = .shared) {
         self.appDatabase = appDatabase
         self.session = session
@@ -146,6 +152,9 @@ public actor ExplorerService: ExplorerServiceType {
     }
 
     public func refreshCommunitiesIfStale(maxAge: TimeInterval = ExplorerService.defaultMaxAge) async {
+        guard !communitiesRefreshInFlight else { return }
+        communitiesRefreshInFlight = true
+        defer { communitiesRefreshInFlight = false }
         do {
             if try await isStale(.communities, maxAge: maxAge) {
                 try await refresh(.communities)
