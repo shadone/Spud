@@ -93,7 +93,7 @@ Discover is a browsable home for finding new communities across the whole fedive
 - **No trend graphs or real-time counts.** Trending and Rising are heuristics over a periodic snapshot, not live or historical time series; the directory's numbers are as fresh as the last refresh, not live.
 - **Not content search.** Discover browses communities; searching posts / comments / users stays in the [Search](search.md) tab.
 - **Communities-first.** Instance discovery is reached *through* Discover (Browse by instance) but is governed by [Instance browsing](instance-browsing.md) and the instance directory, not redefined here.
-- **No full-screen snapshot coverage.** Snapshot tests cover the individual Discover components (directory/variant rows, rail cards, subscribe button, pack/instance cards, instance row); the assembled landing screen and the "See all" detail screens (which reuse those components) are not snapshotted.
+- **"See all" detail screens aren't separately snapshotted.** The assembled landing has a full-screen snapshot (`DiscoverScreenSnapshotTests`) and every building block has a component snapshot (`DiscoverSnapshotTests`); the per-rail "See all" detail screens are thin compositions of those already-covered rows, so they have no dedicated snapshot.
 
 ## Design notes (data, ranking, architecture)
 
