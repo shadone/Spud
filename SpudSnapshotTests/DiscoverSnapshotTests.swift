@@ -88,6 +88,36 @@ final class DiscoverSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - CompareSheet variant row
+
+    func test_variantRow_idle() {
+        assertDiscoverSnapshot(
+            VariantRow(
+                row: fixtureRow(),
+                accent: teal,
+                rank: 0,
+                followState: .idle,
+                onTap: { },
+                onFollow: { }
+            )
+            .frame(width: 390)
+        )
+    }
+
+    func test_variantRow_following() {
+        assertDiscoverSnapshot(
+            VariantRow(
+                row: fixtureRow(name: "linux", title: "Linux", host: "lemmy.ml"),
+                accent: teal,
+                rank: 1,
+                followState: .following,
+                onTap: { },
+                onFollow: { }
+            )
+            .frame(width: 390)
+        )
+    }
+
     // MARK: - DiscoverTrendCard
 
     func test_trendCard_trending() {

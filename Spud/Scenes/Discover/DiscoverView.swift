@@ -32,6 +32,7 @@ struct DiscoverView: View {
         .background(Color(.systemGroupedBackground))
         .sheet(item: $viewModel.compareTarget) { target in
             CompareSheetView(
+                viewModel: viewModel,
                 target: target,
                 accent: accent,
                 onOpenCommunity: { viewModel.openFromCompare($0) },

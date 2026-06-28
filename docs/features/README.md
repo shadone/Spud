@@ -71,7 +71,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Replying](replying.md) | `iphone`, `ipad` | shipped — reply + edit + delete/restore own comments, all optimistic + durable (see [Post detail and comments](post-detail-and-comments.md)) |
 | [Sharing](sharing.md) | `iphone`, `ipad` | shipped |
 | [Media viewer and inline video](media-viewer.md) | `iphone`, `ipad` | shipped |
-| [Discover (Community Explorer)](discover.md) | `iphone`, `ipad` | shipped — rails (Starter packs / Trending / Rising / Because you follow / Browse by instance) over a sortable directory + same-name compare + live network-search fallback; gaps: no per-rail "See all", compare sheet is open-only, community directory refresh is manual |
+| [Discover (Community Explorer)](discover.md) | `iphone`, `ipad` | shipped — rails (Starter packs / Trending / Rising / Because you follow / Browse by instance) over a sortable directory + same-name compare (per-variant follow) + live network-search fallback; gaps: no per-rail "See all", community directory refresh is manual |
 | [Search](search.md) | `iphone`, `ipad` | shipped — scopes: posts / communities / users / comments (federated) + instances (local directory) |
 | [Instance browsing (open an instance in-app)](instance-browsing.md) | `iphone`, `ipad` | shipped — directory hit + live `/api/v3/site` probe (Lemmy + PieFed); non-compatible hosts open in browser; communities fetched live via `/api/v3/community/list` when the directory has none |
 | [Subscriptions sidebar](subscriptions-sidebar.md) | `ipad` | shipped |
@@ -144,7 +144,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Animated GIF playback; inline video
 
 **Discovery**
-- [x] Discover (Community Explorer) — browsable home in the Communities tab: Starter packs / Trending / Rising / Because you follow / Browse-by-instance rails over a sortable, searchable directory; same-name dedupe + compare sheet; live network-search fallback; long-press quick actions (follow, mute, block, share); NSFW + suspicious safety filtering. Gaps: no per-rail "See all", compare sheet is open-only, community directory refresh is manual (discover.md)
+- [x] Discover (Community Explorer) — browsable home in the Communities tab: Starter packs / Trending / Rising / Because you follow / Browse-by-instance rails over a sortable, searchable directory; same-name dedupe + compare sheet (per-variant follow); live network-search fallback; long-press quick actions (follow, mute, block, share); NSFW + suspicious safety filtering. Gaps: no per-rail "See all", community directory refresh is manual (discover.md)
 - [x] Search (posts / comments / communities / users federated, + instances over the local Explorer directory) + inline subscribe + paste-a-Lemmy-URL "Open in Spud" (canonical + frontend `/c/../p/<id>` form)
 - [x] Subscriptions sidebar (iPad / regular-width only; no iPhone-portrait entry point) + favorites pinned to top
 - [x] Subscribe / unsubscribe

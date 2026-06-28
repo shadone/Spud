@@ -1,7 +1,7 @@
 # Discover (Community Explorer)
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** shipped — with known gaps (no per-rail "See all"; the compare sheet is open-only; community directory refreshes manually, not in the background). See "Not supported / known gaps" below.
+- **Status:** shipped — with known gaps (no per-rail "See all"; community directory refreshes manually, not in the background). See "Not supported / known gaps" below.
 - **Related:** [Search](search.md), [Community screen](community-screen.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md), [Subscriptions sidebar](subscriptions-sidebar.md), [Instance picker](instance-picker.md), [Instance browsing](instance-browsing.md), [Signed-out browsing](signed-out-browsing.md), [Sign-in gate](sign-in-gate.md), [NSFW content visibility and blur](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
@@ -18,7 +18,7 @@ Discover is a browsable home for finding new communities across the whole fedive
   - **Rising** — communities below a size ceiling, ordered by engagement intensity (recent active users relative to subscriber base) above an activity floor. Surfaces small, accelerating communities. Shows the top 12.
   - **Browse by instance** — the liveliest home instances by aggregate weekly activity (top 12). Tapping one opens that server's communities, with a tappable instance info card (members, description, trust) that drills into the richer [Instance browsing](instance-browsing.md) detail.
   - **All communities** default sort is "Recommended" (the directory's composite `score`); other sorts are **Most active** (recent active users), **Members**, **Name**, and **Newest**. While browsing, the directory is capped at the first 200 rows for snappiness; a search shows every match. "Most posts" is intentionally not a lead sort — the stored post count is a cumulative total that favors old communities rather than active ones.
-- **Same-name communities collapse into one entry.** In the default directory, communities that share a name across servers are deduplicated to a single canonical row — the variant with the strongest blend of subscribers, recent activity, and instance trust. The row notes "also on N other servers · total members". Tapping that badge opens a **compare sheet** listing each variant ranked busiest-first, with members and recent activity, where you pick which server's community to open. Dedupe is **off in the live network-search results**, where you may be looking for one specific server's copy.
+- **Same-name communities collapse into one entry.** In the default directory, communities that share a name across servers are deduplicated to a single canonical row — the variant with the strongest blend of subscribers, recent activity, and instance trust. The row notes "also on N other servers · total members". Tapping that badge opens a **compare sheet** listing each variant ranked busiest-first, with members and recent activity, each with its own **Follow** (and a tap-through to open the community). Dedupe is **off in the live network-search results**, where you may be looking for one specific server's copy.
 - **Starter packs are curated topics with live numbers.** Each pack is a hand-curated, ordered set of communities (a topic title, a short blurb, and a list of community references) whose names, icons, member counts, and activity are rendered live from the directory — so the curation is editorial but the stats never go stale. A pack screen lists its communities, each individually followable, with a single **Follow all** action that follows the ones you don't already have.
 - **Search the bundled directory, then the network.** The search field filters the bundled directory instantly. Below the local matches, an optional "Search the network for X" button runs a live Lemmy community search; results not already in the local directory are shown under a "From the network" header (NSFW-gated by the same client preference), each followable. The network search re-runs on tap if it fails.
 - **Long-press a community for quick actions.** Any community row or rail card exposes a context menu: Open community, Follow / Unfollow, Mute (a submenu of durations) / Unmute, Share, Copy link, and Block community. Mute is client-local (keyed by the community's actor id, works for any account, no server round-trip); Block and Follow hit the server.
@@ -48,7 +48,7 @@ Discover is a browsable home for finding new communities across the whole fedive
 
 - **Given** a directory row for a name that exists on several servers, marked "also on N other servers"
 - **When** I tap the badge
-- **Then** a compare sheet lists each server's community ranked busiest-first, with members and recent activity, and I tap one to open it (where Follow lives)
+- **Then** a compare sheet lists each server's community ranked busiest-first, with members and recent activity, each with its own Follow (or I tap a row to open it)
 
 ### Sort the directory
 
@@ -83,7 +83,6 @@ Discover is a browsable home for finding new communities across the whole fedive
 ## Not supported / known gaps
 
 - **No per-rail "See all".** Each rail (Trending, Rising, Because you follow, Browse by instance) shows its top 12 in a horizontal carousel; there is no "See all" that opens the full ranked list for a rail. The All communities directory below is the way to see everything. (Planned but not built.)
-- **The compare sheet is open-only.** Picking among same-name communities lets you open a variant's page (where Follow lives); it does not yet offer an inline per-variant Follow. (Planned but not built.)
 - **The community directory does not refresh in the background.** It is seeded from the bundle and only re-downloaded on demand via Settings → "Update Now" (`ExplorerService.refreshAll`). The much smaller **instance** directory does auto-refresh at launch when the auto-refresh preference is on; the multi-MB community set is deliberately bundle-only so launch never triggers a large download. There is no `BGAppRefreshTask` / periodic timer for either dataset.
 - **No topic auto-grouping or category browser.** The only topical organization is the hand-curated Starter packs; communities are not auto-sorted into topics or categories (the directory has no reliable topic field, and name-keyword bucketing is too error-prone).
 - **No trend graphs or real-time counts.** Trending and Rising are heuristics over a periodic snapshot, not live or historical time series; the directory's numbers are as fresh as the last refresh, not live.
