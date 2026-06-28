@@ -41,11 +41,18 @@ enum Acknowledgements {
             url: "https://github.com/sersoft-gmbh/semver"
         ),
         Acknowledgement(
-            name: "Down",
-            summary: "Markdown rendering (cmark) used for post and comment bodies.",
+            name: "swift-markdown",
+            summary: "Markdown parsing (cmark-gfm) powering SpudMarkdownKit for post and comment bodies.",
+            licenseName: "Apache-2.0",
+            licenseText: License.apache2,
+            url: "https://github.com/apple/swift-markdown"
+        ),
+        Acknowledgement(
+            name: "Nuke",
+            summary: "Image loading and caching for thumbnails and the media viewer.",
             licenseName: "MIT",
-            licenseText: License.mit(holder: "Down"),
-            url: "https://github.com/shadone/Down"
+            licenseText: License.mit(holder: "Alexander Grebenyuk"),
+            url: "https://github.com/kean/Nuke"
         ),
         Acknowledgement(
             name: "swift-openapi-generator",
