@@ -33,10 +33,15 @@ public struct OutboundDraftInput: Sendable, Equatable {
     public var url: String?
     public var nsfw: Bool
     public var postType: Int64
+    /// nil = create a new comment/post. When set, this row EDITS the comment with
+    /// that server id (the performer calls `editComment` and the create-dedup is
+    /// skipped). Only meaningful for `.comment`.
+    public var editCommentServerId: Int64?
 
     public init(
         kind: OutboundKind, body: String, postServerId: Int64?, parentCommentServerId: Int64?,
-        communityServerId: Int64?, title: String?, url: String?, nsfw: Bool, postType: Int64
+        communityServerId: Int64?, title: String?, url: String?, nsfw: Bool, postType: Int64,
+        editCommentServerId: Int64? = nil
     ) {
         self.kind = kind
         self.body = body
@@ -47,6 +52,7 @@ public struct OutboundDraftInput: Sendable, Equatable {
         self.url = url
         self.nsfw = nsfw
         self.postType = postType
+        self.editCommentServerId = editCommentServerId
     }
 }
 
@@ -66,6 +72,11 @@ public struct OutboundContentRecord: Codable, FetchableRecord, MutablePersistabl
     public var url: String?
     public var nsfw: Bool
     public var postType: Int64
+    /// nil = create a new comment. When set, this row EDITS the comment with that
+    /// server id: the performer calls `editComment(commentId:content:)` and the
+    /// create-dedup is skipped. Persisted by the `v21_outboundEditComment`
+    /// migration.
+    public var editCommentServerId: Int64?
     public var attempts: Int64
     public var lastError: String?
     public var nextAttemptAt: Double?
@@ -86,10 +97,22 @@ public struct OutboundContentRecord: Codable, FetchableRecord, MutablePersistabl
         "p:\(communityServerId.map(String.init) ?? "0")"
     }
 
+    /// Draft key for an EDIT of an existing comment. Keyed by the edited comment's
+    /// server id so it never coalesces with a reply draft for the same post/parent
+    /// (those use `commentDraftKey`): opening Edit must not load or clobber a
+    /// pending reply, and vice versa.
+    public static func editCommentDraftKey(serverCommentId: Int64) -> String {
+        "ec:\(serverCommentId)"
+    }
+
     public static func draftKey(for input: OutboundDraftInput) -> String {
         switch input.kind {
         case .comment:
-            commentDraftKey(postServerId: input.postServerId ?? 0, parentCommentServerId: input.parentCommentServerId)
+            if let editCommentServerId = input.editCommentServerId {
+                editCommentDraftKey(serverCommentId: editCommentServerId)
+            } else {
+                commentDraftKey(postServerId: input.postServerId ?? 0, parentCommentServerId: input.parentCommentServerId)
+            }
         case .post:
             postDraftKey(communityServerId: input.communityServerId)
         }

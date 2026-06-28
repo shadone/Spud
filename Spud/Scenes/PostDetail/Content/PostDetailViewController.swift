@@ -93,6 +93,7 @@ class PostDetailViewController: UIViewController {
         pendingOutboundComments = []
         pendingStateByElementId.removeAll(keepingCapacity: true)
         pendingTokenByElementId.removeAll(keepingCapacity: true)
+        editOverlayByElementId.removeAll(keepingCapacity: true)
 
         viewModel = PostDetailViewModel(
             serverPostId: serverPostId,
@@ -166,6 +167,12 @@ class PostDetailViewController: UIViewController {
     /// Synthetic-element-id -> outbound `clientToken`, for the Retry / Edit /
     /// Discard tap actions on a failed pending comment.
     private var pendingTokenByElementId: [Int64: String] = [:]
+    /// Real-comment-element-id -> pending EDIT overlay, rebuilt each
+    /// `applySnapshot()`. Unlike a pending reply (a new synthetic node), an edit
+    /// overlays the new body + a sending/failed indicator onto the EXISTING
+    /// server comment row, keeping its votes/score/badges/children. Cleared on
+    /// success when the outbound row is deleted and the server body lands.
+    private var editOverlayByElementId: [Int64: PendingCommentEditOverlay] = [:]
     /// Element ids of new comments whose one-time fresh-wash fade has already
     /// played this visit, so scrolling them back into view doesn't replay it.
     private var animatedNewCommentIds: Set<Int64> = []
@@ -751,10 +758,47 @@ class PostDetailViewController: UIViewController {
     private func mergedCommentItems(visibleRows: [PostDetailCommentRow]) -> [Item] {
         pendingStateByElementId.removeAll(keepingCapacity: true)
         pendingTokenByElementId.removeAll(keepingCapacity: true)
+        editOverlayByElementId.removeAll(keepingCapacity: true)
 
         // No pending rows: the common case stays a plain map (no extra work).
         guard !pendingOutboundComments.isEmpty else {
             return visibleRows.map { Item.comment(elementId: $0.id) }
+        }
+
+        // Split the pending rows into EDITS (overlay onto an existing comment) and
+        // CREATES (a new synthetic node). An edit is identified by
+        // `editCommentServerId`; everything else is a create/reply.
+        var editByServerCommentId: [Int64: OutboundContentRecord] = [:]
+        var createRecords: [OutboundContentRecord] = []
+        for record in pendingOutboundComments {
+            if let editId = record.editCommentServerId {
+                // If two edit rows somehow target the same comment, the newest
+                // wins (last write reflects the user's latest intent).
+                editByServerCommentId[editId] = record
+            } else {
+                createRecords.append(record)
+            }
+        }
+
+        // Overlay each pending edit onto its existing visible comment row: record
+        // the locally-edited body + sending/failed status keyed by the real
+        // element id. The cell provider applies the override at config time (it
+        // does NOT mutate `commentRowsByElementId`, which stays pristine server
+        // data so a later outbound-only snapshot can't compound the override). The
+        // row keeps its real element id, so its votes/score/badges/children all
+        // stay put; on success the outbound row is deleted and the overlay clears.
+        for row in visibleRows {
+            guard
+                let scid = row.serverCommentId,
+                let record = editByServerCommentId[scid]
+            else { continue }
+            let status: PendingCommentEditOverlay.Status =
+                record.status == OutboundStatus.failed.rawValue ? .failed : .sending
+            editOverlayByElementId[row.id] = PendingCommentEditOverlay(
+                body: record.body,
+                status: status,
+                clientToken: record.clientToken
+            )
         }
 
         // Server comment ids present in the visible (loaded, non-collapsed-away)
@@ -783,14 +827,15 @@ class PostDetailViewController: UIViewController {
         for row in visibleRows {
             mergedItems.append(.comment(elementId: row.id))
             guard let scid = row.serverCommentId else { continue }
-            for record in pendingOutboundComments where record.parentCommentServerId == scid {
+            for record in createRecords where record.parentCommentServerId == scid {
                 mergedItems.append(pendingItem(for: record, depth: Int(row.depth) + 1))
             }
         }
 
         // Top-level pending (no parent) and orphans (parent not in the visible
-        // tree) go at the end so they are still reachable.
-        for record in pendingOutboundComments {
+        // tree) go at the end so they are still reachable. Edits are never added
+        // here — they overlay an existing row above.
+        for record in createRecords {
             let isTopLevel = record.parentCommentServerId == nil
             let isOrphan = record.parentCommentServerId.map { !visibleServerCommentIds.contains($0) } ?? false
             guard isTopLevel || isOrphan else { continue }
@@ -802,6 +847,39 @@ class PostDetailViewController: UIViewController {
         }
 
         return mergedItems
+    }
+
+    /// Returns a copy of `row` with its body replaced (used to overlay a pending
+    /// edit's locally-edited text onto the existing server comment row).
+    private static func row(_ row: PostDetailCommentRow, replacingBody body: String) -> PostDetailCommentRow {
+        PostDetailCommentRow(
+            id: row.id,
+            position: row.position,
+            depth: row.depth,
+            serverCommentId: row.serverCommentId,
+            body: body,
+            originalCommentUrl: row.originalCommentUrl,
+            score: row.score,
+            voteStatus: row.voteStatus,
+            isSaved: row.isSaved,
+            isRemoved: row.isRemoved,
+            isDistinguished: row.isDistinguished,
+            isDeleted: row.isDeleted,
+            isCreatorModerator: row.isCreatorModerator,
+            isCreatorAdmin: row.isCreatorAdmin,
+            isCreatorBannedFromCommunity: row.isCreatorBannedFromCommunity,
+            isCreatorBlocked: row.isCreatorBlocked,
+            isCreatorSiteBanned: row.isCreatorSiteBanned,
+            isCreatorBot: row.isCreatorBot,
+            isCreatorAccountDeleted: row.isCreatorAccountDeleted,
+            removedReason: row.removedReason,
+            published: row.published,
+            creatorName: row.creatorName,
+            creatorPersonId: row.creatorPersonId,
+            creatorActorId: row.creatorActorId,
+            moreChildCount: row.moreChildCount,
+            moreParentId: row.moreParentId
+        )
     }
 
     /// Pre-parses every comment body's block tree into `MarkdownBlockCache` off
@@ -1550,6 +1628,18 @@ class PostDetailViewController: UIViewController {
         present(alert, animated: true)
     }
 
+    /// Opens the composer in edit mode for the user's own comment, seeded with
+    /// its current body. Saving enqueues an optimistic edit to the content outbox.
+    private func editOwnComment(serverCommentId: Int64, currentBody: String) {
+        presentComposer(
+            target: .editComment(
+                serverPostId: viewModel.serverPostId,
+                serverCommentId: Components.Schemas.CommentID(serverCommentId)
+            ),
+            initialBody: currentBody
+        )
+    }
+
     private func setDeletedOnComment(serverCommentId: Int64, deleted: Bool) {
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -1940,6 +2030,55 @@ class PostDetailViewController: UIViewController {
         present(sheet, animated: true)
     }
 
+    /// Handles a tap on a failed pending-EDIT overlay (a real comment row showing
+    /// the locally-edited body with a failed indicator). Offers Retry (re-enqueue
+    /// the edit) or Discard (drop the failed edit, reverting to the server body).
+    private func handleEditOverlayTap(elementId: Int64) {
+        guard
+            let overlay = editOverlayByElementId[elementId],
+            overlay.status == .failed
+        else { return }
+        let token = overlay.clientToken
+
+        Haptics.tap()
+        let sheet = UIAlertController(
+            title: NSLocalizedString("Edit failed to save", comment: "Failed pending comment edit action sheet title"),
+            message: overlay.body,
+            preferredStyle: .actionSheet
+        )
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Retry", comment: "Retry a failed comment edit"),
+            style: .default
+        ) { [weak self] _ in
+            Task { await self?.viewModel.accountScope.lemmyService.retryComposition(clientToken: token) }
+        })
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Discard Edit", comment: "Discard a failed comment edit, reverting to the server body"),
+            style: .destructive
+        ) { [weak self] _ in
+            Task { await self?.viewModel.accountScope.lemmyService.discardComposition(clientToken: token) }
+        })
+        sheet.addAction(UIAlertAction(
+            title: NSLocalizedString("Cancel", comment: "Cancel the failed comment edit action sheet"),
+            style: .cancel
+        ))
+
+        // iPad: anchor the popover to the tapped cell.
+        if let popover = sheet.popoverPresentationController {
+            if let indexPath = dataSource.indexPath(for: .comment(elementId: elementId)),
+               let cell = tableView.cellForRow(at: indexPath)
+            {
+                popover.sourceView = cell
+                popover.sourceRect = cell.bounds
+            } else {
+                popover.sourceView = view
+                popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
+        }
+        present(sheet, animated: true)
+    }
+
     /// Edits a failed pending comment: discards the failed outbound row, then
     /// reopens the composer for the same target seeded with the failed text so
     /// the user never loses what they wrote.
@@ -2267,9 +2406,17 @@ extension PostDetailViewController {
                     return cell
                 }
 
-                guard let row = self?.commentRowsByElementId[elementId] else {
+                guard var row = self?.commentRowsByElementId[elementId] else {
                     logger.assertionFailure("Missing PostDetailCommentRow for element \(elementId)")
                     return cell
+                }
+
+                // Pending EDIT overlay: render the locally-edited body in place of
+                // the server's, keeping the row's votes/score/badges. The status
+                // line (Sending… / Failed) is applied after configure(with:).
+                let editOverlay = self?.editOverlayByElementId[elementId]
+                if let editOverlay {
+                    row = Self.row(row, replacingBody: editOverlay.body)
                 }
 
                 let isCollapsed = self?.viewModel.isCollapsed(elementId: elementId) ?? false
@@ -2288,6 +2435,12 @@ extension PostDetailViewController {
                     fetchLinkEmbeds: self?.preferencesService.fetchLinkEmbeds ?? false
                 )
                 cell.configure(with: viewModel, imageService: imageService, linkEmbedService: linkEmbedService)
+                if let editOverlay {
+                    cell.applyEditOverlayStatus(editOverlay)
+                    cell.pendingTapped = { [weak self] in
+                        self?.handleEditOverlayTap(elementId: elementId)
+                    }
+                }
                 cell.linkTapped = { [weak self] url in self?.linkTapped(url) }
                 cell.linkLongPressed = { [weak self] url in self?.linkLongPressed(url) }
                 cell.linkPreviewContextMenu = { [weak self] url in self?.linkContextMenuConfiguration(for: url) }
@@ -2454,8 +2607,9 @@ extension PostDetailViewController: UITableViewDelegate {
                 }
                 var children: [UIMenuElement] = [upvoteAction, downvoteAction, replyAction, saveAction, shareAction]
                 if isOwnComment {
-                    // Your own comment: offer Delete (or Restore if already
-                    // deleted). Delete is destructive and confirms first.
+                    // Your own comment: offer Edit + Delete (or Restore if already
+                    // deleted). Editing a deleted comment isn't offered. Delete is
+                    // destructive and confirms first.
                     if isDeleted {
                         let restoreAction = UIAction(
                             title: NSLocalizedString("Restore", comment: "Context-menu action to restore the user's own deleted comment"),
@@ -2465,6 +2619,16 @@ extension PostDetailViewController: UITableViewDelegate {
                         }
                         children.append(restoreAction)
                     } else {
+                        // Prefer an in-flight/failed edit's pending body so re-opening
+                        // Edit shows the user's latest text, not the stale server body.
+                        let currentBody = self?.editOverlayByElementId[commentRow.id]?.body ?? commentRow.body ?? ""
+                        let editAction = UIAction(
+                            title: NSLocalizedString("Edit", comment: "Context-menu action to edit the user's own comment"),
+                            image: UIImage(systemName: "pencil")
+                        ) { [weak self] _ in
+                            self?.editOwnComment(serverCommentId: serverCommentId, currentBody: currentBody)
+                        }
+                        children.append(editAction)
                         let deleteAction = UIAction(
                             title: NSLocalizedString("Delete", comment: "Context-menu action to delete the user's own comment"),
                             image: UIImage(systemName: "trash"),

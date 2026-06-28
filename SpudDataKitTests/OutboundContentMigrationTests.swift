@@ -18,6 +18,36 @@ struct OutboundContentMigrationTests {
     }
 
     @Test
+    func editCommentServerIdColumnExistsAfterV21() async throws {
+        let db = try AppDatabase.inMemory()
+        let columns = try await db.writer.read { db in
+            try db.columns(in: "outboundContent").map(\.name)
+        }
+        #expect(columns.contains("editCommentServerId"))
+    }
+
+    @Test
+    func editCommentServerIdRoundTrips() async throws {
+        let db = try AppDatabase.inMemory()
+        let accountId = try await Self.seedAccount(db)
+        // Insert an edit row, read it back, and confirm the edit target persists.
+        try await db.writer.write { write in
+            var row = OutboundContentRecord(
+                id: nil, clientToken: "edit-1", accountId: accountId, kind: 0, status: 1,
+                draftKey: "ec:55", body: "new body", postServerId: 1, parentCommentServerId: nil,
+                communityServerId: nil, title: nil, url: nil, nsfw: false, postType: 0,
+                editCommentServerId: 55, attempts: 0, lastError: nil, nextAttemptAt: nil,
+                createdAt: 0, updatedAt: 0
+            )
+            try row.insert(write)
+        }
+        let fetched = try await db.writer.read { db in
+            try OutboundContentRecord.filter(Column("clientToken") == "edit-1").fetchOne(db)
+        }
+        #expect(fetched?.editCommentServerId == 55)
+    }
+
+    @Test
     func partialUniqueIndexAllowsManyNonDrafts_butOneDraftPerTarget() async throws {
         let db = try AppDatabase.inMemory()
         // Seed an account row (FK target). Minimal insert via raw SQL is brittle across schema;
@@ -29,7 +59,8 @@ struct OutboundContentMigrationTests {
                     id: nil, clientToken: token, accountId: accountId, kind: 0, status: status,
                     draftKey: "c:1:0", body: "x", postServerId: 1, parentCommentServerId: nil,
                     communityServerId: nil, title: nil, url: nil, nsfw: false, postType: 0,
-                    attempts: 0, lastError: nil, nextAttemptAt: nil, createdAt: 0, updatedAt: 0
+                    editCommentServerId: nil, attempts: 0, lastError: nil, nextAttemptAt: nil,
+                    createdAt: 0, updatedAt: 0
                 )
             }
             var d1 = row(status: 0, token: "a")
@@ -47,7 +78,8 @@ struct OutboundContentMigrationTests {
                     id: nil, clientToken: "d", accountId: accountId, kind: 0, status: 0,
                     draftKey: "c:1:0", body: "y", postServerId: 1, parentCommentServerId: nil,
                     communityServerId: nil, title: nil, url: nil, nsfw: false, postType: 0,
-                    attempts: 0, lastError: nil, nextAttemptAt: nil, createdAt: 0, updatedAt: 0
+                    editCommentServerId: nil, attempts: 0, lastError: nil, nextAttemptAt: nil,
+                    createdAt: 0, updatedAt: 0
                 )
                 try d2.insert(write)
             }

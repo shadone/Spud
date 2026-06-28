@@ -30,12 +30,22 @@ public struct LemmyComposerPerformer: OutboundContentPerforming {
         guard let kind = OutboundKind(rawValue: record.kind) else { return nil }
         switch kind {
         case .comment:
-            guard let postServerId = record.postServerId else { return nil }
-            let response = try await api.createComment(
-                postID: Components.Schemas.PostID(postServerId),
-                content: record.body,
-                parentID: record.parentCommentServerId.map { Components.Schemas.CommentID($0) }
-            )
+            let response: Components.Schemas.CommentResponse
+            if let editCommentServerId = record.editCommentServerId {
+                // Edit of an existing comment: update the body in place.
+                response = try await api.editComment(
+                    commentID: Components.Schemas.CommentID(editCommentServerId),
+                    content: record.body
+                )
+            } else {
+                // Create a new comment / reply.
+                guard let postServerId = record.postServerId else { return nil }
+                response = try await api.createComment(
+                    postID: Components.Schemas.PostID(postServerId),
+                    content: record.body,
+                    parentID: record.parentCommentServerId.map { Components.Schemas.CommentID($0) }
+                )
+            }
             try await appDatabase.upsertComment(
                 from: response.comment_view,
                 accountId: accountId,

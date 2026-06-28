@@ -788,6 +788,48 @@ class PostDetailCommentCell: UITableViewCell {
         accessibilityTraits = state.status == .failed ? .button : .none
     }
 
+    /// Overlays a pending-EDIT status onto an already-`configure(with:)`d comment
+    /// cell: the body has already been swapped to the locally-edited text by the
+    /// caller (which built the view model from a body-overridden row), so this only
+    /// appends an "Edited · Sending…" / "Edit failed — tap to retry" status line
+    /// and dims the row while sending. The cell otherwise keeps the comment's real
+    /// votes/score/badges/children.
+    func applyEditOverlayStatus(_ overlay: PendingCommentEditOverlay) {
+        let statusText: String
+        let statusColor: UIColor
+        switch overlay.status {
+        case .sending:
+            statusText = NSLocalizedString("Edited \u{00B7} Sending\u{2026}", comment: "Pending comment edit status: sending")
+            statusColor = .secondaryLabel
+        case .failed:
+            statusText = NSLocalizedString("Edit failed \u{2014} tap to retry", comment: "Pending comment edit status: failed")
+            statusColor = .systemRed
+        }
+        let statusAttributes: [NSAttributedString.Key: Any] = [
+            .font: UIFont.preferredFont(forTextStyle: .caption1),
+            .foregroundColor: statusColor,
+        ]
+        // Append the status onto the existing metadata subtitle (score · age · …)
+        // so the comment keeps its real metadata and gains the pending indicator.
+        let combined = NSMutableAttributedString(attributedString: subtitleLabel.attributedText ?? NSAttributedString())
+        if combined.length > 0 {
+            combined.append(NSAttributedString(string: "  ", attributes: statusAttributes))
+        }
+        combined.append(NSAttributedString(string: statusText, attributes: statusAttributes))
+        subtitleLabel.attributedText = combined
+        subtitleLabel.accessibilityLabel = [subtitleLabel.accessibilityLabel, statusText]
+            .compactMap { $0 }
+            .joined(separator: ", ")
+
+        contentView.alpha = overlay.status == .sending ? 0.6 : 1.0
+        // Only a failed edit is interactive (Retry / Discard); a still-sending
+        // edit shows progress and ignores taps.
+        pendingTapGestureRecognizer.isEnabled = overlay.status == .failed
+        if overlay.status == .failed {
+            accessibilityTraits.insert(.button)
+        }
+    }
+
     /// Applies the fresh-comment wash for this appearance. Returns `true` if it
     /// started the one-time fade (so the host can record that this comment has
     /// animated and not replay it).

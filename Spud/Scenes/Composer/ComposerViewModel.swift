@@ -25,11 +25,16 @@ enum ComposerTarget {
     /// flow is entered from a community screen. The title/url/image/nsfw surface
     /// for this case lives in `NewPostViewController`, not the comment composer.
     case newPost(serverCommunityId: Components.Schemas.CommunityID?, initialCommunityName: String?)
+    /// Edit the user's own existing comment. The editor is seeded with the
+    /// comment's current body and the saved edit is enqueued to the content
+    /// outbox (the performer calls `editComment`).
+    case editComment(serverPostId: Components.Schemas.PostID, serverCommentId: Components.Schemas.CommentID)
 
     var serverPostId: Components.Schemas.PostID? {
         switch self {
         case let .commentReply(serverPostId, _): serverPostId
         case let .postReply(serverPostId): serverPostId
+        case let .editComment(serverPostId, _): serverPostId
         case .privateMessage, .newPost: nil
         }
     }
@@ -37,14 +42,22 @@ enum ComposerTarget {
     var parentCommentId: Components.Schemas.CommentID? {
         switch self {
         case let .commentReply(_, parentCommentId): parentCommentId
-        case .postReply, .privateMessage, .newPost: nil
+        case .postReply, .privateMessage, .newPost, .editComment: nil
+        }
+    }
+
+    /// The server id of the comment being edited, or nil for create flows.
+    var editCommentServerId: Components.Schemas.CommentID? {
+        switch self {
+        case let .editComment(_, serverCommentId): serverCommentId
+        case .commentReply, .postReply, .privateMessage, .newPost: nil
         }
     }
 
     var privateMessageRecipientId: Components.Schemas.PersonID? {
         switch self {
         case let .privateMessage(recipientId): recipientId
-        case .commentReply, .postReply, .newPost: nil
+        case .commentReply, .postReply, .newPost, .editComment: nil
         }
     }
 }
@@ -85,14 +98,25 @@ final class ComposerViewModel {
     @ObservationIgnored
     private var initialBody: String?
 
+    /// For `.editComment`, the comment's body when the editor opened. The Save
+    /// button stays disabled until the text differs from this, so an unchanged
+    /// edit can't be enqueued. nil for create flows (no change gate).
+    @ObservationIgnored
+    private var originalBody: String?
+
     var bodyText: String = ""
     var submissionState: ComposerSubmissionState = .editing
 
-    /// The Post button is enabled only when there is non-whitespace content
-    /// and we are not mid-submission.
+    /// The Post/Save button is enabled only when there is non-whitespace content
+    /// and we are not mid-submission. For an edit it must additionally have
+    /// changed from the original body.
     var canPost: Bool {
-        !bodyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && submissionState != .submitting
+        let trimmed = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, submissionState != .submitting else { return false }
+        if let originalBody {
+            return trimmed != originalBody.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return true
     }
 
     var isSubmitting: Bool {
@@ -105,6 +129,16 @@ final class ComposerViewModel {
         case .postReply: NSLocalizedString("Add comment", comment: "Composer title when replying to a post")
         case .privateMessage: NSLocalizedString("New message", comment: "Composer title when composing a private message")
         case .newPost: NSLocalizedString("New post", comment: "Composer title when composing a new post")
+        case .editComment: NSLocalizedString("Edit comment", comment: "Composer title when editing the user's own comment")
+        }
+    }
+
+    /// The submit-button title — "Save" when editing, "Post" otherwise.
+    var submitButtonTitle: String {
+        switch target {
+        case .editComment: NSLocalizedString("Save", comment: "Composer submit button when editing a comment")
+        case .commentReply, .postReply, .privateMessage, .newPost:
+            NSLocalizedString("Post", comment: "Composer submit button")
         }
     }
 
@@ -112,6 +146,9 @@ final class ComposerViewModel {
     @ObservationIgnored private var saveTask: Task<Void, Never>?
 
     private var draftKey: String? {
+        if let editCommentServerId = target.editCommentServerId {
+            return OutboundContentRecord.editCommentDraftKey(serverCommentId: Int64(editCommentServerId))
+        }
         guard let postId = target.serverPostId else { return nil }
         return OutboundContentRecord.commentDraftKey(
             postServerId: Int64(postId),
@@ -136,6 +173,13 @@ final class ComposerViewModel {
     }
 
     func loadExistingDraft() async {
+        // For an edit, the caller passes the comment's current body as
+        // `initialBody`. Record it as the change baseline so an unchanged edit
+        // can't be saved, regardless of whether a saved edit draft is loaded.
+        if target.editCommentServerId != nil {
+            originalBody = initialBody
+        }
+
         if let draftKey,
            let row = try? await accountScope.lemmyService.loadDraft(draftKey: draftKey),
            !row.body.isEmpty
@@ -144,7 +188,8 @@ final class ComposerViewModel {
             bodyText = row.body
         } else if let initialBody, !initialBody.isEmpty {
             // No saved draft: seed the editor with the caller-provided text (e.g.
-            // a failed comment being edited) so it isn't lost.
+            // a failed comment being edited, or the comment's current body when
+            // editing) so it isn't lost.
             bodyText = initialBody
         }
         initialBody = nil
@@ -166,7 +211,8 @@ final class ComposerViewModel {
         let input = OutboundDraftInput(
             kind: .comment, body: bodyText, postServerId: Int64(postId),
             parentCommentServerId: target.parentCommentId.map { Int64($0) },
-            communityServerId: nil, title: nil, url: nil, nsfw: false, postType: 0
+            communityServerId: nil, title: nil, url: nil, nsfw: false, postType: 0,
+            editCommentServerId: target.editCommentServerId.map { Int64($0) }
         )
         clientToken = try? await accountScope.lemmyService.saveDraft(input)
     }

@@ -17,7 +17,7 @@ Spud auto-saves every compose session to a durable per-target draft store (GRDB 
 - **Cross-launch persistence.** Drafts survive force-quit and relaunch. The durable store is backed by the shared App Group database; draft content is not surfaced to the widget or extensions.
 - **Content for new posts.** For a new post, the durable draft stores title, body, URL, NSFW flag, post type, and chosen community (when pre-filled at launch). For a comment reply or DM, it stores the body text.
 - **Preview and upload do not lose the draft.** Toggling Write / Preview or attaching an image mutates the live draft in place. The in-memory state is flushed to the durable store.
-- **Not shared across composer types.** Each composer target (new post, top-level reply, nested comment reply, private message) has its own slot; there is no single global draft.
+- **Not shared across composer types.** Each composer target (new post, top-level reply, nested comment reply, private message, **edit of a specific comment**) has its own slot; there is no single global draft. An edit draft is keyed by the edited comment's id, so it never coalesces with a reply draft for the same post or parent.
 - **Sending clears the draft.** A successful send deletes the draft from the store. A failed send parks the item as Failed in the outbox but retains the content so it can be retried or discarded from [Drafts and Outbox](drafts-and-outbox.md).
 
 ## Scenarios
@@ -63,4 +63,4 @@ Spud auto-saves every compose session to a durable per-target draft store (GRDB 
 - **Private messages.** The DM composer still uses the old blocking flow; durable drafts for private messages are not yet supported.
 - **No multiple concurrent drafts for the same target.** Only one draft slot exists per target per account; a later session overwrites the earlier one.
 - **No draft picker or drafts list inside the composer.** The recovery surface for Failed / Sending / Draft items is the standalone [Drafts and Outbox](drafts-and-outbox.md) screen.
-- **No editing or deleting an already-posted comment or post.** "Edit" here refers to editing an unsent draft or failed outbox item only.
+- **Posts are not editable.** Editing an already-posted *comment* IS supported (it opens a composer prefilled with the comment's body, with its own draft slot — see [Replying](replying.md)); editing or deleting an already-posted *post* is not.

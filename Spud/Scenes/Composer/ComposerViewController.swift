@@ -61,7 +61,7 @@ final class ComposerViewController: UIViewController {
     )
 
     private lazy var postButton = UIBarButtonItem(
-        title: NSLocalizedString("Post", comment: "Composer submit button"),
+        title: viewModel.submitButtonTitle,
         style: .done,
         target: self,
         action: #selector(postTapped)

@@ -616,6 +616,17 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v21_outboundEditComment") { db in
+            // Distinguishes a content-creation outbound row (NULL) from an EDIT of
+            // an existing comment (set to that server comment id). When set, the
+            // composer performer calls api.editComment(commentId:content:) instead
+            // of createComment, and the create-dedup is skipped (an edit targets an
+            // existing comment by design).
+            try db.alter(table: "outboundContent") { t in
+                t.add(column: "editCommentServerId", .integer)
+            }
+        }
+
         return migrator
     }
 }
