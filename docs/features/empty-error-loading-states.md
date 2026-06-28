@@ -14,7 +14,8 @@ Across its scenes Spud shows designed states for the moments before, instead of,
 - **Empty states are scene-specific in copy.** The feed shows "No posts" (or "No saved posts yet" on the saved feed); Search shows a "Search posts, communities, and people" prompt before you type and a no-results state quoting your query; Inbox shows a per-scope empty for replies, mentions, and messages; a direct-message thread and a profile each have their own empty copy. The mechanism is shared; the words are not.
 - **Empty states do not flash during loading.** An empty placeholder is shown only once a first result has arrived and the scene is genuinely empty with nothing in flight, so it never appears briefly before content loads. (For the feed, see [Feed loading and pagination](feed-loading.md).)
 - **Loading indicators.** While a list pages, a footer row with an activity indicator appears beneath the content and is removed when the page arrives (the feed footer spinner, documented in [Feed loading and pagination](feed-loading.md)). Scenes that route to a screen while its content loads — post detail, a person profile, a community — show a full-screen activity indicator until the content is ready, then swap in the loaded screen. Individual scenes (composer, account, registration) show inline spinners for in-flight work.
-- **Errors as inline state or as an alert.** A failure surfaces one of two ways. Search and Inbox render a designed inline error state — a warning-triangle symbol with a short "couldn't load" message — in place of the missing content. Write actions and many fetch failures instead present a single-OK-button alert with a human-readable message, kept consistent through a shared error-alert helper so call sites report failures the same way.
+- **Feed error states with retry.** When the feed's initial load fails, it renders a designed inline error state classified as **Offline**, **Unreachable**, or **Malformed** (documented in [Feed loading and pagination](feed-loading.md)). Each state shows a symbol, title, and message, with one or two action buttons for retry, working offline, or copying diagnostics. The state persists until the user retries or connectivity returns (triggering automatic retry).
+- **Errors as inline state or as an alert in other scenes.** Search and Inbox render a designed inline error state — a warning-triangle symbol with a short "couldn't load" message — in place of the missing content. Write actions and many fetch failures instead present a single-OK-button alert with a human-readable message, kept consistent through a shared error-alert helper so call sites report failures the same way.
 - **Sign-in states.** Where a scene needs an account — the Inbox — a signed-out placeholder ("Sign in to use your inbox") stands in for the content rather than an empty list.
 
 ## Scenarios
@@ -38,6 +39,15 @@ Across its scenes Spud shows designed states for the moments before, instead of,
 - **Then** a full-screen activity indicator is shown until the content is ready
 - **And** the loaded screen replaces it
 
+### The feed shows a designed error state with retry on initial load failure
+
+- **Surfaces:** `iphone`, `ipad`
+- **Given** I open a feed that encounters an offline, unreachable, or malformed response on its first load
+- **When** the failure is reported
+- **Then** the list shows an inline Offline / Unreachable / Malformed state with a symbol, title, and message
+- **And** action buttons offer to retry, work offline, or copy diagnostics
+- **And** if the failure was offline, the feed retries automatically once connectivity returns
+
 ### Search and Inbox show an inline error state
 
 - **Surfaces:** `iphone`, `ipad`
@@ -60,5 +70,5 @@ Across its scenes Spud shows designed states for the moments before, instead of,
 ## Not supported / out of scope
 
 - **No custom empty-state component.** The states are the system content-unavailable presentation configured per scene, not a bespoke Spud view; there is no shared empty-state class to theme. They are not wired to the app's design tokens beyond the symbols passed in.
-- **No retry button on the placeholder.** Empty and inline-error states carry a symbol, title, and message but no action button; recovery is by retrying the action (for example pull-to-refresh where a scene offers it), not by tapping the placeholder.
-- **Errors are not silently swallowed but are not always inline.** Many fetch failures log and surface as an alert rather than an inline error state; only Search and Inbox render a designed inline error.
+- **No retry button on empty states or Search/Inbox errors.** Empty placeholders and Search/Inbox inline-error states carry a symbol, title, and message but no action button; recovery is by retrying the action (for example pull-to-refresh where a scene offers it), not by tapping the placeholder. (The feed error state is an exception — it does include retry, work offline, and copy-diagnostics buttons.)
+- **Errors are not silently swallowed but are not always inline.** Many fetch failures log and surface as an alert rather than an inline error state; the feed renders a designed inline error with buttons, while Search and Inbox render simpler inline errors without buttons.

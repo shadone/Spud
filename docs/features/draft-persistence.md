@@ -12,10 +12,10 @@ Spud auto-saves every compose session to a durable per-target draft store (GRDB 
 
 - **Per-target, per-account.** One draft slot exists for each combination of target (a post, a comment, a community) and signed-in account. Opening the same composer twice in the same session, or after a relaunch, silently restores that slot. A different account has its own independent slots.
 - **Auto-saved, not manually triggered.** The draft is written to the durable store incrementally as you type; no explicit "save" action is needed.
-- **Mail-style dismiss.** Dismissing a non-empty composer presents an action sheet: "Save Draft" (retains the text in the durable store), "Delete Draft" (removes it), and "Keep Editing" (returns to the composer). An empty composer dismisses without the action sheet.
+- **Mail-style dismiss.** Dismissing a non-empty composer presents an action sheet: "Save Draft" (retains the text in the durable store), "Delete Draft" (removes it), and "Cancel" (returns to the composer). An empty composer dismisses without the action sheet.
 - **Silent restore on reopen.** Reopening the composer for a target that has a saved draft silently pre-fills the text fields with no notification or banner — the text is simply there.
 - **Cross-launch persistence.** Drafts survive force-quit and relaunch. The durable store is backed by the shared App Group database; draft content is not surfaced to the widget or extensions.
-- **Content for new posts.** For a new post, the durable draft stores title, body, URL, NSFW flag, post type, and chosen community (when pre-filled at launch). For a comment reply or DM, it stores the body text.
+- **Content for new posts.** For a new post, the durable draft stores title, body, URL, NSFW flag, and post type. The community is the draft's key (which draft slot is used) but is not restored into the editor. For a comment reply or DM, it stores the body text.
 - **Preview and upload do not lose the draft.** Toggling Write / Preview or attaching an image mutates the live draft in place. The in-memory state is flushed to the durable store.
 - **Not shared across composer types.** Each composer target (new post, top-level reply, nested comment reply, private message, **edit of a specific comment**) has its own slot; there is no single global draft. An edit draft is keyed by the edited comment's id, so it never coalesces with a reply draft for the same post or parent.
 - **Sending clears the draft.** A successful send deletes the draft from the store. A failed send parks the item as Failed in the outbox but retains the content so it can be retried or discarded from [Drafts and Outbox](drafts-and-outbox.md).
@@ -32,7 +32,7 @@ Spud auto-saves every compose session to a durable per-target draft store (GRDB 
 
 - **Given** I have typed some text in the composer
 - **When** I tap Cancel or swipe the sheet down
-- **Then** an action sheet appears with "Save Draft", "Delete Draft", and "Keep Editing"
+- **Then** an action sheet appears with "Save Draft", "Delete Draft", and "Cancel"
 - **And** tapping "Save Draft" keeps the text; tapping "Delete Draft" removes it
 
 ### Dismissing an empty composer skips the action sheet

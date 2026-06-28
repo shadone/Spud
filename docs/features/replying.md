@@ -23,7 +23,7 @@ You can also **edit** your own (non-deleted) comment: long-press it and choose E
   - **Retry** — requeues the item in the background queue.
   - **Edit** — reopens the composer seeded with the failed body text; posting again replaces the failed item.
   - **Discard** — removes the optimistic comment from the thread.
-- **Durable draft per reply target.** The composer auto-saves the in-progress body to the durable draft store. Dismissing a non-empty composer without posting offers "Save Draft" / "Delete Draft" / "Keep Editing". Reopening the composer for the same target silently restores the text. See [Draft persistence](draft-persistence.md).
+- **Durable draft per reply target.** The composer auto-saves the in-progress body to the durable draft store. Dismissing a non-empty composer without posting offers "Save Draft" / "Delete Draft" / "Cancel". Reopening the composer for the same target silently restores the text. See [Draft persistence](draft-persistence.md).
 - **Permanent failures also surface a toast.** A non-blocking "Couldn't send comment — View" toast appears, linking to [Drafts and Outbox](drafts-and-outbox.md) where the failed item can be retried or discarded.
 
 ### Editing your own comment

@@ -2,25 +2,22 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Post detail and comments](post-detail-and-comments.md), [Saving](saving.md), [Configurable swipe actions](swipe-actions.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Post detail and comments](post-detail-and-comments.md), [Saving](saving.md), [Sign-in gate on write actions](sign-in-gate.md), [Configurable swipe actions](swipe-actions.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
-Upvote or downvote any post or comment. A vote is applied by sending it to the server and
-mirroring the server's confirmed result back into the app, so the score and your vote
-state you see are what the server recorded. Tapping the same direction you already voted
-removes your vote. Votes are reachable from the post's action bar, comment swipe slots,
-and the per-comment context menu.
+Upvote or downvote any post or comment. A vote is applied **optimistically** — the score and your vote state update immediately in the local store — and is sent in the background through a durable, per-account outbox that retries transient failures and rolls back permanent ones, so the server stays the source of truth. Tapping the same direction you already voted removes your vote. Votes are reachable from the post's action bar, comment swipe slots, and the per-comment context menu.
 
 ## Behavior and rules
 
 - **Posts and comments both vote.** The post header has inline upvote / downvote buttons; comments expose Upvote and Downvote through their context menu and through their swipe slots.
-- **Confirm-then-mirror.** A vote calls the Lemmy API first (`likePost` / `likeComment`); only the server's returned view is written back into the local database (`vote(serverPostId:vote:)` / `vote(serverCommentId:vote:)`). There is no optimistic local change before the server confirms — the displayed score and highlight update when the mirror lands.
-- **Tapping your current vote removes it.** Vote intent is resolved against your existing vote: upvoting something you have already upvoted (or downvoting what you have already downvoted) sends a neutral/“remove” to the server, clearing your vote. There is no separate "remove vote" control — it is the same gesture again.
-- **Haptic on submit.** Submitting a vote fires a success haptic.
-- **State-aware presentation.** The active vote tints its glyph (upvote red / downvote per theme); a vote swipe slot reads Upvote, Downvote, or Remove vote according to current state. Comment subtitles show the score colored by your vote.
-- **Failures surface an alert.** If the vote call fails, an error alert is shown; the local state is unchanged because nothing was mirrored.
-- **No client-side signed-out gate on voting.** Unlike save / reply / report, a vote is not pre-empted for a signed-out account: the call is attempted and, when it fails server-side, an error alert is shown. (Save and reply, by contrast, present a "Sign in to…" alert before attempting.)
+- **Optimistic, via the durable outbox.** A vote is written to the local database synchronously at enqueue time (before any network call), so the score and highlight change instantly; the request is then sent in the background by the mutation outbox (`OutboxService`). On success the server's authoritative `PostView` / `CommentView` is mirrored back, reconciling the exact tallies.
+- **Tapping your current vote removes it.** Vote intent is resolved against your existing vote: upvoting something you have already upvoted (or downvoting what you have already downvoted) clears your vote. There is no separate "remove vote" control — it is the same gesture again.
+- **Coalescing.** Rapidly toggling back to your original state cancels the pending operation and reverts the optimistic projection, so a double-tap makes no net server call.
+- **Rollback on permanent failure.** Transient failures (offline, rate-limit, 5xx) are retried with backoff; a permanent failure rolls the optimistic vote back to its pre-vote baseline and surfaces the error.
+- **Haptic on tap.** A vote fires a haptic at the moment of the tap (when the optimistic change is enqueued), not after the network round-trip.
+- **State-aware presentation.** The active vote tints its glyph (per the accent/theme); a vote swipe slot reads Upvote, Downvote, or Remove vote according to current state. Comment subtitles show the score colored by your vote.
+- **Signed-out votes are gated.** Tapping vote while signed out presents the "Sign in to vote" sheet (with a warning haptic) before anything is sent — the same [Sign-in gate](sign-in-gate.md) used by save / reply / report.
 
 ## Scenarios
 
@@ -28,8 +25,8 @@ and the per-comment context menu.
 
 - **Given** an open post
 - **When** I tap upvote in the header action bar
-- **Then** the vote is sent to the server, and on confirmation the score and the highlighted upvote reflect it
-- **And** a success haptic fires on submit
+- **Then** the score and highlighted upvote update immediately, and the vote is sent in the background
+- **And** a haptic fires on the tap
 
 ### Remove a vote by tapping it again
 
@@ -41,23 +38,28 @@ and the per-comment context menu.
 
 - **Given** a comment I have upvoted
 - **When** I downvote it
-- **Then** the upvote is replaced by a downvote once the server confirms
+- **Then** the upvote is immediately replaced by a downvote, and the server is reconciled in the background
 
 ### Vote on a comment from its menu
 
 - **Given** a comment
 - **When** I long-press it and choose Upvote or Downvote
-- **Then** the vote is applied through the same confirm-then-mirror path
+- **Then** the vote is applied through the same optimistic outbox path
 
-### A failed vote shows an alert
+### A failed vote rolls back
 
-- **Given** the vote call fails (for example, a signed-out account or a network error)
+- **Given** a vote that fails permanently on the server
 - **When** I vote
-- **Then** an error alert is shown and my vote state is unchanged
+- **Then** the optimistic change is rolled back to its previous state and the error is surfaced
+
+### A signed-out vote is gated
+
+- **Given** I am signed out
+- **When** I tap vote
+- **Then** a "Sign in to vote" sheet appears and nothing is sent
 
 ## Not supported / out of scope
 
-- No optimistic UI: the score and vote highlight update only after the server confirms.
-- No pre-emptive "sign in to vote" gate — a signed-out vote is attempted and surfaces an error if it fails. (This differs from save and reply, which gate before attempting.)
-- Voting on a per-post comment-sort basis, batch voting, or vote history are not provided.
+- Batch voting and vote history are not provided.
 - Configuring which swipe direction votes is part of [swipe-actions.md](swipe-actions.md), not this feature.
+- The durable retry/rollback queue mechanics are shared with save / hide; see [Saving](saving.md) and the outbox.

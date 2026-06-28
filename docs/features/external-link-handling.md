@@ -18,6 +18,28 @@ Settings → General → Links controls how external links from posts and commen
 - **Settings testing area.** The Links section footer has a normal link and a universal link that, when tapped, route through the same open path so you can verify your settings without leaving Settings.
 - **This governs external links only.** Opening the post's own page on its instance (the "open in browser" action) always uses an in-app Safari view; that is part of [sharing.md](sharing.md), not this preference.
 
+## Privacy & Link Cleaning
+
+Settings → General → Links → "Privacy & Link Cleaning" (PreferencesPrivacyView) runs on every external link before the open-mode logic above applies. It uses a URL sanitizer with configurable steps:
+
+- **Clean Outgoing Links** (master toggle) — when on, enables the pipeline below; when off, all steps are disabled.
+- **Strip Tracking Parameters** — removes known tracking parameters (e.g. `utm_*`, `fbclid`) from query strings.
+- **Unwrap Redirectors** — follows redirect domains to their real destinations.
+- **Upgrade to HTTPS** — rewrites `http://` URLs to `https://` where safe.
+- **De-AMP** — converts Google AMP URLs to their canonical forms.
+- **Redirect to Front-ends** — routes known sites to privacy-focused front-end instances (e.g. YouTube → Invidious, Twitter → Nitter). Each front-end service has an editable hostname, defaulting to a public instance; services can be individually disabled if an instance fails.
+
+The sanitized URL is then passed to the open-mode logic (In-App Safari or system browser).
+
+## Post & Comment Links
+
+Settings → General → Links also contains two link-generation pickers for the "Open in browser" and "Share" actions on post and comment bodies:
+
+- **Open in Browser** — chooses which instance's URL to open: My Instance (the current account's instance) or Original Instance (the post's original instance).
+- **Share** — chooses which instance's URL to copy to the clipboard: My Instance or Original Instance.
+
+See [sharing.md](sharing.md) for the full context of these actions.
+
 ## Scenarios
 
 ### Open an external link in the in-app browser

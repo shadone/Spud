@@ -1,12 +1,12 @@
 # Feed loading and pagination
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** partial — the feed has no pull-to-refresh; it loads on appear and pages with infinite scroll
-- **Related:** [feeds-and-sorting.md](feeds-and-sorting.md), [mark-read-and-hiding.md](mark-read-and-hiding.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Status:** shipped
+- **Related:** [feeds-and-sorting.md](feeds-and-sorting.md), [mark-read-and-hiding.md](mark-read-and-hiding.md), [Empty, error, and loading states](empty-error-loading-states.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
-A feed loads its first page automatically when it has nothing to show, then keeps loading more as you scroll toward the bottom — cursor-based infinite scroll, with a spinner in a footer row while the next page is in flight. There is no pull-to-refresh on the post list; a feed is reloaded by changing its sort, re-selecting it, or as a side effect of certain actions, not by tugging the list down.
+A feed loads its first page automatically when it has nothing to show, then keeps loading more as you scroll toward the bottom — cursor-based infinite scroll, with a spinner in a footer row while the next page is in flight. Pull down to refresh the feed in place. When the first load fails, the list shows a designed offline / unreachable / malformed state instead of an alert, and it retries automatically once connectivity returns.
 
 ## Behavior and rules
 
@@ -17,7 +17,10 @@ A feed loads its first page automatically when it has nothing to show, then keep
 - **One fetch at a time.** A new page request is skipped while one is already running, so a fast scroll cannot stack duplicate fetches.
 - **Reload resets to the head.** Reloading a feed (changing sort, re-selecting it from the sidebar, or a programmatic reload after blocking a user or community) builds a fresh feed, clears the cursor, and fetches from the top again.
 - **Empty state.** Once the first snapshot has arrived and the feed is genuinely empty (and nothing is fetching), the list shows an empty-state placeholder with an icon, title, and message. It is suppressed during the initial and in-flight loads so it never flashes before content arrives.
-- **Errors surface as alerts.** A failed page fetch is reported through the alert service rather than silently; the footer spinner is removed.
+- **Pull-to-refresh.** Pulling the list down refreshes the feed in place: a refresh spinner overlays the existing posts. On success the list updates; on failure a toast is shown and the existing posts stay — the feed does not drop into an error state when it already has content.
+- **Initial-load states.** Before the first page arrives the list shows a shimmer skeleton. If the first load fails, the feed renders a designed inline state classified as **Offline**, **Unreachable**, or **Malformed** (each with its own copy and a retry affordance) rather than an alert. A slow first load shows a "slow connection" hint after a few seconds, and the attempt times out at ~25 s into the Unreachable state.
+- **Automatic retry on reconnect.** A reachability monitor (`NWPathMonitor`) watches connectivity; after an offline failure the feed re-fetches automatically once the network is back.
+- **Pagination failures are non-destructive.** A failed next-page fetch shows a toast and leaves the loaded posts intact; the footer spinner is removed.
 
 ## Scenarios
 
@@ -60,9 +63,21 @@ A feed loads its first page automatically when it has nothing to show, then keep
 - **When** the list settles
 - **Then** an empty-state icon, title, and message are shown
 
+### Pull to refresh
+
+- **Given** a feed with posts already loaded
+- **When** I pull the list down
+- **Then** a refresh spinner overlays the posts and the feed reloads in place
+- **And** if the refresh fails, a toast appears and my existing posts remain
+
+### The first load fails offline
+
+- **Given** I open a feed with no network
+- **When** the first page fails
+- **Then** the list shows an Offline state (not an alert), and it retries automatically when connectivity returns
+
 ## Not supported / out of scope
 
-- **No pull-to-refresh on the post list.** Tugging the feed down does nothing; refresh by changing the sort or re-selecting the feed. (Pull-to-refresh exists on other screens — Inbox, profiles, and post detail — as their own features.)
 - No manual "load more" button — paging is automatic on scroll.
 - No background or periodic feed refresh; a feed only fetches on first appear, on scroll, or on an explicit reload.
 - Pagination is opaque-cursor based; Spud does not expose page numbers and cannot jump to an arbitrary page.

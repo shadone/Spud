@@ -10,11 +10,11 @@ Block a person or a community so their content stops appearing in your feeds, an
 
 ## Behavior and rules
 
-- **People and communities both block.** A person profile offers Block user / Unblock user; a community screen offers Block community / Unblock community. Each appears both in the screen's overflow (`...`) menu and in the header's long-press context menu.
+- **People and communities both block.** A person profile offers Block user / Unblock user; a community screen offers Block community / Unblock community. Each appears in the screen's overflow (`...`) menu, in the header's long-press context menu, and in a person profile's long-press context menu (accessed by tapping the person's name or avatar).
 - **Confirm before blocking, immediate unblock.** Blocking presents a destructive confirmation action sheet ("Block @user?" / "Block !community@instance?") with a warning haptic, a "Block" confirm button, and a body explaining you won't see their content and can unblock later. Confirming fires a success haptic. Unblocking is applied immediately, with no confirmation sheet.
 - **Confirm-then-mirror.** The action calls the Lemmy API (`blockPerson` / `blockCommunity`) and writes the server's returned view back into the local database. The block state shown in the UI updates optimistically and reverts if the call fails.
 - **Blocking a community reloads the feed.** After a community block, the community screen's embedded feed reloads so the now-server-filtered content disappears. A person block does not reload a feed from the profile (the profile has no embedded feed of its own); the server filters that author out of subsequent feed fetches.
-- **Signed-out is pre-gated.** While the active account is signed out, attempting to block shows a "Sign in to block" alert with a warning haptic and makes no API call. See [sign-in-gate.md](sign-in-gate.md).
+- **Signed-out is pre-gated.** While the active account is signed out, attempting to block shows a "Sign in to block" sheet with a warning haptic and makes no API call. See [sign-in-gate.md](sign-in-gate.md).
 - **Failures surface an alert.** If the block / unblock call fails, an error alert is shown and the optimistic state is reverted.
 - **Blocked list in Settings.** Settings shows Blocked Users and Blocked Communities (only when signed in). Each list is fetched from the server (the account's `my_user` blocks) and shows the name, federated handle, and avatar / icon per entry.
 - **Swipe to unblock.** In each blocked list, a trailing swipe on a row reveals a destructive Unblock action. Unblocking removes the row optimistically and reverts it if the server call fails. Pull-to-refresh re-fetches the list.
@@ -57,7 +57,7 @@ Block a person or a community so their content stops appearing in your feeds, an
 
 - **Given** a signed-out active account
 - **When** I try to block a person or community
-- **Then** a "Sign in to block" alert appears with a warning haptic and nothing is blocked
+- **Then** a "Sign in to block" sheet appears with a warning haptic and nothing is blocked
 
 ## Not supported / out of scope
 

@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Configurable swipe actions](swipe-actions.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Configurable swipe actions](swipe-actions.md), [NSFW content visibility and blur](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -33,6 +33,7 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
   dismiss.
 - **Gallery paging.** A post with more than one image pages horizontally; page dots show
   position and current page, and are hidden for a single image.
+- **Alt text.** When a media item carries alt text, an "Image description" pill appears above the page dots; tapping it opens a sheet showing the full description. The pill fades with the chrome and is absent for items without alt text. (VoiceOver: the pill is actionable.)
 - **Instant first frame.** When the originating cell or header already has the image (or a
   thumbnail) loaded, the viewer paints it immediately, then loads full resolution behind it
   — a thumbnail is shown first and replaced by the full image when it arrives.
@@ -52,6 +53,7 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
 - **Unplayable video falls back to the browser.** A link whose extension AVFoundation can't
   decode (such as webm or mkv) is classified as an external link, not a video, so it opens
   in the browser rather than a dead player.
+- **NSFW privacy screen.** When any item in the viewer is NSFW, the viewer registers as sensitive content for the duration of its presentation, so the screen is hidden in the app-switcher snapshot and from screen captures.
 
 ## Scenarios
 

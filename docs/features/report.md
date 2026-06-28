@@ -14,7 +14,7 @@ Report a post or a comment to its moderators with a required free-text reason. R
 - **Only on other people's content.** Report is omitted from the menu when the post or comment is your own; reporting your own content is meaningless.
 - **Required reason.** Report presents an alert with a single "Reason (required)" text field. The Report submit button stays disabled until the field is non-empty; the reason is trimmed of surrounding whitespace before it is sent.
 - **Submit sends and confirms.** On submit the report is sent to the server (`createPostReport` / `createCommentReport`). On success a success haptic fires and a "Report submitted — Thanks. The moderators will review it." confirmation alert is shown. On failure an error alert is shown.
-- **Signed-out is pre-gated.** While the active account is signed out, choosing Report shows a "Sign in to report" alert with a warning haptic and does not open the reason field. See [sign-in-gate.md](sign-in-gate.md).
+- **Signed-out is pre-gated.** While the active account is signed out, choosing Report shows a "Sign in to report" sheet with a warning haptic and does not open the reason field. See [sign-in-gate.md](sign-in-gate.md).
 - **No local state change.** Reporting does not hide, remove, or otherwise alter the reported post or comment in your view; it only files the report.
 
 ## Scenarios
@@ -49,7 +49,7 @@ Report a post or a comment to its moderators with a required free-text reason. R
 
 - **Given** a signed-out active account
 - **When** I choose Report on a post or comment
-- **Then** a "Sign in to report" alert appears with a warning haptic and the reason field is not shown
+- **Then** a "Sign in to report" sheet appears with a warning haptic and the reason field is not shown
 
 ## Not supported / out of scope
 

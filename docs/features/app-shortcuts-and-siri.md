@@ -2,32 +2,39 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Widget](widget.md), [Feeds and sorting](feeds-and-sorting.md), [Search](search.md), [New post](new-post.md), [Inbox](inbox.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md)
+- **Related:** [Widget](widget.md), [Feeds and sorting](feeds-and-sorting.md), [Search](search.md), [New post](new-post.md), [Inbox](inbox.md), [Saving](saving.md), [Accounts and switching](accounts-and-switching.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md)
 
 ## What it does
 
 Spud exposes its core actions to the system as App Intents, so you can run them
 from Siri, the Shortcuts app, the Action button, and Spotlight without opening the
-app first. Five actions ship: Open Feed, Search Lemmy, New Post, Open Inbox, and
-Open Community. Your subscribed communities are also indexed into Spotlight, so you
-can search a community by name from the Home Screen and jump straight to it. Every
-action runs against your current default account.
+app first. Seven actions ship: Open Feed, Search Lemmy, New Post, Open Inbox,
+Open Community, Open Saved, and Switch Account. Your subscribed communities and your
+saved / recently-viewed posts are also indexed into Spotlight, so you can find them
+by name from the Home Screen and jump straight in. Most actions run against your
+current default account; Switch Account changes which account that is.
 
 ## Behavior and rules
 
-- **Five App Intents.** Open Feed (All / Local / Subscribed / Moderator view, with
-  an optional sort), Search Lemmy (with a query), New Post, Open Inbox, and Open
-  Community. Each appears in the Shortcuts app and can be assigned to the Action
-  button.
+- **Seven App Intents.** Open Feed (All / Local / Subscribed / Moderator view, with
+  an optional sort), Search Lemmy (with a query), New Post, Open Inbox, Open
+  Community, Open Saved (the saved-posts feed), and Switch Account (changes the
+  default account). Each appears in the Shortcuts app and can be assigned to the
+  Action button.
 - **Siri phrases.** Each action carries spoken phrases — e.g. "Open Subscribed in
   Spud", "Search Spud", "New post in Spud", "Open my Spud inbox", "Open
-  <community> in Spud". Running an action opens the app on that screen.
+  <community> in Spud", "Open Saved in Spud", "Switch Spud account". Running an
+  action opens the app on that screen (or applies the switch).
 - **Open Community uses your subscriptions.** The community parameter is filled
   from the default account's subscribed communities, so Shortcuts shows a picker and
   Siri can match a community by name. Picking one opens that community.
-- **Spotlight indexing.** Subscribed communities are indexed into system Spotlight
-  (refreshed on launch and when the app returns to the foreground). A Spotlight hit
-  opens the community in Spud.
+- **Switch Account picks from your accounts.** The account parameter is filled from
+  the accounts you've added; running it makes the chosen account the default.
+- **Spotlight indexing (two indexers).** Subscribed communities are indexed via
+  `CommunitySpotlightIndexer`, and your saved + recently-viewed (history) posts are
+  indexed via `ContentSpotlightIndexer` (domain `"content"`). Both refresh on launch
+  and when the app returns to the foreground. A Spotlight hit opens the community or
+  post in Spud.
 - **Default account, signed-out fallback.** Actions use the current default
   account. While signed out, Open Feed maps Subscribed / Moderator view to All, and
   New Post opens the app and shows the in-app sign-in prompt.
@@ -51,15 +58,27 @@ action runs against your current default account.
 
 ### Open a subscribed community
 
-- **Given** I follow some communities on my default account
+- **Given** I subscribe to some communities on my default account
 - **When** I run Open Community and pick (or say) one
 - **Then** Spud opens that community
 
-### Find a community in Spotlight
+### Open the saved feed
 
-- **Given** my subscribed communities are indexed
-- **When** I search a community's name in system Spotlight
-- **Then** it appears as a result and opens in Spud when tapped
+- **Given** the Open Saved action
+- **When** I run it
+- **Then** Spud opens the saved-posts feed
+
+### Switch the active account
+
+- **Given** I have more than one account added
+- **When** I run Switch Account and pick one
+- **Then** that account becomes the default
+
+### Find a community or saved post in Spotlight
+
+- **Given** my subscribed communities and saved / history posts are indexed
+- **When** I search a name in system Spotlight
+- **Then** the matching community or post appears and opens in Spud when tapped
 
 ### New post while signed out
 
@@ -69,14 +88,15 @@ action runs against your current default account.
 
 ## Not supported / out of scope
 
-- **No background work.** Actions open the app; none run a task in the background or
-  return results without opening Spud.
-- **No post / user entities yet.** Only communities are modeled as an App Intent
-  entity; there is no "open post" or "open user" intent (post URLs are handled by
-  link handling instead).
-- **Spotlight indexes communities only.** Posts, comments, and history are not
-  indexed into Spotlight.
-- **Account is fixed to the default.** Actions do not offer a per-run account
-  picker; they use the current default account, like the widget.
+- **No background work.** Actions open the app (or switch the account); none run a
+  task in the background or return results without opening Spud.
+- **No post / user *entity* picker.** Communities and accounts are modeled as App
+  Intent entities; there is no "open post" or "open user" intent picker (post URLs
+  are handled by link handling, and posts reach Spotlight via the content indexer).
+- **Spotlight does not index comments.** Communities and saved / history posts are
+  indexed; comments are not.
+- **Most actions use the default account.** Only Switch Account changes it; the
+  other actions don't offer a per-run account picker (they run against the current
+  default, like the widget).
 - **The Home Screen widget keeps its own configuration intent** — unrelated to these
   app-action intents.

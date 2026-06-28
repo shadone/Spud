@@ -95,10 +95,11 @@ across devices.
 
 ### Privacy screen (app switcher and screen capture)
 
-- **NSFW media is hidden from the app-switcher snapshot.** While NSFW media is on screen,
-  backgrounding the app covers the window with an opaque "Hidden for privacy" screen before iOS
-  snapshots it, so the NSFW image does not appear in the app switcher. The cover is removed when
-  the app returns to the foreground.
+- **NSFW media is hidden when the scene becomes inactive.** While NSFW media is on screen,
+  deactivating the app (backgrounding, or any system overlay that resigns the scene-active state)
+  covers the window with an opaque "Hidden for privacy" screen before iOS snapshots it, so the
+  NSFW image does not appear in the app switcher. The cover is removed when the app returns to
+  the foreground.
 - **NSFW media is hidden during screen capture.** While that media is on screen and the screen
   is being recorded or mirrored (`UIScreen.isCaptured`), the same cover is shown; it lifts once
   the media is no longer shown or the capture stops.

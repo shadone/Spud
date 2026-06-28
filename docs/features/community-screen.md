@@ -42,9 +42,9 @@ The community screen pins a header above the community's post feed. The header s
 
 ### Subscribe from the header
 
-- **Given** a community I do not follow, while signed in
+- **Given** a community I do not subscribe to, while signed in
 - **When** I tap Subscribe in the header
-- **Then** the follow is sent and the button reflects Subscribed once the server's result is mirrored back
+- **Then** the subscribe is sent and the button reflects Subscribed once the server's result is mirrored back
 
 ### Block a community reloads the feed
 

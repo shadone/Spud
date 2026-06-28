@@ -19,7 +19,7 @@ Create a new post in a community from a sheet composer. The composer has a commu
 - **Durable background send with retry.** The send runs in a per-account background queue that retries transient failures with exponential backoff, auto-resumes when the network returns, and survives app relaunch. The pending post-detail screen remains visible while retries are in progress.
 - **Success: swap in place.** When the server confirms, the pending post-detail screen is replaced in place by the real post detail (using the server's returned `PostView`) with no navigation stack change.
 - **Failure: "Couldn't post" with Retry / Discard.** A permanent failure (auth error, rate limit, etc.) shows a "Couldn't post" banner on the pending post-detail screen. Tapping it offers Retry (requeue in the background queue) or Discard (remove the pending item). A non-blocking "Couldn't post — View" toast also appears and links to [Drafts and Outbox](drafts-and-outbox.md).
-- **Durable draft per community.** The composer auto-saves the in-progress title, body, URL, NSFW flag, and post type to the durable draft store, keyed to the target community and signed-in account. Dismissing a non-empty composer without posting offers "Save Draft" / "Delete Draft" / "Keep Editing". Reopening the composer for the same community silently restores the draft. See [Draft persistence](draft-persistence.md).
+- **Durable draft per community.** The composer auto-saves the in-progress title, body, URL, NSFW flag, and post type to the durable draft store, keyed to the target community and signed-in account. Dismissing a non-empty composer without posting offers "Save Draft" / "Delete Draft" / "Cancel". Reopening the composer for the same community silently restores the draft. See [Draft persistence](draft-persistence.md).
 - **Signed-out gate.** The compose entry points (the feed compose button and the community screen's new-post button) gate on sign-in: a signed-out account gets a "Sign in to post" alert and the composer is not presented.
 - **Launch points.** The composer is launched from the frontpage feed's compose button and from a community screen's new-post button. The frontpage button only appears on the frontpage feed (saved feeds have no single community to post to).
 
@@ -76,7 +76,8 @@ Create a new post in a community from a sheet composer. The composer has a commu
 
 - **Given** I filled in a title and body but tapped Cancel
 - **When** I choose "Save Draft"
-- **Then** reopening the composer for that community (even after a relaunch) silently restores my title, body, URL, community, and NSFW state
+- **Then** reopening the composer for that community (even after a relaunch) silently restores my title, body, URL, and NSFW state
+- **Note:** The community must be re-selected when reopening an unsubmitted draft; it is keyed by community but not restored into the editor
 
 ## Not supported / out of scope
 

@@ -53,5 +53,6 @@ confirmed result back, so the bookmark state is authoritative.
 
 - The Saved feed lists **saved posts only** — saved comments are not collected into a list (a comment is saved, but is browsed in its own thread, not in the Saved feed).
 - The Saved entry points are signed-in only; a signed-out account has no Saved feed.
-- No optimistic UI: the bookmark updates after the server confirms.
+- Optimistic UI: the save state is applied to the local DB synchronously at enqueue time (before any network call), so the bookmark flips immediately; a permanent server error rolls back to the pre-save state. Save is durable via the mutation outbox (the same OutboxService path as voting).
+- Coalescing: tapping save then unsave before the request confirms collapses to a no-op (the pending operation is cancelled and the optimistic state reverts), with no net server call.
 - No folders, tags, or organization of saved items.

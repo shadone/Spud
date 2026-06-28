@@ -20,13 +20,14 @@ and a one-tap reset per kind.
 - **Changes apply live.** Reassigning a slot updates already-visible cells immediately; there is no relaunch and no need to leave the feed.
 - **Presentation is state-aware.** A Save slot reads Save or Unsave, a vote slot reads Upvote/Downvote or Remove vote, a Collapse slot reads Collapse or Expand; vote glyphs and tints follow the active theme.
 - **Stored config is forgiving.** An unknown or invalid pairing (e.g. Collapse assigned to a post) degrades to None rather than failing to load.
+- **Spud uses UIKit's leading/trailing axis:** leading = swipe right, trailing = swipe left. The default layout is: leading short (upvote) / leading long (downvote); trailing short (reply) / trailing long (save for posts, collapse for comments). All four slots are remappable per account in Settings.
 
 ## Scenarios
 
 ### Upvote with a short swipe (default)
 
 - **Given** a post in any feed, or a comment in a post's thread
-- **When** I short-swipe it from the leading (left) edge
+- **When** I short-swipe it from the leading (right) edge
 - **Then** it is upvoted, with a haptic on commit
 - **And** the same gesture removes the vote if it was already upvoted
 

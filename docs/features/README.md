@@ -62,7 +62,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Marking posts read and hiding read posts](mark-read-and-hiding.md) | `iphone`, `ipad` | shipped |
 | [NSFW content visibility and blur](nsfw-content.md) | `iphone`, `ipad` | shipped |
 | [Feeds and sorting](feeds-and-sorting.md) | `iphone`, `ipad` | shipped |
-| [Feed loading and pagination](feed-loading.md) | `iphone`, `ipad` | partial — no pull-to-refresh on the feed |
+| [Feed loading and pagination](feed-loading.md) | `iphone`, `ipad` | shipped — cursor pagination + pull-to-refresh + offline/unreachable/malformed states with retry |
 | [Post thumbnails and media badges](post-thumbnails.md) | `iphone`, `ipad` | shipped |
 | [Post peek (context-menu preview)](post-peek.md) | `iphone`, `ipad` | shipped |
 | [Post detail and comments](post-detail-and-comments.md) | `iphone`, `ipad` | shipped |
@@ -74,7 +74,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Discover (Community Explorer)](discover.md) | `iphone`, `ipad` | shipped — rails (Starter packs / Trending / Rising / Because you follow / Browse by instance) each with "See all", over a sortable directory + same-name compare (per-variant subscribe) + live network-search fallback; auto-refreshes the directory on open (per Community Data settings) |
 | [Search](search.md) | `iphone`, `ipad` | shipped — scopes: posts / communities / users / comments (federated) + instances (local directory) |
 | [Instance browsing (open an instance in-app)](instance-browsing.md) | `iphone`, `ipad` | shipped — directory hit + live `/api/v3/site` probe (Lemmy + PieFed); non-compatible hosts open in browser; communities fetched live via `/api/v3/community/list` when the directory has none |
-| [Subscriptions sidebar](subscriptions-sidebar.md) | `ipad` | shipped |
+| [Communities tab (subscriptions)](subscriptions-sidebar.md) | `iphone`, `ipad` | shipped — first-class tab (was the iPad sidebar); feed shortcuts + Discover entry + subscribed list with favorites pinned, filter + sort |
 | [Subscribe / unsubscribe](subscribe-unsubscribe.md) | `iphone`, `ipad` | shipped |
 | [Community screen](community-screen.md) | `iphone`, `ipad` | shipped — overflow: subscribe, favorite, mute, block, share |
 | [Person / user profile](person-profile.md) | `iphone`, `ipad` | shipped — Posts tab renders with the feed cell (vote / save, live state) |
@@ -107,6 +107,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Empty, error, and loading states](empty-error-loading-states.md) | `iphone`, `ipad` | shipped |
 | [Accessibility](accessibility.md) | `iphone`, `ipad` | shipped |
 | [Home Screen widget (top posts)](widget.md) | `widget` | shipped |
+| [App Shortcuts, Siri & Spotlight](app-shortcuts-and-siri.md) | `iphone`, `ipad` | shipped — 7 App Intents (incl. Open Saved, Switch Account); Spotlight indexes communities + saved/history posts |
 | [Open in Spud (Safari extension)](share-extension.md) | `share-extension`, `iphone`, `ipad` | partial |
 
 <!-- Add new capability docs here as they are written. -->
@@ -120,7 +121,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Frontpage feed (All / Local / Subscribed) + sort
 - [x] Community-scoped feed
 - [x] Saved feed (documented in saving.md)
-- [~] Pull-to-refresh — not on the main feed; ships on inbox / profiles / post detail
+- [x] Pull-to-refresh — main feed (refresh-in-place + toast on failure), inbox, profiles, post detail
 - [x] Infinite scroll (cursor pagination)
 - [x] Inline thumbnails (text / link / image / video) + media badges
 - [x] Context-menu peek on posts
@@ -135,7 +136,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Threaded comment collapse + jump-to-next-top-level
 - [x] Reply / edit / delete / restore own comments — all optimistic + durable (reply + edit via the content outbox; delete / restore via the mutation outbox)
 - [x] Configurable swipe actions (comments)
-- [~] Comment sort — preference-only; no in-screen picker (noted in post-detail-and-comments.md)
+- [x] Comment sort — global default (Settings) + in-screen per-post picker (post-detail config popover: Hot / Top / New / Old / Controversial)
 - [x] Share post / comment / community URL; open in Safari
 
 **Media**
@@ -146,7 +147,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 **Discovery**
 - [x] Discover (Community Explorer) — browsable home in the Communities tab: Starter packs / Trending / Rising / Because you follow / Browse-by-instance rails (each with "See all" into the full ranked list) over a sortable, searchable directory; same-name dedupe + compare sheet (per-variant subscribe); live network-search fallback; long-press quick actions (subscribe, mute, block, share); NSFW + suspicious safety filtering; refreshes the directory from the network on open (per Community Data settings) (discover.md)
 - [x] Search (posts / comments / communities / users federated, + instances over the local Explorer directory) + inline subscribe + paste-a-Lemmy-URL "Open in Spud" (canonical + frontend `/c/../p/<id>` form)
-- [x] Subscriptions sidebar (iPad / regular-width only; no iPhone-portrait entry point) + favorites pinned to top
+- [x] Communities tab (subscriptions) — first-class tab on iPhone + iPad (was the iPad-only sidebar); feed shortcuts, Discover entry, subscribed list with favorites pinned, "Search your communities" filter + Alphabetical / By-instance sort
 - [x] Subscribe / unsubscribe
 - [x] Community screen (header + feed; overflow: subscribe, favorite, mute, block, copy link / share / open in browser)
 - [x] Open an instance in-app — tapping an instance name (community header, body link, Search paste, person profile) opens its in-app screen; directory hit is instant, an unknown host is resolved by a live `/api/v3/site` probe (Lemmy + PieFed open in-app, others fall back to the browser); communities come from the bundled directory, or live via `/api/v3/community/list` when the directory has none; session-cached, curated directory untouched (instance-browsing.md)
@@ -193,4 +194,5 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Empty / error / loading states
 - [x] Accessibility (Dynamic Type, VoiceOver, Reduce Motion)
 - [x] Home Screen widget (top posts)
-- [~] "Open in Spud" — Safari Web Extension (not a share/action extension); post URLs only
+- [x] App Shortcuts, Siri & Spotlight — 7 App Intents (Open Feed / Search / New Post / Inbox / Open Community / Open Saved / Switch Account); Spotlight indexes communities + saved/history posts
+- [~] "Open in Spud" — Safari banner (Web Extension) + an "Open in Spud" share/action extension (handles post / comment / community / user URLs); the Web Extension's browser-action popup is a stub

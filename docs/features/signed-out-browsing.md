@@ -17,7 +17,7 @@ posts, comments, communities, and profiles, but any write action prompts you to 
 - **Signed-out is a real account type.** The bootstrap account is a first-class account row flagged as a signed-out type, with no Keychain credential. It is the active default until you sign in, switch, or add an account.
 - **Read-only.** A signed-out account can read everything but cannot perform write actions. Each write surface checks the signed-out state and presents a "Sign in to …" prompt instead of acting. See [sign-in-gate.md](sign-in-gate.md) for the exact set.
 - **The Account tab when signed out.** The Account tab shows a "You're browsing as a guest" screen explaining anonymous browsing, with Log in and Sign up buttons; both open the add-account flow (instance picker → login / sign up). The account switcher remains available.
-- **"Browse without an account" on the login screen.** The login screen offers "Browse without an account", which makes (or reuses) the signed-out account for the chosen instance the default and dismisses — a way to stay anonymous on a specific instance.
+- **"Browse without an account" on the login screen.** The login screen offers "Browse without an account", which pushes a confirmation screen (AnonymousBrowseConfirmViewController) before the signed-out account for the chosen instance becomes active — a way to stay anonymous on a specific instance.
 - **Returning to anonymous.** Logging out drops you back to anonymous browsing (a signed-out account on the same instance) when no other account remains.
 
 ## Scenarios
@@ -50,10 +50,12 @@ posts, comments, communities, and profiles, but any write action prompts you to 
 
 - **Given** the login screen for an instance
 - **When** I tap "Browse without an account"
-- **Then** the signed-out account for that instance becomes active and the login screen dismisses
+- **Then** a confirmation screen appears
+- **When** I confirm
+- **Then** the signed-out account for that instance becomes active and the screen dismisses
 
 ## Not supported / out of scope
 
 - The default bootstrap instance is fixed (`discuss.tchncs.de`); there is no first-run instance chooser before the feed appears (you change instances later via the account flow).
-- Voting while signed out is not pre-gated like the other write actions — the vote is attempted and surfaces a server error if it fails. See [voting.md](voting.md) and [sign-in-gate.md](sign-in-gate.md).
+- All write actions including voting are pre-gated with a sign-in sheet before any server attempt. See [voting.md](voting.md) and [sign-in-gate.md](sign-in-gate.md).
 - Signed-out browsing has no personalized feed, inbox, or saved list — those require a signed-in account.

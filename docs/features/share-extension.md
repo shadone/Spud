@@ -1,7 +1,7 @@
 # Open in Spud (Safari banner + Share extension)
 
 - **Surfaces:** `share-extension`, `iphone`, `ipad`
-- **Status:** shipped
+- **Status:** partial — the Safari banner and the "Open in Spud" share/action both work; the Safari Web Extension's browser-action popup is an unimplemented stub
 - **Related:** [Sharing](sharing.md), [External link handling](external-link-handling.md), [Post detail and comments](post-detail-and-comments.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
@@ -13,11 +13,12 @@ pages, and an **"Open in Spud" share-sheet action** available from any app. It i
 the reverse of [Sharing](sharing.md): sharing sends a Spud link out to the system
 share sheet; this brings a Lemmy link in.
 
-Both entry points are thin — they hand the page URL to the app as a `resolve` deep
-link and the app does all the work: it resolves the URL via Lemmy `resolve_object`
-under your default account and routes to the post, community, or user (a comment
-opens its parent post). Because resolution runs against your own instance, links
-on any federated instance work, including ones the app has never seen.
+Both entry points are thin — they hand the page URL to the app as a deep link and
+the app does all the work: it resolves the URL via Lemmy `resolve_object` under your
+default account and routes to the post, community, or user (a comment opens its
+parent post). The two paths emit slightly different deep-link forms (see below), but
+both resolve the same way in-app. Because resolution runs against your own instance,
+links on any federated instance work, including ones the app has never seen.
 
 ## Behavior and rules
 
@@ -34,10 +35,12 @@ on any federated instance work, including ones the app has never seen.
   sheet for web URLs. It takes the shared URL, wraps it in the app's deep link, and
   opens the app. It is instance-agnostic — it does not depend on the allowlist — so
   it covers the long tail the Safari banner misses.
-- **One deep link, one resolver.** Both paths emit
-  `info.ddenis.spud://internal/resolve?url=<page URL>`. The app resolves it and
-  routes by type: a post opens post detail, a community opens the community screen,
-  a user opens their profile, and a comment opens its parent post.
+- **Two deep-link forms, one resolver.** The Safari banner emits
+  `info.ddenis.spud://internal/resolve?url=<page URL>`; the share/action extension
+  emits the `objectAtURL` internal link (`URL.SpudInternalLink.objectAtURL`). Both
+  are decoded by the app's URL router and resolved via `resolve_object`, then routed
+  by type: a post opens post detail, a community opens the community screen, a user
+  opens their profile, and a comment opens its parent post.
 - **Graceful failure.** If the URL is not a resolvable Lemmy object (a non-Lemmy
   page shared into the action, or an unfederated link), the app logs it and plays a
   warning haptic rather than opening a blank screen.
@@ -83,6 +86,9 @@ on any federated instance work, including ones the app has never seen.
   yet scroll to or highlight the specific comment. Resolving a comment to its
   on-screen row needs the comment's context loaded into the tree; this is a planned
   follow-up.
+- **The Safari Web Extension browser-action popup is a stub.** The toolbar-button
+  popup is not implemented; the banner and the share/action extension are the
+  working entry points.
 - **No instance-home open.** A bare instance URL (e.g. `lemmy.world`) is not routed
   to an in-app screen.
 - **No Universal Links.** Spud declares no associated domains — it cannot, since it

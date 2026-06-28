@@ -12,10 +12,12 @@ Settings → Display tunes how the post list looks: cell density (Comfortable or
 
 - **Density: Comfortable or Compact.** Comfortable is the default, with generous cell margins and spacing. Compact tightens the margins and title/subtitle spacing and shaves the post font by one point, fitting more posts on screen.
 - **Thumbnail position: Left, Right, or Hidden.** Left is the default (thumbnail leading the text). Right moves it to the trailing edge. Hidden drops the thumbnail entirely, giving the title and subtitle the full width.
+- **Vote Buttons toggle.** When on (the default), explicit up/down vote arrows are shown on each post in the list. When off, they are hidden; swipe actions for voting remain available. The toggle applies live to visible cells.
 - **Text size: a −3…+6 point override.** A slider adjusts the post text by whole points, from −3 to +6, relative to the system body size. The default is 0 (no override). It stacks on top of the device's Dynamic Type setting rather than replacing it; Compact density folds in its own −1 point on top of this.
-- **Changes apply live.** Reassigning density, thumbnail position, or text size reconfigures the post list's already-visible cells immediately — there is no relaunch and no need to leave the feed.
-- **Persisted.** All three are stored and re-applied on the next launch.
+- **Changes apply live.** Reassigning density, thumbnail position, vote visibility, or text size reconfigures the post list's already-visible cells immediately — there is no relaunch and no need to leave the feed.
+- **Persisted.** All settings are stored and re-applied on the next launch.
 - **Haptic on change.** Changing density or thumbnail position fires a light haptic.
+- **Per-post comment density.** The post-detail screen has its own popover (accessed via the config button) that allows adjusting comment density for that post without leaving it. The density adjustment writes to the global `commentDensity` preference, so it also affects other open posts and future browsing.
 
 ## Scenarios
 

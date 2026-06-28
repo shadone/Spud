@@ -11,7 +11,7 @@ Settings → About → Acknowledgements lists the third-party open-source projec
 ## Behavior and rules
 
 - **Curated static list.** The acknowledgements are a hand-maintained list baked into the app, not a build-time scrape of the dependency graph. This is intentional so each entry can carry a readable summary and the canonical license text without adding a plugin to the build.
-- **Two sections.** A primary section of dependencies shipped in the app binary (for example LemmyKit, GRDB.swift, KeychainAccess, Down, the swift-openapi stack, Yams), and a separate "Development & testing" section for test-only dependencies (for example SBTUITestTunnel, swift-snapshot-testing). The test section is shown only when it is non-empty.
+- **Two sections.** A primary section of dependencies shipped in the app binary (for example LemmyKit, GRDB.swift, KeychainAccess, apple/swift-markdown, Nuke, the swift-openapi stack, Yams), and a separate "Development & testing" section for test-only dependencies (for example SBTUITestTunnel, swift-snapshot-testing). The test section is shown only when it is non-empty.
 - **Each row shows name, summary, and license badge.** The row carries the project name, a one-line description of what it is used for, and its SPDX license identifier (MIT, Apache-2.0, BSD-2-Clause, etc.).
 - **Detail shows the full license text.** Tapping a row opens a detail screen with the project's canonical license text.
 

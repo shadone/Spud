@@ -10,7 +10,7 @@ Discover is a browsable home for finding new communities across the whole fedive
 
 ## Behavior and rules
 
-- **Entry from the Communities tab.** Discover is pushed from the "Explore communities" entry above the subscriptions list. Discover has its **own** navigation search field ("Search all communities") and sort control — it is a self-contained browse-and-search screen, not a hand-off into the [Search](search.md) tab.
+- **Entry from the Communities tab.** Discover is pushed from the "Discover communities" entry above the subscriptions list. Discover has its **own** navigation search field ("Search all communities") and sort control — it is a self-contained browse-and-search screen, not a hand-off into the [Search](search.md) tab.
 - **The landing is a stack of rails over the directory.** Top to bottom: **Starter packs**, **Trending now**, **Rising**, **Because you follow** (signed-in only, and only when it has results; omitted otherwise), **Browse by instance**, then the **All communities** directory. Each computed rail (Trending / Rising / Because you follow / Browse by instance) shows its top 12 in a horizontal carousel with a **"See all"** that pushes the full ranked list (Starter packs has no "See all" — the whole curated set is shown). While the user is searching, the rails step aside and only the filtered directory (plus the optional network-search section) is shown.
 - **Sorting the directory.** The "All communities" sort is a navigation-bar menu (Recommended / Most active / Members / Name / Newest); the directory header shows the active sort as a label. There is no inline sticky sort control on the landing. (The instance drill-in has its own inline sort picker.)
 - **Ranking reflects life, not just size.** Rankings are computed from the directory's current snapshot (cumulative counts plus active-user windows for day / week / month / half-year); there is no time series.
@@ -19,7 +19,7 @@ Discover is a browsable home for finding new communities across the whole fedive
   - **Browse by instance** — the liveliest home instances by aggregate weekly activity (carousel of 12; "See all" opens the full ranked instance list). Tapping an instance opens that server's communities, with a tappable instance info card (members, description, trust) that drills into the richer [Instance browsing](instance-browsing.md) detail.
   - **All communities** default sort is "Recommended" (the directory's composite `score`); other sorts are **Most active** (recent active users), **Members**, **Name**, and **Newest**. While browsing, the directory is capped at the first 200 rows for snappiness; a search shows every match. "Most posts" is intentionally not a lead sort — the stored post count is a cumulative total that favors old communities rather than active ones.
 - **Same-name communities collapse into one entry.** In the default directory, communities that share a name across servers are deduplicated to a single canonical row — the variant with the strongest blend of subscribers, recent activity, and instance trust. The row notes "also on N other servers · total members". Tapping that badge opens a **compare sheet** listing each variant ranked busiest-first, with members and recent activity, each with its own **Subscribe** (and a tap-through to open the community). Dedupe is **off in the live network-search results**, where you may be looking for one specific server's copy.
-- **Starter packs are curated topics with live numbers.** Each pack is a hand-curated, ordered set of communities (a topic title, a short blurb, and a list of community references) whose names, icons, member counts, and activity are rendered live from the directory — so the curation is editorial but the stats never go stale. A pack screen lists its communities, each individually subscribable, with a single **Subscribe to all** action that subscribes to the ones you don't already have.
+- **Starter packs are curated topics with live numbers.** Each pack is a hand-curated, ordered set of communities (a topic title, a short blurb, and a list of community references) whose names, icons, member counts, and activity are rendered live from the directory — so the curation is editorial but the stats never go stale. Tapping a starter pack opens a dedicated Pack detail screen listing the pack's communities, each individually subscribable, with a single **Subscribe to all** action that subscribes to the ones you don't already have.
 - **Search the bundled directory, then the network.** The search field filters the bundled directory instantly. Below the local matches, an optional "Search the network for X" button runs a live Lemmy community search; results not already in the local directory are shown under a "From the network" header (NSFW-gated by the same client preference), each subscribable. The network search re-runs on tap if it fails.
 - **Long-press a community for quick actions.** Any community row or rail card exposes a context menu: Open community, Subscribe / Unsubscribe, Mute (a submenu of durations) / Unmute, Share, Copy link, and Block community. Mute is client-local (keyed by the community's actor id, works for any account, no server round-trip); Block and Subscribe hit the server.
 - **Curated surfaces stay clean (trust and safety).** Communities flagged suspicious are excluded from all rails and from the default directory. NSFW communities are hidden by default, honoring the app's global "Show NSFW" client preference (the same setting that governs feeds, Search, and the composer community picker — see [NSFW content visibility and blur](nsfw-content.md)) regardless of sign-in state; when shown, they are badged. If "Blur NSFW" is also on, NSFW community icons in Discover are blurred. Both preferences are observed live, so toggling either in Settings (or the post-list Quick Switch) re-filters / re-renders an open Discover in place.
@@ -33,7 +33,7 @@ Discover is a browsable home for finding new communities across the whole fedive
 ### Browse the Discover landing
 
 - **Given** I am on the Communities tab
-- **When** I tap the "Explore communities" entry
+- **When** I tap the "Discover communities" entry
 - **Then** Discover opens showing Starter packs, Trending now, Rising, Browse by instance, and the All communities directory
 - **And** if I am signed in with subscriptions on shared instances, a Because you follow rail also appears
 
@@ -79,6 +79,12 @@ Discover is a browsable home for finding new communities across the whole fedive
 - **Given** I am browsing Discover signed out
 - **When** I tap Subscribe on any community
 - **Then** a "Sign in to subscribe" affordance and a warning haptic are shown, and no call is made
+
+### Tapping a starter pack opens the pack detail
+
+- **Given** I am browsing Discover
+- **When** I tap a starter pack
+- **Then** a dedicated Pack detail screen opens, listing the pack's communities, each individually subscribable, with a "Subscribe to all" action
 
 ### NSFW and suspicious communities are kept out by default
 

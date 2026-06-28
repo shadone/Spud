@@ -14,7 +14,7 @@ Marking & Hiding and applies live.
 
 ## Behavior and rules
 
-- **Mark Posts as Read.** The master toggle. Posts you interact with — opening or upvoting them — are marked read.
+- **Mark Posts as Read.** The master toggle. Posts are marked read when (a) you open the post detail (when the mark-on-open preference is on), (b) it scrolls off-screen (when the mark-on-scroll preference is on), or (c) you open media (image/video) directly from the feed cell.
 - **Mark as Read on Scrolling.** A sub-option, available only while Mark Posts as Read is on, that additionally marks posts read as they scroll out of view.
 - **Hide Read Posts.** When on, a "When" picker chooses the hiding mode:
   - **Immediately** — a post leaves the feed the instant it is marked read.
@@ -40,7 +40,7 @@ Marking & Hiding and applies live.
 ### Hide read immediately
 
 - **Given** Hide Read Posts is on, mode Immediately
-- **When** a post becomes read (opened, upvoted, or scrolled past)
+- **When** a post becomes read (opened, media opened, or scrolled past)
 - **Then** it disappears from the feed right away
 
 ### Hide read on refresh keeps your place

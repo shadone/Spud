@@ -11,7 +11,7 @@ Long-pressing a post in the feed raises a floating preview (a "peek") above its 
 ## Behavior and rules
 
 - **Triggered by long-press.** A long-press on a post cell presents the system context menu with the post peek floating above it.
-- **Peek contents.** The peek shows, top to bottom: an optional image, the post title (untruncated, up to four lines), and the full post body rendered from Markdown (up to twelve lines). A post with no body omits the body area.
+- **Peek contents.** The peek shows, top to bottom: an optional image, the post title (untruncated, up to four lines), and the full post body rendered from Markdown (capped at 340 pt in height, so the visible line count varies with text size). A post with no body omits the body area.
 - **Image in the peek.** For an image post the peek shows the post image; for a video post it shows the poster frame. External-link and text posts show no image — title and body only. The image area is a fixed-height letterbox so the card stays a sensible size regardless of the source aspect ratio.
 - **Self-sizing card.** The peek sizes itself to its content width and fitted height.
 - **Tapping commits to the post.** Tapping the peek dismisses the menu and opens the post detail (the post and its comments).
@@ -59,6 +59,6 @@ Long-pressing a post in the feed raises a floating preview (a "peek") above its 
 ## Not supported / out of scope
 
 - This documents only the preview/peek. The post actions in the same context menu (upvote, downvote, save, share, and the moderation submenu) are their own features.
-- The peek is read-only: it has no buttons, no inline image viewer, and no scrolling — long bodies are clamped (twelve lines) rather than scrollable.
+- The peek is read-only: it has no buttons, no inline image viewer, and no scrolling — long bodies are clamped at 340 pt in height rather than scrollable.
 - The peek renders a static poster frame for video posts and a still image for image posts; it never plays media. Animated GIFs are not animated in the peek.
 - Per-comment preview/peek in a post's comment thread is a separate feature and is not covered here.

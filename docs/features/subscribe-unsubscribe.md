@@ -17,21 +17,22 @@ Subscribe to a community to follow it, or unsubscribe to stop. The same toggle i
 - **Failures surface an alert.** If the call fails, an error alert is shown.
 - **Community screen reflects the mirror.** On the Community screen the header button is driven by the observed database state, so it flips to Subscribed / Subscribe (or shows Pending for a follow that needs approval) once the server's result is mirrored back — there is no optimistic flip before confirmation.
 - **Search row flips optimistically.** A community row in search results flips its button to the new state the moment you tap it, then sends the call; on failure it reverts and shows an alert. This is the one place the toggle updates before the server confirms.
+- **Discover's inline subscribe is optimistic.** Tapping Subscribe on a community in Discover flips the button immediately, in contrast to the confirm-then-mirror flow used on the community screen.
 - **Pending state.** A community that requires approval to join can come back from the server as Pending; the Community screen header surfaces that as a distinct Pending button state.
 
 ## Scenarios
 
 ### Subscribe from the community header
 
-- **Given** a Community screen for a community I do not follow, while signed in
+- **Given** a Community screen for a community I do not subscribe to, while signed in
 - **When** I tap Subscribe in the header
-- **Then** the follow is sent to the server and, once its result is mirrored back, the button reads Subscribed and the subscriber count updates
+- **Then** the subscribe is sent to the server and, once its result is mirrored back, the button reads Subscribed and the subscriber count updates
 
 ### Unsubscribe from the community header
 
-- **Given** a Community screen for a community I follow
+- **Given** a Community screen for a community I subscribe to
 - **When** I tap the Subscribed button (or choose Unsubscribe from the header context menu)
-- **Then** the unfollow is sent and the button returns to Subscribe once the server confirms
+- **Then** the unsubscribe is sent and the button returns to Subscribe once the server confirms
 
 ### Subscribe from a search result
 

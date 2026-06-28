@@ -14,32 +14,32 @@ shortcuts to register a new account or to keep browsing anonymously.
 ## Behavior and rules
 
 - **Instance is chosen first.** Login is pushed from the instance picker, so the screen already knows which instance it's signing in to and shows that instance's name and icon. See [instance-picker.md](instance-picker.md).
-- **Username or email + password.** One field accepts either a username or an email, plus a password field. The Login button is enabled only when both fields are non-empty.
+- **Username or email + password.** One field accepts either a username or an email, plus a password field. The Log in button is enabled only when both fields are non-empty.
 - **Success stores and activates the account.** A successful login stores the returned credential in the shared-group Keychain under a new `accountKeychainId`, marks the account default, and immediately kicks off the initial site / own-profile fetch so the Account screen resolves without waiting for the next periodic refresh. The login screen then dismisses.
 - **Invalid credentials surface an error.** A rejected login ("incorrect login") is reported as an invalid-login error alert; the screen stays open to retry. Other API failures surface a generic error alert.
-- **Two-factor (TOTP) sign-in.** When an account has two-factor authentication enabled, the one-time code is collected on a dedicated code-entry screen and sent to the server alongside the password (as `totp_2fa_token`). The screen can be reached two ways: manually via the "Have a two-factor code?" affordance under the Login button, or automatically — if a login is rejected because a 2FA code is missing or wrong, the app surfaces the inline hint "Enter your two-factor code." and presents the code-entry screen for you. After entering a code, the retried login carries the token. (A 2FA-required rejection is handled inline; it does not raise the generic error alert.)
-- **Register and anonymous shortcuts.** The screen has a "Register" button that pushes the sign-up form for the same instance, and a "Browse without an account" button that activates the signed-out account for the instance and dismisses. See [registration.md](registration.md) and [signed-out-browsing.md](signed-out-browsing.md).
-- **Forgot Password is informational only.** A "Forgot Password?" label is shown but does not start an in-app reset flow.
+- **Two-factor (TOTP) sign-in.** When an account has two-factor authentication enabled, the one-time code is collected on a dedicated code-entry screen and sent to the server alongside the password (as `totp_2fa_token`). The screen can be reached two ways: manually via the "Have a two-factor code?" affordance under the Log in button, or automatically — if a login is rejected because a 2FA code is missing or wrong, the app surfaces the inline hint "Enter your two-factor code." and presents the code-entry screen for you. After entering a code, the retried login carries the token. (A 2FA-required rejection is handled inline; it does not raise the generic error alert.)
+- **Register and anonymous shortcuts.** The screen has a "Register" button that pushes the sign-up form for the same instance, and a "Browse without an account" button that first shows a confirmation screen; confirming activates the signed-out account for the instance and dismisses. See [registration.md](registration.md) and [signed-out-browsing.md](signed-out-browsing.md).
+- **Forgot Password runs in-app.** A "Forgot Password?" affordance opens a reset screen (naming the instance, an email field, and a "Send reset link" button) that calls the server's password-reset endpoint. On success a "Check your email" confirmation is shown; a failure surfaces an error and you can retry.
 
 ## Scenarios
 
 ### Sign in with a username and password
 
 - **Given** the login screen for a chosen instance
-- **When** I enter my username and password and tap Login
+- **When** I enter my username and password and tap Log in
 - **Then** the account is signed in, stored, made the active default, and the screen dismisses
 
 ### Sign in with an email
 
 - **Given** the login screen
-- **When** I enter my email instead of a username, plus my password, and tap Login
+- **When** I enter my email instead of a username, plus my password, and tap Log in
 - **Then** the same sign-in succeeds (the field accepts either)
 
-### Login button stays disabled until both fields are filled
+### Log in button stays disabled until both fields are filled
 
 - **Given** the login screen
 - **When** either the username or password field is empty
-- **Then** the Login button is disabled
+- **Then** the Log in button is disabled
 
 ### Wrong credentials show an error
 
@@ -57,10 +57,9 @@ shortcuts to register a new account or to keep browsing anonymously.
 
 - **Given** the login screen
 - **When** I tap Register, or "Browse without an account"
-- **Then** the sign-up form for the instance opens, or the signed-out account for the instance becomes active and the screen dismisses
+- **Then** the sign-up form for the instance opens, or a confirmation screen appears and confirming activates the signed-out account and dismisses
 
 ## Not supported / out of scope
 
-- No "forgot password" / password-reset flow runs in-app; the label does not act.
 - No biometric unlock or credential autofill integration beyond the system keyboard's own behavior.
 - Choosing the instance is a separate step — see [instance-picker.md](instance-picker.md).

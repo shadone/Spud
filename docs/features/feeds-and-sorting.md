@@ -19,6 +19,7 @@ Spud's post list shows one feed at a time: a frontpage listing (All, Local, or S
 - **Top time ranges.** The Top submenu is single-selection and lists: Six Hours, Twelve Hours, Day, Week, Month, Three Months, Six Months, Nine Months, Year, All. (There is no "Top Hour" — the finest grain is six hours.)
 - **Sort changes feel like a new feed.** Picking a sort builds a fresh feed with the same listing/community but the chosen sort, resets pagination to the head, and the list reloads from the server.
 - **Undo an accidental scroll-to-top.** Tapping the status bar scrolls the feed to the top (the standard iOS gesture). When that happens from at least a screen deep it is often accidental, so a "Jumped to top" toast offers a one-tap **Undo** that snaps back to where you were (the restored row pulses); a second status-bar tap while the undo is armed toggles back too. Manually scrolling dismisses the hint, but the saved position survives: if you scroll partway back down and tap the status bar again, the undo still returns you to the deepest place you were, not the shallower spot you stopped at. The saved position resets once you use the undo or the feed changes.
+- **On iPhone, the feed switcher is reached by swiping in from the left edge** (the system back gesture): FeedSwitcherViewController sits beneath the post list in the navigation stack, so a back-swipe reveals it.
 
 ## Scenarios
 
@@ -64,10 +65,16 @@ Spud's post list shows one feed at a time: a frontpage listing (All, Local, or S
 - **When** I tap the status bar to jump to the top, ignore the toast, scroll partway back down, then tap the status bar again
 - **Then** the undo offers to return me to my original deep position, not the shallower spot I stopped at
 
+### Switch feeds on iPhone via left-edge swipe
+
+- **Surfaces:** `iphone`
+- **Given** I am on the post feed on iPhone
+- **When** I swipe in from the left edge
+- **Then** the feed (listing-type) switcher appears
+
 ## Not supported / out of scope
 
 - No multi-feed view, combined feed, or feed tabs — one feed is shown at a time.
-- The post list has no in-feed listing-type switcher; All / Local / Subscribed are selected from the Subscriptions sidebar, which on iPhone portrait has no entry point (it is a regular-width split-view surface).
 - "Moderator view" is a defined listing type but is not offered as a sidebar entry.
 - The Saved feed is its own capability and is documented separately (it appears in the Subscriptions sidebar and reuses this same post list).
 - Changing a feed's sort does not persist as the account default; the default sort is set in Settings, a separate feature.

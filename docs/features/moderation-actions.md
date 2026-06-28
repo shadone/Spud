@@ -10,17 +10,17 @@ When the active account moderates a post's community, or is a site admin, the po
 
 ## Behavior and rules
 
-- **Capability-gated, fetched on open.** When the post detail appears, the account's moderation capability is fetched from the server (`fetchModerationCapability`, sourced from `getSite`'s `my_user`). It records which community ids the account moderates and whether the account is a site admin. The fetch is best-effort: a failure or a signed-out account leaves the capability at `.none`, simply hiding all mod actions.
+- **Capability-gated, fetched on open.** When the post detail appears, the account's moderation capability is fetched from the server (`fetchModerationCapability`, sourced from `getSite`'s `my_user`). It records which community ids the account moderates and whether the account is a site admin. The fetch is best-effort: if it fails or the account is signed out, moderation actions are hidden and no moderation is available.
 - **Who sees the submenu.** The Moderation submenu (shield icon, "Moderation" title) is shown only when the account moderates this post's community or is a site admin (`canModerate(communityId:)`). A signed-out account, or one with neither power, never sees it.
 - **Post moderation actions.** On a post the submenu offers:
-  - **Remove / Restore** — remove a post (prompts for an optional reason recorded in the mod log) or restore a removed one.
+  - **Remove / Restore** — remove a post (prompts for an optional reason recorded in the mod log) or restore a removed one. Prompts for confirmation before removing.
   - **Lock / Unlock** — toggle whether the post accepts new comments.
   - **Pin to community / Unpin from community** — feature the post (or unfeature it) within its community.
   - **Pin to instance / Unpin from instance** — feature the post on the instance front page. This entry is admin-only; it appears only when the account is a site admin.
 - **Comment moderation actions.** On a comment the submenu offers:
-  - **Remove / Restore** — remove a comment (with an optional reason) or restore a removed one.
+  - **Remove / Restore** — remove a comment (with an optional reason) or restore a removed one. Prompts for confirmation before removing.
   - **Distinguish / Undistinguish** — mark a comment as a distinguished (mod) comment, or clear that.
-  - **Ban from community** — ban the comment's author from this community. Offered only on other people's comments, not your own. It presents an action sheet ("Ban" or "Ban and remove content"), then prompts for an optional ban reason.
+  - **Ban from community** — ban the comment's author from this community. Offered only on other people's comments, not your own. First presents an action sheet ("Ban" or "Ban and remove content"), then prompts for an optional ban reason.
 - **Moderator vs admin.** Per-community moderation (remove, lock, feature-in-community, distinguish, ban-from-community) is available to a moderator of that community or to a site admin. Featuring a post on the instance front page is the one admin-only action.
 - **Reason prompts.** Remove (post and comment) and Ban present a reason field that is optional — submit stays enabled with the field blank, and a blank reason is sent as none. This differs from [Report](report.md), where the reason is required.
 - **Confirm-then-mirror.** Each action calls the matching Lemmy API (`removePost`, `lockPost`, `featurePost`, `removeComment`, `distinguishComment`, `banFromCommunity`) and writes the server's returned view back into the local database. A failed action surfaces an error alert.
