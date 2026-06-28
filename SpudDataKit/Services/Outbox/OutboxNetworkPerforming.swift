@@ -52,8 +52,12 @@ public struct LemmyOutboxPerformer: OutboxNetworkPerforming {
                 try await appDatabase.upsertComment(from: r.comment_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             }
         case let .hide(value):
-            _ = try await api.hidePost(postIDs: [Components.Schemas.PostID(op.entityServerId)], hide: value)
             // No entity returned; optimistic write stands.
+            _ = try await api.hidePost(postIDs: [Components.Schemas.PostID(op.entityServerId)], hide: value)
+        case let .delete(value):
+            // Delete/restore only applies to comments (the user's own).
+            let r = try await api.deleteComment(commentID: Components.Schemas.CommentID(op.entityServerId), deleted: value)
+            try await appDatabase.upsertComment(from: r.comment_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
         }
     }
 }

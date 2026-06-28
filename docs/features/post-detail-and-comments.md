@@ -31,7 +31,7 @@ account has them.
 - **Loading and empty placeholders sit below the post.** While comments load, a comment-shaped skeleton row shows directly under the post header; once the fetch settles with no comments, a centered "No comments yet — Be the first to comment." row takes its place. Both are in-flow rows that scroll with the content (right where the comments will appear), not a fixed background, so the pinned post header never covers them.
 - **Pull to refresh.** Pulling down refetches the comment thread for the current sort.
 - **Comment sort follows the default-sort preference.** The thread is sorted by the account's default comment sort (Hot, Top, New, Old, or Controversial). It is read once when the post opens; there is no in-screen control to change the sort for a single post.
-- **Per-comment context menu.** Long-pressing a comment offers Upvote, Downvote, Reply, Save / Unsave, and Share, then Report (only on other people's comments), then a Moderation submenu when the account can moderate.
+- **Per-comment context menu.** Long-pressing a comment offers Upvote, Downvote, Reply, Save / Unsave, and Share. On other people's comments it then offers Report; on your own comment it instead offers **Delete** (destructive, with a confirmation), or **Restore** when the comment is already deleted. Delete / Restore flips the comment's deleted state instantly (optimistically) and is delivered durably through the idempotent mutation outbox — the same vote / save / hide pipeline that retries transient failures in the background and rolls the optimistic change back (with a "Couldn't update comment" toast) on a permanent failure. After the menu, a Moderation submenu appears when the account can moderate.
 - **Per-post context menu.** Long-pressing the post header offers Share, then Report (only when it is not your own post), then the same Moderation submenu when applicable. The post is saved from the toolbar / header action bar, not from this menu.
 - **Moderator and admin actions are capability-gated.** The account's moderation capability is fetched from the server when the screen appears (`fetchModerationCapability`). The Moderation submenu only appears when the account moderates this post's community, or is a site admin; otherwise it is absent. A signed-out account never sees it.
 - **In-body link preview cards.** Links in post bodies and comment bodies render as a tappable preview card that always shows the link's anchor text (the `[label](url)` text from markdown). For YouTube, Invidious, and PeerTube video links, when the "Load Link Previews" setting is on, the card additionally shows a thumbnail with a play badge and the video title fetched via oEmbed; when the setting is off, the card shows only the anchor text and host. The post-header link card (for link-type posts) always shows the server-provided title and thumbnail regardless of this setting. Tapping any card opens the link through the external-link preference — see [External link handling](external-link-handling.md).
@@ -87,6 +87,12 @@ account has them.
 - **Then** I get Upvote, Downvote, Reply, Save, Share, and Report
 - **And** Report is omitted on my own comments
 
+### Delete and restore my own comment
+
+- **Given** my own comment
+- **When** I long-press it and choose Delete (and confirm)
+- **Then** the comment flips to deleted instantly and the change is enqueued to the mutation outbox; if it already shows deleted, the menu offers Restore instead (no confirmation), which flips it back. A permanent server failure rolls the optimistic change back and shows a "Couldn't update comment" toast.
+
 ### Moderation actions appear only with capability
 
 - **Given** I moderate the post's community
@@ -125,7 +131,7 @@ account has them.
 ## Not supported / out of scope
 
 - **No in-screen comment-sort control.** The thread uses the account's default comment sort; there is no per-post picker to re-sort it without changing the global default. (Setting the default lives in Settings.)
-- **No edit or delete of your own comment or post** from this screen — see [Replying](replying.md).
+- **No edit of your own comment or post**, and no delete of your own post, from this screen — see [Replying](replying.md). (Deleting / restoring your own *comment* IS supported via its context menu — see above.)
 - Collapse state is not persisted: reopening the post starts fully expanded.
 - "Load more replies" placeholders are not collapsible and have no per-comment actions.
 - The post is saved from the toolbar or header action bar (or a swipe), not from the post's context menu.

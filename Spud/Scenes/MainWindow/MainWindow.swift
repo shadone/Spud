@@ -329,6 +329,8 @@ class MainWindow: UIWindow {
             message = NSLocalizedString("Couldn't save", comment: "Toast when a save permanently failed and was reverted")
         case .hide:
             message = NSLocalizedString("Couldn't hide", comment: "Toast when a hide permanently failed and was reverted")
+        case .delete:
+            message = NSLocalizedString("Couldn't update comment", comment: "Toast when a comment delete/restore permanently failed and was reverted")
         }
         ToastPresenter.shared.show(message, in: self)
     }

@@ -199,6 +199,16 @@ public protocol LemmyServiceType: Actor {
         saved: Bool
     ) async throws
 
+    /// Delete or restore `serverCommentId` — the user's OWN comment. Flips the
+    /// comment's `isDeleted` state optimistically, enqueues the change to the
+    /// idempotent mutation outbox, and rolls back on permanent failure (exactly
+    /// like hide). Throws `LemmyServiceError.requiresAuthentication` if this
+    /// service is backed by a signed-out account.
+    func deleteComment(
+        serverCommentId: Components.Schemas.CommentID,
+        deleted: Bool
+    ) async throws
+
     func fetchPostInfo(
         serverPostId: Components.Schemas.PostID
     ) async throws
@@ -1474,6 +1484,35 @@ public actor LemmyService: LemmyServiceType {
             entityType: .comment,
             entityServerId: Int64(serverCommentId),
             desiredState: .save(saved)
+        ))
+    }
+
+    public func deleteComment(
+        serverCommentId: Components.Schemas.CommentID,
+        deleted: Bool
+    ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Delete comment rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                commentId=\(serverCommentId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Set deleted=\(deleted, privacy: .public) \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            commentId=\(serverCommentId, privacy: .public)
+            """)
+
+        guard let outbox = await outboxService() else {
+            throw LemmyServiceError.internalInconsistency(description: "outbox unavailable")
+        }
+        await outbox.enqueue(OutboxOperation(
+            entityType: .comment,
+            entityServerId: Int64(serverCommentId),
+            desiredState: .delete(deleted)
         ))
     }
 

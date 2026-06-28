@@ -68,7 +68,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Post detail and comments](post-detail-and-comments.md) | `iphone`, `ipad` | shipped |
 | [Voting](voting.md) | `iphone`, `ipad` | shipped |
 | [Saving](saving.md) | `iphone`, `ipad` | shipped |
-| [Replying](replying.md) | `iphone`, `ipad` | partial — no edit/delete of own comments |
+| [Replying](replying.md) | `iphone`, `ipad` | partial — delete/restore own comment shipped (see [Post detail and comments](post-detail-and-comments.md)); no edit of own comments |
 | [Sharing](sharing.md) | `iphone`, `ipad` | shipped |
 | [Media viewer and inline video](media-viewer.md) | `iphone`, `ipad` | shipped |
 | [Search](search.md) | `iphone`, `ipad` | shipped — scopes: posts / communities / users / comments (federated) + instances (local directory) |
@@ -132,7 +132,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Upvote / downvote (post & comment)
 - [x] Save / unsave (post & comment)
 - [x] Threaded comment collapse + jump-to-next-top-level
-- [~] Reply — shipped (optimistic inline send + durable retry); edit / delete own comment not supported
+- [~] Reply — shipped (optimistic inline send + durable retry); delete / restore own comment shipped (optimistic, via the mutation outbox); edit own comment not supported
 - [x] Configurable swipe actions (comments)
 - [~] Comment sort — preference-only; no in-screen picker (noted in post-detail-and-comments.md)
 - [x] Share post / comment / community URL; open in Safari

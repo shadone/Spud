@@ -91,4 +91,20 @@ public enum OptimisticWrites {
             arguments: [isSaved, serverCommentId, accountId]
         )
     }
+
+    public static func setCommentDeleted(
+        _ db: Database,
+        accountId: Int64,
+        serverCommentId: Int64,
+        isDeleted: Bool
+    ) throws {
+        try db.execute(
+            sql: """
+                UPDATE comment SET isDeleted = ?
+                WHERE localCommentId = ?
+                  AND postId IN (SELECT id FROM post WHERE accountId = ?)
+                """,
+            arguments: [isDeleted, serverCommentId, accountId]
+        )
+    }
 }

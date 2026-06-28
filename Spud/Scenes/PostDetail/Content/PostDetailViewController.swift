@@ -1523,6 +1523,49 @@ class PostDetailViewController: UIViewController {
         }
     }
 
+    // MARK: - Delete / Restore (own comment)
+
+    /// Confirm deleting the user's own comment, then enqueue the optimistic
+    /// delete through the outbox. Restoring needs no confirmation.
+    private func promptDeleteComment(serverCommentId: Int64) {
+        let alert = UIAlertController(
+            title: NSLocalizedString("Delete comment?", comment: "Confirmation title for deleting the user's own comment"),
+            message: NSLocalizedString("This removes the comment for everyone. You can restore it later.", comment: "Confirmation message for deleting the user's own comment"),
+            preferredStyle: .actionSheet
+        )
+        alert.addAction(UIAlertAction(
+            title: NSLocalizedString("Delete", comment: "Destructive confirm button to delete the user's own comment"),
+            style: .destructive
+        ) { [weak self] _ in
+            self?.setDeletedOnComment(serverCommentId: serverCommentId, deleted: true)
+        })
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
+
+        // iPad: anchor the popover to avoid a regular-width crash.
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
+        present(alert, animated: true)
+    }
+
+    private func setDeletedOnComment(serverCommentId: Int64, deleted: Bool) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            Haptics.tap()
+            do {
+                try await viewModel.accountScope.lemmyService
+                    .deleteComment(serverCommentId: Components.Schemas.CommentID(serverCommentId), deleted: deleted)
+            } catch {
+                // The optimistic write already applied synchronously inside
+                // enqueue; network failures are retried by the outbox and a
+                // permanent failure rolls back + surfaces via the failure stream.
+                alertService.handle(error, for: .deleteComment)
+            }
+        }
+    }
+
     // MARK: - Moderation
 
     /// The moderation menu for the post, or nil when the account cannot
@@ -2371,6 +2414,7 @@ extension PostDetailViewController: UITableViewDelegate {
 
         let isSaved = commentRow.isSaved ?? false
         let isOwnComment = isOwnContent(creatorPersonId: commentRow.creatorPersonId)
+        let isDeleted = commentRow.isDeleted ?? false
         let generalAppearance = appearanceService.general
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
@@ -2409,9 +2453,30 @@ extension PostDetailViewController: UITableViewDelegate {
                     self?.shareComment(serverCommentId: serverCommentId)
                 }
                 var children: [UIMenuElement] = [upvoteAction, downvoteAction, replyAction, saveAction, shareAction]
-                // Reporting your own comment is meaningless, so only offer it
-                // on other people's content.
-                if !isOwnComment {
+                if isOwnComment {
+                    // Your own comment: offer Delete (or Restore if already
+                    // deleted). Delete is destructive and confirms first.
+                    if isDeleted {
+                        let restoreAction = UIAction(
+                            title: NSLocalizedString("Restore", comment: "Context-menu action to restore the user's own deleted comment"),
+                            image: UIImage(systemName: "arrow.uturn.backward")
+                        ) { [weak self] _ in
+                            self?.setDeletedOnComment(serverCommentId: serverCommentId, deleted: false)
+                        }
+                        children.append(restoreAction)
+                    } else {
+                        let deleteAction = UIAction(
+                            title: NSLocalizedString("Delete", comment: "Context-menu action to delete the user's own comment"),
+                            image: UIImage(systemName: "trash"),
+                            attributes: .destructive
+                        ) { [weak self] _ in
+                            self?.promptDeleteComment(serverCommentId: serverCommentId)
+                        }
+                        children.append(deleteAction)
+                    }
+                } else {
+                    // Reporting your own comment is meaningless, so only offer it
+                    // on other people's content.
                     let reportAction = UIAction(
                         title: NSLocalizedString("Report", comment: "Context-menu action to report a comment"),
                         image: UIImage(systemName: "flag"),

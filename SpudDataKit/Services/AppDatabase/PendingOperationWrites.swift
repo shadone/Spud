@@ -200,6 +200,15 @@ private extension AppDatabase {
                 serverPostId: entityServerId,
                 isHidden: value
             )
+
+        case let .delete(value):
+            // Delete/restore only applies to comments (the user's own).
+            try OptimisticWrites.setCommentDeleted(
+                db,
+                accountId: accountId,
+                serverCommentId: entityServerId,
+                isDeleted: value
+            )
         }
     }
 
@@ -243,6 +252,17 @@ private extension AppDatabase {
                 arguments: [op.entityServerId, accountId]
             ) ?? false
             return hidden ? 1 : 0
+        case .delete:
+            let deleted = try Bool.fetchOne(
+                db,
+                sql: """
+                    SELECT isDeleted FROM comment
+                    WHERE localCommentId = ?
+                      AND postId IN (SELECT id FROM post WHERE accountId = ?)
+                    """,
+                arguments: [op.entityServerId, accountId]
+            ) ?? false
+            return deleted ? 1 : 0
         }
     }
 
@@ -277,7 +297,7 @@ private extension AppDatabase {
     static func desiredEqualsBaseline(_ desired: OutboxDesiredState, baseline: Int64?) -> Bool {
         switch desired {
         case let .vote(status): OutboxProjection.dbVoteStatus(for: status) == baseline
-        case let .save(value), let .hide(value): (value ? 1 : 0) == baseline
+        case let .save(value), let .hide(value), let .delete(value): (value ? 1 : 0) == baseline
         }
     }
 
@@ -296,6 +316,8 @@ private extension AppDatabase {
             return .save(baseline == 1)
         case .hide:
             return .hide(baseline == 1)
+        case .delete:
+            return .delete(baseline == 1)
         }
     }
 

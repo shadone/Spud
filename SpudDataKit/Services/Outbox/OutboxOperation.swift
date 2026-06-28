@@ -10,6 +10,10 @@ public enum OutboxKind: String, Codable, Sendable {
     case vote
     case save
     case hide
+    /// Delete or restore the user's OWN comment. Toggles the comment's
+    /// `isDeleted` state, mirroring `hide`. Idempotent: re-sending the same
+    /// `deleted` value is safe.
+    case delete
 }
 
 /// The absolute desired state to send to the server. Idempotent: re-sending the
@@ -18,12 +22,15 @@ public enum OutboxDesiredState: Sendable, Equatable {
     case vote(LikeStatus)
     case save(Bool)
     case hide(Bool)
+    /// Desired `deleted` state of the user's own comment (true = deleted).
+    case delete(Bool)
 
     public var kind: OutboxKind {
         switch self {
         case .vote: .vote
         case .save: .save
         case .hide: .hide
+        case .delete: .delete
         }
     }
 
@@ -32,7 +39,7 @@ public enum OutboxDesiredState: Sendable, Equatable {
     public var encoded: Int64 {
         switch self {
         case let .vote(status): Int64(status.rawValue)
-        case let .save(value), let .hide(value): value ? 1 : 0
+        case let .save(value), let .hide(value), let .delete(value): value ? 1 : 0
         }
     }
 
@@ -41,6 +48,7 @@ public enum OutboxDesiredState: Sendable, Equatable {
         case .vote: .vote(LikeStatus(rawValue: Int32(raw)) ?? .neutral)
         case .save: .save(raw != 0)
         case .hide: .hide(raw != 0)
+        case .delete: .delete(raw != 0)
         }
     }
 }

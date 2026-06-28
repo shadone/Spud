@@ -193,6 +193,7 @@ public extension AppDatabase {
                 existing.numberOfDownvotes = preserved.numberOfDownvotes
             }
             if pendingKinds.contains(.save) { existing.isSaved = preserved.isSaved }
+            if pendingKinds.contains(.delete) { existing.isDeleted = preserved.isDeleted }
             try existing.update(db)
             return existing.id!
         }

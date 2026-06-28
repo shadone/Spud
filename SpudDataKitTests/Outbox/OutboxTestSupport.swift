@@ -101,7 +101,8 @@ func seedComment(
     commentServerId: Int,
     score: Int64,
     voteStatus: Int64?,
-    isSaved: Bool = false
+    isSaved: Bool = false,
+    isDeleted: Bool = false
 ) async throws {
     // Recreate the same fake post the importer needs to resolve the postId FK.
     let post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
@@ -125,11 +126,11 @@ func seedComment(
     try await appDatabase.writer.write { db in
         try db.execute(
             sql: """
-                UPDATE comment SET score = ?, voteStatus = ?, isSaved = ?
+                UPDATE comment SET score = ?, voteStatus = ?, isSaved = ?, isDeleted = ?
                 WHERE localCommentId = ?
                   AND postId IN (SELECT id FROM post WHERE accountId = ?)
                 """,
-            arguments: [score, voteStatus, isSaved, serverCommentId, accountId]
+            arguments: [score, voteStatus, isSaved, isDeleted, serverCommentId, accountId]
         )
     }
 }
@@ -189,6 +190,20 @@ func readCommentVote(
             .filter(sql: "postId IN (SELECT id FROM post WHERE accountId = ?)", arguments: [accountId])
             .fetchOne(db)
         return (row?.score ?? 0, row?.voteStatus)
+    }
+}
+
+func readCommentDeleted(
+    _ appDatabase: AppDatabase,
+    accountId: Int64,
+    serverCommentId: Int64
+) async throws -> Bool {
+    try await appDatabase.writer.read { db -> Bool in
+        let row = try CommentRecord
+            .filter(Column("localCommentId") == serverCommentId)
+            .filter(sql: "postId IN (SELECT id FROM post WHERE accountId = ?)", arguments: [accountId])
+            .fetchOne(db)
+        return row?.isDeleted ?? false
     }
 }
 
