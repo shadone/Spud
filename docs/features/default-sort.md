@@ -13,7 +13,8 @@ Settings → General has a Posts default-sort picker and a Comments default-sort
 - **Default post sort seeds new feeds.** When a feed (frontpage, community, profile, subscriptions) is built, it opens at the account's default post sort. The value comes from the account record's `default_sort_type`, falling back to Hot when none is set.
 - **Default comment sort seeds new threads.** When a post's comment tree loads, it uses the stored global default comment sort (default Hot).
 - **Per-post comment sort.** The post-detail screen has a config control (the `slider.horizontal.3` toolbar button) that opens a popover with a Sort picker — Hot, Top, New, Old, Controversial. Choosing one re-sorts the open post's comments immediately. This is a per-post override for that session only; it does not change the global default comment sort in Settings. See [post-detail-and-comments.md](post-detail-and-comments.md).
-- **The post picker is persisted per account.** Changing the Posts default-sort picker writes the new value back to the account record's `default_sort_type` column, so it survives relaunch. Because the default post sort is a per-account value (each account can carry its own server-synced sort), it is stored on the account, not in the global preferences store the comment picker uses.
+- **The post picker is persisted per account.** Changing the Posts default-sort picker writes the new value back to the account record's `default_sort_type` column synchronously, so it survives relaunch. Because the default post sort is a per-account value (each account can carry its own server-synced sort), it is stored on the account, not in the global preferences store the comment picker uses.
+- **The post sort syncs to the server.** Alongside the local write, a signed-in account also mirrors the choice up to the server via `save_user_settings` (best-effort, fire-and-forget — a network failure leaves the local value standing). On a fresh sign-in (or a site refresh) the server's `default_sort_type` is imported back into the account record (`AccountImporter`), so the default post sort follows the account across devices. A signed-out account skips the server push (the local value still governs its feeds). The default **comment** sort has no `save_user_settings` equivalent in Lemmy, so it stays a local (global) preference and does not sync.
 - **Per-feed sort still overrides at the feed.** The default sort is the starting point; changing a feed's sort in the feed itself is a separate, per-feed action documented in [feeds-and-sorting.md](feeds-and-sorting.md). The default does not retroactively re-sort feeds already open.
 
 ## Scenarios
@@ -33,6 +34,12 @@ Settings → General has a Posts default-sort picker and a Comments default-sort
 - **And** it is still New after I relaunch the app
 - **And** newly opened feeds load sorted by New
 
+### The default post sort follows the account across devices
+
+- **Given** I am signed in and I change the Posts default sort
+- **When** the change is pushed to the server (`save_user_settings`) and I later sign in to the same account on another device
+- **Then** that device imports the server's default sort on sign-in and opens feeds with it
+
 ### Set the default comment sort
 
 - **Given** Settings → General with the Comments default on Hot
@@ -49,6 +56,6 @@ Settings → General has a Posts default-sort picker and a Comments default-sort
 
 ## Not supported / out of scope
 
-- **The Posts default-sort change is stored locally, not pushed to the server.** Selecting a post sort here persists to the local account record so it survives relaunch, but it is not mirrored to the instance via `save_user_settings`; a fresh sign-in on another device sees the server's value until that round-trip is wired.
+- **The default-sort server sync is best-effort and one-field.** The Posts default sort mirrors up via `save_user_settings` and back on sign-in, but the push is fire-and-forget (a failure isn't retried — the local value stays correct). Only `default_sort_type` is synced this way; the default comment sort has no server equivalent and stays local.
 - Changing the default does not re-sort feeds or threads that are already open (the per-post picker re-sorts only the current post).
 - No per-community or per-feed default-sort overrides; per-feed sort changes belong to [feeds-and-sorting.md](feeds-and-sorting.md).

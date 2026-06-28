@@ -433,6 +433,13 @@ final class PreferencesViewModel {
         // the account's stored record), so it must persist to the account store,
         // not UserDefaults. Without this it reset to the baseline on relaunch.
         accountService?.setDefaultSortType(value, forAccountKeychainId: accountKeychainId)
+        // Best-effort: mirror the choice up to the server (`save_user_settings`)
+        // so it follows the account across devices. Signed-out accounts no-op
+        // server-side; a network failure is fine — the local value above stands.
+        if let accountService {
+            let scope = accountService.scope(forAccountKeychainId: accountKeychainId)
+            Task { try? await scope.lemmyService.setDefaultSortType(value) }
+        }
     }
 
     func updateDefaultCommentSort(_ value: Components.Schemas.CommentSortType) {

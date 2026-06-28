@@ -73,6 +73,14 @@ public protocol LemmyServiceType: Actor {
     /// pure client-side render concern there).
     func setBlurNsfw(_ blurNsfw: Bool) async throws
 
+    /// Push the account's default post sort to the server via `saveUserSettings`
+    /// so the choice follows the account across devices. The local
+    /// `AccountRecord.defaultSortType` is written separately (and synchronously)
+    /// by `AccountServiceType.setDefaultSortType(_:forAccountKeychainId:)` — which
+    /// also persists it for signed-out accounts — so this only mirrors the value
+    /// up to the server. A signed-out account is a silent no-op.
+    func setDefaultSortType(_ sortType: Components.Schemas.SortType) async throws
+
     func fetchPersonInfo(
         serverPersonId: Components.Schemas.PersonID
     ) async throws
@@ -946,6 +954,33 @@ public actor LemmyService: LemmyServiceType {
             logger.error("""
                 Mirror blur_nsfw to AppDatabase failed. \(String(describing: error), privacy: .public)
                 """)
+        }
+    }
+
+    public func setDefaultSortType(_ sortType: Components.Schemas.SortType) async throws {
+        guard !accountIsSignedOut else {
+            // Signed-out accounts have no server settings to push; the local
+            // account record still holds the default sort, so this is a
+            // deliberate no-op rather than an error.
+            logger.debug("""
+                Set default_sort_type skipped - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
+                """)
+            return
+        }
+
+        logger.debug("""
+            Set default_sort_type=\(sortType.rawValue, privacy: .public) \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
+            """)
+
+        do {
+            _ = try await api.saveUserSettings(defaultSortType: sortType)
+        } catch {
+            logger.error("""
+                Set default_sort_type failed. \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
         }
     }
 
