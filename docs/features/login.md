@@ -1,7 +1,7 @@
 # Login
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** partial — two-factor (TOTP) sign-in is not wired up
+- **Status:** shipped
 - **Related:** [Instance picker](instance-picker.md), [Registration](registration.md), [Accounts and switching](accounts-and-switching.md), [Signed-out browsing](signed-out-browsing.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
@@ -17,6 +17,7 @@ shortcuts to register a new account or to keep browsing anonymously.
 - **Username or email + password.** One field accepts either a username or an email, plus a password field. The Login button is enabled only when both fields are non-empty.
 - **Success stores and activates the account.** A successful login stores the returned credential in the shared-group Keychain under a new `accountKeychainId`, marks the account default, and immediately kicks off the initial site / own-profile fetch so the Account screen resolves without waiting for the next periodic refresh. The login screen then dismisses.
 - **Invalid credentials surface an error.** A rejected login ("incorrect login") is reported as an invalid-login error alert; the screen stays open to retry. Other API failures surface a generic error alert.
+- **Two-factor (TOTP) sign-in.** When an account has two-factor authentication enabled, the one-time code is collected on a dedicated code-entry screen and sent to the server alongside the password (as `totp_2fa_token`). The screen can be reached two ways: manually via the "Have a two-factor code?" affordance under the Login button, or automatically — if a login is rejected because a 2FA code is missing or wrong, the app surfaces the inline hint "Enter your two-factor code." and presents the code-entry screen for you. After entering a code, the retried login carries the token. (A 2FA-required rejection is handled inline; it does not raise the generic error alert.)
 - **Register and anonymous shortcuts.** The screen has a "Register" button that pushes the sign-up form for the same instance, and a "Browse without an account" button that activates the signed-out account for the instance and dismisses. See [registration.md](registration.md) and [signed-out-browsing.md](signed-out-browsing.md).
 - **Forgot Password is informational only.** A "Forgot Password?" label is shown but does not start an in-app reset flow.
 
@@ -46,6 +47,12 @@ shortcuts to register a new account or to keep browsing anonymously.
 - **When** I submit credentials the instance rejects
 - **Then** an invalid-login error alert is shown and I can retry without losing the screen
 
+### Two-factor sign-in prompts for the code
+
+- **Given** an account with two-factor authentication enabled
+- **When** I submit my username and password without a code
+- **Then** the inline hint "Enter your two-factor code." appears and the two-factor code-entry screen is presented; after I enter a code and log in again, the code is sent with the password and the sign-in succeeds
+
 ### Jump to registration or anonymous browsing
 
 - **Given** the login screen
@@ -54,7 +61,6 @@ shortcuts to register a new account or to keep browsing anonymously.
 
 ## Not supported / out of scope
 
-- **Two-factor (TOTP) sign-in is not functional — blocked on a LemmyKit release.** The Spud side is mostly built (`LoginTwoFactorViewController`, `LoginViewModel.totp2faToken`, the `totp2faRequired` error case), but the token is never sent to the server. To finish it: (1) in LemmyKit, add a `totp2faToken: String?` parameter to `LemmyApi.login(usernameOrEmail:password:)` and pass it as `totp_2fa_token` in the request body — the generated `LoginRequest` schema already supports the field, only the hand-written wrapper omits it — and map the 2FA-required/incorrect-token response to a distinct error; (2) cut a LemmyKit release and bump `exactVersion` in `Spud/project.yml`; (3) thread `totp2faToken` through `AccountService.login(...)` to `api.login`, pass `LoginViewModel.totp2faToken`, and on a `totp2faRequired` error present `LoginTwoFactorViewController` to collect the code and retry. (Spud builds the pinned remote LemmyKit, so step 1/2 must land first.)
 - No "forgot password" / password-reset flow runs in-app; the label does not act.
 - No biometric unlock or credential autofill integration beyond the system keyboard's own behavior.
 - Choosing the instance is a separate step — see [instance-picker.md](instance-picker.md).

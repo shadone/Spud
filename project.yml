@@ -30,7 +30,7 @@ settings:
 packages:
   LemmyKit:
     url: https://github.com/shadone/LemmyKit
-    exactVersion: 0.5.0
+    exactVersion: 0.5.1
   Nuke:
     url: https://github.com/kean/Nuke
     from: 13.0.0

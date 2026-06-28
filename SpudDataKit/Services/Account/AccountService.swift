@@ -29,10 +29,16 @@ public protocol AccountServiceType: AnyObject {
     func signInAsSignedOut(atInstance instance: InstanceActorId)
 
     /// Log in to a given Lemmy instance with explicitly provided username and password.
+    ///
+    /// `totp2faToken` carries the current time-based one-time (TOTP) code when
+    /// the account has two-factor authentication enabled. It defaults to `nil`;
+    /// a `nil`/empty token against a 2FA-protected account makes the server
+    /// reject the login with `AccountServiceLoginError.totp2faRequired`.
     func login(
         atInstance instance: InstanceActorId,
         username: String,
-        password: String
+        password: String,
+        totp2faToken: String?
     ) async throws
 
     /// Register a new account on `instance`. On a JWT-bearing response the
@@ -127,6 +133,21 @@ public protocol AccountServiceType: AnyObject {
 
 @MainActor
 public extension AccountServiceType {
+    /// Convenience overload defaulting `totp2faToken` to `nil`, so callers that
+    /// don't have a two-factor code can log in with just username and password.
+    func login(
+        atInstance instance: InstanceActorId,
+        username: String,
+        password: String
+    ) async throws {
+        try await login(
+            atInstance: instance,
+            username: username,
+            password: password,
+            totp2faToken: nil
+        )
+    }
+
     /// Creates a feed with the given parameters. Returns a `FeedHandle`
     /// carrying the stable `feedKey` (for GRDB observations and
     /// LemmyService.fetchFeed) and the `feedType` (for navigation/sort UI).
@@ -434,7 +455,8 @@ public class AccountService: AccountServiceType {
     public func login(
         atInstance instance: InstanceActorId,
         username: String,
-        password: String
+        password: String,
+        totp2faToken: String?
     ) async throws {
         guard let url = instance.url else {
             fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
@@ -445,7 +467,11 @@ public class AccountService: AccountServiceType {
 
         let response: Components.Schemas.LoginResponse
         do {
-            response = try await api.login(usernameOrEmail: username, password: password)
+            response = try await api.login(
+                usernameOrEmail: username,
+                password: password,
+                totp2faToken: totp2faToken
+            )
         } catch {
             let error = AccountServiceLoginError(from: error)
 

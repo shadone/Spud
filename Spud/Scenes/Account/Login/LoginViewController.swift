@@ -177,10 +177,10 @@ class LoginViewController: UIViewController {
 
     /// "Have a two-factor code?" affordance shown beneath the primary CTA. Taps
     /// through to the dedicated `LoginTwoFactorViewController` code-entry screen.
-    /// This replaces the previous always-hidden inline one-time-code field, which
-    /// was never wired to a login path (the account service / Lemmy API do not
-    /// currently accept a TOTP token), so it is a manual entry point rather than
-    /// an automatic "2FA required" trigger.
+    /// This is the manual entry point; the same screen is also presented
+    /// automatically when the server rejects a login with
+    /// `AccountServiceLoginError.totp2faRequired`. The collected code is forwarded
+    /// to the account-service login path as the `totp2faToken`.
     lazy var twoFactorButton: UIButton = {
         var config = UIButton.Configuration.plain()
         config.attributedTitle = AttributedString(
@@ -471,6 +471,13 @@ class LoginViewController: UIViewController {
                 return
             }
         })
+
+        observationTasks.append(Task { @MainActor [weak self, viewModel] in
+            for await needsCode in ObservationStream.values(of: { viewModel.needsTwoFactorCode }) {
+                guard needsCode else { continue }
+                self?.presentTwoFactorEntry()
+            }
+        })
     }
 
     deinit {
@@ -525,14 +532,26 @@ class LoginViewController: UIViewController {
         }
     }
 
-    /// Pushes the dedicated two-factor code-entry screen. On submit we pop back
-    /// and re-run the login attempt: the entered code is handed to the view model
-    /// so that once the account-service login path accepts a TOTP token it can be
-    /// forwarded. Today the service does not yet take a token, so the code is
-    /// captured and a normal login is retried (the screen is the deliverable; no
-    /// fake "2FA required" state machine is introduced).
+    /// Manual entry point: the "Have a two-factor code?" affordance under the
+    /// primary CTA. Shares one presentation path with the automatic prompt raised
+    /// when the server reports `totp2faRequired`.
     @objc
     private func twoFactorTapped() {
+        presentTwoFactorEntry()
+    }
+
+    /// Pushes the dedicated two-factor code-entry screen. On submit we pop back
+    /// and re-run the login attempt: the entered code is handed to the view model,
+    /// which forwards it to the account-service login path (`totp2faToken`), so
+    /// the retried login carries the TOTP code. Reused by both the manual
+    /// affordance (`twoFactorTapped`) and the automatic prompt that fires when the
+    /// server rejects a login with `AccountServiceLoginError.totp2faRequired`.
+    private func presentTwoFactorEntry() {
+        // Don't stack a second entry screen if one is already on top (the manual
+        // button and the auto-prompt can both fire).
+        if navigationController?.topViewController is LoginTwoFactorViewController {
+            return
+        }
         view.endEditing(true)
         let viewController = LoginTwoFactorViewController(
             username: viewModel.username,

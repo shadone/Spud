@@ -79,7 +79,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Person / user profile](person-profile.md) | `iphone`, `ipad` | shipped — Posts tab renders with the feed cell (vote / save, live state) |
 | [Accounts and switching](accounts-and-switching.md) | `iphone`, `ipad` | shipped |
 | [Signed-out browsing](signed-out-browsing.md) | `iphone`, `ipad` | shipped |
-| [Login](login.md) | `iphone`, `ipad` | partial — no 2FA (TOTP) |
+| [Login](login.md) | `iphone`, `ipad` | shipped — incl. two-factor (TOTP) sign-in |
 | [Instance picker](instance-picker.md) | `iphone`, `ipad` | shipped |
 | [Registration](registration.md) | `iphone`, `ipad` | partial — no in-app captcha |
 | [Sign-in gate on write actions](sign-in-gate.md) | `iphone`, `ipad` | shipped |
@@ -154,7 +154,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 **Account & auth**
 - [x] Multi-account, multi-instance + account switcher
 - [x] Signed-out browsing (bootstrap account)
-- [~] Login — shipped; 2FA (TOTP) field present but not wired up
+- [x] Login — incl. two-factor (TOTP) sign-in (code collected and sent; a 2FA-required login auto-prompts for the code)
 - [x] Instance picker (site list)
 - [~] Registration / signup — shipped; captcha-required instances not handled in-app
 - [x] Sign-in gate on write actions
