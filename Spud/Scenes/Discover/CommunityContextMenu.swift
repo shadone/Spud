@@ -10,7 +10,7 @@ import UIKit
 
 /// Long-press context menu for a community row across the Discover surfaces
 /// (directory, rails, packs, instance lens), recreated from the Discover design.
-/// Covers the actions the app can drive for an Explorer community: Open, Follow,
+/// Covers the actions the app can drive for an Explorer community: Open, Subscribe,
 /// Mute, Share, Copy Link, Block. The design's Favourite and Add-to-group items
 /// are intentionally omitted — neither feature exists in the app yet.
 struct CommunityContextMenu: View {
@@ -24,11 +24,11 @@ struct CommunityContextMenu: View {
             Label("Open Community", systemImage: "arrow.up.forward.app")
         }
 
-        let following = viewModel.followState(for: row) == .following
+        let subscribed = viewModel.subscriptionState(for: row) == .subscribed
         Button {
-            viewModel.toggleFollow(row)
+            viewModel.toggleSubscription(row)
         } label: {
-            Label(following ? "Unfollow" : "Follow", systemImage: following ? "checkmark" : "plus")
+            Label(subscribed ? "Unsubscribe" : "Subscribe", systemImage: subscribed ? "checkmark" : "plus")
         }
 
         Divider()

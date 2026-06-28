@@ -79,8 +79,8 @@ class DiscoverViewController: UIViewController {
             onRequestSignIn: { [weak self] in
                 self?.presentSignInGate(
                     title: NSLocalizedString(
-                        "Sign in to follow",
-                        comment: "Sign-in gate title when a signed-out user taps Follow in Discover"
+                        "Sign in to subscribe",
+                        comment: "Sign-in gate title when a signed-out user taps Subscribe in Discover"
                     )
                 )
             }

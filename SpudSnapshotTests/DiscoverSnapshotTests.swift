@@ -14,10 +14,10 @@ import XCTest
 /// Snapshots of the Discover (Community Explorer) SwiftUI building blocks across
 /// their visual states, each in light and dark:
 ///
-/// - `FollowButton`: the idle "Follow" pill and the "Following" confirmation.
+/// - `SubscribeButton`: the idle "Subscribe" pill and the "Subscribed" confirmation.
 /// - `DiscoverCommunityRow`: a plain directory row, one collapsing same-name
-///   variants ("also on N servers" badge), and one showing the inline Follow
-///   control in its followed state.
+///   variants ("also on N servers" badge), and one showing the inline Subscribe
+///   control in its subscribed state.
 /// - `DiscoverTrendCard`: the Trending card and the Rising card (momentum badge).
 /// - `InstanceCard`: a "Browse by instance" card.
 /// - `PackCard`: a resolved starter-pack card.
@@ -31,14 +31,17 @@ import XCTest
 final class DiscoverSnapshotTests: XCTestCase {
     private let teal = Color(uiColor: UIColor(red: 0, green: 0x96 / 255, blue: 0x87 / 255, alpha: 1))
 
-    // MARK: - FollowButton
+    // MARK: - SubscribeButton
 
-    func test_followButton_idle() {
-        assertDiscoverSnapshot(FollowButton(state: .idle, accent: teal, action: { }))
+    /// `.fixedSize()` so the standalone pill takes its intrinsic width; without it
+    /// the sizeThatFits host under-proposes and the longer "Subscribe" label
+    /// truncates (in the app the pill sits in an HStack and is never constrained).
+    func test_subscribeButton_idle() {
+        assertDiscoverSnapshot(SubscribeButton(state: .idle, accent: teal, action: { }).fixedSize())
     }
 
-    func test_followButton_following() {
-        assertDiscoverSnapshot(FollowButton(state: .following, accent: teal, action: { }))
+    func test_subscribeButton_subscribed() {
+        assertDiscoverSnapshot(SubscribeButton(state: .subscribed, accent: teal, action: { }).fixedSize())
     }
 
     // MARK: - DiscoverCommunityRow
@@ -62,14 +65,14 @@ final class DiscoverSnapshotTests: XCTestCase {
         )
     }
 
-    func test_communityRow_following() {
+    func test_communityRow_subscribed() {
         assertDiscoverSnapshot(
             DiscoverCommunityRow(
                 row: fixtureRow(),
                 accent: teal,
                 onTap: { },
-                followState: .following,
-                onFollow: { }
+                subscriptionState: .subscribed,
+                onSubscribe: { }
             )
             .frame(width: 390)
         )
@@ -81,8 +84,8 @@ final class DiscoverSnapshotTests: XCTestCase {
                 row: fixtureRow(name: "nsfwexample", title: "NSFW Example", nsfw: true),
                 accent: teal,
                 onTap: { },
-                followState: .idle,
-                onFollow: { }
+                subscriptionState: .idle,
+                onSubscribe: { }
             )
             .frame(width: 390)
         )
@@ -96,23 +99,23 @@ final class DiscoverSnapshotTests: XCTestCase {
                 row: fixtureRow(),
                 accent: teal,
                 rank: 0,
-                followState: .idle,
+                subscriptionState: .idle,
                 onTap: { },
-                onFollow: { }
+                onSubscribe: { }
             )
             .frame(width: 390)
         )
     }
 
-    func test_variantRow_following() {
+    func test_variantRow_subscribed() {
         assertDiscoverSnapshot(
             VariantRow(
                 row: fixtureRow(name: "linux", title: "Linux", host: "lemmy.ml"),
                 accent: teal,
                 rank: 1,
-                followState: .following,
+                subscriptionState: .subscribed,
                 onTap: { },
-                onFollow: { }
+                onSubscribe: { }
             )
             .frame(width: 390)
         )
@@ -122,7 +125,7 @@ final class DiscoverSnapshotTests: XCTestCase {
 
     func test_trendCard_trending() {
         assertDiscoverSnapshot(
-            DiscoverTrendCard(row: fixtureRow(), accent: teal, momentum: false, onTap: { }, followState: .idle, onFollow: { })
+            DiscoverTrendCard(row: fixtureRow(), accent: teal, momentum: false, onTap: { }, subscriptionState: .idle, onSubscribe: { })
         )
     }
 
@@ -133,8 +136,8 @@ final class DiscoverSnapshotTests: XCTestCase {
                 accent: teal,
                 momentum: true,
                 onTap: { },
-                followState: .following,
-                onFollow: { }
+                subscriptionState: .subscribed,
+                onSubscribe: { }
             )
         )
     }

@@ -13,9 +13,9 @@ import SwiftUI
 /// host, members and community count, a character blurb, a trust read and a
 /// "Health, uptime & trust" affordance — that drills into the richer instance
 /// detail screen. The section header carries an inline sort control for the list.
-/// Reuses ``DiscoverCommunityRow`` so opening and inline Follow behave exactly as
-/// on the Discover home — the same ``DiscoverViewModel`` backs both, so a follow
-/// here is reflected when the user navigates back.
+/// Reuses ``DiscoverCommunityRow`` so opening and inline Subscribe behave exactly
+/// as on the Discover home — the same ``DiscoverViewModel`` backs both, so a
+/// subscription here is reflected when the user navigates back.
 struct InstanceCommunitiesView: View {
     @Bindable var viewModel: DiscoverViewModel
     let host: String
@@ -57,8 +57,8 @@ struct InstanceCommunitiesView: View {
                         row: row,
                         accent: accent,
                         onTap: { viewModel.open(row) },
-                        followState: viewModel.followState(for: row),
-                        onFollow: { viewModel.toggleFollow(row) },
+                        subscriptionState: viewModel.subscriptionState(for: row),
+                        onSubscribe: { viewModel.toggleSubscription(row) },
                         subtitleLineLimit: nil,
                         showsQualifiedHandle: false
                     )

@@ -88,8 +88,8 @@ struct DiscoverView: View {
                         accent: accent,
                         onTap: { viewModel.open(row) },
                         onCompare: { viewModel.compare(row) },
-                        followState: viewModel.followState(for: row),
-                        onFollow: { viewModel.toggleFollow(row) },
+                        subscriptionState: viewModel.subscriptionState(for: row),
+                        onSubscribe: { viewModel.toggleSubscription(row) },
                         blurNsfw: viewModel.blurNsfw
                     )
                     .communityContextMenu(for: row, viewModel: viewModel)
@@ -160,8 +160,8 @@ struct DiscoverView: View {
                         row: row,
                         accent: accent,
                         onTap: { viewModel.open(row) },
-                        followState: viewModel.followState(for: row),
-                        onFollow: { viewModel.toggleFollow(row) },
+                        subscriptionState: viewModel.subscriptionState(for: row),
+                        onSubscribe: { viewModel.toggleSubscription(row) },
                         blurNsfw: viewModel.blurNsfw
                     )
                     .communityContextMenu(for: row, viewModel: viewModel)
@@ -204,7 +204,7 @@ struct DiscoverView: View {
         HStack(spacing: 10) {
             Image(systemName: "person.crop.circle")
                 .foregroundStyle(accent)
-            Text("Browse freely — sign in to follow communities and get personal picks.")
+            Text("Browse freely — sign in to subscribe to communities and get personal picks.")
                 .font(.footnote)
                 .foregroundStyle(Color(.secondaryLabel))
             Spacer(minLength: 0)
@@ -223,7 +223,7 @@ struct DiscoverView: View {
                     Text("Starter packs")
                         .font(.headline)
                         .foregroundStyle(Color(.label))
-                    Text("Follow a curated bundle in one move")
+                    Text("Subscribe to a curated bundle in one move")
                         .font(.caption)
                         .foregroundStyle(Color(.tertiaryLabel))
                 }
@@ -267,8 +267,8 @@ struct DiscoverView: View {
                                 accent: accent,
                                 momentum: momentum,
                                 onTap: { viewModel.open(row) },
-                                followState: viewModel.followState(for: row),
-                                onFollow: { viewModel.toggleFollow(row) },
+                                subscriptionState: viewModel.subscriptionState(for: row),
+                                onSubscribe: { viewModel.toggleSubscription(row) },
                                 blurNsfw: viewModel.blurNsfw
                             )
                         }
@@ -335,10 +335,10 @@ struct DiscoverCommunityRow: View {
     /// When set and the row collapses same-name variants, tapping the "also on N
     /// servers" badge opens the compare sheet instead of the community.
     var onCompare: (() -> Void)?
-    /// Inline Follow state; ignored unless `onFollow` is supplied.
-    var followState: CommunityFollowState = .idle
-    /// When set, a trailing Follow control replaces the disclosure chevron.
-    var onFollow: (() -> Void)?
+    /// Inline subscription state; ignored unless `onSubscribe` is supplied.
+    var subscriptionState: CommunitySubscriptionState = .idle
+    /// When set, a trailing Subscribe control replaces the disclosure chevron.
+    var onSubscribe: (() -> Void)?
     /// Line limit for the handle subtitle. `1` truncates (Discover home / pack
     /// rows stay compact); pass `nil` to let it wrap, as the instance drill-in does.
     var subtitleLineLimit: Int? = 1
@@ -373,8 +373,8 @@ struct DiscoverCommunityRow: View {
                 }
             }
             Spacer(minLength: 0)
-            if let onFollow {
-                FollowButton(state: followState, accent: accent, action: onFollow)
+            if let onSubscribe {
+                SubscribeButton(state: subscriptionState, accent: accent, action: onSubscribe)
             } else {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
@@ -390,8 +390,8 @@ struct DiscoverCommunityRow: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { onTap() }
         .accessibilityActions {
-            if let onFollow {
-                Button(followState == .following ? "Unfollow" : "Follow", action: onFollow)
+            if let onSubscribe {
+                Button(subscriptionState == .subscribed ? "Unsubscribe" : "Subscribe", action: onSubscribe)
             }
             if let onCompare {
                 Button("Compare across servers", action: onCompare)
@@ -408,7 +408,7 @@ struct DiscoverCommunityRow: View {
         var parts = [row.displayName, "c/\(row.name)@\(row.instanceHost)"]
         if row.isNsfw { parts.append("NSFW") }
         parts.append("\(Self.compact(row.numberOfSubscribers)) subscribers")
-        if followState == .following { parts.append("Following") }
+        if subscriptionState == .subscribed { parts.append("Subscribed") }
         if row.alsoOnServerCount > 0 { parts.append("also on \(row.alsoOnServerCount) other servers") }
         return parts.joined(separator: ", ")
     }
@@ -460,10 +460,10 @@ struct DiscoverTrendCard: View {
     let accent: Color
     let momentum: Bool
     let onTap: () -> Void
-    /// Inline Follow state; ignored unless `onFollow` is supplied.
-    var followState: CommunityFollowState = .idle
-    /// When set, a Follow control is shown at the foot of the card.
-    var onFollow: (() -> Void)?
+    /// Inline subscription state; ignored unless `onSubscribe` is supplied.
+    var subscriptionState: CommunitySubscriptionState = .idle
+    /// When set, a Subscribe control is shown at the foot of the card.
+    var onSubscribe: (() -> Void)?
     /// When `true` and `row.isNsfw`, the community icon is obscured.
     var blurNsfw: Bool = false
 
@@ -501,8 +501,8 @@ struct DiscoverTrendCard: View {
                 .foregroundStyle(Color(.secondaryLabel))
                 .padding(.top, 7)
 
-            if let onFollow {
-                FollowButton(state: followState, accent: accent, action: onFollow)
+            if let onSubscribe {
+                SubscribeButton(state: subscriptionState, accent: accent, action: onSubscribe)
                     .frame(maxWidth: .infinity)
                     .padding(.top, 11)
             }
@@ -517,8 +517,8 @@ struct DiscoverTrendCard: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { onTap() }
         .accessibilityActions {
-            if let onFollow {
-                Button(followState == .following ? "Unfollow" : "Follow", action: onFollow)
+            if let onSubscribe {
+                Button(subscriptionState == .subscribed ? "Unsubscribe" : "Subscribe", action: onSubscribe)
             }
         }
     }
@@ -529,7 +529,7 @@ struct DiscoverTrendCard: View {
             "c/\(row.name)@\(row.instanceHost)",
             "\(DiscoverCommunityRow.compact(row.usersActiveWeek)) active this week",
         ]
-        if followState == .following { parts.append("Following") }
+        if subscriptionState == .subscribed { parts.append("Subscribed") }
         return parts.joined(separator: ", ")
     }
 }
@@ -579,15 +579,15 @@ struct InstanceCard: View {
     }
 }
 
-// MARK: - Follow control
+// MARK: - Subscribe control
 
-/// Inline Follow pill used by the directory rows and rail cards. Reflects the
-/// view model's per-community ``CommunityFollowState``; taps act unless a request
-/// is in flight (idle subscribes, followed unsubscribes). When it sits inside a
-/// combined-accessibility row the row exposes the action; this label/trait covers
-/// any standalone use.
-struct FollowButton: View {
-    let state: CommunityFollowState
+/// Inline Subscribe pill used by the directory rows and rail cards. Reflects the
+/// view model's per-community ``CommunitySubscriptionState``; taps act unless a
+/// request is in flight (idle subscribes, subscribed unsubscribes). When it sits
+/// inside a combined-accessibility row the row exposes the action; this label/trait
+/// covers any standalone use.
+struct SubscribeButton: View {
+    let state: CommunitySubscriptionState
     let accent: Color
     let action: () -> Void
 
@@ -598,7 +598,7 @@ struct FollowButton: View {
                 if state != .inFlight { action() }
             }
             .animation(.easeInOut(duration: 0.15), value: state)
-            .accessibilityLabel(state == .following ? "Unfollow" : "Follow")
+            .accessibilityLabel(state == .subscribed ? "Unsubscribe" : "Subscribe")
             .accessibilityAddTraits(.isButton)
     }
 
@@ -606,15 +606,15 @@ struct FollowButton: View {
     private var content: some View {
         switch state {
         case .idle:
-            pill(text: "Follow", systemImage: "plus", filled: true)
+            pill(text: "Subscribe", systemImage: "plus", filled: true)
         case .inFlight:
             ProgressView()
                 .controlSize(.small)
                 .tint(accent)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 6)
-        case .following:
-            pill(text: "Following", systemImage: "checkmark", filled: false)
+        case .subscribed:
+            pill(text: "Subscribed", systemImage: "checkmark", filled: false)
         }
     }
 

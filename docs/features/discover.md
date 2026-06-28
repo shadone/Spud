@@ -6,7 +6,7 @@
 
 ## What it does
 
-Discover is a browsable home for finding new communities across the whole fediverse, reached from the Communities tab. Instead of a single flat list, it leads with curated and computed rails — Starter packs, Trending now, Rising, Because you follow, and Browse by instance — over the full, sortable community directory. It runs on bundled directory data, so it works signed-out and offline; following a community is the only part that needs an account. Communities that share a name across servers are collapsed into one entry you can expand to compare and pick from. While searching, an optional live-network search finds communities that aren't in the bundled directory.
+Discover is a browsable home for finding new communities across the whole fediverse, reached from the Communities tab. Instead of a single flat list, it leads with curated and computed rails — Starter packs, Trending now, Rising, Because you follow, and Browse by instance — over the full, sortable community directory. It runs on bundled directory data, so it works signed-out and offline; subscribing to a community is the only part that needs an account. Communities that share a name across servers are collapsed into one entry you can expand to compare and pick from. While searching, an optional live-network search finds communities that aren't in the bundled directory.
 
 ## Behavior and rules
 
@@ -18,13 +18,13 @@ Discover is a browsable home for finding new communities across the whole fedive
   - **Rising** — communities below a size ceiling, ordered by engagement intensity (recent active users relative to subscriber base) above an activity floor. Surfaces small, accelerating communities. Shows the top 12.
   - **Browse by instance** — the liveliest home instances by aggregate weekly activity (top 12). Tapping one opens that server's communities, with a tappable instance info card (members, description, trust) that drills into the richer [Instance browsing](instance-browsing.md) detail.
   - **All communities** default sort is "Recommended" (the directory's composite `score`); other sorts are **Most active** (recent active users), **Members**, **Name**, and **Newest**. While browsing, the directory is capped at the first 200 rows for snappiness; a search shows every match. "Most posts" is intentionally not a lead sort — the stored post count is a cumulative total that favors old communities rather than active ones.
-- **Same-name communities collapse into one entry.** In the default directory, communities that share a name across servers are deduplicated to a single canonical row — the variant with the strongest blend of subscribers, recent activity, and instance trust. The row notes "also on N other servers · total members". Tapping that badge opens a **compare sheet** listing each variant ranked busiest-first, with members and recent activity, each with its own **Follow** (and a tap-through to open the community). Dedupe is **off in the live network-search results**, where you may be looking for one specific server's copy.
-- **Starter packs are curated topics with live numbers.** Each pack is a hand-curated, ordered set of communities (a topic title, a short blurb, and a list of community references) whose names, icons, member counts, and activity are rendered live from the directory — so the curation is editorial but the stats never go stale. A pack screen lists its communities, each individually followable, with a single **Follow all** action that follows the ones you don't already have.
-- **Search the bundled directory, then the network.** The search field filters the bundled directory instantly. Below the local matches, an optional "Search the network for X" button runs a live Lemmy community search; results not already in the local directory are shown under a "From the network" header (NSFW-gated by the same client preference), each followable. The network search re-runs on tap if it fails.
-- **Long-press a community for quick actions.** Any community row or rail card exposes a context menu: Open community, Follow / Unfollow, Mute (a submenu of durations) / Unmute, Share, Copy link, and Block community. Mute is client-local (keyed by the community's actor id, works for any account, no server round-trip); Block and Follow hit the server.
+- **Same-name communities collapse into one entry.** In the default directory, communities that share a name across servers are deduplicated to a single canonical row — the variant with the strongest blend of subscribers, recent activity, and instance trust. The row notes "also on N other servers · total members". Tapping that badge opens a **compare sheet** listing each variant ranked busiest-first, with members and recent activity, each with its own **Subscribe** (and a tap-through to open the community). Dedupe is **off in the live network-search results**, where you may be looking for one specific server's copy.
+- **Starter packs are curated topics with live numbers.** Each pack is a hand-curated, ordered set of communities (a topic title, a short blurb, and a list of community references) whose names, icons, member counts, and activity are rendered live from the directory — so the curation is editorial but the stats never go stale. A pack screen lists its communities, each individually subscribable, with a single **Subscribe to all** action that subscribes to the ones you don't already have.
+- **Search the bundled directory, then the network.** The search field filters the bundled directory instantly. Below the local matches, an optional "Search the network for X" button runs a live Lemmy community search; results not already in the local directory are shown under a "From the network" header (NSFW-gated by the same client preference), each subscribable. The network search re-runs on tap if it fails.
+- **Long-press a community for quick actions.** Any community row or rail card exposes a context menu: Open community, Subscribe / Unsubscribe, Mute (a submenu of durations) / Unmute, Share, Copy link, and Block community. Mute is client-local (keyed by the community's actor id, works for any account, no server round-trip); Block and Subscribe hit the server.
 - **Curated surfaces stay clean (trust and safety).** Communities flagged suspicious are excluded from all rails and from the default directory. NSFW communities are hidden by default, honoring the app's global "Show NSFW" client preference (the same setting that governs feeds, Search, and the composer community picker — see [NSFW content visibility and blur](nsfw-content.md)) regardless of sign-in state; when shown, they are badged. If "Blur NSFW" is also on, NSFW community icons in Discover are blurred. Both preferences are observed live, so toggling either in Settings (or the post-list Quick Switch) re-filters / re-renders an open Discover in place.
-- **Because you follow is deterministic, not inferred.** When signed in with subscriptions, this rail surfaces the most active communities (not already followed) on the instances where you already follow at least one community. No topic modeling. It is omitted when signed out or when it has no results.
-- **Following mirrors the rest of the app.** Follow / unfollow from any row, rail card, or starter pack resolves the Explorer row to a server community id, calls the server, and mirrors the confirmed result into local follow state (confirm-then-mirror); an in-flight spinner shows on the row meanwhile, and a haptic fires on commit. Communities the account already follows read "Following" from the first render. A signed-out tap is gated with a "Sign in to follow" affordance and a warning haptic per the [Sign-in gate](sign-in-gate.md).
+- **Because you follow is deterministic, not inferred.** When signed in with subscriptions, this rail surfaces the most active communities (not already subscribed) on the instances where you're already subscribed to at least one community. No topic modeling. It is omitted when signed out or when it has no results. (The rail keeps the name "Because you follow"; the underlying action everywhere is Subscribe.)
+- **Subscribing mirrors the rest of the app.** Subscribe / unsubscribe from any row, rail card, or starter pack resolves the Explorer row to a server community id, calls the server, and mirrors the confirmed result into local subscription state (confirm-then-mirror); an in-flight spinner shows on the row meanwhile, and a haptic fires on commit. Communities the account is already subscribed to read "Subscribed" from the first render. A signed-out tap is gated with a "Sign in to subscribe" affordance and a warning haptic per the [Sign-in gate](sign-in-gate.md).
 - **The community page shows vitality.** Opening a community shows a compact stat strip in its header — members, active this week, and posts — from the live community data, plus a tappable source-instance chip that opens that instance's card. See [Community screen](community-screen.md).
 - **Live and offline.** The landing and directory observe the local Explorer directory and update in place. Opening Discover refreshes the community directory from the network when it is older than your Community Data refresh interval (default daily) and automatic updates are on — streamed part-by-part in the background and folded into the open screen live. With no network, the last bundled / fetched snapshot is shown.
 
@@ -37,18 +37,18 @@ Discover is a browsable home for finding new communities across the whole fedive
 - **Then** Discover opens showing Starter packs, Trending now, Rising, Browse by instance, and the All communities directory
 - **And** if I am signed in with subscriptions on shared instances, a Because you follow rail also appears
 
-### Follow a whole starter pack
+### Subscribe to a whole starter pack
 
 - **Given** a starter pack with several communities while signed in
-- **When** I open it and tap Follow all
-- **Then** each not-yet-followed community is followed (confirm-then-mirror, with a haptic) and the rows read Following
-- **And** I can follow communities individually instead
+- **When** I open it and tap Subscribe to all
+- **Then** each not-yet-subscribed community is subscribed (confirm-then-mirror, with a haptic) and the rows read Subscribed
+- **And** I can subscribe to communities individually instead
 
 ### Pick among same-name communities
 
 - **Given** a directory row for a name that exists on several servers, marked "also on N other servers"
 - **When** I tap the badge
-- **Then** a compare sheet lists each server's community ranked busiest-first, with members and recent activity, each with its own Follow (or I tap a row to open it)
+- **Then** a compare sheet lists each server's community ranked busiest-first, with members and recent activity, each with its own Subscribe (or I tap a row to open it)
 
 ### Sort the directory
 
@@ -68,11 +68,11 @@ Discover is a browsable home for finding new communities across the whole fedive
 - **When** I read the Trending now and Rising rails
 - **Then** Trending lists the communities with the most recent activity, and Rising lists smaller communities whose recent activity is high for their size
 
-### A signed-out follow is gated
+### A signed-out subscribe is gated
 
 - **Given** I am browsing Discover signed out
-- **When** I tap Follow on any community
-- **Then** a "Sign in to follow" affordance and a warning haptic are shown, and no call is made
+- **When** I tap Subscribe on any community
+- **Then** a "Sign in to subscribe" affordance and a warning haptic are shown, and no call is made
 
 ### NSFW and suspicious communities are kept out by default
 
@@ -88,7 +88,7 @@ Discover is a browsable home for finding new communities across the whole fedive
 - **No trend graphs or real-time counts.** Trending and Rising are heuristics over a periodic snapshot, not live or historical time series; the directory's numbers are as fresh as the last refresh, not live.
 - **Not content search.** Discover browses communities; searching posts / comments / users stays in the [Search](search.md) tab.
 - **Communities-first.** Instance discovery is reached *through* Discover (Browse by instance) but is governed by [Instance browsing](instance-browsing.md) and the instance directory, not redefined here.
-- **No full-screen snapshot coverage.** Snapshot tests cover the individual Discover components (rows, rail cards, follow button, pack/instance cards); the assembled landing screen is not snapshotted.
+- **No full-screen snapshot coverage.** Snapshot tests cover the individual Discover components (rows, rail cards, subscribe button, pack/instance cards); the assembled landing screen is not snapshotted.
 
 ## Design notes (data, ranking, architecture)
 
@@ -102,4 +102,4 @@ Non-obvious decisions and the data they rest on. Not end-user behavior; kept her
 - **Starter packs ship as an in-code catalog, not JSON (yet).** `StarterPackCatalog` is a small set of hand-curated packs embedded in Swift (`StarterPack.swift`, currently 6 packs of `{ id, title, blurb, communityActorUrls: [...] }`), joined live to the directory at render time by actor id (`StarterPackCatalogTests`). A bundled `starter-packs.json` was anticipated in the original design but deferred — the resolver and UI don't care which backs it, so it can be swapped later without UI changes.
 - **No schema change required.** All fields already exist. New reactive queries provide the landing rails, the sortable directory, and the "because you follow" join from followed communities to the directory.
 - **Directory freshness.** The community directory is refreshed on-demand when Discover appears (`DiscoverViewController.viewDidAppear` → `ExplorerService.refreshCommunitiesIfStale`), gated by the `explorerAutoRefreshEnabled` preference and the `explorerRefreshInterval` staleness window, with an actor-held in-flight guard so repeated opens can't start concurrent multi-MB downloads. The instance directory keeps its launch / picker-open refresh. This is what makes the **Community Data** settings actually govern the community dataset (previously they applied only to instances).
-- **Reuses prior work.** The instance directory and instance detail built for [Instance browsing](instance-browsing.md) back the Browse-by-instance lens and the instance drill-in's "before you commit" detail; the [Subscribe / unsubscribe](subscribe-unsubscribe.md) flow handles Follow.
+- **Reuses prior work.** The instance directory and instance detail built for [Instance browsing](instance-browsing.md) back the Browse-by-instance lens and the instance drill-in's "before you commit" detail; the [Subscribe / unsubscribe](subscribe-unsubscribe.md) flow handles subscribing.

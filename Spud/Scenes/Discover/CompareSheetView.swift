@@ -23,10 +23,10 @@ struct CompareTarget: Identifiable, Equatable {
 /// are independent communities — not copies — so the sheet leads with that and
 /// then ranks the variants by recent activity so the liveliest is obvious.
 struct CompareSheetView: View {
-    /// Read for live per-variant follow state; reading `followState(for:)` in the
-    /// body subscribes the sheet to the view model's in-flight / followed sets, so
-    /// the inline Follow pills update in place (this `@Observable` is tracked even
-    /// through a plain `let`).
+    /// Read for live per-variant subscription state; reading `subscriptionState(for:)`
+    /// in the body subscribes the sheet to the view model's in-flight / subscribed
+    /// sets, so the inline Subscribe pills update in place (this `@Observable` is
+    /// tracked even through a plain `let`).
     let viewModel: DiscoverViewModel
     let target: CompareTarget
     let accent: Color
@@ -43,9 +43,9 @@ struct CompareSheetView: View {
                             row: row,
                             accent: accent,
                             rank: index,
-                            followState: viewModel.followState(for: row),
+                            subscriptionState: viewModel.subscriptionState(for: row),
                             onTap: { onOpenCommunity(row) },
-                            onFollow: { viewModel.toggleFollow(row) }
+                            onSubscribe: { viewModel.toggleSubscription(row) }
                         )
                         if index < target.variants.count - 1 {
                             Divider().padding(.leading, 16)
@@ -69,7 +69,7 @@ struct CompareSheetView: View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "info.circle.fill")
                 .foregroundStyle(accent)
-            Text("These are independent communities on different servers that happen to share the name “\(target.displayName)”. Pick the one you want to follow.")
+            Text("These are independent communities on different servers that happen to share the name “\(target.displayName)”. Pick the one you want to subscribe to.")
                 .font(.footnote)
                 .foregroundStyle(Color(.secondaryLabel))
             Spacer(minLength: 0)
@@ -89,12 +89,12 @@ struct VariantRow: View {
     let accent: Color
     /// Position in the busiest-first ranking; the leader gets a subtle badge.
     let rank: Int
-    /// Inline Follow state; ignored unless `onFollow` is supplied.
-    var followState: CommunityFollowState = .idle
+    /// Inline subscription state; ignored unless `onSubscribe` is supplied.
+    var subscriptionState: CommunitySubscriptionState = .idle
     let onTap: () -> Void
-    /// When set, a trailing Follow control replaces the disclosure chevron so the
-    /// variant can be followed in place; the row tap still opens the community.
-    var onFollow: (() -> Void)?
+    /// When set, a trailing Subscribe control replaces the disclosure chevron so the
+    /// variant can be subscribed in place; the row tap still opens the community.
+    var onSubscribe: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -119,8 +119,8 @@ struct VariantRow: View {
                     .foregroundStyle(Color(.secondaryLabel))
             }
             Spacer(minLength: 0)
-            if let onFollow {
-                FollowButton(state: followState, accent: accent, action: onFollow)
+            if let onSubscribe {
+                SubscribeButton(state: subscriptionState, accent: accent, action: onSubscribe)
             } else {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
@@ -136,8 +136,8 @@ struct VariantRow: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { onTap() }
         .accessibilityActions {
-            if let onFollow {
-                Button(followState == .following ? "Unfollow" : "Follow", action: onFollow)
+            if let onSubscribe {
+                Button(subscriptionState == .subscribed ? "Unsubscribe" : "Subscribe", action: onSubscribe)
             }
         }
     }
@@ -146,7 +146,7 @@ struct VariantRow: View {
         var parts = [row.instanceHost]
         if rank == 0 { parts.append("most active") }
         parts.append("\(DiscoverCommunityRow.compact(row.numberOfSubscribers)) members")
-        if followState == .following { parts.append("Following") }
+        if subscriptionState == .subscribed { parts.append("Subscribed") }
         return parts.joined(separator: ", ")
     }
 }

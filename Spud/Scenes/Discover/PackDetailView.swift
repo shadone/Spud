@@ -8,9 +8,9 @@ import SpudDataKit
 import SwiftUI
 
 /// Detail for a starter pack: a header with its mosaic, blurb and a one-tap
-/// "Follow all", then its member communities — each openable and individually
-/// followable. Backed by the same ``DiscoverViewModel`` as the Discover home, so
-/// follow state stays in sync across both.
+/// "Subscribe to all", then its member communities — each openable and
+/// individually subscribable. Backed by the same ``DiscoverViewModel`` as the
+/// Discover home, so subscription state stays in sync across both.
 struct PackDetailView: View {
     @Bindable var viewModel: DiscoverViewModel
     let pack: ResolvedStarterPack
@@ -34,8 +34,8 @@ struct PackDetailView: View {
                         row: row,
                         accent: accent,
                         onTap: { viewModel.open(row) },
-                        followState: viewModel.followState(for: row),
-                        onFollow: { viewModel.toggleFollow(row) }
+                        subscriptionState: viewModel.subscriptionState(for: row),
+                        onSubscribe: { viewModel.toggleSubscription(row) }
                     )
                     .communityContextMenu(for: row, viewModel: viewModel)
                     Divider().padding(.leading, 68)
@@ -64,22 +64,22 @@ struct PackDetailView: View {
                 .font(.subheadline)
                 .foregroundStyle(Color(.secondaryLabel))
 
-            followAllControl
+            subscribeToAllControl
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
     }
 
     @ViewBuilder
-    private var followAllControl: some View {
-        if allFollowed {
-            Label("Following all", systemImage: "checkmark.circle.fill")
+    private var subscribeToAllControl: some View {
+        if allSubscribed {
+            Label("Subscribed to all", systemImage: "checkmark.circle.fill")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(accent)
                 .padding(.top, 2)
         } else {
             Button {
-                viewModel.followAll(pack.communities)
+                viewModel.subscribeToAll(pack.communities)
             } label: {
                 HStack(spacing: 6) {
                     if anyInFlight {
@@ -88,7 +88,7 @@ struct PackDetailView: View {
                         Image(systemName: "plus")
                             .font(.subheadline.weight(.bold))
                     }
-                    Text(followAllTitle)
+                    Text(subscribeToAllTitle)
                         .font(.subheadline.weight(.semibold))
                 }
                 .foregroundStyle(.white)
@@ -101,19 +101,19 @@ struct PackDetailView: View {
         }
     }
 
-    private var followAllTitle: String {
-        let pending = pack.communities.filter { viewModel.followState(for: $0) == .idle }.count
+    private var subscribeToAllTitle: String {
+        let pending = pack.communities.filter { viewModel.subscriptionState(for: $0) == .idle }.count
         return pending == pack.communities.count
-            ? "Follow all \(pack.communities.count)"
-            : "Follow \(pending) more"
+            ? "Subscribe to all \(pack.communities.count)"
+            : "Subscribe to \(pending) more"
     }
 
-    private var allFollowed: Bool {
+    private var allSubscribed: Bool {
         !pack.communities.isEmpty
-            && pack.communities.allSatisfy { viewModel.followState(for: $0) == .following }
+            && pack.communities.allSatisfy { viewModel.subscriptionState(for: $0) == .subscribed }
     }
 
     private var anyInFlight: Bool {
-        pack.communities.contains { viewModel.followState(for: $0) == .inFlight }
+        pack.communities.contains { viewModel.subscriptionState(for: $0) == .inFlight }
     }
 }
