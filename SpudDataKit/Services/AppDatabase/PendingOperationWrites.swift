@@ -202,13 +202,22 @@ private extension AppDatabase {
             )
 
         case let .delete(value):
-            // Delete/restore only applies to comments (the user's own).
-            try OptimisticWrites.setCommentDeleted(
-                db,
-                accountId: accountId,
-                serverCommentId: entityServerId,
-                isDeleted: value
-            )
+            // Delete/restore of the user's own post or comment.
+            if entityType == .post {
+                try OptimisticWrites.setPostDeleted(
+                    db,
+                    accountId: accountId,
+                    serverPostId: entityServerId,
+                    isDeleted: value
+                )
+            } else {
+                try OptimisticWrites.setCommentDeleted(
+                    db,
+                    accountId: accountId,
+                    serverCommentId: entityServerId,
+                    isDeleted: value
+                )
+            }
         }
     }
 
@@ -253,15 +262,25 @@ private extension AppDatabase {
             ) ?? false
             return hidden ? 1 : 0
         case .delete:
-            let deleted = try Bool.fetchOne(
-                db,
-                sql: """
-                    SELECT isDeleted FROM comment
-                    WHERE localCommentId = ?
-                      AND postId IN (SELECT id FROM post WHERE accountId = ?)
-                    """,
-                arguments: [op.entityServerId, accountId]
-            ) ?? false
+            let deleted: Bool
+            if op.entityType == .post {
+                deleted = try Bool.fetchOne(
+                    db,
+                    sql:
+                    "SELECT isDeleted FROM post WHERE postId = ? AND accountId = ?",
+                    arguments: [op.entityServerId, accountId]
+                ) ?? false
+            } else {
+                deleted = try Bool.fetchOne(
+                    db,
+                    sql: """
+                        SELECT isDeleted FROM comment
+                        WHERE localCommentId = ?
+                          AND postId IN (SELECT id FROM post WHERE accountId = ?)
+                        """,
+                    arguments: [op.entityServerId, accountId]
+                ) ?? false
+            }
             return deleted ? 1 : 0
         }
     }

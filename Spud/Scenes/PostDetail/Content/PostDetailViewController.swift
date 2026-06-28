@@ -1699,6 +1699,52 @@ class PostDetailViewController: UIViewController {
         }
     }
 
+    // MARK: - Delete / Restore (own post)
+
+    /// Confirm deleting the user's own post, then enqueue the optimistic delete
+    /// through the outbox. Restoring needs no confirmation.
+    private func promptDeletePost(serverPostId: Components.Schemas.PostID) {
+        let alert = UIAlertController(
+            title: NSLocalizedString("Delete post?", comment: "Confirmation title for deleting the user's own post"),
+            message: NSLocalizedString(
+                "This removes the post for everyone. You can restore it later.",
+                comment: "Confirmation message for deleting the user's own post"
+            ),
+            preferredStyle: .actionSheet
+        )
+        alert.addAction(UIAlertAction(
+            title: NSLocalizedString("Delete", comment: "Destructive confirm button to delete the user's own post"),
+            style: .destructive
+        ) { [weak self] _ in
+            self?.setDeletedOnPost(serverPostId: serverPostId, deleted: true)
+        })
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
+
+        // iPad: anchor the popover to avoid a regular-width crash.
+        if let popover = alert.popoverPresentationController {
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
+        present(alert, animated: true)
+    }
+
+    private func setDeletedOnPost(serverPostId: Components.Schemas.PostID, deleted: Bool) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            Haptics.tap()
+            do {
+                try await viewModel.accountScope.lemmyService
+                    .deletePost(serverPostId: serverPostId, deleted: deleted)
+            } catch {
+                // The optimistic write already applied synchronously inside
+                // enqueue; network failures are retried by the outbox and a
+                // permanent failure rolls back + surfaces via the failure stream.
+                alertService.handle(error, for: .deletePost)
+            }
+        }
+    }
+
     // MARK: - Moderation
 
     /// The moderation menu for the post, or nil when the account cannot
@@ -2229,6 +2275,26 @@ class PostDetailViewController: UIViewController {
             children.append(UIMenu(options: .displayInline, children: [reportAction, blockAction]))
         }
 
+        // Delete / Restore only make sense on the user's own post.
+        if isOwnContent(creatorPersonId: headerRow?.creatorPersonId) {
+            let currentlyDeleted = headerRow?.isDeleted ?? false
+            let deleteAction = UIAction(
+                title: currentlyDeleted
+                    ? NSLocalizedString("Restore", comment: "Overflow-menu action to restore the user's own deleted post")
+                    : NSLocalizedString("Delete", comment: "Overflow-menu action to delete the user's own post"),
+                image: UIImage(systemName: currentlyDeleted ? "arrow.uturn.backward" : "trash"),
+                attributes: currentlyDeleted ? [] : .destructive
+            ) { [weak self] _ in
+                guard let self else { return }
+                if currentlyDeleted {
+                    setDeletedOnPost(serverPostId: viewModel.serverPostId, deleted: false)
+                } else {
+                    promptDeletePost(serverPostId: viewModel.serverPostId)
+                }
+            }
+            children.append(UIMenu(options: .displayInline, children: [deleteAction]))
+        }
+
         return UIMenu(title: "", children: children)
     }
 
@@ -2733,6 +2799,24 @@ extension PostDetailViewController: UITableViewDelegate {
                         self?.reportPost()
                     }
                     children.append(reportAction)
+                }
+                if isOwnPost {
+                    let currentlyDeleted = self?.headerRow?.isDeleted ?? false
+                    let deleteAction = UIAction(
+                        title: currentlyDeleted
+                            ? NSLocalizedString("Restore", comment: "Context-menu action to restore the user's own deleted post")
+                            : NSLocalizedString("Delete", comment: "Context-menu action to delete the user's own post"),
+                        image: UIImage(systemName: currentlyDeleted ? "arrow.uturn.backward" : "trash"),
+                        attributes: currentlyDeleted ? [] : .destructive
+                    ) { [weak self] _ in
+                        guard let self else { return }
+                        if currentlyDeleted {
+                            setDeletedOnPost(serverPostId: viewModel.serverPostId, deleted: false)
+                        } else {
+                            promptDeletePost(serverPostId: viewModel.serverPostId)
+                        }
+                    }
+                    children.append(deleteAction)
                 }
                 // Moderation submenu, only when the account moderates this
                 // post's community (or is an admin).

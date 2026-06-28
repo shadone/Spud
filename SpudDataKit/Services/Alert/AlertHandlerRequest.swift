@@ -36,6 +36,7 @@ public enum AlertHandlerRequest: String, CustomStringConvertible {
     case reportPost
     case reportComment
     case deleteComment
+    case deletePost
     case fetchBlockedList
 
     // Moderation actions.

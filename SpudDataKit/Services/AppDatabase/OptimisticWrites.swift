@@ -54,6 +54,18 @@ public enum OptimisticWrites {
         )
     }
 
+    public static func setPostDeleted(
+        _ db: Database,
+        accountId: Int64,
+        serverPostId: Int64,
+        isDeleted: Bool
+    ) throws {
+        try db.execute(
+            sql: "UPDATE post SET isDeleted = ? WHERE postId = ? AND accountId = ?",
+            arguments: [isDeleted, serverPostId, accountId]
+        )
+    }
+
     // MARK: Comment
 
     /// Comment rows carry no `accountId` column — they join to `post` via

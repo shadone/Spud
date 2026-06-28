@@ -48,6 +48,10 @@ struct PostDetailHeaderViewModel {
     let isUpvoted: Bool
     let isDownvoted: Bool
     let isSaved: Bool
+    /// True when this is the user's own post and they have deleted it (it can be
+    /// restored). The title is dimmed and the attribution carries a "Deleted"
+    /// marker; the post-detail overflow menu offers Restore.
+    let isDeleted: Bool
     let image: HeaderImage
 
     /// True when the post or its community is marked NSFW.
@@ -79,12 +83,14 @@ struct PostDetailHeaderViewModel {
         isNsfw = row.isNsfw
         self.blurNsfw = blurNsfw
         self.isRevealed = isRevealed
+        isDeleted = row.isDeleted
 
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
         self.textSizeAdjustment = textSizeAdjustment
 
         let titleAttributes: [NSAttributedString.Key: Any] = [
-            .foregroundColor: UIColor.label,
+            // A deleted post (the user's own, restorable) reads dimmed.
+            .foregroundColor: row.isDeleted ? UIColor.secondaryLabel : UIColor.label,
             .font: UIFont.scaledSystemFont(
                 style: .title2,
                 relativeSize: 5 + textSizeAdjustment,
@@ -213,6 +219,15 @@ struct PostDetailHeaderViewModel {
         pieces.append(NSAttributedString(string: row.creatorName, attributes: creatorAttributes))
         if let creatorHost {
             pieces.append(NSAttributedString(string: "@\(creatorHost)", attributes: creatorInstanceAttributes))
+        }
+        if row.isDeleted {
+            var deletedAttributes = secondaryHighlightedAttributes
+            deletedAttributes[.foregroundColor] = UIColor.systemRed
+            pieces.append(NSAttributedString(string: "  ·  ", attributes: secondaryAttributes))
+            pieces.append(NSAttributedString(
+                string: NSLocalizedString("Deleted", comment: "Marker on the user's own deleted post"),
+                attributes: deletedAttributes
+            ))
         }
         attribution = pieces.joined()
 

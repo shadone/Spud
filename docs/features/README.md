@@ -135,6 +135,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Save / unsave (post & comment)
 - [x] Threaded comment collapse + jump-to-next-top-level
 - [x] Reply / edit / delete / restore own comments — all optimistic + durable (reply + edit via the content outbox; delete / restore via the mutation outbox)
+- [x] Delete / restore your own post — optimistic + durable via the mutation outbox (edit-own-post is a planned follow-up)
 - [x] Configurable swipe actions (comments)
 - [x] Comment sort — global default (Settings) + in-screen per-post picker (post-detail config popover: Hot / Top / New / Old / Controversial)
 - [x] Share post / comment / community URL; open in Safari

@@ -217,6 +217,16 @@ public protocol LemmyServiceType: Actor {
         deleted: Bool
     ) async throws
 
+    /// Delete or restore `serverPostId` — the user's OWN post. Flips the post's
+    /// `isDeleted` state optimistically, enqueues the change to the idempotent
+    /// mutation outbox, and rolls back on permanent failure (exactly like the
+    /// comment delete). Throws `LemmyServiceError.requiresAuthentication` if this
+    /// service is backed by a signed-out account.
+    func deletePost(
+        serverPostId: Components.Schemas.PostID,
+        deleted: Bool
+    ) async throws
+
     func fetchPostInfo(
         serverPostId: Components.Schemas.PostID
     ) async throws
@@ -1547,6 +1557,35 @@ public actor LemmyService: LemmyServiceType {
         await outbox.enqueue(OutboxOperation(
             entityType: .comment,
             entityServerId: Int64(serverCommentId),
+            desiredState: .delete(deleted)
+        ))
+    }
+
+    public func deletePost(
+        serverPostId: Components.Schemas.PostID,
+        deleted: Bool
+    ) async throws {
+        guard !accountIsSignedOut else {
+            logger.debug("""
+                Delete post rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+                postId=\(serverPostId, privacy: .public)
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Set deleted=\(deleted, privacy: .public) \
+            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            postId=\(serverPostId, privacy: .public)
+            """)
+
+        guard let outbox = await outboxService() else {
+            throw LemmyServiceError.internalInconsistency(description: "outbox unavailable")
+        }
+        await outbox.enqueue(OutboxOperation(
+            entityType: .post,
+            entityServerId: Int64(serverPostId),
             desiredState: .delete(deleted)
         ))
     }

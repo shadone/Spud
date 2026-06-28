@@ -135,6 +135,7 @@ public extension AppDatabase {
             }
             if pendingKinds.contains(.save) { existing.isSaved = preserved.isSaved }
             if pendingKinds.contains(.hide) { existing.isHidden = preserved.isHidden }
+            if pendingKinds.contains(.delete) { existing.isDeleted = preserved.isDeleted }
             try existing.update(db)
             return existing.id!
         }

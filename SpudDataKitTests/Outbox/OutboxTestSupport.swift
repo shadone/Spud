@@ -68,7 +68,8 @@ func seedPost(
     score: Int64,
     voteStatus: Int64?,
     isSaved: Bool = false,
-    isHidden: Bool = false
+    isHidden: Bool = false,
+    isDeleted: Bool = false
 ) async throws -> Int64 {
     let post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
     let view = Components.Schemas.PostView.fake(post: post, creator: .fake, community: .fake)
@@ -79,10 +80,10 @@ func seedPost(
     try await appDatabase.writer.write { db in
         try db.execute(
             sql: """
-                UPDATE post SET score = ?, voteStatus = ?, isSaved = ?, isHidden = ?
+                UPDATE post SET score = ?, voteStatus = ?, isSaved = ?, isHidden = ?, isDeleted = ?
                 WHERE postId = ? AND accountId = ?
                 """,
-            arguments: [score, voteStatus, isSaved, isHidden, serverPostId, accountId]
+            arguments: [score, voteStatus, isSaved, isHidden, isDeleted, serverPostId, accountId]
         )
     }
     return serverPostId
@@ -176,6 +177,20 @@ func readPostHidden(
             .filter(Column("accountId") == accountId)
             .fetchOne(db)
         return row?.isHidden ?? false
+    }
+}
+
+func readPostDeleted(
+    _ appDatabase: AppDatabase,
+    accountId: Int64,
+    serverPostId: Int64
+) async throws -> Bool {
+    try await appDatabase.writer.read { db -> Bool in
+        let row = try PostRecord
+            .filter(Column("postId") == serverPostId)
+            .filter(Column("accountId") == accountId)
+            .fetchOne(db)
+        return row?.isDeleted ?? false
     }
 }
 
