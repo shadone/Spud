@@ -34,6 +34,17 @@ fi
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
+# Resolve to an absolute path: the .ipa branch cd's into a temp dir to unzip, so
+# a relative input would otherwise resolve against the wrong directory.
+case "$input" in
+/*) : ;;
+*)
+    if [ -e "$input" ]; then
+        input="$(cd "$(dirname "$input")" && pwd)/$(basename "$input")"
+    fi
+    ;;
+esac
+
 resolve_app() {
     case "$1" in
     *.app)
