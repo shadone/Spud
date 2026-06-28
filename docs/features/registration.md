@@ -1,7 +1,7 @@
 # Registration
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** partial — captcha-required instances are not handled in-app
+- **Status:** shipped
 - **Related:** [Login](login.md), [Instance picker](instance-picker.md), [Accounts and switching](accounts-and-switching.md), [Signed-out browsing](signed-out-browsing.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
@@ -57,6 +57,6 @@ Spud explains the pending state instead.
 
 ## Not supported / out of scope
 
-- **Captcha-required instances are not handled in-app.** The form does not present or solve a captcha; an instance that requires one returns a rejection that is surfaced as an error, so registration there cannot complete.
+- **Captcha is not handled in-app, but this is no longer a real-world gap.** Captcha registration was removed from Lemmy server-side and modern instances cannot require one. The sign-up form still surfaces a server rejection as an error if an old instance ever returns a captcha requirement, but there is no in-app captcha solver.
 - The form does not poll for approval or verification — once a pending state is shown, you return later via [login.md](login.md).
 - Choosing the instance is a separate step; see [instance-picker.md](instance-picker.md).

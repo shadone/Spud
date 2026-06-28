@@ -81,7 +81,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Signed-out browsing](signed-out-browsing.md) | `iphone`, `ipad` | shipped |
 | [Login](login.md) | `iphone`, `ipad` | shipped — incl. two-factor (TOTP) sign-in |
 | [Instance picker](instance-picker.md) | `iphone`, `ipad` | shipped |
-| [Registration](registration.md) | `iphone`, `ipad` | partial — no in-app captcha |
+| [Registration](registration.md) | `iphone`, `ipad` | shipped |
 | [Sign-in gate on write actions](sign-in-gate.md) | `iphone`, `ipad` | shipped |
 | [Inbox](inbox.md) | `iphone`, `ipad` | shipped |
 | [Marking inbox items read](inbox-mark-read.md) | `iphone`, `ipad` | shipped |
@@ -156,7 +156,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Signed-out browsing (bootstrap account)
 - [x] Login — incl. two-factor (TOTP) sign-in (code collected and sent; a 2FA-required login auto-prompts for the code)
 - [x] Instance picker (site list)
-- [~] Registration / signup — shipped; captcha-required instances not handled in-app
+- [x] Registration / signup — shipped (captcha was removed from Lemmy server-side; no in-app captcha solver)
 - [x] Sign-in gate on write actions
 
 **Inbox & messaging**
