@@ -159,6 +159,24 @@ final class DiscoverSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - InstanceRow (Browse-by-instance See-all)
+
+    func test_instanceRow() {
+        assertDiscoverSnapshot(
+            InstanceRow(
+                instance: InstanceSummary(
+                    host: "lemmy.world",
+                    communityCount: 10608,
+                    totalSubscribers: 5_400_000,
+                    totalActiveWeek: 120_000
+                ),
+                accent: teal,
+                onTap: { }
+            )
+            .frame(width: 390)
+        )
+    }
+
     // MARK: - PackCard
 
     func test_packCard() throws {

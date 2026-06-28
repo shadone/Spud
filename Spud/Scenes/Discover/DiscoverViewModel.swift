@@ -78,19 +78,27 @@ final class DiscoverViewModel {
 
     /// Curated bundles a new user can subscribe to together, with live stats.
     private(set) var starterPacks: [ResolvedStarterPack] = []
-    /// Busiest communities this week.
+    /// Busiest communities this week (ranked ``railDepth`` deep; the carousel shows
+    /// the first ``railCarouselCount``, "See all" shows the rest).
     private(set) var trending: [CommunityListRow] = []
-    /// Small communities punching above their size.
+    /// Small communities punching above their size (see ``trending`` for depth).
     private(set) var rising: [CommunityListRow] = []
-    /// Liveliest home instances, for the "Browse by instance" rail.
+    /// Liveliest home instances, for the "Browse by instance" rail (see ``trending``).
     private(set) var instances: [InstanceSummary] = []
     /// Active communities on the servers the account already follows, for the
-    /// signed-in "Because you follow" rail.
+    /// signed-in "Because you follow" rail (see ``trending`` for depth).
     private(set) var becauseYouFollow: [CommunityListRow] = []
     /// The filtered, sorted, de-duplicated directory.
     private(set) var directory: [CommunityListRow] = []
     /// True until the first directory snapshot arrives.
     private(set) var isLoading = true
+
+    /// How many rail items the horizontal carousel shows on the landing; the rest
+    /// are reachable via the rail's "See all".
+    static let railCarouselCount = 12
+    /// How deep each rail is ranked, so "See all" surfaces a meaningful list beyond
+    /// the carousel without materialising the whole directory.
+    private static let railDepth = 60
 
     /// When set, the same-name compare sheet is presented.
     var compareTarget: CompareTarget?
@@ -125,6 +133,12 @@ final class DiscoverViewModel {
     private let onOpenPack: (ResolvedStarterPack) -> Void
     @ObservationIgnored
     private let onOpenInstance: (InstanceSummary) -> Void
+    /// Push the full ranked list for a community rail ("See all"), titled by the rail.
+    @ObservationIgnored
+    private let onSeeAllCommunities: (String, [CommunityListRow]) -> Void
+    /// Push the full ranked instance list for the Browse-by-instance rail.
+    @ObservationIgnored
+    private let onSeeAllInstances: (String, [InstanceSummary]) -> Void
     @ObservationIgnored
     private let onRequestSignIn: () -> Void
     @ObservationIgnored
@@ -160,6 +174,8 @@ final class DiscoverViewModel {
         onOpenCommunity: @escaping (CommunityListRow) -> Void,
         onOpenPack: @escaping (ResolvedStarterPack) -> Void,
         onOpenInstance: @escaping (InstanceSummary) -> Void,
+        onSeeAllCommunities: @escaping (String, [CommunityListRow]) -> Void,
+        onSeeAllInstances: @escaping (String, [InstanceSummary]) -> Void,
         onRequestSignIn: @escaping () -> Void
     ) {
         self.accountScope = accountScope
@@ -168,6 +184,8 @@ final class DiscoverViewModel {
         self.onOpenCommunity = onOpenCommunity
         self.onOpenPack = onOpenPack
         self.onOpenInstance = onOpenInstance
+        self.onSeeAllCommunities = onSeeAllCommunities
+        self.onSeeAllInstances = onSeeAllInstances
         self.onRequestSignIn = onRequestSignIn
         showNsfw = dependencies.preferencesService.showNsfw
         blurNsfw = dependencies.preferencesService.blurNsfw
@@ -242,6 +260,21 @@ final class DiscoverViewModel {
 
     func openInstance(_ summary: InstanceSummary) {
         onOpenInstance(summary)
+    }
+
+    /// Open the full ranked list for a community rail (Trending / Rising / Because
+    /// you follow). The rails are ranked ``railDepth`` deep but the landing only
+    /// shows the first ``railCarouselCount`` in a carousel; "See all" pushes the rest.
+    func seeAllCommunities(title: String, rows: [CommunityListRow]) {
+        onSeeAllCommunities(title, rows)
+    }
+
+    /// Open the full ranked instance list for the Browse-by-instance rail.
+    func seeAllInstances() {
+        onSeeAllInstances(
+            NSLocalizedString("Browse by instance", comment: "Discover instance rail See-all title"),
+            instances
+        )
     }
 
     /// The curated-safe communities hosted on `host`, sorted by the current
@@ -439,9 +472,9 @@ final class DiscoverViewModel {
 
     private func recomputeRails() {
         starterPacks = StarterPackCatalog.resolve(using: allRows)
-        trending = ExplorerCommunityDirectory.trending(in: allRows, limit: 12)
-        rising = ExplorerCommunityDirectory.rising(in: allRows, limit: 12)
-        instances = ExplorerCommunityDirectory.topInstances(in: allRows, limit: 12)
+        trending = ExplorerCommunityDirectory.trending(in: allRows, limit: Self.railDepth)
+        rising = ExplorerCommunityDirectory.rising(in: allRows, limit: Self.railDepth)
+        instances = ExplorerCommunityDirectory.topInstances(in: allRows, limit: Self.railDepth)
         recomputeBecauseYouFollow()
     }
 
@@ -450,7 +483,7 @@ final class DiscoverViewModel {
             in: allRows,
             followedHosts: subscribedHosts,
             excludingUrls: subscribedUrls,
-            limit: 12
+            limit: Self.railDepth
         )
     }
 

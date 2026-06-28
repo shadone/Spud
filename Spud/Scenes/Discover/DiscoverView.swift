@@ -215,21 +215,48 @@ struct DiscoverView: View {
         .padding(.top, 12)
     }
 
+    /// Shared rail header: title + subtitle, with an optional trailing "See all"
+    /// that opens the rail's full ranked list. Passing `onSeeAll: nil` (e.g. for
+    /// Starter packs, which has no overflow) omits the affordance.
+    private func railHeader(title: String, subtitle: String, onSeeAll: (() -> Void)?) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(Color(.label))
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+            Spacer(minLength: 8)
+            if let onSeeAll {
+                Button(action: onSeeAll) {
+                    HStack(spacing: 2) {
+                        Text("See all")
+                            .font(.subheadline.weight(.semibold))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundStyle(accent)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("See all \(title)")
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 18)
+        .padding(.bottom, 10)
+    }
+
     @ViewBuilder
     private var packsRail: some View {
         if !viewModel.starterPacks.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Starter packs")
-                        .font(.headline)
-                        .foregroundStyle(Color(.label))
-                    Text("Subscribe to a curated bundle in one move")
-                        .font(.caption)
-                        .foregroundStyle(Color(.tertiaryLabel))
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 18)
-                .padding(.bottom, 10)
+                railHeader(
+                    title: "Starter packs",
+                    subtitle: "Subscribe to a curated bundle in one move",
+                    onSeeAll: nil
+                )
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
@@ -247,21 +274,17 @@ struct DiscoverView: View {
     private func rail(title: String, subtitle: String, rows: [CommunityListRow], momentum: Bool) -> some View {
         if !rows.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.headline)
-                        .foregroundStyle(Color(.label))
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundStyle(Color(.tertiaryLabel))
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 18)
-                .padding(.bottom, 10)
+                railHeader(
+                    title: title,
+                    subtitle: subtitle,
+                    onSeeAll: rows.count > DiscoverViewModel.railCarouselCount
+                        ? { viewModel.seeAllCommunities(title: title, rows: rows) }
+                        : nil
+                )
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 11) {
-                        ForEach(rows) { row in
+                        ForEach(rows.prefix(DiscoverViewModel.railCarouselCount)) { row in
                             DiscoverTrendCard(
                                 row: row,
                                 accent: accent,
@@ -283,21 +306,17 @@ struct DiscoverView: View {
     private var instanceRail: some View {
         if !viewModel.instances.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Browse by instance")
-                        .font(.headline)
-                        .foregroundStyle(Color(.label))
-                    Text("Explore a server's communities")
-                        .font(.caption)
-                        .foregroundStyle(Color(.tertiaryLabel))
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 18)
-                .padding(.bottom, 10)
+                railHeader(
+                    title: "Browse by instance",
+                    subtitle: "Explore a server's communities",
+                    onSeeAll: viewModel.instances.count > DiscoverViewModel.railCarouselCount
+                        ? { viewModel.seeAllInstances() }
+                        : nil
+                )
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 11) {
-                        ForEach(viewModel.instances) { instance in
+                        ForEach(viewModel.instances.prefix(DiscoverViewModel.railCarouselCount)) { instance in
                             InstanceCard(instance: instance, accent: accent) {
                                 viewModel.openInstance(instance)
                             }

@@ -1,7 +1,7 @@
 # Discover (Community Explorer)
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** shipped — with one known gap (no per-rail "See all"). See "Not supported / known gaps" below.
+- **Status:** shipped.
 - **Related:** [Search](search.md), [Community screen](community-screen.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md), [Subscriptions sidebar](subscriptions-sidebar.md), [Instance picker](instance-picker.md), [Instance browsing](instance-browsing.md), [Signed-out browsing](signed-out-browsing.md), [Sign-in gate](sign-in-gate.md), [NSFW content visibility and blur](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
@@ -11,12 +11,12 @@ Discover is a browsable home for finding new communities across the whole fedive
 ## Behavior and rules
 
 - **Entry from the Communities tab.** Discover is pushed from the "Explore communities" entry above the subscriptions list. Discover has its **own** navigation search field ("Search all communities") and sort control — it is a self-contained browse-and-search screen, not a hand-off into the [Search](search.md) tab.
-- **The landing is a stack of rails over the directory.** Top to bottom: **Starter packs**, **Trending now**, **Rising**, **Because you follow** (signed-in only, and only when it has results; omitted otherwise), **Browse by instance**, then the **All communities** directory. While the user is searching, the rails step aside and only the filtered directory (plus the optional network-search section) is shown.
+- **The landing is a stack of rails over the directory.** Top to bottom: **Starter packs**, **Trending now**, **Rising**, **Because you follow** (signed-in only, and only when it has results; omitted otherwise), **Browse by instance**, then the **All communities** directory. Each computed rail (Trending / Rising / Because you follow / Browse by instance) shows its top 12 in a horizontal carousel with a **"See all"** that pushes the full ranked list (Starter packs has no "See all" — the whole curated set is shown). While the user is searching, the rails step aside and only the filtered directory (plus the optional network-search section) is shown.
 - **Sorting the directory.** The "All communities" sort is a navigation-bar menu (Recommended / Most active / Members / Name / Newest); the directory header shows the active sort as a label. There is no inline sticky sort control on the landing. (The instance drill-in has its own inline sort picker.)
 - **Ranking reflects life, not just size.** Rankings are computed from the directory's current snapshot (cumulative counts plus active-user windows for day / week / month / half-year); there is no time series.
-  - **Trending now** — ordered by recent activity (`usersActiveWeek`), above a small noise floor, excluding suspicious communities. Shows the top 12.
-  - **Rising** — communities below a size ceiling, ordered by engagement intensity (recent active users relative to subscriber base) above an activity floor. Surfaces small, accelerating communities. Shows the top 12.
-  - **Browse by instance** — the liveliest home instances by aggregate weekly activity (top 12). Tapping one opens that server's communities, with a tappable instance info card (members, description, trust) that drills into the richer [Instance browsing](instance-browsing.md) detail.
+  - **Trending now** — ordered by recent activity (`usersActiveWeek`), above a small noise floor, excluding suspicious communities. The carousel shows the top 12; "See all" opens the full ranked list (as a directory-style list of rows).
+  - **Rising** — communities below a size ceiling, ordered by engagement intensity (recent active users relative to subscriber base) above an activity floor. Surfaces small, accelerating communities. Carousel + "See all" as above.
+  - **Browse by instance** — the liveliest home instances by aggregate weekly activity (carousel of 12; "See all" opens the full ranked instance list). Tapping an instance opens that server's communities, with a tappable instance info card (members, description, trust) that drills into the richer [Instance browsing](instance-browsing.md) detail.
   - **All communities** default sort is "Recommended" (the directory's composite `score`); other sorts are **Most active** (recent active users), **Members**, **Name**, and **Newest**. While browsing, the directory is capped at the first 200 rows for snappiness; a search shows every match. "Most posts" is intentionally not a lead sort — the stored post count is a cumulative total that favors old communities rather than active ones.
 - **Same-name communities collapse into one entry.** In the default directory, communities that share a name across servers are deduplicated to a single canonical row — the variant with the strongest blend of subscribers, recent activity, and instance trust. The row notes "also on N other servers · total members". Tapping that badge opens a **compare sheet** listing each variant ranked busiest-first, with members and recent activity, each with its own **Subscribe** (and a tap-through to open the community). Dedupe is **off in the live network-search results**, where you may be looking for one specific server's copy.
 - **Starter packs are curated topics with live numbers.** Each pack is a hand-curated, ordered set of communities (a topic title, a short blurb, and a list of community references) whose names, icons, member counts, and activity are rendered live from the directory — so the curation is editorial but the stats never go stale. A pack screen lists its communities, each individually subscribable, with a single **Subscribe to all** action that subscribes to the ones you don't already have.
@@ -68,6 +68,12 @@ Discover is a browsable home for finding new communities across the whole fedive
 - **When** I read the Trending now and Rising rails
 - **Then** Trending lists the communities with the most recent activity, and Rising lists smaller communities whose recent activity is high for their size
 
+### See all of a rail
+
+- **Given** a rail (Trending / Rising / Because you follow / Browse by instance) with more than the 12 shown in its carousel
+- **When** I tap its "See all"
+- **Then** a screen pushes with the full ranked list — communities as directory-style rows (Subscribe / open / long-press actions), instances as a tappable list that opens each server's communities
+
 ### A signed-out subscribe is gated
 
 - **Given** I am browsing Discover signed out
@@ -82,13 +88,12 @@ Discover is a browsable home for finding new communities across the whole fedive
 
 ## Not supported / known gaps
 
-- **No per-rail "See all".** Each rail (Trending, Rising, Because you follow, Browse by instance) shows its top 12 in a horizontal carousel; there is no "See all" that opens the full ranked list for a rail. The All communities directory below is the way to see everything. (Planned but not built.)
 - **The community directory refreshes on demand, not via a background task.** It is seeded from the bundle, then refreshed from the network when you **open Discover** (if it is stale per your Community Data refresh interval and automatic updates are on — `ExplorerService.refreshCommunitiesIfStale`), or on Settings → "Update Now" (`ExplorerService.refreshAll`). The smaller **instance** directory refreshes at launch / when the instance picker opens. The multi-MB community set is refreshed on-demand (on Discover open) rather than at launch, so launch never triggers a large download. There is no `BGAppRefreshTask` / periodic timer — refresh is tied to opening the relevant screen.
 - **No topic auto-grouping or category browser.** The only topical organization is the hand-curated Starter packs; communities are not auto-sorted into topics or categories (the directory has no reliable topic field, and name-keyword bucketing is too error-prone).
 - **No trend graphs or real-time counts.** Trending and Rising are heuristics over a periodic snapshot, not live or historical time series; the directory's numbers are as fresh as the last refresh, not live.
 - **Not content search.** Discover browses communities; searching posts / comments / users stays in the [Search](search.md) tab.
 - **Communities-first.** Instance discovery is reached *through* Discover (Browse by instance) but is governed by [Instance browsing](instance-browsing.md) and the instance directory, not redefined here.
-- **No full-screen snapshot coverage.** Snapshot tests cover the individual Discover components (rows, rail cards, subscribe button, pack/instance cards); the assembled landing screen is not snapshotted.
+- **No full-screen snapshot coverage.** Snapshot tests cover the individual Discover components (directory/variant rows, rail cards, subscribe button, pack/instance cards, instance row); the assembled landing screen and the "See all" detail screens (which reuse those components) are not snapshotted.
 
 ## Design notes (data, ranking, architecture)
 
@@ -101,5 +106,6 @@ Non-obvious decisions and the data they rest on. Not end-user behavior; kept her
   - *Canonical (same-name)* = best blend of subscribers, `usersActiveWeek`, and instance trust among rows sharing a `name`.
 - **Starter packs ship as an in-code catalog, not JSON (yet).** `StarterPackCatalog` is a small set of hand-curated packs embedded in Swift (`StarterPack.swift`, currently 6 packs of `{ id, title, blurb, communityActorUrls: [...] }`), joined live to the directory at render time by actor id (`StarterPackCatalogTests`). A bundled `starter-packs.json` was anticipated in the original design but deferred — the resolver and UI don't care which backs it, so it can be swapped later without UI changes.
 - **No schema change required.** All fields already exist. New reactive queries provide the landing rails, the sortable directory, and the "because you follow" join from followed communities to the directory.
+- **Rails are ranked deeper than they show.** Each computed rail is ranked `railDepth` (60) deep but the landing carousel renders only the first `railCarouselCount` (12); "See all" pushes the rest (`RailDetailView` for communities — reusing `DiscoverCommunityRow` so Subscribe / context-menu / open behave identically — and `InstanceRailDetailView` + `InstanceRow` for instances). The "See all" affordance appears only when a rail has more than the carousel shows. Computing 60 vs 12 is the same pure pass over the snapshot, so there's no extra fetch.
 - **Directory freshness.** The community directory is refreshed on-demand when Discover appears (`DiscoverViewController.viewDidAppear` → `ExplorerService.refreshCommunitiesIfStale`), gated by the `explorerAutoRefreshEnabled` preference and the `explorerRefreshInterval` staleness window, with an actor-held in-flight guard so repeated opens can't start concurrent multi-MB downloads. The instance directory keeps its launch / picker-open refresh. This is what makes the **Community Data** settings actually govern the community dataset (previously they applied only to instances).
 - **Reuses prior work.** The instance directory and instance detail built for [Instance browsing](instance-browsing.md) back the Browse-by-instance lens and the instance drill-in's "before you commit" detail; the [Subscribe / unsubscribe](subscribe-unsubscribe.md) flow handles subscribing.

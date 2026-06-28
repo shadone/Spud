@@ -76,6 +76,12 @@ class DiscoverViewController: UIViewController {
             onOpenInstance: { [weak self] summary in
                 self?.openInstance(summary)
             },
+            onSeeAllCommunities: { [weak self] title, rows in
+                self?.openRailDetail(title: title, rows: rows)
+            },
+            onSeeAllInstances: { [weak self] title, instances in
+                self?.openInstanceRailDetail(title: title, instances: instances)
+            },
             onRequestSignIn: { [weak self] in
                 self?.presentSignInGate(
                     title: NSLocalizedString(
@@ -209,6 +215,30 @@ class DiscoverViewController: UIViewController {
             accountKeychainId: accountKeychainId,
             dependencies: dependencies.nested
         )
+    }
+
+    /// Push the full ranked list for a community rail ("See all" → Trending /
+    /// Rising / Because you follow). Reuses the directory row via ``RailDetailView``.
+    private func openRailDetail(title: String, rows: [CommunityListRow]) {
+        let accent = Color(ThemeManager.currentAccentColor)
+        let view = RailDetailView(viewModel: viewModel, rows: rows, accent: accent)
+            .environment(\.imageService, imageService)
+        let hosting = UIHostingController(rootView: view)
+        hosting.navigationItem.title = title
+        hosting.navigationItem.largeTitleDisplayMode = .never
+        navigationController?.pushViewController(hosting, animated: true)
+    }
+
+    /// Push the full ranked instance list for the "Browse by instance" rail's
+    /// "See all". Tapping a row opens that server's communities.
+    private func openInstanceRailDetail(title: String, instances: [InstanceSummary]) {
+        let accent = Color(ThemeManager.currentAccentColor)
+        let view = InstanceRailDetailView(viewModel: viewModel, instances: instances, accent: accent)
+            .environment(\.imageService, imageService)
+        let hosting = UIHostingController(rootView: view)
+        hosting.navigationItem.title = title
+        hosting.navigationItem.largeTitleDisplayMode = .never
+        navigationController?.pushViewController(hosting, animated: true)
     }
 
     private func openCommunity(_ row: CommunityListRow) {
