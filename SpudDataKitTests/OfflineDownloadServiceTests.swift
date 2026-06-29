@@ -210,7 +210,7 @@ struct OfflineDownloadServiceTests {
             .init(postCount: 30, nextCursor: "p5"),
             .init(postCount: 30, nextCursor: "p6"),
         ])
-        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService())
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService(), diagnostics: DiagnosticLogSpy())
 
         let progress = await runDownload(service: service, lemmy: lemmy)
 
@@ -236,7 +236,7 @@ struct OfflineDownloadServiceTests {
             .init(postCount: 30, nextCursor: "p4"),
         ])
         let imageService = RecordingImageService()
-        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: imageService)
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: imageService, diagnostics: DiagnosticLogSpy())
 
         let progress = await runDownload(service: service, lemmy: lemmy, maxPosts: 40)
 
@@ -260,7 +260,7 @@ struct OfflineDownloadServiceTests {
             .init(postCount: 5, nextCursor: "p2"),
             .init(postCount: 5, nextCursor: nil), // feed exhausted
         ])
-        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService())
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService(), diagnostics: DiagnosticLogSpy())
 
         let progress = await runDownload(service: service, lemmy: lemmy)
 
@@ -281,7 +281,7 @@ struct OfflineDownloadServiceTests {
             .init(postCount: 3, nextCursor: nil),
         ])
         let imageService = RecordingImageService()
-        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: imageService)
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: imageService, diagnostics: DiagnosticLogSpy())
 
         let progress = await runDownload(service: service, lemmy: lemmy)
 
@@ -311,7 +311,7 @@ struct OfflineDownloadServiceTests {
             imageUrlForSeededPosts: nil // text posts: url is NULL
         )
         let imageService = RecordingImageService()
-        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: imageService)
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: imageService, diagnostics: DiagnosticLogSpy())
 
         _ = await runDownload(service: service, lemmy: lemmy)
 
@@ -329,7 +329,7 @@ struct OfflineDownloadServiceTests {
         let lemmy = makeLemmy(pages: [
             .init(postCount: 4, nextCursor: nil),
         ])
-        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService())
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService(), diagnostics: DiagnosticLogSpy())
 
         let progress = await runDownload(service: service, lemmy: lemmy)
 
@@ -360,7 +360,7 @@ struct OfflineDownloadServiceTests {
             failingCommentPostIds: [2] // post 2's comment fetch throws
         )
         let imageService = RecordingImageService()
-        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: imageService)
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: imageService, diagnostics: DiagnosticLogSpy())
 
         let progress = await runDownload(service: service, lemmy: lemmy)
 
@@ -395,7 +395,7 @@ struct OfflineDownloadServiceTests {
             RecordingLemmyService.Page(postCount: 1, nextCursor: "p\(i + 2)")
         }
         let lemmy = makeLemmy(pages: pages)
-        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService())
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService(), diagnostics: DiagnosticLogSpy())
 
         // A high cap so neither the count-stop nor the page backstop ends the
         // run on its own before the cancel lands: with 1-post pages and an
@@ -458,7 +458,7 @@ struct OfflineDownloadServiceTests {
             pages: [.init(postCount: 40, nextCursor: "p2")],
             exhaustedCursor: "forever" // non-nil cursor on every subsequent call
         )
-        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService())
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService(), diagnostics: DiagnosticLogSpy())
 
         let progress = await runDownload(service: service, lemmy: lemmy)
 
@@ -509,7 +509,7 @@ struct OfflineDownloadServiceTests {
             // past it so fetchFeed's pages don't collide on (feedId, position).
             firstPagePosition: 1
         )
-        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService())
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService(), diagnostics: DiagnosticLogSpy())
 
         let progress = await runDownload(service: service, lemmy: lemmy, maxPosts: 100)
 
@@ -537,7 +537,7 @@ struct OfflineDownloadServiceTests {
             .init(postCount: 0, nextCursor: "p3", duplicatePostIds: firstPageIds),
             .init(postCount: 30, nextCursor: nil),
         ])
-        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService())
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService(), diagnostics: DiagnosticLogSpy())
 
         let progress = await runDownload(service: service, lemmy: lemmy, maxPosts: 100)
 
@@ -560,7 +560,7 @@ struct OfflineDownloadServiceTests {
             RecordingLemmyService.Page(postCount: 1, nextCursor: "p\(i + 2)")
         }
         let lemmy = makeLemmy(pages: pages)
-        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService())
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService(), diagnostics: DiagnosticLogSpy())
 
         // Start the first download and let it begin working.
         let first = Task {
@@ -652,6 +652,7 @@ struct OfflineDownloadServiceTests {
         let service = OfflineDownloadService(
             appDatabase: appDatabase,
             imageService: RecordingImageService(),
+            diagnostics: DiagnosticLogSpy(),
             webArchiveCapturer: capturer,
             webArchiveStore: store
         )
@@ -701,6 +702,7 @@ struct OfflineDownloadServiceTests {
         let service = OfflineDownloadService(
             appDatabase: appDatabase,
             imageService: RecordingImageService(),
+            diagnostics: DiagnosticLogSpy(),
             webArchiveCapturer: capturer,
             webArchiveStore: store
         )
@@ -726,6 +728,7 @@ struct OfflineDownloadServiceTests {
         let service = OfflineDownloadService(
             appDatabase: appDatabase,
             imageService: RecordingImageService(),
+            diagnostics: DiagnosticLogSpy(),
             webArchiveCapturer: capturer,
             webArchiveStore: store
         )
@@ -780,6 +783,7 @@ struct OfflineDownloadServiceTests {
         let service = OfflineDownloadService(
             appDatabase: appDatabase,
             imageService: RecordingImageService(),
+            diagnostics: DiagnosticLogSpy(),
             webArchiveCapturer: capturer,
             webArchiveStore: store
         )

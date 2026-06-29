@@ -23,6 +23,7 @@ class PostListViewController: UIViewController {
         HasAppDatabase &
         HasAppService &
         HasAppearanceService &
+        HasDiagnosticLog &
         HasImageService &
         HasPostContentDetectorService &
         HasPreferencesService &
@@ -50,6 +51,10 @@ class PostListViewController: UIViewController {
 
     var appService: AppServiceType {
         dependencies.own.appService
+    }
+
+    var diagnosticLog: DiagnosticLogging {
+        dependencies.own.diagnosticLog
     }
 
     var imageService: ImageServiceType {
@@ -236,6 +241,7 @@ class PostListViewController: UIViewController {
     lazy var offlineDownloadService = OfflineDownloadService(
         appDatabase: appDatabase,
         imageService: imageService,
+        diagnostics: diagnosticLog,
         webArchiveCapturer: WebArchiveCapturer(),
         webArchiveStore: try? OfflineWebArchiveStore(appDatabase: appDatabase)
     )

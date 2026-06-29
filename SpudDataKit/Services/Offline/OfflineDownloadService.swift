@@ -25,6 +25,7 @@ private let logger = Logger.offlineDownloadService
 public actor OfflineDownloadService {
     private let appDatabase: AppDatabase
     private let imageService: any ImageServiceType
+    private let diagnostics: DiagnosticLogging
 
     /// Captures an external-link post's target page as a web archive, used only
     /// when a download opts into `archiveLinks`. Optional so a service built
@@ -137,6 +138,7 @@ public actor OfflineDownloadService {
     ///   - appDatabase: The shared GRDB store.
     ///   - imageService: The image service used to warm post images into the
     ///     durable disk cache.
+    ///   - diagnostics: Diagnostic recorder for structured download events.
     ///   - webArchiveCapturer: Optional capturer for external-link pages; required
     ///     for `archiveLinks` runs and otherwise unused. `@MainActor`-bound and
     ///     self-serializing.
@@ -145,11 +147,13 @@ public actor OfflineDownloadService {
     public init(
         appDatabase: AppDatabase,
         imageService: any ImageServiceType,
+        diagnostics: DiagnosticLogging,
         webArchiveCapturer: (any WebArchiveCapturing)? = nil,
         webArchiveStore: OfflineWebArchiveStore? = nil
     ) {
         self.appDatabase = appDatabase
         self.imageService = imageService
+        self.diagnostics = diagnostics
         self.webArchiveCapturer = webArchiveCapturer
         self.webArchiveStore = webArchiveStore
     }
@@ -215,6 +219,8 @@ public actor OfflineDownloadService {
     ///     ``WebArchiveCapturing`` + ``OfflineWebArchiveStore``. A capture failure
     ///     (load error / timeout) is swallowed like the other per-item work and
     ///     never aborts the run.
+    ///   - instance: The Lemmy instance HOST (e.g. `lemmy.world`) this download is
+    ///     scoped to. Used only for diagnostic events; pass `nil` when unknown.
     ///   - sanitizeURL: Optional transform applied to a post's external-link URL
     ///     **before** it is captured and stored. This MUST be the same transform
     ///     the open path (`AppService`) applies before looking an archive up
@@ -232,6 +238,7 @@ public actor OfflineDownloadService {
         showNsfw: Bool,
         maxPosts: Int = defaultMaxPosts,
         archiveLinks: Bool = false,
+        instance: String? = nil,
         sanitizeURL: (@Sendable (URL) -> URL)? = nil
     ) -> AsyncStream<OfflineDownloadProgress> {
         AsyncStream { continuation in
@@ -249,6 +256,7 @@ public actor OfflineDownloadService {
                     showNsfw: showNsfw,
                     maxPosts: maxPosts,
                     archiveLinks: archiveLinks,
+                    instance: instance,
                     sanitizeURL: sanitizeURL,
                     claimedSlot: claimed,
                     emit: { continuation.yield($0) }
@@ -311,6 +319,7 @@ public actor OfflineDownloadService {
         showNsfw: Bool,
         maxPosts: Int,
         archiveLinks: Bool,
+        instance: String?,
         sanitizeURL: (@Sendable (URL) -> URL)?,
         claimedSlot: Bool,
         emit: @Sendable (OfflineDownloadProgress) -> Void
@@ -324,6 +333,10 @@ public actor OfflineDownloadService {
             return
         }
         defer { clearInFlight() }
+
+        // Record the wall-clock start so finish/cancelled events can include
+        // a duration. Captured before Phase 1 so page-fetch time is included.
+        let startedAt = Date()
 
         // Phase 1: page through the feed, persisting each page to GRDB.
         let postsFetched: Int
@@ -341,6 +354,18 @@ public actor OfflineDownloadService {
             // `fractionCompleted`) reflects real progress rather than snapping
             // back to zero.
             let persisted = appDatabase.offlineFeedPostCountSync(feedKey: feed.feedKey)
+            let durationMs = Int(Date().timeIntervalSince(startedAt) * 1000)
+            await diagnostics.record(
+                category: .offlineDownload,
+                level: .info,
+                event: "download.cancelled",
+                message: "Download cancelled during page fetch",
+                instance: instance,
+                metadata: [
+                    "reason": "pageFetchCancelled",
+                    "durationMs": String(durationMs),
+                ]
+            )
             emit(OfflineDownloadProgress(phase: .cancelled, postsFetched: persisted))
             return
         } catch {
@@ -353,6 +378,18 @@ public actor OfflineDownloadService {
         }
 
         if Task.isCancelled {
+            let durationMs = Int(Date().timeIntervalSince(startedAt) * 1000)
+            await diagnostics.record(
+                category: .offlineDownload,
+                level: .info,
+                event: "download.cancelled",
+                message: "Download cancelled after page fetch",
+                instance: instance,
+                metadata: [
+                    "reason": "cancelledAfterFetch",
+                    "durationMs": String(durationMs),
+                ]
+            )
             emit(OfflineDownloadProgress(phase: .cancelled, postsFetched: postsFetched))
             return
         }
@@ -365,9 +402,19 @@ public actor OfflineDownloadService {
         )
         let totalPosts = targets.count
 
+        // Emit download.start after Phase 1 when the target count is known.
+        await diagnostics.record(
+            category: .offlineDownload,
+            level: .info,
+            event: "download.start",
+            message: "Starting content download phase",
+            instance: instance,
+            metadata: ["targetCount": String(totalPosts)]
+        )
+
         // Phase 3: download per-post content (comments + images, plus an opt-in
         // web archive for external-link posts), best-effort.
-        let completed = await downloadContent(
+        let (completed, failed) = await downloadContent(
             targets: targets,
             lemmyService: lemmyService,
             commentSort: commentSort,
@@ -375,10 +422,23 @@ public actor OfflineDownloadService {
             sanitizeURL: sanitizeURL,
             postsFetched: postsFetched,
             totalPosts: totalPosts,
+            instance: instance,
             emit: emit
         )
 
         if Task.isCancelled {
+            let durationMs = Int(Date().timeIntervalSince(startedAt) * 1000)
+            await diagnostics.record(
+                category: .offlineDownload,
+                level: .info,
+                event: "download.cancelled",
+                message: "Download cancelled during content phase",
+                instance: instance,
+                metadata: [
+                    "reason": "cancelledDuringContent",
+                    "durationMs": String(durationMs),
+                ]
+            )
             emit(OfflineDownloadProgress(
                 phase: .cancelled,
                 postsFetched: postsFetched,
@@ -387,6 +447,20 @@ public actor OfflineDownloadService {
             ))
             return
         }
+
+        let durationMs = Int(Date().timeIntervalSince(startedAt) * 1000)
+        await diagnostics.record(
+            category: .offlineDownload,
+            level: .info,
+            event: "download.finish",
+            message: "Download finished",
+            instance: instance,
+            metadata: [
+                "downloadedCount": String(completed),
+                "failedCount": String(failed),
+                "durationMs": String(durationMs),
+            ]
+        )
 
         emit(OfflineDownloadProgress(
             phase: .finished,
@@ -494,9 +568,10 @@ public actor OfflineDownloadService {
         sanitizeURL: (@Sendable (URL) -> URL)?,
         postsFetched: Int,
         totalPosts: Int,
+        instance: String?,
         emit: @Sendable (OfflineDownloadProgress) -> Void
-    ) async -> Int {
-        guard !targets.isEmpty else { return 0 }
+    ) async -> (completed: Int, failed: Int) {
+        guard !targets.isEmpty else { return (0, 0) }
 
         emit(OfflineDownloadProgress(
             phase: .downloadingContent,
@@ -513,6 +588,7 @@ public actor OfflineDownloadService {
         let store = archiveLinks ? webArchiveStore : nil
         let captureTimeout = Self.webArchiveCaptureTimeout
         var completed = 0
+        var failed = 0
 
         await withTaskGroup(of: Void.self) { group in
             var iterator = targets.makeIterator()
@@ -544,7 +620,11 @@ public actor OfflineDownloadService {
             while inFlight > 0 {
                 await group.next()
                 inFlight -= 1
-                completed += 1
+                if Task.isCancelled {
+                    failed += 1
+                } else {
+                    completed += 1
+                }
                 emit(OfflineDownloadProgress(
                     phase: .downloadingContent,
                     postsFetched: postsFetched,
@@ -555,7 +635,7 @@ public actor OfflineDownloadService {
             }
         }
 
-        return completed
+        return (completed, failed)
     }
 
     /// Best-effort predownload of one post's content: its comment tree, then its

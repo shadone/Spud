@@ -109,6 +109,7 @@ extension PostListViewController {
         let commentSort = preferencesService.defaultCommentSortType
         let showNsfw = preferencesService.showNsfw
         let service = offlineDownloadService
+        let instance = accountService.instanceActorId(forAccountKeychainId: keychainId)?.hostWithPort
 
         // The download keys each captured web archive under the SANITIZED link
         // URL, because the open path (`AppService.open(url:)`) sanitizes the
@@ -148,6 +149,7 @@ extension PostListViewController {
                 showNsfw: showNsfw,
                 maxPosts: maxPosts,
                 archiveLinks: archiveLinks,
+                instance: instance,
                 sanitizeURL: sanitizeURL
             )
             for await progress in stream {

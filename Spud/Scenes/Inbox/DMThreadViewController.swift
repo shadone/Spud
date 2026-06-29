@@ -39,6 +39,7 @@ final class DMThreadViewController: UIViewController {
         HasAppDatabase &
         HasAppService &
         HasAppearanceService &
+        HasDiagnosticLog &
         HasImageService &
         HasLinkEmbedService &
         HasPostContentDetectorService &

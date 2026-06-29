@@ -27,6 +27,7 @@ public class SchedulerService: SchedulerServiceType {
     private let appDatabase: AppDatabase
     private let accountService: AccountServiceType
     private let alertService: AlertServiceType
+    private let diagnostics: DiagnosticLogging
 
     private var timer: Timer?
 
@@ -35,11 +36,13 @@ public class SchedulerService: SchedulerServiceType {
     public init(
         appDatabase: AppDatabase,
         accountService: AccountServiceType,
-        alertService: AlertServiceType
+        alertService: AlertServiceType,
+        diagnostics: DiagnosticLogging
     ) {
         self.appDatabase = appDatabase
         self.accountService = accountService
         self.alertService = alertService
+        self.diagnostics = diagnostics
     }
 
     public func startService() {
@@ -48,8 +51,7 @@ public class SchedulerService: SchedulerServiceType {
             guard let self else { return }
             Task { @MainActor in
                 // Periodically check if there is anything new needs to be fetched.
-                await self.fetchSiteInfoAndMyUserInfoForSignedInIfNeeded()
-                await self.fetchSiteInfoForSignedOutIfNeeded()
+                await self.tick()
             }
         }
 
@@ -57,6 +59,47 @@ public class SchedulerService: SchedulerServiceType {
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
             self?.timer?.fire()
         }
+    }
+
+    /// One scheduler tick: emits diagnostic bookends and dispatches the two
+    /// site-info fetch sweeps (signed-in + signed-out / ownerless accounts).
+    private func tick() async {
+        let startedAt = Date()
+
+        let allKeychainIds: [String]
+        do {
+            let signedIn = try await appDatabase.signedInAccountsAwaitingMyUserInfo()
+            let signedOut = try await appDatabase.signedOutAccountsAwaitingSiteInfo()
+            allKeychainIds = signedIn + signedOut
+        } catch {
+            allKeychainIds = []
+        }
+        let accountCount = allKeychainIds.count
+
+        await diagnostics.record(
+            category: .scheduler,
+            level: .info,
+            event: "tick.start",
+            message: "Scheduler tick started",
+            instance: nil,
+            metadata: ["accountCount": String(accountCount)]
+        )
+
+        await fetchSiteInfoAndMyUserInfoForSignedInIfNeeded()
+        await fetchSiteInfoForSignedOutIfNeeded()
+
+        let durationMs = Int(Date().timeIntervalSince(startedAt) * 1000)
+        await diagnostics.record(
+            category: .scheduler,
+            level: .info,
+            event: "tick.finish",
+            message: "Scheduler tick finished",
+            instance: nil,
+            metadata: [
+                "accountCount": String(accountCount),
+                "durationMs": String(durationMs),
+            ]
+        )
     }
 
     // MARK: Site Info
@@ -78,6 +121,15 @@ public class SchedulerService: SchedulerServiceType {
     }
 
     private func fetchSiteInfo(forAccountKeychainId keychainId: String) async {
+        let instance = accountService.instanceActorId(forAccountKeychainId: keychainId)?.hostWithPort
+        await diagnostics.record(
+            category: .scheduler,
+            level: .debug,
+            event: "account.fetch",
+            message: "Fetching site info for account",
+            instance: instance,
+            metadata: nil
+        )
         do {
             try await accountService
                 .lemmyService(forAccountKeychainId: keychainId)

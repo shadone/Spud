@@ -65,7 +65,8 @@ struct DependencyContainer:
         schedulerService = SchedulerService(
             appDatabase: appDatabase,
             accountService: accountService,
-            alertService: alertService
+            alertService: alertService,
+            diagnostics: diagnosticLog
         )
         postContentDetectorService = PostContentDetectorService()
         appearanceService = AppearanceService(preferencesService: preferencesService)
@@ -77,7 +78,7 @@ struct DependencyContainer:
             // (links fall back to Safari/browser); it is never fatal here.
             webArchiveStore: try? OfflineWebArchiveStore(appDatabase: appDatabase)
         )
-        unreadCountService = UnreadCountService(accountService: accountService)
+        unreadCountService = UnreadCountService(accountService: accountService, diagnostics: diagnosticLog)
         explorerService = ExplorerService(appDatabase: appDatabase)
     }
 
