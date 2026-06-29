@@ -29,6 +29,9 @@ public extension AppDatabase {
     /// - Parameter filter: Constrains category, minimum level, free-text search, and
     ///   row count.  See `DiagnosticLogFilter` for defaults.
     /// - Returns: Up to `filter.limit` rows, sorted by `timestamp DESC, id DESC`.
+    ///
+    /// A nil or empty `categories` set in `filter` imposes no category filter — all
+    /// categories are returned.  Pass a non-empty set to restrict to specific categories.
     func recentDiagnosticEvents(_ filter: DiagnosticLogFilter) async throws -> [DiagnosticEventRecord] {
         try await writer.read { db in
             // Build up the predicate expression.
@@ -37,8 +40,9 @@ public extension AppDatabase {
             // Level filter — stored as Int, compared numerically.
             predicates.append(Column("level") >= filter.minimumLevel.rawValue)
 
-            // Category filter — only apply when the set is non-nil.
-            if let cats = filter.categories {
+            // Category filter — only apply when the set is non-nil AND non-empty.
+            // nil or [] both mean "no category filter = all categories".
+            if let cats = filter.categories, !cats.isEmpty {
                 let rawValues = cats.map(\.rawValue)
                 predicates.append(rawValues.contains(Column("category")))
             }

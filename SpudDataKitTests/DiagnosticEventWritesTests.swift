@@ -17,21 +17,21 @@ struct DiagnosticEventWritesTests {
     /// - notice / scheduler / timestamp = t+1
     /// - error / outbox  / timestamp = t+2  (message contains "403")
     private func seedThreeEvents(in db: AppDatabase, baseTimestamp: Double = 1_000_000) async throws {
-        var e1 = DiagnosticEventRecord(
+        try await db.insertDiagnosticEvent(DiagnosticEventRecord(
             timestamp: baseTimestamp,
             category: DiagnosticCategory.outbox.rawValue,
             level: DiagnosticLevel.debug.rawValue,
             event: "enqueued",
             message: "Item enqueued"
-        )
-        var e2 = DiagnosticEventRecord(
+        ))
+        try await db.insertDiagnosticEvent(DiagnosticEventRecord(
             timestamp: baseTimestamp + 1,
             category: DiagnosticCategory.scheduler.rawValue,
             level: DiagnosticLevel.notice.rawValue,
             event: "scheduled",
             message: "Task scheduled"
-        )
-        var e3 = DiagnosticEventRecord(
+        ))
+        try await db.insertDiagnosticEvent(DiagnosticEventRecord(
             timestamp: baseTimestamp + 2,
             category: DiagnosticCategory.outbox.rawValue,
             level: DiagnosticLevel.error.rawValue,
@@ -39,14 +39,7 @@ struct DiagnosticEventWritesTests {
             message: "HTTP error",
             instance: "https://lemmy.world",
             metadata: "{\"status\":\"403\"}"
-        )
-        try await db.insertDiagnosticEvent(e1)
-        try await db.insertDiagnosticEvent(e2)
-        try await db.insertDiagnosticEvent(e3)
-        // Assign back for callers that need to capture the inserted IDs (unused here).
-        _ = e1
-        _ = e2
-        _ = e3
+        ))
     }
 
     // MARK: - insertDiagnosticEvent
@@ -135,6 +128,17 @@ struct DiagnosticEventWritesTests {
         #expect(rows.count == 0)
     }
 
+    @Test
+    func recentDiagnosticEvents_emptyCategoriesSet_returnsAll() async throws {
+        // An empty set must mean "no category filter = all categories", the same as nil.
+        let db = try AppDatabase.inMemory()
+        try await seedThreeEvents(in: db)
+
+        let filter = DiagnosticLogFilter(categories: [])
+        let rows = try await db.recentDiagnosticEvents(filter)
+        #expect(rows.count == 3)
+    }
+
     // MARK: - recentDiagnosticEvents — searchText
 
     @Test
@@ -147,7 +151,8 @@ struct DiagnosticEventWritesTests {
 
         // Only e3 has "403" in metadata.
         #expect(rows.count == 1)
-        #expect(rows[0].eventEnum_message == "HTTP error" || rows[0].event == "fetchFailed")
+        #expect(rows[0].message == "HTTP error")
+        #expect(rows[0].event == "fetchFailed")
     }
 
     @Test
@@ -223,24 +228,22 @@ struct DiagnosticEventWritesTests {
         let fifteenDays: Double = 15 * 24 * 3600
 
         // Insert a 15-day-old event.
-        var oldRecord = DiagnosticEventRecord(
+        try await db.insertDiagnosticEvent(DiagnosticEventRecord(
             timestamp: now - fifteenDays,
             category: DiagnosticCategory.scheduler.rawValue,
             level: DiagnosticLevel.info.rawValue,
             event: "old",
             message: "Old event"
-        )
-        try await db.insertDiagnosticEvent(oldRecord)
+        ))
 
         // Insert a recent event.
-        var newRecord = DiagnosticEventRecord(
+        try await db.insertDiagnosticEvent(DiagnosticEventRecord(
             timestamp: now - 60,
             category: DiagnosticCategory.scheduler.rawValue,
             level: DiagnosticLevel.info.rawValue,
             event: "recent",
             message: "Recent event"
-        )
-        try await db.insertDiagnosticEvent(newRecord)
+        ))
 
         // Default maxAgeSeconds is 14 * 24 * 3600 (14 days).
         try await db.pruneDiagnosticEvents(now: now)
@@ -248,10 +251,6 @@ struct DiagnosticEventWritesTests {
         let rows = try await db.recentDiagnosticEvents(DiagnosticLogFilter())
         #expect(rows.count == 1)
         #expect(rows[0].event == "recent")
-
-        // Suppress unused-variable warnings.
-        _ = oldRecord
-        _ = newRecord
     }
 
     // MARK: - clearDiagnosticEvents
@@ -266,15 +265,5 @@ struct DiagnosticEventWritesTests {
         let rows = try await db.recentDiagnosticEvents(DiagnosticLogFilter())
         // swiftformat:disable:next isEmpty
         #expect(rows.count == 0)
-    }
-}
-
-// MARK: - Test helper extension
-
-private extension DiagnosticEventRecord {
-    /// Convenience accessor used in tests to make assertions readable.
-    /// Not shipping code — it's in a private extension scoped to the test file.
-    var eventEnum_message: String {
-        message
     }
 }
