@@ -55,6 +55,14 @@ final class OfflineWebArchiveReaderViewController: UIViewController {
 
     private var titleObservation: NSKeyValueObservation?
 
+    /// Whether the initial `.webarchive` load has finished. Until it has, the
+    /// `file:`-scheme navigation that renders the snapshot must be allowed
+    /// through; once it has, any further navigation is an in-page link tap that
+    /// would go to the live network (defeating the offline snapshot) and is
+    /// instead cancelled and routed to the system browser (see
+    /// ``webView(_:decidePolicyFor:decisionHandler:)``).
+    private var hasLoadedArchive = false
+
     /// - Parameters:
     ///   - archiveFileURL: On-disk `.webarchive` file to load.
     ///   - originalURL: The live page URL the archive was captured from (used by
@@ -164,10 +172,16 @@ final class OfflineWebArchiveReaderViewController: UIViewController {
             ),
             image: UIImage(systemName: "safari")
         ) { [weak self] _ in
-            guard let self else { return }
-            UIApplication.shared.open(originalURL)
+            self?.openLiveURLInSystemBrowser()
         }
         return UIMenu(children: [openInBrowser])
+    }
+
+    /// Opens the live page in the system browser. Shared by the overflow action
+    /// and the in-page-link interception (see the navigation delegate): both honor
+    /// the user's intent to leave the frozen snapshot for the live web.
+    private func openLiveURLInSystemBrowser() {
+        UIApplication.shared.open(originalURL)
     }
 
     /// Sets the navigation title to the best available page title and pins a
@@ -262,6 +276,59 @@ final class OfflineWebArchiveReaderViewController: UIViewController {
 // MARK: - WKNavigationDelegate
 
 extension OfflineWebArchiveReaderViewController: WKNavigationDelegate {
+    /// Gate every navigation so the reader stays offline.
+    ///
+    /// The archive renders from a `file:` URL (and may reference `about:blank` /
+    /// `data:` subresources). The FIRST such load is the snapshot itself and must
+    /// be allowed. Once that initial load has finished (``hasLoadedArchive``), any
+    /// further navigation is the user tapping a link inside the archived HTML —
+    /// which `WKWebView` would otherwise load LIVE over the network, defeating the
+    /// offline snapshot (a blank/error page when offline) and silently leaving the
+    /// stored copy. So we CANCEL it; for an http(s) tap we honor the user's intent
+    /// by opening the destination in the system browser instead of failing
+    /// silently. Non-http(s) schemes (file/about/data) are allowed so the snapshot
+    /// and its bundled subresources keep rendering.
+    /// Uses the `async` form of the requirement (the completion-handler form's
+    /// `decisionHandler` is `@escaping @MainActor @Sendable`, which is fiddly to
+    /// match exactly; the `async` overload is cleaner and the VC is already
+    /// `@MainActor`).
+    func webView(
+        _: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction
+    ) async -> WKNavigationActionPolicy {
+        let url = navigationAction.request.url
+        let scheme = url?.scheme?.lowercased()
+        let isWebScheme = scheme == "http" || scheme == "https"
+
+        // Before the snapshot has loaded, allow the file:/about:/data: navigation
+        // that renders it. (A captured page should not be issuing live http(s)
+        // requests at this stage; if it somehow does, treat it as a link tap.)
+        guard hasLoadedArchive else {
+            if isWebScheme {
+                if let url {
+                    await UIApplication.shared.open(url)
+                }
+                return .cancel
+            }
+            return .allow
+        }
+
+        // After the snapshot loaded: any new web navigation is an in-page link
+        // tap. Cancel the live load and hand the tapped URL to the system browser
+        // so the tap is honored rather than silently failing. Non-web schemes
+        // (rare here) are simply cancelled — we never go live for the snapshot.
+        if isWebScheme, let url {
+            await UIApplication.shared.open(url)
+        }
+        return .cancel
+    }
+
+    /// The initial `.webarchive` load finished: from here on, treat navigations as
+    /// in-page link taps (see ``webView(_:decidePolicyFor:decisionHandler:)``).
+    func webView(_: WKWebView, didFinish _: WKNavigation!) {
+        hasLoadedArchive = true
+    }
+
     func webView(_: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError error: Error) {
         logger.error("Failed to load offline web archive: \(String(describing: error), privacy: .public)")
     }

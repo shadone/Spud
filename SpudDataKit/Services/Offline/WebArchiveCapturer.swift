@@ -106,7 +106,20 @@ public final class WebArchiveCapturer: WebArchiveCapturing {
             resultBox.value = await self.performCapture(url, timeout: timeout)
         }
         captureChainTail = task
-        await task.value
+
+        // Await the chained task through a cancellation handler so cancelling the
+        // calling task (e.g. the offline download was cancelled mid-capture)
+        // promptly cancels the in-flight capture rather than blocking up to the
+        // full `timeout`. The chained task is unstructured (it deliberately
+        // outlives this scope only as the chain tail), so it would NOT inherit
+        // cancellation on its own — the handler forwards it explicitly.
+        // `performCapture` observes the cancellation before `webView.load(...)`
+        // and bails early.
+        await withTaskCancellationHandler {
+            await task.value
+        } onCancel: {
+            task.cancel()
+        }
         return resultBox.value
     }
 
@@ -124,6 +137,11 @@ public final class WebArchiveCapturer: WebArchiveCapturing {
     /// serialize the archive. Assumes exclusive use of the web view (the caller's
     /// in-flight guard provides that).
     private func performCapture(_ url: URL, timeout: TimeInterval) async -> WebArchiveCaptureResult? {
+        // Bail before starting an expensive page load if the calling task was
+        // already cancelled (the capture chain may have queued behind a slow
+        // predecessor that the cancellation handler just cancelled us through).
+        if Task.isCancelled { return nil }
+
         let webView = ensureWebView()
         let coordinator = navigationCoordinator
 
@@ -131,7 +149,14 @@ public final class WebArchiveCapturer: WebArchiveCapturing {
         // comes first) inside the coordinator. The timeout lives in the
         // coordinator (not a racing task group here) so the whole method stays
         // cleanly main-actor isolated.
-        webView.load(URLRequest(url: url))
+        //
+        // Track the navigation token returned by `load`: the coordinator only
+        // honours delegate callbacks whose `WKNavigation` matches it. A late
+        // `didFail` for a PRIOR, abandoned navigation (e.g. one this capture's
+        // predecessor timed out and `stopLoading()`'d) could otherwise arrive
+        // after we install a fresh continuation and wrongly resolve it false.
+        let navigation = webView.load(URLRequest(url: url))
+        coordinator?.setActiveNavigation(navigation)
         let loaded = await coordinator?.awaitNavigation(timeout: timeout) ?? false
 
         guard loaded else {
@@ -190,12 +215,34 @@ public final class WebArchiveCapturer: WebArchiveCapturing {
     /// through ``resolve(_:)`` which clears the continuation and cancels the
     /// timeout, so the continuation is resumed exactly once. ``reset()`` clears
     /// any stale continuation between captures.
+    ///
+    /// **Navigation token guard.** The single reused web view is driven by one
+    /// capture at a time, but WebKit can still deliver a *late* delegate callback
+    /// for a PRIOR navigation — e.g. the previous capture timed out, we
+    /// `stopLoading()`'d it, and its `didFailProvisionalNavigation` lands only
+    /// after the next capture has installed a fresh continuation. To stop that
+    /// stale callback aborting the new capture, every callback is ignored unless
+    /// its `WKNavigation` is identical (`===`, reference identity) to the
+    /// ``activeNavigation`` token recorded for the current load.
     @MainActor
     private final class NavigationCoordinator: NSObject, WKNavigationDelegate {
         private var continuation: CheckedContinuation<Bool, Never>?
         /// The in-flight timeout task for the current navigation, cancelled the
         /// moment the navigation resolves by any means.
         private var timeoutTask: Task<Void, Never>?
+
+        /// The navigation token (`WKNavigation`, a reference type) for the load
+        /// currently being awaited. Set per capture from `webView.load(...)`'s
+        /// return value; delegate callbacks for any OTHER navigation are ignored.
+        /// Nil when no capture is in flight (so a fully-stray callback is ignored).
+        private var activeNavigation: WKNavigation?
+
+        /// Record the navigation token for the load just started, so the delegate
+        /// callbacks can be matched to it. Called once per capture, immediately
+        /// after `webView.load(...)`.
+        func setActiveNavigation(_ navigation: WKNavigation?) {
+            activeNavigation = navigation
+        }
 
         /// Suspend until the current navigation finishes (true), fails (false),
         /// or `timeout` seconds elapse (false). The timeout is a polite bound so
@@ -217,8 +264,10 @@ public final class WebArchiveCapturer: WebArchiveCapturing {
             }
         }
 
-        /// Discard any unresolved continuation so the next capture starts clean.
+        /// Discard any unresolved continuation (and the active token) so the next
+        /// capture starts clean — a stale callback after this resolves nothing.
         func reset() {
+            activeNavigation = nil
             resolve(false)
         }
 
@@ -230,15 +279,27 @@ public final class WebArchiveCapturer: WebArchiveCapturing {
             continuation = nil
         }
 
-        func webView(_: WKWebView, didFinish _: WKNavigation!) {
+        /// True when `navigation` is the load we're currently awaiting. A nil
+        /// active token (no capture in flight) or a mismatched token means the
+        /// callback is stale and must be ignored. (A nil *callback* navigation —
+        /// WebKit occasionally passes one — matches only a nil active token, which
+        /// never happens during an in-flight capture, so it's treated as stale.)
+        private func isActive(_ navigation: WKNavigation?) -> Bool {
+            activeNavigation != nil && navigation === activeNavigation
+        }
+
+        func webView(_: WKWebView, didFinish navigation: WKNavigation!) {
+            guard isActive(navigation) else { return }
             resolve(true)
         }
 
-        func webView(_: WKWebView, didFail _: WKNavigation!, withError _: any Error) {
+        func webView(_: WKWebView, didFail navigation: WKNavigation!, withError _: any Error) {
+            guard isActive(navigation) else { return }
             resolve(false)
         }
 
-        func webView(_: WKWebView, didFailProvisionalNavigation _: WKNavigation!, withError _: any Error) {
+        func webView(_: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError _: any Error) {
+            guard isActive(navigation) else { return }
             resolve(false)
         }
     }

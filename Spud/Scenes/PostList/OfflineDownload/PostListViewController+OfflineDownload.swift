@@ -7,6 +7,7 @@
 import LemmyKit
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import SwiftUI
 import UIKit
 
@@ -109,6 +110,17 @@ extension PostListViewController {
         let showNsfw = preferencesService.showNsfw
         let service = offlineDownloadService
 
+        // The download keys each captured web archive under the SANITIZED link
+        // URL, because the open path (`AppService.open(url:)`) sanitizes the
+        // tapped link with this exact same `URLSanitizer.sanitize(_:config:)`
+        // before looking the archive up. Snapshot the config now (off the
+        // download task) so the closure is a pure `@Sendable` value-in/value-out
+        // transform — capturing the config, not the service.
+        let sanitizerConfig = preferencesService.urlSanitizerConfig
+        let sanitizeURL: @Sendable (URL) -> URL = { url in
+            URLSanitizer.sanitize(url, config: sanitizerConfig)
+        }
+
         // The progress view model the sheet binds to; the drain task pushes
         // stream values into it, and its Cancel button routes back here.
         let progressViewModel = OfflineDownloadProgressViewModel(
@@ -135,7 +147,8 @@ extension PostListViewController {
                 commentSort: commentSort,
                 showNsfw: showNsfw,
                 maxPosts: maxPosts,
-                archiveLinks: archiveLinks
+                archiveLinks: archiveLinks,
+                sanitizeURL: sanitizeURL
             )
             for await progress in stream {
                 if Task.isCancelled { break }

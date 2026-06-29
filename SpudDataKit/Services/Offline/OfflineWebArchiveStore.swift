@@ -94,15 +94,23 @@ public final class OfflineWebArchiveStore: Sendable {
 
     // MARK: - Writes
 
-    /// Persist a captured web archive: write the file, upsert the index row,
+    /// Persist a captured web archive: upsert the index row, then write the file,
     /// then enforce the size cap.
     ///
     /// Replaces any prior capture of the same `url` in place — the old file is
     /// deleted and the row updated (the `url` column is UNIQUE). After the write,
     /// ``maxTotalBytes`` is enforced by oldest-first eviction.
     ///
-    /// Best-effort: a file-write failure is logged and swallowed (the downloader
-    /// treats archiving as non-fatal), leaving the prior state intact.
+    /// **Row before file, with compensation.** The GRDB row is written (inside its
+    /// transaction) FIRST; only after the transaction commits do we write the
+    /// `.webarchive` file. If the file write then throws, the just-committed row
+    /// is deleted to compensate — so no path leaves an orphaned file (a file with
+    /// no row, which eviction could never reclaim since it only knows rows) nor an
+    /// orphaned row (a row pointing at a file that was never written, which the
+    /// reader's `fileExists` lookup would treat as missing).
+    ///
+    /// Best-effort: any failure is logged and swallowed (the downloader treats
+    /// archiving as non-fatal).
     ///
     /// - Parameters:
     ///   - url: The captured page's link URL (the index key).
@@ -123,15 +131,10 @@ public final class OfflineWebArchiveStore: Sendable {
             let directory = try archivesDirectory()
             let fileURL = directory.appendingPathComponent(fileName, isDirectory: false)
 
-            // Replacing an existing capture: a prior row for this url may point at
-            // a DIFFERENT file name only if the hashing changed (it doesn't), but
-            // overwrite atomically regardless so a re-capture is a clean replace.
-            try data.write(to: fileURL, options: .atomic)
-
+            // 1. Upsert the index row inside its transaction. A prior row for this
+            //    url may point at a stale file name (defensive — the same url
+            //    always hashes to the same name today); delete that stale file.
             try await appDatabase.writer.write { db in
-                // Look up any existing row for this url so we can delete its stale
-                // file if the file name somehow differs (defensive — same url
-                // always hashes to the same name today).
                 if let existing = try OfflineWebArchiveRecord
                     .filter(Column("url") == urlString)
                     .fetchOne(db)
@@ -159,6 +162,20 @@ public final class OfflineWebArchiveStore: Sendable {
                 }
             }
 
+            // 2. Write the file AFTER the row commits. If this throws, compensate
+            //    by deleting the row we just wrote — never leave a row pointing at
+            //    a file that doesn't exist.
+            do {
+                try data.write(to: fileURL, options: .atomic)
+            } catch {
+                try? await appDatabase.writer.write { db in
+                    _ = try OfflineWebArchiveRecord
+                        .filter(Column("url") == urlString)
+                        .deleteAll(db)
+                }
+                throw error
+            }
+
             try await enforceSizeCap(in: directory)
         } catch {
             logger.error("Failed to store web archive for \(urlString, privacy: .public): \(String(describing: error), privacy: .public)")
@@ -167,24 +184,40 @@ public final class OfflineWebArchiveStore: Sendable {
 
     /// Delete oldest-`capturedAt` archives (file + row) until the total on-disk
     /// size is back under ``maxTotalBytes``.
+    ///
+    /// **Rows in the transaction, files after it commits.** The victims' ROWS are
+    /// deleted inside the `write` (collecting their file names); the `.webarchive`
+    /// FILES are removed only after the transaction commits. Deleting files inside
+    /// the transaction would be unsafe: a later throw rolls the rows back, but the
+    /// files are already gone — leaving rows that point at missing files. By
+    /// deleting files only on a committed delete, the file removals never run
+    /// ahead of a rollback.
     private func enforceSizeCap(in directory: URL) async throws {
-        try await appDatabase.writer.write { db in
+        let evictedFileNames: [String] = try await appDatabase.writer.write { db in
             var total = try Int64.fetchOne(
                 db,
                 sql: "SELECT COALESCE(SUM(byteSize), 0) FROM offlineWebArchive"
             ) ?? 0
-            guard total > Self.maxTotalBytes else { return }
+            guard total > Self.maxTotalBytes else { return [] }
 
             // Oldest first; stop as soon as the running total drops under the cap.
             let oldest = try OfflineWebArchiveRecord
                 .order(Column("capturedAt").asc)
                 .fetchAll(db)
+            var fileNames: [String] = []
             for record in oldest {
                 guard total > Self.maxTotalBytes else { break }
-                Self.removeFile(named: record.fileName, in: directory)
                 try record.delete(db)
+                fileNames.append(record.fileName)
                 total -= record.byteSize
             }
+            return fileNames
+        }
+
+        // Transaction committed: now it's safe to reclaim the files. (A missing
+        // file here is fine — `removeFile` is best-effort.)
+        for fileName in evictedFileNames {
+            Self.removeFile(named: fileName, in: directory)
         }
     }
 

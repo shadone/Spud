@@ -753,4 +753,74 @@ struct OfflineDownloadServiceTests {
         #expect(terminal.phase == .finished, "a failed capture must not abort the run")
         #expect(terminal.itemsCompleted == 3, "every post still counts as completed")
     }
+
+    /// REGRESSION: the archive must be STORED under the same (sanitized) URL the
+    /// open path LOOKS IT UP by. The download keys captures on
+    /// `sanitizeURL(externalLinkUrl)`; the open path (`AppService`) sanitizes the
+    /// tapped link with the identical transform before lookup. If the two keys
+    /// diverged, the archive would be saved but never found ("not saved for
+    /// offline" despite a successful download).
+    ///
+    /// Here the sanitizer rewrites `?utm_source=x` away (modelling
+    /// `URLSanitizer`'s tracking-param strip). After the download: a lookup by the
+    /// SANITIZED url (`…/article`) must succeed, and a lookup by the RAW url
+    /// (`…/article?utm_source=x`) must FAIL — which is exactly the round-trip the
+    /// bug would have failed.
+    @Test
+    func archiveIsKeyedOnSanitizedURL() async throws {
+        let rawLink = "https://example.com/article?utm_source=x"
+        let sanitizedLink = "https://example.com/article"
+
+        let lemmy = makeLemmy(
+            pages: [.init(postCount: 1, nextCursor: nil)],
+            imageUrlForSeededPosts: rawLink
+        )
+        let capturer = RecordingWebArchiveCapturer()
+        let store = try makeArchiveStore()
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase,
+            imageService: RecordingImageService(),
+            webArchiveCapturer: capturer,
+            webArchiveStore: store
+        )
+
+        // A sanitizer that strips the query (the part `URLSanitizer` would remove).
+        let sanitize: @Sendable (URL) -> URL = { url in
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            components?.query = nil
+            return components?.url ?? url
+        }
+
+        var collected: [OfflineDownloadProgress] = []
+        for await progress in service.download(
+            feed: feed,
+            lemmyService: lemmy,
+            accountId: accountId,
+            siteId: siteId,
+            commentSort: commentSort,
+            showNsfw: false,
+            maxPosts: OfflineDownloadService.defaultMaxPosts,
+            archiveLinks: true,
+            sanitizeURL: sanitize
+        ) {
+            collected.append(progress)
+        }
+
+        let terminal = try #require(collected.last)
+        #expect(terminal.phase == .finished)
+
+        // The capturer was driven with the SANITIZED url, not the raw one.
+        #expect(capturer.capturedURLs.map(\.absoluteString) == [sanitizedLink])
+
+        // Lookup by the sanitized url (what the open path computes) succeeds...
+        let sanitizedURL = try #require(URL(string: sanitizedLink))
+        #expect(store.hasWebArchiveSync(forURL: sanitizedURL), "archive must be found by the sanitized key")
+
+        // ...and a lookup by the raw url does NOT (the store never keyed on it).
+        let rawURL = try #require(URL(string: rawLink))
+        #expect(
+            store.hasWebArchiveSync(forURL: rawURL) == false,
+            "the raw (unsanitized) url must NOT find the archive — that mismatch was the bug"
+        )
+    }
 }

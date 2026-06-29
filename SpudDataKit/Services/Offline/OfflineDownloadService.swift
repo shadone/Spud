@@ -215,6 +215,14 @@ public actor OfflineDownloadService {
     ///     ``WebArchiveCapturing`` + ``OfflineWebArchiveStore``. A capture failure
     ///     (load error / timeout) is swallowed like the other per-item work and
     ///     never aborts the run.
+    ///   - sanitizeURL: Optional transform applied to a post's external-link URL
+    ///     **before** it is captured and stored. This MUST be the same transform
+    ///     the open path (`AppService`) applies before looking an archive up
+    ///     (`URLSanitizer.sanitize`), so the store key (sanitized) matches the
+    ///     lookup key (sanitized). When nil (the default, used by tests that don't
+    ///     exercise sanitization) the raw URL is used unchanged. Only the archive
+    ///     key is sanitized; the comment/image work uses the post's own URLs and is
+    ///     unaffected.
     public nonisolated func download(
         feed: FeedHandle,
         lemmyService: any LemmyServiceType,
@@ -223,7 +231,8 @@ public actor OfflineDownloadService {
         commentSort: Components.Schemas.CommentSortType,
         showNsfw: Bool,
         maxPosts: Int = defaultMaxPosts,
-        archiveLinks: Bool = false
+        archiveLinks: Bool = false,
+        sanitizeURL: (@Sendable (URL) -> URL)? = nil
     ) -> AsyncStream<OfflineDownloadProgress> {
         AsyncStream { continuation in
             // Wrap the work task in a holder so the task's own body can claim the
@@ -240,6 +249,7 @@ public actor OfflineDownloadService {
                     showNsfw: showNsfw,
                     maxPosts: maxPosts,
                     archiveLinks: archiveLinks,
+                    sanitizeURL: sanitizeURL,
                     claimedSlot: claimed,
                     emit: { continuation.yield($0) }
                 )
@@ -301,6 +311,7 @@ public actor OfflineDownloadService {
         showNsfw: Bool,
         maxPosts: Int,
         archiveLinks: Bool,
+        sanitizeURL: (@Sendable (URL) -> URL)?,
         claimedSlot: Bool,
         emit: @Sendable (OfflineDownloadProgress) -> Void
     ) async {
@@ -361,6 +372,7 @@ public actor OfflineDownloadService {
             lemmyService: lemmyService,
             commentSort: commentSort,
             archiveLinks: archiveLinks,
+            sanitizeURL: sanitizeURL,
             postsFetched: postsFetched,
             totalPosts: totalPosts,
             emit: emit
@@ -479,6 +491,7 @@ public actor OfflineDownloadService {
         lemmyService: any LemmyServiceType,
         commentSort: Components.Schemas.CommentSortType,
         archiveLinks: Bool,
+        sanitizeURL: (@Sendable (URL) -> URL)?,
         postsFetched: Int,
         totalPosts: Int,
         emit: @Sendable (OfflineDownloadProgress) -> Void
@@ -518,7 +531,8 @@ public actor OfflineDownloadService {
                         imageService: imageService,
                         webArchiveCapturer: capturer,
                         webArchiveStore: store,
-                        captureTimeout: captureTimeout
+                        captureTimeout: captureTimeout,
+                        sanitizeURL: sanitizeURL
                     )
                 }
             }
@@ -557,6 +571,9 @@ public actor OfflineDownloadService {
     ///   - webArchiveStore: Where a captured archive is persisted. Paired with
     ///     `webArchiveCapturer`.
     ///   - captureTimeout: Per-page web-archive capture timeout.
+    ///   - sanitizeURL: Applied to the post's `externalLinkUrl` before capture +
+    ///     store, so the archive is keyed under the SAME (sanitized) URL the open
+    ///     path looks it up by. Nil = use the raw URL unchanged.
     private static func processTarget(
         _ target: OfflineDownloadTarget,
         lemmyService: any LemmyServiceType,
@@ -564,7 +581,8 @@ public actor OfflineDownloadService {
         imageService: any ImageServiceType,
         webArchiveCapturer: (any WebArchiveCapturing)?,
         webArchiveStore: OfflineWebArchiveStore?,
-        captureTimeout: TimeInterval
+        captureTimeout: TimeInterval,
+        sanitizeURL: (@Sendable (URL) -> URL)?
     ) async {
         if Task.isCancelled { return }
 
@@ -600,9 +618,14 @@ public actor OfflineDownloadService {
             let webArchiveStore,
             let externalLinkUrl = target.externalLinkUrl
         {
-            if let result = await webArchiveCapturer.capture(externalLinkUrl, timeout: captureTimeout) {
+            // Key the archive on the SANITIZED URL so the open path — which
+            // sanitizes the tapped link before looking it up — finds it. Without
+            // this, any URL the sanitizer rewrites would be stored under one key
+            // and looked up under another (the archive would never be found).
+            let archiveKey = sanitizeURL?(externalLinkUrl) ?? externalLinkUrl
+            if let result = await webArchiveCapturer.capture(archiveKey, timeout: captureTimeout) {
                 await webArchiveStore.upsertWebArchive(
-                    url: externalLinkUrl,
+                    url: archiveKey,
                     postServerId: target.serverPostId,
                     title: result.title,
                     data: result.data
