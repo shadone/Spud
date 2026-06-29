@@ -658,6 +658,15 @@ public actor LemmyService: LemmyServiceType {
         logger.info("Creating new service for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
     }
 
+    /// Resolves the instance HOST string (e.g. `lemmy.world`) for the account
+    /// backing this service. Returns `nil` when the account row hasn't been
+    /// mirrored yet — callers must treat `nil` as "unknown, emit without tag"
+    /// rather than blocking on it.
+    private func resolveInstanceHost() async -> String? {
+        let rawActorId = await appDatabase.accountInstanceActorId(forKeychainId: accountIdentifierForLogging)
+        return rawActorId.flatMap { InstanceActorId(from: $0) }?.hostWithPort
+    }
+
     /// Lazily builds (and `start()`s) the per-account `OutboxService`, returning
     /// `nil` only when the account row can't be resolved (no ids -> no outbox).
     /// Memoized via `outboxTask` so every call shares one service instance.
@@ -671,11 +680,9 @@ public actor LemmyService: LemmyServiceType {
                 accountId: ids.0,
                 siteId: ids.1
             )
-            // Resolve the instance host for diagnostic event tagging. A nil result
-            // (account not yet mirrored) is acceptable — events are emitted without
-            // an instance tag rather than blocking outbox construction.
-            let rawActorId = await appDatabase.accountInstanceActorId(forKeychainId: accountIdentifierForLogging)
-            let instanceHost = rawActorId.flatMap { InstanceActorId(from: $0) }?.hostWithPort
+            // A nil result (account not yet mirrored) is acceptable — events are
+            // emitted without an instance tag rather than blocking outbox construction.
+            let instanceHost = await resolveInstanceHost()
             let service = OutboxService(
                 accountId: ids.0,
                 appDatabase: appDatabase,
@@ -2091,8 +2098,7 @@ public actor LemmyService: LemmyServiceType {
                   !pending.isEmpty
             else { return }
 
-            let rawActorId = await appDatabase.accountInstanceActorId(forKeychainId: accountIdentifierForLogging)
-            let instanceHost = rawActorId.flatMap { InstanceActorId(from: $0) }?.hostWithPort
+            let instanceHost = await resolveInstanceHost()
             await DiagnosticLog(appDatabase: appDatabase).record(
                 category: .outbox,
                 level: .error,

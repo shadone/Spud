@@ -32,8 +32,9 @@ public protocol DiagnosticLogging: Sendable {
     ///   - level: Severity of the event.
     ///   - event: Short machine-readable identifier, e.g. `"op.permanentRollback"`.
     ///   - message: Human-readable description of what happened.
-    ///   - instance: Optional Lemmy actor-ID URL (`https://lemmy.world`) the event is
-    ///     scoped to.
+    ///   - instance: Optional Lemmy instance HOST (e.g. `lemmy.world`) the event is
+    ///     scoped to. Pass `InstanceActorId.hostWithPort` — NOT a full URL — so the
+    ///     value works as a consistent filter/grouping key across all callers.
     ///   - metadata: Optional key-value pairs providing structured context (e.g. HTTP
     ///     status, operation kind).
     func record(
