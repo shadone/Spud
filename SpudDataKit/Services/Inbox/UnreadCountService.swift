@@ -9,7 +9,7 @@ import LemmyKit
 import Observation
 import OSLog
 
-private let logger = Logger.lemmyService
+private let logger = Logger.inbox
 
 @MainActor
 public protocol UnreadCountServiceType: AnyObject {

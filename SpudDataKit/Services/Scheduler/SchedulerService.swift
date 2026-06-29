@@ -66,23 +66,13 @@ public class SchedulerService: SchedulerServiceType {
     private func tick() async {
         let startedAt = Date()
 
-        let allKeychainIds: [String]
-        do {
-            let signedIn = try await appDatabase.signedInAccountsAwaitingMyUserInfo()
-            let signedOut = try await appDatabase.signedOutAccountsAwaitingSiteInfo()
-            allKeychainIds = signedIn + signedOut
-        } catch {
-            allKeychainIds = []
-        }
-        let accountCount = allKeychainIds.count
-
         await diagnostics.record(
             category: .scheduler,
-            level: .info,
+            level: .debug,
             event: "tick.start",
             message: "Scheduler tick started",
             instance: nil,
-            metadata: ["accountCount": String(accountCount)]
+            metadata: nil
         )
 
         await fetchSiteInfoAndMyUserInfoForSignedInIfNeeded()
@@ -91,14 +81,11 @@ public class SchedulerService: SchedulerServiceType {
         let durationMs = Int(Date().timeIntervalSince(startedAt) * 1000)
         await diagnostics.record(
             category: .scheduler,
-            level: .info,
+            level: .debug,
             event: "tick.finish",
             message: "Scheduler tick finished",
             instance: nil,
-            metadata: [
-                "accountCount": String(accountCount),
-                "durationMs": String(durationMs),
-            ]
+            metadata: ["durationMs": String(durationMs)]
         )
     }
 

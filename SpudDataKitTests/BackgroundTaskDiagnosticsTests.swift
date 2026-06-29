@@ -372,7 +372,6 @@ struct UnreadCountServiceDiagnosticsTests {
         await service.refresh(accountKeychainId: keychainId)
 
         let startEvents = spy.events(matching: "refresh.start")
-        // swiftformat:disable:next isEmpty
         #expect(startEvents.count == 1, "expected exactly one refresh.start event")
         let startEvent = try #require(startEvents.first)
         #expect(startEvent.category == .unread)
@@ -380,7 +379,6 @@ struct UnreadCountServiceDiagnosticsTests {
         #expect(startEvent.instance == "lemmy.test")
 
         let finishEvents = spy.events(matching: "refresh.finish")
-        // swiftformat:disable:next isEmpty
         #expect(finishEvents.count == 1, "expected exactly one refresh.finish event")
         let finishEvent = try #require(finishEvents.first)
         #expect(finishEvent.category == .unread)
@@ -405,11 +403,9 @@ struct UnreadCountServiceDiagnosticsTests {
         await service.refresh(accountKeychainId: keychainId)
 
         let startEvents = spy.events(matching: "refresh.start")
-        // swiftformat:disable:next isEmpty
         #expect(startEvents.count == 1, "expected exactly one refresh.start event")
 
         let failedEvents = spy.events(matching: "refresh.failed")
-        // swiftformat:disable:next isEmpty
         #expect(failedEvents.count == 1, "expected exactly one refresh.failed event")
         let failedEvent = try #require(failedEvents.first)
         #expect(failedEvent.category == .unread)
@@ -425,6 +421,7 @@ struct UnreadCountServiceDiagnosticsTests {
 // MARK: - OfflineDownloadService
 
 /// Tests that `OfflineDownloadService.download` emits the expected diagnostic events.
+@Suite(.serialized)
 struct OfflineDownloadServiceDiagnosticsTests {
     private let appDatabase: AppDatabase
     private let accountId: Int64
@@ -529,7 +526,6 @@ struct OfflineDownloadServiceDiagnosticsTests {
         ) { }
 
         let startEvents = spy.events(matching: "download.start")
-        // swiftformat:disable:next isEmpty
         #expect(startEvents.count == 1, "expected exactly one download.start event")
         let startEvent = try #require(startEvents.first)
         #expect(startEvent.category == .offlineDownload)
@@ -538,7 +534,6 @@ struct OfflineDownloadServiceDiagnosticsTests {
         #expect(startEvent.metadata?["targetCount"] == "3")
 
         let finishEvents = spy.events(matching: "download.finish")
-        // swiftformat:disable:next isEmpty
         #expect(finishEvents.count == 1, "expected exactly one download.finish event")
         let finishEvent = try #require(finishEvents.first)
         #expect(finishEvent.category == .offlineDownload)
@@ -546,5 +541,106 @@ struct OfflineDownloadServiceDiagnosticsTests {
         #expect(finishEvent.instance == "diag.instance")
         #expect(finishEvent.metadata?["downloadedCount"] == "3")
         #expect(finishEvent.metadata?["failedCount"] == "0")
+    }
+
+    @Test
+    func download_itemFailed_isRecorded_andFailedCountReflectsIt() async throws {
+        let spy = DiagnosticLogSpy()
+        // Posts are seeded with server ids starting at 1, so id 2 is the second post.
+        let failingPostId: Int64 = 2
+        let lemmy = RecordingLemmyService(
+            appDatabase: appDatabase,
+            accountId: accountId,
+            communityId: communityId,
+            personId: personId,
+            pages: [.init(postCount: 3, nextCursor: nil)],
+            failingCommentPostIds: [failingPostId]
+        )
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase,
+            imageService: RecordingImageService(),
+            diagnostics: spy
+        )
+
+        for await _ in service.download(
+            feed: FeedHandle(feedKey: "diag-feed-fail", feedType: .frontpage(listingType: .All, sortType: .Hot)),
+            lemmyService: lemmy,
+            accountId: accountId,
+            siteId: siteId,
+            commentSort: commentSort,
+            showNsfw: false,
+            instance: "diag.instance"
+        ) { }
+
+        // One download.itemFailed event for the failing post.
+        let itemFailedEvents = spy.events(matching: "download.itemFailed")
+        #expect(itemFailedEvents.count == 1, "expected exactly one download.itemFailed event")
+        let itemFailedEvent = try #require(itemFailedEvents.first)
+        #expect(itemFailedEvent.category == .offlineDownload)
+        #expect(itemFailedEvent.level == .notice)
+        #expect(itemFailedEvent.instance == "diag.instance")
+        #expect(itemFailedEvent.metadata?["serverPostId"] == String(failingPostId))
+
+        // download.finish must reflect all 3 posts as downloaded (failed items
+        // still count toward downloadedCount for the progress UI) and 1 failed
+        // (for the diagnostic failedCount — a separate counter).
+        let finishEvents = spy.events(matching: "download.finish")
+        #expect(finishEvents.count == 1, "expected exactly one download.finish event")
+        let finishEvent = try #require(finishEvents.first)
+        #expect(finishEvent.metadata?["downloadedCount"] == "3")
+        #expect(finishEvent.metadata?["failedCount"] == "1")
+    }
+
+    @Test
+    func download_cancelled_emitsCancelledEvent() async throws {
+        let spy = DiagnosticLogSpy()
+        // Many pages with a non-nil cursor so the page loop runs long enough to
+        // be cancelled before it completes.
+        let manyPages = (0..<20).map { _ in
+            RecordingLemmyService.Page(postCount: 1, nextCursor: "cursor")
+        }
+        let lemmy = RecordingLemmyService(
+            appDatabase: appDatabase,
+            accountId: accountId,
+            communityId: communityId,
+            personId: personId,
+            pages: manyPages,
+            exhaustedCursor: "cursor"
+        )
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase,
+            imageService: RecordingImageService(),
+            diagnostics: spy
+        )
+
+        // Await the first page-fetch call so the download is in-flight, then
+        // cancel it. Consume the stream without cancelling it so the .cancelled
+        // terminal is delivered.
+        let downloadStream = service.download(
+            feed: FeedHandle(feedKey: "diag-feed-cancel", feedType: .frontpage(listingType: .All, sortType: .Hot)),
+            lemmyService: lemmy,
+            accountId: accountId,
+            siteId: siteId,
+            commentSort: commentSort,
+            showNsfw: false,
+            instance: "diag.instance"
+        )
+        var iterator = downloadStream.makeAsyncIterator()
+
+        // Read values until the first page arrives (service is actively running),
+        // then cancel so the diagnostic event is recorded.
+        await lemmy.firstFetchFeedStarted()
+        await service.cancelCurrentDownload()
+
+        // Drain the rest of the stream (delivers the .cancelled terminal).
+        while let _ = await iterator.next() { }
+
+        // At least one download.cancelled event must have been recorded.
+        let cancelledEvents = spy.events(matching: "download.cancelled")
+        #expect(!cancelledEvents.isEmpty, "expected at least one download.cancelled event")
+        let cancelledEvent = try #require(cancelledEvents.first)
+        #expect(cancelledEvent.category == .offlineDownload)
+        #expect(cancelledEvent.level == .info)
+        #expect(cancelledEvent.instance == "diag.instance")
     }
 }
