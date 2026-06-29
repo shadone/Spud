@@ -17,6 +17,7 @@ confirmed result back, so the bookmark state is authoritative.
 - **Confirm-then-mirror.** Saving calls the Lemmy API (`savePost` / `saveComment`) and then mirrors the server's returned view into the local database (`setSaved(serverPostId:saved:)` / `setSaved(serverCommentId:saved:)`). The bookmark glyph and the saved indicator update when the mirror lands.
 - **Toggle.** Save and unsave are the same affordance: the post toolbar button flips between an outline and a filled bookmark; the comment menu reads Save or Unsave depending on current state.
 - **Haptic on action.** Toggling save fires a light haptic.
+- **Offline save toast.** Saving or unsaving from **post detail** while offline shows a brief toast — "You're offline — we'll save this when you're back online." — confirming the change is queued and will be sent automatically once connectivity returns. The bookmark still flips optimistically and the action is durably recorded by the mutation outbox; the toast only sets expectations, and repeated offline saves coalesce into one toast rather than stacking.
 - **Signed-out gate.** Saving requires being signed in. A signed-out account gets a "Sign in to save" alert and a warning haptic, and no call is made; the service layer also rejects a save from a signed-out account.
 - **The Saved feed.** A Saved feed lists the signed-in account's **saved posts**. It is opened from the **Saved** button on the account screen and from the **Saved** row in the subscriptions sidebar (both shown only for signed-in accounts). Fetching the Saved feed is sign-in-gated and supports the same sort options and pagination as other feeds. When empty it shows "No saved posts yet / Posts you save will show up here."
 
@@ -35,6 +36,13 @@ confirmed result back, so the bookmark state is authoritative.
 - **Given** a comment
 - **When** I long-press it and choose Save
 - **Then** the comment is saved (the menu now reads Unsave) and a saved indicator appears on it
+
+### An offline save is queued with a toast
+
+- **Given** I am offline in post detail
+- **When** I save (or unsave) a post or comment
+- **Then** the bookmark flips immediately and a toast says "You're offline — we'll save this when you're back online."
+- **And** the change is queued and sent automatically when I'm back online
 
 ### Signed-out save is blocked
 

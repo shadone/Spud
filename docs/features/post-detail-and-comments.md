@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Voting](voting.md), [Saving](saving.md), [Replying](replying.md), [Sharing](sharing.md), [Configurable swipe actions](swipe-actions.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Voting](voting.md), [Saving](saving.md), [Replying](replying.md), [Sharing](sharing.md), [Configurable swipe actions](swipe-actions.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [Feed loading and pagination](feed-loading.md), [Media viewer and inline video](media-viewer.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -21,6 +21,8 @@ account has them.
 - **Attribution shows full handles.** The attribution reads "in `<Community>`@`<instance>` by `<Author>`@`<instance>`": the community's display name and the author's display name show their home instance host in a muted style (matching how instance hosts are dimmed in the post-list rows). Both `@instance` hosts are derived from the entity's own federation actor id (the author's home instance, e.g. `beehaw.org`), never from the local account's observing instance — so a post fetched on `lemmy.world` whose author lives on `beehaw.org` reads "by `<Author>`@beehaw.org", and the author handle deep-links to that home instance. The whole handle — display name plus `@instance` — is the tap target (to the community screen and the person profile respectively). A purely local handle still shows its own instance host.
 - **Navigation bar actions.** The post's toolbar carries four buttons: open in Safari, reply to the post, share, and save (the save button shows a filled bookmark when the post is saved).
 - **Threaded comments with depth rails.** A nested comment draws one colored rail per ancestor level on its leading edge, oldest ancestor first. Rail colors cycle through the active comment-ribbon theme so the same depth always reads as the same color; top-level comments draw no rail.
+- **Header image: cached thumbnail first, then full resolution.** For an image post, the header paints the feed cell's already-cached thumbnail immediately while the full-resolution image loads behind it (the same instant-first-frame idea as the media viewer), so opening a post from the feed never shows an empty gray box first. The full image replaces the thumbnail in place when it arrives.
+- **"Low-res preview" pill when the full image can't load.** If the full-resolution image *fails* to load but a thumbnail is already on screen (e.g. offline, after browsing it in the feed), the header keeps the thumbnail and shows a small tappable **"Low-res preview"** pill over it instead of a hard failure plate — so you still see *something* and know it's degraded. Tapping the pill retries the full image; long-pressing it offers **Open in browser**. The hard failure plate ("Image couldn't load", with **Retry** and **Open in browser**) only appears when nothing is on screen at all (no thumbnail to fall back to). (VoiceOver: the pill is a button labelled "Low-res preview" with a hint that the full image is unavailable.)
 - **Inline body images.** Markdown images (`![alt](url)`) in the post body and in comment bodies render inline as part of the text flow, sized to the content width at the image's aspect ratio (capped in height so a tall image doesn't dominate). They load asynchronously and the row re-measures once the image arrives; a failed load shows a small broken-image tile. Tapping an inline image opens it in the fullscreen media viewer.
 - **Tap to collapse.** Tapping a comment's body area collapses it (and expands it again); a light haptic fires. Tapping a link or inline image inside the author or body text follows the link (or opens the image) instead of collapsing. A collapsed comment hides its own body and all of its descendants, and shows a **"+N" badge** counting the hidden replies underneath it.
 - **Collapse is a view-layer filter.** The full ordered comment tree is produced once from the database; collapse only hides rows from the visible list and is never written to the server or the database. Collapse state is dropped when a comment leaves the tree, and is not persisted across reopening the post.
@@ -29,7 +31,8 @@ account has them.
 - **Your just-posted comment appears immediately.** A comment you post shows up inline in the tree at its position right away in a dimmed "Sending…" state (and "Failed — tap to retry" if the send fails), before the server confirms it; on success it becomes a normal comment. The compose / draft / retry flow behind this is documented in [Replying](replying.md) and [Drafts & Outbox](drafts-and-outbox.md).
 - **Jump to next top-level comment.** A floating chevron button at the bottom-trailing corner scrolls to the next top-level (depth-1) comment below the current position. It appears only while there is a next top-level comment to jump to and fades out otherwise.
 - **Comment permalink anchoring.** Opening the post via a `/comment/<id>` permalink (a deep link or the "Open in Spud" share extension) scrolls to that comment once the tree loads — expanding any collapsed ancestors — and flashes it with a one-time tint (skipped under Reduce Motion, where the scroll-to-top is the cue). If the target comment isn't in the post's loaded tree, it lands on the post without scrolling. See [Open in Spud](share-extension.md).
-- **Loading and empty placeholders sit below the post.** While comments load, a comment-shaped skeleton row shows directly under the post header; once the fetch settles with no comments, a centered "No comments yet — Be the first to comment." row takes its place. Both are in-flow rows that scroll with the content (right where the comments will appear), not a fixed background, so the pinned post header never covers them.
+- **Loading, empty, and failed placeholders sit below the post.** While comments load, a comment-shaped skeleton row shows directly under the post header; once the fetch *succeeds* with no comments, a "No comments yet / Be the first to comment." row takes its place. All of these are in-flow rows that scroll with the content (right where the comments will appear), not a fixed background, so the pinned post header never covers them.
+- **A failed comment load shows a truthful offline state, not the empty state.** When the comment fetch *fails* and there are no comments to show, the comments region shows a designed inline failure row — classified **offline** ("You're offline" / "Spud will retry automatically when you're back online."), **unreachable** ("Couldn't reach the server" / "The server may be down or your connection is unstable."), or **malformed** ("Something went wrong") — with a **Try again** button, instead of the misleading "No comments yet" empty state. The genuine empty state shows *only* after a fetch succeeds with zero comments; the failed state takes precedence whenever the last load errored with nothing on screen. The copy and classification mirror the feed's first-load error states — see [Feed loading and pagination](feed-loading.md). Tapping **Try again** re-fetches the thread. (A pull-to-refresh failure when comments are *already* on screen keeps the list and surfaces a toast instead — it never drops into this failed state.)
 - **Pull to refresh.** Pulling down refetches the comment thread for the current sort.
 - **Comment sort follows the default-sort preference.** The thread is sorted by the account's default comment sort (Hot, Top, New, Old, or Controversial). It is read once when the post opens; there is no in-screen control to change the sort for a single post.
 - **Per-comment context menu.** Long-pressing a comment offers Upvote, Downvote, Reply, Save / Unsave, and Share. On other people's comments it then offers Report; on your own comment it instead offers **Edit** (pencil) and **Delete** (destructive, with a confirmation) — or just **Restore** when the comment is already deleted (editing a deleted comment isn't offered). Edit opens the composer prefilled with the comment's current body and updates it optimistically + durably through the content outbox (see [Replying](replying.md)). Delete / Restore flips the comment's deleted state instantly (optimistically) and is delivered durably through the idempotent mutation outbox — the same vote / save / hide pipeline that retries transient failures in the background and rolls the optimistic change back (with a "Couldn't update comment" toast) on a permanent failure. After the menu, a Moderation submenu appears when the account can moderate.
@@ -49,9 +52,24 @@ account has them.
 
 ### A post with no comments shows the empty state below it
 
-- **Given** I open a post that has no comments
-- **Then** a "No comments yet — Be the first to comment." placeholder appears directly below the post content
+- **Given** I open a post whose comment fetch succeeds with zero comments
+- **Then** a "No comments yet / Be the first to comment." placeholder appears directly below the post content
 - **And** it is not hidden behind the pinned post header
+
+### A failed comment load shows a truthful offline state, not "No comments yet"
+
+- **Given** I open a post while offline (or the comment fetch otherwise fails) and no comments are on screen
+- **Then** the comments region shows an inline failure row — "You're offline" with "Spud will retry automatically when you're back online." (or the unreachable / malformed variant) — and a **Try again** button, never the misleading "No comments yet" empty state
+- **When** I tap **Try again**
+- **Then** the thread is re-fetched
+
+### A header image that can't load full-res keeps the thumbnail
+
+- **Given** an image post I have already seen in the feed, opened while the full-resolution image can't load (e.g. offline)
+- **Then** the header shows the cached thumbnail with a "Low-res preview" pill over it, not a hard "couldn't load" plate
+- **When** I tap the pill
+- **Then** the full image is retried
+- **And** long-pressing the pill offers **Open in browser**
 
 ### Collapse a comment by tapping it
 
