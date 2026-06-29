@@ -108,10 +108,13 @@ struct OfflineDownloadServiceTests {
     }
 
     /// Drives a download to completion, collecting every emitted progress value.
+    /// `maxPosts` defaults to the service default (100) but is overridable so a
+    /// test can assert a custom cap is honored.
     private func runDownload(
         service: OfflineDownloadService,
         lemmy: RecordingLemmyService,
-        showNsfw: Bool = false
+        showNsfw: Bool = false,
+        maxPosts: Int = OfflineDownloadService.defaultMaxPosts
     ) async -> [OfflineDownloadProgress] {
         var collected: [OfflineDownloadProgress] = []
         for await progress in service.download(
@@ -120,7 +123,8 @@ struct OfflineDownloadServiceTests {
             accountId: accountId,
             siteId: siteId,
             commentSort: commentSort,
-            showNsfw: showNsfw
+            showNsfw: showNsfw,
+            maxPosts: maxPosts
         ) {
             collected.append(progress)
         }
@@ -151,8 +155,36 @@ struct OfflineDownloadServiceTests {
 
         let terminal = try #require(progress.last)
         #expect(terminal.phase == .finished)
-        // totalPosts is capped at maxPosts even though 120 posts were persisted.
-        #expect(terminal.totalPosts == OfflineDownloadService.maxPosts)
+        // totalPosts is capped at the default maxPosts even though 120 posts
+        // were persisted.
+        #expect(terminal.totalPosts == OfflineDownloadService.defaultMaxPosts)
+    }
+
+    /// A custom cap (40) must limit BOTH the page loop and the targets: with
+    /// 30-post pages, the loop stops after the second page (60 >= 40) and the
+    /// content phase processes only the 40 capped targets, not all 60 persisted.
+    @Test
+    func customMaxPostsLimitsPagesAndTargets() async throws {
+        let lemmy = makeLemmy(pages: [
+            .init(postCount: 30, nextCursor: "p2"),
+            .init(postCount: 30, nextCursor: "p3"),
+            .init(postCount: 30, nextCursor: "p4"),
+        ])
+        let imageService = RecordingImageService()
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: imageService)
+
+        let progress = await runDownload(service: service, lemmy: lemmy, maxPosts: 40)
+
+        // 30 < 40, second page -> 60 >= 40, so it stops after 2 fetchFeed calls
+        // (the custom cap, not the 100 default, governs the page loop).
+        let calls = await lemmy.recordedFetchFeedCallCount()
+        #expect(calls == 2, "the custom cap should stop paging once persisted count reaches 40")
+
+        let terminal = try #require(progress.last)
+        #expect(terminal.phase == .finished)
+        // The targets query is limited to the cap: 40 of the 60 persisted posts.
+        #expect(terminal.totalPosts == 40, "targets capped at the custom maxPosts")
+        #expect(terminal.itemsCompleted == 40)
     }
 
     /// A nil cursor ends the page loop even when the cap hasn't been reached;
@@ -300,6 +332,13 @@ struct OfflineDownloadServiceTests {
         let lemmy = makeLemmy(pages: pages)
         let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService())
 
+        // A high cap so neither the count-stop nor the page backstop ends the
+        // run on its own before the cancel lands: with 1-post pages and an
+        // always-non-nil cursor, only cancellation can stop the loop here.
+        // (`maxPages(forMaxPosts: 1000)` comfortably exceeds the 50 planned
+        // pages, so the loop stays alive long enough to be cancelled.)
+        let maxPosts = 1000
+
         // A continuation the consumer signals once it has seen the first
         // `.fetchingPosts`, so cancellation is driven deterministically (no
         // sleeps) only after the run is actually working.
@@ -315,7 +354,8 @@ struct OfflineDownloadServiceTests {
                 accountId: accountId,
                 siteId: siteId,
                 commentSort: commentSort,
-                showNsfw: false
+                showNsfw: false,
+                maxPosts: maxPosts
             ) {
                 collected.append(progress)
                 if progress.phase == .fetchingPosts {
@@ -362,7 +402,10 @@ struct OfflineDownloadServiceTests {
         // calls, bounded well under the maxPages backstop.
         let calls = await lemmy.recordedFetchFeedCallCount()
         #expect(calls == 2, "loop should break the first page that adds no new posts")
-        #expect(calls <= OfflineDownloadService.maxPages, "loop must stay within the page backstop")
+        #expect(
+            calls <= OfflineDownloadService.maxPages(forMaxPosts: OfflineDownloadService.defaultMaxPosts),
+            "loop must stay within the page backstop"
+        )
 
         let terminal = try #require(progress.last)
         #expect(terminal.phase == .finished)

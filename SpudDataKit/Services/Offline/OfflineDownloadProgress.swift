@@ -45,7 +45,7 @@ public struct OfflineDownloadProgress: Sendable, Equatable {
 
     /// The total number of posts the content phase will process. Zero until the
     /// page-fetch phase finishes and the download targets are read, then fixed
-    /// for the rest of the run. Capped at the service's `maxPosts`.
+    /// for the rest of the run. Capped at the run's chosen `maxPosts`.
     public var totalPosts: Int
 
     /// Number of target posts whose content (comments + images) has been
