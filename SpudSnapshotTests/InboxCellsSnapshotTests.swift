@@ -63,6 +63,20 @@ final class InboxCellsSnapshotTests: XCTestCase {
         assertCell(cell)
     }
 
+    func test_conversation_sending() async {
+        let cell = await makeConversationCell(
+            conversation: conversation(hasUnread: false, pendingStatus: .sending)
+        )
+        assertCell(cell)
+    }
+
+    func test_conversation_failed() async {
+        let cell = await makeConversationCell(
+            conversation: conversation(hasUnread: false, pendingStatus: .failed)
+        )
+        assertCell(cell)
+    }
+
     // MARK: - Cell construction
 
     private func makeCommentCell(isRead: Bool) -> InboxCommentCell {
@@ -159,7 +173,8 @@ final class InboxCellsSnapshotTests: XCTestCase {
     private func conversation(
         hasUnread: Bool,
         unreadCount: Int? = nil,
-        latestContent: String = "Sounds good, see you then!"
+        latestContent: String = "Sounds good, see you then!",
+        pendingStatus: InboxConversationPendingStatus? = nil
     ) -> InboxConversation {
         InboxConversation(
             correspondentId: 1,
@@ -168,7 +183,7 @@ final class InboxCellsSnapshotTests: XCTestCase {
             latestContent: latestContent,
             latestPublished: Date(timeIntervalSinceNow: -3 * 3600),
             unreadCount: hasUnread ? (unreadCount ?? 1) : 0,
-            messages: []
+            pendingStatus: pendingStatus
         )
     }
 }

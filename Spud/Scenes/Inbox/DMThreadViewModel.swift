@@ -411,7 +411,8 @@ final class DMThreadViewModel {
 
     /// True if `message` was authored by the account holder (right-aligned). When
     /// `myServerPersonId` is unknown, anything not from the correspondent is
-    /// treated as outgoing — matching `InboxConversationBuilder`'s fallback.
+    /// treated as outgoing — matching the creator fallback in
+    /// `observeConversations`.
     private func isOutgoing(_ message: PrivateMessageRow) -> Bool {
         if let myServerPersonId {
             return message.creatorServerPersonId == myServerPersonId

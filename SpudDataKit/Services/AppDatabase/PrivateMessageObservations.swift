@@ -29,7 +29,7 @@ public struct PrivateMessageConversationRow: Sendable, Equatable, Identifiable {
     /// Timestamp of the most-recent message; drives the newest-thread-first sort.
     public let latestPublished: Date
     /// Number of unread *incoming* messages — unread messages whose author is
-    /// the correspondent. Matches `InboxConversationBuilder`'s unread rule.
+    /// the correspondent (the inbox's incoming-only unread rule).
     public let unreadCount: Int
 
     public var id: Int64 {
@@ -54,7 +54,7 @@ public struct PrivateMessageConversationRow: Sendable, Equatable, Identifiable {
 }
 
 /// One message inside a DM thread, with its author's display name/avatar joined
-/// from the `person` table. Mirrors `InboxMessageItem` from the in-memory inbox.
+/// from the `person` table. Render model for the chat-style DM thread.
 public struct PrivateMessageRow: Sendable, Equatable, Identifiable {
     /// The Lemmy `PrivateMessageID`.
     public let serverMessageId: Int64
@@ -106,8 +106,7 @@ public extension AppDatabase {
     /// The "correspondent" is the participant who is not the account holder. We
     /// resolve the account's own person id from `account.personId`; when it is
     /// unknown (signed-out / not yet resolved) we fall back to treating the
-    /// creator as the correspondent — the same fallback as
-    /// `InboxConversationBuilder` (received messages dominate the inbox, so the
+    /// creator as the correspondent (received messages dominate the inbox, so the
     /// creator is almost always the other party). The correspondent is derived
     /// in SQL with a CASE expression so the grouping/aggregation stays a single
     /// query.
@@ -127,15 +126,14 @@ public extension AppDatabase {
                 // message participant columns are keyed on. NULL (signed-out /
                 // own person not yet imported) triggers the
                 // creator-is-correspondent fallback below: the CASE can't match a
-                // NULL, so every row lands on the ELSE branch (creator), matching
-                // InboxConversationBuilder.
+                // NULL, so every row lands on the ELSE branch (creator).
                 let myServerPersonId: Int64? = try account.personId.flatMap { personRowId in
                     try PersonRecord.fetchOne(db, key: personRowId)?.personId
                 }
 
                 // correspondent = the participant who isn't me. With
                 // myServerPersonId NULL the equality is never true, so every row
-                // falls to ELSE (creator) — the InboxConversationBuilder fallback.
+                // falls to ELSE (creator) — the creator-is-correspondent fallback.
                 // Strategy: derive each message's correspondent in a `scoped`
                 // subquery, group by it to find the per-thread max timestamp,
                 // then re-join `scoped` to pull the latest message's content.

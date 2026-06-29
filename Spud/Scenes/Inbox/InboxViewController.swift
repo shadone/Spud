@@ -116,6 +116,7 @@ final class InboxViewController: UIViewController {
 
         viewModel = InboxViewModel(
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
+            appDatabase: dependencies.appDatabase,
             isSignedIn: isSignedIn,
             myPersonId: myPersonId,
             alertService: dependencies.alertService,
