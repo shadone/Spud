@@ -25,10 +25,22 @@ import LemmyKit
 actor RecordingLemmyService: LemmyServiceType {
     /// Per-page seeding plan for `fetchFeed`. Each call consumes the next page.
     struct Page {
-        /// How many posts this page inserts.
+        /// How many *new* posts this page inserts.
         let postCount: Int
         /// The cursor returned to the caller (nil = feed exhausted).
         let nextCursor: String?
+        /// Server post ids this page re-seeds *instead of* inserting new posts —
+        /// modelling a page whose posts are already in the feed (prior browsing
+        /// loaded them, or Hot/Active ranking churn re-served them). The real
+        /// `appendFeedPage` de-dupes these, so the persisted count does NOT grow
+        /// for such a page. When non-empty, `postCount` is ignored.
+        let duplicatePostIds: [Int64]
+
+        init(postCount: Int, nextCursor: String?, duplicatePostIds: [Int64] = []) {
+            self.postCount = postCount
+            self.nextCursor = nextCursor
+            self.duplicatePostIds = duplicatePostIds
+        }
     }
 
     private let appDatabase: AppDatabase
@@ -46,14 +58,27 @@ actor RecordingLemmyService: LemmyServiceType {
     /// count plateaus. Without it, an exhausted plan returns nil (feed ended).
     private let exhaustedCursor: String?
 
+    /// Server post ids a page may re-seed to model already-browsed / churn
+    /// duplicates. A `Page` whose `duplicatePostIds` is non-empty re-inserts
+    /// those exact ids (which `appendFeedPage`'s real de-dupe would drop) and
+    /// inserts no *new* posts — so the persisted count doesn't grow, exactly as
+    /// it wouldn't for the live importer when a page's posts are already in the
+    /// feed. Tracked so the fake doesn't hand out a colliding id later.
+    private var seededServerPostIds: Set<Int64> = []
+
     /// The seeding plan, consumed front-to-back across `fetchFeed` calls. When
     /// exhausted, further `fetchFeed` calls insert nothing and return nil.
     private var pages: [Page]
     private var pageIndex = 0
-    /// Running server-post-id counter, so each seeded post is distinct.
-    private var nextServerPostId: Int64 = 1
-    /// Running page position for the feed's `page` rows.
-    private var nextPagePosition: Int64 = 0
+    /// Running server-post-id counter, so each seeded post is distinct. Starts
+    /// at `firstServerPostId` so a test that pre-seeds "already browsed" posts
+    /// can continue the id space past them and avoid colliding fresh ids.
+    private var nextServerPostId: Int64
+    /// Running page position for the feed's `page` rows. Starts at
+    /// `firstPagePosition` so a test that pre-seeds a feed page (modelling prior
+    /// browsing) can continue past it without colliding on the
+    /// `(feedId, position)` unique constraint.
+    private var nextPagePosition: Int64
 
     /// Server post ids whose `fetchComments` should throw, to exercise the
     /// best-effort-per-item path.
@@ -77,7 +102,9 @@ actor RecordingLemmyService: LemmyServiceType {
         pages: [Page],
         imageUrlForSeededPosts: String? = "https://example.com/image.jpg",
         failingCommentPostIds: Set<Int64> = [],
-        exhaustedCursor: String? = nil
+        exhaustedCursor: String? = nil,
+        firstServerPostId: Int64 = 1,
+        firstPagePosition: Int64 = 0
     ) {
         self.appDatabase = appDatabase
         self.accountId = accountId
@@ -87,6 +114,8 @@ actor RecordingLemmyService: LemmyServiceType {
         self.imageUrlForSeededPosts = imageUrlForSeededPosts
         self.failingCommentPostIds = failingCommentPostIds
         self.exhaustedCursor = exhaustedCursor
+        nextServerPostId = firstServerPostId
+        nextPagePosition = firstPagePosition
         (firstFetchFeedStream, firstFetchFeedContinuation) = AsyncStream<Void>.makeStream()
     }
 
@@ -131,15 +160,27 @@ actor RecordingLemmyService: LemmyServiceType {
         pageIndex += 1
 
         let feedKey = feed.feedKey
-        let postCount = page.postCount
         let accountId = accountId
         let communityId = communityId
         let personId = personId
         let imageUrl = imageUrlForSeededPosts
         let pagePosition = nextPagePosition
         nextPagePosition += 1
+
+        // A duplicate page re-serves posts already in the feed (prior browsing /
+        // ranking churn). The real `appendFeedPage` de-dupes them, so the
+        // persisted count must NOT grow: we insert no new `post` rows, only a
+        // new `page` whose elements point at the EXISTING posts.
+        let isDuplicatePage = !page.duplicatePostIds.isEmpty
+        let postCount = isDuplicatePage ? 0 : page.postCount
         let firstServerPostId = nextServerPostId
-        nextServerPostId += Int64(postCount)
+        if !isDuplicatePage {
+            nextServerPostId += Int64(postCount)
+            for offset in 0..<postCount {
+                seededServerPostIds.insert(firstServerPostId + Int64(offset))
+            }
+        }
+        let duplicatePostIds = page.duplicatePostIds
 
         try await appDatabase.writer.write { db in
             // Lazily create the feed row on first page (mirrors appendFeedPage).
@@ -165,6 +206,26 @@ actor RecordingLemmyService: LemmyServiceType {
             var pageRecord = PageRecord(feedId: feedRowId, position: pagePosition, createdAt: Date())
             try pageRecord.insert(db)
             let pageRowId = pageRecord.id!
+
+            if isDuplicatePage {
+                // Point this page's elements at the already-persisted posts; no
+                // new `post` rows, so `offlineFeedPostCountSync` stays flat.
+                for (offset, serverPostId) in duplicatePostIds.enumerated() {
+                    let postRowId = try Int64.fetchOne(
+                        db,
+                        sql: "SELECT id FROM post WHERE accountId = ? AND postId = ?",
+                        arguments: [accountId, serverPostId]
+                    )
+                    guard let postRowId else { continue }
+                    var element = PageElementRecord(
+                        pageId: pageRowId,
+                        postId: postRowId,
+                        position: Int64(offset)
+                    )
+                    try element.insert(db)
+                }
+                return
+            }
 
             for offset in 0..<postCount {
                 let serverPostId = firstServerPostId + Int64(offset)

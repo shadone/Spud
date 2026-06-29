@@ -93,7 +93,9 @@ struct OfflineDownloadServiceTests {
         pages: [RecordingLemmyService.Page],
         imageUrlForSeededPosts: String? = "https://example.com/image.jpg",
         failingCommentPostIds: Set<Int64> = [],
-        exhaustedCursor: String? = nil
+        exhaustedCursor: String? = nil,
+        firstServerPostId: Int64 = 1,
+        firstPagePosition: Int64 = 0
     ) -> RecordingLemmyService {
         RecordingLemmyService(
             appDatabase: appDatabase,
@@ -103,7 +105,9 @@ struct OfflineDownloadServiceTests {
             pages: pages,
             imageUrlForSeededPosts: imageUrlForSeededPosts,
             failingCommentPostIds: failingCommentPostIds,
-            exhaustedCursor: exhaustedCursor
+            exhaustedCursor: exhaustedCursor,
+            firstServerPostId: firstServerPostId,
+            firstPagePosition: firstPagePosition
         )
     }
 
@@ -129,6 +133,67 @@ struct OfflineDownloadServiceTests {
             collected.append(progress)
         }
         return collected
+    }
+
+    // MARK: - Seed helpers
+
+    /// Directly seed `count` posts into the feed (one page), modelling posts the
+    /// user already loaded by browsing BEFORE tapping Download. Returns the
+    /// server post ids seeded (1...count), so a later `fetchFeed` page can
+    /// re-serve them as duplicates. The `RecordingLemmyService` is created with a
+    /// `nextServerPostId` that continues past these so its fresh pages never
+    /// collide.
+    private func preSeedBrowsedPosts(count: Int) async throws -> [Int64] {
+        let ids = Array(Int64(1)...Int64(count))
+        let feedKey = feed.feedKey
+        let accountId = accountId
+        let communityId = communityId
+        let personId = personId
+        try await appDatabase.writer.write { db in
+            var feedRecord = FeedRecord(
+                accountId: accountId,
+                feedKey: feedKey,
+                savedOnly: false,
+                sortType: "Hot",
+                createdAt: Date()
+            )
+            try feedRecord.insert(db)
+            let feedRowId = feedRecord.id!
+            var pageRecord = PageRecord(feedId: feedRowId, position: 0, createdAt: Date())
+            try pageRecord.insert(db)
+            let pageRowId = pageRecord.id!
+            for (offset, serverPostId) in ids.enumerated() {
+                let now = Date()
+                try db.execute(
+                    sql: """
+                        INSERT INTO post
+                            (accountId, communityId, creatorId, postId, title, url, thumbnailUrl,
+                             originalPostUrl, score, numberOfUpvotes, numberOfDownvotes, numberOfComments,
+                             isRead, isSaved, isHidden, isNsfw, isRemoved, isLocked,
+                             isFeaturedCommunity, isFeaturedLocal, isDeleted,
+                             published, createdAt, updatedAt)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, ?, ?, ?)
+                        """,
+                    arguments: [
+                        accountId,
+                        communityId,
+                        personId,
+                        serverPostId,
+                        "Post \(serverPostId)",
+                        "https://example.com/image.jpg",
+                        "https://example.com/thumb/\(serverPostId).jpg",
+                        "https://example.com/post/\(serverPostId)",
+                        now,
+                        now,
+                        now,
+                    ]
+                )
+                let postRowId = db.lastInsertedRowID
+                var element = PageElementRecord(pageId: pageRowId, postId: postRowId, position: Int64(offset))
+                try element.insert(db)
+            }
+        }
+        return ids
     }
 
     // MARK: - Tests
@@ -382,13 +447,13 @@ struct OfflineDownloadServiceTests {
 
     /// A pathological server that keeps returning a non-nil cursor while no
     /// longer contributing new posts (all duplicates / an already-populated
-    /// feed) must NOT spin the page loop forever: the count-didn't-grow guard
-    /// breaks the loop the first page that adds nothing, so the run terminates
-    /// `.finished` with the posts gathered so far.
+    /// feed) must NOT spin the page loop forever: after
+    /// `maxConsecutiveEmptyPages` consecutive no-growth pages the loop stops,
+    /// so the run terminates `.finished` with the posts gathered so far.
     @Test
     func pageLoopStopsWhenCountPlateaus() async throws {
-        // 40 posts arrive over the first pages, then the server keeps handing
-        // back a cursor forever while inserting nothing.
+        // 40 posts arrive on the first page, then the server keeps handing back
+        // a cursor forever while inserting nothing.
         let lemmy = makeLemmy(
             pages: [.init(postCount: 40, nextCursor: "p2")],
             exhaustedCursor: "forever" // non-nil cursor on every subsequent call
@@ -397,11 +462,16 @@ struct OfflineDownloadServiceTests {
 
         let progress = await runDownload(service: service, lemmy: lemmy)
 
-        // The loop must terminate. After the first page (40 posts) the next
-        // page adds nothing -> count-didn't-grow break. So exactly 2 fetchFeed
-        // calls, bounded well under the maxPages backstop.
+        // The loop must terminate. The first page seeds 40, then a run of empty
+        // pages: the loop tolerates `maxConsecutiveEmptyPages` consecutive
+        // no-growth pages before breaking. So 1 (growing) + N (empty, the last
+        // of which trips the cap) = 1 + maxConsecutiveEmptyPages calls, bounded
+        // well under the maxPages backstop.
         let calls = await lemmy.recordedFetchFeedCallCount()
-        #expect(calls == 2, "loop should break the first page that adds no new posts")
+        #expect(
+            calls == 1 + OfflineDownloadService.maxConsecutiveEmptyPages,
+            "loop should stop after maxConsecutiveEmptyPages consecutive no-growth pages"
+        )
         #expect(
             calls <= OfflineDownloadService.maxPages(forMaxPosts: OfflineDownloadService.defaultMaxPosts),
             "loop must stay within the page backstop"
@@ -410,6 +480,75 @@ struct OfflineDownloadServiceTests {
         let terminal = try #require(progress.last)
         #expect(terminal.phase == .finished)
         #expect(terminal.totalPosts == 40)
+    }
+
+    /// REGRESSION: a feed whose first page was ALREADY loaded by prior browsing
+    /// must NOT stop the download after that single no-growth page. The first
+    /// `fetchFeed(pageCursor: nil)` re-serves the top page (all duplicates,
+    /// de-duped by `appendFeedPage` so the persisted count doesn't grow); the
+    /// old single-page "count-didn't-grow" break fired immediately and the
+    /// download stopped at the ~handful of already-browsed posts. With the
+    /// consecutive-no-growth fix the loop keeps paging and reaches the cap.
+    @Test
+    func pagePreloadedByBrowsingDoesNotStopDownloadEarly() async throws {
+        // Simulate prior browsing: 10 posts (ids 1...10) already in the feed.
+        let browsed = try await preSeedBrowsedPosts(count: 10)
+
+        // First download page re-serves the already-browsed posts (zero new),
+        // then fresh pages of 30 follow. Fresh ids continue past the 10 browsed.
+        let lemmy = makeLemmy(
+            pages: [
+                .init(postCount: 0, nextCursor: "p2", duplicatePostIds: browsed),
+                .init(postCount: 30, nextCursor: "p3"),
+                .init(postCount: 30, nextCursor: "p4"),
+                .init(postCount: 30, nextCursor: "p5"),
+                .init(postCount: 30, nextCursor: nil),
+            ],
+            firstServerPostId: 11,
+            // The pre-seeded "browsed" page occupies feed position 0; continue
+            // past it so fetchFeed's pages don't collide on (feedId, position).
+            firstPagePosition: 1
+        )
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService())
+
+        let progress = await runDownload(service: service, lemmy: lemmy, maxPosts: 100)
+
+        let terminal = try #require(progress.last)
+        #expect(terminal.phase == .finished)
+        // 10 browsed + 30*4 fresh = 130 persisted, capped at maxPosts (100).
+        // The bug stopped at ~10; the fix must reach the full 100-post cap.
+        #expect(
+            terminal.totalPosts == 100,
+            "an already-browsed first page must not stop the download early"
+        )
+    }
+
+    /// A single mid-run duplicate page (Hot/Active ranking churn re-serving a
+    /// page already in the feed) must NOT stop the download: one no-growth page
+    /// is below `maxConsecutiveEmptyPages`, so paging continues and the feed's
+    /// genuine end (nil cursor) terminates it.
+    @Test
+    func singleMidRunDuplicatePageDoesNotStopDownload() async throws {
+        // Page 1 seeds 30, page 2 re-serves page 1's posts (churn, zero growth),
+        // page 3 seeds 30 more, then the feed ends.
+        let firstPageIds = Array(Int64(1)...Int64(30))
+        let lemmy = makeLemmy(pages: [
+            .init(postCount: 30, nextCursor: "p2"),
+            .init(postCount: 0, nextCursor: "p3", duplicatePostIds: firstPageIds),
+            .init(postCount: 30, nextCursor: nil),
+        ])
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService())
+
+        let progress = await runDownload(service: service, lemmy: lemmy, maxPosts: 100)
+
+        // All three pages are fetched; the churn page in the middle doesn't end
+        // the run.
+        let calls = await lemmy.recordedFetchFeedCallCount()
+        #expect(calls == 3, "a single churn page must not stop the download")
+
+        let terminal = try #require(progress.last)
+        #expect(terminal.phase == .finished)
+        #expect(terminal.totalPosts == 60, "30 + 30 unique posts (churn page added none)")
     }
 
     /// A second concurrent `download` while one is in flight is rejected with a

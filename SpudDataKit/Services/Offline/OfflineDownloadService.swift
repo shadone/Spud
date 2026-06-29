@@ -54,21 +54,43 @@ public actor OfflineDownloadService {
 
     /// Extra pages allowed beyond the count-derived minimum, absorbing a feed that
     /// trickles a few duplicates per page without prematurely capping a legitimate
-    /// run.
-    private static let maxPagesBuffer = 5
+    /// run. Sized so that even a run that starts on an already-browsed top page,
+    /// plus a sprinkle of ranking-churn duplicate pages, still has enough page
+    /// budget to reach a large (250 / 500) `maxPosts` target on a healthy feed.
+    private static let maxPagesBuffer = 10
+
+    /// Number of *consecutive* feed pages that may add no new posts before the
+    /// page loop concludes the feed is exhausted and stops.
+    ///
+    /// A single no-growth page is NOT a stop signal: the very first
+    /// `fetchFeed(pageCursor: nil)` re-fetches the feed's top page, and if the
+    /// user had already scrolled the feed those posts are all in it already, so
+    /// `appendFeedPage` de-dupes them and the count doesn't grow — a normal,
+    /// expected event, not the end of the feed. Likewise Hot/Active ranking
+    /// churn can re-serve an already-seen page mid-run. Only when several pages
+    /// IN A ROW contribute nothing do we treat the feed as genuinely exhausted.
+    /// A page that grows the count resets the counter (see ``fetchPages``).
+    static let maxConsecutiveEmptyPages = 3
 
     /// Hard cap on the number of feed pages a single download will request, scaled
     /// to `maxPosts`. A backstop against a pathological server that keeps handing
     /// back a non-nil cursor while trickling little or no new content: even if the
-    /// count-didn't-grow guard somehow doesn't fire (e.g. the server adds one new
-    /// post per page), this guarantees the page loop terminates.
+    /// consecutive-no-growth guard somehow doesn't fire (e.g. the server adds one
+    /// new post per page, so no page is ever empty), this guarantees the page loop
+    /// terminates.
     ///
     /// Scaled — rather than a fixed 20 — so a larger `maxPosts` (250 / 500) still
     /// gets enough pages to reach its target on a normal feed: at
     /// ``minExpectedPageSize`` posts/page plus ``maxPagesBuffer``, the backstop
     /// comfortably clears the cap for a healthy feed and only bounds a pathological
-    /// one. The count-didn't-grow break (in ``fetchPages``) remains the primary
-    /// infinite-loop guard; this is the secondary, always-terminating one.
+    /// one. The consecutive-no-growth break (in ``fetchPages``) remains the primary
+    /// feed-exhausted guard; this is the secondary, always-terminating one.
+    ///
+    /// `minExpectedPageSize` is 10 because `LemmyService.fetchFeed` calls
+    /// `getPosts` with no explicit `limit`, so Lemmy's server default page size
+    /// (10 posts) applies — the backstop must allow at least `maxPosts / 10`
+    /// pages, plus the buffer, or a large run would be capped short. (Most
+    /// instances actually return more, so this is a conservative floor.)
     static func maxPages(forMaxPosts maxPosts: Int) -> Int {
         let pagesToReachTarget = (maxPosts + minExpectedPageSize - 1) / minExpectedPageSize
         return pagesToReachTarget + maxPagesBuffer
@@ -334,6 +356,15 @@ public actor OfflineDownloadService {
         var persistedCount = appDatabase.offlineFeedPostCountSync(feedKey: feed.feedKey)
         var pagesFetched = 0
 
+        // How many consecutive pages have added no new posts. A single
+        // no-growth page is expected and harmless (the first
+        // `fetchFeed(pageCursor: nil)` re-fetches the top page, which is wholly
+        // in the feed already when the user had scrolled before tapping
+        // Download; `appendFeedPage` de-dupes it so the count doesn't grow), so
+        // we don't stop on it — we only conclude the feed is exhausted after
+        // ``maxConsecutiveEmptyPages`` empties IN A ROW.
+        var consecutiveEmptyPages = 0
+
         repeat {
             try Task.checkCancellation()
 
@@ -351,12 +382,22 @@ public actor OfflineDownloadService {
             persistedCount = appDatabase.offlineFeedPostCountSync(feedKey: feed.feedKey)
             emit(OfflineDownloadProgress(phase: .fetchingPosts, postsFetched: persistedCount))
 
-            // Count-didn't-grow break: the page upserted only posts already in
-            // the feed (a feed with fewer than maxPosts unique posts, or a
-            // re-download of an already-populated feed). The cursor may stay
-            // non-nil forever in that case, so treat "no new posts" as the end
-            // of useful content and stop — otherwise the loop never terminates.
-            guard persistedCount > beforeCount else { break }
+            // Consecutive-no-growth break: a page that upserted only posts
+            // already in the feed adds nothing (the already-browsed top page on
+            // the first call, an already-populated re-download, ranking-churn
+            // duplicates, or a feed with fewer than maxPosts unique posts). One
+            // such page is normal — stopping on it was the shipped bug that
+            // ended a 500-post download at the ~handful of already-loaded posts.
+            // A page that grows the count resets the counter; only when the
+            // feed yields nothing new for ``maxConsecutiveEmptyPages`` pages in
+            // a row do we treat it as exhausted and stop (otherwise, with a
+            // forever-non-nil cursor, the loop would never terminate).
+            if persistedCount > beforeCount {
+                consecutiveEmptyPages = 0
+            } else {
+                consecutiveEmptyPages += 1
+                guard consecutiveEmptyPages < Self.maxConsecutiveEmptyPages else { break }
+            }
 
             // nil cursor means the server has no more pages.
             guard let nextCursor, !nextCursor.isEmpty else { break }
@@ -364,7 +405,7 @@ public actor OfflineDownloadService {
 
             // Hard page-count backstop: even a server that trickles one new
             // post per page (so the count keeps creeping up and the
-            // count-didn't-grow guard never fires) can't keep the loop alive
+            // consecutive-no-growth guard never fires) can't keep the loop alive
             // indefinitely.
             guard pagesFetched < maxPages else { break }
         } while persistedCount < maxPosts
