@@ -60,7 +60,11 @@ class PostListViewController: UIViewController {
         dependencies.own.preferencesService
     }
 
-    private var reachabilityMonitor: ReachabilityMonitoring {
+    /// `internal` (not `private`) ONLY so the offline-download extension
+    /// (`PostListViewController+OfflineDownload.swift`) can read it for its
+    /// offline pre-check. Not public API — treat as private to this file's
+    /// own use plus that one extension seam.
+    var reachabilityMonitor: ReachabilityMonitoring {
         dependencies.own.reachabilityMonitor
     }
 
@@ -207,6 +211,67 @@ class PostListViewController: UIViewController {
     /// as the primary-feed marker for the forthcoming feed-title redesign.
     private let showsQuickSwitch: Bool
 
+    // MARK: Offline download
+
+    // The members in this section (`offlineDownloadService`, `offlineDownloadTask`,
+    // `offlineDownloadProgressViewModel`, `offlineDownloadSheetDelegate`, and the
+    // `currentFeedHandle` / `currentAccountScope` / `currentAccountKeychainId`
+    // accessors over the `private` view model) are `internal` ONLY so the
+    // offline-download extension (`PostListViewController+OfflineDownload.swift`)
+    // can drive the launch + lifecycle. They are an extension seam, not public API.
+
+    /// The engine that predownloads the current feed for offline browsing.
+    /// Instantiated lazily (and held for the controller's lifetime) so a download
+    /// started from the short-lived Quick Switch popover outlives that popover —
+    /// the actor guarantees only one download runs at a time across taps. Built
+    /// directly here (rather than via the DI container) because it needs only the
+    /// two services the controller already holds, and no other screen launches
+    /// downloads.
+    lazy var offlineDownloadService = OfflineDownloadService(
+        appDatabase: appDatabase,
+        imageService: imageService
+    )
+
+    /// The task draining the in-flight download's progress stream, updating the
+    /// progress sheet on each value. Retained so dismissing the sheet (swipe or
+    /// programmatic) can tear it down. Cancelling this task terminates the stream,
+    /// which cancels the download via the stream's `onTermination`.
+    var offlineDownloadTask: Task<Void, Never>?
+
+    /// The presented progress sheet's view model, held so stream values can push
+    /// updates into it. Nil when no download sheet is showing.
+    var offlineDownloadProgressViewModel: OfflineDownloadProgressViewModel?
+
+    /// Presentation-controller delegate for the progress sheet, retained because
+    /// a presentation controller holds its delegate weakly. Its closure cancels a
+    /// live download when the user swipes the sheet away (so a swipe-dismiss
+    /// doesn't leave a runaway background download). Configured in
+    /// `startOfflineDownload`.
+    lazy var offlineDownloadSheetDelegate: OfflineDownloadSheetDismissDelegate = {
+        let delegate = OfflineDownloadSheetDismissDelegate()
+        delegate.onInteractiveDismiss = { [weak self] in
+            self?.handleOfflineSheetSwipedAway()
+        }
+        return delegate
+    }()
+
+    /// The feed currently shown, for the offline-download launch path (the
+    /// view model is `private`).
+    var currentFeedHandle: FeedHandle {
+        viewModel.feed
+    }
+
+    /// The backing account scope, for the offline-download launch path.
+    var currentAccountScope: AccountScope {
+        viewModel.accountScope
+    }
+
+    /// The backing account's durable keychain id, for the offline-download
+    /// launch path.
+    var currentAccountKeychainId: String {
+        viewModel.accountKeychainId
+    }
+
     // MARK: Functions
 
     init(
@@ -251,6 +316,7 @@ class PostListViewController: UIViewController {
         paginationStateObservationTask?.cancel()
         reachabilityObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
+        offlineDownloadTask?.cancel()
         for task in displayPrefsObservationTasks {
             task.cancel()
         }
@@ -754,6 +820,14 @@ class PostListViewController: UIViewController {
             currentSort: viewModel.feed.feedType.sortType,
             onSelectSort: { [weak self] sortType in
                 self?.sortTypeChanged(to: sortType)
+            },
+            onDownloadForOffline: { [weak self] in
+                // The popover dismisses itself before invoking this; defer to the
+                // next runloop so the progress sheet presents from a settled state
+                // rather than racing the popover's dismissal animation.
+                DispatchQueue.main.async {
+                    self?.startOfflineDownload()
+                }
             }
         )
         let host = UIHostingController(rootView: QuickSwitchView(viewModel: quickSwitchViewModel))

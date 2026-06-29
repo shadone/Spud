@@ -20,6 +20,7 @@ import SpudUIKit
 final class QuickSwitchViewModel {
     private let preferencesService: PreferencesServiceType
     private let onSelectSort: (Components.Schemas.SortType) -> Void
+    private let onDownloadForOffline: () -> Void
 
     let allPostDensities: [PostDensity] = PostDensity.allCases
     let allThumbnailPositions: [ThumbnailPosition] = ThumbnailPosition.allCases
@@ -35,10 +36,12 @@ final class QuickSwitchViewModel {
     init(
         preferencesService: PreferencesServiceType,
         currentSort: Components.Schemas.SortType,
-        onSelectSort: @escaping (Components.Schemas.SortType) -> Void
+        onSelectSort: @escaping (Components.Schemas.SortType) -> Void,
+        onDownloadForOffline: @escaping () -> Void = { }
     ) {
         self.preferencesService = preferencesService
         self.onSelectSort = onSelectSort
+        self.onDownloadForOffline = onDownloadForOffline
         self.currentSort = currentSort
         postDensity = preferencesService.postDensity
         thumbnailPosition = preferencesService.thumbnailPosition
@@ -94,5 +97,13 @@ final class QuickSwitchViewModel {
         currentSort = value
         onSelectSort(value)
         Haptics.tap()
+    }
+
+    /// Routes the "Download for offline" tap back to the hosting controller,
+    /// which holds the feed handle, account scope, and download service. The
+    /// popover dismisses itself; the controller presents the progress sheet.
+    func downloadForOffline() {
+        Haptics.tap()
+        onDownloadForOffline()
     }
 }

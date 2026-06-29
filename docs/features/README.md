@@ -63,6 +63,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [NSFW content visibility and blur](nsfw-content.md) | `iphone`, `ipad` | shipped |
 | [Feeds and sorting](feeds-and-sorting.md) | `iphone`, `ipad` | shipped |
 | [Feed loading and pagination](feed-loading.md) | `iphone`, `ipad` | shipped — cursor pagination + pull-to-refresh + offline/unreachable/malformed states with retry |
+| [Download a feed for offline browsing](offline-download.md) | `iphone`, `ipad` | shipped — predownload posts + comments + images from the feed config popover, with progress + cancel |
 | [Post thumbnails and media badges](post-thumbnails.md) | `iphone`, `ipad` | shipped |
 | [Post peek (context-menu preview)](post-peek.md) | `iphone`, `ipad` | shipped |
 | [Post detail and comments](post-detail-and-comments.md) | `iphone`, `ipad` | shipped |
@@ -124,6 +125,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Saved feed (documented in saving.md)
 - [x] Pull-to-refresh — main feed (refresh-in-place + toast on failure), inbox, profiles, post detail
 - [x] Infinite scroll (cursor pagination)
+- [x] Download a feed for offline browsing — "Download for offline" in the feed config popover bulk-saves the top of the feed (posts + comments + images, capped) into the local store + durable image cache, with a progress sheet + cancel; offline, the GRDB-first feed/detail then browse from the saved copy (offline-download.md)
 - [x] Inline thumbnails (text / link / image / video) + media badges
 - [x] Context-menu peek on posts
 - [x] Marking posts read / hiding read posts

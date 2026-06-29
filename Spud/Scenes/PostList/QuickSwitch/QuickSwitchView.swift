@@ -16,6 +16,7 @@ import SwiftUI
 struct QuickSwitchView: View {
     let viewModel: QuickSwitchViewModel
 
+    @Environment(\.dismiss) private var dismiss
     @State private var showingAgeGate = false
 
     private var postDensity: Binding<PostDensity> {
@@ -98,6 +99,29 @@ struct QuickSwitchView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                }
+
+                Section {
+                    Button {
+                        // Dismiss the popover first, then hand off to the
+                        // controller so the progress sheet presents from a settled
+                        // navigation state rather than over the closing popover.
+                        dismiss()
+                        viewModel.downloadForOffline()
+                    } label: {
+                        Label(
+                            NSLocalizedString(
+                                "Download for offline",
+                                comment: "Quick Switch action to predownload the current feed for offline browsing"
+                            ),
+                            systemImage: "arrow.down.circle"
+                        )
+                    }
+                } footer: {
+                    Text(NSLocalizedString(
+                        "Save this feed's posts, comments, and images to read without a connection.",
+                        comment: "Footer explaining the Download for offline action"
+                    ))
                 }
             }
             .navigationTitle("Feed")
