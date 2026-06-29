@@ -16,10 +16,31 @@ final class MediaViewerPageViewController: UIViewController {
     /// page is zoomed (to arbitrate the swipe-to-dismiss gesture).
     let zoomableImageView: ZoomableImageView
 
-    init(item: MediaItem, pageIndex: Int, imageService: ImageServiceType) {
+    /// True once this page's full-resolution load failed while a preview was on
+    /// screen — i.e. only the low-resolution preview is available. The container
+    /// reads this when the current page changes to (re)show its degraded pill.
+    private(set) var isShowingLowResPreviewOnly = false
+
+    /// Invoked when this page resolves to a degraded (low-res-only) state, so the
+    /// container can show its "low-resolution preview" pill if this is the
+    /// current page.
+    var onFullImageUnavailable: ((MediaViewerPageViewController) -> Void)?
+
+    init(
+        item: MediaItem,
+        pageIndex: Int,
+        imageService: ImageServiceType,
+        onFullImageUnavailable: ((MediaViewerPageViewController) -> Void)? = nil
+    ) {
         self.pageIndex = pageIndex
+        self.onFullImageUnavailable = onFullImageUnavailable
         zoomableImageView = ZoomableImageView(item: item, imageService: imageService)
         super.init(nibName: nil, bundle: nil)
+        zoomableImageView.onFullImageUnavailable = { [weak self] in
+            guard let self else { return }
+            isShowingLowResPreviewOnly = true
+            self.onFullImageUnavailable?(self)
+        }
     }
 
     @available(*, unavailable)

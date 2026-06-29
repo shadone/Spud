@@ -15,7 +15,10 @@ class PostListPostCell: UITableViewCell {
 
     /// Side length (points) of the square feed thumbnail. Drives both the layout
     /// constraint and the downsample target so the cache holds cell-sized images.
-    static let thumbnailDimension: CGFloat = 64
+    /// Derived from `ImageService.feedThumbnailPointSize` (the single source of
+    /// truth) so the cell, the prefetcher, and the post-detail header's
+    /// thumbnail-seed probe all key the same cached entry.
+    static let thumbnailDimension: CGFloat = ImageService.feedThumbnailPointSize.width
 
     // MARK: Public
 
@@ -570,7 +573,7 @@ class PostListPostCell: UITableViewCell {
         // thumbnail doesn't linger under the incoming content.
         thumbnailView.thumbnailType = .none
 
-        let size = CGSize(width: Self.thumbnailDimension, height: Self.thumbnailDimension)
+        let size = ImageService.feedThumbnailPointSize
         thumbnailLoadTask = Task { [weak self] in
             for await state in imageService.fetch(thumbnailUrl, downsampleTo: size) {
                 if Task.isCancelled { return }

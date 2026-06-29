@@ -161,6 +161,29 @@ final class MediaViewerViewController: UIViewController {
         return stack
     }()
 
+    /// A non-blocking "Showing low-resolution preview" pill shown in the chrome
+    /// when the current page's full-resolution image couldn't load but its
+    /// preloaded thumbnail is on screen (slow network / offline). Created lazily
+    /// the first time a page degrades; fades with the rest of the chrome.
+    private lazy var lowResPreviewPill: LowResPreviewPillView = {
+        let pill = LowResPreviewPillView(
+            title: NSLocalizedString(
+                "Showing low-resolution preview",
+                comment: "Media-viewer pill shown when only a low-res preview of an image is available"
+            ),
+            showsRetryHint: false
+        )
+        pill.configureAccessibility(
+            isInteractive: false,
+            hint: NSLocalizedString(
+                "The full-resolution image is unavailable.",
+                comment: "VoiceOver hint for the media-viewer low-res preview pill"
+            )
+        )
+        pill.isHidden = true
+        return pill
+    }()
+
     /// The current page's alt text, shown in the sheet opened from the pill.
     private var currentAltText: String?
 
@@ -276,6 +299,8 @@ final class MediaViewerViewController: UIViewController {
         let pillTap = UITapGestureRecognizer(target: self, action: #selector(captionTapped))
         captionContainer.addGestureRecognizer(pillTap)
 
+        view.addSubview(lowResPreviewPill)
+
         topBarTopConstraint = topBarBackgroundView.topAnchor.constraint(equalTo: view.topAnchor)
 
         NSLayoutConstraint.activate([
@@ -308,6 +333,14 @@ final class MediaViewerViewController: UIViewController {
             captionStack.bottomAnchor.constraint(equalTo: captionContainer.contentView.bottomAnchor, constant: -6),
             captionStack.leadingAnchor.constraint(equalTo: captionContainer.contentView.leadingAnchor, constant: 11),
             captionStack.trailingAnchor.constraint(equalTo: captionContainer.contentView.trailingAnchor, constant: -11),
+
+            // The degraded pill sits just above the alt-text pill (or the page
+            // dots when there's no alt text), centred and capped short of the
+            // edges so its label never crowds them.
+            lowResPreviewPill.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            lowResPreviewPill.bottomAnchor.constraint(equalTo: captionContainer.topAnchor, constant: -10),
+            lowResPreviewPill.leadingAnchor.constraint(greaterThanOrEqualTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 20),
+            lowResPreviewPill.trailingAnchor.constraint(lessThanOrEqualTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -20),
         ])
     }
 
@@ -339,6 +372,14 @@ final class MediaViewerViewController: UIViewController {
         present(AltTextSheetViewController(altText: currentAltText), animated: true)
     }
 
+    /// Shows or hides the "Showing low-resolution preview" pill for the current
+    /// page. Visible when that page's full-resolution image couldn't load while
+    /// its preview is on screen. Called when a page degrades and after each page
+    /// change so the pill tracks whichever page is on screen.
+    private func updateLowResPreviewPill() {
+        lowResPreviewPill.isHidden = !(currentPage?.isShowingLowResPreviewOnly ?? false)
+    }
+
     private func setupGestures() {
         let singleTap = UITapGestureRecognizer(target: self, action: #selector(handleSingleTap))
         singleTap.numberOfTapsRequired = 1
@@ -364,7 +405,14 @@ final class MediaViewerViewController: UIViewController {
         MediaViewerPageViewController(
             item: items[index],
             pageIndex: index,
-            imageService: imageService
+            imageService: imageService,
+            onFullImageUnavailable: { [weak self] page in
+                // Only reflect the degraded state if it's the page on screen; a
+                // neighbour page UIPageViewController pre-loaded shouldn't flip
+                // the pill. A later page change re-evaluates via updateChrome().
+                guard let self, page === currentPage else { return }
+                updateLowResPreviewPill()
+            }
         )
     }
 
@@ -390,6 +438,7 @@ final class MediaViewerViewController: UIViewController {
             topBarBackgroundView.alpha = alpha
             pageControl.alpha = alpha
             captionContainer.alpha = alpha
+            lowResPreviewPill.alpha = alpha
         }
         guard animated, !UIAccessibility.isReduceMotionEnabled else {
             changes()
@@ -716,6 +765,7 @@ extension MediaViewerViewController: UIPageViewControllerDelegate {
         currentIndex = page.pageIndex
         pageControl.currentPage = currentIndex
         updateCaption()
+        updateLowResPreviewPill()
     }
 }
 

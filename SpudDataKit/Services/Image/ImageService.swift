@@ -63,8 +63,42 @@ public final class ImageService: ImageServiceType, @unchecked Sendable {
                 continuation.finish()
             }
         }
-        let seeded = thumbnailUrl.flatMap { pipeline.cache[ImageRequest(url: $0)]?.image }
+        let seeded = thumbnailUrl.flatMap { cachedThumbnail(for: $0) }
         return makeProgressiveStream(for: request, url: url, initialThumbnail: seeded)
+    }
+
+    /// The downsample point-size the feed warms thumbnails at, and therefore the
+    /// cache-key variant a thumbnail is stored under once a post list (or the
+    /// offline downloader) has fetched it. Exposed as the single source of truth
+    /// so the post list, the prefetcher, the offline downloader, and the
+    /// thumbnail-seed probe below all key the same cache entry. A scalar drives a
+    /// square `CGSize` because feed thumbnails are square-bounded (`aspectFit`).
+    public static let feedThumbnailPointSize = CGSize(width: 64, height: 64)
+
+    /// Returns a thumbnail for `thumbnailUrl` already decoded in the memory
+    /// cache, if any, for an instant first paint while the full image loads.
+    ///
+    /// Probes two cache keys, because a thumbnail can be cached under either:
+    ///   1. the bare `ImageRequest(url:)` — e.g. a progressive-decode preview, or
+    ///      a thumbnail another surface fetched at full size;
+    ///   2. the downsampled feed key (`downsampleRequest`) — what the post list
+    ///      cell and the offline downloader actually warm. This is the common
+    ///      path: the user taps a post whose thumbnail the list already showed.
+    ///
+    /// Before this probed the downsampled key, the post-detail header (and the
+    /// media viewer) missed the list's cached thumbnail entirely — the list keys
+    /// its thumbnail with a `Resize` processor, the header looked it up bare — so
+    /// the header showed a gray spinner box (or, offline, the hard failure plate)
+    /// even though the decoded thumbnail was sitting in the cache.
+    private func cachedThumbnail(for thumbnailUrl: URL) -> UIImage? {
+        if let bare = pipeline.cache[ImageRequest(url: thumbnailUrl)]?.image {
+            return bare
+        }
+        let downsampleRequest = Self.downsampleRequest(
+            url: thumbnailUrl,
+            pointSize: Self.feedThumbnailPointSize
+        )
+        return pipeline.cache[downsampleRequest]?.image
     }
 
     /// Drives a Nuke `ImageTask` to the `AsyncStream` event model, surfacing

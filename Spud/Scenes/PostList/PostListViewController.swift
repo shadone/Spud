@@ -2105,7 +2105,9 @@ extension PostListViewController: UITableViewDelegate {
 // MARK: - UITableViewDataSourcePrefetching
 
 extension PostListViewController: UITableViewDataSourcePrefetching {
-    private static let thumbnailPrefetchSize = CGSize(width: PostListPostCell.thumbnailDimension, height: PostListPostCell.thumbnailDimension)
+    /// Prefetch at the same downsample size the cell fetches at, so the warmed
+    /// entry is the one the cell (and the post-detail header's seed probe) reads.
+    private static let thumbnailPrefetchSize = ImageService.feedThumbnailPointSize
 
     private func prefetchThumbnailUrls(for indexPaths: [IndexPath]) -> [URL] {
         let postContentDetector = dependencies.own.postContentDetectorService

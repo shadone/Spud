@@ -59,10 +59,11 @@ public actor OfflineDownloadService {
     /// throughput win on a single host.
     public static let contentConcurrency = 4
 
-    /// The downsample target for predownloaded thumbnails. Matches the feed
-    /// cell's thumbnail dimension so the cached, decoded thumbnail is the size
-    /// the post list actually displays.
-    private static let thumbnailDownsampleSize = CGSize(width: 64, height: 64)
+    /// The downsample target for predownloaded thumbnails. Reuses the shared
+    /// `ImageService.feedThumbnailPointSize` so the predownloaded thumbnail is
+    /// cached under the exact key the feed cell — and the post-detail header's
+    /// thumbnail-seed probe — later reads, giving an instant offline first paint.
+    private static let thumbnailDownsampleSize = ImageService.feedThumbnailPointSize
 
     /// The downsample target for a post's full image. Generous so the cached
     /// bitmap is large enough for the post-detail header and the full-screen
