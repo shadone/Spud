@@ -34,40 +34,7 @@ public extension AppDatabase {
     /// categories are returned.  Pass a non-empty set to restrict to specific categories.
     func recentDiagnosticEvents(_ filter: DiagnosticLogFilter) async throws -> [DiagnosticEventRecord] {
         try await writer.read { db in
-            // Build up the predicate expression.
-            var predicates: [SQLExpression] = []
-
-            // Level filter — stored as Int, compared numerically.
-            predicates.append(Column("level") >= filter.minimumLevel.rawValue)
-
-            // Category filter — only apply when the set is non-nil AND non-empty.
-            // nil or [] both mean "no category filter = all categories".
-            if let cats = filter.categories, !cats.isEmpty {
-                let rawValues = cats.map(\.rawValue)
-                predicates.append(rawValues.contains(Column("category")))
-            }
-
-            // Free-text search — trimmed, applied only when non-empty.
-            let searchTerm = filter.searchText?.trimmingCharacters(in: .whitespaces) ?? ""
-            if !searchTerm.isEmpty {
-                let pattern = "%\(searchTerm)%"
-                let textPredicate = Column("message").like(pattern)
-                    || Column("event").like(pattern)
-                    || Column("instance").like(pattern)
-                    || Column("metadata").like(pattern)
-                predicates.append(textPredicate)
-            }
-
-            // Combine all predicates with AND.
-            var query = DiagnosticEventRecord.all()
-            for predicate in predicates {
-                query = query.filter(predicate)
-            }
-
-            return try query
-                .order(Column("timestamp").desc, Column("id").desc)
-                .limit(filter.limit)
-                .fetchAll(db)
+            try Self.diagnosticEventQuery(filter: filter).fetchAll(db)
         }
     }
 

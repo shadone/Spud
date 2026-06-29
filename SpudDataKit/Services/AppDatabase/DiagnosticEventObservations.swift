@@ -60,10 +60,13 @@ public extension AppDatabase {
 // MARK: - Shared query builder
 
 extension AppDatabase {
-    /// Builds the filtered `QueryInterfaceRequest<DiagnosticEventRecord>` shared
-    /// by `recentDiagnosticEvents` and `observeDiagnosticEvents`.  Keeping this
-    /// in one place ensures both the sync and live paths apply identical
-    /// predicates.
+    /// Single source of truth for the diagnostic-event query.
+    ///
+    /// Both `recentDiagnosticEvents(_:)` (one-shot sync read in
+    /// `DiagnosticEventWrites.swift`) and `observeDiagnosticEvents(_:)` (live
+    /// `ValueObservation` in this file) delegate to this helper so they always
+    /// apply identical predicates, ordering, and limit — preventing the two paths
+    /// from drifting independently.
     static func diagnosticEventQuery(filter: DiagnosticLogFilter) -> QueryInterfaceRequest<DiagnosticEventRecord> {
         var predicates: [SQLExpression] = []
 
