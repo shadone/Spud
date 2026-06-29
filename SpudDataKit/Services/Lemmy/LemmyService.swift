@@ -671,12 +671,19 @@ public actor LemmyService: LemmyServiceType {
                 accountId: ids.0,
                 siteId: ids.1
             )
+            // Resolve the instance host for diagnostic event tagging. A nil result
+            // (account not yet mirrored) is acceptable — events are emitted without
+            // an instance tag rather than blocking outbox construction.
+            let rawActorId = await appDatabase.accountInstanceActorId(forKeychainId: accountIdentifierForLogging)
+            let instanceHost = rawActorId.flatMap { InstanceActorId(from: $0) }?.hostWithPort
             let service = OutboxService(
                 accountId: ids.0,
                 appDatabase: appDatabase,
                 performer: performer,
                 reachability: reachability,
-                now: { Date().timeIntervalSince1970 }
+                now: { Date().timeIntervalSince1970 },
+                diagnostics: DiagnosticLog(appDatabase: appDatabase),
+                instance: instanceHost
             )
             await service.start()
             return service
@@ -2071,7 +2078,30 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func drainPendingOutbox() async {
-        await outboxService()?.drainAll()
+        let service = await outboxService()
+        if let service {
+            await service.drainAll()
+        } else {
+            // The outbox service could not be built (account/site not yet mirrored).
+            // If the account has pending operations we can't drain, record a durable
+            // error so operators can identify stuck outbox rows without needing to
+            // attach a debugger.
+            guard let ids = try? await accountSiteIds(),
+                  let pending = try? await appDatabase.allOutboxOperations(accountId: ids.0),
+                  !pending.isEmpty
+            else { return }
+
+            let rawActorId = await appDatabase.accountInstanceActorId(forKeychainId: accountIdentifierForLogging)
+            let instanceHost = rawActorId.flatMap { InstanceActorId(from: $0) }?.hostWithPort
+            await DiagnosticLog(appDatabase: appDatabase).record(
+                category: .outbox,
+                level: .error,
+                event: "drain.skippedNoService",
+                message: "drainPendingOutbox: outbox service unavailable, \(pending.count) pending operation(s) skipped",
+                instance: instanceHost,
+                metadata: ["pendingCount": String(pending.count)]
+            )
+        }
     }
 
     // MARK: Composer outbox

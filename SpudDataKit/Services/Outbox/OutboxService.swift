@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import LemmyKit
 
 public struct OutboxFailure: Sendable, Equatable {
     public let entityType: OutboxEntityType
@@ -29,18 +30,31 @@ public actor OutboxService: OutboxServiceType {
     private var failureContinuations: [UUID: AsyncStream<OutboxFailure>.Continuation] = [:]
     private var started = false
 
+    /// Durable diagnostic recorder. Best-effort: failures in `record` must never
+    /// propagate to the drain loop.
+    private let diagnostics: DiagnosticLogging
+
+    /// The Lemmy instance host (e.g. `"lemmy.world"`) this outbox belongs to.
+    /// Attached to every diagnostic event so log viewers can filter per-instance.
+    /// `nil` when the account's instance could not be resolved at construction time.
+    private let instance: String?
+
     public init(
         accountId: Int64,
         appDatabase: AppDatabase,
         performer: OutboxNetworkPerforming,
         reachability: ReachabilityMonitoring,
-        now: @escaping @Sendable () -> Double
+        now: @escaping @Sendable () -> Double,
+        diagnostics: DiagnosticLogging,
+        instance: String?
     ) {
         self.accountId = accountId
         self.appDatabase = appDatabase
         self.performer = performer
         self.reachability = reachability
         self.now = now
+        self.diagnostics = diagnostics
+        self.instance = instance
     }
 
     /// Actor-isolated computed property: registers the continuation synchronously
@@ -71,6 +85,18 @@ public actor OutboxService: OutboxServiceType {
         } catch {
             return
         }
+        await diagnostics.record(
+            category: .outbox,
+            level: .info,
+            event: "op.enqueue",
+            message: "Enqueued outbox operation",
+            instance: instance,
+            metadata: [
+                "entityType": op.entityType.rawValue,
+                "entityServerId": String(op.entityServerId),
+                "kind": op.kind.rawValue,
+            ]
+        )
         await drainOnce()
     }
 
@@ -81,6 +107,17 @@ public actor OutboxService: OutboxServiceType {
         } catch {
             return
         }
+        await diagnostics.record(
+            category: .outbox,
+            level: .info,
+            event: "drain.start",
+            message: "Starting drain pass (trigger: enqueue)",
+            instance: instance,
+            metadata: [
+                "trigger": "enqueue",
+                "dueCount": String(due.count),
+            ]
+        )
         await drain(records: due)
     }
 
@@ -91,6 +128,17 @@ public actor OutboxService: OutboxServiceType {
         } catch {
             return
         }
+        await diagnostics.record(
+            category: .outbox,
+            level: .info,
+            event: "drain.start",
+            message: "Starting drain pass (trigger: reachability)",
+            instance: instance,
+            metadata: [
+                "trigger": "reachability",
+                "dueCount": String(all.count),
+            ]
+        )
         await drain(records: all)
     }
 
@@ -110,11 +158,39 @@ public actor OutboxService: OutboxServiceType {
     }
 
     private func drain(records: [PendingOperationRecord]) async {
+        var succeeded = 0
+        var retried = 0
+        var rolledBack = 0
+
         for record in records {
             guard let op = Self.operation(from: record), let id = record.id else { continue }
+            await diagnostics.record(
+                category: .outbox,
+                level: .debug,
+                event: "op.attempt",
+                message: "Attempting outbox operation",
+                instance: instance,
+                metadata: [
+                    "entityType": op.entityType.rawValue,
+                    "entityServerId": String(op.entityServerId),
+                    "attempts": String(record.attempts + 1),
+                ]
+            )
             do {
                 try await performer.perform(op)
                 try? await appDatabase.removeOutboxOperation(id: id)
+                succeeded += 1
+                await diagnostics.record(
+                    category: .outbox,
+                    level: .info,
+                    event: "op.success",
+                    message: "Outbox operation succeeded",
+                    instance: instance,
+                    metadata: [
+                        "entityType": op.entityType.rawValue,
+                        "entityServerId": String(op.entityServerId),
+                    ]
+                )
             } catch {
                 let online = await MainActor.run { reachability.isOnline }
                 switch OutboxFailureClass.classify(error, isOnline: online) {
@@ -125,8 +201,46 @@ public actor OutboxService: OutboxServiceType {
                         lastError: String(describing: error),
                         nextAttemptAt: next
                     )
+                    retried += 1
+                    await diagnostics.record(
+                        category: .outbox,
+                        level: .notice,
+                        event: "op.transientRetry",
+                        message: "Outbox operation will be retried (transient failure)",
+                        instance: instance,
+                        metadata: [
+                            "entityType": op.entityType.rawValue,
+                            "entityServerId": String(op.entityServerId),
+                            "error": String(describing: error),
+                            "attempts": String(record.attempts + 1),
+                            "nextAttemptAt": String(next),
+                        ]
+                    )
                 case .permanent:
+                    // Emit diagnostic BEFORE rollback so the event exists even if
+                    // emitFailure triggers additional processing on the caller side.
+                    var metadata: [String: String] = [
+                        "entityType": op.entityType.rawValue,
+                        "entityServerId": String(op.entityServerId),
+                        "error": String(describing: error),
+                    ]
+                    // Extract HTTP status when the error is an unknownServerError so
+                    // the log viewer can filter by status without parsing the error string.
+                    if case let .unknownServerError(httpStatus, _) = error as? LemmyApiError {
+                        metadata["httpStatus"] = String(httpStatus)
+                    } else if case let .apiError(.unknownServerError(httpStatus, _)) = error as? LemmyServiceError {
+                        metadata["httpStatus"] = String(httpStatus)
+                    }
+                    await diagnostics.record(
+                        category: .outbox,
+                        level: .error,
+                        event: "op.permanentRollback",
+                        message: "Outbox operation permanently failed and was rolled back",
+                        instance: instance,
+                        metadata: metadata
+                    )
                     try? await appDatabase.rollbackOutboxOperation(record)
+                    rolledBack += 1
                     emitFailure(OutboxFailure(
                         entityType: op.entityType,
                         entityServerId: op.entityServerId,
@@ -135,6 +249,19 @@ public actor OutboxService: OutboxServiceType {
                 }
             }
         }
+
+        await diagnostics.record(
+            category: .outbox,
+            level: .info,
+            event: "drain.finish",
+            message: "Drain pass complete",
+            instance: instance,
+            metadata: [
+                "succeeded": String(succeeded),
+                "retried": String(retried),
+                "rolledBack": String(rolledBack),
+            ]
+        )
     }
 
     func backoffDelay(attempts: Int64) -> Double {

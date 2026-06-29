@@ -24,7 +24,9 @@ struct OutboxServiceTriggersTests {
             appDatabase: appDatabase,
             performer: performer,
             reachability: monitor,
-            now: { 1000 }
+            now: { 1000 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: "lemmy.test"
         )
         await service.start()
 

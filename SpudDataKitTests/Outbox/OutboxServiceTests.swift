@@ -15,14 +15,18 @@ struct OutboxServiceTests {
         _ appDatabase: AppDatabase,
         _ performer: FakeOutboxPerformer,
         online: Bool = true,
-        accountId: Int64 = 1
+        accountId: Int64 = 1,
+        diagnostics: DiagnosticLogging = DiagnosticLogSpy(),
+        instance: String? = "lemmy.test"
     ) -> OutboxService {
         OutboxService(
             accountId: accountId,
             appDatabase: appDatabase,
             performer: performer,
             reachability: StaticReachabilityMonitor(isOnline: online),
-            now: { 1000 }
+            now: { 1000 },
+            diagnostics: diagnostics,
+            instance: instance
         )
     }
 
