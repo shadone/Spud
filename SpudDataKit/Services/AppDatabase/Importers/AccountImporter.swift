@@ -183,6 +183,58 @@ public extension AppDatabase {
         }
     }
 
+    /// Mirrors the profile fields and per-account preference flags that the
+    /// Edit Profile editor pushes via `saveUserSettings` onto the local rows for
+    /// the account matching `keychainId`, so the cached `PersonRecord` /
+    /// `AccountRecord` stay in sync without waiting on a full `getSite` refetch.
+    /// `displayName`/`bio`/`avatar` write through to the account's own person row;
+    /// the preference flags and `defaultListingType` write to the account row.
+    /// Pass `nil` for a profile field that wasn't edited (left as stored). No-op
+    /// if the account row hasn't been imported yet.
+    func setAccountProfile(
+        forKeychainId keychainId: String,
+        displayName: String?,
+        bio: String?,
+        avatar: String?,
+        showScores: Bool,
+        showBotAccounts: Bool,
+        showReadPosts: Bool,
+        showAvatars: Bool,
+        defaultListingType: Components.Schemas.ListingType
+    ) async throws {
+        try await writer.write { db in
+            guard var account = try AccountRecord
+                .filter(Column("accountKeychainId") == keychainId)
+                .fetchOne(db)
+            else { return }
+
+            let now = Date()
+
+            account.showScores = showScores
+            account.showBotAccounts = showBotAccounts
+            account.showReadPosts = showReadPosts
+            account.showAvatars = showAvatars
+            account.defaultListingType = defaultListingType.rawValue
+            account.updatedAt = now
+            try account.update(db)
+
+            guard
+                let personId = account.personId,
+                var person = try PersonRecord.fetchOne(db, key: personId)
+            else { return }
+
+            // An empty display name / bio means "clear it" on the server; store
+            // that as nil locally so the header falls back to the username.
+            person.displayName = displayName.flatMap { $0.isEmpty ? nil : $0 }
+            person.bio = bio.flatMap { $0.isEmpty ? nil : $0 }
+            if let avatar {
+                person.avatarUrl = avatar.isEmpty ? nil : avatar
+            }
+            person.updatedAt = now
+            try person.update(db)
+        }
+    }
+
     /// Persists the per-account default POST sort onto the account row matching
     /// `keychainId`, storing the OpenAPI enum's raw value (the same column a
     /// `MyUserInfo` import writes via `local_user.default_sort_type`). Read back
@@ -270,6 +322,48 @@ public extension AppDatabase {
             }
         } catch {
             logger.error("Failed to resolve account own person ids: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Snapshot of the signed-in account's currently-editable profile: the
+    /// display name, bio and avatar drawn from its own `PersonRecord`, plus the
+    /// preference flags and default feed (`defaultListingType`) drawn from the
+    /// `AccountRecord`. Synchronous read intended for bringing up the Edit
+    /// Profile editor without making its init async. Nil until the account (and
+    /// its person row) has been imported.
+    func accountEditableProfileSync(
+        forKeychainId keychainId: String
+    ) -> AccountEditableProfile? {
+        do {
+            return try writer.read { db in
+                guard let account = try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)
+                else { return nil }
+
+                let person = try account.personId.flatMap { personId in
+                    try PersonRecord.fetchOne(db, key: personId)
+                }
+
+                let listingType = account.defaultListingType
+                    .flatMap { Components.Schemas.ListingType(rawValue: $0) }
+                    ?? .All
+
+                return AccountEditableProfile(
+                    displayName: person?.displayName ?? "",
+                    bio: person?.bio ?? "",
+                    avatarUrl: person?.avatarUrl,
+                    name: person?.name ?? "",
+                    showScores: account.showScores ?? true,
+                    showBotAccounts: account.showBotAccounts ?? true,
+                    showReadPosts: account.showReadPosts ?? true,
+                    showAvatars: account.showAvatars ?? true,
+                    defaultListingType: listingType
+                )
+            }
+        } catch {
+            logger.error("Failed to resolve account editable profile: \(String(describing: error), privacy: .public)")
             return nil
         }
     }

@@ -81,6 +81,26 @@ public protocol LemmyServiceType: Actor {
     /// up to the server. A signed-out account is a silent no-op.
     func setDefaultSortType(_ sortType: Components.Schemas.SortType) async throws
 
+    /// Push the signed-in account's editable profile (display name, bio, avatar)
+    /// and synced preference flags (show scores / bot accounts / read posts /
+    /// others' avatars, default feed) to the server via `saveUserSettings`, then
+    /// mirror the new values onto the local `PersonRecord` / `AccountRecord` so
+    /// the cached profile stays in sync. Requires a signed-in account: a
+    /// signed-out account throws `LemmyServiceError.requiresAuthentication`
+    /// (unlike the single-setting setters, there is no local-only fallback for a
+    /// profile edit). `displayName` / `bio` may be empty to clear the field on
+    /// the server; pass `avatar: nil` to leave the avatar unchanged.
+    func saveProfile(
+        displayName: String?,
+        bio: String?,
+        avatar: String?,
+        showScores: Bool,
+        showBotAccounts: Bool,
+        showReadPosts: Bool,
+        showAvatars: Bool,
+        defaultListingType: Components.Schemas.ListingType
+    ) async throws
+
     func fetchPersonInfo(
         serverPersonId: Components.Schemas.PersonID
     ) async throws
@@ -1005,6 +1025,85 @@ public actor LemmyService: LemmyServiceType {
                 Set default_sort_type failed. \(String(describing: error), privacy: .public)
                 """)
             throw LemmyServiceError(from: error)
+        }
+    }
+
+    public func saveProfile(
+        displayName: String?,
+        bio: String?,
+        avatar: String?,
+        showScores: Bool,
+        showBotAccounts: Bool,
+        showReadPosts: Bool,
+        showAvatars: Bool,
+        defaultListingType: Components.Schemas.ListingType
+    ) async throws {
+        guard !accountIsSignedOut else {
+            // Editing a profile only makes sense for a real account: there is no
+            // server-side profile for the anonymous placeholder, so this is an
+            // error rather than a silent no-op (unlike the single-setting setters
+            // whose values still apply locally).
+            logger.debug("""
+                Save profile rejected - account is signed out. \
+                account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
+                """)
+            throw LemmyServiceError.requiresAuthentication
+        }
+
+        logger.debug("""
+            Save profile for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
+            """)
+
+        do {
+            _ = try await api.saveUserSettings(
+                defaultListingType: defaultListingType,
+                avatar: avatar,
+                displayName: displayName,
+                bio: bio,
+                showAvatars: showAvatars,
+                showBotAccounts: showBotAccounts,
+                showReadPosts: showReadPosts,
+                showScores: showScores
+            )
+        } catch {
+            logger.error("""
+                Save profile failed. \(String(describing: error), privacy: .public)
+                """)
+            throw LemmyServiceError(from: error)
+        }
+
+        // Mirror the new values onto the local person / account rows so the
+        // cached profile reflects the edit immediately, without waiting on the
+        // network. This is the optimistic path the open editor / Account header
+        // observe.
+        do {
+            try await appDatabase.setAccountProfile(
+                forKeychainId: accountIdentifierForLogging,
+                displayName: displayName,
+                bio: bio,
+                avatar: avatar,
+                showScores: showScores,
+                showBotAccounts: showBotAccounts,
+                showReadPosts: showReadPosts,
+                showAvatars: showAvatars,
+                defaultListingType: defaultListingType
+            )
+        } catch {
+            logger.error("""
+                Mirror profile to AppDatabase failed. \(String(describing: error), privacy: .public)
+                """)
+        }
+
+        // Re-fetch getSite so the server's canonical view of `my_user`
+        // (including any normalization the backend applied) re-imports over the
+        // optimistic mirror. Best-effort: a failed refresh leaves the mirrored
+        // values in place rather than failing the save the user already made.
+        do {
+            try await fetchSiteInfo()
+        } catch {
+            logger.error("""
+                Refresh site after save profile failed. \(String(describing: error), privacy: .public)
+                """)
         }
     }
 
