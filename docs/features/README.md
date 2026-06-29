@@ -66,7 +66,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Download a feed for offline browsing](offline-download.md) | `iphone`, `ipad` | shipped — choose 100/250/500 posts; predownload posts + comments + images (+ optional linked-page web archives read in an in-app offline reader) from the feed config popover, with progress + cancel |
 | [Post thumbnails and media badges](post-thumbnails.md) | `iphone`, `ipad` | shipped |
 | [Post peek (context-menu preview)](post-peek.md) | `iphone`, `ipad` | shipped |
-| [Post detail and comments](post-detail-and-comments.md) | `iphone`, `ipad` | shipped — incl. offline-aware comments (truthful failed/offline state with Retry, not a false "no comments yet") + header thumbnail-while-loading with a "Low-res preview" pill |
+| [Post detail and comments](post-detail-and-comments.md) | `iphone`, `ipad` | shipped — incl. offline-aware comments (truthful failed/offline state with Retry — plus automatic re-fetch when connectivity returns — not a false "no comments yet") + header thumbnail-while-loading with a "Low-res preview" pill |
 | [Voting](voting.md) | `iphone`, `ipad` | shipped — incl. offline-aware "we'll send your vote when you're back online" toast |
 | [Saving](saving.md) | `iphone`, `ipad` | shipped — incl. offline-aware "we'll save this when you're back online" toast |
 | [Replying](replying.md) | `iphone`, `ipad` | shipped — reply + edit + delete/restore own comments, all optimistic + durable (see [Post detail and comments](post-detail-and-comments.md)) |
@@ -133,7 +133,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Configurable swipe actions (posts)
 
 **Posts & comments**
-- [x] Post detail (header + comment tree); in-body link preview cards (anchor text always; video thumbnail + title when "Load Link Previews" is on; post-header link card uses server-provided title + thumbnail); offline-aware — a failed comment load shows a truthful offline/unreachable/malformed state with Retry (never a false "No comments yet"), and the header keeps the cached feed thumbnail while the full image loads, falling back to a tappable "Low-res preview" pill when the full image can't load
+- [x] Post detail (header + comment tree); in-body link preview cards (anchor text always; video thumbnail + title when "Load Link Previews" is on; post-header link card uses server-provided title + thumbnail); offline-aware — a failed comment load shows a truthful offline/unreachable/malformed state with Retry (never a false "No comments yet"), and an offline failure re-fetches automatically once connectivity returns, and the header keeps the cached feed thumbnail while the full image loads, falling back to a tappable "Low-res preview" pill when the full image can't load
 - [x] Upvote / downvote (post & comment) — offline votes queue with a "we'll send your vote when you're back online" toast
 - [x] Save / unsave (post & comment) — offline saves queue with a "we'll save this when you're back online" toast
 - [x] Threaded comment collapse + jump-to-next-top-level
