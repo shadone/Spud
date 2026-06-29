@@ -25,6 +25,10 @@ struct OfflineDownloadOptionsView: View {
         .init { viewModel.postCount } set: { viewModel.updatePostCount($0) }
     }
 
+    private var archiveLinks: Binding<Bool> {
+        .init { viewModel.archiveLinks } set: { viewModel.updateArchiveLinks($0) }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -48,6 +52,23 @@ struct OfflineDownloadOptionsView: View {
                     Text(NSLocalizedString(
                         "Saves the top posts of this feed — with their comments and images — for offline reading.",
                         comment: "Offline download chooser footer explaining what's saved"
+                    ))
+                }
+
+                Section {
+                    Toggle(isOn: archiveLinks) {
+                        Label(
+                            NSLocalizedString(
+                                "Also save linked web pages",
+                                comment: "Offline download chooser: toggle to also web-archive external-link posts"
+                            ),
+                            systemImage: "safari"
+                        )
+                    }
+                } footer: {
+                    Text(NSLocalizedString(
+                        "Saves a copy of each linked web page so it can be read offline. This is slower and uses more space.",
+                        comment: "Offline download chooser footer explaining the save-linked-pages toggle"
                     ))
                 }
 
@@ -91,7 +112,7 @@ struct OfflineDownloadOptionsView: View {
     OfflineDownloadOptionsView(
         viewModel: OfflineDownloadOptionsViewModel(
             preferencesService: PreferencesService(),
-            onStart: { _ in }
+            onStart: { _, _ in }
         )
     )
 }

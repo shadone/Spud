@@ -227,9 +227,17 @@ class PostListViewController: UIViewController {
     /// directly here (rather than via the DI container) because it needs only the
     /// two services the controller already holds, and no other screen launches
     /// downloads.
+    ///
+    /// The web-archive pair (`WebArchiveCapturer` + `OfflineWebArchiveStore`) is
+    /// wired in only when the store can be opened (the App Group container is
+    /// reachable) — the capturer is `@MainActor`, constructed on the app side.
+    /// When the store can't open, the "Also save linked web pages" toggle simply
+    /// no-ops on the data side (the toggle stays usable; capture is skipped).
     lazy var offlineDownloadService = OfflineDownloadService(
         appDatabase: appDatabase,
-        imageService: imageService
+        imageService: imageService,
+        webArchiveCapturer: WebArchiveCapturer(),
+        webArchiveStore: try? OfflineWebArchiveStore(appDatabase: appDatabase)
     )
 
     /// The task draining the in-flight download's progress stream, updating the

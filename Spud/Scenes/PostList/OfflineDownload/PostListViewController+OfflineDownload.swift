@@ -65,12 +65,12 @@ extension PostListViewController {
         // with the chosen cap; Cancel just dismisses (SwiftUI `@Environment`).
         let optionsViewModel = OfflineDownloadOptionsViewModel(
             preferencesService: preferencesService,
-            onStart: { [weak self] maxPosts in
+            onStart: { [weak self] maxPosts, archiveLinks in
                 guard let self else { return }
                 // Dismiss the chooser, then begin from a settled state so the
                 // progress sheet presents cleanly (not over the closing chooser).
                 dismiss(animated: true) { [weak self] in
-                    self?.beginOfflineDownload(maxPosts: maxPosts)
+                    self?.beginOfflineDownload(maxPosts: maxPosts, archiveLinks: archiveLinks)
                 }
             }
         )
@@ -88,11 +88,12 @@ extension PostListViewController {
     }
 
     /// Starts predownloading the current feed and presents the progress sheet.
-    /// Called from the chooser's Download action with the chosen post cap. The
-    /// offline / account guards already ran in ``startOfflineDownload()``, but
-    /// the in-flight guard is rechecked here (the chooser is interactive, so a
-    /// download could conceivably have started between presenting and confirming).
-    private func beginOfflineDownload(maxPosts: Int) {
+    /// Called from the chooser's Download action with the chosen post cap and
+    /// whether to also web-archive external-link pages. The offline / account
+    /// guards already ran in ``startOfflineDownload()``, but the in-flight guard
+    /// is rechecked here (the chooser is interactive, so a download could
+    /// conceivably have started between presenting and confirming).
+    private func beginOfflineDownload(maxPosts: Int, archiveLinks: Bool) {
         guard offlineDownloadTask == nil else { return }
 
         let keychainId = currentAccountKeychainId
@@ -133,7 +134,8 @@ extension PostListViewController {
                 siteId: ids.siteId,
                 commentSort: commentSort,
                 showNsfw: showNsfw,
-                maxPosts: maxPosts
+                maxPosts: maxPosts,
+                archiveLinks: archiveLinks
             )
             for await progress in stream {
                 if Task.isCancelled { break }

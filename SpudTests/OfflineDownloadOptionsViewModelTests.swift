@@ -11,14 +11,15 @@ import Testing
 /// user pick how many posts an offline download saves.
 ///
 /// `PreferencesService` is backed by the shared `UserDefaults`; each test seeds
-/// the `offlineDownloadPostCount` key explicitly before asserting, so the tests
-/// are self-contained. Serialized so concurrent tests don't race that shared key.
+/// the `offlineDownloadPostCount` / `offlineDownloadArchiveLinks` keys explicitly
+/// before asserting, so the tests are self-contained. Serialized so concurrent
+/// tests don't race those shared keys.
 @MainActor
 @Suite(.serialized)
 struct OfflineDownloadOptionsViewModelTests {
     private func makeViewModel(
         preferences: PreferencesService,
-        onStart: @escaping (Int) -> Void = { _ in }
+        onStart: @escaping (Int, Bool) -> Void = { _, _ in }
     ) -> OfflineDownloadOptionsViewModel {
         OfflineDownloadOptionsViewModel(
             preferencesService: preferences,
@@ -62,14 +63,54 @@ struct OfflineDownloadOptionsViewModelTests {
     }
 
     @Test
-    func startHandsBackChosenCount() {
+    func startHandsBackChosenCountAndArchiveFlag() {
         let prefs = PreferencesService()
-        var started: Int?
-        let viewModel = makeViewModel(preferences: prefs, onStart: { started = $0 })
+        var startedCount: Int?
+        var startedArchive: Bool?
+        let viewModel = makeViewModel(preferences: prefs, onStart: { count, archive in
+            startedCount = count
+            startedArchive = archive
+        })
 
         viewModel.updatePostCount(.fiveHundred)
+        viewModel.updateArchiveLinks(true)
         viewModel.start()
 
-        #expect(started == 500)
+        #expect(startedCount == 500)
+        #expect(startedArchive == true)
+    }
+
+    @Test
+    func seedsArchiveLinksFromRememberedPreference() {
+        let prefs = PreferencesService()
+        prefs.offlineDownloadArchiveLinks = true
+
+        let viewModel = makeViewModel(preferences: prefs)
+
+        #expect(viewModel.archiveLinks == true)
+    }
+
+    @Test
+    func archiveLinksDefaultsOff() {
+        let prefs = PreferencesService()
+        prefs.offlineDownloadArchiveLinks = false
+
+        let viewModel = makeViewModel(preferences: prefs)
+
+        #expect(viewModel.archiveLinks == false)
+    }
+
+    @Test
+    func updateArchiveLinksPersistsThrough() {
+        let prefs = PreferencesService()
+        prefs.offlineDownloadArchiveLinks = false
+        let viewModel = makeViewModel(preferences: prefs)
+
+        viewModel.updateArchiveLinks(true)
+
+        // Reflected on the view model AND written through to preferences so the
+        // next launch's chooser opens on this choice.
+        #expect(viewModel.archiveLinks == true)
+        #expect(prefs.offlineDownloadArchiveLinks == true)
     }
 }

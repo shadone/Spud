@@ -689,6 +689,31 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v25_offlineWebArchive") { db in
+            // Index of captured external-link web archives for offline reading.
+            // The archive *bytes* live on disk (a `.webarchive` file in the App
+            // Group container — they can be megabytes); this table is only the
+            // queryable index. `url` is UNIQUE so re-capturing the same link
+            // upserts the row (the store deletes the stale file). `byteSize` +
+            // `capturedAt` back the total-size cap (oldest-first eviction).
+            try db.create(table: "offlineWebArchive") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("url", .text).notNull().unique()
+                t.column("postServerId", .integer)
+                t.column("fileName", .text).notNull()
+                t.column("title", .text)
+                t.column("byteSize", .integer).notNull()
+                t.column("capturedAt", .datetime).notNull()
+            }
+            // Eviction scans by oldest-first; index `capturedAt` so the over-cap
+            // sweep doesn't full-scan the table.
+            try db.create(
+                index: "offlineWebArchive_on_capturedAt",
+                on: "offlineWebArchive",
+                columns: ["capturedAt"]
+            )
+        }
+
         return migrator
     }
 }
