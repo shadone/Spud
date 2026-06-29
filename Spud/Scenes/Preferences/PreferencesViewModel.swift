@@ -18,6 +18,7 @@ final class PreferencesViewModel {
     typealias OwnDependencies =
         HasAccountService &
         HasAppDatabase &
+        HasDiagnosticLog &
         HasExplorerService &
         HasPreferencesService
     typealias NestedDependencies =
@@ -41,6 +42,21 @@ final class PreferencesViewModel {
 
     private var explorerService: ExplorerServiceType? {
         dependencies?.own.explorerService
+    }
+
+    /// The diagnostic log recorder, available for the Logs screen.
+    ///
+    /// Nil only in the preview init (no service dependencies). The Logs screen
+    /// hides the Event Log tab when this is nil.
+    var diagnostics: DiagnosticLogging? {
+        dependencies?.own.diagnosticLog
+    }
+
+    /// The shared app database, passed through to the Logs screen.
+    ///
+    /// Nil only in the preview init (no service dependencies).
+    var logsAppDatabase: AppDatabase? {
+        appDatabase
     }
 
     /// The account these preferences apply to. Used to scope the blocked-list
