@@ -199,7 +199,9 @@ struct OutboundDirectMessagePerformerTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
     }
 

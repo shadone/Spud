@@ -2125,12 +2125,15 @@ public actor LemmyService: LemmyServiceType {
                 accountId: ids.0,
                 siteId: ids.1
             )
+            let instanceHost = await resolveInstanceHost()
             let service = ComposerOutboxService(
                 accountId: ids.0,
                 appDatabase: appDatabase,
                 performer: performer,
                 reachability: reachability,
-                now: { Date().timeIntervalSince1970 }
+                now: { Date().timeIntervalSince1970 },
+                diagnostics: DiagnosticLog(appDatabase: appDatabase),
+                instance: instanceHost
             )
             await service.start()
             return service

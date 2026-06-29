@@ -122,7 +122,9 @@ struct OutboundContentPostEditTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
         let successes = await svc.successEvents
         let token = try await db.upsertOutboundDraft(makeEditInput(serverPostId: 42), accountId: accountId, now: 0)
@@ -153,7 +155,9 @@ struct OutboundContentPostEditTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
         let token = try await db.upsertOutboundDraft(makeEditInput(serverPostId: 9), accountId: accountId, now: 0)
         try await db.markOutboundQueued(clientToken: token, now: 0)
@@ -179,7 +183,9 @@ struct OutboundContentPostEditTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
         let token = try await db.upsertOutboundDraft(makeEditInput(serverPostId: 3), accountId: accountId, now: 0)
         try await db.markOutboundQueued(clientToken: token, now: 0)
