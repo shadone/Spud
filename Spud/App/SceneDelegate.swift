@@ -81,16 +81,30 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // returns to the app.
         window?.refreshUnreadCount()
 
+        let dependencies = AppCoordinator.shared.dependencies
+
+        // Durable foreground event: visible in About → Logs as a relaunch-history marker.
+        Task {
+            await dependencies.diagnosticLog.record(
+                category: .lifecycle,
+                level: .info,
+                event: "lifecycle.foreground",
+                message: "App entered foreground",
+                instance: nil,
+                metadata: nil
+            )
+        }
+
         // Keep the Spotlight community index current with any subscription
         // changes made while we were away.
-        CommunitySpotlightIndexer.reindex(appDatabase: AppCoordinator.shared.dependencies.appDatabase)
-        ContentSpotlightIndexer.reindex(appDatabase: AppCoordinator.shared.dependencies.appDatabase)
+        CommunitySpotlightIndexer.reindex(appDatabase: dependencies.appDatabase, diagnostics: dependencies.diagnosticLog)
+        ContentSpotlightIndexer.reindex(appDatabase: dependencies.appDatabase, diagnostics: dependencies.diagnosticLog)
 
         // Retry any pending outbox ops for the active account. There's no backoff
         // timer, so foreground (alongside reconnect and enqueue) is a retry
         // trigger — this covers being foregrounded with pending ops but no
         // connectivity change since.
-        let accountService = AppCoordinator.shared.dependencies.accountService
+        let accountService = dependencies.accountService
         if let keychainId = accountService.currentDefaultAccountKeychainId() {
             Task { await accountService.scope(forAccountKeychainId: keychainId).drainPendingOutbox() }
         }
