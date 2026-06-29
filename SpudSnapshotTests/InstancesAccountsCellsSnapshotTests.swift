@@ -11,20 +11,21 @@ import UIKit
 import XCTest
 @testable import Spud
 
-/// Snapshots of the instance-picker and account-switcher cells plus the instance
-/// icon view across their visual states, each in light and dark.
+/// Snapshots of the instance-picker cell plus the instance icon view across
+/// their visual states, each in light and dark.
 ///
 /// - `SiteListSiteCell`: a loaded instance (with a resolved icon via
 ///   `StaticImageService`) and an instance with no icon (placeholder).
 /// - `SiteListIconImageView`: its three rendered `IconType` states — a loaded
 ///   image, the empty `noIcon` placeholder, and the `failure` broken-icon plate.
-/// - `AccountListAccountCell`: a normal signed-in account, the current/default
-///   account (checkmark accessory), and a signed-out (anonymous) account.
 ///
-/// Cells render from a `SiteListRow` / `AccountListRow` fixture and a deterministic
-/// image service, with no database or network. Each cell is rendered at a fixed
-/// width and pinned display scale, and the icon view at a fixed size, so the
-/// references are device-independent.
+/// (The account-switcher rows now render in SwiftUI; their visual states are
+/// covered by `AccountSwitcherSnapshotTests`.)
+///
+/// Cells render from a `SiteListRow` fixture and a deterministic image service,
+/// with no database or network. Each cell is rendered at a fixed width and pinned
+/// display scale, and the icon view at a fixed size, so the references are
+/// device-independent.
 @MainActor
 final class InstancesAccountsCellsSnapshotTests: XCTestCase {
     private let lemmyTeal = UIColor(red: 0, green: 0x96 / 255, blue: 0x87 / 255, alpha: 1)
@@ -86,38 +87,6 @@ final class InstancesAccountsCellsSnapshotTests: XCTestCase {
         assertIconView(.failure)
     }
 
-    // MARK: - AccountListAccountCell
-
-    func test_account_normal() {
-        assertAccountCell(accountRow(
-            nickname: "alice",
-            instanceHostname: "lemmy.world",
-            email: "alice@example.com",
-            isDefault: false,
-            isSignedOut: false
-        ))
-    }
-
-    func test_account_current() {
-        assertAccountCell(accountRow(
-            nickname: "bob",
-            instanceHostname: "beehaw.org",
-            email: "bob@example.com",
-            isDefault: true,
-            isSignedOut: false
-        ))
-    }
-
-    func test_account_signedOut() {
-        assertAccountCell(accountRow(
-            nickname: nil,
-            instanceHostname: "discuss.tchncs.de",
-            email: nil,
-            isDefault: false,
-            isSignedOut: true
-        ))
-    }
-
     // MARK: - SiteListSiteCell rendering
 
     private func assertSiteCell(
@@ -160,21 +129,6 @@ final class InstancesAccountsCellsSnapshotTests: XCTestCase {
         }
     }
 
-    // MARK: - AccountListAccountCell rendering
-
-    private func assertAccountCell(
-        _ row: AccountListRow,
-        testName: String = #function,
-        line: UInt = #line
-    ) {
-        for style in [UIUserInterfaceStyle.light, .dark] {
-            let cell = AccountListAccountCell(style: .default, reuseIdentifier: nil)
-            pinAccent(cell)
-            cell.configure(with: AccountListAccountViewModel(row: row))
-            snapshotCell(cell, style: style, testName: testName, line: line)
-        }
-    }
-
     // MARK: - Shared cell helpers
 
     private func pinAccent(_ cell: UITableViewCell) {
@@ -204,8 +158,8 @@ final class InstancesAccountsCellsSnapshotTests: XCTestCase {
         ).height
 
         // Host the whole cell (not just contentView) on an opaque backdrop, so the
-        // cell's accessory (the current-account checkmark / disclosure chevron) is
-        // captured and `label`-colored text stays legible in dark mode.
+        // cell's accessory (the disclosure chevron) is captured and
+        // `label`-colored text stays legible in dark mode.
         let container = UIView(frame: CGRect(x: 0, y: 0, width: width, height: height))
         container.backgroundColor = .systemBackground
         container.tintColor = lemmyTeal
@@ -280,24 +234,6 @@ final class InstancesAccountsCellsSnapshotTests: XCTestCase {
             isOpenRegistration: true,
             languageCodes: ["en"],
             tags: ["General"]
-        )
-    }
-
-    private func accountRow(
-        nickname: String?,
-        instanceHostname: String,
-        email: String?,
-        isDefault: Bool,
-        isSignedOut: Bool
-    ) -> AccountListRow {
-        AccountListRow(
-            id: 1,
-            accountKeychainId: "keychain-\(instanceHostname)",
-            isDefault: isDefault,
-            isSignedOutAccountType: isSignedOut,
-            instanceHostname: instanceHostname,
-            nickname: nickname,
-            email: email
         )
     }
 }

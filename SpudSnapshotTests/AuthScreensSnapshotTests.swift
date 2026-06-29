@@ -11,21 +11,18 @@ import XCTest
 @testable import Spud
 
 /// Snapshots of the signed-out authentication surfaces: the `SignInGate` sheet
-/// (one per write action — vote / comment / save / subscribe), the signed-out
-/// Account screen, and the pinned account-actions footer — each in light and
-/// dark.
+/// (one per write action — vote / comment / save / subscribe) and the signed-out
+/// Account screen — each in light and dark.
 ///
-/// The two view controllers render at a pinned `ViewImageConfig` (iPhone 13 Pro
-/// size/scale/safe-area) and the footer at a fixed width with a measured natural
-/// height, so the references are device-independent — they record and verify
-/// identically on any simulator. None of these surfaces load images or touch the
-/// database, so the snapshots are deterministic with no async settling. The
-/// brand "Lemmy" teal is pinned on each root so the accent-tinted controls match
-/// the runtime window `tintColor` (which defaults to it).
+/// The view controllers render at a pinned `ViewImageConfig` (iPhone 13 Pro
+/// size/scale/safe-area), so the references are device-independent — they record
+/// and verify identically on any simulator. None of these surfaces load images or
+/// touch the database, so the snapshots are deterministic with no async settling.
+/// The brand "Lemmy" teal is pinned on each root so the accent-tinted controls
+/// match the runtime window `tintColor` (which defaults to it).
 @MainActor
 final class AuthScreensSnapshotTests: XCTestCase {
     private let lemmyTeal = UIColor(red: 0, green: 0x96 / 255, blue: 0x87 / 255, alpha: 1)
-    private let width: CGFloat = 390
 
     private func traits(_ style: UIUserInterfaceStyle) -> UITraitCollection {
         UITraitCollection(traitsFrom: [
@@ -85,25 +82,6 @@ final class AuthScreensSnapshotTests: XCTestCase {
             assertSnapshot(
                 matching: viewController,
                 as: .image(on: .iPhone13Pro, traits: traits(style)),
-                named: style == .dark ? "dark" : "light"
-            )
-        }
-    }
-
-    // MARK: - AccountActionsFooterView
-
-    func test_accountActionsFooter() {
-        for style in [UIUserInterfaceStyle.light, .dark] {
-            let view = AccountActionsFooterView()
-            view.tintColor = lemmyTeal
-            let height = view.systemLayoutSizeFitting(
-                CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
-                withHorizontalFittingPriority: .required,
-                verticalFittingPriority: .fittingSizeLevel
-            ).height
-            assertSnapshot(
-                matching: view,
-                as: .image(size: CGSize(width: width, height: height), traits: traits(style)),
                 named: style == .dark ? "dark" : "light"
             )
         }

@@ -23,7 +23,8 @@ public extension AppDatabase {
                         account.email           AS email,
                         instance.actorId        AS instanceActorId,
                         person.name             AS personName,
-                        person.displayName      AS personDisplayName
+                        person.displayName      AS personDisplayName,
+                        person.avatarUrl        AS personAvatarUrl
                     FROM account
                     JOIN site     ON site.id = account.siteId
                     JOIN instance ON instance.id = site.instanceId
@@ -36,6 +37,11 @@ public extension AppDatabase {
                 let actorId: String = row["instanceActorId"]
                 let host = URL(string: actorId)?.host ?? actorId
                 let nickname = row.coalescingString("personDisplayName", "personName")
+                // Single column reads (never two chained subscripts) to dodge the
+                // GRDB double-optional `??` footgun.
+                let name: String? = row["personName"]
+                let avatarUrlString: String? = row["personAvatarUrl"]
+                let avatarUrl = avatarUrlString.flatMap { URL(string: $0) }
                 return AccountListRow(
                     id: row["accountId"],
                     accountKeychainId: row["accountKeychainId"],
@@ -43,7 +49,9 @@ public extension AppDatabase {
                     isSignedOutAccountType: row["isSignedOutAccountType"],
                     instanceHostname: host,
                     nickname: nickname,
-                    email: row["email"]
+                    name: name,
+                    email: row["email"],
+                    avatarUrl: avatarUrl
                 )
             }
         }) ?? []

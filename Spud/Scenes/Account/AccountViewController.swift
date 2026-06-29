@@ -251,14 +251,17 @@ class AccountViewController: UIViewController {
 
     // MARK: Actions
 
+    /// Presents the account switcher as a bottom sheet. The switcher
+    /// (`AccountListViewController` hosting `AccountSwitcherView`) configures its
+    /// own detents and grabber and carries its own "Accounts" title, so it is
+    /// presented directly — no `UINavigationController` wrapper.
     @objc
     private func accountsTapped() {
         Haptics.tap()
         let accountListViewController = AccountListViewController(
             dependencies: dependencies.nested
         )
-        let navigationController = UINavigationController(rootViewController: accountListViewController)
-        present(navigationController, animated: true)
+        present(accountListViewController, animated: true)
     }
 
     @objc
