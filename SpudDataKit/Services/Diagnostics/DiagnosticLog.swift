@@ -7,6 +7,13 @@
 import Foundation
 import OSLog
 
+// MARK: - Has protocol
+
+/// Dependency-injection accessor for the shared diagnostic recorder.
+public protocol HasDiagnosticLog {
+    var diagnosticLog: DiagnosticLogging { get }
+}
+
 // MARK: - Protocol
 
 /// A dual-sink diagnostic recorder: every event is emitted to OSLog **and** persisted

@@ -35,6 +35,7 @@ struct AppDatabaseTests {
                 "comment",
                 "commentElement",
                 "community",
+                "diagnosticEvent",
                 "explorerCommunity",
                 "explorerDatasetMeta",
                 "explorerInstance",
