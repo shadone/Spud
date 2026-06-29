@@ -1,7 +1,7 @@
 # Private messages
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** shipped — durable + optimistic sending, GRDB-backed (offline-readable) threads
+- **Status:** shipped — durable + optimistic sending, GRDB-backed (offline-readable) threads, new-message compose, Markdown bodies
 - **Related:** [Inbox](inbox.md), [Mark inbox items read](inbox-mark-read.md), [Drafts and Outbox](drafts-and-outbox.md), [Draft persistence](draft-persistence.md), [Replying](replying.md), [Background unread refresh](background-unread-refresh.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
@@ -18,6 +18,8 @@ Sending requires a signed-in account.
 ## Behavior and rules
 
 - **Conversations come from the Messages scope, backed by the local store.** The Inbox groups private messages per correspondent (newest thread first, with the correspondent's unread count); tapping a conversation row pushes its thread. The list is driven by the persisted message store, so it shows immediately from cache and refreshes from the server on appear and pull-to-refresh.
+- **Start a new conversation.** A compose button in the Inbox nav bar (shown in the Messages scope when signed in) opens a "New Message" recipient picker: search for a user and tap them to open a fresh thread and start typing. (You can also still start a DM by messaging a user from their profile elsewhere in the app.)
+- **Markdown message bodies.** Message bodies render Markdown (bold, italic, links, inline code, code blocks, quotes, lists), like comments and posts; tapping a Lemmy user/community/post link inside a message opens it in-app, and other links open per your link settings. On your own (outgoing) bubble the text and links stay high-contrast on the accent fill.
 - **Threads are persisted and refreshed on open.** A thread reads its messages from the local store (oldest first) — so it opens instantly and works offline — and kicks off a background fetch + import on open to reconcile with the server. A failed refresh leaves the cached messages in place rather than blanking the thread.
 - **Chat bubbles.** Your own messages align right with an accent fill; the correspondent's align left with a neutral fill. Whether a message is outgoing is decided by comparing its author to your account's person id (falling back to "not the correspondent" when your id is unknown).
 - **Compose bar.** A growing text view plus a circular send button sit in an input bar pinned above the keyboard. Send is enabled when the text has non-whitespace content. The in-progress text is auto-saved as a per-correspondent draft and restored when you reopen the thread (see [Draft persistence](draft-persistence.md)).
@@ -65,6 +67,18 @@ Sending requires a signed-in account.
 - **When** the message is queued
 - **Then** the conversation appears in the Messages list with a "Sending…" indicator, reconciling to the real conversation once it confirms
 
+### Start a new conversation from the Messages list
+
+- **Given** I'm signed in, on the Inbox Messages scope
+- **When** I tap the compose button, search for a user, and tap them
+- **Then** a new thread opens and I can send the first message
+
+### Markdown in a message
+
+- **Given** a message whose body contains Markdown (e.g. **bold**, a link, a code block)
+- **When** I view it in the thread
+- **Then** it renders formatted (readable on both incoming and outgoing bubbles), and tapping a link opens it
+
 ### Read a thread offline
 
 - **Given** I have previously loaded a conversation
@@ -79,8 +93,7 @@ Sending requires a signed-in account.
 
 ## Not supported / out of scope
 
-- There is no way to start a brand-new conversation from the Messages list; a DM is started by messaging a user from their profile elsewhere in the app, and the Messages scope lists existing (and pending) correspondents.
 - Older history is not paginated; the thread shows what has been imported from the server's message pages plus anything sent locally.
 - Messages cannot be edited, deleted, or reported from the thread, and there are no read receipts or typing indicators.
-- Message bodies are shown as plain text in bubbles; no inline Markdown rendering, attachments, or media in DMs.
+- Message bodies render Markdown but do not support attachments or inline media uploads (a Markdown image link in a body still renders, but there's no attach-from-DM flow).
 - Marking conversations read happens by opening their thread, not from the Messages list — see [Mark inbox items read](inbox-mark-read.md).

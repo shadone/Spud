@@ -5,6 +5,8 @@
 //
 
 import Foundation
+import SpudDataKit
+import SpudMarkdownKit
 import SpudUIKit
 import UIKit
 
@@ -13,6 +15,13 @@ import UIKit
 /// bubble carries a sending/failed state: `.sending` dims the bubble and shows a
 /// "Sending…" status line; `.failed` shows a red "Not delivered — tap to retry"
 /// line and makes the whole row a tap target for the Retry / Discard sheet.
+///
+/// The message text is rendered as Markdown via a `MarkdownBodyView`, mirroring
+/// the post/comment body rendering (bold, italic, links, code, lists,
+/// blockquotes). Because the outgoing bubble sits on an accent-tinted fill,
+/// its body is rendered with a high-contrast foreground/link color override
+/// (see `configure(with:imageService:)`) so default themed label/link colors
+/// don't wash out; the incoming bubble keeps the system label colors.
 final class DMBubbleCell: UITableViewCell {
     static let reuseIdentifier = "DMBubbleCell"
 
@@ -21,6 +30,16 @@ final class DMBubbleCell: UITableViewCell {
     /// sending or confirmed bubble ignores taps).
     var onFailedTap: (() -> Void)?
 
+    /// Invoked when the user taps a link inside the message Markdown. The host
+    /// resolves and routes it (mention/community/post → in-app, web → browser),
+    /// exactly as the post/comment body link taps do.
+    var onLinkTapped: ((URL) -> Void)?
+
+    /// Fired when an inline image in the body finishes loading, so the host can
+    /// re-measure this row to fit the now-known image height. DMs rarely embed
+    /// images, but the path is wired like the comment cell so the rare case works.
+    var onContentSizeChange: (() -> Void)?
+
     private let bubble: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -28,14 +47,14 @@ final class DMBubbleCell: UITableViewCell {
         return view
     }()
 
-    private let messageLabel: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.numberOfLines = 0
-        label.font = .preferredFont(forTextStyle: .body)
-        label.adjustsFontForContentSizeCategory = true
-        return label
-    }()
+    /// The rendered Markdown message body. Recreated when the outgoing/incoming
+    /// direction changes, since `MarkdownContext` bakes its color override (and
+    /// fonts) at init time — there is no way to recolor an existing instance.
+    private var bodyView: MarkdownBodyView
+    private var bodyViewIsOutgoing: Bool
+
+    /// Retained so the body's async image loader can call `imageService.fetch`.
+    private var imageService: ImageServiceType?
 
     /// The "Sending…" / "Not delivered — tap to retry" line under the bubble.
     /// Hidden for a confirmed (delivered) message.
@@ -64,14 +83,22 @@ final class DMBubbleCell: UITableViewCell {
     private lazy var tapRecognizer = UITapGestureRecognizer(target: self, action: #selector(handleTap))
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        // Start with an incoming-styled body; configure() rebuilds it for an
+        // outgoing bubble (white text/links on the accent fill) when needed.
+        bodyViewIsOutgoing = false
+        bodyView = DMBubbleCell.makeBodyView(isOutgoing: false)
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         backgroundColor = .clear
         selectionStyle = .none
 
-        bubble.addSubview(messageLabel)
+        bubble.addSubview(bodyView)
         column.addArrangedSubview(bubble)
         column.addArrangedSubview(statusLabel)
         contentView.addSubview(column)
+        bodyView.delegate = self
+        bodyView.onContentSizeChange = { [weak self] in
+            self?.onContentSizeChange?()
+        }
 
         tapRecognizer.isEnabled = false
         contentView.addGestureRecognizer(tapRecognizer)
@@ -83,12 +110,8 @@ final class DMBubbleCell: UITableViewCell {
             column.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
             column.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
             column.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.78),
-
-            messageLabel.topAnchor.constraint(equalTo: bubble.topAnchor, constant: 10),
-            messageLabel.bottomAnchor.constraint(equalTo: bubble.bottomAnchor, constant: -10),
-            messageLabel.leadingAnchor.constraint(equalTo: bubble.leadingAnchor, constant: 14),
-            messageLabel.trailingAnchor.constraint(equalTo: bubble.trailingAnchor, constant: -14),
         ])
+        activateBodyConstraints()
 
         isAccessibilityElement = true
         accessibilityTraits = .staticText
@@ -99,30 +122,103 @@ final class DMBubbleCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// Builds a `MarkdownBodyView` whose context carries the right contrast for
+    /// the bubble fill. Outgoing bubbles ride an accent (tint) fill, so the body
+    /// and its links render white; incoming bubbles use the system label/accent.
+    private static func makeBodyView(isOutgoing: Bool) -> MarkdownBodyView {
+        let context = MarkdownContext(
+            kind: .comment,
+            textScale: 0,
+            density: .comfortable,
+            // White on the accent fill keeps the outgoing body and its links
+            // high-contrast; nil (system colors) for the neutral incoming fill.
+            foregroundColorOverride: isOutgoing ? .white : nil,
+            linkColorOverride: isOutgoing ? .white : nil,
+            // The default warm-brown inline-code chip on a translucent fill fails
+            // contrast on the outgoing teal bubble; render the code white on a
+            // light translucent wash there. nil (system colors) for incoming.
+            inlineCodeForegroundOverride: isOutgoing ? .white : nil,
+            inlineCodeBackgroundOverride: isOutgoing ? UIColor.white.withAlphaComponent(0.2) : nil
+        )
+        let view = MarkdownBodyView(context: context)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.accessibilityIdentifier = "body"
+        return view
+    }
+
+    /// Pins the current `bodyView` to the bubble with the chat-bubble insets.
+    private func activateBodyConstraints() {
+        NSLayoutConstraint.activate([
+            bodyView.topAnchor.constraint(equalTo: bubble.topAnchor, constant: 10),
+            bodyView.bottomAnchor.constraint(equalTo: bubble.bottomAnchor, constant: -10),
+            bodyView.leadingAnchor.constraint(equalTo: bubble.leadingAnchor, constant: 14),
+            bodyView.trailingAnchor.constraint(equalTo: bubble.trailingAnchor, constant: -14),
+        ])
+    }
+
+    /// Swaps in a body view rebuilt for the opposite direction (the color
+    /// override is baked at init, so an outgoing/incoming flip needs a fresh
+    /// instance). Reuses the same delegate / content-size hook.
+    private func rebuildBodyView(isOutgoing: Bool) {
+        let newBodyView = DMBubbleCell.makeBodyView(isOutgoing: isOutgoing)
+        bodyView.removeFromSuperview()
+        bubble.addSubview(newBodyView)
+        bodyView = newBodyView
+        bodyViewIsOutgoing = isOutgoing
+        bodyView.delegate = self
+        bodyView.onContentSizeChange = { [weak self] in
+            self?.onContentSizeChange?()
+        }
+        activateBodyConstraints()
+    }
+
     override func prepareForReuse() {
         super.prepareForReuse()
         onFailedTap = nil
+        onLinkTapped = nil
+        onContentSizeChange = nil
         tapRecognizer.isEnabled = false
         statusLabel.isHidden = true
         bubble.alpha = 1
+        // Drop the rendered blocks so any in-flight inline-image load is
+        // cancelled before the cell is reused for another message.
+        bodyView.setBlocks([])
         accessibilityTraits = .staticText
     }
 
     /// Render `item`. A confirmed bubble shows the message and no status; an
     /// optimistic one layers the sending/failed affordance on top.
-    func configure(with item: DMBubbleItem) {
-        messageLabel.text = item.content
+    ///
+    /// - Parameter imageService: provides decoded images for the rare inline
+    ///   image in a message body (wired like the comment cell for parity).
+    func configure(with item: DMBubbleItem, imageService: ImageServiceType) {
+        self.imageService = imageService
+
+        // Rebuild the body when the direction changes so the contrast override
+        // matches the fill (white on accent vs. system on neutral).
+        if item.isOutgoing != bodyViewIsOutgoing {
+            rebuildBodyView(isOutgoing: item.isOutgoing)
+        }
+
+        // Parse once via the shared cache (off-main safe) and render after wiring
+        // the image loader, mirroring the comment cell's body path.
+        let blocks = MarkdownBlockCache.shared.blocks(for: item.content)
+        bodyView.imageLoader = { [imageService] url in
+            for await state in imageService.fetch(url) {
+                if case let .ready(image) = state { return image }
+            }
+            return nil
+        }
+        bodyView.setBlocks(blocks)
 
         if item.isOutgoing {
             bubble.backgroundColor = .tintColor
-            messageLabel.textColor = .white
             column.alignment = .trailing
             statusLabel.textAlignment = .right
             leadingConstraint.isActive = false
             trailingConstraint.isActive = true
         } else {
             bubble.backgroundColor = .secondarySystemBackground
-            messageLabel.textColor = .label
             column.alignment = .leading
             statusLabel.textAlignment = .left
             trailingConstraint.isActive = false
@@ -177,6 +273,16 @@ final class DMBubbleCell: UITableViewCell {
     @objc
     private func handleTap() {
         onFailedTap?()
+    }
+}
+
+// MARK: - MarkdownBodyDelegate
+
+extension DMBubbleCell: MarkdownBodyDelegate {
+    /// Forwards a body-text link tap to the host, which resolves and routes it
+    /// (mention/community/post → in-app, web → browser).
+    func markdownBody(didTapLink url: URL) {
+        onLinkTapped?(url)
     }
 }
 

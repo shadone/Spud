@@ -88,7 +88,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Sign-in gate on write actions](sign-in-gate.md) | `iphone`, `ipad` | shipped |
 | [Inbox](inbox.md) | `iphone`, `ipad` | shipped |
 | [Marking inbox items read](inbox-mark-read.md) | `iphone`, `ipad` | shipped |
-| [Private messages](private-messages.md) | `iphone`, `ipad` | shipped — GRDB-backed (offline-readable) threads + optimistic, durable sending (instant bubble, background retry, failure recovery via Drafts & Outbox) |
+| [Private messages](private-messages.md) | `iphone`, `ipad` | shipped — GRDB-backed (offline-readable) threads + optimistic, durable sending (instant bubble, background retry, failure recovery via Drafts & Outbox); new-message compose (recipient picker) + Markdown bodies |
 | [Background unread refresh](background-unread-refresh.md) | `iphone`, `ipad` | shipped |
 | [New post](new-post.md) | `iphone`, `ipad` | shipped |
 | [Image upload](image-upload.md) | `iphone`, `ipad` | shipped |
@@ -171,7 +171,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 **Inbox & messaging**
 - [x] Inbox (replies / mentions / messages) + unread badge
 - [x] Mark read / mark-all-read
-- [x] Private message threads — GRDB-backed (offline-readable), with optimistic + durable sending (instant "Sending…" bubble, multiple in flight, background retry, failure recovery in Drafts & Outbox), per-correspondent draft autosave, and optimistic conversation-list rows
+- [x] Private message threads — GRDB-backed (offline-readable), with optimistic + durable sending (instant "Sending…" bubble, multiple in flight, background retry, failure recovery in Drafts & Outbox), per-correspondent draft autosave, optimistic conversation-list rows, new-message compose (recipient picker), and Markdown-rendered message bodies
 - [x] Background unread-count refresh (foreground scene refresh; not a `BGAppRefreshTask`)
 
 **Content creation**

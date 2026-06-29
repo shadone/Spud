@@ -24,6 +24,8 @@ final class InboxViewController: UIViewController {
         HasUnreadCountService
     /// Spelled out as a concrete composition to avoid recursive typealias
     /// cycles through the scene graph. The live `DependencyContainer` conforms.
+    /// Includes `HasLinkEmbedService` because a DM thread pushed from here can in
+    /// turn open a person/community/post screen whose comment bodies need it.
     typealias NestedDependencies =
         HasAccountService &
         HasAlertService &
@@ -31,6 +33,7 @@ final class InboxViewController: UIViewController {
         HasAppService &
         HasAppearanceService &
         HasImageService &
+        HasLinkEmbedService &
         HasPostContentDetectorService &
         HasPreferencesService &
         HasReachabilityMonitor &
@@ -100,6 +103,13 @@ final class InboxViewController: UIViewController {
         action: #selector(markAllReadTapped)
     )
 
+    /// Starts a new direct message. Shown only in the Messages scope (DMs are
+    /// the only scope you can originate); hidden elsewhere and when signed out.
+    private lazy var composeButton = UIBarButtonItem(
+        systemItem: .compose,
+        primaryAction: UIAction { [weak self] _ in self?.composeTapped() }
+    )
+
     // MARK: Functions
 
     init(
@@ -146,13 +156,15 @@ final class InboxViewController: UIViewController {
         view.backgroundColor = Theme.background
         navigationItem.title = NSLocalizedString("Inbox", comment: "Inbox screen navigation title")
 
-        if viewModel.isSignedIn {
-            navigationItem.rightBarButtonItem = markAllReadButton
-            markAllReadButton.accessibilityLabel = NSLocalizedString(
-                "Mark all read",
-                comment: "Inbox mark-all-read button accessibility label"
-            )
-        }
+        markAllReadButton.accessibilityLabel = NSLocalizedString(
+            "Mark all read",
+            comment: "Inbox mark-all-read button accessibility label"
+        )
+        composeButton.accessibilityLabel = NSLocalizedString(
+            "New message",
+            comment: "Inbox compose-new-message button accessibility label"
+        )
+        // The actual bar-button set is scope/auth-driven and applied by render().
 
         view.addSubview(segmentedControl)
         view.addSubview(tableView)
@@ -237,6 +249,8 @@ final class InboxViewController: UIViewController {
     }
 
     private func render() {
+        updateNavigationItems()
+
         guard viewModel.isSignedIn else {
             loadingIndicator.stopAnimating()
             applySnapshot([])
@@ -261,6 +275,23 @@ final class InboxViewController: UIViewController {
             applySnapshot([])
             updateContentUnavailable(.error)
         }
+    }
+
+    /// Refreshes the navigation bar's right-hand buttons for the current scope
+    /// and auth state. Compose (start a new DM) appears only in the Messages
+    /// scope; both buttons require a signed-in account (DMs and mark-all-read
+    /// are account-tied). Driven from `render()`, which already fires on every
+    /// scope change and on signed-out.
+    private func updateNavigationItems() {
+        guard viewModel.isSignedIn else {
+            navigationItem.rightBarButtonItems = nil
+            return
+        }
+        // Right-to-left ordering: mark-all-read sits at the trailing edge,
+        // compose to its left, matching the existing single-button placement.
+        navigationItem.rightBarButtonItems = viewModel.scope == .messages
+            ? [markAllReadButton, composeButton]
+            : [markAllReadButton]
     }
 
     private func applyScopeSnapshot() {
@@ -404,6 +435,37 @@ final class InboxViewController: UIViewController {
     private func markAllReadTapped() {
         Haptics.success()
         viewModel.markAllRead()
+    }
+
+    /// Presents the modal "New message" recipient picker. On selection it opens a
+    /// fresh DM thread with the chosen person — identical to the construction used
+    /// when tapping an existing conversation row (`DMThreadViewController` renders a
+    /// zero-message thread's empty state and accepts the first optimistic send).
+    private func composeTapped() {
+        Haptics.tap()
+        let picker = RecipientPickerViewController(
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.own
+        )
+        picker.onRecipientSelected = { [weak self] personId, name in
+            self?.openNewThread(correspondentId: personId, correspondentName: name)
+        }
+        present(UINavigationController(rootViewController: picker), animated: true)
+    }
+
+    /// Pushes a new DM thread onto the inbox nav stack. The picker has already
+    /// dismissed itself by the time this runs.
+    private func openNewThread(
+        correspondentId: Components.Schemas.PersonID,
+        correspondentName: String
+    ) {
+        let threadVC = DMThreadViewController(
+            accountKeychainId: accountKeychainId,
+            correspondentId: correspondentId,
+            correspondentName: correspondentName,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(threadVC, animated: true)
     }
 
     private func openComment(serverPostId: Components.Schemas.PostID) {
