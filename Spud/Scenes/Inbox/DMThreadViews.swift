@@ -133,7 +133,12 @@ final class DMBubbleCell: UITableViewCell {
             // White on the accent fill keeps the outgoing body and its links
             // high-contrast; nil (system colors) for the neutral incoming fill.
             foregroundColorOverride: isOutgoing ? .white : nil,
-            linkColorOverride: isOutgoing ? .white : nil
+            linkColorOverride: isOutgoing ? .white : nil,
+            // The default warm-brown inline-code chip on a translucent fill fails
+            // contrast on the outgoing teal bubble; render the code white on a
+            // light translucent wash there. nil (system colors) for incoming.
+            inlineCodeForegroundOverride: isOutgoing ? .white : nil,
+            inlineCodeBackgroundOverride: isOutgoing ? UIColor.white.withAlphaComponent(0.2) : nil
         )
         let view = MarkdownBodyView(context: context)
         view.translatesAutoresizingMaskIntoConstraints = false

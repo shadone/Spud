@@ -96,6 +96,31 @@ struct RecipientPickerViewModelTests {
     }
 
     @Test
+    func submit_emptyQuery_doesNotSearch_resetsToInitial() async {
+        var searchCount = 0
+        let viewModel = RecipientPickerViewModel(searchUsers: { _ in
+            searchCount += 1
+            return [makeUser(id: 1, name: "alice")]
+        })
+        // First a real search so there's a non-initial phase + results to reset.
+        viewModel.queryChanged("alice")
+        viewModel.submit()
+        await settle { viewModel.phase == .loaded }
+        #expect(searchCount == 1)
+        #expect(!viewModel.results.isEmpty)
+
+        // Now a whitespace-only query: submit must NOT fire another search and
+        // must reset to the initial prompt with no results (mirrors queryChanged).
+        viewModel.queryChanged("   ")
+        viewModel.submit()
+        // Give any (erroneously) scheduled task a chance to run.
+        await settle { false }
+        #expect(viewModel.phase == .initial)
+        #expect(viewModel.results.isEmpty)
+        #expect(searchCount == 1)
+    }
+
+    @Test
     func searchFailure_entersErrorPhase() async {
         let viewModel = RecipientPickerViewModel(searchUsers: { _ in
             throw URLError(.notConnectedToInternet)

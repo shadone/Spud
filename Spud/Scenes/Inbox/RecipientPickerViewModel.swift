@@ -97,8 +97,17 @@ final class RecipientPickerViewModel {
     /// (no debounce).
     func submit() {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+
         searchTask?.cancel()
+
+        // Mirror `queryChanged`: an empty/whitespace query never searches and
+        // resets to the initial prompt rather than leaving a stale phase/results.
+        guard !trimmed.isEmpty else {
+            phase = .initial
+            results = []
+            return
+        }
+
         scheduleSearch(query: trimmed, debounced: false)
     }
 
