@@ -70,6 +70,8 @@ class AccountViewController: UIViewController {
     private var renderedKeychainId: String?
     private var renderedSignedIn: Bool?
     private var renderedHasOwnPerson: Bool?
+    /// Tracked so a home-host change refreshes the signed-out "Reading from" row.
+    private var renderedInstanceHostname: String?
 
     private var currentChild: UIViewController?
 
@@ -109,7 +111,9 @@ class AccountViewController: UIViewController {
         let viewModel = viewModel
         observationTask = Task { @MainActor [weak self] in
             for await _ in ObservationStream.values(of: {
-                (viewModel.isSignedIn, viewModel.accountKeychainId, viewModel.ownPerson)
+                // instanceHostname is observed too so the signed-out "Reading from"
+                // row refreshes if the home host changes without the keychainId.
+                (viewModel.isSignedIn, viewModel.accountKeychainId, viewModel.ownPerson, viewModel.instanceHostname)
             }) {
                 if Task.isCancelled { break }
                 self?.renderIfNeeded()
@@ -123,19 +127,23 @@ class AccountViewController: UIViewController {
 
         let signedIn = viewModel.isSignedIn
         let hasOwnPerson = viewModel.ownPerson != nil
+        let instanceHostname = viewModel.instanceHostname
 
         // Rebuild only on a meaningful change. When signed in but the person
         // row hasn't been imported yet, rebuild once it appears so the embedded
-        // profile can resolve.
+        // profile can resolve. The host is tracked so the signed-out "Reading
+        // from" row refreshes if the home server changes.
         guard
             keychainId != renderedKeychainId ||
             signedIn != renderedSignedIn ||
-            hasOwnPerson != renderedHasOwnPerson
+            hasOwnPerson != renderedHasOwnPerson ||
+            instanceHostname != renderedInstanceHostname
         else { return }
 
         renderedKeychainId = keychainId
         renderedSignedIn = signedIn
         renderedHasOwnPerson = hasOwnPerson
+        renderedInstanceHostname = instanceHostname
 
         if signedIn {
             showSignedIn(keychainId: keychainId)

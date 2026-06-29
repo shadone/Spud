@@ -32,6 +32,9 @@ struct AccountRow: View {
                     .font(.body)
                     .foregroundStyle(isDestructive ? Color.red : tint)
                     .frame(width: 26)
+                    // Decorative — the title conveys the row's meaning; skip the
+                    // SF Symbol name in the combined VoiceOver announcement.
+                    .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
