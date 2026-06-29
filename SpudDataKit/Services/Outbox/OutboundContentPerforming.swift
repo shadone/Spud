@@ -83,6 +83,39 @@ public struct LemmyComposerPerformer: OutboundContentPerforming {
                 respectsPendingOutbox: false
             )
             return Int64(response.post_view.post.id)
+        case .directMessage:
+            // Send the private message. Each createPrivateMessage call makes a
+            // NEW server message — there is no server-side dedup. Unlike the
+            // `.comment` create case we therefore deliberately do NOT run a
+            // create-dedup block (a matching prior message must not short-circuit
+            // a fresh send): the only guard against double-sending the same row is
+            // the ComposerOutboxService `inFlight` reservation, which already
+            // prevents a concurrent drain from re-sending the same clientToken.
+            // A DM row with no recipient can never be sent. Returning nil here
+            // would let the generic success path DELETE the row — silently
+            // losing the user's message. Throw a permanent error instead so the
+            // outbox parks it as `.failed` (content kept). This is a data
+            // invariant violation (the send path always supplies a recipient),
+            // not a transient condition, hence `.invalidContent` (permanent).
+            guard let recipientServerPersonId = record.recipientServerPersonId else {
+                throw LemmyServiceError.invalidContent(
+                    description: "Direct-message outbound row \(record.clientToken) has no recipient"
+                )
+            }
+            let response = try await api.createPrivateMessage(
+                content: record.body,
+                recipientID: Components.Schemas.PersonID(recipientServerPersonId)
+            )
+            // Import the confirmed message into the persistent store
+            // (source of truth). The importer resolves the account's siteId
+            // internally and upserts both participants + the message row keyed on
+            // (accountId, serverMessageId); the generic success path then deletes
+            // this outbound row.
+            try await appDatabase.upsertPrivateMessages(
+                views: [response.private_message_view],
+                accountId: accountId
+            )
+            return nil
         }
     }
 }

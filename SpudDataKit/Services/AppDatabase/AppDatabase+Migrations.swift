@@ -674,6 +674,21 @@ extension AppDatabase {
             )
         }
 
+        migrator.registerMigration("v24_outboundDirectMessage") { db in
+            // Extends the content outbox with the direct-message (DM) kind
+            // (`OutboundKind.directMessage = 2`). A DM row carries only a body and
+            // this recipient; the comment/post columns stay NULL. Added as a
+            // nullable column so existing comment/post rows are unaffected. The DM
+            // performer calls api.createPrivateMessage(content:recipientID:) and
+            // imports the confirmed PrivateMessageView into the persistent
+            // `privateMessage` store. Multiple in-flight sends to one recipient are
+            // allowed via the per-row `dmSendKey` (the draft unique index only
+            // constrains drafts), so no new index is needed here.
+            try db.alter(table: "outboundContent") { t in
+                t.add(column: "recipientServerPersonId", .integer)
+            }
+        }
+
         return migrator
     }
 }

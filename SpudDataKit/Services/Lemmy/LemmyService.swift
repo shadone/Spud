@@ -22,6 +22,13 @@ public enum LemmyServiceError: Error {
     /// backed by a signed-out account.
     case requiresAuthentication
 
+    /// The content we were asked to send is malformed or un-sendable (a
+    /// programmer/data error, e.g. a direct-message row with no recipient).
+    /// `OutboxFailureClass` classifies this as `.permanent` so the outbox parks
+    /// the row as `.failed` (content kept) instead of retrying forever — there
+    /// is no network round-trip that could ever make invalid content valid.
+    case invalidContent(description: String)
+
     init(from error: Error) {
         if let error = error as? LemmyApiError {
             self = .apiError(error)
@@ -292,6 +299,30 @@ public protocol LemmyServiceType: Actor {
     /// Load a previously saved draft by its `draftKey`. Returns `nil` when the
     /// draft can't be found or when the account row can't be resolved.
     func loadDraft(draftKey: String) async throws -> OutboundContentRecord?
+
+    /// Persist (or overwrite) the single per-recipient DM autosave draft — the
+    /// unsent in-progress message text for `recipientServerPersonId` — and return
+    /// its `clientToken`. There is one draft row per correspondent (keyed by
+    /// `dmDraftKey`); this does NOT send. Throws when the account row can't be
+    /// resolved.
+    func saveDirectMessageDraft(
+        body: String,
+        recipientServerPersonId: Int64
+    ) async throws -> String
+
+    /// Durably + optimistically send a private message to
+    /// `recipientServerPersonId`. Creates a uniquely-keyed `.directMessage`
+    /// outbound row at `.queued` status, then hands it to the
+    /// `ComposerOutboxService`, which enqueues and drains on a detached task —
+    /// this method returns immediately after the fast DB write (it never awaits
+    /// the network send) so the optimistic bubble appears instantly. Returns the
+    /// `clientToken` so the UI can correlate the optimistic bubble with its
+    /// eventual success/failure. Throws when the account row can't be resolved.
+    @discardableResult
+    func sendDirectMessage(
+        body: String,
+        recipientServerPersonId: Int64
+    ) async throws -> String
 
     /// Apply an edit's title/body/url/nsfw to the user's OWN post optimistically,
     /// so the open post header reflects the edit immediately. The change is scoped
@@ -2096,6 +2127,52 @@ public actor LemmyService: LemmyServiceType {
     public func loadDraft(draftKey: String) async throws -> OutboundContentRecord? {
         guard let ids = try await accountSiteIds() else { return nil }
         return try await appDatabase.loadOutboundDraft(accountId: ids.0, draftKey: draftKey)
+    }
+
+    public func saveDirectMessageDraft(
+        body: String,
+        recipientServerPersonId: Int64
+    ) async throws -> String {
+        guard let ids = try await accountSiteIds() else {
+            throw LemmyServiceError.internalInconsistency(description: "account row unavailable")
+        }
+        let input = OutboundDraftInput(
+            kind: .directMessage,
+            body: body,
+            postServerId: nil,
+            parentCommentServerId: nil,
+            communityServerId: nil,
+            title: nil,
+            url: nil,
+            nsfw: false,
+            postType: 0,
+            recipientServerPersonId: recipientServerPersonId
+        )
+        return try await appDatabase.upsertOutboundDraft(input, accountId: ids.0, now: Date().timeIntervalSince1970)
+    }
+
+    @discardableResult
+    public func sendDirectMessage(
+        body: String,
+        recipientServerPersonId: Int64
+    ) async throws -> String {
+        guard let ids = try await accountSiteIds() else {
+            throw LemmyServiceError.internalInconsistency(description: "account row unavailable")
+        }
+        // Create the uniquely-keyed queued row first (fast DB write). Several
+        // sends to the same recipient can coexist because each row's draftKey is
+        // salted with its own clientToken (see `dmSendKey`).
+        let token = try await appDatabase.enqueueOutboundDirectMessage(
+            body: body,
+            recipientServerPersonId: recipientServerPersonId,
+            accountId: ids.0,
+            now: Date().timeIntervalSince1970
+        )
+        // `submit` enqueues then drains on a DETACHED task and returns
+        // immediately; we never await the network send, so the optimistic UI
+        // stays instant.
+        await composerOutbox()?.submit(clientToken: token)
+        return token
     }
 
     public func applyOptimisticPostEdit(

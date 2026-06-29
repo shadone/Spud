@@ -242,6 +242,11 @@ final class OutboundContentListViewController: UIViewController {
                     comment: "Drafts & Outbox row: target description for a post with no title"
                 )
             }
+        case .directMessage:
+            config.text = NSLocalizedString(
+                "Direct message",
+                comment: "Drafts & Outbox row: target description for a private (direct) message"
+            )
         }
 
         // Body snippet.

@@ -11,6 +11,9 @@ import GRDB
 public enum OutboundKind: Int64, Codable, Sendable {
     case comment = 0
     case post = 1
+    /// A private (direct) message. Carries only a `body` and a
+    /// `recipientServerPersonId`; all the comment/post fields are nil.
+    case directMessage = 2
 }
 
 /// Lifecycle of an outbound row. There is no `sent` — a successful send deletes
@@ -41,11 +44,15 @@ public struct OutboundDraftInput: Sendable, Equatable {
     /// id (the performer calls `editPost` and the create-dedup is skipped). Only
     /// meaningful for `.post`.
     public var editPostServerId: Int64?
+    /// Server person id of the recipient for a `.directMessage` row. nil for
+    /// `.comment` / `.post` (a DM carries only a body + recipient).
+    public var recipientServerPersonId: Int64?
 
     public init(
         kind: OutboundKind, body: String, postServerId: Int64?, parentCommentServerId: Int64?,
         communityServerId: Int64?, title: String?, url: String?, nsfw: Bool, postType: Int64,
-        editCommentServerId: Int64? = nil, editPostServerId: Int64? = nil
+        editCommentServerId: Int64? = nil, editPostServerId: Int64? = nil,
+        recipientServerPersonId: Int64? = nil
     ) {
         self.kind = kind
         self.body = body
@@ -58,6 +65,7 @@ public struct OutboundDraftInput: Sendable, Equatable {
         self.postType = postType
         self.editCommentServerId = editCommentServerId
         self.editPostServerId = editPostServerId
+        self.recipientServerPersonId = recipientServerPersonId
     }
 }
 
@@ -86,6 +94,10 @@ public struct OutboundContentRecord: Codable, FetchableRecord, MutablePersistabl
     /// id: the performer calls `editPost(postID:...)` and the create-dedup is
     /// skipped. Persisted by the `v22_outboundEditPost` migration.
     public var editPostServerId: Int64?
+    /// Server person id of the recipient for a `.directMessage` row; nil for
+    /// `.comment` / `.post`. Persisted by the `v24_outboundDirectMessage`
+    /// migration as a nullable column.
+    public var recipientServerPersonId: Int64?
     public var attempts: Int64
     public var lastError: String?
     public var nextAttemptAt: Double?
@@ -122,6 +134,28 @@ public struct OutboundContentRecord: Codable, FetchableRecord, MutablePersistabl
         "ep:\(serverPostId)"
     }
 
+    /// Draft key for the per-recipient DM **autosave** draft — the single
+    /// in-progress, unsent message text for one correspondent. There is exactly
+    /// one such draft row per recipient (consistent with comment/post drafts),
+    /// so opening a DM thread loads/overwrites this one row.
+    ///
+    /// This is deliberately distinct from `dmSendKey`: a *send* must coexist with
+    /// other in-flight sends to the same recipient (see `dmSendKey`), whereas the
+    /// autosave draft is a singleton per correspondent.
+    public static func dmDraftKey(recipientServerPersonId: Int64) -> String {
+        "dm:\(recipientServerPersonId)"
+    }
+
+    /// Unique draft key for a single queued/sending DM **send**. The
+    /// `(accountId, draftKey)` unique index only constrains `status == draft`
+    /// rows, but to let several messages to the *same* recipient be in flight at
+    /// once (iMessage-like), each send gets a per-row key salted with its unique
+    /// `clientToken`. This guarantees concurrent sends to one correspondent never
+    /// collide on the draft index and each remains independently observable.
+    public static func dmSendKey(recipientServerPersonId: Int64, clientToken: String) -> String {
+        "dm:\(recipientServerPersonId):send:\(clientToken)"
+    }
+
     public static func draftKey(for input: OutboundDraftInput) -> String {
         switch input.kind {
         case .comment:
@@ -136,6 +170,24 @@ public struct OutboundContentRecord: Codable, FetchableRecord, MutablePersistabl
             } else {
                 postDraftKey(communityServerId: input.communityServerId)
             }
+        case .directMessage:
+            // The DM autosave draft is per-recipient. Sends use the unique
+            // `dmSendKey` instead (assigned at enqueue time), so this only ever
+            // keys the singleton draft row for the correspondent.
+            dmDraftKey(forDraftInput: input)
         }
+    }
+
+    /// DM autosave draft key for `input`, with a debug-only invariant check that
+    /// the recipient is present. A DM draft REQUIRES a recipient — the real send
+    /// path always passes a non-optional one, so a nil here is a programmer error,
+    /// not a valid input. Trap it in debug; release still falls through to the
+    /// `?? 0` sentinel (rather than crash production), which would park a phantom
+    /// `dm:0` slot — visible and recoverable, never silent data loss.
+    private static func dmDraftKey(forDraftInput input: OutboundDraftInput) -> String {
+        if input.recipientServerPersonId == nil {
+            assertionFailure("DM draft requires a recipient; got nil recipientServerPersonId")
+        }
+        return dmDraftKey(recipientServerPersonId: input.recipientServerPersonId ?? 0)
     }
 }

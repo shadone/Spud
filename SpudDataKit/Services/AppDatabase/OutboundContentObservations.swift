@@ -41,6 +41,39 @@ public extension AppDatabase {
         }
     }
 
+    /// Outbound direct-message rows to `recipientServerPersonId` belonging to
+    /// `accountKeychainId`, in creation order. Backs the DM thread's overlay of
+    /// pending/failed (and the brief sending state of) outgoing messages. A
+    /// successful send deletes the row (there is no `sent` status) once the
+    /// confirmed message lands in the persistent `privateMessage` store, so the
+    /// optimistic bubble is replaced by the real one. Several in-flight sends to
+    /// the same recipient each surface as their own row (unique `dmSendKey`).
+    func observeOutboundDMs(
+        recipientServerPersonId: Int64,
+        accountKeychainId: String
+    ) -> AsyncStream<[OutboundContentRecord]> {
+        let observation = ValueObservation
+            .tracking { db -> [OutboundContentRecord] in
+                try OutboundContentRecord
+                    .filter(Column("kind") == OutboundKind.directMessage.rawValue)
+                    .filter(Column("recipientServerPersonId") == recipientServerPersonId)
+                    .filter(sql: "accountId IN (SELECT id FROM account WHERE accountKeychainId = ?)", arguments: [accountKeychainId])
+                    .order(Column("createdAt").asc)
+                    .fetchAll(db)
+            }
+            .removeDuplicates()
+
+        return AsyncStream { continuation in
+            let cancellable = observation.start(in: writer, scheduling: .async(onQueue: .global(qos: .userInitiated))) { error in
+                logger.error("observeOutboundDMs failed: \(String(describing: error), privacy: .public)")
+                continuation.finish()
+            } onChange: { value in
+                continuation.yield(value)
+            }
+            continuation.onTermination = { _ in cancellable.cancel() }
+        }
+    }
+
     /// All outbound rows for `accountKeychainId`, newest first. Backs the Drafts
     /// & Outbox list.
     func observeOutboundContent(accountKeychainId: String) -> AsyncStream<[OutboundContentRecord]> {
