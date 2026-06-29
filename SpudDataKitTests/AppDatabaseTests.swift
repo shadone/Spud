@@ -50,6 +50,7 @@ struct AppDatabaseTests {
                 "post",
                 "postInteraction",
                 "postInteractionFts",
+                "privateMessage",
                 "site",
                 "pendingOperation",
                 "siteAdmin",
