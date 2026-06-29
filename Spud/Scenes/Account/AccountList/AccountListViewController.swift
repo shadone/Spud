@@ -7,58 +7,67 @@
 import Foundation
 import OSLog
 import SpudDataKit
+import SpudUIKit
+import SwiftUI
 import UIKit
 
 private let logger = Logger.app
 
-class AccountListViewController: UIViewController {
+/// Hosts ``AccountSwitcherView`` as a bottom sheet (medium/large detents, with a
+/// grabber and the sheet's own centered "Accounts" title — no nav bar). Reached
+/// by tapping "Switch account" on the Account tab.
+///
+/// The `@Observable` view model keeps the SwiftUI list fed from
+/// `observeAccountListRows()` and is handed straight to `AccountSwitcherView`, so
+/// the sheet re-renders itself while it's open (e.g. after switching the default
+/// account the radio check moves without re-presenting) — no relay loop here. The
+/// four user actions route back through this controller:
+/// - **select** -> `setDefaultAccount` + dismiss,
+/// - **remove** (swipe, non-active rows only) -> `removeAccount`,
+/// - **add account** -> the server picker (`SiteListViewController`),
+/// - **browse anonymously** -> the same server picker, where the "Browse
+///   anonymously" affordance lives (so we reuse the existing flow rather than
+///   inventing a new entry point).
+final class AccountListViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
-        HasAppDatabase
+        HasAppDatabase &
+        HasImageService
     typealias NestedDependencies =
         SiteListViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
-    var accountService: AccountServiceType {
+    private var accountService: AccountServiceType {
         dependencies.own.accountService
     }
 
-    var appDatabase: AppDatabase {
+    private var appDatabase: AppDatabase {
         dependencies.own.appDatabase
     }
 
-    // MARK: UI Properties
-
-    var cancelBarButtonItem: UIBarButtonItem!
-    var addAccountBarButtonItem: UIBarButtonItem!
-
-    lazy var tableView: UITableView = {
-        let tableView = UITableView(frame: .zero, style: .plain)
-        tableView.translatesAutoresizingMaskIntoConstraints = false
-        tableView.rowHeight = UITableView.automaticDimension
-
-        tableView.delegate = self
-
-        tableView.register(AccountListAccountCell.self, forCellReuseIdentifier: AccountListAccountCell.reuseIdentifier)
-
-        return tableView
-    }()
+    private var imageService: ImageServiceType {
+        dependencies.own.imageService
+    }
 
     // MARK: Private
 
-    private var dataSource: UITableViewDiffableDataSource<Int, Int64>!
-    private var rowsByAccountId: [Int64: AccountListRow] = [:]
-    private var observationTask: Task<Void, Never>?
+    private let viewModel: AccountSwitcherViewModel
 
     // MARK: Functions
 
     init(dependencies: Dependencies) {
         self.dependencies = (own: dependencies, nested: dependencies)
+        viewModel = AccountSwitcherViewModel(appDatabase: dependencies.appDatabase)
 
         super.init(nibName: nil, bundle: nil)
 
-        setup()
+        // Force the draggable bottom-sheet presentation on every device. On iPad a
+        // modal defaults to `.formSheet`, where `sheetPresentationController` is nil
+        // and the grabber/detents never apply — pinning `.pageSheet` here, before
+        // presentation, makes the controller a sheet (and the detents stick) on both
+        // iPhone and iPad.
+        modalPresentationStyle = .pageSheet
     }
 
     @available(*, unavailable)
@@ -66,182 +75,97 @@ class AccountListViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    deinit {
-        observationTask?.cancel()
-    }
-
-    private func setup() {
-        cancelBarButtonItem = UIBarButtonItem(
-            barButtonSystemItem: .cancel,
-            target: self,
-            action: #selector(cancelTapped)
-        )
-
-        addAccountBarButtonItem = UIBarButtonItem(
-            barButtonSystemItem: .add,
-            target: self,
-            action: #selector(addAccountTapped)
-        )
-
-        updateBarButtonItems()
-
-        navigationItem.title = "Accounts"
-
-        view.backgroundColor = .white
-
-        view.addSubview(tableView)
-
-        NSLayoutConstraint.activate([
-            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            tableView.topAnchor.constraint(equalTo: view.topAnchor),
-            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
-
-        setupDataSource()
-    }
-
-    private func setupDataSource() {
-        let dataSource = AccountListDiffableDataSource(
-            tableView: tableView
-        ) { [weak self] tableView, indexPath, accountRowId in
-            let cell = tableView.dequeueReusableCell(
-                withIdentifier: AccountListAccountCell.reuseIdentifier,
-                for: indexPath
-            ) as! AccountListAccountCell
-
-            guard let row = self?.rowsByAccountId[accountRowId] else {
-                logger.assertionFailure("Missing AccountListRow for accountId \(accountRowId)")
-                return cell
-            }
-
-            cell.configure(with: AccountListAccountViewModel(row: row))
-            return cell
-        }
-
-        // The base diffable data source reports every row editable but ships no
-        // commit handler, so the Edit-mode Delete control appears yet does
-        // nothing. Route deletion through `deleteAccount`, and offer it for any
-        // account except the currently-active one: you switch away from the
-        // active account rather than delete it, which also keeps the app from
-        // ever being left without a default.
-        dataSource.canDeleteRow = { [weak self] accountRowId in
-            guard let row = self?.rowsByAccountId[accountRowId] else { return false }
-            return !row.isDefault
-        }
-        dataSource.deleteRow = { [weak self] accountRowId in
-            self?.deleteAccount(accountRowId: accountRowId)
-        }
-
-        self.dataSource = dataSource
-    }
-
-    private func deleteAccount(accountRowId: Int64) {
-        guard
-            let row = rowsByAccountId[accountRowId],
-            !row.isDefault
-        else { return }
-
-        // Remove the account row (and its keychain credential, if signed in).
-        // The active account is never deletable here, so the current selection
-        // stays put. The `observeAccountListRows()` observation then re-emits
-        // and the snapshot drops the row.
-        accountService.removeAccount(forAccountKeychainId: row.accountKeychainId)
-    }
-
     override func viewDidLoad() {
         super.viewDidLoad()
-        startObserving()
+        // `.insetGrouped` styling drives its own background; this is the sheet's
+        // base color so it reads correctly in light and dark (the old plain
+        // `view.backgroundColor = .white` was broken in dark mode).
+        view.backgroundColor = .systemGroupedBackground
+
+        embedSwitcher()
+        configureSheet()
     }
 
-    private func startObserving() {
-        observationTask?.cancel()
-        observationTask = Task { [appDatabase] in
-            for await rows in appDatabase.observeAccountListRows() {
-                if Task.isCancelled { break }
-                await MainActor.run { self.apply(rows: rows) }
-            }
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // Eagerly stop the DB observation when the sheet is dismissed so it
+        // doesn't outlive the visible screen. The view model also cancels in
+        // `deinit` as the reliable backstop.
+        if isBeingDismissed {
+            viewModel.stop()
         }
     }
 
-    private func apply(rows: [AccountListRow]) {
-        rowsByAccountId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+    private func embedSwitcher() {
+        // Hand the `@Observable` view model straight to the SwiftUI view: it reads
+        // `viewModel.rows`, so SwiftUI re-renders itself on each DB emission. There
+        // is no value-type `rootView` to re-push, hence no relay loop here.
+        let switcher = AccountSwitcherView(
+            viewModel: viewModel,
+            accent: Color(ThemeManager.currentAccentColor),
+            onSelect: { [weak self] keychainId in self?.selectAccount(keychainId: keychainId) },
+            onRemove: { [weak self] keychainId in self?.removeAccount(keychainId: keychainId) },
+            onAddAccount: { [weak self] in self?.addAccount() },
+            onBrowseAnonymously: { [weak self] in self?.browseAnonymously() }
+        )
+        .environment(\.imageService, imageService)
 
-        var snapshot = NSDiffableDataSourceSnapshot<Int, Int64>()
-        snapshot.appendSections([0])
-        snapshot.appendItems(rows.map(\.id), toSection: 0)
-        // Reload items so cells re-bind when row contents change but the id list doesn't.
-        snapshot.reloadItems(rows.map(\.id))
-        dataSource.apply(snapshot, animatingDifferences: true)
+        let hostingController = UIHostingController(rootView: switcher)
+        add(child: hostingController)
+        addSubviewWithEdgeConstraints(child: hostingController)
+        hostingController.didMove(toParent: self)
     }
 
-    private func updateBarButtonItems() {
-        if isEditing {
-            navigationItem.leftBarButtonItems = [addAccountBarButtonItem]
-        } else {
-            navigationItem.leftBarButtonItems = [cancelBarButtonItem]
+    /// Presents the switcher as a bottom sheet with medium and large detents and
+    /// a visible grabber. The sheet carries its own title, so there is no nav
+    /// bar wrapping this controller.
+    private func configureSheet() {
+        if let sheet = sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
+            sheet.preferredCornerRadius = 20
         }
-        navigationItem.rightBarButtonItems = [editButtonItem]
     }
 
-    override func setEditing(_ editing: Bool, animated: Bool) {
-        super.setEditing(editing, animated: animated)
-        tableView.isEditing = editing
-        updateBarButtonItems()
-    }
+    // MARK: Actions
 
-    @objc
-    private func cancelTapped() {
+    /// Makes `keychainId` the default account and dismisses. The current
+    /// `setDefaultAccount` is keychainId-only (no row record needed).
+    private func selectAccount(keychainId: String) {
+        Haptics.tap()
+        accountService.setDefaultAccount(forAccountKeychainId: keychainId)
         dismiss(animated: true)
     }
 
-    @objc
-    private func addAccountTapped() {
-        setEditing(false, animated: true)
+    /// Removes an account and its keychain credential (if signed in). Only ever
+    /// called for a non-active account — the switcher hides the swipe action on
+    /// the active row — so the current default stays put and the app is never
+    /// left without one. The observation then re-emits and the row drops out.
+    private func removeAccount(keychainId: String) {
+        accountService.removeAccount(forAccountKeychainId: keychainId)
+    }
 
+    /// Opens the add-account flow: the server picker, then log in / sign up.
+    private func addAccount() {
+        Haptics.tap()
+        presentServerPicker()
+    }
+
+    /// Opens the anonymous-browse flow. There is no standalone "browse
+    /// anonymously" entry point: the affordance lives on the login screen
+    /// reached through the server picker (pick a server -> "Browse <host>
+    /// anonymously" -> confirmation -> `signInAsSignedOut`). Reusing that flow
+    /// keeps a single path for choosing an instance.
+    private func browseAnonymously() {
+        Haptics.tap()
+        presentServerPicker()
+    }
+
+    private func presentServerPicker() {
         let siteListViewController = SiteListViewController(
             dependencies: dependencies.nested
         )
         let navigationController = UINavigationController(rootViewController: siteListViewController)
         present(navigationController, animated: true)
-    }
-}
-
-// MARK: - Table View Delegate
-
-extension AccountListViewController: UITableViewDelegate {
-    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
-        guard
-            let accountRowId = dataSource.itemIdentifier(for: indexPath),
-            let row = rowsByAccountId[accountRowId]
-        else { return }
-
-        accountService.setDefaultAccount(forAccountKeychainId: row.accountKeychainId)
-        dismiss(animated: true)
-    }
-}
-
-// MARK: - Diffable Data Source
-
-/// Adds editing-mode (and swipe-to-) deletion to the account list. The base
-/// `UITableViewDiffableDataSource` reports rows editable but provides no commit
-/// handler, so without these overrides the Delete control appears yet does
-/// nothing. Deletion is routed back to the owning controller via closures.
-private final class AccountListDiffableDataSource: UITableViewDiffableDataSource<Int, Int64> {
-    var canDeleteRow: ((Int64) -> Bool)?
-    var deleteRow: ((Int64) -> Void)?
-
-    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        guard let accountRowId = itemIdentifier(for: indexPath) else { return false }
-        return canDeleteRow?(accountRowId) ?? false
-    }
-
-    override func tableView(
-        _ tableView: UITableView,
-        commit editingStyle: UITableViewCell.EditingStyle,
-        forRowAt indexPath: IndexPath
-    ) {
-        guard editingStyle == .delete, let accountRowId = itemIdentifier(for: indexPath) else { return }
-        deleteRow?(accountRowId)
     }
 }
