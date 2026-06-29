@@ -627,6 +627,10 @@ public actor LemmyService: LemmyServiceType {
     let api: LemmyApi
     private let reachability: ReachabilityMonitoring
 
+    /// Dual-sink recorder for structured diagnostic events (OSLog + GRDB).
+    /// Injectable so tests can pass a `DiagnosticLogSpy` without database I/O.
+    let diagnostics: DiagnosticLogging
+
     /// Task-memoized lazy outbox. Construction is deferred to the first
     /// vote/save/hide call because it needs `accountSiteIds()` (an async DB
     /// read) and must call `start()`. Memoizing the *Task* (not the value)
@@ -647,13 +651,15 @@ public actor LemmyService: LemmyServiceType {
         accountIsSignedOut: Bool,
         appDatabase: AppDatabase,
         api: LemmyApi,
-        reachability: ReachabilityMonitoring
+        reachability: ReachabilityMonitoring,
+        diagnostics: DiagnosticLogging? = nil
     ) {
         accountIdentifierForLogging = accountKeychainId
         self.accountIsSignedOut = accountIsSignedOut
         self.appDatabase = appDatabase
         self.api = api
         self.reachability = reachability
+        self.diagnostics = diagnostics ?? DiagnosticLog(appDatabase: appDatabase)
 
         logger.info("Creating new service for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
     }
@@ -943,6 +949,20 @@ public actor LemmyService: LemmyServiceType {
                 Fetch site failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
                 \(String(describing: error), privacy: .public)
                 """)
+            // Emit a durable diagnostic so the recurring "Fetch site failed" noise
+            // is observable in About → Logs without any change to error propagation.
+            var metadata: [String: String] = ["error": String(describing: error)]
+            if case let .unknownServerError(httpStatus, _) = error as? LemmyApiError {
+                metadata["httpStatus"] = String(httpStatus)
+            }
+            await diagnostics.record(
+                category: .site,
+                level: .error,
+                event: "site.fetchFailed",
+                message: "getSite failed",
+                instance: api.instanceHostname,
+                metadata: metadata
+            )
             throw LemmyServiceError(from: error)
         }
 
