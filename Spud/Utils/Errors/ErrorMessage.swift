@@ -32,6 +32,11 @@ enum ErrorMessage {
             )
         case let .apiError(apiError):
             return userFacing(for: apiError)
+        case .invalidContent:
+            return NSLocalizedString(
+                "This message can't be sent.",
+                comment: "Error shown when content is malformed or un-sendable (e.g. a direct message with no recipient)"
+            )
         case let .internalInconsistency(description):
             return description
         }

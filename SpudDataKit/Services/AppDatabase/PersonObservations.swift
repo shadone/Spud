@@ -65,6 +65,80 @@ public extension AppDatabase {
         }
     }
 
+    /// Resolves a person's display name (falling back to their handle) by
+    /// `(accountKeychainId, server person id)`, matching the account-keyed lookup
+    /// of `personRowIdSync`. Returns nil when the person row isn't present yet
+    /// (e.g. a DM recipient typed before any message was imported). Synchronous
+    /// for view-controller bring-up and list-cell labeling paths.
+    ///
+    /// Used to name an outbound DM recipient — both the Drafts & Outbox "Message
+    /// to <name>" row and a synthetic pending-only conversation row in the inbox
+    /// list — without a full `PersonProfileRow` join.
+    func personDisplayNameSync(forKeychainId keychainId: String, personId: Int64) -> String? {
+        do {
+            return try writer.read { db -> String? in
+                let siteId: Int64? = try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)?
+                    .siteId
+                guard let siteId else { return nil }
+                guard let person = try PersonRecord
+                    .filter(Column("siteId") == siteId)
+                    .filter(Column("personId") == personId)
+                    .fetchOne(db)
+                else {
+                    return nil
+                }
+                // displayName falls back to the handle, mirroring the SQL
+                // `coalescingString("displayName", "name")` used by the list reads.
+                return person.displayName ?? person.name
+            }
+        } catch {
+            logger.error("Failed to resolve person display name by keychainId: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Resolves a person's display name (falling back to their handle) AND avatar
+    /// URL together by `(accountKeychainId, server person id)`, in a SINGLE
+    /// `writer.read`. The combined sibling of `personDisplayNameSync` /
+    /// `personAvatarUrlSync`: when a caller needs both fields it would otherwise
+    /// take two blocking reads per person, which on the inbox `@MainActor`
+    /// recompute (once per correspondent, on every observation tick) is wasteful.
+    ///
+    /// Returns nil only when the person row isn't present yet (e.g. a DM recipient
+    /// typed before any message was imported); when the row exists, `name` is the
+    /// `displayName ?? handle` and `avatarUrl` is whatever the row carries (which
+    /// can itself be nil). Synchronous for the list-cell labeling path that names
+    /// a synthetic pending-only DM correspondent.
+    func personNameAndAvatarSync(
+        forKeychainId keychainId: String,
+        personId: Int64
+    ) -> (name: String?, avatarUrl: String?)? {
+        do {
+            return try writer.read { db -> (name: String?, avatarUrl: String?)? in
+                let siteId: Int64? = try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)?
+                    .siteId
+                guard let siteId else { return nil }
+                guard let person = try PersonRecord
+                    .filter(Column("siteId") == siteId)
+                    .filter(Column("personId") == personId)
+                    .fetchOne(db)
+                else {
+                    return nil
+                }
+                // displayName falls back to the handle, mirroring the SQL
+                // `coalescingString("displayName", "name")` used by the list reads.
+                return (name: person.displayName ?? person.name, avatarUrl: person.avatarUrl)
+            }
+        } catch {
+            logger.error("Failed to resolve person name and avatar by keychainId: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     /// Stream of the Person profile snapshot for `personRowId`. Yields nil if
     /// the row no longer exists.
     func observePersonProfile(personRowId: Int64) -> AsyncStream<PersonProfileRow?> {

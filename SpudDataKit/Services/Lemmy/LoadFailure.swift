@@ -66,6 +66,12 @@ public struct LoadFailure: Error, Equatable {
             case .requiresAuthentication:
                 // Auth is out of scope for this iteration; treat as unreachable.
                 return LoadFailure(kind: .unreachable, diagnostics: diagnostics)
+            case .invalidContent:
+                // Malformed/un-sendable content is a client-side data-invariant
+                // violation (a Spud bug), not a network condition — surface it as
+                // the "Spud bug" malformed-response kind. In practice this is an
+                // outbox-only error and shouldn't reach a read-path LoadFailure.
+                return LoadFailure(kind: .malformedResponse, diagnostics: diagnostics)
             }
 
         case is TimeoutError:

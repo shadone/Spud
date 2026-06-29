@@ -146,13 +146,25 @@ final class InboxConversationCell: UITableViewCell {
         return label
     }()
 
+    /// Optimistic-send indicator: "Sending…" (sending) or "Not delivered"
+    /// (failed). Hidden when the conversation has no in-flight outgoing message.
+    private let statusLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 1
+        label.font = .preferredFont(forTextStyle: .caption1)
+        label.adjustsFontForContentSizeCategory = true
+        label.isHidden = true
+        return label
+    }()
+
     private var avatarTask: Task<Void, Never>?
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         accessoryType = .disclosureIndicator
 
-        let textStack = UIStackView(arrangedSubviews: [nameLabel, previewLabel])
+        let textStack = UIStackView(arrangedSubviews: [nameLabel, previewLabel, statusLabel])
         textStack.translatesAutoresizingMaskIntoConstraints = false
         textStack.axis = .vertical
         textStack.spacing = 2
@@ -190,6 +202,8 @@ final class InboxConversationCell: UITableViewCell {
         avatarTask?.cancel()
         avatarTask = nil
         avatarView.image = UIImage(systemName: "person.crop.circle.fill")
+        statusLabel.isHidden = true
+        statusLabel.attributedText = nil
     }
 
     func configure(with conversation: InboxConversation, imageService: ImageServiceType) {
@@ -199,6 +213,9 @@ final class InboxConversationCell: UITableViewCell {
         nameLabel.font = conversation.hasUnread
             ? UIFont.preferredFont(forTextStyle: .headline)
             : UIFont.preferredFont(forTextStyle: .body)
+
+        configureStatus(conversation.pendingStatus)
+        configureAccessibility(conversation)
 
         guard let url = conversation.correspondentAvatarUrl else { return }
         avatarTask?.cancel()
@@ -210,6 +227,68 @@ final class InboxConversationCell: UITableViewCell {
                 }
             }
         }
+    }
+
+    /// Render the optimistic-send indicator as an inline SF symbol + label:
+    /// "Sending…" (secondary) or "Not delivered" (red), or hidden when nothing is
+    /// in flight. Color carries meaning, so the failed state also leads with the
+    /// triangle glyph and the accessibility label spells it out (see
+    /// `configureAccessibility`).
+    private func configureStatus(_ status: InboxConversationPendingStatus?) {
+        guard let status else {
+            statusLabel.isHidden = true
+            statusLabel.attributedText = nil
+            return
+        }
+
+        let symbolName: String
+        let text: String
+        let color: UIColor
+        switch status {
+        case .sending:
+            symbolName = "clock"
+            text = NSLocalizedString("Sending…", comment: "Inbox conversation row: an outgoing message is in flight")
+            color = .secondaryLabel
+        case .failed:
+            symbolName = "exclamationmark.triangle.fill"
+            text = NSLocalizedString("Not delivered", comment: "Inbox conversation row: an outgoing message failed to send")
+            color = .systemRed
+        }
+
+        let attachment = NSTextAttachment()
+        attachment.image = UIImage(systemName: symbolName)?.withTintColor(color, renderingMode: .alwaysOriginal)
+        let line = NSMutableAttributedString(attachment: attachment)
+        line.append(NSAttributedString(
+            string: " " + text,
+            attributes: [.foregroundColor: color]
+        ))
+        statusLabel.attributedText = line
+        statusLabel.isHidden = false
+    }
+
+    /// Compose a single VoiceOver-friendly label so the row reads as one element
+    /// (name, preview, unread, and any send status) rather than fragmented
+    /// sub-labels, and so the send state is conveyed without relying on color.
+    private func configureAccessibility(_ conversation: InboxConversation) {
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+
+        var parts: [String] = [conversation.correspondentName]
+        if !conversation.latestContent.isEmpty {
+            parts.append(conversation.latestContent)
+        }
+        switch conversation.pendingStatus {
+        case .sending:
+            parts.append(NSLocalizedString("Sending", comment: "Inbox conversation accessibility: message sending"))
+        case .failed:
+            parts.append(NSLocalizedString("Not delivered", comment: "Inbox conversation accessibility: message failed"))
+        case nil:
+            break
+        }
+        if conversation.hasUnread {
+            parts.append(NSLocalizedString("Unread", comment: "Inbox conversation accessibility: has unread messages"))
+        }
+        accessibilityLabel = parts.joined(separator: ", ")
     }
 }
 

@@ -28,6 +28,7 @@ final class OutboundContentListViewController: UIViewController {
     typealias Dependencies = OwnDependencies
 
     private let dependencies: OwnDependencies
+    private let accountKeychainId: String
     private let viewModel: OutboundContentListViewModel
 
     @ObservationIgnored
@@ -104,6 +105,7 @@ final class OutboundContentListViewController: UIViewController {
 
     init(accountKeychainId: String, dependencies: Dependencies) {
         self.dependencies = dependencies
+        self.accountKeychainId = accountKeychainId
         viewModel = OutboundContentListViewModel(
             accountKeychainId: accountKeychainId,
             dependencies: dependencies
@@ -240,6 +242,29 @@ final class OutboundContentListViewController: UIViewController {
                 config.text = NSLocalizedString(
                     "Post to a community",
                     comment: "Drafts & Outbox row: target description for a post with no title"
+                )
+            }
+        case .directMessage:
+            // Name the recipient when their person row is in the store ("Message
+            // to <name>"); otherwise fall back to the generic "Direct message"
+            // (the recipient may have been typed before any message was imported).
+            if let recipientServerPersonId = record.recipientServerPersonId,
+               let name = dependencies.appDatabase.personDisplayNameSync(
+                   forKeychainId: accountKeychainId,
+                   personId: recipientServerPersonId
+               )
+            {
+                config.text = String(
+                    format: NSLocalizedString(
+                        "Message to %@",
+                        comment: "Drafts & Outbox row: target description for a private message, naming the recipient"
+                    ),
+                    name
+                )
+            } else {
+                config.text = NSLocalizedString(
+                    "Direct message",
+                    comment: "Drafts & Outbox row: target description for a private (direct) message"
                 )
             }
         }

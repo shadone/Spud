@@ -60,7 +60,6 @@ Spud auto-saves every compose session to a durable per-target draft store (GRDB 
 
 ## Not supported / out of scope
 
-- **Private messages.** The DM composer still uses the old blocking flow; durable drafts for private messages are not yet supported.
-- **No multiple concurrent drafts for the same target.** Only one draft slot exists per target per account; a later session overwrites the earlier one.
+- **No multiple concurrent drafts for the same target.** Only one draft slot exists per target per account; a later session overwrites the earlier one. (A direct message's in-progress text uses one per-correspondent draft slot like any other target; each *sent* DM is a separate durable outbox item, so several messages to one correspondent can be in flight at once — see [Private messages](private-messages.md).)
 - **No draft picker or drafts list inside the composer.** The recovery surface for Failed / Sending / Draft items is the standalone [Drafts and Outbox](drafts-and-outbox.md) screen.
 - **Posts are not editable.** Editing an already-posted *comment* IS supported (it opens a composer prefilled with the comment's body, with its own draft slot — see [Replying](replying.md)); editing or deleting an already-posted *post* is not.

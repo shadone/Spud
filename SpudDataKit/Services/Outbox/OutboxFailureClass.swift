@@ -12,7 +12,8 @@ import LemmyKit
 /// collapses auth into `.unreachable`; the outbox must treat auth as permanent
 /// because a vote should not spin forever when the session is invalid.
 ///
-/// Permanent cases include: auth errors, structured Lemmy server rejections
+/// Permanent cases include: auth errors, invalid/un-sendable content
+/// (`LemmyServiceError.invalidContent`), structured Lemmy server rejections
 /// (deleted/removed entity, banned, not-found, etc.), and client-error HTTP
 /// status codes (4xx excluding 408 and 429). Transient cases include: network
 /// errors, rate-limit rejections, server errors (5xx), 408, and 429.
@@ -32,6 +33,11 @@ public enum OutboxFailureClass: Sendable, Equatable {
             case let .apiError(apiError):
                 return classify(apiError)
             case .requiresAuthentication:
+                return .permanent
+            case .invalidContent:
+                // Malformed/un-sendable content is a programmer/data error: no
+                // retry can ever make it valid, so park it (permanent) rather
+                // than spin forever.
                 return .permanent
             case .internalInconsistency:
                 return .transient

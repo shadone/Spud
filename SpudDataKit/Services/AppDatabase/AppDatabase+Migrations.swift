@@ -639,6 +639,56 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v23_privateMessage") { db in
+            // Persistent private-message (DM) store. One row per confirmed
+            // server message, scoped per account. Participants are referenced by
+            // their server person ids and joined to the `person` table for
+            // name/avatar at read time (same pattern as post/comment creators).
+            // Optimistic/pending sends live in a separate outbox table (a later
+            // slice) and are merged at the read layer, so this table only ever
+            // holds server-confirmed messages.
+            try db.create(table: "privateMessage") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("accountId", .integer)
+                    .notNull()
+                    .references("account", onDelete: .cascade)
+                t.column("serverMessageId", .integer).notNull()
+                t.column("creatorServerPersonId", .integer).notNull()
+                t.column("recipientServerPersonId", .integer).notNull()
+                t.column("content", .text).notNull()
+                t.column("published", .datetime).notNull()
+                t.column("isRead", .boolean).notNull().defaults(to: false)
+                t.column("isDeleted", .boolean).notNull().defaults(to: false)
+                t.column("updatedAt", .datetime).notNull()
+                // Idempotent upsert key: re-importing the same server message
+                // updates the existing row instead of duplicating it.
+                t.uniqueKey(["accountId", "serverMessageId"])
+            }
+            // Per-correspondent grouping scans messages for an account filtered
+            // by the two participant columns; this composite index keeps the
+            // conversation observation off a full table scan.
+            try db.create(
+                index: "privateMessage_on_accountId_participants",
+                on: "privateMessage",
+                columns: ["accountId", "creatorServerPersonId", "recipientServerPersonId"]
+            )
+        }
+
+        migrator.registerMigration("v24_outboundDirectMessage") { db in
+            // Extends the content outbox with the direct-message (DM) kind
+            // (`OutboundKind.directMessage = 2`). A DM row carries only a body and
+            // this recipient; the comment/post columns stay NULL. Added as a
+            // nullable column so existing comment/post rows are unaffected. The DM
+            // performer calls api.createPrivateMessage(content:recipientID:) and
+            // imports the confirmed PrivateMessageView into the persistent
+            // `privateMessage` store. Multiple in-flight sends to one recipient are
+            // allowed via the per-row `dmSendKey` (the draft unique index only
+            // constrains drafts), so no new index is needed here.
+            try db.alter(table: "outboundContent") { t in
+                t.add(column: "recipientServerPersonId", .integer)
+            }
+        }
+
         return migrator
     }
 }

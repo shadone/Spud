@@ -28,6 +28,7 @@ public extension AppDatabase {
                 existing.communityServerId = input.communityServerId
                 existing.editCommentServerId = input.editCommentServerId
                 existing.editPostServerId = input.editPostServerId
+                existing.recipientServerPersonId = input.recipientServerPersonId
                 existing.updatedAt = now
                 try existing.update(db)
                 return existing.clientToken
@@ -40,12 +41,63 @@ public extension AppDatabase {
                     communityServerId: input.communityServerId, title: input.title, url: input.url,
                     nsfw: input.nsfw, postType: input.postType,
                     editCommentServerId: input.editCommentServerId,
-                    editPostServerId: input.editPostServerId, attempts: 0, lastError: nil,
+                    editPostServerId: input.editPostServerId,
+                    recipientServerPersonId: input.recipientServerPersonId,
+                    attempts: 0, lastError: nil,
                     nextAttemptAt: nil, createdAt: now, updatedAt: now
                 )
                 try row.insert(db)
                 return token
             }
+        }
+    }
+
+    /// Insert a new, uniquely-keyed `.directMessage` row at `.queued` status for
+    /// an immediate send, and return its `clientToken`.
+    ///
+    /// Unlike `upsertOutboundDraft` (which coalesces onto the single draft row
+    /// per target), every DM send is its own row: the row's `draftKey` is salted
+    /// with the freshly minted `clientToken` via `dmSendKey`, so multiple
+    /// messages to the *same* recipient can be queued/sending simultaneously
+    /// without colliding on the `(accountId, draftKey)` draft unique index
+    /// (which only constrains `status == draft` rows anyway). This is what lets
+    /// the DM thread send several messages back-to-back, iMessage-style.
+    func enqueueOutboundDirectMessage(
+        body: String,
+        recipientServerPersonId: Int64,
+        accountId: Int64,
+        now: Double
+    ) async throws -> String {
+        try await writer.write { db in
+            let token = UUID().uuidString
+            var row = OutboundContentRecord(
+                id: nil,
+                clientToken: token,
+                accountId: accountId,
+                kind: OutboundKind.directMessage.rawValue,
+                status: OutboundStatus.queued.rawValue,
+                draftKey: OutboundContentRecord.dmSendKey(
+                    recipientServerPersonId: recipientServerPersonId, clientToken: token
+                ),
+                body: body,
+                postServerId: nil,
+                parentCommentServerId: nil,
+                communityServerId: nil,
+                title: nil,
+                url: nil,
+                nsfw: false,
+                postType: 0,
+                editCommentServerId: nil,
+                editPostServerId: nil,
+                recipientServerPersonId: recipientServerPersonId,
+                attempts: 0,
+                lastError: nil,
+                nextAttemptAt: nil,
+                createdAt: now,
+                updatedAt: now
+            )
+            try row.insert(db)
+            return token
         }
     }
 

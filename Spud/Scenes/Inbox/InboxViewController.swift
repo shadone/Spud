@@ -116,6 +116,7 @@ final class InboxViewController: UIViewController {
 
         viewModel = InboxViewModel(
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
+            appDatabase: dependencies.appDatabase,
             isSignedIn: isSignedIn,
             myPersonId: myPersonId,
             alertService: dependencies.alertService,
@@ -434,7 +435,6 @@ extension InboxViewController: UITableViewDelegate {
                 accountKeychainId: accountKeychainId,
                 correspondentId: conversation.correspondentId,
                 correspondentName: conversation.correspondentName,
-                initialMessages: conversation.messages,
                 dependencies: dependencies.nested
             )
             navigationController?.pushViewController(threadVC, animated: true)

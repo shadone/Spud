@@ -10,11 +10,12 @@ A single recovery screen lists every pending or failed outbound content item —
 
 ## Behavior and rules
 
+- **Covers comments, posts, and direct messages.** Every durable outbound content item — a reply, a new post, an edit, or a private message — flows through this one queue and recovery screen.
 - **Three item states.** Each item is shown with its current status:
   - **Draft** — composed and saved but not yet submitted (the user dismissed with "Save Draft").
   - **Sending** — queued in the background send queue; may be waiting for a retry interval or for network.
   - **Failed** — the background queue gave up after exhausting retries or hit a permanent error (auth failure, deleted parent, rate limit).
-- **Item content is always preserved.** A Failed item retains its full content (title, body, URL, community, etc.) — it is never silently discarded by the system.
+- **Item content is always preserved.** A Failed item retains its full content (title, body, URL, community, recipient, etc.) — it is never silently discarded by the system.
 - **Row actions.** Each row supports swipe actions and a context menu:
   - **Retry** (Failed items only) — requeues the item in the background send queue.
   - **Discard** (any item) — removes the item from the outbox and from the durable store. For a Failed comment this also removes the optimistic placeholder from the relevant post-detail thread.
@@ -31,6 +32,12 @@ A single recovery screen lists every pending or failed outbound content item —
 - **Given** a comment that permanently failed
 - **When** I open Drafts and Outbox (via the toast or Preferences) and swipe Retry
 - **Then** the item re-enters the background send queue and its status changes to Sending
+
+### Retry a failed direct message
+
+- **Given** a private message whose send permanently failed
+- **When** I open Drafts and Outbox and swipe Retry on its "Message to <name>" row
+- **Then** it re-enters the background send queue and its status changes to Sending
 
 ### Discard a failed post
 
@@ -52,6 +59,5 @@ A single recovery screen lists every pending or failed outbound content item —
 
 ## Not supported / out of scope
 
-- **Private messages.** The DM composer uses the old blocking flow and does not appear in this screen.
 - **Editing an already-posted comment is not done from this screen.** Items in this screen are exclusively unsent (Draft, Sending, or Failed). Editing a *posted* comment is offered inline in its thread (long-press → Edit), which enqueues its own outbound item that may briefly appear here while sending or if it fails — see [Replying](replying.md). A posted *post* is not editable.
 - **Push notifications for failures.** Failed sends surface a non-blocking in-app toast only; no push notification is sent.

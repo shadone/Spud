@@ -107,7 +107,7 @@ You can also **edit** your own (non-deleted) comment: long-press it and choose E
 ## Not supported / out of scope
 
 - **Editing your own post** uses the new-post composer (prefilled, with the community fixed), not this comment composer — durable + optimistic through the content outbox, documented in [Post detail and comments](post-detail-and-comments.md). ("Edit" in the failed-reply flow refers to editing an unsent failed item before resubmitting.)
-- **Private messages.** The DM composer still uses the old blocking flow; durable/optimistic behavior for private messages is not yet supported.
+- **Private messages** are sent through the same durable + optimistic content outbox (instant bubble, background retry, failure recovery), documented in [Private messages](private-messages.md) — not through this comment composer.
 - **Dedup is not guaranteed.** If a send commits on the server but its response is lost before the app records success, and no later feed refresh imports the comment before an auto-retry, a duplicate comment may appear. This is a known rare edge case. Note: the duplicate-prevention check matches by post + author + body text only (it does not use the parent comment), so in the rare lost-response case a retried reply could incorrectly match a same-bodied comment elsewhere on the post.
 - This feature covers replying only; creating a brand-new post is documented in [New post](new-post.md).
 - The markdown editor internals (toolbar, live preview, image upload) are documented as their own feature, not here.
