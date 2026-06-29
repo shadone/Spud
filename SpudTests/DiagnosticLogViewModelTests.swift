@@ -176,6 +176,51 @@ struct DiagnosticLogViewModelTests {
         #expect(vm.shareText().isEmpty)
     }
 
+    // MARK: - Level filter
+
+    /// Setting `minimumLevel` to `.error` hides `.debug` events and shows only `.error` events.
+    @Test
+    func minimumLevel_filtersEvents() async throws {
+        let db = try AppDatabase.inMemory()
+        let log = DiagnosticLog(appDatabase: db)
+        await log.record(
+            category: .scheduler,
+            level: .debug,
+            event: "scheduler.tick",
+            message: "Tick",
+            instance: nil,
+            metadata: nil
+        )
+        await log.record(
+            category: .outbox,
+            level: .error,
+            event: "op.permanentRollback",
+            message: "Vote rolled back",
+            instance: nil,
+            metadata: nil
+        )
+
+        let vm = DiagnosticLogViewModel(diagnostics: log)
+        vm.startObserving(appDatabase: db)
+
+        // Wait for initial events (both should appear at the default .debug minimum level).
+        for _ in 0..<40 {
+            if vm.events.count == 2 { break }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(vm.events.count == 2)
+
+        // Raise the minimum level to .error — only the error event should remain.
+        vm.minimumLevel = .error
+
+        for _ in 0..<40 {
+            if vm.events.count == 1 { break }
+            try? await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(vm.events.count == 1)
+        #expect(vm.events.first?.event == "op.permanentRollback")
+    }
+
     // MARK: - NOTICE level label
 
     /// `shareText` uses "NOTICE" for `.notice` level events.

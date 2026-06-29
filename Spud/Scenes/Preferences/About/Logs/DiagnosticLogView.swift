@@ -129,11 +129,11 @@ struct DiagnosticLogView: View {
 
     private var eventsSection: some View {
         Section {
-            ForEach(viewModel.events, id: \.id) { event in
+            ForEach(viewModel.events.map(IdentifiableEvent.init), id: \.id) { wrapper in
                 Button {
-                    selectedEvent = IdentifiableEvent(record: event)
+                    selectedEvent = wrapper
                 } label: {
-                    DiagnosticLogRowView(event: event)
+                    DiagnosticLogRowView(event: wrapper.record)
                 }
                 .buttonStyle(.plain)
             }
@@ -176,6 +176,7 @@ private struct CategoryChip: View {
                 .clipShape(Capsule())
         }
         .accessibilityLabel(title)
+        .accessibilityHint("Toggles this filter")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
@@ -187,11 +188,15 @@ private struct CategoryChip: View {
 struct DiagnosticLogRowView: View {
     let event: DiagnosticEventRecord
 
+    private static let relativeDateFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .short
+        return f
+    }()
+
     private var relativeTimestamp: String {
         let date = Date(timeIntervalSince1970: event.timestamp)
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: date, relativeTo: Date())
+        return Self.relativeDateFormatter.localizedString(for: date, relativeTo: Date())
     }
 
     var body: some View {
@@ -286,6 +291,7 @@ struct DiagnosticLogDetailView: View {
             Section("Level") {
                 Text(levelLabel)
                     .font(.body)
+                    .textSelection(.enabled)
             }
             Section("Category") {
                 Text(event.category)

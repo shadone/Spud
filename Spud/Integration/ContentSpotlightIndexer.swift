@@ -33,7 +33,7 @@ enum ContentSpotlightIndexer {
                 try await index.indexSearchableItems(items)
                 await diagnostics.record(
                     category: .spotlight,
-                    level: .info,
+                    level: .debug,
                     event: "reindex.finish",
                     message: "Content Spotlight index updated",
                     instance: nil,

@@ -23,7 +23,7 @@ enum CommunitySpotlightIndexer {
                 try await CSSearchableIndex.default().indexAppEntities(entities)
                 await diagnostics.record(
                     category: .spotlight,
-                    level: .info,
+                    level: .debug,
                     event: "reindex.finish",
                     message: "Community Spotlight index updated",
                     instance: nil,

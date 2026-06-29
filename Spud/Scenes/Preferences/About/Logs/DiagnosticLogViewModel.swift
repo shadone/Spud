@@ -58,13 +58,17 @@ final class DiagnosticLogViewModel {
     /// Starts the live GRDB observation and re-subscribes whenever the filter changes.
     ///
     /// Call once from the view's `.task` modifier. The observation is automatically
-    /// cancelled when the task group tears down.
+    /// cancelled when the task group tears down. Safe to call more than once (a prior
+    /// task is cancelled before the new one is started).
     func startObserving(appDatabase: AppDatabase) {
+        // Cancel any existing watch so a second call (e.g. SwiftUI re-running .task)
+        // does not leak the prior task.
+        filterWatchTask?.cancel()
         // Watch for filter changes and resubscribe to the DB observation each time.
         filterWatchTask = Task { [weak self] in
             guard let self else { return }
-            for await _ in ObservationStream.values(of: {
-                (self.selectedCategories, self.minimumLevel, self.searchText)
+            for await _ in ObservationStream.values(of: { [weak self] in
+                (self?.selectedCategories ?? [], self?.minimumLevel ?? .debug, self?.searchText ?? "")
             }) {
                 guard !Task.isCancelled else { return }
                 subscribeToEvents(appDatabase: appDatabase)

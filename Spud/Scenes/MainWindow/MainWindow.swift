@@ -220,9 +220,9 @@ class MainWindow: UIWindow {
         currentDefaultAccountKeychainId = keychainId
 
         let instance = accountService.instanceActorId(forAccountKeychainId: keychainId)?.hostWithPort
-        let diagnosticLog = diagnosticLog
+        let log = diagnosticLog
         Task {
-            await diagnosticLog.record(
+            await log.record(
                 category: .lifecycle,
                 level: .info,
                 event: "lifecycle.accountApplied",
@@ -233,9 +233,9 @@ class MainWindow: UIWindow {
         }
 
         // Keep the Spotlight community index current for this account.
-        CommunitySpotlightIndexer.reindex(appDatabase: appDatabase, diagnostics: diagnosticLog)
+        CommunitySpotlightIndexer.reindex(appDatabase: appDatabase, diagnostics: log)
         // Keep the Spotlight saved + history content index current too.
-        ContentSpotlightIndexer.reindex(appDatabase: appDatabase, diagnostics: diagnosticLog)
+        ContentSpotlightIndexer.reindex(appDatabase: appDatabase, diagnostics: log)
 
         // Surface this account's permanent outbox failures as toasts, and drain
         // any ops left pending from a previous session.

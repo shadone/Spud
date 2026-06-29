@@ -55,7 +55,7 @@ public struct DiagnosticEventRecord: Codable, FetchableRecord, MutablePersistabl
     public var event: String
     /// Human-readable description of what happened.
     public var message: String
-    /// Optional Lemmy instance actor-ID (`https://lemmy.world`) the event is scoped to.
+    /// Optional Lemmy instance host (e.g. `lemmy.world`), not a full URL, the event is scoped to.
     public var instance: String?
     /// Optional JSON-encoded `[String: String]` payload. See `metadataDictionary`.
     public var metadata: String?
