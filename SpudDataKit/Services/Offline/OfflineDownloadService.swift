@@ -26,6 +26,20 @@ public actor OfflineDownloadService {
     private let appDatabase: AppDatabase
     private let imageService: any ImageServiceType
 
+    /// Captures an external-link post's target page as a web archive, used only
+    /// when a download opts into `archiveLinks`. Optional so a service built
+    /// without web-archive support (or a test that doesn't exercise it) simply
+    /// skips link capture. The capturer is `@MainActor` + self-serializing, so
+    /// even though several `processTarget`s run concurrently (cap
+    /// ``contentConcurrency``), their archive captures funnel through it
+    /// one-at-a-time — the heavy `WKWebView` work never fans out.
+    private let webArchiveCapturer: (any WebArchiveCapturing)?
+
+    /// Durable store for captured web archives (file + index row). Optional for
+    /// the same reason as ``webArchiveCapturer`` — a service without link-archive
+    /// support has neither.
+    private let webArchiveStore: OfflineWebArchiveStore?
+
     /// Guards against two overlapping downloads. The check-and-set is done
     /// inside the actor (the synchronous `markInFlightIfFree` hop) so two near
     /// simultaneous `download(...)` calls can't both observe "free".
@@ -113,9 +127,31 @@ public actor OfflineDownloadService {
     /// viewer's initial display without a full-resolution decode.
     private static let fullImageDownsampleSize = CGSize(width: 2048, height: 2048)
 
-    public init(appDatabase: AppDatabase, imageService: any ImageServiceType) {
+    /// Per-page timeout for a web-archive capture (`archiveLinks` runs). A page
+    /// that hasn't finished loading by then is abandoned and skipped — a polite
+    /// bound so one slow host can't stall the download, while still allowing a
+    /// typical article (with its subresources) time to settle.
+    private static let webArchiveCaptureTimeout: TimeInterval = 20
+
+    /// - Parameters:
+    ///   - appDatabase: The shared GRDB store.
+    ///   - imageService: The image service used to warm post images into the
+    ///     durable disk cache.
+    ///   - webArchiveCapturer: Optional capturer for external-link pages; required
+    ///     for `archiveLinks` runs and otherwise unused. `@MainActor`-bound and
+    ///     self-serializing.
+    ///   - webArchiveStore: Optional durable store for captured archives; paired
+    ///     with `webArchiveCapturer` for `archiveLinks` runs.
+    public init(
+        appDatabase: AppDatabase,
+        imageService: any ImageServiceType,
+        webArchiveCapturer: (any WebArchiveCapturing)? = nil,
+        webArchiveStore: OfflineWebArchiveStore? = nil
+    ) {
         self.appDatabase = appDatabase
         self.imageService = imageService
+        self.webArchiveCapturer = webArchiveCapturer
+        self.webArchiveStore = webArchiveStore
     }
 
     /// Download `feed` for offline browsing and stream progress.
@@ -172,6 +208,21 @@ public actor OfflineDownloadService {
     ///     this) and the content phase (the targets query is limited to this).
     ///     The per-run page backstop (``maxPages(forMaxPosts:)``) scales with it.
     ///     Defaults to ``defaultMaxPosts``.
+    ///   - archiveLinks: When true, each external-link post's target page is also
+    ///     captured as a web archive (best-effort) so it can be read offline.
+    ///     Defaults to false — capturing pages is heavier/slower than warming
+    ///     images, so it's opt-in. A no-op unless the service was built with a
+    ///     ``WebArchiveCapturing`` + ``OfflineWebArchiveStore``. A capture failure
+    ///     (load error / timeout) is swallowed like the other per-item work and
+    ///     never aborts the run.
+    ///   - sanitizeURL: Optional transform applied to a post's external-link URL
+    ///     **before** it is captured and stored. This MUST be the same transform
+    ///     the open path (`AppService`) applies before looking an archive up
+    ///     (`URLSanitizer.sanitize`), so the store key (sanitized) matches the
+    ///     lookup key (sanitized). When nil (the default, used by tests that don't
+    ///     exercise sanitization) the raw URL is used unchanged. Only the archive
+    ///     key is sanitized; the comment/image work uses the post's own URLs and is
+    ///     unaffected.
     public nonisolated func download(
         feed: FeedHandle,
         lemmyService: any LemmyServiceType,
@@ -179,7 +230,9 @@ public actor OfflineDownloadService {
         siteId: Int64,
         commentSort: Components.Schemas.CommentSortType,
         showNsfw: Bool,
-        maxPosts: Int = defaultMaxPosts
+        maxPosts: Int = defaultMaxPosts,
+        archiveLinks: Bool = false,
+        sanitizeURL: (@Sendable (URL) -> URL)? = nil
     ) -> AsyncStream<OfflineDownloadProgress> {
         AsyncStream { continuation in
             // Wrap the work task in a holder so the task's own body can claim the
@@ -195,6 +248,8 @@ public actor OfflineDownloadService {
                     commentSort: commentSort,
                     showNsfw: showNsfw,
                     maxPosts: maxPosts,
+                    archiveLinks: archiveLinks,
+                    sanitizeURL: sanitizeURL,
                     claimedSlot: claimed,
                     emit: { continuation.yield($0) }
                 )
@@ -255,6 +310,8 @@ public actor OfflineDownloadService {
         commentSort: Components.Schemas.CommentSortType,
         showNsfw: Bool,
         maxPosts: Int,
+        archiveLinks: Bool,
+        sanitizeURL: (@Sendable (URL) -> URL)?,
         claimedSlot: Bool,
         emit: @Sendable (OfflineDownloadProgress) -> Void
     ) async {
@@ -308,11 +365,14 @@ public actor OfflineDownloadService {
         )
         let totalPosts = targets.count
 
-        // Phase 3: download per-post content (comments + images), best-effort.
+        // Phase 3: download per-post content (comments + images, plus an opt-in
+        // web archive for external-link posts), best-effort.
         let completed = await downloadContent(
             targets: targets,
             lemmyService: lemmyService,
             commentSort: commentSort,
+            archiveLinks: archiveLinks,
+            sanitizeURL: sanitizeURL,
             postsFetched: postsFetched,
             totalPosts: totalPosts,
             emit: emit
@@ -414,15 +474,24 @@ public actor OfflineDownloadService {
     }
 
     /// Process `targets` through a bounded `TaskGroup` (cap
-    /// ``contentConcurrency``). Per post: fetch+persist its comment tree and
-    /// warm its thumbnail (and full image, when present) into the durable disk
-    /// cache. A per-post failure is swallowed; the post still counts as
-    /// completed. Returns the number of posts processed. Emits a progress
-    /// snapshot after each completed post.
+    /// ``contentConcurrency``). Per post: fetch+persist its comment tree, warm
+    /// its thumbnail (and full image, when present) into the durable disk cache,
+    /// and — when `archiveLinks` is on and the post is an external link — capture
+    /// its target page as a web archive. A per-post failure is swallowed; the
+    /// post still counts as completed (the web archive is part of that post's
+    /// content work, so it never double-counts). Returns the number of posts
+    /// processed. Emits a progress snapshot after each completed post.
+    ///
+    /// The archive capturer is `@MainActor` + self-serializing, so even though up
+    /// to ``contentConcurrency`` posts are processed concurrently, their archive
+    /// captures funnel through it one-at-a-time (the heavy `WKWebView` work never
+    /// fans out).
     private func downloadContent(
         targets: [OfflineDownloadTarget],
         lemmyService: any LemmyServiceType,
         commentSort: Components.Schemas.CommentSortType,
+        archiveLinks: Bool,
+        sanitizeURL: (@Sendable (URL) -> URL)?,
         postsFetched: Int,
         totalPosts: Int,
         emit: @Sendable (OfflineDownloadProgress) -> Void
@@ -437,6 +506,12 @@ public actor OfflineDownloadService {
         ))
 
         let imageService = imageService
+        // Only carry the capturer/store into the per-post work when archiving is
+        // requested AND the service was built with them — otherwise leave them
+        // nil so `processTarget` skips the capture branch entirely.
+        let capturer = archiveLinks ? webArchiveCapturer : nil
+        let store = archiveLinks ? webArchiveStore : nil
+        let captureTimeout = Self.webArchiveCaptureTimeout
         var completed = 0
 
         await withTaskGroup(of: Void.self) { group in
@@ -453,7 +528,11 @@ public actor OfflineDownloadService {
                         target,
                         lemmyService: lemmyService,
                         commentSort: commentSort,
-                        imageService: imageService
+                        imageService: imageService,
+                        webArchiveCapturer: capturer,
+                        webArchiveStore: store,
+                        captureTimeout: captureTimeout,
+                        sanitizeURL: sanitizeURL
                     )
                 }
             }
@@ -480,14 +559,30 @@ public actor OfflineDownloadService {
     }
 
     /// Best-effort predownload of one post's content: its comment tree, then its
-    /// thumbnail and full image. Every failure is swallowed (`try?` / draining
-    /// the image stream regardless of outcome) so one bad post never aborts the
-    /// download.
+    /// thumbnail and full image, then (when requested) a web archive of its
+    /// external link. Every failure is swallowed (`try?` / draining the image
+    /// stream / nil capture) so one bad post never aborts the download.
+    ///
+    /// - Parameters:
+    ///   - webArchiveCapturer: When non-nil AND the post has an
+    ///     `externalLinkUrl`, the post's link target is captured + stored. Nil
+    ///     when `archiveLinks` is off (or the service has no capturer), skipping
+    ///     the capture branch.
+    ///   - webArchiveStore: Where a captured archive is persisted. Paired with
+    ///     `webArchiveCapturer`.
+    ///   - captureTimeout: Per-page web-archive capture timeout.
+    ///   - sanitizeURL: Applied to the post's `externalLinkUrl` before capture +
+    ///     store, so the archive is keyed under the SAME (sanitized) URL the open
+    ///     path looks it up by. Nil = use the raw URL unchanged.
     private static func processTarget(
         _ target: OfflineDownloadTarget,
         lemmyService: any LemmyServiceType,
         commentSort: Components.Schemas.CommentSortType,
-        imageService: any ImageServiceType
+        imageService: any ImageServiceType,
+        webArchiveCapturer: (any WebArchiveCapturing)?,
+        webArchiveStore: OfflineWebArchiveStore?,
+        captureTimeout: TimeInterval,
+        sanitizeURL: (@Sendable (URL) -> URL)?
     ) async {
         if Task.isCancelled { return }
 
@@ -509,6 +604,33 @@ public actor OfflineDownloadService {
 
         if let imageUrl = target.imageUrl {
             await drainImageFetch(imageService, url: imageUrl, downsampleTo: fullImageDownsampleSize)
+        }
+
+        if Task.isCancelled { return }
+
+        // Web archive last (it's the heaviest, slowest step). Only for
+        // external-link posts, and only when archiving was requested. The
+        // capturer self-serializes, so concurrent posts queue here rather than
+        // launching N web views at once. A nil capture (load error / timeout) is
+        // skipped — best-effort, never fatal.
+        if
+            let webArchiveCapturer,
+            let webArchiveStore,
+            let externalLinkUrl = target.externalLinkUrl
+        {
+            // Key the archive on the SANITIZED URL so the open path — which
+            // sanitizes the tapped link before looking it up — finds it. Without
+            // this, any URL the sanitizer rewrites would be stored under one key
+            // and looked up under another (the archive would never be found).
+            let archiveKey = sanitizeURL?(externalLinkUrl) ?? externalLinkUrl
+            if let result = await webArchiveCapturer.capture(archiveKey, timeout: captureTimeout) {
+                await webArchiveStore.upsertWebArchive(
+                    url: archiveKey,
+                    postServerId: target.serverPostId,
+                    title: result.title,
+                    data: result.data
+                )
+            }
         }
     }
 

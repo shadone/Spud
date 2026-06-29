@@ -219,6 +219,11 @@ class PostDetailViewController: UIViewController {
     private let forcePopoverDelegate = ForcePopoverDelegate()
     private var commentDensityObservationTask: Task<Void, Never>?
     private var blurNsfwObservationTask: Task<Void, Never>?
+    /// Re-fetches the comment tree the moment connectivity returns, but only when
+    /// the last fetch failed. Independent of the backing post/account, so it is
+    /// started once in `viewDidLoad` and reads `viewModel` live at fire time
+    /// (the view model is swapped on `setPost`).
+    private var reachabilityObservationTask: Task<Void, Never>?
     /// True once the user has tapped to reveal the NSFW blur for the currently-open
     /// post. Reset to false whenever a different post loads.
     private var headerNsfwRevealed = false
@@ -282,6 +287,7 @@ class PostDetailViewController: UIViewController {
         commentDensityObservationTask?.cancel()
         blurNsfwObservationTask?.cancel()
         loadingObservationTask?.cancel()
+        reachabilityObservationTask?.cancel()
     }
 
     private func setup() {
@@ -338,6 +344,7 @@ class PostDetailViewController: UIViewController {
         startSwipeActionsObservation()
         startCommentDensityObservation()
         startBlurNsfwObservation()
+        startReachabilityObservation()
         startObservations()
     }
 
@@ -441,6 +448,43 @@ class PostDetailViewController: UIViewController {
                 var snapshot = dataSource.snapshot()
                 snapshot.reconfigureItems([.header])
                 await dataSource.apply(snapshot, animatingDifferences: false)
+            }
+        }
+    }
+
+    /// Auto-retries the comment fetch when connectivity returns, but only on the
+    /// offline -> online edge and only when the last fetch failed. This is what
+    /// makes the offline failed-state copy ("Spud will retry automatically when
+    /// you're back online") true — without it only the manual Retry button worked.
+    /// Mirrors the feed's `reachabilityObservationTask` in `PostListViewController`.
+    ///
+    /// The retry decision (`CommentsReconnectRetry.shouldRetry`) gates on both the
+    /// `false -> true` reachability edge and `commentFetchError != nil`. The
+    /// `statusStream` replays its current value on subscribe, so the previous
+    /// value is tracked to skip that non-edge first emission. `fetchComments()` is
+    /// cancel-and-replace and clears the error the moment it starts, so it neither
+    /// double-fetches alongside the normal appear/load path nor loops on a
+    /// non-network failure (e.g. malformed response): the error guard limits the
+    /// retry to one per reconnect, and a re-failed fetch only retries on the next
+    /// reconnect. Independent of the backing post/account, so it is started once
+    /// in `viewDidLoad` and reads `viewModel` live (the model is swapped on
+    /// `setPost`).
+    private func startReachabilityObservation() {
+        reachabilityObservationTask?.cancel()
+        reachabilityObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var wasOnline = reachabilityMonitor.isOnline
+            for await online in reachabilityMonitor.statusStream {
+                if Task.isCancelled { break }
+                let shouldRetry = CommentsReconnectRetry.shouldRetry(
+                    isOnline: online,
+                    wasOnline: wasOnline,
+                    hasFetchError: viewModel.commentFetchError != nil
+                )
+                wasOnline = online
+                guard shouldRetry else { continue }
+                let viewModel = viewModel
+                Task { await viewModel.fetchComments() }
             }
         }
     }

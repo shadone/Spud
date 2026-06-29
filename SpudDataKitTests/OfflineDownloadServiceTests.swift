@@ -594,4 +594,233 @@ struct OfflineDownloadServiceTests {
 
         _ = await first.value
     }
+
+    // MARK: - Web archive (link capture)
+
+    /// Build a store backed by a temp directory so captured archive files don't
+    /// touch the App Group container.
+    private func makeArchiveStore() throws -> OfflineWebArchiveStore {
+        let baseDirectory = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
+            .appendingPathComponent("OfflineDownloadServiceTests-\(UUID().uuidString)", isDirectory: true)
+        return try OfflineWebArchiveStore(appDatabase: appDatabase, baseDirectory: baseDirectory)
+    }
+
+    /// `offlineDownloadTargetsSync` must surface `externalLinkUrl` for an
+    /// external-link post and leave it nil for image / text posts.
+    @Test
+    func targetsSurfaceExternalLinkUrlForLinkPosts() async throws {
+        // An external link (no image/video extension) -> externalLink target.
+        let linkLemmy = makeLemmy(
+            pages: [.init(postCount: 2, nextCursor: nil)],
+            imageUrlForSeededPosts: "https://example.com/article"
+        )
+        // Seed the posts via a fetchFeed call (the fake writes them to the DB).
+        _ = try await linkLemmy.fetchFeed(feed, pageCursor: nil, showNsfw: false)
+
+        let linkTargets = appDatabase.offlineDownloadTargetsSync(feedKey: feed.feedKey, limit: 100)
+        #expect(linkTargets.count == 2)
+        for target in linkTargets {
+            #expect(target.externalLinkUrl?.absoluteString == "https://example.com/article")
+            #expect(target.imageUrl == nil, "an external-link post is not an image target")
+        }
+    }
+
+    /// `offlineDownloadTargetsSync` must leave `externalLinkUrl` nil for image
+    /// and text posts (so only link posts get web-archived).
+    @Test
+    func targetsLeaveExternalLinkNilForImageAndTextPosts() async throws {
+        let imageLemmy = makeLemmy(
+            pages: [.init(postCount: 1, nextCursor: nil)],
+            imageUrlForSeededPosts: "https://example.com/image.jpg"
+        )
+        _ = try await imageLemmy.fetchFeed(feed, pageCursor: nil, showNsfw: false)
+        let imageTargets = appDatabase.offlineDownloadTargetsSync(feedKey: feed.feedKey, limit: 100)
+        #expect(imageTargets.first?.externalLinkUrl == nil, "image post has no external-link target")
+        #expect(imageTargets.first?.imageUrl != nil, "image post warms its full image")
+    }
+
+    /// With `archiveLinks: true`, every external-link target is captured AND
+    /// stored; the recorded URLs match the seeded links and the store holds them.
+    @Test
+    func archiveLinksTrueCapturesAndStoresLinkPosts() async throws {
+        let lemmy = makeLemmy(
+            pages: [.init(postCount: 3, nextCursor: nil)],
+            imageUrlForSeededPosts: "https://example.com/article"
+        )
+        let capturer = RecordingWebArchiveCapturer()
+        let store = try makeArchiveStore()
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase,
+            imageService: RecordingImageService(),
+            webArchiveCapturer: capturer,
+            webArchiveStore: store
+        )
+
+        var collected: [OfflineDownloadProgress] = []
+        for await progress in service.download(
+            feed: feed,
+            lemmyService: lemmy,
+            accountId: accountId,
+            siteId: siteId,
+            commentSort: commentSort,
+            showNsfw: false,
+            maxPosts: OfflineDownloadService.defaultMaxPosts,
+            archiveLinks: true
+        ) {
+            collected.append(progress)
+        }
+
+        // Every external-link post was captured.
+        let captured = Set(capturer.capturedURLs.map(\.absoluteString))
+        #expect(captured == ["https://example.com/article"])
+        #expect(capturer.capturedURLs.count == 3, "one capture per external-link post")
+
+        // And each was stored (a single distinct URL across 3 posts -> the
+        // store upserts the same row, so the archive is present).
+        let link = try #require(URL(string: "https://example.com/article"))
+        #expect(store.hasWebArchiveSync(forURL: link))
+
+        let terminal = try #require(collected.last)
+        #expect(terminal.phase == .finished)
+        // Web archive is part of per-post work, so itemsCompleted still == posts
+        // (no double count).
+        #expect(terminal.itemsCompleted == 3)
+        #expect(terminal.totalPosts == 3)
+    }
+
+    /// With `archiveLinks: false` (the default), no link is captured even though
+    /// the posts are external links.
+    @Test
+    func archiveLinksFalseCapturesNothing() async throws {
+        let lemmy = makeLemmy(
+            pages: [.init(postCount: 2, nextCursor: nil)],
+            imageUrlForSeededPosts: "https://example.com/article"
+        )
+        let capturer = RecordingWebArchiveCapturer()
+        let store = try makeArchiveStore()
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase,
+            imageService: RecordingImageService(),
+            webArchiveCapturer: capturer,
+            webArchiveStore: store
+        )
+
+        let progress = await runDownload(service: service, lemmy: lemmy)
+
+        #expect(capturer.capturedURLs.isEmpty, "archiveLinks: false must not capture any page")
+        let terminal = try #require(progress.last)
+        #expect(terminal.phase == .finished)
+    }
+
+    /// A capturer that returns nil (load error / timeout) must NOT abort the run:
+    /// the capture is attempted for each link, nothing is stored, and the run
+    /// still finishes with every post completed.
+    @Test
+    func nilCaptureDoesNotAbortRun() async throws {
+        let lemmy = makeLemmy(
+            pages: [.init(postCount: 3, nextCursor: nil)],
+            imageUrlForSeededPosts: "https://example.com/article"
+        )
+        let capturer = RecordingWebArchiveCapturer(returnsNil: true)
+        let store = try makeArchiveStore()
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase,
+            imageService: RecordingImageService(),
+            webArchiveCapturer: capturer,
+            webArchiveStore: store
+        )
+
+        var collected: [OfflineDownloadProgress] = []
+        for await progress in service.download(
+            feed: feed,
+            lemmyService: lemmy,
+            accountId: accountId,
+            siteId: siteId,
+            commentSort: commentSort,
+            showNsfw: false,
+            maxPosts: OfflineDownloadService.defaultMaxPosts,
+            archiveLinks: true
+        ) {
+            collected.append(progress)
+        }
+
+        // Capture was attempted for each link (best-effort) but nothing stored.
+        #expect(capturer.capturedURLs.count == 3)
+        let link = try #require(URL(string: "https://example.com/article"))
+        #expect(store.hasWebArchiveSync(forURL: link) == false, "a nil capture stores nothing")
+
+        let terminal = try #require(collected.last)
+        #expect(terminal.phase == .finished, "a failed capture must not abort the run")
+        #expect(terminal.itemsCompleted == 3, "every post still counts as completed")
+    }
+
+    /// REGRESSION: the archive must be STORED under the same (sanitized) URL the
+    /// open path LOOKS IT UP by. The download keys captures on
+    /// `sanitizeURL(externalLinkUrl)`; the open path (`AppService`) sanitizes the
+    /// tapped link with the identical transform before lookup. If the two keys
+    /// diverged, the archive would be saved but never found ("not saved for
+    /// offline" despite a successful download).
+    ///
+    /// Here the sanitizer rewrites `?utm_source=x` away (modelling
+    /// `URLSanitizer`'s tracking-param strip). After the download: a lookup by the
+    /// SANITIZED url (`…/article`) must succeed, and a lookup by the RAW url
+    /// (`…/article?utm_source=x`) must FAIL — which is exactly the round-trip the
+    /// bug would have failed.
+    @Test
+    func archiveIsKeyedOnSanitizedURL() async throws {
+        let rawLink = "https://example.com/article?utm_source=x"
+        let sanitizedLink = "https://example.com/article"
+
+        let lemmy = makeLemmy(
+            pages: [.init(postCount: 1, nextCursor: nil)],
+            imageUrlForSeededPosts: rawLink
+        )
+        let capturer = RecordingWebArchiveCapturer()
+        let store = try makeArchiveStore()
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase,
+            imageService: RecordingImageService(),
+            webArchiveCapturer: capturer,
+            webArchiveStore: store
+        )
+
+        // A sanitizer that strips the query (the part `URLSanitizer` would remove).
+        let sanitize: @Sendable (URL) -> URL = { url in
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+            components?.query = nil
+            return components?.url ?? url
+        }
+
+        var collected: [OfflineDownloadProgress] = []
+        for await progress in service.download(
+            feed: feed,
+            lemmyService: lemmy,
+            accountId: accountId,
+            siteId: siteId,
+            commentSort: commentSort,
+            showNsfw: false,
+            maxPosts: OfflineDownloadService.defaultMaxPosts,
+            archiveLinks: true,
+            sanitizeURL: sanitize
+        ) {
+            collected.append(progress)
+        }
+
+        let terminal = try #require(collected.last)
+        #expect(terminal.phase == .finished)
+
+        // The capturer was driven with the SANITIZED url, not the raw one.
+        #expect(capturer.capturedURLs.map(\.absoluteString) == [sanitizedLink])
+
+        // Lookup by the sanitized url (what the open path computes) succeeds...
+        let sanitizedURL = try #require(URL(string: sanitizedLink))
+        #expect(store.hasWebArchiveSync(forURL: sanitizedURL), "archive must be found by the sanitized key")
+
+        // ...and a lookup by the raw url does NOT (the store never keyed on it).
+        let rawURL = try #require(URL(string: rawLink))
+        #expect(
+            store.hasWebArchiveSync(forURL: rawURL) == false,
+            "the raw (unsanitized) url must NOT find the archive — that mismatch was the bug"
+        )
+    }
 }

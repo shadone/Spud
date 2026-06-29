@@ -7,6 +7,7 @@
 import LemmyKit
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import SwiftUI
 import UIKit
 
@@ -65,12 +66,12 @@ extension PostListViewController {
         // with the chosen cap; Cancel just dismisses (SwiftUI `@Environment`).
         let optionsViewModel = OfflineDownloadOptionsViewModel(
             preferencesService: preferencesService,
-            onStart: { [weak self] maxPosts in
+            onStart: { [weak self] maxPosts, archiveLinks in
                 guard let self else { return }
                 // Dismiss the chooser, then begin from a settled state so the
                 // progress sheet presents cleanly (not over the closing chooser).
                 dismiss(animated: true) { [weak self] in
-                    self?.beginOfflineDownload(maxPosts: maxPosts)
+                    self?.beginOfflineDownload(maxPosts: maxPosts, archiveLinks: archiveLinks)
                 }
             }
         )
@@ -88,11 +89,12 @@ extension PostListViewController {
     }
 
     /// Starts predownloading the current feed and presents the progress sheet.
-    /// Called from the chooser's Download action with the chosen post cap. The
-    /// offline / account guards already ran in ``startOfflineDownload()``, but
-    /// the in-flight guard is rechecked here (the chooser is interactive, so a
-    /// download could conceivably have started between presenting and confirming).
-    private func beginOfflineDownload(maxPosts: Int) {
+    /// Called from the chooser's Download action with the chosen post cap and
+    /// whether to also web-archive external-link pages. The offline / account
+    /// guards already ran in ``startOfflineDownload()``, but the in-flight guard
+    /// is rechecked here (the chooser is interactive, so a download could
+    /// conceivably have started between presenting and confirming).
+    private func beginOfflineDownload(maxPosts: Int, archiveLinks: Bool) {
         guard offlineDownloadTask == nil else { return }
 
         let keychainId = currentAccountKeychainId
@@ -107,6 +109,17 @@ extension PostListViewController {
         let commentSort = preferencesService.defaultCommentSortType
         let showNsfw = preferencesService.showNsfw
         let service = offlineDownloadService
+
+        // The download keys each captured web archive under the SANITIZED link
+        // URL, because the open path (`AppService.open(url:)`) sanitizes the
+        // tapped link with this exact same `URLSanitizer.sanitize(_:config:)`
+        // before looking the archive up. Snapshot the config now (off the
+        // download task) so the closure is a pure `@Sendable` value-in/value-out
+        // transform — capturing the config, not the service.
+        let sanitizerConfig = preferencesService.urlSanitizerConfig
+        let sanitizeURL: @Sendable (URL) -> URL = { url in
+            URLSanitizer.sanitize(url, config: sanitizerConfig)
+        }
 
         // The progress view model the sheet binds to; the drain task pushes
         // stream values into it, and its Cancel button routes back here.
@@ -133,7 +146,9 @@ extension PostListViewController {
                 siteId: ids.siteId,
                 commentSort: commentSort,
                 showNsfw: showNsfw,
-                maxPosts: maxPosts
+                maxPosts: maxPosts,
+                archiveLinks: archiveLinks,
+                sanitizeURL: sanitizeURL
             )
             for await progress in stream {
                 if Task.isCancelled { break }

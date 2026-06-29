@@ -21,4 +21,5 @@ extension Logger {
     static let appDatabase = Logger(subsystem: subsystem, category: "AppDatabase")
     static let explorerService = Logger(subsystem: subsystem, category: "ExplorerService")
     static let offlineDownloadService = Logger(subsystem: subsystem, category: "OfflineDownloadService")
+    static let webArchive = Logger(subsystem: subsystem, category: "WebArchive")
 }

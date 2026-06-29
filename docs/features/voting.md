@@ -15,6 +15,7 @@ Upvote or downvote any post or comment. A vote is applied **optimistically** —
 - **Tapping your current vote removes it.** Vote intent is resolved against your existing vote: upvoting something you have already upvoted (or downvoting what you have already downvoted) clears your vote. There is no separate "remove vote" control — it is the same gesture again.
 - **Coalescing.** Rapidly toggling back to your original state cancels the pending operation and reverts the optimistic projection, so a double-tap makes no net server call.
 - **Rollback on permanent failure.** Transient failures (offline, rate-limit, 5xx) are retried with backoff; a permanent failure rolls the optimistic vote back to its pre-vote baseline and surfaces the error.
+- **Offline vote toast.** When you vote (up, down, or remove a vote) from **post detail** while offline, a brief toast — "You're offline — we'll send your vote when you're back online." — confirms the vote is queued and will be sent automatically once connectivity returns. The vote still applies optimistically and is durably recorded by the outbox; the toast only sets expectations. Repeated offline votes coalesce into one toast (the existing toast's text and dismiss timer are reused rather than stacking).
 - **Haptic on tap.** A vote fires a haptic at the moment of the tap (when the optimistic change is enqueued), not after the network round-trip.
 - **State-aware presentation.** The active vote tints its glyph (per the accent/theme); a vote swipe slot reads Upvote, Downvote, or Remove vote according to current state. Comment subtitles show the score colored by your vote.
 - **Signed-out votes are gated.** Tapping vote while signed out presents the "Sign in to vote" sheet (with a warning haptic) before anything is sent — the same [Sign-in gate](sign-in-gate.md) used by save / reply / report.
@@ -51,6 +52,14 @@ Upvote or downvote any post or comment. A vote is applied **optimistically** —
 - **Given** a vote that fails permanently on the server
 - **When** I vote
 - **Then** the optimistic change is rolled back to its previous state and the error is surfaced
+
+### An offline vote is queued with a toast
+
+- **Given** I am offline in post detail
+- **When** I upvote, downvote, or remove a vote
+- **Then** the vote applies immediately and a toast says "You're offline — we'll send your vote when you're back online."
+- **And** the vote is queued and sent automatically when I'm back online
+- **And** voting again while still offline updates the same toast rather than stacking another
 
 ### A signed-out vote is gated
 

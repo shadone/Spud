@@ -37,6 +37,14 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
 - **Instant first frame.** When the originating cell or header already has the image (or a
   thumbnail) loaded, the viewer paints it immediately, then loads full resolution behind it
   — a thumbnail is shown first and replaced by the full image when it arrives.
+- **Low-resolution-preview indicator.** When the full-resolution image *fails* to load but a
+  preview (the thumbnail shown as the first frame) is on screen, the viewer keeps the preview
+  and shows a non-blocking "Showing low-resolution preview" pill rather than replacing it with
+  the broken-image icon — so an offline or failed full-res load still shows the thumbnail with a
+  clear note that it's degraded. The pill is informational only (no tap / retry), and it fades
+  with the rest of the chrome when you tap to hide the bar. The broken-image icon still appears
+  when there is nothing to show at all (no preview to fall back to). (VoiceOver: the pill reads
+  "Showing low-resolution preview" with a hint that the full-resolution image is unavailable.)
 - **Animated GIFs play.** A GIF (detected from the `.gif` extension) is decoded frame-by-frame
   (`AnimatedImageDecoder`) and played in the viewer, not shown as a flat frame.
 - **Save and share preserve animation.** For a still image, share offers the decoded image
@@ -63,6 +71,12 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
 - **When** I tap the image
 - **Then** it opens full-screen over a black backdrop with a fade-in
 - **And** a single tap toggles the close / share / save bar
+
+### A full-res image that can't load shows a low-res-preview pill
+
+- **Given** an image I have already seen as a thumbnail, opened full-screen while the full-resolution image can't load (e.g. offline)
+- **Then** the viewer keeps showing the thumbnail with a "Showing low-resolution preview" pill, not the broken-image icon
+- **And** the pill fades away with the rest of the chrome when I tap to hide the bar
 
 ### Pinch and double-tap to zoom
 

@@ -40,21 +40,25 @@ struct PostDetailViewModelFetchTests {
         let preferencesService: PreferencesServiceType
         let reachabilityMonitor: ReachabilityMonitoring
 
-        init(alertService: AlertServiceType, isOnline: Bool) {
+        init(alertService: AlertServiceType, reachabilityMonitor: ReachabilityMonitoring) {
             let appDatabase = try! AppDatabase.inMemory()
             accountService = AccountService(appDatabase: appDatabase)
             self.alertService = alertService
             preferencesService = PreferencesService()
-            reachabilityMonitor = StaticReachabilityMonitor(isOnline: isOnline)
+            self.reachabilityMonitor = reachabilityMonitor
         }
     }
 
     private func makeViewModel(
         alertService: AlertServiceType = AlertService(),
         isOnline: Bool = true,
+        reachabilityMonitor: ReachabilityMonitoring? = nil,
         fetchCommentsOperation: @escaping @MainActor (Components.Schemas.CommentSortType) async throws -> Void
     ) -> PostDetailViewModel {
-        let dependencies = TestDependencies(alertService: alertService, isOnline: isOnline)
+        let dependencies = TestDependencies(
+            alertService: alertService,
+            reachabilityMonitor: reachabilityMonitor ?? StaticReachabilityMonitor(isOnline: isOnline)
+        )
         return PostDetailViewModel(
             serverPostId: 1,
             accountScope: dependencies.accountService.scope(forAccountKeychainId: "kc-1"),
@@ -241,5 +245,37 @@ struct PostDetailViewModelFetchTests {
         let vm = makeViewModel { _ in }
         vm.setCommentSortType(.New)
         #expect(vm.commentSortType == .New)
+    }
+
+    @Test
+    func reconnectRetryReFetchesAndClearsTheOfflineFailure() async {
+        // End-to-end shape of the post-detail reconnect auto-retry: a fetch fails
+        // offline (setting the failed state the offline copy promises to recover
+        // from), then connectivity returns and the retry the reachability
+        // observation performs re-invokes the fetch and clears the failure. The
+        // edge/guard decision itself is covered by CommentsReconnectRetryTests;
+        // this verifies the action it triggers (a second `fetchComments`) actually
+        // re-runs the operation and resolves the failed state.
+        struct Boom: Error { }
+        let monitor = StaticReachabilityMonitor(isOnline: false)
+        var callCount = 0
+        var shouldThrow = true
+        let vm = makeViewModel(reachabilityMonitor: monitor) { _ in
+            callCount += 1
+            if shouldThrow { throw Boom() }
+        }
+
+        await vm.fetchComments()
+        #expect(callCount == 1)
+        #expect(vm.commentFetchError?.kind == .offline)
+
+        // Connectivity returns; the observation would call `fetchComments` again.
+        monitor.setOnline(true)
+        shouldThrow = false
+        await vm.fetchComments()
+
+        #expect(callCount == 2, "the reconnect retry must re-run the comment fetch")
+        #expect(vm.commentFetchError == nil, "a successful reconnect retry clears the failed state")
+        #expect(!vm.isLoadingComments)
     }
 }

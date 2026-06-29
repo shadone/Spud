@@ -12,7 +12,9 @@ private let logger = Logger.offlineDownloadService
 
 /// One post the offline downloader will predownload: its server id plus the
 /// image URLs to warm into the durable disk cache. `imageUrl` is the post's
-/// `url` only when it points at an image (link/text posts leave it nil).
+/// `url` only when it points at an image (link/text posts leave it nil), and
+/// `externalLinkUrl` is the post's `url` only when it points at an external web
+/// page (image/text/video posts leave it nil).
 ///
 /// A small Sendable value type so it can cross the `OfflineDownloadService`
 /// actor boundary to the per-item `TaskGroup`.
@@ -25,11 +27,16 @@ public struct OfflineDownloadTarget: Sendable, Equatable {
     /// The post's full image, when the post is an image post; nil for
     /// link/text/video posts.
     public let imageUrl: URL?
+    /// The post's external link target, when the post is an external-link post;
+    /// nil for image/text/video posts. Captured as a web archive when the
+    /// download's `archiveLinks` option is on (best-effort, opt-in).
+    public let externalLinkUrl: URL?
 
-    public init(serverPostId: Int64, thumbnailUrl: URL?, imageUrl: URL?) {
+    public init(serverPostId: Int64, thumbnailUrl: URL?, imageUrl: URL?, externalLinkUrl: URL? = nil) {
         self.serverPostId = serverPostId
         self.thumbnailUrl = thumbnailUrl
         self.imageUrl = imageUrl
+        self.externalLinkUrl = externalLinkUrl
     }
 }
 
@@ -67,9 +74,11 @@ public extension AppDatabase {
     /// For each post it returns the thumbnail URL (when present) and resolves
     /// `imageUrl` to the post's `url` only when that url is detected as an image
     /// (via ``PostContentDetectorService``), so the downloader warms the full
-    /// image for image posts but not for link/text/video posts. Distinct posts
-    /// only (a post that appears on two pages is returned once, at its earliest
-    /// position).
+    /// image for image posts but not for link/text/video posts. Symmetrically it
+    /// resolves `externalLinkUrl` to the post's `url` only when that url is an
+    /// external web page, so the downloader can web-archive link posts (opt-in)
+    /// but not image/text/video ones. Distinct posts only (a post that appears on
+    /// two pages is returned once, at its earliest position).
     ///
     /// Synchronous to match the existing `*Sync` helper convention.
     func offlineDownloadTargetsSync(feedKey: String, limit: Int) -> [OfflineDownloadTarget] {
@@ -109,10 +118,13 @@ public extension AppDatabase {
                     let thumbnailUrl = thumbnailString.flatMap(URL.init(string:))
                     let postUrl = urlString.flatMap(URL.init(string:))
 
-                    // Reuse the production image-detection heuristic rather than
-                    // a duplicate extension check, so "is this an image post"
-                    // stays consistent with the feed/post-detail rendering path.
+                    // Reuse the production content-detection heuristic rather
+                    // than a duplicate extension check, so "is this an image /
+                    // external-link post" stays consistent with the feed /
+                    // post-detail rendering path. An image post warms its full
+                    // image; an external-link post becomes a web-archive target.
                     let imageUrl: URL?
+                    let externalLinkUrl: URL?
                     switch detector.contentTypeForUrl(
                         url: postUrl,
                         thumbnailUrl: thumbnailUrl,
@@ -121,14 +133,20 @@ public extension AppDatabase {
                     ) {
                     case let .image(image):
                         imageUrl = image.imageUrl
-                    case .textOrEmpty, .video, .externalLink:
+                        externalLinkUrl = nil
+                    case let .externalLink(link):
                         imageUrl = nil
+                        externalLinkUrl = link.url
+                    case .textOrEmpty, .video:
+                        imageUrl = nil
+                        externalLinkUrl = nil
                     }
 
                     return OfflineDownloadTarget(
                         serverPostId: serverPostId,
                         thumbnailUrl: thumbnailUrl,
-                        imageUrl: imageUrl
+                        imageUrl: imageUrl,
+                        externalLinkUrl: externalLinkUrl
                     )
                 }
             }

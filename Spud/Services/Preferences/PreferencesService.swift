@@ -155,6 +155,13 @@ protocol PreferencesServiceType: AnyObject {
     /// "Download for offline" chooser opens on the user's last choice. Default
     /// ``Preferences/OfflineDownloadPostCount/default`` (100).
     var offlineDownloadPostCount: Preferences.OfflineDownloadPostCount { get set }
+
+    /// Whether an offline download also captures a web archive of each
+    /// external-link post's target page (so the linked page reads offline).
+    /// Remembered across launches so the "Download for offline" chooser opens on
+    /// the user's last choice. Default `false` — capturing pages is slower and
+    /// heavier than warming images, so it's opt-in.
+    var offlineDownloadArchiveLinks: Bool { get set }
 }
 
 @MainActor
@@ -364,4 +371,7 @@ class PreferencesService: PreferencesServiceType {
 
     @UserDefaultsBacked(key: "offlineDownloadPostCount")
     var offlineDownloadPostCount: Preferences.OfflineDownloadPostCount = .default
+
+    @UserDefaultsBacked(key: "offlineDownloadArchiveLinks")
+    var offlineDownloadArchiveLinks: Bool = false
 }
