@@ -87,7 +87,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Sign-in gate on write actions](sign-in-gate.md) | `iphone`, `ipad` | shipped |
 | [Inbox](inbox.md) | `iphone`, `ipad` | shipped |
 | [Marking inbox items read](inbox-mark-read.md) | `iphone`, `ipad` | shipped |
-| [Private messages](private-messages.md) | `iphone`, `ipad` | shipped |
+| [Private messages](private-messages.md) | `iphone`, `ipad` | shipped — GRDB-backed (offline-readable) threads + optimistic, durable sending (instant bubble, background retry, failure recovery via Drafts & Outbox) |
 | [Background unread refresh](background-unread-refresh.md) | `iphone`, `ipad` | shipped |
 | [New post](new-post.md) | `iphone`, `ipad` | shipped |
 | [Image upload](image-upload.md) | `iphone`, `ipad` | shipped |
@@ -169,7 +169,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 **Inbox & messaging**
 - [x] Inbox (replies / mentions / messages) + unread badge
 - [x] Mark read / mark-all-read
-- [x] Private message threads + send DM
+- [x] Private message threads — GRDB-backed (offline-readable), with optimistic + durable sending (instant "Sending…" bubble, multiple in flight, background retry, failure recovery in Drafts & Outbox), per-correspondent draft autosave, and optimistic conversation-list rows
 - [x] Background unread-count refresh (foreground scene refresh; not a `BGAppRefreshTask`)
 
 **Content creation**
@@ -177,7 +177,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Image upload (pict-rs)
 - [x] Markdown editor + toolbar + live preview
 - [x] Draft persistence — durable, per-target, auto-saved (survives dismiss / relaunch)
-- [x] Optimistic + durable sending — comments inline in the tree, posts via a pending screen; background retry with backoff
+- [x] Optimistic + durable sending — comments inline in the tree, posts via a pending screen, direct messages as inline chat bubbles; background retry with backoff
 - [x] Drafts & Outbox recovery list (failed / sending / drafts; retry / discard)
 
 **Safety & moderation**

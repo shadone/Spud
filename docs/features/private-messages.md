@@ -1,28 +1,34 @@
 # Private messages
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** shipped
-- **Related:** [Inbox](inbox.md), [Mark inbox items read](inbox-mark-read.md), [Background unread refresh](background-unread-refresh.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Status:** shipped — durable + optimistic sending, GRDB-backed (offline-readable) threads
+- **Related:** [Inbox](inbox.md), [Mark inbox items read](inbox-mark-read.md), [Drafts and Outbox](drafts-and-outbox.md), [Draft persistence](draft-persistence.md), [Replying](replying.md), [Background unread refresh](background-unread-refresh.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
 Private messages are read and sent in a chat-style thread reached from the Inbox's Messages
-scope. Each thread shows messages as left/right bubbles with an inline compose bar pinned
-above the keyboard. Typing and sending posts a new message to the correspondent, and opening
-a thread marks the correspondent's unread messages read. Sending requires a signed-in
-account.
+scope. Threads are stored locally, so they open instantly and are readable offline; opening a
+thread refreshes it from the server in the background. Sending is **optimistic and durable**:
+your message appears immediately as a "Sending…" bubble and is delivered by a background queue
+that retries transient failures, resumes when the network returns, and survives an app
+relaunch — the same machinery used for comments and posts. A permanent failure parks the
+message (your text is kept) with tap-to-retry, and it also shows in [Drafts and Outbox](drafts-and-outbox.md).
+Sending requires a signed-in account.
 
 ## Behavior and rules
 
-- **Conversations come from the Messages scope.** The Inbox groups private messages per correspondent; tapping a conversation row pushes its thread. The thread opens with the messages already grouped for that correspondent (oldest first) — it does not refetch on open.
+- **Conversations come from the Messages scope, backed by the local store.** The Inbox groups private messages per correspondent (newest thread first, with the correspondent's unread count); tapping a conversation row pushes its thread. The list is driven by the persisted message store, so it shows immediately from cache and refreshes from the server on appear and pull-to-refresh.
+- **Threads are persisted and refreshed on open.** A thread reads its messages from the local store (oldest first) — so it opens instantly and works offline — and kicks off a background fetch + import on open to reconcile with the server. A failed refresh leaves the cached messages in place rather than blanking the thread.
 - **Chat bubbles.** Your own messages align right with an accent fill; the correspondent's align left with a neutral fill. Whether a message is outgoing is decided by comparing its author to your account's person id (falling back to "not the correspondent" when your id is unknown).
-- **Compose bar.** A growing text view plus a circular send button sit in an input bar pinned above the keyboard. Send is disabled while the text is empty (whitespace-only counts as empty) and while a send is in flight; a spinner replaces the send button during a send.
-- **Send path.** Sending trims the text, clears the compose field immediately, posts it via the private-message API, and appends the server-returned message to the thread, keeping the list ordered by time. The thread is then reloaded from the server to obtain the authoritative message order and server-assigned id.
-- **Marks read on open.** Opening a thread marks every unread message *from the correspondent* read and decrements the unread badge by that many. Your own sent messages are never counted as unread.
-- **Auto-scroll.** The thread scrolls to the newest message when it appears and again whenever a message is sent or arrives in the list.
+- **Compose bar.** A growing text view plus a circular send button sit in an input bar pinned above the keyboard. Send is enabled when the text has non-whitespace content. The in-progress text is auto-saved as a per-correspondent draft and restored when you reopen the thread (see [Draft persistence](draft-persistence.md)).
+- **Optimistic, durable send.** Tapping send trims the text, clears the compose field immediately, and the message appears at once as an outgoing bubble marked "Sending…". The actual send runs in the durable background content queue (the same outbox as comments/posts); on success the confirmed server message seamlessly replaces the optimistic bubble. No awaited network call blocks the UI.
+- **Multiple messages in flight.** You can send several messages in a row without waiting; each gets its own "Sending…" bubble and is delivered independently. There is no single global "sending" spinner.
+- **Failure is recoverable, never lost.** A permanent failure flips the bubble to "Not delivered — tap to retry"; tapping offers Retry (re-enqueue) or Discard (drop the unsent message). The failed message is also listed in [Drafts and Outbox](drafts-and-outbox.md) for retry/discard. The text is never silently dropped.
+- **Optimistic conversation list.** Sending the first message to a correspondent makes the conversation appear in the Messages list immediately; a conversation with pending or failed sends shows a "Sending…" / "Not delivered" indicator on its row. The indicator clears and the row reconciles to the real conversation once the send confirms.
+- **Marks read on open.** Opening a thread marks every unread message *from the correspondent* read and decrements the unread badge by that many; returning to an already-open thread marks newly-arrived messages read too. Your own sent messages are never counted as unread.
+- **Auto-scroll.** The thread scrolls to the newest message when it appears and again whenever a message is sent or arrives.
 - **Empty thread.** A conversation with no messages shows a "No messages yet — say hello" placeholder; the compose bar is still available.
-- **Sign-in gate on send.** Sending while signed out is rejected by the service (it throws an authentication error) and surfaces as an error alert; nothing is appended.
-- **Send failures surface an alert.** A failed send shows an error alert and clears the in-flight state so you can retry; the unsent text is not re-populated.
+- **Sign-in gate on send.** Sending while signed out is rejected (the service throws an authentication error); nothing is enqueued.
 
 ## Scenarios
 
@@ -30,46 +36,51 @@ account.
 
 - **Given** a conversation in the Inbox Messages scope
 - **When** I tap it
-- **Then** its thread opens showing the messages as chat bubbles
+- **Then** its thread opens immediately from the local store showing the messages as chat bubbles, and refreshes from the server in the background
 - **And** unread messages from the correspondent are marked read and the badge updates
 
-### Outgoing vs incoming bubbles
-
-- **Given** a thread with messages from me and from the correspondent
-- **When** I view it
-- **Then** my messages align right with an accent fill and theirs align left with a neutral fill
-
-### Send a message
+### Send a message optimistically
 
 - **Given** an open thread and some typed text
 - **When** I tap send
-- **Then** the message is posted to the correspondent and appended to the thread
-- **And** the compose field clears and the thread scrolls to the newest message
+- **Then** the compose field clears and my message appears immediately as an outgoing bubble marked "Sending…"
+- **And** on success the bubble becomes the confirmed message with no flash or reorder
 
-### Send is disabled until there is text
+### Send several messages without waiting
 
-- **Given** an open thread with an empty compose field
-- **When** I look at the send button
-- **Then** it is disabled until I type non-whitespace text
+- **Given** an open thread
+- **When** I send two messages in quick succession
+- **Then** both appear as their own "Sending…" bubbles and are delivered independently
+
+### A failed send can be retried or discarded
+
+- **Given** a message whose send permanently failed
+- **When** I tap its "Not delivered" bubble
+- **Then** I am offered Retry or Discard, and the failed message also appears in Drafts and Outbox
+- **And** my text is preserved either way
+
+### Start a new conversation appears in the list
+
+- **Given** I send the first message to a correspondent
+- **When** the message is queued
+- **Then** the conversation appears in the Messages list with a "Sending…" indicator, reconciling to the real conversation once it confirms
+
+### Read a thread offline
+
+- **Given** I have previously loaded a conversation
+- **When** I open it without a network connection
+- **Then** the cached messages are shown; a failed refresh does not blank the thread
 
 ### Sending while signed out fails
 
 - **Given** I am signed out
 - **When** I attempt to send a message
-- **Then** the send is rejected and an error alert is shown
-- **And** no message is appended
-
-### A failed send can be retried
-
-- **Given** a send that fails on the server
-- **When** the error returns
-- **Then** an alert is shown and the in-flight spinner clears
-- **And** I can type and send again
+- **Then** the send is rejected and nothing is enqueued
 
 ## Not supported / out of scope
 
-- There is no way to start a brand-new conversation from the Messages list; threads are reached from existing conversations grouped from the inbox. (A DM is also sendable to a user from elsewhere in the app, but the Messages scope itself lists existing correspondents only.)
-- The thread shows the messages it was opened with and does not re-fetch on open or paginate older history; only what the inbox grouped for that correspondent is shown.
+- There is no way to start a brand-new conversation from the Messages list; a DM is started by messaging a user from their profile elsewhere in the app, and the Messages scope lists existing (and pending) correspondents.
+- Older history is not paginated; the thread shows what has been imported from the server's message pages plus anything sent locally.
 - Messages cannot be edited, deleted, or reported from the thread, and there are no read receipts or typing indicators.
 - Message bodies are shown as plain text in bubbles; no inline Markdown rendering, attachments, or media in DMs.
 - Marking conversations read happens by opening their thread, not from the Messages list — see [Mark inbox items read](inbox-mark-read.md).
