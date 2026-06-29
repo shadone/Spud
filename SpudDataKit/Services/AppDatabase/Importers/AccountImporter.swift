@@ -153,6 +153,27 @@ public extension AppDatabase {
         }
     }
 
+    /// Returns the `(accountId, siteId)` row id pair for the account matching
+    /// `keychainId`, or nil if not yet imported. Synchronous read intended for
+    /// one-shot UI bring-up (e.g. seeding an offline-download run with the local
+    /// account/site identifiers) where blocking the caller briefly is preferable
+    /// to making the call site async. Mirrors the `*Sync` helper convention.
+    func accountAndSiteRowIdSync(forKeychainId keychainId: String) -> (accountId: Int64, siteId: Int64)? {
+        do {
+            return try writer.read { db in
+                guard let account = try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db),
+                    let accountId = account.id
+                else { return nil }
+                return (accountId, account.siteId)
+            }
+        } catch {
+            logger.error("Failed to resolve account/site row ids: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     /// Mirrors the `local_user.show_nsfw` setting onto the account row matching
     /// `keychainId`, so the locally-cached value stays in sync after the app
     /// pushes a change to the server. No-op if the row hasn't been imported yet.
