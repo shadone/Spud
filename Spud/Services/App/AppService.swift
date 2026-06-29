@@ -37,12 +37,27 @@ protocol HasAppService {
 class AppService: AppServiceType {
     private let preferencesService: PreferencesServiceType
     private let appDatabase: AppDatabase
+    private let reachabilityMonitor: ReachabilityMonitoring
+
+    /// Durable store of captured external-link web archives. Used to open a saved
+    /// snapshot in the in-app reader when the user is offline. Optional because
+    /// the store's init can fail if the App Group container is unavailable (same
+    /// failure mode as `AppDatabase`); a nil store simply disables offline reading
+    /// (links fall back to the normal Safari/browser path), it is never fatal.
+    private let webArchiveStore: OfflineWebArchiveStore?
 
     // MARK: Functions
 
-    init(preferencesService: PreferencesServiceType, appDatabase: AppDatabase) {
+    init(
+        preferencesService: PreferencesServiceType,
+        appDatabase: AppDatabase,
+        reachabilityMonitor: ReachabilityMonitoring,
+        webArchiveStore: OfflineWebArchiveStore?
+    ) {
         self.preferencesService = preferencesService
         self.appDatabase = appDatabase
+        self.reachabilityMonitor = reachabilityMonitor
+        self.webArchiveStore = webArchiveStore
     }
 
     func openInBrowser(
@@ -73,8 +88,34 @@ class AppService: AppServiceType {
             presentSafariViewController(url: url, on: viewController)
         }
 
-        switch preferencesService.openExternalLinks {
-        case .safariViewController:
+        // Offline-reader routing comes BEFORE the live Safari/browser branch.
+        // The archive is only ever a fallback for no-connectivity: when online,
+        // `resolveOpenStrategy` returns `.safari`/`.browser` (the live page is
+        // always preferable to a frozen snapshot), so online behavior is
+        // unchanged. We only look up the (sanitized) URL when offline.
+        let archiveLookup = reachabilityMonitor.isOnline
+            ? nil
+            : webArchiveStore?.webArchiveLookupSync(forURL: url)
+        let strategy = resolveOpenStrategy(
+            isOnline: reachabilityMonitor.isOnline,
+            hasArchive: archiveLookup != nil,
+            preference: preferencesService.openExternalLinks
+        )
+
+        switch strategy {
+        case .archiveReader:
+            // `archiveLookup` is non-nil exactly when the strategy is .archiveReader.
+            if let archiveLookup {
+                presentOfflineReader(lookup: archiveLookup, originalURL: url, on: viewController)
+            }
+
+        case .offlineNoArchive:
+            // SFSafariViewController can't load a page offline (it would show a
+            // blank/error sheet). Rather than present a broken browser, reassure
+            // the user with a brief toast and do nothing else.
+            presentOfflineNoArchiveToast(on: viewController)
+
+        case .safari:
             if preferencesService.openUniversalLinkInApp {
                 let wasOpened = await UIApplication.shared.open(url, options: [.universalLinksOnly: true])
                 if !wasOpened {
@@ -88,6 +129,35 @@ class AppService: AppServiceType {
             await UIApplication.shared.open(url)
         }
     }
+
+    /// Presents the offline web archive reader modally, styled like the in-app
+    /// browser. `originalURL` (the sanitized live link) backs Share and
+    /// "Open in browser"; `lookup.fileURL` is the on-disk snapshot to render.
+    private func presentOfflineReader(
+        lookup: OfflineWebArchiveStore.Lookup,
+        originalURL: URL,
+        on viewController: UIViewController
+    ) {
+        let reader = OfflineWebArchiveReaderViewController.makeModal(
+            archiveFileURL: lookup.fileURL,
+            originalURL: originalURL,
+            title: lookup.title
+        )
+        viewController.present(reader, animated: true)
+    }
+
+    /// Shows a brief, non-blocking toast explaining that the tapped link has no
+    /// saved offline copy. Used in place of a broken offline SFSafariViewController.
+    private func presentOfflineNoArchiveToast(on viewController: UIViewController) {
+        guard let window = viewController.view.window else { return }
+        ToastPresenter.shared.show(Self.offlineNoArchiveToast, in: window)
+    }
+
+    /// Toast copy for tapping an external link while offline with no saved archive.
+    private static let offlineNoArchiveToast = NSLocalizedString(
+        "This page isn't saved for offline.",
+        comment: "Toast shown when opening an external link offline with no saved web archive"
+    )
 
     /// Applies the outbound URL hygiene pipeline before a URL is opened or
     /// previewed. Returns the sanitized URL (or the original when the pipeline

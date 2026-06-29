@@ -67,6 +67,19 @@ struct OfflineWebArchiveStoreTests {
         let url = try #require(URL(string: "https://example.com/never-captured"))
         #expect(store.webArchiveFileURLSync(forURL: url) == nil)
         #expect(store.hasWebArchiveSync(forURL: url) == false)
+        #expect(store.webArchiveLookupSync(forURL: url) == nil)
+    }
+
+    /// The combined lookup returns the file URL AND the stored page title in one
+    /// read (the reader uses the title to seed its navigation title).
+    @Test
+    func lookupReturnsFileURLAndTitle() async throws {
+        let url = try #require(URL(string: "https://example.com/article"))
+        await store.upsertWebArchive(url: url, postServerId: 7, title: "Headline", data: Data("a".utf8))
+
+        let lookup = try #require(store.webArchiveLookupSync(forURL: url))
+        #expect(lookup.title == "Headline")
+        #expect(lookup.fileURL == store.webArchiveFileURLSync(forURL: url))
     }
 
     /// Re-capturing the same URL replaces the row in place (still one row) and

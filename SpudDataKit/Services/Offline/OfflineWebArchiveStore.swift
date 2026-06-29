@@ -197,6 +197,16 @@ public final class OfflineWebArchiveStore: Sendable {
 
     // MARK: - Reads (slice 2 consumes these)
 
+    /// A resolved web archive lookup: the on-disk file plus its stored page title.
+    /// The offline reader (slice 2) uses `fileURL` to render and `title` to seed
+    /// the reader's navigation title before the loaded `WKWebView` reports one.
+    public struct Lookup: Sendable, Equatable {
+        /// Absolute URL of the on-disk `.webarchive` file.
+        public let fileURL: URL
+        /// The captured page title, when one was stored.
+        public let title: String?
+    }
+
     /// Synchronous lookup of the on-disk archive file URL for a captured link,
     /// or nil when no archive exists (or the file is missing). The offline reader
     /// (slice 2) loads the returned `.webarchive` into a `WKWebView` offline.
@@ -204,22 +214,31 @@ public final class OfflineWebArchiveStore: Sendable {
     /// Synchronous + nonisolated to match the `*Sync` helper convention and so it
     /// is callable from background read contexts.
     public nonisolated func webArchiveFileURLSync(forURL url: URL) -> URL? {
+        webArchiveLookupSync(forURL: url)?.fileURL
+    }
+
+    /// Synchronous lookup of the archive file URL **and** its stored title for a
+    /// captured link, or nil when no archive exists (or the file is missing).
+    ///
+    /// Bundles the title with the file URL in one read so the reader can seed its
+    /// navigation title without a second query. Like ``webArchiveFileURLSync(forURL:)``
+    /// it is synchronous + nonisolated for background read contexts.
+    public nonisolated func webArchiveLookupSync(forURL url: URL) -> Lookup? {
         let urlString = url.absoluteString
         do {
-            let fileName: String? = try appDatabase.writer.read { db in
+            let record: OfflineWebArchiveRecord? = try appDatabase.writer.read { db in
                 try OfflineWebArchiveRecord
                     .filter(Column("url") == urlString)
-                    .fetchOne(db)?
-                    .fileName
+                    .fetchOne(db)
             }
-            guard let fileName else { return nil }
+            guard let record else { return nil }
             let directory = baseDirectory.appendingPathComponent(
                 Self.archivesDirectoryName,
                 isDirectory: true
             )
-            let fileURL = directory.appendingPathComponent(fileName, isDirectory: false)
+            let fileURL = directory.appendingPathComponent(record.fileName, isDirectory: false)
             guard FileManager.default.fileExists(atPath: fileURL.path) else { return nil }
-            return fileURL
+            return Lookup(fileURL: fileURL, title: record.title)
         } catch {
             logger.error("Failed to look up web archive for \(urlString, privacy: .public): \(String(describing: error), privacy: .public)")
             return nil

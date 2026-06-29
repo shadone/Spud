@@ -66,7 +66,14 @@ struct DependencyContainer:
         )
         postContentDetectorService = PostContentDetectorService()
         appearanceService = AppearanceService(preferencesService: preferencesService)
-        appService = AppService(preferencesService: preferencesService, appDatabase: appDatabase)
+        appService = AppService(
+            preferencesService: preferencesService,
+            appDatabase: appDatabase,
+            reachabilityMonitor: reachabilityMonitor,
+            // try? — a missing App Group container disables offline reading
+            // (links fall back to Safari/browser); it is never fatal here.
+            webArchiveStore: try? OfflineWebArchiveStore(appDatabase: appDatabase)
+        )
         unreadCountService = UnreadCountService(accountService: accountService)
         explorerService = ExplorerService(appDatabase: appDatabase)
     }
