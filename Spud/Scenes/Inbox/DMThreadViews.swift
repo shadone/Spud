@@ -9,9 +9,17 @@ import SpudUIKit
 import UIKit
 
 /// A single chat bubble. Outgoing messages align right with an accent fill;
-/// incoming messages align left with a neutral fill.
+/// incoming messages align left with a neutral fill. An optimistic (outbound)
+/// bubble carries a sending/failed state: `.sending` dims the bubble and shows a
+/// "Sending…" status line; `.failed` shows a red "Not delivered — tap to retry"
+/// line and makes the whole row a tap target for the Retry / Discard sheet.
 final class DMBubbleCell: UITableViewCell {
     static let reuseIdentifier = "DMBubbleCell"
+
+    /// Set when the cell renders a failed optimistic bubble — the host wires this
+    /// to present the Retry / Discard action sheet on a tap. nil otherwise (a
+    /// sending or confirmed bubble ignores taps).
+    var onFailedTap: (() -> Void)?
 
     private let bubble: UIView = {
         let view = UIView()
@@ -29,30 +37,61 @@ final class DMBubbleCell: UITableViewCell {
         return label
     }()
 
+    /// The "Sending…" / "Not delivered — tap to retry" line under the bubble.
+    /// Hidden for a confirmed (delivered) message.
+    private let statusLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.font = .preferredFont(forTextStyle: .caption2)
+        label.adjustsFontForContentSizeCategory = true
+        label.textAlignment = .right
+        label.isHidden = true
+        return label
+    }()
+
+    /// Wraps the bubble + status line so the whole stack aligns left/right as one.
+    private let column: UIStackView = {
+        let stack = UIStackView()
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.axis = .vertical
+        stack.alignment = .trailing
+        stack.spacing = 2
+        return stack
+    }()
+
     private var leadingConstraint: NSLayoutConstraint!
     private var trailingConstraint: NSLayoutConstraint!
+    private lazy var tapRecognizer = UITapGestureRecognizer(target: self, action: #selector(handleTap))
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         backgroundColor = .clear
         selectionStyle = .none
 
-        contentView.addSubview(bubble)
         bubble.addSubview(messageLabel)
+        column.addArrangedSubview(bubble)
+        column.addArrangedSubview(statusLabel)
+        contentView.addSubview(column)
 
-        leadingConstraint = bubble.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12)
-        trailingConstraint = bubble.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12)
+        tapRecognizer.isEnabled = false
+        contentView.addGestureRecognizer(tapRecognizer)
+
+        leadingConstraint = column.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 12)
+        trailingConstraint = column.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -12)
 
         NSLayoutConstraint.activate([
-            bubble.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
-            bubble.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
-            bubble.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.78),
+            column.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
+            column.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
+            column.widthAnchor.constraint(lessThanOrEqualTo: contentView.widthAnchor, multiplier: 0.78),
 
             messageLabel.topAnchor.constraint(equalTo: bubble.topAnchor, constant: 10),
             messageLabel.bottomAnchor.constraint(equalTo: bubble.bottomAnchor, constant: -10),
             messageLabel.leadingAnchor.constraint(equalTo: bubble.leadingAnchor, constant: 14),
             messageLabel.trailingAnchor.constraint(equalTo: bubble.trailingAnchor, constant: -14),
         ])
+
+        isAccessibilityElement = true
+        accessibilityTraits = .staticText
     }
 
     @available(*, unavailable)
@@ -60,19 +99,84 @@ final class DMBubbleCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func configure(text: String, outgoing: Bool) {
-        messageLabel.text = text
-        if outgoing {
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        onFailedTap = nil
+        tapRecognizer.isEnabled = false
+        statusLabel.isHidden = true
+        bubble.alpha = 1
+        accessibilityTraits = .staticText
+    }
+
+    /// Render `item`. A confirmed bubble shows the message and no status; an
+    /// optimistic one layers the sending/failed affordance on top.
+    func configure(with item: DMBubbleItem) {
+        messageLabel.text = item.content
+
+        if item.isOutgoing {
             bubble.backgroundColor = .tintColor
             messageLabel.textColor = .white
+            column.alignment = .trailing
+            statusLabel.textAlignment = .right
             leadingConstraint.isActive = false
             trailingConstraint.isActive = true
         } else {
             bubble.backgroundColor = .secondarySystemBackground
             messageLabel.textColor = .label
+            column.alignment = .leading
+            statusLabel.textAlignment = .left
             trailingConstraint.isActive = false
             leadingConstraint.isActive = true
         }
+
+        switch item.pendingStatus {
+        case .none:
+            bubble.alpha = 1
+            statusLabel.isHidden = true
+            tapRecognizer.isEnabled = false
+            accessibilityTraits = .staticText
+            // Direction conveyed for VoiceOver since alignment/color won't be.
+            let direction = item.isOutgoing
+                ? NSLocalizedString("Sent", comment: "VoiceOver: an outgoing delivered DM")
+                : NSLocalizedString("Received", comment: "VoiceOver: an incoming DM")
+            accessibilityLabel = "\(direction). \(item.content)"
+            accessibilityValue = nil
+
+        case .sending:
+            // Dimmed + a subtle status line, consistent with the pending-comment
+            // styling. Not interactive (a send in flight ignores taps).
+            bubble.alpha = 0.6
+            statusLabel.isHidden = false
+            statusLabel.textColor = .secondaryLabel
+            statusLabel.text = NSLocalizedString("Sending\u{2026}", comment: "DM bubble status: sending")
+            tapRecognizer.isEnabled = false
+            accessibilityTraits = .staticText
+            accessibilityLabel = item.content
+            // Status conveyed via value, not color alone.
+            accessibilityValue = NSLocalizedString("Sending", comment: "VoiceOver value: DM is sending")
+
+        case .failed:
+            bubble.alpha = 1
+            statusLabel.isHidden = false
+            statusLabel.textColor = .systemRed
+            statusLabel.text = NSLocalizedString(
+                "Not delivered \u{2014} tap to retry",
+                comment: "DM bubble status: failed to send"
+            )
+            tapRecognizer.isEnabled = true
+            // The whole row is the tap target for Retry / Discard.
+            accessibilityTraits = .button
+            accessibilityLabel = item.content
+            accessibilityValue = NSLocalizedString(
+                "Not delivered. Double tap to retry or discard.",
+                comment: "VoiceOver value: DM failed to send"
+            )
+        }
+    }
+
+    @objc
+    private func handleTap() {
+        onFailedTap?()
     }
 }
 
@@ -114,8 +218,6 @@ final class DMInputBar: UIView {
         return button
     }()
 
-    private let activityIndicator = UIActivityIndicatorView(style: .medium)
-
     override init(frame: CGRect) {
         super.init(frame: frame)
         autoresizingMask = .flexibleHeight
@@ -153,12 +255,14 @@ final class DMInputBar: UIView {
             sendButton.heightAnchor.constraint(equalToConstant: 34),
         ])
 
-        activityIndicator.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(activityIndicator)
-        NSLayoutConstraint.activate([
-            activityIndicator.centerXAnchor.constraint(equalTo: sendButton.centerXAnchor),
-            activityIndicator.centerYAnchor.constraint(equalTo: sendButton.centerYAnchor),
-        ])
+        sendButton.accessibilityLabel = NSLocalizedString(
+            "Send message",
+            comment: "DM compose send-button accessibility label"
+        )
+        textView.accessibilityLabel = NSLocalizedString(
+            "Message",
+            comment: "DM compose text-field accessibility label"
+        )
     }
 
     @available(*, unavailable)
@@ -170,20 +274,28 @@ final class DMInputBar: UIView {
         .zero
     }
 
+    /// Fires on every edit with the *raw* (untrimmed) text, so the host can
+    /// autosave the in-progress draft.
+    var textChanged: ((String) -> Void)?
+
     func clear() {
         textView.text = ""
         updateState()
     }
 
-    func setSending(_ sending: Bool) {
-        if sending {
-            activityIndicator.startAnimating()
-            sendButton.isHidden = true
-        } else {
-            activityIndicator.stopAnimating()
-            sendButton.isHidden = false
-        }
+    /// Restores previously-saved draft text (e.g. on thread re-open). Does not
+    /// fire `textChanged`, so restoring doesn't trigger a redundant autosave.
+    func setText(_ text: String) {
+        textView.text = text
         updateState()
+        invalidateIntrinsicContentSize()
+    }
+
+    /// Whether the compose field currently holds no text. Used to avoid letting a
+    /// late-arriving draft restore clobber characters the user already started
+    /// typing before the async load completed.
+    var isEmpty: Bool {
+        textView.text.isEmpty
     }
 
     private var trimmedText: String {
@@ -192,7 +304,7 @@ final class DMInputBar: UIView {
 
     private func updateState() {
         placeholderLabel.isHidden = !textView.text.isEmpty
-        sendButton.isEnabled = !trimmedText.isEmpty && !activityIndicator.isAnimating
+        sendButton.isEnabled = !trimmedText.isEmpty
     }
 
     @objc
@@ -207,5 +319,6 @@ extension DMInputBar: UITextViewDelegate {
     func textViewDidChange(_ textView: UITextView) {
         updateState()
         invalidateIntrinsicContentSize()
+        textChanged?(textView.text)
     }
 }

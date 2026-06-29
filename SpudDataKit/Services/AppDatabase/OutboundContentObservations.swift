@@ -41,13 +41,18 @@ public extension AppDatabase {
         }
     }
 
-    /// Outbound direct-message rows to `recipientServerPersonId` belonging to
+    /// Outbound direct-message SEND rows to `recipientServerPersonId` belonging to
     /// `accountKeychainId`, in creation order. Backs the DM thread's overlay of
     /// pending/failed (and the brief sending state of) outgoing messages. A
     /// successful send deletes the row (there is no `sent` status) once the
     /// confirmed message lands in the persistent `privateMessage` store, so the
     /// optimistic bubble is replaced by the real one. Several in-flight sends to
     /// the same recipient each surface as their own row (unique `dmSendKey`).
+    ///
+    /// The per-recipient autosave DRAFT row (status `draft`) shares this kind +
+    /// recipient but is explicitly excluded: it is unsent compose-bar text, not an
+    /// in-flight message, and would otherwise render as a phantom "Sending…" bubble
+    /// on every keystroke. Only queued/sending/failed SEND rows flow through.
     func observeOutboundDMs(
         recipientServerPersonId: Int64,
         accountKeychainId: String
@@ -57,6 +62,7 @@ public extension AppDatabase {
                 try OutboundContentRecord
                     .filter(Column("kind") == OutboundKind.directMessage.rawValue)
                     .filter(Column("recipientServerPersonId") == recipientServerPersonId)
+                    .filter(Column("status") != OutboundStatus.draft.rawValue)
                     .filter(sql: "accountId IN (SELECT id FROM account WHERE accountKeychainId = ?)", arguments: [accountKeychainId])
                     .order(Column("createdAt").asc)
                     .fetchAll(db)

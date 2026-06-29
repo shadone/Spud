@@ -136,6 +136,29 @@ struct OutboundDirectMessageOutboxTests {
     }
 
     @Test
+    func observeOutboundDMsExcludesAutosaveDraft() async throws {
+        let db = try AppDatabase.inMemory()
+        let acc = try await OutboundContentMigrationTests.seedAccount(db)
+        let kc = try #require(try await db.writer.read { db in
+            try String.fetchOne(db, sql: "SELECT accountKeychainId FROM account WHERE id = ?", arguments: [acc])
+        })
+
+        // The DM thread autosaves the compose-bar text as a per-recipient DRAFT
+        // (status `draft`) sharing this kind + recipient. It must NOT surface in
+        // the send overlay (it would render as a phantom "Sending…" bubble).
+        _ = try await db.saveDirectMessageDraftInput(body: "unsent draft", recipient: PID.alice, accountId: acc)
+        // A genuine queued SEND to the same recipient still flows through.
+        _ = try await db.enqueueOutboundDirectMessage(
+            body: "real send", recipientServerPersonId: PID.alice, accountId: acc, now: 5
+        )
+
+        let rows = await Self.first(db.observeOutboundDMs(recipientServerPersonId: PID.alice, accountKeychainId: kc))
+        // Only the queued send; the draft is excluded.
+        #expect(rows.map(\.body) == ["real send"])
+        #expect(rows.allSatisfy { $0.status != OutboundStatus.draft.rawValue })
+    }
+
+    @Test
     func observeOutboundDMsExcludesCommentsAndPosts() async throws {
         let db = try AppDatabase.inMemory()
         let acc = try await OutboundContentMigrationTests.seedAccount(db)

@@ -434,7 +434,6 @@ extension InboxViewController: UITableViewDelegate {
                 accountKeychainId: accountKeychainId,
                 correspondentId: conversation.correspondentId,
                 correspondentName: conversation.correspondentName,
-                initialMessages: conversation.messages,
                 dependencies: dependencies.nested
             )
             navigationController?.pushViewController(threadVC, animated: true)

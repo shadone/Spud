@@ -109,6 +109,33 @@ public extension AppDatabase {
         return record.id!
     }
 
+    /// Set the `isRead` flag on a single persisted message in place, so the DM
+    /// thread observation reflects the read state without waiting for the next
+    /// server re-import.
+    ///
+    /// `markPrivateMessageAsRead` on the service only hits the server (Lemmy has
+    /// no read state to refresh locally), so a GRDB-backed thread that wants the
+    /// unread dot to clear immediately must write the flag here. No-op (and a
+    /// silent return) when the message row isn't present for this account — the
+    /// next full import will carry the canonical state anyway.
+    func setPrivateMessageRead(
+        accountId: Int64,
+        serverMessageId: Int64,
+        isRead: Bool
+    ) async throws {
+        try await writer.write { db in
+            guard var record = try PrivateMessageRecord
+                .filter(Column("accountId") == accountId)
+                .filter(Column("serverMessageId") == serverMessageId)
+                .fetchOne(db)
+            else { return }
+            guard record.isRead != isRead else { return }
+            record.isRead = isRead
+            record.updatedAt = Date()
+            try record.update(db)
+        }
+    }
+
     /// One-shot synchronous read of the persisted messages for `accountId`,
     /// oldest first. Test/diagnostic helper mirroring the importer convention
     /// of providing a `*Sync` read.
