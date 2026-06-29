@@ -33,25 +33,28 @@ private final class SpyAlertService: AlertServiceType, @unchecked Sendable {
 @MainActor
 struct PostDetailViewModelFetchTests {
     private struct TestDependencies:
-        HasAccountService, HasAlertService, HasPreferencesService
+        HasAccountService, HasAlertService, HasPreferencesService, HasReachabilityMonitor
     {
         let accountService: AccountServiceType
         let alertService: AlertServiceType
         let preferencesService: PreferencesServiceType
+        let reachabilityMonitor: ReachabilityMonitoring
 
-        init(alertService: AlertServiceType) {
+        init(alertService: AlertServiceType, isOnline: Bool) {
             let appDatabase = try! AppDatabase.inMemory()
             accountService = AccountService(appDatabase: appDatabase)
             self.alertService = alertService
             preferencesService = PreferencesService()
+            reachabilityMonitor = StaticReachabilityMonitor(isOnline: isOnline)
         }
     }
 
     private func makeViewModel(
         alertService: AlertServiceType = AlertService(),
+        isOnline: Bool = true,
         fetchCommentsOperation: @escaping @MainActor (Components.Schemas.CommentSortType) async throws -> Void
     ) -> PostDetailViewModel {
-        let dependencies = TestDependencies(alertService: alertService)
+        let dependencies = TestDependencies(alertService: alertService, isOnline: isOnline)
         return PostDetailViewModel(
             serverPostId: 1,
             accountScope: dependencies.accountService.scope(forAccountKeychainId: "kc-1"),
@@ -119,6 +122,7 @@ struct PostDetailViewModelFetchTests {
         await t2.value
         #expect(!vm.isLoadingComments)
         #expect(alert.handledRequests.isEmpty)
+        #expect(vm.commentFetchError == nil, "a superseded fetch must not drive the failed state")
     }
 
     @Test
@@ -168,18 +172,68 @@ struct PostDetailViewModelFetchTests {
         release2?.resume()
         await t2.value
         #expect(!vm.isLoadingComments)
+        #expect(vm.commentFetchError == nil, "the superseded error must not drive the failed state")
     }
 
     @Test
-    func genuineErrorIsSurfacedAndClearsFlag() async {
+    func genuineErrorDrivesInlineFailedStateInsteadOfAlert() async {
+        // The initial-load failure path now drives the inline failed state
+        // (a truthful "couldn't load comments" surface with Retry) instead of a
+        // modal alert. A non-cancelled error sets `commentFetchError` and clears
+        // the loading flag; no alert is raised.
         struct Boom: Error { }
         let alert = SpyAlertService()
-        let vm = makeViewModel(alertService: alert) { _ in throw Boom() }
+        let vm = makeViewModel(alertService: alert, isOnline: true) { _ in throw Boom() }
 
         await vm.fetchComments()
 
         #expect(!vm.isLoadingComments)
-        #expect(alert.handledRequests == [.fetchComments])
+        #expect(alert.handledRequests.isEmpty, "the inline failed state replaces the modal alert")
+        // Online + a generic error classifies as unreachable.
+        #expect(vm.commentFetchError?.kind == .unreachable)
+    }
+
+    @Test
+    func offlineFailureClassifiesAsOffline() async {
+        // When the reachability monitor reports offline, a fetch failure is
+        // classified as `.offline` regardless of the underlying error — driving
+        // the "You're offline" inline comments state.
+        struct Boom: Error { }
+        let vm = makeViewModel(isOnline: false) { _ in throw Boom() }
+
+        await vm.fetchComments()
+
+        #expect(!vm.isLoadingComments)
+        #expect(vm.commentFetchError?.kind == .offline)
+    }
+
+    @Test
+    func successfulFetchHasNoError() async {
+        let vm = makeViewModel { _ in }
+
+        await vm.fetchComments()
+
+        #expect(!vm.isLoadingComments)
+        #expect(vm.commentFetchError == nil)
+    }
+
+    @Test
+    func retryAfterFailureClearsErrorOnSuccess() async {
+        // A failed fetch sets the error; a subsequent successful fetch (the
+        // Retry path) clears it so the comments / empty state can show.
+        struct Boom: Error { }
+        var shouldThrow = true
+        let vm = makeViewModel(isOnline: false) { _ in
+            if shouldThrow { throw Boom() }
+        }
+
+        await vm.fetchComments()
+        #expect(vm.commentFetchError?.kind == .offline)
+
+        shouldThrow = false
+        await vm.fetchComments()
+        #expect(vm.commentFetchError == nil)
+        #expect(!vm.isLoadingComments)
     }
 
     @Test
