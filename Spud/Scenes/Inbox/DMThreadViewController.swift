@@ -6,9 +6,13 @@
 
 import Foundation
 import LemmyKit
+import OSLog
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
+
+private let logger = Logger.app
 
 /// A chat-style DM thread: messages rendered as left/right bubbles with an
 /// inline compose bar pinned to the keyboard. GRDB-backed and optimistic —
@@ -16,11 +20,39 @@ import UIKit
 /// and the optimistic bubble appears instantly from the outbound observation,
 /// merged with the persisted confirmed messages by `DMThreadViewModel`.
 final class DMThreadViewController: UIViewController {
-    typealias Dependencies =
+    /// What this screen needs directly: services for its own view model plus the
+    /// image service (DM bodies render Markdown, which may carry an inline image)
+    /// and the app service (opening a tapped web link in the browser).
+    typealias OwnDependencies =
         HasAccountService &
         HasAlertService &
         HasAppDatabase &
+        HasAppService &
+        HasImageService &
         HasUnreadCountService
+    /// What the screens a tapped body link pushes onto the nav stack need. Spelled
+    /// out as the concrete union (rather than their `Dependencies` typealiases) to
+    /// avoid a recursive typealias cycle, mirroring `PersonViewController`.
+    typealias NestedDependencies =
+        HasAccountService &
+        HasAlertService &
+        HasAppDatabase &
+        HasAppService &
+        HasAppearanceService &
+        HasImageService &
+        HasLinkEmbedService &
+        HasPostContentDetectorService &
+        HasPreferencesService &
+        HasReachabilityMonitor &
+        HasUnreadCountService &
+        HasVoid
+    typealias Dependencies = NestedDependencies & OwnDependencies
+
+    private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
+
+    /// The account this thread belongs to, retained so body-link routing can open
+    /// the linked person/community/post under the same account.
+    let accountKeychainId: String
 
     private let viewModel: DMThreadViewModel
 
@@ -62,6 +94,9 @@ final class DMThreadViewController: UIViewController {
         let myPersonId = dependencies.appDatabase
             .accountOwnPersonIdsSync(forKeychainId: accountKeychainId)
             .map { Components.Schemas.PersonID($0.serverPersonId) }
+
+        self.dependencies = (own: dependencies, nested: dependencies)
+        self.accountKeychainId = accountKeychainId
 
         viewModel = DMThreadViewModel(
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
@@ -165,7 +200,19 @@ final class DMThreadViewController: UIViewController {
                 withIdentifier: DMBubbleCell.reuseIdentifier,
                 for: indexPath
             ) as! DMBubbleCell
-            cell.configure(with: item)
+            guard let self else { return cell }
+            cell.configure(with: item, imageService: dependencies.own.imageService)
+            // Route a tapped body-text link the same way the post/comment body
+            // does: resolve a `spud-markdown://` link to the internal URL, then
+            // dispatch through the shared InternalLinkRouting.
+            cell.onLinkTapped = { [weak self] url in
+                self?.routeInternalLink(MarkdownInternalLink.resolve(url) ?? url)
+            }
+            // Re-measure the row when an inline body image loads and changes the
+            // bubble height (mirrors the comment cell's re-layout).
+            cell.onContentSizeChange = { [weak tableView] in
+                tableView?.performBatchUpdates(nil)
+            }
             // Wire the failed-state tap to the Retry / Discard sheet.
             if item.pendingStatus == .failed, let token = item.clientToken {
                 cell.onFailedTap = { [weak self] in
@@ -251,5 +298,66 @@ final class DMThreadViewController: UIViewController {
         guard count > 0 else { return }
         let indexPath = IndexPath(row: count - 1, section: 0)
         tableView.scrollToRow(at: indexPath, at: .bottom, animated: animated)
+    }
+}
+
+// MARK: - InternalLinkRouting
+
+/// Routes a tapped DM body-text link exactly as the post/comment bodies do: a
+/// mention/community/post resolves and pushes in-app onto the thread's nav stack;
+/// an unrecognized web URL opens in the browser.
+extension DMThreadViewController: InternalLinkRouting {
+    var linkRouterAppDatabase: AppDatabase {
+        dependencies.own.appDatabase
+    }
+
+    var linkRouterLemmyService: LemmyServiceType {
+        viewModel.accountScope.lemmyService
+    }
+
+    func routeToPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId) {
+        let vc = PersonOrLoadingViewController(
+            personId: personId,
+            instance: instance,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    func routeToCommunity(name: String, instance: InstanceActorId) {
+        let vc = CommunityOrLoadingViewController(
+            communityName: name,
+            instance: instance,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    func routeToPost(postId: Components.Schemas.PostID, instance _: InstanceActorId) {
+        guard let window = view.window as? MainWindow else {
+            logger.error("No MainWindow available to display post")
+            return
+        }
+        window.display(serverPostId: postId, accountKeychainId: accountKeychainId)
+    }
+
+    func routeToInstance(_ instance: InstanceActorId) {
+        InstanceRouter.openInstance(
+            host: instance.host,
+            from: self,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+    }
+
+    func routeToExternal(_ url: URL) {
+        // Open in the browser per the app service (honors the in-app/Safari
+        // preference), consistent with the rest of the app's external links.
+        Task { [weak self] in
+            guard let self else { return }
+            await dependencies.own.appService.open(url: url, on: self)
+        }
     }
 }

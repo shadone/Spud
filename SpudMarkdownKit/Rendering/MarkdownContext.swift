@@ -19,10 +19,36 @@ public struct MarkdownContext {
     public let textScale: CGFloat
     public let density: PostDensity
 
-    public init(kind: MarkdownContextKind, textScale: CGFloat = 0, density: PostDensity = .comfortable) {
+    /// Optional override for the primary body text color. When non-nil it
+    /// replaces `labelColor` (and tints `secondaryColor`/`tertiaryColor` at
+    /// reduced alpha) so a body rendered on a non-system fill — e.g. an
+    /// accent-tinted DM chat bubble — stays high-contrast. `nil` keeps the
+    /// system label colors (the default for posts and comments on the normal
+    /// background).
+    public let foregroundColorOverride: UIColor?
+
+    /// Optional override for the link / accent color (links, mention &
+    /// community chips, footnote markers). Pairs with `foregroundColorOverride`
+    /// for the same high-contrast-on-tinted-fill reason (e.g. white links on an
+    /// outgoing DM bubble). `nil` keeps the theme accent.
+    public let linkColorOverride: UIColor?
+
+    /// - Parameters:
+    ///   - foregroundColorOverride: see `foregroundColorOverride`; pass a
+    ///     contrasting color when rendering onto a non-system fill.
+    ///   - linkColorOverride: see `linkColorOverride`.
+    public init(
+        kind: MarkdownContextKind,
+        textScale: CGFloat = 0,
+        density: PostDensity = .comfortable,
+        foregroundColorOverride: UIColor? = nil,
+        linkColorOverride: UIColor? = nil
+    ) {
         self.kind = kind
         self.textScale = textScale
         self.density = density
+        self.foregroundColorOverride = foregroundColorOverride
+        self.linkColorOverride = linkColorOverride
     }
 
     private var post: Bool {
@@ -75,19 +101,23 @@ public struct MarkdownContext {
 
     /// Colors
     public var labelColor: UIColor {
-        .label
+        foregroundColorOverride ?? .label
     }
 
+    /// Secondary text (strikethrough, custom-emoji shorthand, H6, captions). When
+    /// a foreground override is set we derive it from that color at reduced alpha
+    /// so it tracks the override's contrast instead of falling back to the system
+    /// secondary label (which would be near-invisible on a tinted fill).
     public var secondaryColor: UIColor {
-        .secondaryLabel
+        foregroundColorOverride?.withAlphaComponent(0.75) ?? .secondaryLabel
     }
 
     public var tertiaryColor: UIColor {
-        .tertiaryLabel
+        foregroundColorOverride?.withAlphaComponent(0.55) ?? .tertiaryLabel
     }
 
     public var accentColor: UIColor {
-        ThemeManager.currentAccentColor
+        linkColorOverride ?? ThemeManager.currentAccentColor
     }
 
     public var inlineCodeForeground: UIColor {
@@ -103,7 +133,9 @@ public struct MarkdownContext {
     }
 
     public var quoteBarColor: UIColor {
-        .quaternaryLabel
+        // Track the foreground override (at a low alpha) so a blockquote's
+        // leading bar stays visible on a tinted fill instead of fading into it.
+        foregroundColorOverride?.withAlphaComponent(0.4) ?? .quaternaryLabel
     }
 
     public var chipBackground: UIColor {

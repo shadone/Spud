@@ -24,6 +24,8 @@ final class InboxViewController: UIViewController {
         HasUnreadCountService
     /// Spelled out as a concrete composition to avoid recursive typealias
     /// cycles through the scene graph. The live `DependencyContainer` conforms.
+    /// Includes `HasLinkEmbedService` because a DM thread pushed from here can in
+    /// turn open a person/community/post screen whose comment bodies need it.
     typealias NestedDependencies =
         HasAccountService &
         HasAlertService &
@@ -31,6 +33,7 @@ final class InboxViewController: UIViewController {
         HasAppService &
         HasAppearanceService &
         HasImageService &
+        HasLinkEmbedService &
         HasPostContentDetectorService &
         HasPreferencesService &
         HasReachabilityMonitor &
