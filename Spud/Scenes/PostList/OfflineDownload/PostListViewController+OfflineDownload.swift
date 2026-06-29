@@ -13,11 +13,14 @@ import UIKit
 /// Offline-download launch + lifecycle, hosted on `PostListViewController`.
 ///
 /// Flow: the Quick Switch popover's "Download for offline" action calls
-/// ``startOfflineDownload()``, which resolves the current feed's account/site
-/// identifiers and the comment-sort + show-NSFW preferences, presents a compact
-/// progress sheet, and drains the service's `AsyncStream` on the main actor —
-/// pushing each value into the sheet's view model. On `.finished` / `.failed` /
-/// `.cancelled` it dismisses the sheet and shows a toast.
+/// ``startOfflineDownload()``, which (after the offline / in-flight guards)
+/// presents a small chooser letting the user pick how many posts to save. On
+/// Download the chooser dismisses and ``beginOfflineDownload(maxPosts:)`` runs:
+/// it resolves the current feed's account/site identifiers and the comment-sort
+/// + show-NSFW preferences, presents a compact progress sheet, and drains the
+/// service's `AsyncStream` on the main actor — pushing each value into the
+/// sheet's view model. On `.finished` / `.failed` / `.cancelled` it dismisses
+/// the sheet and shows a toast.
 ///
 /// **Dismiss cancels the download.** A swipe-to-dismiss (or the Cancel button)
 /// must not leave a runaway background download: both paths call
@@ -25,16 +28,18 @@ import UIKit
 /// terminal `.cancelled` lands before the sheet is gone. The drain task is also
 /// torn down in `deinit`, so the download can't outlive the controller.
 extension PostListViewController {
-    /// Starts predownloading the current feed and presents the progress sheet.
-    /// No-ops (with a brief toast) when offline, when a download is already
-    /// running, or when the feed's account can't be resolved.
+    /// Presents the "Download for offline" chooser (post-count picker) for the
+    /// current feed. No-ops (with a brief toast) when offline, when a download is
+    /// already running, or when the feed's account can't be resolved — the same
+    /// guards the actual download applies, checked up front so the chooser never
+    /// appears over a doomed run.
     func startOfflineDownload() {
         // Don't start a second download over a live one — the actor would reject
         // it anyway, but bailing here keeps the existing sheet in front.
         guard offlineDownloadTask == nil else { return }
 
         // You can't predownload without a connection. Surface a brief toast
-        // rather than starting a run that would immediately fail.
+        // rather than opening a chooser whose download would immediately fail.
         guard reachabilityMonitor.isOnline else {
             if let window = view.window {
                 ToastPresenter.shared.show(
@@ -49,10 +54,49 @@ extension PostListViewController {
             return
         }
 
+        // The feed hasn't been imported yet (no account/site row). Nothing to
+        // download against; bail quietly before showing the chooser.
+        guard appDatabase.accountAndSiteRowIdSync(forKeychainId: currentAccountKeychainId) != nil else {
+            Haptics.warning()
+            return
+        }
+
+        // Present the count chooser. On Download it dismisses and starts the run
+        // with the chosen cap; Cancel just dismisses (SwiftUI `@Environment`).
+        let optionsViewModel = OfflineDownloadOptionsViewModel(
+            preferencesService: preferencesService,
+            onStart: { [weak self] maxPosts in
+                guard let self else { return }
+                // Dismiss the chooser, then begin from a settled state so the
+                // progress sheet presents cleanly (not over the closing chooser).
+                dismiss(animated: true) { [weak self] in
+                    self?.beginOfflineDownload(maxPosts: maxPosts)
+                }
+            }
+        )
+        let chooser = UIHostingController(
+            rootView: OfflineDownloadOptionsView(viewModel: optionsViewModel)
+        )
+        chooser.modalPresentationStyle = .pageSheet
+        if let presentationSheet = chooser.sheetPresentationController {
+            presentationSheet.prefersGrabberVisible = true
+            presentationSheet.preferredCornerRadius = 20
+            presentationSheet.detents = [.medium(), .large()]
+        }
+        present(chooser, animated: true)
+        Haptics.tap()
+    }
+
+    /// Starts predownloading the current feed and presents the progress sheet.
+    /// Called from the chooser's Download action with the chosen post cap. The
+    /// offline / account guards already ran in ``startOfflineDownload()``, but
+    /// the in-flight guard is rechecked here (the chooser is interactive, so a
+    /// download could conceivably have started between presenting and confirming).
+    private func beginOfflineDownload(maxPosts: Int) {
+        guard offlineDownloadTask == nil else { return }
+
         let keychainId = currentAccountKeychainId
         guard let ids = appDatabase.accountAndSiteRowIdSync(forKeychainId: keychainId) else {
-            // The feed hasn't been imported yet (no account/site row). Nothing to
-            // download against; bail quietly.
             Haptics.warning()
             return
         }
@@ -88,7 +132,8 @@ extension PostListViewController {
                 accountId: ids.accountId,
                 siteId: ids.siteId,
                 commentSort: commentSort,
-                showNsfw: showNsfw
+                showNsfw: showNsfw,
+                maxPosts: maxPosts
             )
             for await progress in stream {
                 if Task.isCancelled { break }

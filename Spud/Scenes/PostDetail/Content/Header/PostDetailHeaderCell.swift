@@ -413,6 +413,18 @@ class PostDetailHeaderCell: UITableViewCellBase {
     /// for reuse. Sits on top of `postImageView`, filling `postImageContainer`.
     private var imageFailureView: ImageLoadFailureView?
 
+    // MARK: Test seams
+
+    /// Whether the hard image-load failure plate is on screen. Test seam.
+    var isImageFailureViewVisibleForTesting: Bool {
+        imageFailureView.map { !$0.isHidden } ?? false
+    }
+
+    /// Whether the degraded "Low-res preview" pill is on screen. Test seam.
+    var isLowResPreviewPillVisibleForTesting: Bool {
+        lowResPreviewPill.map { !$0.isHidden } ?? false
+    }
+
     /// The full-size image url for the currently-configured post image (set
     /// only for `.post` content), used by the tap-to-open-viewer gesture.
     private var tappableImageUrl: URL?
@@ -426,6 +438,20 @@ class PostDetailHeaderCell: UITableViewCellBase {
     /// Blur overlay placed on top of the lead image. Shown while the post is NSFW,
     /// the preference is on, and the user hasn't tapped to reveal yet.
     private lazy var blurOverlay = NsfwBlurOverlayView()
+
+    /// A small "Low-res preview · tap to retry" pill overlaid at the bottom of
+    /// the image. Shown only in the *degraded* state — the full image failed to
+    /// load but the cached thumbnail is on screen — so the user knows they're
+    /// looking at a preview and can re-request the full image (tap) or hand its
+    /// url to the browser (context menu / long-press). Created lazily on first
+    /// degraded state, then reused. Distinct from `imageFailureView`, which
+    /// covers the image only when there's nothing at all to show.
+    private var lowResPreviewPill: LowResPreviewPillView?
+
+    /// The image urls captured for the degraded pill's retry / open-in-browser
+    /// actions, so a tap re-requests the right asset after `configure` returned.
+    private var degradedImageUrl: URL?
+    private var degradedThumbnailUrl: URL?
 
     /// Whether the image is currently blurred. Setting this shows/hides the overlay.
     var isBlurred: Bool = false {
@@ -575,6 +601,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
         imageFailureView?.onOpenInBrowser = nil
         imageFailureView?.setRetrying(false)
 
+        lowResPreviewPill?.isHidden = true
+        lowResPreviewPill?.onTap = nil
+        degradedImageUrl = nil
+        degradedThumbnailUrl = nil
+
         isBlurred = false
         onRevealBlur = nil
     }
@@ -656,6 +687,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         tappableVideoUrl = nil
         postImageContainer.backgroundColor = .clear
         imageFailureView?.isHidden = true
+        setLowResPreviewPillVisible(false)
         postImageView.isHidden = false
         switch viewModel.image {
         case .none:
@@ -796,20 +828,29 @@ class PostDetailHeaderCell: UITableViewCellBase {
                 case let .loading(thumbnailImage):
                     guard !fullImageShown, let thumbnailImage else { break }
                     // A low-res preview arrived before the full image: paint it
-                    // under the still-spinning indicator.
+                    // under the still-spinning indicator. A fresh attempt is in
+                    // flight, so retire any degraded pill from a prior failure.
                     setImage(thumbnailImage)
                     setImageLoadingSpinnerVisible(true)
+                    setLowResPreviewPillVisible(false)
                 case let .ready(image):
                     fullImageShown = true
                     setImage(image)
                     setImageLoadingSpinnerVisible(false)
+                    setLowResPreviewPillVisible(false)
                     postImageContainer.backgroundColor = .clear
                 case .failure:
                     setImageLoadingSpinnerVisible(false)
-                    // Keep a thumbnail if we already have one; otherwise put the
-                    // failure plate in the image's place.
                     if postImageView.image == nil {
+                        // Nothing to show at all: put the failure plate in the
+                        // image's place (Retry + Open in browser).
                         showImageFailure(imageUrl: imageUrl, thumbnailUrl: thumbnailUrl)
+                    } else {
+                        // A cached thumbnail is on screen — don't cover it with
+                        // the hard failure plate. Surface a subtle degraded pill
+                        // so the user knows it's a preview and can retry / open
+                        // in browser.
+                        showLowResPreview(imageUrl: imageUrl, thumbnailUrl: thumbnailUrl)
                     }
                 }
             }
@@ -915,6 +956,64 @@ class PostDetailHeaderCell: UITableViewCellBase {
         return view
     }
 
+    /// Shows the degraded "Low-res preview · tap to retry" pill over the image,
+    /// wired to retry the full image (tap) and to open it in the browser
+    /// (context menu / long-press). Used when the full-resolution load fails but
+    /// a cached thumbnail is already on screen — so the preview stays visible
+    /// instead of being replaced by the hard failure plate.
+    private func showLowResPreview(imageUrl: URL, thumbnailUrl: URL?) {
+        degradedImageUrl = imageUrl
+        degradedThumbnailUrl = thumbnailUrl
+
+        let pill = installedLowResPreviewPill()
+        pill.onTap = { [weak self] in
+            guard let self else { return }
+            Haptics.tap()
+            // Re-request the full image; a fresh `.loading`/`.ready` retires the
+            // pill, a fresh `.failure` re-shows it.
+            loadPostImage(imageUrl: imageUrl, thumbnailUrl: thumbnailUrl)
+        }
+        setLowResPreviewPillVisible(true)
+    }
+
+    /// Lazily installs the degraded pill, pinned to the bottom-centre of the
+    /// image panel (clear of the GIF / link badge in the bottom-left). A
+    /// long-press context menu reaches Open in browser.
+    private func installedLowResPreviewPill() -> LowResPreviewPillView {
+        if let lowResPreviewPill { return lowResPreviewPill }
+        let pill = LowResPreviewPillView(
+            title: NSLocalizedString(
+                "Low-res preview",
+                comment: "Pill shown over a post image when only the cached thumbnail is available"
+            ),
+            showsRetryHint: true
+        )
+        pill.configureAccessibility(
+            isInteractive: true,
+            hint: NSLocalizedString(
+                "Full image unavailable. Double-tap to retry, or long-press for more options.",
+                comment: "VoiceOver hint for the low-res preview pill in the post header"
+            )
+        )
+        postImageContainer.addSubview(pill)
+        NSLayoutConstraint.activate([
+            pill.centerXAnchor.constraint(equalTo: postImageContainer.centerXAnchor),
+            pill.bottomAnchor.constraint(equalTo: postImageContainer.bottomAnchor, constant: -10),
+        ])
+        // Long-press the pill for Open in browser (its tap is retry).
+        pill.addInteraction(UIContextMenuInteraction(delegate: self))
+        lowResPreviewPill = pill
+        return pill
+    }
+
+    private func setLowResPreviewPillVisible(_ visible: Bool) {
+        lowResPreviewPill?.isHidden = !visible
+        if !visible {
+            degradedImageUrl = nil
+            degradedThumbnailUrl = nil
+        }
+    }
+
     private func setImage(_ image: UIImage) {
         let wasShowingFailure = imageFailureView.map { !$0.isHidden } ?? false
         imageFailureView?.isHidden = true
@@ -1002,6 +1101,26 @@ extension PostDetailHeaderCell: UIContextMenuInteractionDelegate {
         _ interaction: UIContextMenuInteraction,
         configurationForMenuAtLocation location: CGPoint
     ) -> UIContextMenuConfiguration? {
+        // The degraded pill's long-press offers Open in browser (its tap is
+        // retry), so the full-failure affordances stay reachable without
+        // covering the visible thumbnail.
+        if interaction.view === lowResPreviewPill, let imageUrl = degradedImageUrl {
+            return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+                let openTitle = NSLocalizedString(
+                    "Open in browser",
+                    comment: "Context-menu action to open a failed image in the browser"
+                )
+                let open = UIAction(
+                    title: openTitle,
+                    image: UIImage(systemName: "arrow.up.right")
+                ) { [weak self] _ in
+                    // Unwrap a Lemmy image-proxy url so the browser opens the real image.
+                    self?.openInBrowser?(imageUrl.lemmyImageProxyOriginalUrl ?? imageUrl)
+                }
+                return UIMenu(children: [open])
+            }
+        }
+
         guard
             let url = linkPreviewView.url,
             let appService
@@ -1021,6 +1140,9 @@ extension PostDetailHeaderCell: UIContextMenuInteractionDelegate {
         willPerformPreviewActionForMenuWith configuration: UIContextMenuConfiguration,
         animator: UIContextMenuInteractionCommitAnimating
     ) {
+        // Only the link-preview menu carries a committable Safari preview; the
+        // degraded pill's menu is action-only, so ignore it here.
+        guard interaction.view !== lowResPreviewPill else { return }
         guard
             let safariVC = animator.previewViewController as? SFSafariViewController
         else {

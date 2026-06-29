@@ -21,7 +21,8 @@ final class PostDetailViewModel {
     typealias OwnDependencies =
         HasAccountService &
         HasAlertService &
-        HasPreferencesService
+        HasPreferencesService &
+        HasReachabilityMonitor
     typealias Dependencies = OwnDependencies
 
     @ObservationIgnored
@@ -42,6 +43,16 @@ final class PostDetailViewModel {
     /// True while a (non-pull-refresh) comment fetch is in flight. Pull-to-refresh
     /// calls `LemmyService.fetchComments` directly and does not flip this.
     private(set) var isLoadingComments: Bool = false
+
+    /// The classified failure of the most recent (non-pull-refresh) comment
+    /// fetch, or nil when the last fetch succeeded (or none has run). Drives the
+    /// inline "couldn't load comments (offline)" state via
+    /// ``CommentsBackground/decide(isLoadingComments:hasCompletedFetch:hasComments:fetchError:)``;
+    /// cleared the moment a fetch starts so the failed state never lingers over a
+    /// retry's skeleton. A failure only surfaces when there are no comments to
+    /// show — once any comments are loaded the list stays and pull-to-refresh
+    /// failures are surfaced as a toast instead.
+    private(set) var commentFetchError: LoadFailure?
 
     /// The full, ordered comment tree as last emitted by the GRDB observation.
     /// Collapse is computed against this; it is never mutated by collapse.
@@ -77,6 +88,10 @@ final class PostDetailViewModel {
 
     private var alertService: AlertServiceType {
         dependencies.alertService
+    }
+
+    private var reachabilityMonitor: ReachabilityMonitoring {
+        dependencies.reachabilityMonitor
     }
 
     init(
@@ -188,17 +203,25 @@ final class PostDetailViewModel {
     }
 
     func fetchComments() async {
-        // Cancel-and-replace: a new fetch (e.g. a sort change) supersedes the
-        // in-flight one. The flag is set synchronously and only the winning
-        // (non-cancelled) task clears it or surfaces an error, so it never flaps
-        // and a superseded fetch is silent.
+        // Cancel-and-replace: a new fetch (e.g. a sort change, or a Retry from
+        // the inline failed state) supersedes the in-flight one. The flag is set
+        // synchronously and only the winning (non-cancelled) task clears it or
+        // surfaces an error, so it never flaps and a superseded fetch is silent.
         fetchTask?.cancel()
         isLoadingComments = true
+        // Clear any prior failure as the (retry) fetch starts so the inline
+        // failed state is replaced by the skeleton, not stacked behind it.
+        commentFetchError = nil
         let sortType = commentSortType
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 try await fetchCommentsOperation(sortType)
+                if !Task.isCancelled {
+                    // A successful (winning) load clears any lingering failure so
+                    // the empty / comments state can show.
+                    commentFetchError = nil
+                }
             } catch is CancellationError {
                 // Superseded — leave the flag to the winning fetch.
             } catch {
@@ -209,7 +232,16 @@ final class PostDetailViewModel {
                 // and the `!Task.isCancelled` guard below is what silences a superseded
                 // fetch. Do NOT remove these guards as "redundant" — they are load-bearing.
                 if !Task.isCancelled {
-                    alertService.handle(error, for: .fetchComments)
+                    // Drive the inline failed state instead of a modal alert: an
+                    // inline "couldn't load comments (offline)" surface with a
+                    // Retry is better UX than an alert over a misleading empty
+                    // state. The view controller renders it where the empty state
+                    // would show, and the failed state takes precedence over
+                    // ".empty" when there are no comments to display.
+                    commentFetchError = LoadFailure.classify(
+                        error,
+                        isOnline: reachabilityMonitor.isOnline
+                    )
                 }
             }
             if !Task.isCancelled {

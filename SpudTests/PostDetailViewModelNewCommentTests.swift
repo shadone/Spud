@@ -11,17 +11,19 @@ import Testing
 @testable import Spud
 
 private struct TestDependencies:
-    HasAccountService, HasAlertService, HasPreferencesService
+    HasAccountService, HasAlertService, HasPreferencesService, HasReachabilityMonitor
 {
     let accountService: AccountServiceType
     let alertService: AlertServiceType
     let preferencesService: PreferencesServiceType
+    let reachabilityMonitor: ReachabilityMonitoring
 
     init() {
         let appDatabase = try! AppDatabase.inMemory()
         accountService = AccountService(appDatabase: appDatabase)
         alertService = AlertService()
         preferencesService = PreferencesService()
+        reachabilityMonitor = StaticReachabilityMonitor(isOnline: true)
     }
 }
 

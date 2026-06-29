@@ -148,6 +148,13 @@ protocol PreferencesServiceType: AnyObject {
     /// is on. Default `.daily`.
     var explorerRefreshInterval: Preferences.ExplorerRefreshInterval { get set }
     var explorerRefreshIntervalStream: AsyncStream<Preferences.ExplorerRefreshInterval> { get }
+
+    // MARK: Offline
+
+    /// How many posts an offline download saves. Remembered across launches so the
+    /// "Download for offline" chooser opens on the user's last choice. Default
+    /// ``Preferences/OfflineDownloadPostCount/default`` (100).
+    var offlineDownloadPostCount: Preferences.OfflineDownloadPostCount { get set }
 }
 
 @MainActor
@@ -352,4 +359,9 @@ class PreferencesService: PreferencesServiceType {
     var explorerRefreshIntervalStream: AsyncStream<Preferences.ExplorerRefreshInterval> {
         $explorerRefreshInterval
     }
+
+    // MARK: Offline
+
+    @UserDefaultsBacked(key: "offlineDownloadPostCount")
+    var offlineDownloadPostCount: Preferences.OfflineDownloadPostCount = .default
 }

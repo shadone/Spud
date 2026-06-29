@@ -28,6 +28,12 @@ final class ZoomableImageView: UIView {
         imageView.image
     }
 
+    /// Invoked when the load resolves to a *degraded* outcome: the full-resolution
+    /// asset failed to load, but a preloaded thumbnail / cell image is on screen.
+    /// The container uses this to surface a "showing low-resolution preview" pill
+    /// in its chrome. Fires once per load; `nil` is passed nothing.
+    var onFullImageUnavailable: (() -> Void)?
+
     // MARK: Test seams
 
     /// Whether the loading spinner is currently animating. Test seam.
@@ -237,7 +243,14 @@ final class ZoomableImageView: UIView {
                     loadDidComplete = true
                     hideIndicator()
                     if image == nil {
+                        // Nothing to show at all: the hard broken-image icon.
                         errorImageView.isHidden = false
+                    } else {
+                        // A preloaded thumbnail / cell image is on screen, but the
+                        // full-resolution asset couldn't load. Don't replace the
+                        // preview with the error icon — tell the container to show
+                        // a non-blocking "low-resolution preview" pill instead.
+                        onFullImageUnavailable?()
                     }
                 }
             }

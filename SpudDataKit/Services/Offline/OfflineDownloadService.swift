@@ -39,19 +39,40 @@ public actor OfflineDownloadService {
     /// cancellation lets the consumer keep draining and observe that terminal.
     private var workTask: Task<Void, Never>?
 
-    /// Maximum number of posts a single download will fetch + predownload.
+    /// Default post cap when a caller doesn't specify one (see the `maxPosts`
+    /// parameter of ``download(feed:lemmyService:accountId:siteId:commentSort:showNsfw:maxPosts:)``).
     /// Bounds both the page-fetch loop and the content phase so a download of a
     /// busy feed stays a finite, polite amount of work.
-    public static let maxPosts = 100
+    public static let defaultMaxPosts = 100
 
-    /// Hard cap on the number of feed pages a single download will request.
-    /// A backstop against a pathological server that keeps handing back a
-    /// non-nil cursor while trickling little or no new content: even if the
-    /// count-didn't-grow guard somehow doesn't fire (e.g. the server adds one
-    /// new post per page), this guarantees the page loop terminates. At the
-    /// live feed's typical page size (~30-50 posts) this comfortably clears the
-    /// ``maxPosts`` cap for a healthy feed, so it only bites pathological ones.
-    public static let maxPages = 20
+    /// The smallest page size we assume a healthy feed returns, used to scale the
+    /// per-run page backstop (``maxPages(forMaxPosts:)``) to the chosen `maxPosts`.
+    /// Deliberately conservative (well under Lemmy's typical ~30-50 posts/page) so
+    /// the backstop always allows *enough* pages to reach the target on a normal
+    /// feed, and only bites a pathological one.
+    private static let minExpectedPageSize = 10
+
+    /// Extra pages allowed beyond the count-derived minimum, absorbing a feed that
+    /// trickles a few duplicates per page without prematurely capping a legitimate
+    /// run.
+    private static let maxPagesBuffer = 5
+
+    /// Hard cap on the number of feed pages a single download will request, scaled
+    /// to `maxPosts`. A backstop against a pathological server that keeps handing
+    /// back a non-nil cursor while trickling little or no new content: even if the
+    /// count-didn't-grow guard somehow doesn't fire (e.g. the server adds one new
+    /// post per page), this guarantees the page loop terminates.
+    ///
+    /// Scaled — rather than a fixed 20 — so a larger `maxPosts` (250 / 500) still
+    /// gets enough pages to reach its target on a normal feed: at
+    /// ``minExpectedPageSize`` posts/page plus ``maxPagesBuffer``, the backstop
+    /// comfortably clears the cap for a healthy feed and only bounds a pathological
+    /// one. The count-didn't-grow break (in ``fetchPages``) remains the primary
+    /// infinite-loop guard; this is the secondary, always-terminating one.
+    static func maxPages(forMaxPosts maxPosts: Int) -> Int {
+        let pagesToReachTarget = (maxPosts + minExpectedPageSize - 1) / minExpectedPageSize
+        return pagesToReachTarget + maxPagesBuffer
+    }
 
     /// Concurrency cap for the per-post content phase. Deliberately small: each
     /// unit hits the instance for a comment tree plus up to two images, so a
@@ -59,10 +80,11 @@ public actor OfflineDownloadService {
     /// throughput win on a single host.
     public static let contentConcurrency = 4
 
-    /// The downsample target for predownloaded thumbnails. Matches the feed
-    /// cell's thumbnail dimension so the cached, decoded thumbnail is the size
-    /// the post list actually displays.
-    private static let thumbnailDownsampleSize = CGSize(width: 64, height: 64)
+    /// The downsample target for predownloaded thumbnails. Reuses the shared
+    /// `ImageService.feedThumbnailPointSize` so the predownloaded thumbnail is
+    /// cached under the exact key the feed cell — and the post-detail header's
+    /// thumbnail-seed probe — later reads, giving an instant offline first paint.
+    private static let thumbnailDownsampleSize = ImageService.feedThumbnailPointSize
 
     /// The downsample target for a post's full image. Generous so the cached
     /// bitmap is large enough for the post-detail header and the full-screen
@@ -83,7 +105,7 @@ public actor OfflineDownloadService {
     /// Algorithm:
     /// 1. **fetchingPosts** — page through `lemmyService.fetchFeed` (which
     ///    persists each page to GRDB), accumulating the cursor, until the
-    ///    persisted post count reaches ``maxPosts``, the cursor is nil (feed
+    ///    persisted post count reaches `maxPosts`, the cursor is nil (feed
     ///    exhausted), or the task is cancelled.
     /// 2. Read the download targets from the now-persisted feed
     ///    (`offlineDownloadTargetsSync`).
@@ -123,13 +145,19 @@ public actor OfflineDownloadService {
     ///   - commentSort: The comment sort order to fetch each post's tree with.
     ///   - showNsfw: Forwarded to `fetchFeed` so NSFW filtering stays
     ///     server-side and consistent with the live feed.
+    ///   - maxPosts: The maximum number of posts to fetch + predownload. Bounds
+    ///     both the page-fetch loop (which stops once the persisted count reaches
+    ///     this) and the content phase (the targets query is limited to this).
+    ///     The per-run page backstop (``maxPages(forMaxPosts:)``) scales with it.
+    ///     Defaults to ``defaultMaxPosts``.
     public nonisolated func download(
         feed: FeedHandle,
         lemmyService: any LemmyServiceType,
         accountId: Int64,
         siteId: Int64,
         commentSort: Components.Schemas.CommentSortType,
-        showNsfw: Bool
+        showNsfw: Bool,
+        maxPosts: Int = defaultMaxPosts
     ) -> AsyncStream<OfflineDownloadProgress> {
         AsyncStream { continuation in
             // Wrap the work task in a holder so the task's own body can claim the
@@ -144,6 +172,7 @@ public actor OfflineDownloadService {
                     lemmyService: lemmyService,
                     commentSort: commentSort,
                     showNsfw: showNsfw,
+                    maxPosts: maxPosts,
                     claimedSlot: claimed,
                     emit: { continuation.yield($0) }
                 )
@@ -203,6 +232,7 @@ public actor OfflineDownloadService {
         lemmyService: any LemmyServiceType,
         commentSort: Components.Schemas.CommentSortType,
         showNsfw: Bool,
+        maxPosts: Int,
         claimedSlot: Bool,
         emit: @Sendable (OfflineDownloadProgress) -> Void
     ) async {
@@ -223,6 +253,7 @@ public actor OfflineDownloadService {
                 feed: feed,
                 lemmyService: lemmyService,
                 showNsfw: showNsfw,
+                maxPosts: maxPosts,
                 emit: emit
             )
         } catch is CancellationError {
@@ -247,10 +278,11 @@ public actor OfflineDownloadService {
             return
         }
 
-        // Phase 2: read the download targets from the now-persisted feed.
+        // Phase 2: read the download targets from the now-persisted feed,
+        // limited to the chosen cap.
         let targets = appDatabase.offlineDownloadTargetsSync(
             feedKey: feed.feedKey,
-            limit: Self.maxPosts
+            limit: maxPosts
         )
         let totalPosts = targets.count
 
@@ -282,16 +314,21 @@ public actor OfflineDownloadService {
         ))
     }
 
-    /// Page through `feed` until the persisted post count reaches ``maxPosts``,
+    /// Page through `feed` until the persisted post count reaches `maxPosts`,
     /// the cursor is nil, or the task is cancelled. Returns the final persisted
     /// post count. Rethrows a `fetchFeed` failure (handled as fatal by `run`).
     private func fetchPages(
         feed: FeedHandle,
         lemmyService: any LemmyServiceType,
         showNsfw: Bool,
+        maxPosts: Int,
         emit: @Sendable (OfflineDownloadProgress) -> Void
     ) async throws -> Int {
         emit(OfflineDownloadProgress(phase: .fetchingPosts))
+
+        // Scale the page backstop to the chosen post cap so a larger run still
+        // gets enough pages to reach its target on a healthy feed.
+        let maxPages = Self.maxPages(forMaxPosts: maxPosts)
 
         var cursor: String? = nil
         var persistedCount = appDatabase.offlineFeedPostCountSync(feedKey: feed.feedKey)
@@ -329,8 +366,8 @@ public actor OfflineDownloadService {
             // post per page (so the count keeps creeping up and the
             // count-didn't-grow guard never fires) can't keep the loop alive
             // indefinitely.
-            guard pagesFetched < Self.maxPages else { break }
-        } while persistedCount < Self.maxPosts
+            guard pagesFetched < maxPages else { break }
+        } while persistedCount < maxPosts
 
         return persistedCount
     }

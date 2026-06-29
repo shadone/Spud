@@ -54,6 +54,46 @@ struct ImageServiceFullFetchTests {
     }
 
     @Test
+    func fullFetch_seedsThumbnailFromDownsampledCacheKey() async throws {
+        // Regression: the feed cell and the offline downloader warm a thumbnail
+        // under the DOWNSAMPLED request key (a `Resize` processor at the feed
+        // thumbnail size), not the bare url key. Before the fix, the post-detail
+        // header's `fetch(_:thumbnail:)` probed only the bare key and missed the
+        // list's cached thumbnail — so it showed a gray spinner box (or, offline,
+        // the hard failure plate) even though the decoded thumbnail was cached.
+        let fullUrl = try #require(URL(string: "https://example.com/full.png"))
+        let thumbUrl = try #require(URL(string: "https://example.com/thumb.png"))
+
+        let memoryCache = ImageCache()
+        let pipeline = ImagePipeline { config in
+            // Full image never loads (offline), so the only thing to show is the
+            // pre-cached thumbnail.
+            config.dataLoader = StubDataLoader(result: .failure(URLError(.notConnectedToInternet)))
+            config.imageCache = memoryCache
+        }
+        // Seed the thumbnail under the SAME key the feed cell warms it: the
+        // downsample request, not the bare url request.
+        let downsampleRequest = ImageService.downsampleRequest(
+            url: thumbUrl,
+            pointSize: ImageService.feedThumbnailPointSize
+        )
+        pipeline.cache[downsampleRequest] = ImageContainer(image: ImageFixture.image())
+
+        let service = ImageService(alertService: AlertService(), pipeline: pipeline)
+
+        var loadingThumbnail: UIImage?
+        for await state in service.fetch(fullUrl, thumbnail: thumbUrl) {
+            if case let .loading(thumbnail) = state, thumbnail != nil {
+                loadingThumbnail = thumbnail
+            }
+        }
+        #expect(
+            loadingThumbnail != nil,
+            "Expected .loading to surface the thumbnail cached under the downsampled feed key"
+        )
+    }
+
+    @Test
     func fullFetch_failure_yieldsFailureAndAlerts() async throws {
         let url = try #require(URL(string: "https://example.com/bad.png"))
         let alert = SpyAlertService()

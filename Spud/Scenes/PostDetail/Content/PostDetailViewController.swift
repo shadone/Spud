@@ -26,7 +26,8 @@ class PostDetailViewController: UIViewController {
         HasImageService &
         HasLinkEmbedService &
         HasPostContentDetectorService &
-        HasPreferencesService
+        HasPreferencesService &
+        HasReachabilityMonitor
     typealias NestedDependencies =
         PersonOrLoadingViewController.Dependencies &
         CommunityOrLoadingViewController.Dependencies &
@@ -68,6 +69,10 @@ class PostDetailViewController: UIViewController {
 
     var preferencesService: PreferencesServiceType {
         dependencies.own.preferencesService
+    }
+
+    var reachabilityMonitor: ReachabilityMonitoring {
+        dependencies.own.reachabilityMonitor
     }
 
     // MARK: - Public
@@ -123,6 +128,7 @@ class PostDetailViewController: UIViewController {
         tableView.register(PostDetailCommentCell.self, forCellReuseIdentifier: PostDetailCommentCell.reuseIdentifier)
         tableView.register(PostDetailCommentLoadingCell.self, forCellReuseIdentifier: PostDetailCommentLoadingCell.reuseIdentifier)
         tableView.register(PostDetailEmptyCommentsCell.self, forCellReuseIdentifier: PostDetailEmptyCommentsCell.reuseIdentifier)
+        tableView.register(PostDetailCommentsFailedCell.self, forCellReuseIdentifier: PostDetailCommentsFailedCell.reuseIdentifier)
         return tableView
     }()
 
@@ -688,48 +694,68 @@ class PostDetailViewController: UIViewController {
         }
     }
 
-    /// Observes the view model's comment-loading flag and re-applies the snapshot
-    /// on each change (so the loading-skeleton / empty-state placeholder rows are
-    /// added/removed), recording the first fetch completion (the true -> false edge)
-    /// so the empty state can show only once a fetch settles.
+    /// Observes the view model's comment-loading flag and fetch-error and
+    /// re-applies the snapshot on each change (so the loading-skeleton /
+    /// failed-state / empty-state placeholder rows are added/removed), recording
+    /// the first fetch completion (the loading true -> false edge) so the empty
+    /// state can show only once a fetch settles. The error is tracked alongside
+    /// the loading flag (both are read in the closure, so Observation re-fires on
+    /// either) so the inline failed state appears/clears even when the loading
+    /// flag did not change in the same step.
     private func startLoadingObservation() {
         loadingObservationTask?.cancel()
         loadingObservationTask = Task { @MainActor [weak self] in
             guard let self else { return }
             var wasLoading = false
-            for await isLoading in ObservationStream.values(of: { [weak self] in
-                self?.viewModel.isLoadingComments ?? false
+            for await state in ObservationStream.values(of: { [weak self] in
+                LoadingObservationState(
+                    isLoading: self?.viewModel.isLoadingComments ?? false,
+                    hasError: self?.viewModel.commentFetchError != nil
+                )
             }) {
                 if Task.isCancelled { break }
-                if wasLoading, !isLoading {
+                if wasLoading, !state.isLoading {
                     hasCompletedCommentFetch = true
                 }
-                wasLoading = isLoading
-                // The skeleton and empty-state are rows now: re-apply the snapshot
-                // so the placeholder is added or removed as the loading flag flips.
+                wasLoading = state.isLoading
+                // The skeleton, failed, and empty-state are rows now: re-apply the
+                // snapshot so the placeholder is added or removed as the loading
+                // flag flips or a fetch error appears/clears.
                 applySnapshot()
             }
         }
     }
 
-    /// Items for the comments section given the current placeholder state. Both
-    /// placeholders are in-flow rows in the comments section (so they scroll with
+    /// The pair of comment-fetch states the loading observation watches. Reduced
+    /// to `Equatable` flags (not the `LoadFailure` itself) so the stream only
+    /// re-fires on a meaningful transition.
+    private struct LoadingObservationState: Equatable {
+        let isLoading: Bool
+        let hasError: Bool
+    }
+
+    /// Items for the comments section given the current placeholder state. Every
+    /// placeholder is an in-flow row in the comments section (so it scrolls with
     /// content, below the pinned header, where the comments will appear): the
-    /// loading skeleton while a fetch is in flight, and the "No comments yet"
-    /// empty-state row once a fetch settles with no comments. `.hidden` (and the
-    /// defensive case of `.empty` with comments somehow present) passes the comment
-    /// rows through unchanged.
+    /// loading skeleton while a fetch is in flight, the inline "couldn't load
+    /// comments" failed-state row when the fetch errored with nothing to show, and
+    /// the "No comments yet" empty-state row once a fetch settles with no comments.
+    /// `.hidden` (and the defensive case of a placeholder with comments somehow
+    /// present) passes the comment rows through unchanged.
     static func commentsSectionItems(
         background: CommentsBackground,
         commentItems: [Item]
     ) -> [Item] {
-        if background == .skeleton {
+        switch background {
+        case .skeleton:
             return [.commentLoadingSkeleton]
-        }
-        if background == .empty, commentItems.isEmpty {
+        case .failed where commentItems.isEmpty:
+            return [.commentsFailed]
+        case .empty where commentItems.isEmpty:
             return [.commentsEmpty]
+        case .failed, .empty, .hidden:
+            return commentItems
         }
-        return commentItems
     }
 
     /// Rebuilds and applies the header + comments snapshot. Defaults to
@@ -764,7 +790,13 @@ class PostDetailViewController: UIViewController {
         let background = CommentsBackground.decide(
             isLoadingComments: viewModel.isLoadingComments,
             hasCompletedFetch: hasCompletedCommentFetch,
-            hasComments: !viewModel.orderedComments.isEmpty
+            hasComments: !viewModel.orderedComments.isEmpty,
+            // Only the view-model `fetchComments()` path (initial load, sort
+            // change, Retry) sets this. Pull-to-refresh fetches comments directly
+            // through LemmyService and never sets `commentFetchError`, so a refresh
+            // failure with comments already on screen keeps the list and surfaces a
+            // toast instead (see `reloadAsync`) — it never reaches the failed state.
+            fetchError: viewModel.commentFetchError
         )
         // Splice pending (locally-composed, not-yet-confirmed) comments into the
         // visible tree: a reply lands right after the loaded row whose server
@@ -1446,6 +1478,32 @@ class PostDetailViewController: UIViewController {
         )
     }
 
+    /// Shows a coalescing, non-blocking toast reassuring the user that an
+    /// optimistic action (vote/save) will be sent once they're back online.
+    /// No-op when online (the action goes out immediately) or when there is no
+    /// window to present in. Relies on `ToastPresenter`'s plain-toast coalescing
+    /// so rapid taps update the same pill instead of stacking.
+    ///
+    /// The optimistic DB write + the durable mutation outbox already record and
+    /// resend the action; this toast only sets the user's expectation. No extra
+    /// haptic is fired here — the calling action already plays its own.
+    private func showOfflineActionToastIfNeeded(message: String) {
+        guard !reachabilityMonitor.isOnline, let window = view.window else { return }
+        ToastPresenter.shared.show(message, in: window)
+    }
+
+    /// Toast copy for an optimistic vote queued while offline.
+    private static let offlineVoteToast = NSLocalizedString(
+        "You're offline — we'll send your vote when you're back online.",
+        comment: "Toast shown after voting while offline; the vote is queued and resent automatically"
+    )
+
+    /// Toast copy for an optimistic save/unsave queued while offline.
+    private static let offlineSaveToast = NSLocalizedString(
+        "You're offline — we'll save this when you're back online.",
+        comment: "Toast shown after saving while offline; the action is queued and resent automatically"
+    )
+
     private func voteOnPost(_ action: VoteStatus.Action) async {
         guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
@@ -1454,6 +1512,9 @@ class PostDetailViewController: UIViewController {
             return
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        // The optimistic write applied synchronously inside `vote`; reassure the
+        // user it will be sent once they're back online.
+        showOfflineActionToastIfNeeded(message: Self.offlineVoteToast)
         do {
             try await viewModel.accountScope.lemmyService
                 .vote(serverPostId: viewModel.serverPostId, vote: action)
@@ -1518,6 +1579,9 @@ class PostDetailViewController: UIViewController {
             return
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        // The optimistic write applied synchronously inside `vote`; reassure the
+        // user it will be sent once they're back online.
+        showOfflineActionToastIfNeeded(message: Self.offlineVoteToast)
         do {
             try await viewModel.accountScope.lemmyService
                 .vote(serverCommentId: Components.Schemas.CommentID(serverCommentId), vote: action)
@@ -1549,6 +1613,9 @@ class PostDetailViewController: UIViewController {
 
     private func setSavedOnPost(saved: Bool) async {
         Haptics.tap()
+        // The optimistic write applied synchronously inside `setSaved`; reassure
+        // the user it will be sent once they're back online.
+        showOfflineActionToastIfNeeded(message: Self.offlineSaveToast)
         do {
             try await viewModel.accountScope.lemmyService
                 .setSaved(serverPostId: viewModel.serverPostId, saved: saved)
@@ -1567,6 +1634,9 @@ class PostDetailViewController: UIViewController {
 
     private func setSavedOnComment(serverCommentId: Int64, saved: Bool) async {
         Haptics.tap()
+        // The optimistic write applied synchronously inside `setSaved`; reassure
+        // the user it will be sent once they're back online.
+        showOfflineActionToastIfNeeded(message: Self.offlineSaveToast)
         do {
             try await viewModel.accountScope.lemmyService
                 .setSaved(serverCommentId: Components.Schemas.CommentID(serverCommentId), saved: saved)
@@ -2420,6 +2490,11 @@ extension PostDetailViewController {
         case newSinceBanner
         case commentLoadingSkeleton
         case commentsEmpty
+        /// The inline "couldn't load comments" failed-state row. A plain marker
+        /// (no associated value) keeps `Item` trivially `Hashable`; the cell
+        /// provider reads the classified failure from the view model when
+        /// configuring the cell.
+        case commentsFailed
         case comment(elementId: Int64)
     }
 
@@ -2538,6 +2613,22 @@ extension PostDetailViewController {
                     withIdentifier: PostDetailEmptyCommentsCell.reuseIdentifier,
                     for: indexPath
                 ) as! PostDetailEmptyCommentsCell
+
+            case .commentsFailed:
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: PostDetailCommentsFailedCell.reuseIdentifier,
+                    for: indexPath
+                ) as! PostDetailCommentsFailedCell
+                // The failed row is only ever in the snapshot when
+                // `commentFetchError` is set, but fall back to a generic
+                // unreachable failure if the cell is somehow dequeued without one.
+                let failure = self?.viewModel.commentFetchError
+                    ?? LoadFailure(kind: .unreachable, diagnostics: "")
+                cell.configure(with: failure)
+                cell.onRetry = { [weak self] in
+                    Task { await self?.viewModel.fetchComments() }
+                }
+                return cell
 
             case let .comment(elementId):
                 let cell = tableView.dequeueReusableCell(

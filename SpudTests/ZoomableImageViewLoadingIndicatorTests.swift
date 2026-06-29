@@ -127,6 +127,33 @@ struct ZoomableImageViewLoadingIndicatorTests {
         #expect(view.image == nil)
         #expect(!view.isErrorIconHiddenForTesting)
     }
+
+    /// On failure WITH a preloaded image, the broken-image icon must NOT replace
+    /// the visible preview; instead the degraded callback fires so the container
+    /// can surface the "low-resolution preview" pill.
+    @Test
+    func failureWithPreloadedImage_keepsPreviewAndSignalsDegraded() async {
+        let item = MediaItem(
+            imageUrl: URL(filePath: "/full.png"),
+            thumbnailUrl: URL(filePath: "/thumb.png"),
+            preloadedImage: solidImage()
+        )
+        let view = makeView(
+            item: item,
+            imageService: FakeImageService([.failure])
+        )
+
+        var didSignalDegraded = false
+        view.onFullImageUnavailable = { didSignalDegraded = true }
+
+        view.startLoading()
+        await view.awaitLoadForTesting()
+
+        #expect(!view.isLoadingIndicatorVisible)
+        #expect(view.image != nil, "the preloaded preview must stay on screen")
+        #expect(view.isErrorIconHiddenForTesting, "the hard error icon must not cover the preview")
+        #expect(didSignalDegraded, "the degraded callback must fire so the pill can show")
+    }
 }
 
 /// A deterministic `ImageServiceType` for these tests, modelled on

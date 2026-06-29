@@ -144,6 +144,27 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         XCTAssertFalse(cleanVM.isImageBlurred, "non-NSFW post => not blurred")
     }
 
+    // MARK: - Degraded (low-res preview)
+
+    /// The degraded state: the full-resolution image failed to load but the
+    /// cached thumbnail is on screen, so the header keeps the thumbnail and
+    /// overlays the subtle "Low-res preview · retry" pill instead of the hard
+    /// failure plate. The pill is a `UIVisualEffectView` blur, which only renders
+    /// when drawn through the key window — so this uses the
+    /// `drawHierarchyInKeyWindow: true` strategy (like the NSFW blur test) rather
+    /// than the offscreen `.image(size:traits:)` path.
+    func test_image_lowResPreview() async {
+        let cell = await renderCell(
+            row: row(url: imageUrl),
+            imageService: ScriptedImageService([.loadingThumbnailThenFailure(thumbnailPhoto())]),
+            driveRetry: false
+        )
+
+        for style in [UIUserInterfaceStyle.light, UIUserInterfaceStyle.dark] {
+            snapshotBlur(cell, style: style)
+        }
+    }
+
     // MARK: - NSFW blur
 
     /// A blurred NSFW header cell. UIVisualEffectView only renders when drawn

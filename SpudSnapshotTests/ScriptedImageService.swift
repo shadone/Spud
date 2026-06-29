@@ -29,6 +29,10 @@ final class ScriptedImageService: ImageServiceType, @unchecked Sendable {
         /// — models the full image still downloading while a low-res thumbnail is
         /// shown under the spinner.
         case loadingThumbnail(UIImage)
+        /// Yield `.loading(thumbnail:)` carrying a preview image, then `.failure`
+        /// — models the full image failing (offline / dead link) while a cached
+        /// thumbnail is on screen: the degraded "Low-res preview" state.
+        case loadingThumbnailThenFailure(UIImage)
     }
 
     private let responses: [Response]
@@ -74,7 +78,11 @@ final class ScriptedImageService: ImageServiceType, @unchecked Sendable {
                 break
             case let .loadingThumbnail(image):
                 continuation.yield(.loading(thumbnail: image))
-                // Never finish: the full image is still "downloading".
+            // Never finish: the full image is still "downloading".
+            case let .loadingThumbnailThenFailure(image):
+                continuation.yield(.loading(thumbnail: image))
+                continuation.yield(.failure)
+                continuation.finish()
             }
         }
     }
