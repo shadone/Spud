@@ -11,8 +11,9 @@ import XCTest
 @testable import Spud
 
 /// Snapshots of the signed-out authentication surfaces: the `SignInGate` sheet
-/// (one per write action — vote / comment / save / subscribe) and the signed-out
-/// Account screen — each in light and dark.
+/// (one per write action — vote / comment / save / subscribe), each in light and
+/// dark. The signed-out Account screen has its own SwiftUI-host suite
+/// (`AccountSignedOutScreenSnapshotTests`) now that it is a grouped `List`.
 ///
 /// The view controllers render at a pinned `ViewImageConfig` (iPhone 13 Pro
 /// size/scale/safe-area), so the references are device-independent — they record
@@ -71,19 +72,5 @@ final class AuthScreensSnapshotTests: XCTestCase {
 
     func test_signInGate_subscribe() {
         assertSignInGate(title: NSLocalizedString("Sign in to subscribe", comment: ""))
-    }
-
-    // MARK: - AccountSignedOut
-
-    func test_accountSignedOut() {
-        for style in [UIUserInterfaceStyle.light, .dark] {
-            let viewController = AccountSignedOutViewController()
-            viewController.view.tintColor = lemmyTeal
-            assertSnapshot(
-                matching: viewController,
-                as: .image(on: .iPhone13Pro, traits: traits(style)),
-                named: style == .dark ? "dark" : "light"
-            )
-        }
     }
 }

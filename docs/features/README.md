@@ -81,7 +81,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Person / user profile](person-profile.md) | `iphone`, `ipad` | shipped — Posts tab renders with the feed cell (vote / save, live state) |
 | [Accounts and switching](accounts-and-switching.md) | `iphone`, `ipad` | shipped — signed-in Account tab is a profile header + shortcuts list (Switch account / Saved / History / Your posts / Your comments / Log out) |
 | [Edit your profile](profile-editing.md) | `iphone`, `ipad` | shipped — display name, bio, avatar + server-synced toggles (scores / bots / read posts / avatars) + default feed |
-| [Signed-out browsing](signed-out-browsing.md) | `iphone`, `ipad` | shipped |
+| [Signed-out browsing](signed-out-browsing.md) | `iphone`, `ipad` | shipped — signed-out Account tab is a grouped "Browsing anonymously" screen (Reading-from row, Create account / Log in, Settings) |
 | [Login](login.md) | `iphone`, `ipad` | shipped — incl. two-factor (TOTP) sign-in |
 | [Instance picker](instance-picker.md) | `iphone`, `ipad` | shipped |
 | [Registration](registration.md) | `iphone`, `ipad` | shipped |
@@ -162,7 +162,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Multi-account, multi-instance + account switcher
 - [x] Account tab — signed-in home: tappable profile header (-> Edit your profile) over a shortcuts list (Switch account, Saved, History, Your posts, Your comments, Log out), Settings in the nav bar (accounts-and-switching.md)
 - [x] Edit your profile — display name, bio, avatar (pict-rs upload), plus the server-synced account toggles (show scores / bot accounts / read posts / others' avatars) and default feed; saved via `save_user_settings` then refreshed (profile-editing.md)
-- [x] Signed-out browsing (bootstrap account)
+- [x] Signed-out browsing (bootstrap account) — signed-out Account tab is a grouped "Browsing anonymously" screen: guest header, Reading-from / change-server row, Create account / Log in, Settings (signed-out-browsing.md)
 - [x] Login — incl. two-factor (TOTP) sign-in (code collected and sent; a 2FA-required login auto-prompts for the code)
 - [x] Instance picker (site list)
 - [x] Registration / signup — shipped (captcha was removed from Lemmy server-side; no in-app captcha solver)

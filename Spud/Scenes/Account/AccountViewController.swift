@@ -180,9 +180,19 @@ class AccountViewController: UIViewController {
     private func showSignedOut(keychainId _: String) {
         configureNavBar(signedIn: false)
 
-        let signedOutVC = AccountSignedOutViewController()
-        signedOutVC.loginTapped = { [weak self] in self?.openLoginFlow() }
-        signedOutVC.signUpTapped = { [weak self] in self?.openLoginFlow() }
+        // A grouped SwiftUI screen mirroring the signed-in Account tab: a guest
+        // header, a "Reading from <host>" row to change the home server, the
+        // Create account / Log in buttons, and a Settings row. Navigation is owned
+        // here so each control works on iPhone and iPad.
+        let accent = Color(ThemeManager.currentAccentColor)
+        let signedOutVC = AccountSignedOutViewController(
+            instanceHostname: viewModel.instanceHostname,
+            accent: accent,
+            onChangeInstance: { [weak self] in self?.accountsTapped() },
+            onCreateAccount: { [weak self] in self?.openLoginFlow() },
+            onLogIn: { [weak self] in self?.openLoginFlow() },
+            onSettings: { [weak self] in self?.settingsTapped() }
+        )
         swapChild(signedOutVC)
     }
 
@@ -216,36 +226,25 @@ class AccountViewController: UIViewController {
     // MARK: Nav bar
 
     private func configureNavBar(signedIn: Bool) {
-        navigationItem.title = signedIn
-            ? NSLocalizedString("Account", comment: "Account screen title when signed in")
-            : NSLocalizedString("Account", comment: "Account screen title when signed out")
-
-        // Settings lives here now (it used to be its own tab). Available signed
-        // in or out so guests can still reach it.
-        let settingsButton = UIBarButtonItem(
-            image: UIImage(systemName: "gearshape"),
-            style: .plain,
-            target: self,
-            action: #selector(settingsTapped)
-        )
-        settingsButton.accessibilityLabel = NSLocalizedString("Settings", comment: "Settings button accessibility label")
+        navigationItem.title = NSLocalizedString("Account", comment: "Account screen title")
 
         if signedIn {
             // Signed in, "Switch account" folds into the list (per the redesign),
             // so the nav bar carries only Settings.
-            navigationItem.rightBarButtonItems = [settingsButton]
-        } else {
-            // Signed out, keep the account switcher in the nav bar so guests can
-            // still jump between / add accounts (the list redesign is signed-in
-            // only).
-            let switcher = UIBarButtonItem(
-                image: UIImage(systemName: "person.2.crop.square.stack"),
+            let settingsButton = UIBarButtonItem(
+                image: UIImage(systemName: "gearshape"),
                 style: .plain,
                 target: self,
-                action: #selector(accountsTapped)
+                action: #selector(settingsTapped)
             )
-            switcher.accessibilityLabel = NSLocalizedString("Switch account", comment: "Account switcher button accessibility label")
-            navigationItem.rightBarButtonItems = [settingsButton, switcher]
+            settingsButton.accessibilityLabel = NSLocalizedString("Settings", comment: "Settings button accessibility label")
+            navigationItem.rightBarButtonItems = [settingsButton]
+        } else {
+            // Signed out, the redesigned in-content rows cover everything the nav
+            // bar used to: the "Reading from" / Change row replaces the switcher,
+            // the Settings row replaces the gear, and Create account / Log in
+            // replace the call-to-action. So the nav bar is just the title.
+            navigationItem.rightBarButtonItems = nil
         }
     }
 

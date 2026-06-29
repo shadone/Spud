@@ -16,7 +16,7 @@ posts, comments, communities, and profiles, but any write action prompts you to 
 - **First-run bootstrap.** When no account exists yet, Spud seeds its site list with a single default instance and creates a signed-out, non-service account on it, marking it the default. The default seeded instance is `discuss.tchncs.de`. This happens with no I/O against the instance and no UI step — the app opens directly into the feed.
 - **Signed-out is a real account type.** The bootstrap account is a first-class account row flagged as a signed-out type, with no Keychain credential. It is the active default until you sign in, switch, or add an account.
 - **Read-only.** A signed-out account can read everything but cannot perform write actions. Each write surface checks the signed-out state and presents a "Sign in to …" prompt instead of acting. See [sign-in-gate.md](sign-in-gate.md) for the exact set.
-- **The Account tab when signed out.** The Account tab shows a "You're browsing as a guest" screen explaining anonymous browsing, with Log in and Sign up buttons; both open the add-account flow (instance picker → login / sign up). The account switcher remains available.
+- **The Account tab when signed out.** The Account tab shows a grouped "Browsing anonymously" screen — matching the redesigned signed-in tab and the account switcher — with a centered guest header (avatar placeholder + title + a "you can read anything; sign in to vote, comment and subscribe" subtitle), a "Reading from <home server>" row, prominent **Create account** and **Log in** buttons, and a Settings row. The "Reading from" row opens the account switcher (whose "Browse an instance anonymously" path changes the home server); Create account and Log in both open the add-account flow (instance picker → sign up / login); Settings opens Preferences. The nav bar shows only the title — every action lives in the content. (There is no device-local "Saved" list while signed out: saving is a server-side Lemmy action, so there is nothing kept on-device to surface.)
 - **"Browse without an account" on the login screen.** The login screen offers "Browse without an account", which pushes a confirmation screen (AnonymousBrowseConfirmViewController) before the signed-out account for the chosen instance becomes active — a way to stay anonymous on a specific instance.
 - **Returning to anonymous.** Logging out drops you back to anonymous browsing (a signed-out account on the same instance) when no other account remains.
 
@@ -44,7 +44,13 @@ posts, comments, communities, and profiles, but any write action prompts you to 
 
 - **Given** the signed-out account is active
 - **When** I open the Account tab
-- **Then** I see a "browsing as a guest" screen with Log in and Sign up, plus the account switcher
+- **Then** I see a "Browsing anonymously" screen with my current home server, Create account and Log in buttons, and a Settings row
+
+### Change the home server while signed out
+
+- **Given** the signed-out account is active on the Account tab
+- **When** I tap the "Reading from <home server>" row
+- **Then** the account switcher opens, where its "Browse an instance anonymously" path lets me pick a different home server
 
 ### Stay anonymous on a chosen instance
 
