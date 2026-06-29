@@ -10,15 +10,16 @@ import OSLog
 import SpudDataKit
 import SpudUIKit
 import SpudUtilKit
+import SwiftUI
 import UIKit
 
 private let logger = Logger.app
 
-/// The Account tab. When signed in it shows the account holder's own Person
-/// profile (header + their posts/comments) with an account switcher in the nav
-/// bar and a footer of actions (Saved, Settings, Log out). When signed out it
-/// shows a clean call-to-action to Log in or Sign up, with anonymous browsing
-/// remaining the default.
+/// The Account tab. When signed in it shows `AccountView`: a tappable profile
+/// header (-> Edit Profile) over a grouped list of account actions (Switch
+/// account, Saved, History, Your posts, Your comments, Log out), with Settings
+/// in the nav bar. When signed out it shows a clean call-to-action to Log in or
+/// Sign up, with anonymous browsing remaining the default.
 class AccountViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
@@ -54,6 +55,10 @@ class AccountViewController: UIViewController {
         dependencies.own.appDatabase
     }
 
+    var imageService: ImageServiceType {
+        dependencies.own.imageService
+    }
+
     // MARK: Private
 
     private let viewModel: AccountViewModel
@@ -67,7 +72,6 @@ class AccountViewController: UIViewController {
     private var renderedHasOwnPerson: Bool?
 
     private var currentChild: UIViewController?
-    private var profileFooterView: AccountActionsFooterView?
 
     // MARK: Functions
 
@@ -145,51 +149,32 @@ class AccountViewController: UIViewController {
     private func showSignedIn(keychainId: String) {
         configureNavBar(signedIn: true)
 
-        guard let ownPerson = viewModel.ownPerson else {
+        guard viewModel.ownPerson != nil else {
             // Signed in but the person row hasn't landed yet (first login). Show
             // a spinner; the observation rebuilds when the import completes.
             showLoading()
             return
         }
 
-        let personVC = PersonViewController(
-            personRowId: ownPerson.personRowId,
-            serverPersonId: Components.Schemas.PersonID(ownPerson.serverPersonId),
-            accountKeychainId: keychainId,
-            dependencies: dependencies.nested
+        // A clean SwiftUI list: a tappable profile header over the account
+        // actions (switch account, saved / your posts / your comments, log out).
+        // Navigation is owned here so each row works on iPhone and iPad.
+        let accent = Color(ThemeManager.currentAccentColor)
+        let accountView = AccountView(
+            viewModel: viewModel,
+            accent: accent,
+            onEditProfile: { [weak self] in self?.openEditProfile(keychainId: keychainId) },
+            onSwitchAccount: { [weak self] in self?.accountsTapped() },
+            onOpenSaved: { [weak self] in self?.openSaved(keychainId: keychainId) },
+            onOpenHistory: { [weak self] in self?.openHistory(keychainId: keychainId) },
+            onOpenYourPosts: { [weak self] in self?.openOwnProfile(keychainId: keychainId, tab: .posts) },
+            onOpenYourComments: { [weak self] in self?.openOwnProfile(keychainId: keychainId, tab: .comments) },
+            onLogout: { [weak self] in self?.confirmLogout() }
         )
+        .environment(\.imageService, imageService)
 
-        // The profile occupies the screen above an account-actions footer
-        // (Saved / Settings / Log out) pinned to the bottom safe area.
-        let footer = AccountActionsFooterView()
-        footer.translatesAutoresizingMaskIntoConstraints = false
-        footer.savedTapped = { [weak self] in self?.openSaved(keychainId: keychainId) }
-        footer.historyTapped = { [weak self] in self?.openHistory(keychainId: keychainId) }
-        footer.logoutTapped = { [weak self] in self?.confirmLogout() }
-        profileFooterView = footer
-
-        removeCurrentChild()
-
-        add(child: personVC)
-        let personView = personVC.view!
-        personView.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(personView)
-        view.addSubview(footer)
-        personVC.didMove(toParent: self)
-        currentChild = personVC
-
-        NSLayoutConstraint.activate([
-            personView.topAnchor.constraint(equalTo: view.topAnchor),
-            personView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            personView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            personView.bottomAnchor.constraint(equalTo: footer.topAnchor),
-
-            footer.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            footer.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            // Pin to the safe area, not the raw view bottom, so the footer (and
-            // its Log out button) sits above the tab bar rather than under it.
-            footer.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
-        ])
+        let hostingVC = UIHostingController(rootView: accountView)
+        swapChild(hostingVC)
     }
 
     private func showSignedOut(keychainId _: String) {
@@ -223,10 +208,6 @@ class AccountViewController: UIViewController {
     }
 
     private func removeCurrentChild() {
-        if let footer = profileFooterView {
-            footer.removeFromSuperview()
-            profileFooterView = nil
-        }
         currentChild?.view.removeFromSuperview()
         remove(child: currentChild)
         currentChild = nil
@@ -239,16 +220,6 @@ class AccountViewController: UIViewController {
             ? NSLocalizedString("Account", comment: "Account screen title when signed in")
             : NSLocalizedString("Account", comment: "Account screen title when signed out")
 
-        // The account switcher is always available so the user can jump between
-        // accounts (and add a new one) regardless of sign-in state.
-        let switcher = UIBarButtonItem(
-            image: UIImage(systemName: "person.2.crop.square.stack"),
-            style: .plain,
-            target: self,
-            action: #selector(accountsTapped)
-        )
-        switcher.accessibilityLabel = NSLocalizedString("Switch account", comment: "Account switcher button accessibility label")
-
         // Settings lives here now (it used to be its own tab). Available signed
         // in or out so guests can still reach it.
         let settingsButton = UIBarButtonItem(
@@ -259,7 +230,23 @@ class AccountViewController: UIViewController {
         )
         settingsButton.accessibilityLabel = NSLocalizedString("Settings", comment: "Settings button accessibility label")
 
-        navigationItem.rightBarButtonItems = [settingsButton, switcher]
+        if signedIn {
+            // Signed in, "Switch account" folds into the list (per the redesign),
+            // so the nav bar carries only Settings.
+            navigationItem.rightBarButtonItems = [settingsButton]
+        } else {
+            // Signed out, keep the account switcher in the nav bar so guests can
+            // still jump between / add accounts (the list redesign is signed-in
+            // only).
+            let switcher = UIBarButtonItem(
+                image: UIImage(systemName: "person.2.crop.square.stack"),
+                style: .plain,
+                target: self,
+                action: #selector(accountsTapped)
+            )
+            switcher.accessibilityLabel = NSLocalizedString("Switch account", comment: "Account switcher button accessibility label")
+            navigationItem.rightBarButtonItems = [settingsButton, switcher]
+        }
     }
 
     // MARK: Actions
@@ -286,6 +273,33 @@ class AccountViewController: UIViewController {
             dependencies: dependencies.nested
         )
         navigationController?.pushViewController(preferencesViewController, animated: true)
+    }
+
+    /// Presents the Edit Profile editor for the signed-in account, reached by
+    /// tapping the profile header.
+    private func openEditProfile(keychainId: String) {
+        Haptics.tap()
+        let editor = EditProfileViewController.makeModal(
+            accountKeychainId: keychainId,
+            dependencies: dependencies.own
+        )
+        present(editor, animated: true)
+    }
+
+    /// Pushes the account holder's own Person profile, opened on `tab` (Posts or
+    /// Comments). Resolves the own person ids; a no-op if they haven't been
+    /// imported yet (the header would already be hidden in that case).
+    private func openOwnProfile(keychainId: String, tab: PersonContentTab) {
+        Haptics.tap()
+        guard let ownPerson = viewModel.ownPerson else { return }
+        let personVC = PersonViewController(
+            personRowId: ownPerson.personRowId,
+            serverPersonId: Components.Schemas.PersonID(ownPerson.serverPersonId),
+            accountKeychainId: keychainId,
+            dependencies: dependencies.nested,
+            initialTab: tab
+        )
+        navigationController?.pushViewController(personVC, animated: true)
     }
 
     private func openSaved(keychainId: String) {

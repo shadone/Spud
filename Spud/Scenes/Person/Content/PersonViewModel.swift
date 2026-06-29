@@ -114,13 +114,15 @@ final class PersonViewModel {
         serverPersonId: Components.Schemas.PersonID,
         accountScope: AccountScope,
         accountService: AccountServiceType,
-        appDatabase: AppDatabase
+        appDatabase: AppDatabase,
+        initialTab: PersonContentTab = .posts
     ) {
         self.serverPersonId = serverPersonId
         self.accountScope = accountScope
         self.accountService = accountService
         self.appDatabase = appDatabase
         self.personRowId = personRowId
+        tab = initialTab
         sortType = accountService.defaultSortType(forAccountKeychainId: accountScope.accountKeychainId)
 
         if let personRowId {

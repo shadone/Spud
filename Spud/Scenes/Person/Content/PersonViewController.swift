@@ -187,7 +187,8 @@ class PersonViewController: UIViewController {
         personRowId: Int64,
         serverPersonId: Components.Schemas.PersonID,
         accountKeychainId: String,
-        dependencies: Dependencies
+        dependencies: Dependencies,
+        initialTab: PersonContentTab = .posts
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
         self.accountKeychainId = accountKeychainId
@@ -198,7 +199,8 @@ class PersonViewController: UIViewController {
             serverPersonId: serverPersonId,
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             accountService: dependencies.accountService,
-            appDatabase: dependencies.appDatabase
+            appDatabase: dependencies.appDatabase,
+            initialTab: initialTab
         )
 
         super.init(nibName: nil, bundle: nil)
