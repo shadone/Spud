@@ -427,13 +427,12 @@ struct OfflineDownloadServiceTests {
         let first = Task {
             await runDownload(service: service, lemmy: lemmy)
         }
-        // Wait until the first download has actually claimed the in-flight slot
-        // by issuing at least one fetchFeed call.
-        var attempts = 0
-        while await lemmy.recordedFetchFeedCallCount() == 0, attempts < 1000 {
-            await Task.yield()
-            attempts += 1
-        }
+        // Wait deterministically until the first download has actually claimed
+        // the in-flight slot by issuing its first fetchFeed call — no bounded
+        // busy-wait, which can flake under CI load. (Mirrors how
+        // `cancellationStopsAndEndsCancelled` drives cancellation off a definite
+        // signal.)
+        await lemmy.firstFetchFeedStarted()
 
         // A second download against a fresh lemmy must be rejected immediately.
         let secondLemmy = makeLemmy(pages: [.init(postCount: 1, nextCursor: nil)])

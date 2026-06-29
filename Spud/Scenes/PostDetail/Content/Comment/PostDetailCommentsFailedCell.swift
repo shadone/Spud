@@ -81,6 +81,11 @@ final class PostDetailCommentsFailedCell: UITableViewCell {
             stack.leadingAnchor.constraint(greaterThanOrEqualTo: contentView.leadingAnchor, constant: 32),
             stack.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -32),
         ])
+
+        // The labels and button are created once and only re-populated on
+        // configure, so the VoiceOver reading order is stable — set it here so
+        // reuse can't leave a stale backing.
+        accessibilityElements = [titleLabel, subtitleLabel, retryButton]
     }
 
     @available(*, unavailable)
@@ -105,8 +110,6 @@ final class PostDetailCommentsFailedCell: UITableViewCell {
         subtitleLabel.text = descriptor.message
         retryButton.configuration?.title = descriptor.primary.title
         retryButton.configuration?.baseBackgroundColor = ThemeManager.currentAccentColor
-
-        accessibilityElements = [titleLabel, subtitleLabel, retryButton]
     }
 
     @objc

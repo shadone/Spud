@@ -110,6 +110,13 @@ final class LowResPreviewPillView: UIView {
 
         isAccessibilityElement = true
         accessibilityLabel = title
+        // Seed a sensible trait at construction so a pill rendered without a
+        // later `configureAccessibility(isInteractive:hint:)` call still reads
+        // correctly to VoiceOver. `showsRetryHint` is the interactive surface
+        // (header "tap to retry"); the informational viewer pill is static text.
+        // `configureAccessibility` refines this (plus the hint) once the owner
+        // has decided the active mode.
+        accessibilityTraits = showsRetryHint ? .button : .staticText
     }
 
     @available(*, unavailable)

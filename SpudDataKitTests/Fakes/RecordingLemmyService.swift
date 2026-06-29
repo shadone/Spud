@@ -63,6 +63,12 @@ actor RecordingLemmyService: LemmyServiceType {
     private(set) var fetchFeedCallCount = 0
     private(set) var fetchCommentsPostIds: [Int64] = []
 
+    /// Fires exactly once, when `fetchFeed` is first called. Lets a test await a
+    /// definite "the download has started working" signal instead of polling the
+    /// call count in a bounded busy-wait (which can flake under load).
+    private let firstFetchFeedStream: AsyncStream<Void>
+    private let firstFetchFeedContinuation: AsyncStream<Void>.Continuation
+
     init(
         appDatabase: AppDatabase,
         accountId: Int64,
@@ -81,12 +87,22 @@ actor RecordingLemmyService: LemmyServiceType {
         self.imageUrlForSeededPosts = imageUrlForSeededPosts
         self.failingCommentPostIds = failingCommentPostIds
         self.exhaustedCursor = exhaustedCursor
+        (firstFetchFeedStream, firstFetchFeedContinuation) = AsyncStream<Void>.makeStream()
     }
 
     // MARK: - Recorded accessors
 
     func recordedFetchFeedCallCount() -> Int {
         fetchFeedCallCount
+    }
+
+    /// Awaitable signal that the first `fetchFeed` call has landed. A test can
+    /// `await firstFetchFeedStarted()` to know the download is actually working
+    /// before driving a deterministic follow-up (e.g. launching a second,
+    /// rejected download), with no sleeps or bounded polling.
+    func firstFetchFeedStarted() async {
+        var iterator = firstFetchFeedStream.makeAsyncIterator()
+        _ = await iterator.next()
     }
 
     func recordedFetchCommentsPostIds() -> [Int64] {
@@ -97,6 +113,12 @@ actor RecordingLemmyService: LemmyServiceType {
 
     func fetchFeed(_ feed: FeedHandle, pageCursor _: String?, showNsfw _: Bool) async throws -> String? {
         fetchFeedCallCount += 1
+        if fetchFeedCallCount == 1 {
+            // Signal "the download has started working" exactly once, then close
+            // the stream so a waiter that arrives later still completes.
+            firstFetchFeedContinuation.yield(())
+            firstFetchFeedContinuation.finish()
+        }
 
         guard pageIndex < pages.count else {
             // No more planned pages. By default the feed is exhausted (nil
