@@ -150,12 +150,25 @@ final class IPadLayoutSnapshotTests: XCTestCase {
     /// A minimal signed-out account is seeded so `AccountService.lemmyService()` can
     /// create a `LemmyService` without a fatalError. The fetch to `example.com` fails
     /// immediately (not a Lemmy endpoint), the indicator stops, and the snapshot captures
-    /// the empty-but-settled layout. The key assertion is structural: the split VC shows
-    /// two columns and the secondary column contains the "No posts selected" placeholder.
+    /// the empty-but-settled layout.
     ///
-    /// Uses `drawHierarchyInKeyWindow: true` (rendered on-screen via a real `UIWindow`)
-    /// so the settled VC state is captured rather than a fresh re-render. This is the
-    /// same strategy used for `UIVisualEffectView` blur snapshots (see CLAUDE.md).
+    /// **What this guards:**
+    /// - Two-column STRUCTURE: a code assertion (`XCTAssertNotNil`) walks the live view
+    ///   hierarchy to confirm a `UILabel` with text "No posts selected" is present before
+    ///   `assertSnapshot` runs. If split routing is broken (e.g. the secondary column is
+    ///   never shown), this fails loudly in code rather than relying on a pixel diff.
+    /// - Pixel layout: the snapshot diff catches visual regressions (column widths,
+    ///   nav-bar chrome, light/dark palette).
+    ///
+    /// **What remains manual-only:**
+    /// - Post tap → content appears in the detail column (requires SBT stubs for the post
+    ///   feed; deferred per task constraints).
+    ///
+    /// **Sensitivity:** uses `drawHierarchyInKeyWindow: true` (rendered on-screen via a
+    /// real `UIWindow`) so the settled VC state is captured rather than a fresh re-render.
+    /// This is device+runtime-sensitive — the pixel refs were recorded on the iPad sim
+    /// used to run SpudSnapshotTests (see the SpudSnapshots test plan in CLAUDE.md for the
+    /// reference device). The same strategy is required for `UIVisualEffectView` blurs.
     func test_communitySplit_emptyDetail_ipad_landscape() async throws {
         let appDatabase = try AppDatabase.inMemory()
         // Seed a minimal signed-out account so AccountService.lemmyService(forAccountKeychainId:)
@@ -216,6 +229,16 @@ final class IPadLayoutSnapshotTests: XCTestCase {
             try? await Task.sleep(nanoseconds: 50_000_000)
         }
 
+        // Structural code assertion: confirm the "No posts selected" UILabel is present
+        // in the live hierarchy before taking the snapshot. This catches broken split
+        // routing (the secondary column never mounted, the placeholder label was never
+        // created) loudly in code rather than silently in a pixel diff.
+        let noPostsLabel = findLabel(text: "No posts selected", in: splitVC.view)
+        XCTAssertNotNil(
+            noPostsLabel,
+            "UILabel 'No posts selected' not found in the view hierarchy — secondary column placeholder is missing"
+        )
+
         // Snapshot the settled on-screen hierarchy. drawHierarchyInKeyWindow: true
         // captures the live view state rather than doing a fresh offscreen re-render
         // (which would replay viewDidLoad and show the spinner again).
@@ -258,6 +281,24 @@ final class IPadLayoutSnapshotTests: XCTestCase {
             )
             try account.insert(db)
         }
+    }
+
+    /// Returns the first `UILabel` whose `text` equals `needle` found anywhere in
+    /// the `root` view subtree, or `nil` if none exists. Used as a structural code
+    /// assertion before `assertSnapshot` in `test_communitySplit_emptyDetail_ipad_landscape`:
+    /// if split routing is broken the secondary column's placeholder label is never
+    /// created, and `XCTAssertNotNil` fails loudly rather than leaving the failure
+    /// buried in a pixel diff.
+    private func findLabel(text needle: String, in root: UIView) -> UILabel? {
+        if let label = root as? UILabel, label.text == needle {
+            return label
+        }
+        for sub in root.subviews {
+            if let found = findLabel(text: needle, in: sub) {
+                return found
+            }
+        }
+        return nil
     }
 
     /// Returns `true` if `view` or any of its descendants is an animating
