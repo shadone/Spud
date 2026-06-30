@@ -66,7 +66,8 @@ struct DependencyContainer:
             appDatabase: appDatabase,
             accountService: accountService,
             alertService: alertService,
-            diagnostics: diagnosticLog
+            diagnostics: diagnosticLog,
+            reachabilityMonitor: reachabilityMonitor
         )
         postContentDetectorService = PostContentDetectorService()
         appearanceService = AppearanceService(preferencesService: preferencesService)

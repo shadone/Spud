@@ -29,7 +29,24 @@ public class SchedulerService: SchedulerServiceType {
     private let alertService: AlertServiceType
     private let diagnostics: DiagnosticLogging
 
+    /// Per-account exponential back-off state. Prevents hammering an instance
+    /// that is returning 403s or other persistent errors on every 5-minute tick.
+    private var backoff = SchedulerBackoff()
+
+    /// Clock injection for testability. Production uses `Date.init` (real wall time);
+    /// tests supply a closure they control to step time without sleeping.
+    private let now: @Sendable () -> Date
+
+    /// Network reachability. Used to clear back-off and fire an immediate tick
+    /// when connectivity is restored, so previously-failing accounts retry
+    /// promptly rather than waiting up to 2 hours for the next scheduled window.
+    private let reachabilityMonitor: ReachabilityMonitoring
+
     private var timer: Timer?
+
+    /// Holds the Task that subscribes to `reachabilityMonitor.statusStream`.
+    /// Retains the subscription for the lifetime of the service.
+    private var reachabilityTask: Task<Void, Never>?
 
     // MARK: Functions
 
@@ -37,12 +54,16 @@ public class SchedulerService: SchedulerServiceType {
         appDatabase: AppDatabase,
         accountService: AccountServiceType,
         alertService: AlertServiceType,
-        diagnostics: DiagnosticLogging
+        diagnostics: DiagnosticLogging,
+        now: @escaping @Sendable () -> Date = Date.init,
+        reachabilityMonitor: ReachabilityMonitoring
     ) {
         self.appDatabase = appDatabase
         self.accountService = accountService
         self.alertService = alertService
         self.diagnostics = diagnostics
+        self.now = now
+        self.reachabilityMonitor = reachabilityMonitor
     }
 
     public func startService() {
@@ -59,11 +80,31 @@ public class SchedulerService: SchedulerServiceType {
         DispatchQueue.main.asyncAfter(deadline: .now() + 10) { [weak self] in
             self?.timer?.fire()
         }
+
+        // On reconnect, clear all per-account back-off so previously-failing
+        // accounts retry immediately instead of waiting out their back-off window
+        // (up to 2 h). Mirrors the OutboxService.start() reachability pattern.
+        let stream = reachabilityMonitor.statusStream
+        reachabilityTask = Task { [weak self] in
+            var wasOnline: Bool?
+            for await online in stream {
+                guard let self else { break }
+                if online, wasOnline != true {
+                    backoff.reset()
+                    await tick()
+                }
+                wasOnline = online
+            }
+        }
     }
 
     /// One scheduler tick: emits diagnostic bookends and dispatches the two
     /// site-info fetch sweeps (signed-in + signed-out / ownerless accounts).
-    private func tick() async {
+    ///
+    /// Exposed as `internal` so tests can drive it directly (the Timer / asyncAfter
+    /// are test-hostile; driving `tick()` lets the test control the clock without
+    /// sleeping for real intervals).
+    func tick() async {
         let startedAt = Date()
 
         await diagnostics.record(
@@ -104,10 +145,23 @@ public class SchedulerService: SchedulerServiceType {
             isServiceAccount: true
         )
 
-        await fetchSiteInfo(forAccountKeychainId: keychainId)
+        await gatedFetchSiteInfo(forAccountKeychainId: keychainId)
     }
 
-    private func fetchSiteInfo(forAccountKeychainId keychainId: String) async {
+    /// Gate the fetch through the per-account back-off, then record the outcome.
+    /// All three per-account call sites funnel here so the back-off state is
+    /// authoritative regardless of which sweep triggers the attempt.
+    private func gatedFetchSiteInfo(forAccountKeychainId keychainId: String) async {
+        guard backoff.shouldAttempt(keychainId: keychainId, now: now()) else { return }
+        let succeeded = await fetchSiteInfo(forAccountKeychainId: keychainId)
+        backoff.recordResult(keychainId: keychainId, succeeded: succeeded, now: now())
+    }
+
+    /// Perform the actual network call for one account. Returns `true` on success,
+    /// `false` on any error (the error is still routed to `alertService` so the
+    /// existing error-handling and `site.fetchFailed` diagnostic are unchanged).
+    @discardableResult
+    private func fetchSiteInfo(forAccountKeychainId keychainId: String) async -> Bool {
         let instance = accountService.instanceActorId(forAccountKeychainId: keychainId)?.hostWithPort
         await diagnostics.record(
             category: .scheduler,
@@ -121,8 +175,10 @@ public class SchedulerService: SchedulerServiceType {
             try await accountService
                 .lemmyService(forAccountKeychainId: keychainId)
                 .fetchSiteInfo()
+            return true
         } catch {
             alertService.handle(error, for: .fetchSiteInfo)
+            return false
         }
     }
 
@@ -138,7 +194,7 @@ public class SchedulerService: SchedulerServiceType {
             signedOutKeychainIds = []
         }
         for keychainId in signedOutKeychainIds {
-            await fetchSiteInfo(forAccountKeychainId: keychainId)
+            await gatedFetchSiteInfo(forAccountKeychainId: keychainId)
         }
 
         // Fetch initial site info, i.e. sites that have never fetched corresponding site info.
@@ -171,7 +227,7 @@ public class SchedulerService: SchedulerServiceType {
             initialKeychainIds = []
         }
         for keychainId in initialKeychainIds {
-            await fetchSiteInfo(forAccountKeychainId: keychainId)
+            await gatedFetchSiteInfo(forAccountKeychainId: keychainId)
         }
 
         // Re-fetch info periodically. Check if the data is older than 1 day and fetch.
@@ -185,7 +241,7 @@ public class SchedulerService: SchedulerServiceType {
             staleKeychainIds = []
         }
         for keychainId in staleKeychainIds {
-            await fetchSiteInfo(forAccountKeychainId: keychainId)
+            await gatedFetchSiteInfo(forAccountKeychainId: keychainId)
         }
     }
 }
