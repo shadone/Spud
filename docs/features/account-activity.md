@@ -38,23 +38,25 @@ database.
 
 The screen is a vertically scrollable card stack:
 
-- **Identity strip** — avatar, display name, and handle for the signed-in account.
-  Populated asynchronously once the account's `person` row is available in the database.
-- **Stat tiles** — six summary numbers in a 2 × 3 grid: Votes (total vote events),
-  Comments (authored comments), Posts (authored posts), Reads (posts where the detail
-  was opened), Streaks (longest consecutive-day streak), and Saved (saved items).
+- **Identity strip** — avatar, display name, joined date, and cake day for the
+  signed-in account. Populated asynchronously once the account's `person` row is
+  available in the database.
+- **Stat tiles** — six summary numbers in a 2 × 3 grid, in display order: Posts
+  (authored posts), Comments (authored comments), Saved (saved posts and comments),
+  Votes cast (total local vote events; forward-only, not backfilled), Communities
+  (followed communities), and Posts read (posts where the detail was opened).
   Each tile shows the numeric count and a short label; tiles are read-only.
 - **Contribution heatmap card** — a 18 × 7 dot grid (18 weeks, 7 days each, oldest
   week on the left, most-recent week on the right). Each dot's intensity represents the
   count for that day relative to the series' maximum day. A metric segmented control
-  (All / Votes / Reads) beneath the grid filters which event type is plotted; switching
+  (All / Reads / Votes) beneath the grid filters which event type is plotted; switching
   the metric instantly re-renders the dots and updates the running total shown above the
-  grid. An empty-votes note ("Votes start filling in now…") is shown below the control
-  when the Votes metric is selected but no vote events exist in the window.
-- **Extras tiles** — three small insight tiles: Current Streak (consecutive days ending
-  at today), Streak Days (same value duplicated as the longest-streak tile uses the
-  all-time run), and Activity Rate (percentage of days in the window that had at least
-  one event of the current metric).
+  grid. An empty-votes note ("Votes appear here from now on. Nothing to plot yet.") is
+  shown below the control when the Votes metric is selected but no vote events exist in
+  the window.
+- **Extras tiles** — three small insight tiles: Streak (consecutive days ending at
+  today on which any event was recorded), Top community (most-visited community in the
+  window), and Busiest time (peak time-of-day band).
 
 The metric selected in the heatmap card persists for the lifetime of the screen but is
 not saved across sessions — it resets to "All" on each open. Dynamic Type is fully
@@ -163,7 +165,7 @@ the Account "Saved" row both route there.
   does not require a network connection. Stat tiles and the heatmap are always populated
   from local data; the identity strip is populated from the cached `person` row.
 
-- **Summary — metric persistence.** The selected metric (All / Votes / Reads) is
+- **Summary — metric persistence.** The selected metric (All / Reads / Votes) is
   per-session only; it resets to All each time the Summary screen is pushed.
 
 ## Scenarios
@@ -244,7 +246,7 @@ the Account "Saved" row both route there.
 - **Then** the Summary screen pushes onto the navigation stack
 - **And** the stat tiles show my all-time local counts
 - **And** the heatmap shows 18 weeks of "All" activity with dot intensity proportional to event count
-- **And** the identity strip shows my avatar, display name, and handle
+- **And** the identity strip shows my avatar, display name, joined date, and cake day
 
 ### Switch heatmap metric to Votes
 
@@ -252,7 +254,7 @@ the Account "Saved" row both route there.
 - **When** I tap the "Votes" segment in the metric control beneath the heatmap
 - **Then** the heatmap re-renders to show only vote events
 - **And** the running total above the grid updates to the vote count for the window
-- **And** if I have no vote events, the "Votes start filling in now…" note appears below the control
+- **And** if I have no vote events, the "Votes appear here from now on. Nothing to plot yet." note appears below the control
 
 ### Switch heatmap metric back to All
 
