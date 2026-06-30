@@ -47,6 +47,9 @@ final class AccountViewModel {
     /// The signed-in account's avatar URL, or nil for the hue-tile fallback.
     private(set) var avatarUrl: URL?
 
+    /// The signed-in account's banner URL, or nil when no banner is set.
+    private(set) var bannerUrl: URL?
+
     /// Number of real signed-in (non-anonymous) accounts, shown as the "N signed
     /// in" subtitle on the Switch account row.
     private(set) var signedInAccountCount: Int = 0
@@ -143,12 +146,14 @@ final class AccountViewModel {
         displayName = ""
         handle = ""
         avatarUrl = nil
+        bannerUrl = nil
     }
 
     private func applyProfile(row: PersonProfileRow) {
         displayName = row.displayName ?? row.name
         handle = "@\(row.name)@\(row.instanceHostname)"
         avatarUrl = row.avatarUrl.flatMap { URL(string: $0) }
+        bannerUrl = row.bannerUrl.flatMap { URL(string: $0) }
     }
 
     func logout() {

@@ -28,6 +28,10 @@ struct AccountView: View {
         List {
             Section {
                 profileHeader
+                    // Remove default list-row insets so the banner bleeds
+                    // full-width to the section edges, matching the person
+                    // profile header appearance.
+                    .listRowInsets(EdgeInsets())
             }
 
             Section {
@@ -82,39 +86,65 @@ struct AccountView: View {
 
     // MARK: Profile header
 
+    /// The signed-in profile header: a banner+avatar block (display-only
+    /// `ProfileBannerHeaderView`) followed by the display name, handle, and an
+    /// "edit" chevron. Tapping anywhere on the header opens the profile editor.
+    ///
+    /// Layout mirrors the public person profile header (banner behind the avatar)
+    /// while keeping the existing edit affordance. The entire block is a single
+    /// accessibility element labelled "Edit profile" with a button trait so
+    /// VoiceOver users can activate it in one swipe.
     private var profileHeader: some View {
         Button(action: onEditProfile) {
-            HStack(spacing: 14) {
-                ProfileAvatarView(
+            VStack(alignment: .leading, spacing: 0) {
+                // Banner + overlapping avatar (display-only: all callbacks are nil).
+                ProfileBannerHeaderView(
+                    bannerUrl: viewModel.bannerUrl,
                     avatarUrl: viewModel.avatarUrl,
                     name: headerName,
-                    size: 60
+                    isUploadingBanner: false,
+                    isUploadingAvatar: false,
+                    onPickBanner: nil,
+                    onPickAvatar: nil,
+                    onRemoveBanner: nil,
+                    onRemoveAvatar: nil
                 )
+                // The banner view reserves its own bottom padding for the
+                // avatar overlap; add a small gap before the text block.
+                .padding(.bottom, 4)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(viewModel.displayName.isEmpty ? headerName : viewModel.displayName)
-                        .font(.headline)
-                        .foregroundStyle(Color(.label))
-                        .lineLimit(1)
-                    if !viewModel.handle.isEmpty {
-                        Text(viewModel.handle)
-                            .font(.system(.subheadline, design: .monospaced))
-                            .foregroundStyle(Color(.secondaryLabel))
+                // Name, handle, and the "edit" disclosure chevron.
+                HStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(viewModel.displayName.isEmpty ? headerName : viewModel.displayName)
+                            .font(.headline)
+                            .foregroundStyle(Color(.label))
                             .lineLimit(1)
-                            .truncationMode(.middle)
+                        if !viewModel.handle.isEmpty {
+                            Text(viewModel.handle)
+                                .font(.system(.subheadline, design: .monospaced))
+                                .foregroundStyle(Color(.secondaryLabel))
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                        }
                     }
+                    .padding(.leading, 16)
+
+                    Spacer(minLength: 8)
+
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Color(.tertiaryLabel))
+                        .padding(.trailing, 16)
                 }
-
-                Spacer(minLength: 8)
-
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Color(.tertiaryLabel))
+                .padding(.bottom, 10)
             }
-            .padding(.vertical, 6)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // Collapse the banner + avatar + text into a single VoiceOver element so
+        // the user reaches the edit action in a single swipe, matching the
+        // previous behaviour (the old HStack also used .combine + isButton).
         .accessibilityElement(children: .combine)
         .accessibilityLabel(Text(NSLocalizedString("Edit profile", comment: "Account header accessibility label")))
         .accessibilityAddTraits(.isButton)
