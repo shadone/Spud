@@ -1,7 +1,7 @@
 # Account Activity
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** shipped (Phase 1)
+- **Status:** shipped
 - **Related:** [Accounts and switching](accounts-and-switching.md), [Saving](saving.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [Voting](voting.md)
 
 ## What it does
@@ -27,6 +27,40 @@ horizontally-scrollable filter chip bar (led by a funnel reset button) below the
 bar lets you narrow the list to one or more action types. A search field narrows by title or
 body text. Pull-to-refresh re-fetches authored content, and the list honors the app's
 display-density preference. Tapping a row opens the post or comment's post in the detail view.
+
+## Activity Summary screen
+
+From the Activity screen's navigation bar a "Summary" button opens the Summary screen.
+The Summary screen presents a statistical overview of the account's activity for roughly
+the past 18 weeks (126 days), ending at "today" each time it is opened. It is not a
+real-time feed — it is a read-only analytics view driven entirely from the on-device
+database.
+
+The screen is a vertically scrollable card stack:
+
+- **Identity strip** — avatar, display name, joined date, and cake day for the
+  signed-in account. Populated asynchronously once the account's `person` row is
+  available in the database.
+- **Stat tiles** — six summary numbers in a 2 × 3 grid, in display order: Posts
+  (authored posts), Comments (authored comments), Saved (saved posts and comments),
+  Votes cast (total local vote events; forward-only, not backfilled), Communities
+  (followed communities), and Posts read (posts where the detail was opened).
+  Each tile shows the numeric count and a short label; tiles are read-only.
+- **Contribution heatmap card** — a 18 × 7 dot grid (18 weeks, 7 days each, oldest
+  week on the left, most-recent week on the right). Each dot's intensity represents the
+  count for that day relative to the series' maximum day. A metric segmented control
+  (All / Reads / Votes) beneath the grid filters which event type is plotted; switching
+  the metric instantly re-renders the dots and updates the running total shown above the
+  grid. An empty-votes note ("Votes appear here from now on. Nothing to plot yet.") is
+  shown below the control when the Votes metric is selected but no vote events exist in
+  the window.
+- **Extras tiles** — three small insight tiles: Streak (consecutive days ending at
+  today on which any event was recorded), Top community (most-visited community in the
+  window), and Busiest time (peak time-of-day band).
+
+The metric selected in the heatmap card persists for the lifetime of the screen but is
+not saved across sessions — it resets to "All" on each open. Dynamic Type is fully
+supported across all cards.
 
 ## Saved is the server feed, not the Activity filter
 
@@ -113,6 +147,27 @@ the Account "Saved" row both route there.
 - **Account isolation.** The coordinator is constructed for a specific `accountKeychainId`;
   all queries are scoped to that account's person row and account id.
 
+- **Summary — 18-week window.** The heatmap covers the 126 days ending at the `asOf`
+  date (today when opened normally). Each column is one calendar week; columns run
+  Monday–Sunday. Days in the future (relative to `asOf`) are rendered at zero intensity.
+
+- **Summary — dot intensity.** Each day's dot is drawn at a relative intensity:
+  0 events → no fill; 1 or more events → filled at a proportion of the maximum
+  single-day count in the current window. Days with the window maximum get full
+  intensity. The intensity scale is recomputed each time the metric changes.
+
+- **Summary — streak counting.** The streak is the longest unbroken run of calendar
+  days (ending at or before `asOf`) on which at least one event of any type was
+  recorded in the on-device database. Only local-database events count; authored content
+  not yet fetched from the server does not contribute.
+
+- **Summary — offline.** The Summary screen reads only from the on-device database and
+  does not require a network connection. Stat tiles and the heatmap are always populated
+  from local data; the identity strip is populated from the cached `person` row.
+
+- **Summary — metric persistence.** The selected metric (All / Reads / Votes) is
+  per-session only; it resets to All each time the Summary screen is pushed.
+
 ## Scenarios
 
 ### Open Activity from Account tab
@@ -183,3 +238,43 @@ the Account "Saved" row both route there.
 - **Then** I see "Your story starts here" with "Browse communities" and "See saved" buttons
 - **When** I tap "Browse communities"
 - **Then** the Communities tab is selected
+
+### Open Summary from Activity
+
+- **Given** I am on the Activity screen
+- **When** I tap the "Summary" navigation bar button
+- **Then** the Summary screen pushes onto the navigation stack
+- **And** the stat tiles show my all-time local counts
+- **And** the heatmap shows 18 weeks of "All" activity with dot intensity proportional to event count
+- **And** the identity strip shows my avatar, display name, joined date, and cake day
+
+### Switch heatmap metric to Votes
+
+- **Given** I am on the Summary screen
+- **When** I tap the "Votes" segment in the metric control beneath the heatmap
+- **Then** the heatmap re-renders to show only vote events
+- **And** the running total above the grid updates to the vote count for the window
+- **And** if I have no vote events, the "Votes appear here from now on. Nothing to plot yet." note appears below the control
+
+### Switch heatmap metric back to All
+
+- **Given** the Summary screen is showing the "Votes" metric
+- **When** I tap the "All" segment
+- **Then** the heatmap reverts to combining all event types
+- **And** the total and dot intensities update accordingly
+
+### Summary is available offline
+
+- **Given** I have previously used the app and have locally stored activity
+- **And** my device is offline
+- **When** I open the Summary screen
+- **Then** the stat tiles, heatmap, and extras tiles all populate from local data
+- **And** no network-error state is shown (the screen does not make any network requests)
+
+### Dynamic Type enlarges all Summary cards
+
+- **Given** I have set a large accessibility text size in iOS Settings
+- **When** I open the Summary screen
+- **Then** all text in the identity strip, stat tiles, heatmap card, and extras tiles
+       scales with the system text size
+- **And** the layout remains readable and no text is clipped

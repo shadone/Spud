@@ -1,19 +1,23 @@
 //
-// Copyright (c) 2023, Denis Dzyubenko <denis@ddenis.info>
+// Copyright (c) 2023-2026, Denis Dzyubenko <denis@ddenis.info>
 //
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
 import Foundation
+import SpudUtilKit
 
-enum PersonFormatter {
-    static func string(personCreatedDate date: Date) -> String {
+/// Formats person/account metadata into user-visible display strings.
+public enum PersonFormatter {
+    /// Relative time string describing when an account was created
+    /// (e.g. "3 years ago"). Backed by `Date.relativeString`.
+    public static func string(personCreatedDate date: Date) -> String {
         date.relativeString
     }
 
-    /// Absolute "cake day" - the calendar date the account was created, e.g.
-    /// "May 6, 2023". Shown in the profile header next to the cake symbol.
-    static func cakeDayString(personCreatedDate date: Date) -> String {
+    /// Absolute "cake day" — the calendar date the account was created,
+    /// e.g. "May 6, 2023". Shown in the profile header next to the cake symbol.
+    public static func cakeDayString(personCreatedDate date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         formatter.timeStyle = .none
@@ -23,7 +27,7 @@ enum PersonFormatter {
     /// A user-facing instance-ban status, or nil when the user is not banned.
     /// A temporary ban includes its expiry date; a permanent ban (banned with
     /// no expiry) reads simply "Banned".
-    static func banStatus(isBanned: Bool, banExpires: Date?) -> String? {
+    public static func banStatus(isBanned: Bool, banExpires: Date?) -> String? {
         guard isBanned else { return nil }
         guard let banExpires else {
             return NSLocalizedString(
