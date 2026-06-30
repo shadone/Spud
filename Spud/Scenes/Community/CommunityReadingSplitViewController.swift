@@ -32,11 +32,13 @@ import UIKit
 /// fix, confirmed on an iPad sim, is to **hide the hosting Communities nav bar
 /// while this screen is on display and restore it on pop** (see `viewWillAppear`
 /// / `viewWillDisappear`). Each column then shows exactly one bar. Return to the
-/// Communities list is the standard left-edge back swipe on the hosting
-/// navigation controller — its `interactivePopGestureRecognizer` stays active
-/// with the bar hidden, and the primary column's own back/forward edge gestures
-/// only engage once a post has been pushed into the stack (collapsed), so there
-/// is no left-edge conflict at the community root.
+/// Communities list is exposed through a visible "Communities" back button
+/// injected onto the primary column's nav bar (see `UINavigationControllerDelegate`
+/// conformance below), complementing the standard left-edge back swipe on the
+/// hosting navigation controller — its `interactivePopGestureRecognizer` stays
+/// active with the bar hidden, and the primary column's own back/forward edge
+/// gestures only engage once a post has been pushed into the stack (collapsed), so
+/// there is no left-edge conflict at the community root.
 ///
 /// `.compact` reuses the primary nav stack, so an iPad window that shrinks to a
 /// compact width (Slide Over / Split View multitasking) collapses to the single
@@ -105,6 +107,10 @@ final class CommunityReadingSplitViewController: UIViewController {
         // Communities nav stack (a UISplitViewController itself is not).
         add(child: embeddedSplit)
         addSubviewWithEdgeConstraints(child: embeddedSplit)
+
+        // Become the primary column's nav delegate so we can inject the "Communities"
+        // back button onto every VC that appears there (loading and resolved community).
+        primaryNav.delegate = self
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -118,7 +124,13 @@ final class CommunityReadingSplitViewController: UIViewController {
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         // Restore the Communities list chrome (large title, search, sort menu)
-        // as we pop back to it.
+        // when genuinely navigating away. Guard against modal-presentation /
+        // dismissal cycles: presenting a compose sheet fires viewWillDisappear
+        // (which would incorrectly flash the hosting bar back in) and then
+        // viewWillAppear on dismissal. `isMovingFromParent` is true only on an
+        // actual nav-stack pop; `isBeingDismissed` covers the rare case where
+        // the hosting nav controller itself is dismissed modally.
+        guard isMovingFromParent || isBeingDismissed else { return }
         navigationController?.setNavigationBarHidden(false, animated: animated)
     }
 
@@ -133,5 +145,48 @@ final class CommunityReadingSplitViewController: UIViewController {
             nav.enableForwardNavigationGesture()
             embeddedSplit.showDetailViewController(nav, sender: self)
         }
+    }
+
+    // MARK: - Back button
+
+    /// Builds the "Communities" leading button that mimics the system back button
+    /// appearance (chevron + label) and pops the hosting nav stack back to the
+    /// subscriptions list. Injected onto every VC that appears in the primary
+    /// column via `UINavigationControllerDelegate`.
+    private func makeBackButton() -> UIBarButtonItem {
+        let action = UIAction { [weak self] _ in
+            self?.navigationController?.popViewController(animated: true)
+        }
+        var config = UIButton.Configuration.plain()
+        config.title = "Communities"
+        config.image = UIImage(systemName: "chevron.backward")
+        // Tighten the gap between the chevron and the label to match the system
+        // back button's compact look.
+        config.imagePadding = 4
+        config.contentInsets = .zero
+        let button = UIButton(configuration: config, primaryAction: action)
+        let item = UIBarButtonItem(customView: button)
+        // Provide an unambiguous VoiceOver label so the control announces as
+        // "Communities, back button" rather than just the button title.
+        item.accessibilityLabel = "Communities"
+        return item
+    }
+}
+
+// MARK: - UINavigationControllerDelegate
+
+extension CommunityReadingSplitViewController: UINavigationControllerDelegate {
+    func navigationController(
+        _ navigationController: UINavigationController,
+        willShow viewController: UIViewController,
+        animated: Bool
+    ) {
+        // Inject the "Communities" back button only onto VCs that haven't set
+        // their own leftBarButtonItem. CommunityViewController sets only
+        // rightBarButtonItems (sort + overflow), so this always fires cleanly.
+        // The injection covers both the initial CommunityOrLoadingViewController
+        // and the resolved CommunityViewController after the async swap.
+        guard viewController.navigationItem.leftBarButtonItem == nil else { return }
+        viewController.navigationItem.leftBarButtonItem = makeBackButton()
     }
 }
