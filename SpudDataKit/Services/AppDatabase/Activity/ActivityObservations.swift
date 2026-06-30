@@ -98,6 +98,18 @@ public extension AppDatabase {
 // MARK: - Per-source fetch helpers
 
 private extension AppDatabase {
+    /// Builds a "contains" LIKE pattern that treats the user's query literally:
+    /// the LIKE wildcards `%` and `_` (and the `\` escape character itself) are
+    /// escaped, so a query such as "50%" matches the text "50%" rather than
+    /// "50<anything>". Pair with `LIKE ? ESCAPE '\'` in the SQL.
+    static func likeContainsPattern(_ search: String) -> String {
+        let escaped = search
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "%", with: "\\%")
+            .replacingOccurrences(of: "_", with: "\\_")
+        return "%\(escaped)%"
+    }
+
     static func postListRow(from row: Row) -> PostListRow {
         PostListRow(
             id: row["postRowId"],
@@ -214,9 +226,9 @@ private extension AppDatabase {
         var args: [any DatabaseValueConvertible] = []
         if let search {
             // v1: LIKE over post title (FTS requires an interaction row which may be absent)
-            sql += "\nWHERE post.accountId = ? AND post.isSaved = 1 AND post.title LIKE ?"
+            sql += "\nWHERE post.accountId = ? AND post.isSaved = 1 AND post.title LIKE ? ESCAPE '\\'"
             args.append(accountId)
-            args.append("%\(search)%")
+            args.append(likeContainsPattern(search))
         } else {
             sql += "\nWHERE post.accountId = ? AND post.isSaved = 1"
             args.append(accountId)
@@ -257,9 +269,9 @@ private extension AppDatabase {
             """
         var args: [any DatabaseValueConvertible] = []
         if let search {
-            sql += "\nWHERE post.accountId = ? AND comment.isSaved = 1 AND comment.body LIKE ?"
+            sql += "\nWHERE post.accountId = ? AND comment.isSaved = 1 AND comment.body LIKE ? ESCAPE '\\'"
             args.append(accountId)
-            args.append("%\(search)%")
+            args.append(likeContainsPattern(search))
         } else {
             sql += "\nWHERE post.accountId = ? AND comment.isSaved = 1"
             args.append(accountId)
@@ -304,9 +316,9 @@ private extension AppDatabase {
             """
         var args: [any DatabaseValueConvertible] = []
         if let search {
-            sql += "\nWHERE post.accountId = ? AND post.isHidden = 1 AND post.title LIKE ?"
+            sql += "\nWHERE post.accountId = ? AND post.isHidden = 1 AND post.title LIKE ? ESCAPE '\\'"
             args.append(accountId)
-            args.append("%\(search)%")
+            args.append(likeContainsPattern(search))
         } else {
             sql += "\nWHERE post.accountId = ? AND post.isHidden = 1"
             args.append(accountId)
@@ -376,9 +388,9 @@ private extension AppDatabase {
             """
         var args: [any DatabaseValueConvertible] = []
         if let search {
-            sql += "\nWHERE voteEvent.accountId = ? AND voteEvent.entityType = 'post' AND voteEvent.title LIKE ?"
+            sql += "\nWHERE voteEvent.accountId = ? AND voteEvent.entityType = 'post' AND voteEvent.title LIKE ? ESCAPE '\\'"
             args.append(accountId)
-            args.append("%\(search)%")
+            args.append(likeContainsPattern(search))
         } else {
             sql += "\nWHERE voteEvent.accountId = ? AND voteEvent.entityType = 'post'"
             args.append(accountId)
@@ -502,9 +514,9 @@ private extension AppDatabase {
             """
         var args: [any DatabaseValueConvertible] = []
         if let search {
-            sql += "\nWHERE voteEvent.accountId = ? AND voteEvent.entityType = 'comment' AND voteEvent.body LIKE ?"
+            sql += "\nWHERE voteEvent.accountId = ? AND voteEvent.entityType = 'comment' AND voteEvent.body LIKE ? ESCAPE '\\'"
             args.append(accountId)
-            args.append("%\(search)%")
+            args.append(likeContainsPattern(search))
         } else {
             sql += "\nWHERE voteEvent.accountId = ? AND voteEvent.entityType = 'comment'"
             args.append(accountId)
