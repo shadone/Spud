@@ -375,6 +375,7 @@ public extension AppDatabase {
                     displayName: person?.displayName ?? "",
                     bio: person?.bio ?? "",
                     avatarUrl: person?.avatarUrl,
+                    bannerUrl: person?.bannerUrl,
                     name: person?.name ?? "",
                     showScores: account.showScores ?? true,
                     showBotAccounts: account.showBotAccounts ?? true,
