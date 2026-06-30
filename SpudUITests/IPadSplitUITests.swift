@@ -48,6 +48,90 @@ class IPadSplitUITests: XCTestCase {
                 response: SBTStubResponse(fileNamed: "community-tincidunt.json")
             )
 
+            // --- Community-feed CONTENT stubs (test_discoverCommunity_tapPost_fillsDetailColumn) ---
+            //
+            // These let the reading split's PRIMARY column render a community feed and the
+            // SECONDARY column fill with a post detail when a post is tapped. They are
+            // registered AFTER the catch-all 500 above so they win (SBT evaluates stubs in
+            // reverse registration order — later registration takes precedence).
+            //
+            // pictrs image stub so post thumbnails / avatars don't fall through to the 500
+            // catch-all (which would spam the log and slow image loads). Returns a static
+            // bundled "tv-pattern" image via the app's custom image content type.
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: "https://.*/pictrs/image/.*",
+                    method: "GET"
+                ),
+                response: SBTStubResponse(
+                    response: [
+                        "image": "tv-pattern",
+                    ],
+                    contentType: "application/vnd.info.ddenis.spud.image+json"
+                )
+            )
+
+            // The community feed itself. The reading-split feed issues getPosts filtered by
+            // COMMUNITY — the actual request observed is
+            //   GET /api/v3/post/list?sort=Hot&community_name=<name>@<instance>&show_nsfw=false
+            // (see LemmyService.fetchFeed(.community), which builds it via
+            // CommunityFilter.name(...)). It is distinguished from the FRONTPAGE feed, whose
+            // request carries `type_=All` and NO `community_name` at all.
+            //
+            // The match is keyed only on the PRESENCE of a `community_name` param (the regex
+            // `community_name=` matches any value) rather than a specific community. This is
+            // deliberate: which Discover row the seeded directory surfaces first is NOT
+            // deterministic — the bundled 4.9 MB seed populates the directory before any
+            // network refresh, so the tapped row (and thus this feed's community_name) can be
+            // e.g. technology@lemmy.ml rather than tincidunt. Whatever the row, the wildcard
+            // `.*/api/v3/community` stub above resolves the OPENED community to tincidunt
+            // (community id 9544), and this feed returns the same 2-post fixture; its first
+            // post (id 1549703, "Nunc scelerisque...") is community 9544's post, so the
+            // detail/comment stubs below (keyed on id 1549703) line up regardless of the row.
+            //
+            // The `community_name=` matcher also keeps this stub from shadowing the frontpage
+            // feed, so the empty-split test's frontpage requests are unaffected.
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: ".*/api/v3/post/list",
+                    query: ["community_name="],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "post-list-all-hot.json")
+            )
+
+            // Post detail (getPost) for the first feed post, loaded into the secondary column
+            // when the post is tapped. id=1549703 is the "Nunc scelerisque..." post.
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: ".*/api/v3/post",
+                    query: ["id=1549703"],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "post-detail-1549703.json")
+            )
+
+            // Comment tree (getComments) for that post, fetched concurrently with the detail.
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: ".*/api/v3/comment/list",
+                    query: ["post_id=1549703"],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "comment-list-1549703-Hot.json")
+            )
+
+            // The post creator's profile (getPersonDetails), in case the detail header resolves
+            // the author lazily. Keeps it off the 500 catch-all.
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: ".*/api/v3/user",
+                    query: ["person_id=31989"],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "user-31989.json")
+            )
+
             // Stub the Lemmy Explorer (data.lemmyverse.net) multipart community
             // directory. With ResetFilesystem the DB is empty and the bundled seed
             // import is async — it may not complete within the 10-second cell wait.
@@ -169,6 +253,110 @@ class IPadSplitUITests: XCTestCase {
             primaryMidX,
             secondaryMidX,
             "Primary column (midX \(primaryMidX)) should be left of secondary column (midX \(secondaryMidX))"
+        )
+    }
+
+    /// Opening a community from Discover on iPad (regular width) and then tapping a post
+    /// fills the SECONDARY (detail) column of `CommunityReadingSplitViewController`.
+    ///
+    /// This is the CONTENT companion to `test_discoverCommunity_showsTwoColumnSplit`, which
+    /// only proves the EMPTY split (the "No posts selected" placeholder). Here we prove the
+    /// full reading flow:
+    ///   1. the PRIMARY column's community feed renders posts,
+    ///   2. tapping a post REPLACES the placeholder with that post's detail in the SECONDARY
+    ///      column (the placeholder disappears),
+    ///   3. the detail header lands in the RIGHT/secondary column (geometric proof), not a
+    ///      single-column push.
+    ///
+    /// Determinism: the wildcard `.*/api/v3/community` stub (registered in setUp) resolves
+    /// EVERY tapped Discover row's getCommunity call to tincidunt (community id 9544), so the
+    /// persisted community — and thus the post-detail (id 1549703) and comment-tree stubs — always
+    /// line up. The community feed's getPosts request itself carries the TAPPED row's
+    /// `community_name` (non-deterministic, e.g. technology@lemmy.ml — the bundled seed picks the
+    /// first row, NOT tincidunt), but the `community_name=` wildcard stub in setUp matches any
+    /// value, so whichever community is opened, its feed returns the same 2-post fixture. All
+    /// three content stubs (feed, detail, comments) are wired in setUp.
+    func test_discoverCommunity_tapPost_fillsDetailColumn() {
+        // --- Navigate to the reading split (same path as the empty-split test). ---
+        // See test_discoverCommunity_showsTwoColumnSplit for why each selector is shaped the
+        // way it is (sidebar tab buttons, the Discover StaticText cell, the "subscribers"
+        // directory-row predicate, and the first-launch seed timeout).
+        let communitiesTab = app.buttons["Communities"].firstMatch
+        XCTAssertTrue(communitiesTab.waitForExistence(timeout: 10), "Communities tab button not found")
+        communitiesTab.tap()
+
+        let discoverEntry = app.staticTexts["Discover communities"].firstMatch
+        XCTAssertTrue(discoverEntry.waitForExistence(timeout: 10), "Discover communities entry not found")
+        discoverEntry.tap()
+
+        let firstCommunityRow = app.buttons
+            .matching(NSPredicate(format: "label CONTAINS 'subscribers'"))
+            .firstMatch
+        XCTAssertTrue(
+            firstCommunityRow.waitForExistence(timeout: 20),
+            "No directory community rows appeared in Discover (expected buttons with 'subscribers' in label)"
+        )
+        firstCommunityRow.tap()
+
+        // --- (1) PRIMARY column renders the community feed. ---
+        // The placeholder is still present at this point (nothing tapped yet); its existence
+        // confirms we are in the two-column reading split, not a single-column push.
+        let placeholder = app.staticTexts["No posts selected"]
+        XCTAssertTrue(
+            placeholder.waitForExistence(timeout: 10),
+            "Expected the empty-split 'No posts selected' placeholder before tapping a post"
+        )
+
+        // The first post cell must appear in the PRIMARY column's feed. This is the RED point
+        // until the community-feed getPosts stub (community_name=tincidunt) is wired: without
+        // it the feed hits the catch-all 500 and stays empty. `app.cell(containing:)` matches a
+        // table cell whose accessibility label contains the post title.
+        let firstPostCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
+        XCTAssertTrue(
+            firstPostCell.waitForExistence(timeout: 10),
+            "Primary column community feed did not render the first post cell"
+        )
+
+        // Record the feed's horizontal centre BEFORE tapping, to prove later that the detail
+        // lands to its RIGHT. (After the tap the detail may scroll the feed selection, but the
+        // primary column's frame stays put.)
+        let primaryFeedMidX = firstPostCell.frame.midX
+
+        // --- (2) Tapping the post fills the SECONDARY (detail) column. ---
+        firstPostCell.tap()
+
+        // The detail header (id "postDetailHeader") appears with the post's title. On the
+        // reading split this is hosted in the SECONDARY column, replacing the placeholder.
+        let detailHeaderCell = app.cells["postDetailHeader"]
+        XCTAssertTrue(
+            detailHeaderCell.waitForExistence(timeout: 10),
+            "Tapping the post should fill the secondary column with the post detail header"
+        )
+        let detailTitle = detailHeaderCell.staticTexts["title"]
+        XCTAssertTrue(detailTitle.waitForExistence(timeout: 5), "Detail header should show the post title")
+        XCTAssertTrue(
+            detailTitle.label.contains("Nunc scelerisque tortor eget ligula pretium tempor"),
+            "Detail title should be the tapped post's title, got: \(detailTitle.label)"
+        )
+
+        // The placeholder must be GONE — the secondary column's content view was swapped from
+        // the "No posts selected" placeholder to the post detail.
+        XCTAssertTrue(
+            placeholder.waitForNonExistence(timeout: 5),
+            "'No posts selected' placeholder should disappear once a post fills the detail column"
+        )
+
+        // --- (3) Geometric proof: the detail header sits in the RIGHT/secondary column. ---
+        // Mirrors the empty-split test's midX technique: if the post had pushed onto a single
+        // column instead of filling the split's detail, the detail header would occupy roughly
+        // the same x-band as the feed (or replace it), not sit to its right. The secondary
+        // column is laid out to the right of the primary, so the header's midX must exceed the
+        // primary feed cell's midX.
+        let detailMidX = detailHeaderCell.frame.midX
+        XCTAssertGreaterThan(
+            detailMidX,
+            primaryFeedMidX,
+            "Detail header (midX \(detailMidX)) should be right of the primary feed (midX \(primaryFeedMidX)), proving it filled the secondary column"
         )
     }
 }
