@@ -76,6 +76,35 @@ The Posts tab is a two-column split view: a primary column holding the post list
 - **When** I rotate the device between portrait and landscape, both regular width
 - **Then** both columns stay as they were and the open post is undisturbed
 
+## Adaptive layout at regular width
+
+Beyond the Posts split and the Communities reading split, several other screens adapt when the horizontal size class is regular (iPad full-screen or a wide multitasking split).
+
+- **Discover rails and directory.** On a regular-width iPad, the Discover rails (Starter packs, Trending, Rising, etc.) render as an adaptive multi-column grid rather than horizontal carousels. The All communities directory is width-capped and centered rather than edge-to-edge, so it does not stretch to an uncomfortable reading width. Tapping a community in Discover opens it in the Communities tab's two-column reading split. See [Discover (Community Explorer)](discover.md).
+- **Edit Profile and Account tab banner.** The live-preview banner in the Edit Profile screen — and the matching banner on the Account tab header — is width-capped and centered on a regular-width iPad rather than stretching full-bleed across the screen. See [Edit your profile](profile-editing.md).
+- **Composer and new-post sheets.** The reply composer and the new-post composer present with proper medium/large sheet detents on iPad, sitting over the content at a comfortable width rather than expanding to a full-screen modal. See [Replying](replying.md) and [New post](new-post.md).
+
+### Discover opens a community in the reading split on iPad
+
+- **Surfaces:** `ipad`
+- **Given** I am browsing Discover on a regular-width iPad
+- **When** I tap a community
+- **Then** it opens in the Communities tab's two-column reading split — the community feed in the primary column and a selected post in the secondary column — without switching me to the Posts tab
+
+### Discover renders rails as a multi-column grid on iPad
+
+- **Surfaces:** `ipad`
+- **Given** the Discover landing on a regular-width iPad
+- **When** the rails and directory render
+- **Then** the rail items are laid out in a multi-column grid instead of horizontal carousels, and the All communities directory is width-capped and centered
+
+### The composer sheet presents at a proper size on iPad
+
+- **Surfaces:** `ipad`
+- **Given** I open the reply composer or the new-post composer on a regular-width iPad
+- **When** the sheet appears
+- **Then** it uses medium/large detents and sits over the content at a comfortable size, not a full-screen modal
+
 ## Not supported / out of scope
 
 - **No third column.** The split view is two columns; there is no separate persistent sidebar column. The feed switcher is reached by the navbar-title popover at regular width, or a left-edge back-swipe (beneath the post list) at compact width — it is not a standing column. The subscriptions list is a separate Communities tab. See [Feeds and sorting](feeds-and-sorting.md) and [Subscriptions sidebar](subscriptions-sidebar.md).
