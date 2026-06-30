@@ -3,7 +3,7 @@ import Foundation
 import SpudDataKit
 
 /// One quick stat shown in the footprint rail (mirrors a Summary stat tile).
-struct FootprintStat: Equatable, Sendable {
+struct FootprintStat: Equatable {
     let value: String
     let label: String
 }
