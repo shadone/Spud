@@ -714,6 +714,28 @@ extension AppDatabase {
             )
         }
 
+        migrator.registerMigration("v26_diagnosticEvent") { db in
+            // Structured in-process diagnostic log. Events are written locally by
+            // DiagnosticLogger (later tasks) and never synced to the server. The
+            // table is intentionally account-independent: diagnostic events capture
+            // system-level behavior (scheduler, outbox, network) that may fire
+            // before an account is known. `timestamp` is a Unix-epoch Double for
+            // sub-second precision without custom date-formatter round-trips.
+            try db.create(table: "diagnosticEvent") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("timestamp", .double).notNull()
+                t.column("category", .text).notNull()
+                t.column("level", .integer).notNull()
+                t.column("event", .text).notNull()
+                t.column("message", .text).notNull()
+                t.column("instance", .text)
+                t.column("metadata", .text)
+            }
+            // Most reads filter or sort by `timestamp` (log viewer, retention
+            // eviction); an index keeps those queries off a full table scan.
+            try db.create(index: "index_diagnosticEvent_on_timestamp", on: "diagnosticEvent", columns: ["timestamp"])
+        }
+
         return migrator
     }
 }

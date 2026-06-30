@@ -37,6 +37,7 @@ class CommunityViewController: UIViewController {
         HasAppDatabase &
         HasAppService &
         HasAppearanceService &
+        HasDiagnosticLog &
         HasImageService &
         HasLinkEmbedService &
         HasPostContentDetectorService &

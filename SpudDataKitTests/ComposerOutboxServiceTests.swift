@@ -89,7 +89,9 @@ struct ComposerOutboxServiceTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
         let successes = await svc.successEvents
         let token = try await db.upsertOutboundDraft(makeInput(), accountId: acc, now: 0)
@@ -111,7 +113,9 @@ struct ComposerOutboxServiceTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
         let token = try await db.upsertOutboundDraft(makeInput(), accountId: acc, now: 0)
         try await db.markOutboundQueued(clientToken: token, now: 0)
@@ -133,7 +137,9 @@ struct ComposerOutboxServiceTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
         let failures = await svc.failureEvents
         let token = try await db.upsertOutboundDraft(makeInput(), accountId: acc, now: 0)
@@ -155,7 +161,9 @@ struct ComposerOutboxServiceTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
         let token = try await db.upsertOutboundDraft(makeInput(), accountId: acc, now: 0)
         try await db.markOutboundQueued(clientToken: token, now: 0)
@@ -178,7 +186,9 @@ struct ComposerOutboxServiceTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
         let token = try await db.upsertOutboundDraft(makeInput(), accountId: acc, now: 0)
         try await db.markOutboundQueued(clientToken: token, now: 0)
@@ -211,7 +221,9 @@ struct ComposerOutboxServiceTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
         let successes = await svc.successEvents
         let token = try await db.upsertOutboundDraft(makeEditInput(serverCommentId: 42), accountId: acc, now: 0)
@@ -257,7 +269,9 @@ struct ComposerOutboxServiceTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
         let token = try await db.upsertOutboundDraft(makeEditInput(serverCommentId: 9), accountId: acc, now: 0)
         try await db.markOutboundQueued(clientToken: token, now: 0)
@@ -291,7 +305,9 @@ struct ComposerOutboxServiceTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
         let token = try await db.upsertOutboundDraft(
             makeEditInput(serverCommentId: 99, body: "edited body"), accountId: acc, now: 0
@@ -319,7 +335,9 @@ struct ComposerOutboxServiceTests {
             appDatabase: db,
             performer: performer,
             reachability: FakeReachability(),
-            now: { 0 }
+            now: { 0 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: nil
         )
         let token = try await db.upsertOutboundDraft(makeInput(), accountId: acc, now: 0) // body "hi"
         try await db.markOutboundQueued(clientToken: token, now: 0)

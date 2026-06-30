@@ -14,6 +14,7 @@ class MainWindow: UIWindow {
     typealias OwnDependencies =
         HasAccountService &
         HasAppDatabase &
+        HasDiagnosticLog &
         HasPreferencesService &
         HasUnreadCountService
     typealias NestedDependencies =
@@ -41,6 +42,10 @@ class MainWindow: UIWindow {
 
     private var preferencesService: PreferencesServiceType {
         dependencies.own.preferencesService
+    }
+
+    private var diagnosticLog: DiagnosticLogging {
+        dependencies.own.diagnosticLog
     }
 
     // MARK: Private
@@ -87,6 +92,22 @@ class MainWindow: UIWindow {
         super.init(windowScene: windowScene)
 
         seedDefaultAccountForUITestsIfRequested()
+
+        // Durable launch event: fires once per cold start and records the instance
+        // if an account is already present (fresh installs emit nil).
+        let launchInstance = accountService.currentDefaultAccountKeychainId()
+            .flatMap { accountService.instanceActorId(forAccountKeychainId: $0)?.hostWithPort }
+        let diagnosticLog = dependencies.diagnosticLog
+        Task {
+            await diagnosticLog.record(
+                category: .lifecycle,
+                level: .info,
+                event: "lifecycle.launch",
+                message: "App launched",
+                instance: launchInstance,
+                metadata: nil
+            )
+        }
 
         // Gate on account presence: an existing account builds the tab bar; a
         // fresh install (no account) gets the onboarding flow as the root, and
@@ -198,10 +219,23 @@ class MainWindow: UIWindow {
     ) {
         currentDefaultAccountKeychainId = keychainId
 
+        let instance = accountService.instanceActorId(forAccountKeychainId: keychainId)?.hostWithPort
+        let log = diagnosticLog
+        Task {
+            await log.record(
+                category: .lifecycle,
+                level: .info,
+                event: "lifecycle.accountApplied",
+                message: "Default account applied",
+                instance: instance,
+                metadata: nil
+            )
+        }
+
         // Keep the Spotlight community index current for this account.
-        CommunitySpotlightIndexer.reindex(appDatabase: appDatabase)
+        CommunitySpotlightIndexer.reindex(appDatabase: appDatabase, diagnostics: log)
         // Keep the Spotlight saved + history content index current too.
-        ContentSpotlightIndexer.reindex(appDatabase: appDatabase)
+        ContentSpotlightIndexer.reindex(appDatabase: appDatabase, diagnostics: log)
 
         // Surface this account's permanent outbox failures as toasts, and drain
         // any ops left pending from a previous session.

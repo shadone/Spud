@@ -22,7 +22,7 @@ enum ContentSpotlightIndexer {
     static let domainIdentifier = "content"
     static let limit = 100
 
-    static func reindex(appDatabase: AppDatabase) {
+    static func reindex(appDatabase: AppDatabase, diagnostics: DiagnosticLogging) {
         Task {
             let rows = appDatabase.indexableContentRowsForDefaultAccountSync(limit: limit)
             let items = rows.compactMap(makeItem(from:))
@@ -31,8 +31,24 @@ enum ContentSpotlightIndexer {
                 // Reset the domain first so unsaved / aged-out items don't linger.
                 try await index.deleteSearchableItems(withDomainIdentifiers: [domainIdentifier])
                 try await index.indexSearchableItems(items)
+                await diagnostics.record(
+                    category: .spotlight,
+                    level: .debug,
+                    event: "reindex.finish",
+                    message: "Content Spotlight index updated",
+                    instance: nil,
+                    metadata: ["count": String(items.count)]
+                )
             } catch {
                 logger.error("Spotlight content indexing failed: \(error.localizedDescription, privacy: .public)")
+                await diagnostics.record(
+                    category: .spotlight,
+                    level: .error,
+                    event: "reindex.failed",
+                    message: "Content Spotlight indexing failed",
+                    instance: nil,
+                    metadata: ["error": error.localizedDescription]
+                )
             }
         }
     }

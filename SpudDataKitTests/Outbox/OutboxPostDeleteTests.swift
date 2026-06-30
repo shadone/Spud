@@ -27,7 +27,9 @@ struct OutboxPostDeleteTests {
             appDatabase: appDatabase,
             performer: performer,
             reachability: StaticReachabilityMonitor(isOnline: online),
-            now: { 1000 }
+            now: { 1000 },
+            diagnostics: DiagnosticLogSpy(),
+            instance: "lemmy.test"
         )
     }
 

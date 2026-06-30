@@ -190,7 +190,8 @@ struct OutboundDirectMessageOutboxTests {
         let performer = RecordingPerformer()
         let svc = ComposerOutboxService(
             accountId: acc, appDatabase: db, performer: performer,
-            reachability: FakeReachability(), now: { 0 }
+            reachability: FakeReachability(), now: { 0 },
+            diagnostics: DiagnosticLogSpy(), instance: nil
         )
 
         _ = try await db.enqueueOutboundDirectMessage(

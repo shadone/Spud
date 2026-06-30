@@ -9,7 +9,7 @@ import LemmyKit
 import Observation
 import OSLog
 
-private let logger = Logger.lemmyService
+private let logger = Logger.inbox
 
 @MainActor
 public protocol UnreadCountServiceType: AnyObject {
@@ -49,8 +49,15 @@ public final class UnreadCountService: UnreadCountServiceType {
     @ObservationIgnored
     private let accountService: AccountServiceType
 
-    public init(accountService: AccountServiceType) {
+    @ObservationIgnored
+    private let diagnostics: DiagnosticLogging
+
+    public init(
+        accountService: AccountServiceType,
+        diagnostics: DiagnosticLogging
+    ) {
         self.accountService = accountService
+        self.diagnostics = diagnostics
     }
 
     public func refresh(accountKeychainId: String) async {
@@ -61,14 +68,46 @@ public final class UnreadCountService: UnreadCountServiceType {
             return
         }
 
+        let instance = accountService.instanceActorId(forAccountKeychainId: accountKeychainId)?.hostWithPort
+
+        await diagnostics.record(
+            category: .unread,
+            level: .info,
+            event: "refresh.start",
+            message: "Refreshing unread count",
+            instance: instance,
+            metadata: nil
+        )
+
         do {
             let count = try await accountService
                 .lemmyService(forAccountKeychainId: accountKeychainId)
                 .unreadCount()
             unreadCount = count
+            let total = count.replies + count.mentions + count.privateMessages
+            await diagnostics.record(
+                category: .unread,
+                level: .info,
+                event: "refresh.finish",
+                message: "Unread count refreshed",
+                instance: instance,
+                metadata: ["unreadCount": String(total)]
+            )
         } catch {
             logger.error("Unread count refresh failed: \(String(describing: error), privacy: .public)")
             // Leave the previous count in place.
+            var metadata: [String: String] = ["error": String(describing: error)]
+            if case let .unknownServerError(httpStatus, _) = error as? LemmyApiError {
+                metadata["httpStatus"] = String(httpStatus)
+            }
+            await diagnostics.record(
+                category: .unread,
+                level: .error,
+                event: "refresh.failed",
+                message: "Unread count refresh failed: \(error)",
+                instance: instance,
+                metadata: metadata
+            )
         }
     }
 

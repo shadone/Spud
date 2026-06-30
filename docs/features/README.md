@@ -105,6 +105,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [App icon](app-icon.md) | `iphone`, `ipad` | shipped — placeholder art |
 | [Acknowledgements](acknowledgements.md) | `iphone`, `ipad` | shipped |
 | [Diagnostics and backup](diagnostics-and-backup.md) | `iphone`, `ipad` | shipped |
+| [Diagnostics logging](diagnostics-logging.md) | `iphone`, `ipad` | shipped — durable GRDB event log (survives relaunch) + two-tab viewer (Event Log with filter/search/detail/export; System Log OSLog tail with level/category filter + time window) |
 | [iPad split-view handoff](ipad-split-view.md) | `ipad`, `iphone` | shipped |
 | [Empty, error, and loading states](empty-error-loading-states.md) | `iphone`, `ipad` | shipped |
 | [Accessibility](accessibility.md) | `iphone`, `ipad` | shipped |
@@ -193,7 +194,8 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Default post / comment sort — comment sort persisted in preferences; default post sort persisted per account
 - [x] External-link handling — open mode (in-app / system browser), Reader Mode, universal links, "Load Link Previews" (oEmbed fetch for video cards)
 - [x] App icon variants — switching is wired; alternate art is placeholder (grid's "not wired" was stale)
-- [x] Acknowledgements; logs viewer + backup export
+- [x] Acknowledgements; backup export (raw SQLite database via share sheet)
+- [x] Diagnostic logging — durable GRDB event log (migration v26) recording outbox lifecycle (incl. `op.permanentRollback` on a rolled-back vote, `op.permanentPark` on a parked content send), site-info failures with instance host (`site.fetchFailed`), scheduler ticks, unread refresh, offline downloads, Spotlight reindex, and app lifecycle; pruned to ≤10k rows / ≤14 days; two-tab viewer (Event Log: filter by category + level, search, per-entry detail, export, clear; System Log: OSLog tail with level/category filter + time window); survives relaunch (diagnostics-logging.md)
 
 **Platform**
 - [x] iPad split-view handoff

@@ -6,34 +6,71 @@
 
 import Foundation
 import LemmyKit
-import OSLog
+import SpudDataKit
 import SwiftUI
 
-struct PreferencesLogsView: View {
-    @State var text: String = ""
+// MARK: - Logs host
+
+/// Settings → About → Logs screen.
+///
+/// Hosts two tabs via a segmented `Picker`:
+/// - **Event Log** (structured `DiagnosticEventRecord` rows drawn from GRDB) —
+///   shown only when `diagnostics` and `appDatabase` are non-nil; hidden in previews.
+/// - **System Log** (raw OSLog tail for this process, fixed formatting) — always available.
+///
+/// This replaces the old `PreferencesLogsView` which had several bugs: no
+/// separator between entries, an empty `catch {}` (blank screen on error), editable
+/// text, and a hard-coded 1-hour window.
+private struct LogsHostView: View {
+    let diagnostics: DiagnosticLogging?
+    let appDatabase: AppDatabase?
+
+    private enum Tab: Hashable {
+        case eventLog
+        case systemLog
+    }
+
+    @State private var selectedTab: Tab = .eventLog
 
     var body: some View {
-        TextEditor(text: $text)
-            .ignoresSafeArea()
-            .task {
-                do {
-                    let store = try OSLogStore(scope: .currentProcessIdentifier)
-                    let date = Date.now.addingTimeInterval(-1 * 3600)
-                    let position = store.position(date: date)
-
-                    text = try store
-                        .getEntries(at: position)
-                        .compactMap { $0 as? OSLogEntryLog }
-                        .filter { $0.subsystem == Bundle.main.bundleIdentifier! }
-                        .reduce(into: String()) { partialResult, entry in
-                            let date = entry.date.formatted(date: .numeric, time: .standard)
-                            let message = "\(date) [\(entry.category)] \(entry.composedMessage)"
-                            partialResult += message
-                        }
-                } catch { }
+        VStack(spacing: 0) {
+            if diagnostics != nil, appDatabase != nil {
+                // Both tabs are available — show the segmented picker.
+                Picker("Log type", selection: $selectedTab) {
+                    Text("Event Log").tag(Tab.eventLog)
+                    Text("System Log").tag(Tab.systemLog)
+                }
+                .pickerStyle(.segmented)
+                .padding()
+                Divider()
+                tabContent
+            } else {
+                // Preview or missing dependencies: only the System Log tab is usable.
+                SystemLogView()
             }
+        }
+        .navigationTitle("Logs")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    @ViewBuilder
+    private var tabContent: some View {
+        switch selectedTab {
+        case .eventLog:
+            if let diagnostics, let appDatabase {
+                // DiagnosticLogView sets its own navigation title ("Event Log") in
+                // its toolbar; suppress the host's title override in that tab so the
+                // two titles don't stack.
+                DiagnosticLogView(diagnostics: diagnostics, appDatabase: appDatabase)
+                    .navigationTitle("Event Log")
+            }
+        case .systemLog:
+            SystemLogView()
+        }
     }
 }
+
+// MARK: - About view
 
 struct PreferencesAboutView: View {
     let viewModel: PreferencesViewModel
@@ -61,7 +98,10 @@ struct PreferencesAboutView: View {
 
             Section {
                 NavigationLink {
-                    PreferencesLogsView()
+                    LogsHostView(
+                        diagnostics: viewModel.diagnostics,
+                        appDatabase: viewModel.logsAppDatabase
+                    )
                 } label: {
                     Text("Logs")
                 }

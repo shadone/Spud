@@ -22,4 +22,9 @@ extension Logger {
     static let explorerService = Logger(subsystem: subsystem, category: "ExplorerService")
     static let offlineDownloadService = Logger(subsystem: subsystem, category: "OfflineDownloadService")
     static let webArchive = Logger(subsystem: subsystem, category: "WebArchive")
+    static let outbox = Logger(subsystem: subsystem, category: "Outbox")
+    static let composerOutbox = Logger(subsystem: subsystem, category: "ComposerOutbox")
+    static let inbox = Logger(subsystem: subsystem, category: "Inbox")
+    static let spotlight = Logger(subsystem: subsystem, category: "Spotlight")
+    static let lifecycle = Logger(subsystem: subsystem, category: "Lifecycle")
 }

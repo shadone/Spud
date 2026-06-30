@@ -23,7 +23,8 @@ struct DependencyContainer:
     HasPreferencesService,
     HasUnreadCountService,
     HasExplorerService,
-    HasReachabilityMonitor
+    HasReachabilityMonitor,
+    HasDiagnosticLog
 {
     let appDatabase: AppDatabase
     let siteService: SiteServiceType
@@ -39,6 +40,7 @@ struct DependencyContainer:
     let unreadCountService: UnreadCountServiceType
     let explorerService: ExplorerServiceType
     let reachabilityMonitor: ReachabilityMonitoring
+    let diagnosticLog: DiagnosticLogging
 
     // MARK: Functions
 
@@ -56,13 +58,15 @@ struct DependencyContainer:
             fatalError("Failed to open AppDatabase: \(error)")
         }
 
+        diagnosticLog = DiagnosticLog(appDatabase: appDatabase)
         reachabilityMonitor = ReachabilityMonitor()
         siteService = SiteService(appDatabase: appDatabase)
         accountService = AccountService(appDatabase: appDatabase, reachabilityMonitor: reachabilityMonitor)
         schedulerService = SchedulerService(
             appDatabase: appDatabase,
             accountService: accountService,
-            alertService: alertService
+            alertService: alertService,
+            diagnostics: diagnosticLog
         )
         postContentDetectorService = PostContentDetectorService()
         appearanceService = AppearanceService(preferencesService: preferencesService)
@@ -74,11 +78,13 @@ struct DependencyContainer:
             // (links fall back to Safari/browser); it is never fatal here.
             webArchiveStore: try? OfflineWebArchiveStore(appDatabase: appDatabase)
         )
-        unreadCountService = UnreadCountService(accountService: accountService)
+        unreadCountService = UnreadCountService(accountService: accountService, diagnostics: diagnosticLog)
         explorerService = ExplorerService(appDatabase: appDatabase)
     }
 
     func start() {
+        // Bound the diagnostic log table at launch so it doesn't grow unboundedly.
+        Task { try? await appDatabase.pruneDiagnosticEvents(now: Date().timeIntervalSince1970) }
         siteService.startService()
         schedulerService.startService()
         explorerService.startService(

@@ -627,6 +627,10 @@ public actor LemmyService: LemmyServiceType {
     let api: LemmyApi
     private let reachability: ReachabilityMonitoring
 
+    /// Dual-sink recorder for structured diagnostic events (OSLog + GRDB).
+    /// Injectable so tests can pass a `DiagnosticLogSpy` without database I/O.
+    let diagnostics: DiagnosticLogging
+
     /// Task-memoized lazy outbox. Construction is deferred to the first
     /// vote/save/hide call because it needs `accountSiteIds()` (an async DB
     /// read) and must call `start()`. Memoizing the *Task* (not the value)
@@ -647,15 +651,26 @@ public actor LemmyService: LemmyServiceType {
         accountIsSignedOut: Bool,
         appDatabase: AppDatabase,
         api: LemmyApi,
-        reachability: ReachabilityMonitoring
+        reachability: ReachabilityMonitoring,
+        diagnostics: DiagnosticLogging? = nil
     ) {
         accountIdentifierForLogging = accountKeychainId
         self.accountIsSignedOut = accountIsSignedOut
         self.appDatabase = appDatabase
         self.api = api
         self.reachability = reachability
+        self.diagnostics = diagnostics ?? DiagnosticLog(appDatabase: appDatabase)
 
         logger.info("Creating new service for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
+    }
+
+    /// Resolves the instance HOST string (e.g. `lemmy.world`) for the account
+    /// backing this service. Returns `nil` when the account row hasn't been
+    /// mirrored yet — callers must treat `nil` as "unknown, emit without tag"
+    /// rather than blocking on it.
+    private func resolveInstanceHost() async -> String? {
+        let rawActorId = await appDatabase.accountInstanceActorId(forKeychainId: accountIdentifierForLogging)
+        return rawActorId.flatMap { InstanceActorId(from: $0) }?.hostWithPort
     }
 
     /// Lazily builds (and `start()`s) the per-account `OutboxService`, returning
@@ -671,12 +686,17 @@ public actor LemmyService: LemmyServiceType {
                 accountId: ids.0,
                 siteId: ids.1
             )
+            // A nil result (account not yet mirrored) is acceptable — events are
+            // emitted without an instance tag rather than blocking outbox construction.
+            let instanceHost = await resolveInstanceHost()
             let service = OutboxService(
                 accountId: ids.0,
                 appDatabase: appDatabase,
                 performer: performer,
                 reachability: reachability,
-                now: { Date().timeIntervalSince1970 }
+                now: { Date().timeIntervalSince1970 },
+                diagnostics: DiagnosticLog(appDatabase: appDatabase),
+                instance: instanceHost
             )
             await service.start()
             return service
@@ -929,6 +949,20 @@ public actor LemmyService: LemmyServiceType {
                 Fetch site failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
                 \(String(describing: error), privacy: .public)
                 """)
+            // Emit a durable diagnostic so the recurring "Fetch site failed" noise
+            // is observable in About → Logs without any change to error propagation.
+            var metadata: [String: String] = ["error": String(describing: error)]
+            if case let .unknownServerError(httpStatus, _) = error as? LemmyApiError {
+                metadata["httpStatus"] = String(httpStatus)
+            }
+            await diagnostics.record(
+                category: .site,
+                level: .error,
+                event: "site.fetchFailed",
+                message: "getSite failed",
+                instance: api.instanceHostname,
+                metadata: metadata
+            )
             throw LemmyServiceError(from: error)
         }
 
@@ -2071,7 +2105,29 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func drainPendingOutbox() async {
-        await outboxService()?.drainAll()
+        let service = await outboxService()
+        if let service {
+            await service.drainAll()
+        } else {
+            // The outbox service could not be built (account/site not yet mirrored).
+            // If the account has pending operations we can't drain, record a durable
+            // error so operators can identify stuck outbox rows without needing to
+            // attach a debugger.
+            guard let ids = try? await accountSiteIds(),
+                  let pending = try? await appDatabase.allOutboxOperations(accountId: ids.0),
+                  !pending.isEmpty
+            else { return }
+
+            let instanceHost = await resolveInstanceHost()
+            await DiagnosticLog(appDatabase: appDatabase).record(
+                category: .outbox,
+                level: .error,
+                event: "drain.skippedNoService",
+                message: "drainPendingOutbox: outbox service unavailable, \(pending.count) pending operation(s) skipped",
+                instance: instanceHost,
+                metadata: ["pendingCount": String(pending.count)]
+            )
+        }
     }
 
     // MARK: Composer outbox
@@ -2089,12 +2145,15 @@ public actor LemmyService: LemmyServiceType {
                 accountId: ids.0,
                 siteId: ids.1
             )
+            let instanceHost = await resolveInstanceHost()
             let service = ComposerOutboxService(
                 accountId: ids.0,
                 appDatabase: appDatabase,
                 performer: performer,
                 reachability: reachability,
-                now: { Date().timeIntervalSince1970 }
+                now: { Date().timeIntervalSince1970 },
+                diagnostics: DiagnosticLog(appDatabase: appDatabase),
+                instance: instanceHost
             )
             await service.start()
             return service
