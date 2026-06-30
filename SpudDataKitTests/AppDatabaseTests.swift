@@ -56,6 +56,7 @@ struct AppDatabaseTests {
                 "site",
                 "pendingOperation",
                 "siteAdmin",
+                "voteEvent",
             ])
         )
     }

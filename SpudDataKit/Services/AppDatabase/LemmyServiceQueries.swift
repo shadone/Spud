@@ -12,6 +12,18 @@ import SpudUtilKit
 
 private let logger = Logger.appDatabase
 
+/// Denormalized display data captured at vote time. Caller-supplied to
+/// `upsertVoteEvent` so the Activity timeline can render entries without
+/// joining the (possibly-evicted) post/comment cache.
+public struct VoteEventSnapshot: Sendable, Equatable {
+    public let title: String?
+    public let body: String?
+    public let communityName: String?
+    public let communityActorId: String?
+    public let thumbnailUrl: String?
+    public let score: Int64?
+}
+
 public extension AppDatabase {
     /// Reconstructs the `FeedType` for an existing `feedKey` from the persisted
     /// FeedRecord columns (`frontpageListingType` / `communityName` /
@@ -108,6 +120,75 @@ public extension AppDatabase {
         case 1: return .up
         case 0: return .down
         default: return .neutral
+        }
+    }
+
+    // MARK: - Vote snapshots
+
+    /// Display snapshot for a post vote event. Returns nil when the post is not
+    /// in the local cache (best-effort; the caller silently omits snapshot fields).
+    func postVoteSnapshot(
+        forAccountKeychainId keychainId: String,
+        serverPostId: Components.Schemas.PostID
+    ) async throws -> VoteEventSnapshot? {
+        try await writer.read { db -> VoteEventSnapshot? in
+            let row = try Row.fetchOne(db, sql: """
+                SELECT
+                    post.title          AS title,
+                    post.thumbnailUrl   AS thumbnailUrl,
+                    post.score          AS score,
+                    community.name      AS communityName,
+                    community.actorId   AS communityActorId
+                FROM post
+                JOIN account   ON account.id   = post.accountId
+                JOIN community ON community.id = post.communityId
+                WHERE account.accountKeychainId = ?
+                  AND post.postId = ?
+                """, arguments: [keychainId, Int64(serverPostId)])
+            guard let row else { return nil }
+            return VoteEventSnapshot(
+                title: row["title"],
+                body: nil,
+                communityName: row["communityName"],
+                communityActorId: row["communityActorId"],
+                thumbnailUrl: row["thumbnailUrl"],
+                score: row["score"]
+            )
+        }
+    }
+
+    /// Display snapshot for a comment vote event. `title` is the parent post
+    /// title; `body` is the comment body. Returns nil when the comment is not in
+    /// the local cache (best-effort).
+    func commentVoteSnapshot(
+        forAccountKeychainId keychainId: String,
+        serverCommentId: Components.Schemas.CommentID
+    ) async throws -> VoteEventSnapshot? {
+        try await writer.read { db -> VoteEventSnapshot? in
+            let row = try Row.fetchOne(db, sql: """
+                SELECT
+                    comment.body        AS body,
+                    post.title          AS title,
+                    post.thumbnailUrl   AS thumbnailUrl,
+                    comment.score       AS score,
+                    community.name      AS communityName,
+                    community.actorId   AS communityActorId
+                FROM comment
+                JOIN post      ON post.id      = comment.postId
+                JOIN account   ON account.id   = post.accountId
+                JOIN community ON community.id = post.communityId
+                WHERE account.accountKeychainId = ?
+                  AND comment.localCommentId = ?
+                """, arguments: [keychainId, Int64(serverCommentId)])
+            guard let row else { return nil }
+            return VoteEventSnapshot(
+                title: row["title"],
+                body: row["body"],
+                communityName: row["communityName"],
+                communityActorId: row["communityActorId"],
+                thumbnailUrl: row["thumbnailUrl"],
+                score: row["score"]
+            )
         }
     }
 }

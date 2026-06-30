@@ -240,6 +240,14 @@ public actor OutboxService: OutboxServiceType {
                         metadata: metadata
                     )
                     try? await appDatabase.rollbackOutboxOperation(record)
+                    // A permanently-rolled-back vote removes its activity log entry.
+                    if op.kind == .vote {
+                        try? await appDatabase.deleteVoteEvent(
+                            accountId: accountId,
+                            entityType: op.entityType.rawValue,
+                            entityServerId: op.entityServerId
+                        )
+                    }
                     rolledBack += 1
                     emitFailure(OutboxFailure(
                         entityType: op.entityType,
