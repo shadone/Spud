@@ -23,9 +23,12 @@ final class ActivityViewModel {
     private let coordinator: ActivityCoordinator
     private let accountId: Int64
 
-    private var itemStreamTask: Task<Void, Never>?
-    private var statusStreamTask: Task<Void, Never>?
-    private var searchDebounceTask: Task<Void, Never>?
+    // `@ObservationIgnored` so these stay plain stored properties (not tracked
+    // through the main-actor `@Observable` registrar) - otherwise the nonisolated
+    // `deinit` can't reference them to cancel the streams.
+    @ObservationIgnored private var itemStreamTask: Task<Void, Never>?
+    @ObservationIgnored private var statusStreamTask: Task<Void, Never>?
+    @ObservationIgnored private var searchDebounceTask: Task<Void, Never>?
 
     // MARK: Functions
 
@@ -42,6 +45,19 @@ final class ActivityViewModel {
         activeFilters = initialFilters
     }
 
+    /// Cancels the long-lived streams on dismissal. Without this, the
+    /// `itemStreamTask` / `statusStreamTask` `for await` loops iterate forever and
+    /// hold the `ActivityCoordinator` actor (and its GRDB observation) alive past
+    /// the screen's lifetime - one leak per push/pop. Cancelling lets each
+    /// `AsyncStream`'s `onTermination` fire the coordinator's `stopStreaming`, so
+    /// the actor and observation tear down. `stop()` does the same eagerly (e.g.
+    /// on `viewDidDisappear`); both are safe to call.
+    deinit {
+        itemStreamTask?.cancel()
+        statusStreamTask?.cancel()
+        searchDebounceTask?.cancel()
+    }
+
     func start() {
         restartItemStream()
         startStatusStream()
@@ -51,6 +67,13 @@ final class ActivityViewModel {
         itemStreamTask?.cancel()
         statusStreamTask?.cancel()
         searchDebounceTask?.cancel()
+    }
+
+    /// Re-subscribes the item stream from scratch, which resets the coordinator's
+    /// pagination and re-fetches the first authored page (the local observation
+    /// re-emits on its own). Backs pull-to-refresh.
+    func refresh() {
+        restartItemStream()
     }
 
     func toggleFilter(_ filter: ActivityFilterType) {
