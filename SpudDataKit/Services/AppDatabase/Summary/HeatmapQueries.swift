@@ -149,7 +149,7 @@ extension AppDatabase {
             let cal = Self.utcMondayCal
 
             // --- streak ---
-            // Union all activity days (reads + votes) into a Set<String>.
+            // Union all activity days (reads + votes + authored posts) into a Set<String>.
             var activityDays: Set<String> = []
 
             let readDayRows = try String.fetchAll(db, sql: """
@@ -165,6 +165,14 @@ extension AppDatabase {
                 WHERE accountId = ?
                 """, arguments: [accountId])
             activityDays.formUnion(voteDayRows)
+
+            if let personRowId {
+                let postDays = try String.fetchAll(db, sql: """
+                    SELECT DISTINCT date(published) FROM post
+                    WHERE accountId = ? AND creatorId = ?
+                    """, arguments: [accountId, personRowId])
+                activityDays.formUnion(postDays)
+            }
 
             // Walk backward from asOf's UTC day.
             let asOfDayStr = utcDayString(asOf, cal: cal)

@@ -32,12 +32,12 @@ struct HeatmapQueriesTests {
 
     /// UTC Gregorian calendar with Monday as the first day of the week.
     /// Mirrors the implementation's internal calendar exactly.
-    static var utcCal: Calendar {
+    static let utcCal: Calendar = {
         var c = Calendar(identifier: .gregorian)
         c.timeZone = TimeZone(identifier: "UTC")!
         c.firstWeekday = 2 // Monday
         return c
-    }
+    }()
 
     /// The Monday that starts asOf's own week (equals asOf since asOf is itself a Monday).
     static var weekStart: Date {
@@ -588,6 +588,27 @@ struct HeatmapQueriesTests {
             return accId
         }
         let extras = try db.summaryExtras(accountId: accountId, personRowId: nil, asOf: Self.asOf)
+        #expect(extras.streakDays == 1)
+    }
+
+    @Test
+    func summaryExtras_streak_authoredPostCountsTowardStreak() async throws {
+        let db = try AppDatabase.inMemory()
+        // An authored post on asOf with no reads or votes that day must produce a streak of 1.
+        let noonOnAsOf = Self.asOf.addingTimeInterval(12 * 3600)
+        let (accountId, personRowId) = try await db.writer.write { db -> (Int64, Int64) in
+            let (accId, siteId) = try Self.seedAccount(db)
+            let personId = try Self.seedPerson(db, siteId: siteId)
+            let commId = try Self.seedCommunity(db, accountId: accId)
+            try Self.insertAuthoredPost(
+                db, accountId: accId, communityId: commId,
+                creatorId: personId, serverPostId: 1, published: noonOnAsOf
+            )
+            return (accId, personId)
+        }
+        let extras = try db.summaryExtras(
+            accountId: accountId, personRowId: personRowId, asOf: Self.asOf
+        )
         #expect(extras.streakDays == 1)
     }
 
