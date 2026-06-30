@@ -107,6 +107,10 @@ final class CommunityReadingSplitViewController: UIViewController {
         // Communities nav stack (a UISplitViewController itself is not).
         add(child: embeddedSplit)
         addSubviewWithEdgeConstraints(child: embeddedSplit)
+        // Complete the UIKit containment handshake: `add(child:)` calls
+        // `willMove(toParent:)` but NOT `didMove(toParent:)` — the container
+        // is responsible for the latter after the child's view has been added.
+        embeddedSplit.didMove(toParent: self)
 
         // Become the primary column's nav delegate so we can inject the "Communities"
         // back button onto every VC that appears there (loading and resolved community).

@@ -38,6 +38,7 @@ enum DetailRouteTarget {
 /// `UISplitViewController`, so a type cast to `UISplitViewController` would miss
 /// it); any other navigation controller is a plain push target.
 enum SplitTabResolver {
+    @MainActor
     static func target(
         for selected: UIViewController?,
         postsSplit: UISplitViewController

@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import LemmyKit
 import SpudDataKit
 import Testing
 import UIKit
@@ -62,7 +63,39 @@ struct ComposerPresentationTests {
             onQueued: { _ in }
         )
         let navController = try #require(nav as? UINavigationController)
-        #expect(navController.modalPresentationStyle == .pageSheet)
+        #expect(navController.modalPresentationStyle == UIModalPresentationStyle.pageSheet)
+        #expect(navController.sheetPresentationController != nil)
+    }
+
+    @Test
+    func composerSheet_isPageSheet_soDetentsApplyOnIPad() throws {
+        let deps = ComposerFakeDependencies()
+        let nav = ComposerViewController.makeSheet(
+            target: .postReply(serverPostId: 1),
+            accountKeychainId: "kc-test",
+            dependencies: deps
+        )
+        let navController = try #require(nav as? UINavigationController)
+        #expect(navController.modalPresentationStyle == UIModalPresentationStyle.pageSheet)
+        #expect(navController.sheetPresentationController != nil)
+    }
+
+    @Test
+    func editPostSheet_isPageSheet_soDetentsApplyOnIPad() throws {
+        let deps = ComposerFakeDependencies()
+        let nav = NewPostViewController.makeEditSheet(
+            serverPostId: 42,
+            serverCommunityId: Components.Schemas.CommunityID(1),
+            communityName: "testcommunity",
+            title: "Test post title",
+            body: nil,
+            url: nil,
+            nsfw: false,
+            accountKeychainId: "kc-test",
+            dependencies: deps
+        )
+        let navController = try #require(nav as? UINavigationController)
+        #expect(navController.modalPresentationStyle == UIModalPresentationStyle.pageSheet)
         #expect(navController.sheetPresentationController != nil)
     }
 }

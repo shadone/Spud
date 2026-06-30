@@ -491,10 +491,17 @@ class PostListViewController: UIViewController {
     /// own `horizontalSizeClass`: in an expanded split the narrow primary column
     /// still reports a COMPACT horizontal size class, so the size class can't tell
     /// an "expanded primary column" apart from a "compact single column".
+    /// True when the feed-title control (a tappable `UIButton` that opens the
+    /// feed-switcher popover) should be shown instead of the plain navigation
+    /// title. Evaluated from split-view collapse state, NOT from the primary
+    /// column's own `horizontalSizeClass` (a narrow primary column in an expanded
+    /// split still reports `.compact`, making the size class ambiguous here).
+    private var shouldShowFeedTitleControl: Bool {
+        splitViewController?.isCollapsed == false && onPresentFeedSwitcher != nil
+    }
+
     private func applyTitleControl() {
-        let isExpandedSplit = splitViewController?.isCollapsed == false
-        let showButton = isExpandedSplit && onPresentFeedSwitcher != nil
-        if showButton {
+        if shouldShowFeedTitleControl {
             titleButton.setTitle(viewModel.navigationTitle, for: .normal)
             titleButton.sizeToFit()
             navigationItem.titleView = titleButton
@@ -503,7 +510,7 @@ class PostListViewController: UIViewController {
             navigationItem.titleView = nil
             navigationItem.title = viewModel.navigationTitle
         }
-        isShowingFeedTitleControl = showButton
+        isShowingFeedTitleControl = shouldShowFeedTitleControl
     }
 
     /// Re-evaluates the title presentation mode and flips it only when it changed.
@@ -511,9 +518,7 @@ class PostListViewController: UIViewController {
     /// collapse/expand (which changes the primary column's width but not this
     /// controller's `horizontalSizeClass`) is detected.
     private func refreshTitleControlModeIfNeeded() {
-        let isExpandedSplit = splitViewController?.isCollapsed == false
-        let showButton = isExpandedSplit && onPresentFeedSwitcher != nil
-        guard showButton != isShowingFeedTitleControl else { return }
+        guard shouldShowFeedTitleControl != isShowingFeedTitleControl else { return }
         applyTitleControl()
     }
 
