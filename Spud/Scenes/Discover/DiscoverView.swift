@@ -20,6 +20,9 @@ struct DiscoverView: View {
     /// Read from the environment (set by the hosting controller) only to pass it
     /// back into the presented compare sheet, which is a separate environment.
     @Environment(\.imageService) private var imageService
+    /// Drives the compact vs. regular layout branch: horizontal carousels in
+    /// compact (iPhone), adaptive grids + capped directory in regular (iPad).
+    @Environment(\.horizontalSizeClass) private var hSizeClass
 
     var body: some View {
         Group {
@@ -82,35 +85,43 @@ struct DiscoverView: View {
 
                 directoryHeader
 
-                ForEach(shownDirectory) { row in
-                    DiscoverCommunityRow(
-                        row: row,
-                        accent: accent,
-                        onTap: { viewModel.open(row) },
-                        onCompare: { viewModel.compare(row) },
-                        subscriptionState: viewModel.subscriptionState(for: row),
-                        onSubscribe: { viewModel.toggleSubscription(row) },
-                        blurNsfw: viewModel.blurNsfw
-                    )
-                    .communityContextMenu(for: row, viewModel: viewModel)
-                    Divider().padding(.leading, 68)
-                }
+                // In the regular size class (iPad) the directory column is capped
+                // and centered so it does not stretch full-bleed across the wide
+                // canvas. The 200-row cap on `shownDirectory` keeps this VStack
+                // compact enough that the loss of per-row laziness is immaterial.
+                VStack(spacing: 0) {
+                    ForEach(shownDirectory) { row in
+                        DiscoverCommunityRow(
+                            row: row,
+                            accent: accent,
+                            onTap: { viewModel.open(row) },
+                            onCompare: { viewModel.compare(row) },
+                            subscriptionState: viewModel.subscriptionState(for: row),
+                            onSubscribe: { viewModel.toggleSubscription(row) },
+                            blurNsfw: viewModel.blurNsfw
+                        )
+                        .communityContextMenu(for: row, viewModel: viewModel)
+                        Divider().padding(.leading, 68)
+                    }
 
-                if shownDirectory.isEmpty {
-                    Text(
-                        viewModel.isSearching
-                            ? "No communities match your search."
-                            : "No communities to show yet."
-                    )
-                    .font(.subheadline)
-                    .foregroundStyle(Color(.secondaryLabel))
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 40)
-                }
+                    if shownDirectory.isEmpty {
+                        Text(
+                            viewModel.isSearching
+                                ? "No communities match your search."
+                                : "No communities to show yet."
+                        )
+                        .font(.subheadline)
+                        .foregroundStyle(Color(.secondaryLabel))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 40)
+                    }
 
-                if viewModel.isSearching {
-                    networkSearchSection
+                    if viewModel.isSearching {
+                        networkSearchSection
+                    }
                 }
+                .frame(maxWidth: hSizeClass == .regular ? AdaptiveLayout.directoryMaxWidth : .infinity)
+                .frame(maxWidth: .infinity)
             }
             .padding(.bottom, 24)
         }
@@ -258,13 +269,25 @@ struct DiscoverView: View {
                     onSeeAll: nil
                 )
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
+                if hSizeClass == .regular {
+                    // In the regular size class (iPad) show an adaptive grid so
+                    // the wide canvas is used rather than wasting space beside a
+                    // narrow horizontal strip.
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 178), spacing: 12)], spacing: 12) {
                         ForEach(viewModel.starterPacks) { pack in
                             PackCard(pack: pack, accent: accent) { viewModel.openPack(pack) }
                         }
                     }
                     .padding(.horizontal, 16)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 12) {
+                            ForEach(viewModel.starterPacks) { pack in
+                                PackCard(pack: pack, accent: accent) { viewModel.openPack(pack) }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
                 }
             }
         }
@@ -282,8 +305,10 @@ struct DiscoverView: View {
                         : nil
                 )
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 11) {
+                if hSizeClass == .regular {
+                    // In the regular size class (iPad) show an adaptive grid instead
+                    // of a horizontal carousel so cards fill the wide canvas.
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 178), spacing: 11)], spacing: 11) {
                         ForEach(rows.prefix(DiscoverViewModel.railCarouselCount)) { row in
                             DiscoverTrendCard(
                                 row: row,
@@ -297,6 +322,23 @@ struct DiscoverView: View {
                         }
                     }
                     .padding(.horizontal, 16)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 11) {
+                            ForEach(rows.prefix(DiscoverViewModel.railCarouselCount)) { row in
+                                DiscoverTrendCard(
+                                    row: row,
+                                    accent: accent,
+                                    momentum: momentum,
+                                    onTap: { viewModel.open(row) },
+                                    subscriptionState: viewModel.subscriptionState(for: row),
+                                    onSubscribe: { viewModel.toggleSubscription(row) },
+                                    blurNsfw: viewModel.blurNsfw
+                                )
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
                 }
             }
         }
@@ -314,8 +356,9 @@ struct DiscoverView: View {
                         : nil
                 )
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 11) {
+                if hSizeClass == .regular {
+                    // In the regular size class (iPad) show an adaptive grid.
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 178), spacing: 11)], spacing: 11) {
                         ForEach(viewModel.instances.prefix(DiscoverViewModel.railCarouselCount)) { instance in
                             InstanceCard(instance: instance, accent: accent) {
                                 viewModel.openInstance(instance)
@@ -323,6 +366,17 @@ struct DiscoverView: View {
                         }
                     }
                     .padding(.horizontal, 16)
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 11) {
+                            ForEach(viewModel.instances.prefix(DiscoverViewModel.railCarouselCount)) { instance in
+                                InstanceCard(instance: instance, accent: accent) {
+                                    viewModel.openInstance(instance)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                    }
                 }
             }
         }
@@ -342,6 +396,10 @@ struct DiscoverView: View {
         .padding(.horizontal, 16)
         .padding(.top, 20)
         .padding(.bottom, 8)
+        // Cap the directory header to the same width as the directory rows so
+        // the text and sort label do not stretch full-bleed on a wide iPad canvas.
+        .frame(maxWidth: hSizeClass == .regular ? AdaptiveLayout.directoryMaxWidth : .infinity)
+        .frame(maxWidth: .infinity)
     }
 }
 
