@@ -122,4 +122,4 @@ Once the cap is reached the account is retried roughly every two hours until the
 
 - No UI indicator surfaces the back-off state for a specific account.
 - The scheduler does not distinguish between a transient network error and a permanent authentication/authorization failure (e.g. expired session vs. CDN block). A "session needs re-login" hint is a separate, deferred feature.
-- The ownerless-sites sweep (instances not yet associated with any account) does not apply per-account back-off and is out of scope for this iteration.
+- The ownerless-sites sweep (instances not yet associated with any account) is covered too: each instance resolves to a stable signed-out service account, so its repeated failures back off per instance like any account's would.
