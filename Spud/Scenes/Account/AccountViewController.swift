@@ -170,7 +170,7 @@ class AccountViewController: UIViewController {
             accent: accent,
             onEditProfile: { [weak self] in self?.openEditProfile(keychainId: keychainId) },
             onSwitchAccount: { [weak self] in self?.accountsTapped() },
-            onOpenSaved: { [weak self] in self?.openActivity(keychainId: keychainId, initialFilters: [.save]) },
+            onOpenSaved: { [weak self] in self?.openSaved(keychainId: keychainId) },
             onOpenActivity: { [weak self] in self?.openActivity(keychainId: keychainId) },
             onOpenYourPosts: { [weak self] in self?.openActivity(keychainId: keychainId, initialFilters: [.post]) },
             onOpenYourComments: { [weak self] in self?.openActivity(keychainId: keychainId, initialFilters: [.comment]) },
@@ -293,9 +293,30 @@ class AccountViewController: UIViewController {
         present(editor, animated: true)
     }
 
+    /// Pushes the authoritative server-backed Saved feed (the `.saved` feed via
+    /// `createFeed` + `PostListViewController`), not Activity's local `.save`
+    /// filter. Activity's Saved filter is a local best-effort view that can lag
+    /// the server's saved set, so the dedicated "Saved" row stays on the complete
+    /// server feed; the Activity screen still surfaces Saved as one of its filters.
+    private func openSaved(keychainId: String) {
+        Haptics.tap()
+        let sortType = accountService.defaultSortType(forAccountKeychainId: keychainId)
+        let feed = accountService.createFeed(
+            forAccountKeychainId: keychainId,
+            feedType: .saved(sortType: sortType)
+        )
+        let postListVC = PostListViewController(
+            feed: feed,
+            accountKeychainId: keychainId,
+            dependencies: dependencies.nested
+        )
+        postListVC.navigationItem.title = NSLocalizedString("Saved", comment: "Saved posts screen title")
+        navigationController?.pushViewController(postListVC, animated: true)
+    }
+
     /// Pushes the Activity screen pre-filtered to `initialFilters`.
     ///
-    /// All four Account tab action rows (Saved, Activity, Your posts, Your comments)
+    /// The remaining Account tab action rows (Activity, Your posts, Your comments)
     /// funnel here; each supplies a different preset so the screen opens in the
     /// relevant view while the user can still toggle other filters freely.
     private func openActivity(keychainId: String, initialFilters: Set<ActivityFilterType> = []) {
