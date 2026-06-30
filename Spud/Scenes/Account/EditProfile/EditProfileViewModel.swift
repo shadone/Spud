@@ -27,6 +27,9 @@ final class EditProfileViewModel {
     /// The current avatar URL (remote), nil when none. Updated after an upload
     /// or cleared by "Remove Photo".
     private(set) var avatarUrl: URL?
+    /// The current banner URL (remote), nil when none. Updated after an upload
+    /// or cleared by "Remove Banner".
+    private(set) var bannerUrl: URL?
     /// The account's read-only username, shown as context in the editor header.
     let name: String
 
@@ -48,6 +51,9 @@ final class EditProfileViewModel {
     /// True while an avatar upload is in flight (drives the avatar spinner and
     /// disables Save so a half-uploaded avatar can't be committed).
     private(set) var isUploadingAvatar = false
+    /// True while a banner upload is in flight (disables Save so a half-uploaded
+    /// banner can't be committed).
+    private(set) var isUploadingBanner = false
 
     /// Emits once the save completed successfully so the host can dismiss.
     @ObservationIgnored
@@ -82,6 +88,7 @@ final class EditProfileViewModel {
         displayName = profile?.displayName ?? ""
         bio = profile?.bio ?? ""
         avatarUrl = profile?.avatarUrl.flatMap { URL(string: $0) }
+        bannerUrl = profile?.bannerUrl.flatMap { URL(string: $0) }
         name = profile?.name ?? ""
         showScores = profile?.showScores ?? true
         showBotAccounts = profile?.showBotAccounts ?? true
@@ -96,9 +103,10 @@ final class EditProfileViewModel {
         saveState == .saving
     }
 
-    /// Save is blocked while a save or an avatar upload is already in flight.
+    /// Save is blocked while a save, an avatar upload, or a banner upload is
+    /// already in flight.
     var canSave: Bool {
-        !isSaving && !isUploadingAvatar
+        !isSaving && !isUploadingAvatar && !isUploadingBanner
     }
 
     /// Whether the avatar was changed in this session (set or removed). Tracked so
@@ -106,6 +114,11 @@ final class EditProfileViewModel {
     /// it (passing `nil` otherwise leaves the server value unchanged).
     @ObservationIgnored
     private var avatarEdited = false
+
+    /// Whether the banner was changed in this session (set or removed). Mirrors
+    /// `avatarEdited` — `saveProfile` only sends `banner` when truly edited.
+    @ObservationIgnored
+    private var bannerEdited = false
 
     // MARK: Avatar
 
@@ -144,6 +157,43 @@ final class EditProfileViewModel {
         avatarEdited = true
     }
 
+    // MARK: Banner
+
+    /// Uploads picked image data as the account's new banner. Encodes to JPEG
+    /// (quality 0.85, matching the avatar upload) and uploads via the account's
+    /// `LemmyService`, then points `bannerUrl` at the uploaded image.
+    func uploadBanner(imageData: Data) async {
+        guard let image = UIImage(data: imageData) else { return }
+        let jpegData = image.jpegData(compressionQuality: 0.85) ?? imageData
+        let fileName = "banner-\(UUID().uuidString).jpg"
+
+        isUploadingBanner = true
+        defer { isUploadingBanner = false }
+
+        do {
+            let url = try await accountScope.lemmyService.uploadImage(
+                imageData: jpegData,
+                fileName: fileName,
+                mimeType: "image/jpeg"
+            )
+            bannerUrl = url
+            bannerEdited = true
+        } catch {
+            logger.error("Banner upload failed: \(String(describing: error), privacy: .public)")
+            saveState = .failed(NSLocalizedString(
+                "Couldn't upload the banner. Please try again.",
+                comment: "Edit Profile banner upload error"
+            ))
+        }
+    }
+
+    /// Clears the banner. The empty string is sent to the server on save, which
+    /// removes the banner there too.
+    func removeBanner() {
+        bannerUrl = nil
+        bannerEdited = true
+    }
+
     // MARK: Save
 
     /// Pushes the edited profile to the server, then signals the host to dismiss
@@ -152,10 +202,13 @@ final class EditProfileViewModel {
         guard canSave else { return }
         saveState = .saving
 
-        // Only send the avatar field when it was actually changed; passing nil
-        // leaves the server's avatar untouched. A removed avatar is sent as "".
+        // Only send the avatar/banner fields when actually changed; passing nil
+        // leaves the server value untouched. A removed image is sent as "".
         let avatarToSend: String? = avatarEdited
             ? (avatarUrl?.absoluteString ?? "")
+            : nil
+        let bannerToSend: String? = bannerEdited
+            ? (bannerUrl?.absoluteString ?? "")
             : nil
 
         do {
@@ -163,7 +216,7 @@ final class EditProfileViewModel {
                 displayName: displayName,
                 bio: bio,
                 avatar: avatarToSend,
-                banner: nil, // TODO: Task 4 will wire the banner field from the editor
+                banner: bannerToSend,
                 showScores: showScores,
                 showBotAccounts: showBotAccounts,
                 showReadPosts: showReadPosts,
