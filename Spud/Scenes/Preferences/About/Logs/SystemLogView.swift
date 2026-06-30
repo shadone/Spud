@@ -366,7 +366,7 @@ private enum SystemLogLevel: String, CaseIterable, Identifiable {
 
 // MARK: - Comparable conformance for OSLogEntryLog.Level
 
-extension OSLogEntryLog.Level: Comparable {
+extension OSLogEntryLog.Level: @retroactive Comparable {
     public static func < (lhs: OSLogEntryLog.Level, rhs: OSLogEntryLog.Level) -> Bool {
         lhs.rawValue < rhs.rawValue
     }
