@@ -25,6 +25,15 @@ struct DiagnosticLogView: View {
         self.appDatabase = appDatabase
     }
 
+    /// Test-only initialiser — accepts a pre-built `DiagnosticLogViewModel` whose
+    /// `startObserving(appDatabase:)` the caller has already invoked.  This lets
+    /// snapshot tests seed the DB and start the observation before the view appears,
+    /// so they don't depend on SwiftUI's `.task` firing (which requires a live window).
+    init(viewModel: DiagnosticLogViewModel, appDatabase: AppDatabase) {
+        _viewModel = State(initialValue: viewModel)
+        self.appDatabase = appDatabase
+    }
+
     var body: some View {
         List {
             filterSection
