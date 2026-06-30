@@ -47,7 +47,7 @@ final class PostListNsfwBlurLogicTests: XCTestCase {
             with: makeViewModel(isNsfw: true, blurNsfw: true, isRevealed: false),
             imageService: StaticImageService()
         )
-        XCTAssertTrue(cell.thumbnailView.isBlurred)
+        XCTAssertTrue(cell.postContentView.thumbnailView.isBlurred)
     }
 
     func test_cell_isNotBlurred_whenRevealed() {
@@ -57,7 +57,7 @@ final class PostListNsfwBlurLogicTests: XCTestCase {
             with: makeViewModel(isNsfw: true, blurNsfw: true, isRevealed: true),
             imageService: StaticImageService()
         )
-        XCTAssertFalse(cell.thumbnailView.isBlurred)
+        XCTAssertFalse(cell.postContentView.thumbnailView.isBlurred)
     }
 
     // MARK: - Helpers

@@ -8,41 +8,48 @@ import SpudDataKit
 import UIKit
 
 /// An activity timeline row for a comment: the `ActivityActionHeaderView` verb
-/// chip ("You commented · 2h") above a reused `SearchCommentCell` (the existing
-/// comment-with-context row), rather than a hand-rolled label stack.
+/// chip ("You commented · 2h") above a reused `SearchCommentContentView` (the
+/// existing comment-with-context rendering), rather than a hand-rolled label
+/// stack.
+///
+/// The comment rendering is the SHARED `SearchCommentContentView` — the same view
+/// the Search results cell hosts — so any future change to comment rendering is
+/// shared. Critically it is a plain content `UIView`, not a nested
+/// `UITableViewCell`: a nested cell's own `contentView` is attached by
+/// autoresizing mask, which severs the Auto Layout height chain and collapses the
+/// embedded content to ~0pt. Hosting the content view directly lets its intrinsic
+/// height drive the row.
 ///
 /// VoiceOver treats the whole row as one element with a composed label (see
-/// `ActivityRowAccessibility`); the inner cell's elements are hidden.
+/// `ActivityRowAccessibility`); the inner content's elements are hidden.
 final class ActivityCommentRowCell: UITableViewCell {
     static let reuseIdentifier = "ActivityCommentRowCell"
 
     private let actionHeader = ActivityActionHeaderView()
-    /// The reused search comment cell (body over a context line). Embedded rather
-    /// than forked so any future change to comment rendering is shared.
-    private let commentCell = SearchCommentCell(style: .default, reuseIdentifier: nil)
+    /// The reused search comment rendering (body over a context line). Hosted
+    /// rather than forked so any future change to comment rendering is shared.
+    private let commentContentView = SearchCommentContentView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
 
+        selectionStyle = .none
+
         actionHeader.translatesAutoresizingMaskIntoConstraints = false
-        commentCell.translatesAutoresizingMaskIntoConstraints = false
-        commentCell.contentView.backgroundColor = .clear
-        // The embedded comment cell's own disclosure chevron would be redundant
-        // (the whole container row is the tap target), so drop it.
-        commentCell.accessoryType = .none
+        commentContentView.translatesAutoresizingMaskIntoConstraints = false
 
         contentView.addSubview(actionHeader)
-        contentView.addSubview(commentCell)
+        contentView.addSubview(commentContentView)
 
         NSLayoutConstraint.activate([
             actionHeader.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
             actionHeader.leadingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.leadingAnchor),
             actionHeader.trailingAnchor.constraint(lessThanOrEqualTo: contentView.layoutMarginsGuide.trailingAnchor),
 
-            commentCell.topAnchor.constraint(equalTo: actionHeader.bottomAnchor, constant: 2),
-            commentCell.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            commentCell.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            commentCell.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            commentContentView.topAnchor.constraint(equalTo: actionHeader.bottomAnchor, constant: 2),
+            commentContentView.leadingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.leadingAnchor),
+            commentContentView.trailingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.trailingAnchor),
+            commentContentView.bottomAnchor.constraint(equalTo: contentView.layoutMarginsGuide.bottomAnchor),
         ])
     }
 
@@ -53,13 +60,16 @@ final class ActivityCommentRowCell: UITableViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
+        // Reset the shared comment rendering so a recycled container starts clean
+        // (mirrors `ActivityPostRowCell`).
+        commentContentView.prepareForReuse()
         accessibilityLabel = nil
         accessibilityHint = nil
     }
 
-    /// Configures the header, the reused comment cell (body + an Activity-specific
-    /// "<community> · <post title>" context line), and the composed VoiceOver
-    /// label. `hint` describes the tap action.
+    /// Configures the header, the reused comment rendering (body + an
+    /// Activity-specific "<community> · <post title>" context line), and the
+    /// composed VoiceOver label. `hint` describes the tap action.
     func configure(item: ActivityItem, comment: ActivityCommentRow, hint: String) {
         actionHeader.configure(act: item.act, occurredAt: item.occurredAt)
 
@@ -69,7 +79,7 @@ final class ActivityCommentRowCell: UITableViewCell {
         } else {
             context = "\(comment.communityName) · \(comment.parentPostTitle)"
         }
-        commentCell.configure(content: comment.body, context: context)
+        commentContentView.configure(content: comment.body, context: context)
 
         isAccessibilityElement = true
         accessibilityTraits = .button
@@ -79,7 +89,7 @@ final class ActivityCommentRowCell: UITableViewCell {
             comment: comment
         )
         accessibilityHint = hint
-        commentCell.accessibilityElementsHidden = true
+        commentContentView.accessibilityElementsHidden = true
         actionHeader.accessibilityElementsHidden = true
     }
 }

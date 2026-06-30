@@ -8,46 +8,53 @@ import SpudDataKit
 import UIKit
 
 /// An activity timeline row for a post: the `ActivityActionHeaderView` verb chip
-/// ("You upvoted · 2h") above a fully-featured `PostListPostCell` render, so the
-/// row shows the same thumbnail, body preview, vote arrows, NSFW blur, and
-/// status badges as the feed (rather than a hand-rolled label stack). The inner
-/// feed cell is reused, not forked - the view controller configures it through
-/// the exposed `postCell` exactly as the feed and Person screens do.
+/// ("You upvoted · 2h") above a fully-featured `PostListPostContentView` render,
+/// so the row shows the same thumbnail, body preview, vote arrows, NSFW blur, and
+/// status badges as the feed (rather than a hand-rolled label stack).
+///
+/// The post rendering is the SHARED `PostListPostContentView` — the exact view
+/// the feed cell hosts — configured by the view controller through the exposed
+/// `postContentView` the same way the feed and Person screens do. Critically it
+/// is a plain content `UIView`, not a nested `UITableViewCell`: a nested cell's
+/// own `contentView` is attached by autoresizing mask, which severs the Auto
+/// Layout height chain and collapses the embedded content to ~0pt. Hosting the
+/// content view directly lets its intrinsic height drive the row.
 ///
 /// VoiceOver treats the whole row as a single element with a composed label (see
-/// `ActivityRowAccessibility`); the inner cell's own elements are hidden so the
+/// `ActivityRowAccessibility`); the inner content's own elements are hidden so the
 /// score/▲▼ glyphs are not read as "black up-pointing triangle".
 final class ActivityPostRowCell: UITableViewCell {
     static let reuseIdentifier = "ActivityPostRowCell"
 
-    /// The reused feed cell. Exposed so the view controller can configure its
-    /// view model, callbacks (vote / media / reveal), and swipe actions directly,
+    /// The reused feed post rendering. Exposed so the view controller can
+    /// configure its view model and callbacks (vote / media / reveal) directly,
     /// mirroring `PersonViewController.makePostCell`.
-    let postCell = PostListPostCell(style: .default, reuseIdentifier: nil)
+    let postContentView = PostListPostContentView()
 
     private let actionHeader = ActivityActionHeaderView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
 
+        selectionStyle = .none
+
         actionHeader.translatesAutoresizingMaskIntoConstraints = false
-        postCell.translatesAutoresizingMaskIntoConstraints = false
-        postCell.contentView.backgroundColor = .clear
+        postContentView.translatesAutoresizingMaskIntoConstraints = false
 
         contentView.addSubview(actionHeader)
-        contentView.addSubview(postCell)
+        contentView.addSubview(postContentView)
 
         NSLayoutConstraint.activate([
-            // The header is indented to line up with the feed cell's content,
-            // which sits 16pt inside its leading edge (SwipeActionView margin).
+            // The header is indented to line up with the feed content, which sits
+            // 16pt inside its leading edge (the content view's own margin).
             actionHeader.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 10),
             actionHeader.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
             actionHeader.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -16),
 
-            postCell.topAnchor.constraint(equalTo: actionHeader.bottomAnchor),
-            postCell.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
-            postCell.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
-            postCell.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            postContentView.topAnchor.constraint(equalTo: actionHeader.bottomAnchor),
+            postContentView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            postContentView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            postContentView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
         ])
     }
 
@@ -58,16 +65,16 @@ final class ActivityPostRowCell: UITableViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
-        // Reset the inner feed cell (cancels its thumbnail load and clears its
+        // Reset the shared rendering (cancels its thumbnail load and clears its
         // callbacks) so a recycled container starts clean.
-        postCell.prepareForReuse()
+        postContentView.prepareForReuse()
         accessibilityLabel = nil
         accessibilityHint = nil
     }
 
     /// Configures the action header and the composed VoiceOver label. The inner
-    /// `postCell` is configured separately by the view controller (view model +
-    /// callbacks). `postSummary` is the reused `PostListPostViewModel`
+    /// `postContentView` is configured separately by the view controller (view
+    /// model + callbacks). `postSummary` is the reused `PostListPostViewModel`
     /// accessibility label; `hint` describes the tap action.
     func configure(item: ActivityItem, postSummary: String, hint: String) {
         actionHeader.configure(act: item.act, occurredAt: item.occurredAt)
@@ -80,9 +87,9 @@ final class ActivityPostRowCell: UITableViewCell {
             postSummary: postSummary
         )
         accessibilityHint = hint
-        // The row is one element; keep VoiceOver out of the inner cell's
+        // The row is one element; keep VoiceOver out of the inner content's
         // thumbnail / vote-arrow / score sub-elements.
-        postCell.accessibilityElementsHidden = true
+        postContentView.accessibilityElementsHidden = true
         actionHeader.accessibilityElementsHidden = true
     }
 }

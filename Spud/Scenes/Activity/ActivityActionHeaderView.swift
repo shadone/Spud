@@ -18,6 +18,11 @@ class ActivityActionHeaderView: UIView {
         iv.translatesAutoresizingMaskIntoConstraints = false
         iv.contentMode = .scaleAspectFit
         iv.tintColor = .secondaryLabel
+        // Scale the glyph with the footnote text style so it tracks the label
+        // under Dynamic Type (including the accessibility sizes) rather than
+        // staying a fixed dot beside enlarged text.
+        iv.preferredSymbolConfiguration = UIImage.SymbolConfiguration(textStyle: .footnote)
+        iv.adjustsImageSizeForAccessibilityContentSizeCategory = true
         return iv
     }()
 
@@ -25,7 +30,11 @@ class ActivityActionHeaderView: UIView {
         let l = UILabel()
         l.translatesAutoresizingMaskIntoConstraints = false
         l.font = .preferredFont(forTextStyle: .footnote)
+        // Honor Dynamic Type: the verb chip is app chrome and must scale with the
+        // user's preferred text size (the post body uses Spud's own text-scale).
+        l.adjustsFontForContentSizeCategory = true
         l.textColor = .secondaryLabel
+        l.numberOfLines = 0
         return l
     }()
 
@@ -50,6 +59,11 @@ class ActivityActionHeaderView: UIView {
     // MARK: Private
 
     private func setup() {
+        // Keep the glyph at its intrinsic (symbol-config) size so it scales with
+        // Dynamic Type; never let the stack stretch or squeeze it.
+        iconView.setContentHuggingPriority(.required, for: .horizontal)
+        iconView.setContentCompressionResistancePriority(.required, for: .horizontal)
+
         let stack = UIStackView(arrangedSubviews: [iconView, label])
         stack.translatesAutoresizingMaskIntoConstraints = false
         stack.axis = .horizontal
@@ -58,8 +72,6 @@ class ActivityActionHeaderView: UIView {
 
         addSubview(stack)
         NSLayoutConstraint.activate([
-            iconView.widthAnchor.constraint(equalToConstant: 13),
-            iconView.heightAnchor.constraint(equalToConstant: 13),
             stack.leadingAnchor.constraint(equalTo: leadingAnchor),
             stack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor),
             stack.topAnchor.constraint(equalTo: topAnchor),

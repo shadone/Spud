@@ -315,9 +315,10 @@ class ActivityViewController: UIViewController {
         }
     }
 
-    /// Configures a reused `PostListPostCell` (inside the action-header container)
-    /// exactly as the feed / Person screen do: the same view model, callbacks
-    /// (vote / media / reveal), so a post row looks and behaves like a feed row.
+    /// Configures the reused `PostListPostContentView` (inside the action-header
+    /// container) exactly as the feed / Person screen do: the same view model,
+    /// callbacks (vote / media / reveal), so a post row looks and behaves like a
+    /// feed row.
     private func makePostCell(
         _ tableView: UITableView,
         indexPath: IndexPath,
@@ -337,19 +338,19 @@ class ActivityViewController: UIViewController {
             blurNsfw: preferencesService.blurNsfw,
             isRevealed: revealedNsfwPostIds.contains(serverPostId)
         )
-        container.postCell.configure(with: cellViewModel, imageService: imageService)
+        container.postContentView.configure(with: cellViewModel, imageService: imageService)
         container.configure(
             item: item,
             postSummary: cellViewModel.accessibilityLabel,
             hint: cellViewModel.accessibilityHint
         )
 
-        container.postCell.revealNsfwTapped = { [weak self] in
+        container.postContentView.revealNsfwTapped = { [weak self] in
             guard let self else { return }
             revealedNsfwPostIds.insert(serverPostId)
             reconfigureVisibleItems()
         }
-        container.postCell.imageTapped = { [weak self] imageUrl, thumbnailUrl, thumbnailImage in
+        container.postContentView.imageTapped = { [weak self] imageUrl, thumbnailUrl, thumbnailImage in
             guard let self else { return }
             presentMediaViewer(
                 imageUrl: imageUrl,
@@ -360,13 +361,13 @@ class ActivityViewController: UIViewController {
                 dependencies: dependencies.own
             )
         }
-        container.postCell.videoTapped = { [weak self] videoUrl in
+        container.postContentView.videoTapped = { [weak self] videoUrl in
             self?.presentVideoPlayer(url: videoUrl)
         }
-        container.postCell.linkTapped = { [weak self] linkUrl in
+        container.postContentView.linkTapped = { [weak self] linkUrl in
             self?.openExternalLink(linkUrl)
         }
-        container.postCell.voteTapped = { [weak self] action in
+        container.postContentView.voteTapped = { [weak self] action in
             guard let self else { return }
             Task { await self.vote(serverPostId: serverPostId, action: action) }
         }

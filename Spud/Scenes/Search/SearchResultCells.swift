@@ -337,44 +337,27 @@ final class SearchUserCell: UITableViewCell {
 // MARK: - Comment result cell
 
 /// Comment search result: the comment body above its post-title context.
+///
+/// The rendering is the shared `SearchCommentContentView` (also hosted by the
+/// Activity timeline's comment row), pinned to the cell's content layout-margins
+/// guide so the inset matches the other search cells.
 final class SearchCommentCell: UITableViewCell {
     static let reuseIdentifier = "SearchCommentCell"
 
-    private let contentLabel: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.numberOfLines = 3
-        label.font = .preferredFont(forTextStyle: .body)
-        label.adjustsFontForContentSizeCategory = true
-        return label
-    }()
-
-    private let contextLabel: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.numberOfLines = 1
-        label.font = .preferredFont(forTextStyle: .footnote)
-        label.textColor = .secondaryLabel
-        label.adjustsFontForContentSizeCategory = true
-        return label
-    }()
+    private let commentContentView = SearchCommentContentView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         accessoryType = .disclosureIndicator
 
-        let textStack = UIStackView(arrangedSubviews: [contentLabel, contextLabel])
-        textStack.translatesAutoresizingMaskIntoConstraints = false
-        textStack.axis = .vertical
-        textStack.spacing = 4
-
-        contentView.addSubview(textStack)
+        commentContentView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(commentContentView)
 
         NSLayoutConstraint.activate([
-            textStack.leadingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.leadingAnchor),
-            textStack.trailingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.trailingAnchor),
-            textStack.topAnchor.constraint(equalTo: contentView.layoutMarginsGuide.topAnchor),
-            textStack.bottomAnchor.constraint(equalTo: contentView.layoutMarginsGuide.bottomAnchor),
+            commentContentView.leadingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.leadingAnchor),
+            commentContentView.trailingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.trailingAnchor),
+            commentContentView.topAnchor.constraint(equalTo: contentView.layoutMarginsGuide.topAnchor),
+            commentContentView.bottomAnchor.constraint(equalTo: contentView.layoutMarginsGuide.bottomAnchor),
         ])
     }
 
@@ -384,7 +367,7 @@ final class SearchCommentCell: UITableViewCell {
     }
 
     func configure(with result: SearchCommentResult) {
-        configure(
+        commentContentView.configure(
             content: result.content,
             context: String(
                 format: NSLocalizedString(
@@ -395,14 +378,5 @@ final class SearchCommentCell: UITableViewCell {
                 result.postTitle
             )
         )
-    }
-
-    /// Renders a comment body above an arbitrary context line. The
-    /// `SearchCommentResult` overload builds its `<author> on "<post>"` context on
-    /// top of this; other callers (e.g. the Activity timeline) supply their own
-    /// context, so the cell is reused rather than forked.
-    func configure(content: String, context: String) {
-        contentLabel.text = content
-        contextLabel.text = context
     }
 }

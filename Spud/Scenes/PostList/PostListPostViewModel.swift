@@ -237,7 +237,7 @@ struct PostListPostViewModel {
         // The lone breaking opportunity in the subtitle: when the line is too
         // narrow for the whole thing, it wraps here — dropping the fixed-width
         // metadata to a second line and leaving the variable-width community
-        // handle on the first. See `PostListPostCell.subtitleLabel`.
+        // handle on the first. See `PostListPostContentView.subtitleLabel`.
         let handleSpace = NSAttributedString(string: "  ", attributes: secondaryAttributes)
         // Non-breaking double-space keeps the metadata run (score, comments,
         // age, and any saved/badge markers) together as one unbreakable unit so

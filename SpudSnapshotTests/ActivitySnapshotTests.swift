@@ -52,6 +52,44 @@ final class ActivitySnapshotTests: XCTestCase {
         )
     }
 
+    /// Anti-collapse guard. A populated post row must render at full feed-cell
+    /// height, not the header-only strip the old nested-`UITableViewCell` layout
+    /// produced (~26pt: just "You upvoted · 2h"). If a future change re-collapses
+    /// the row, this fails loudly instead of letting a re-recorded snapshot
+    /// silently capture the regression. A real comfortable row is ~112pt.
+    func test_postRow_doesNotCollapse() async {
+        let cell = await renderPostRow(item: upvotePostItem())
+        let rowHeight = measuredHeight(of: cell.contentView)
+
+        // The action header alone (verb chip + relative time) is the collapsed
+        // height; a populated row stacks the full post rendering beneath it.
+        let header = ActivityActionHeaderView()
+        header.configure(act: .upvote, occurredAt: referenceDate)
+        let headerHeight = measuredHeight(of: header)
+
+        XCTAssertGreaterThan(
+            rowHeight, 60,
+            "Populated post row collapsed to \(rowHeight)pt - the reused post rendering isn't driving the row height"
+        )
+        XCTAssertGreaterThan(
+            rowHeight, headerHeight + 40,
+            "Populated post row (\(rowHeight)pt) is barely taller than its action header (\(headerHeight)pt) - the post content isn't rendering"
+        )
+    }
+
+    /// Width-pinned `systemLayoutSizeFitting` height, the same measurement the
+    /// snapshot harness and the table view's automatic-dimension use.
+    private func measuredHeight(of view: UIView) -> CGFloat {
+        view.frame = CGRect(x: 0, y: 0, width: width, height: 3000)
+        view.setNeedsLayout()
+        view.layoutIfNeeded()
+        return view.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+    }
+
     // MARK: - Composed comment rows
 
     func test_commentRow_commented() async {
@@ -174,7 +212,7 @@ final class ActivitySnapshotTests: XCTestCase {
         cell.contentView.backgroundColor = .systemBackground
 
         let viewModel = makePostViewModel(row: row)
-        cell.postCell.configure(with: viewModel, imageService: ScriptedImageService([.failure]))
+        cell.postContentView.configure(with: viewModel, imageService: ScriptedImageService([.failure]))
         cell.configure(item: item, postSummary: viewModel.accessibilityLabel, hint: viewModel.accessibilityHint)
         try? await Task.sleep(nanoseconds: 80_000_000)
         await Task.yield()
