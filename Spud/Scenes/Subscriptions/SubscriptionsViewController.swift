@@ -19,6 +19,7 @@ class SubscriptionsViewController: UIViewController {
     typealias NestedDependencies =
         PostListViewController.Dependencies &
         CommunityOrLoadingViewController.Dependencies &
+        CommunityReadingSplitViewController.Dependencies &
         DiscoverViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
@@ -148,13 +149,32 @@ class SubscriptionsViewController: UIViewController {
             // Open the full community screen (header + feed), not the bare
             // post list, so subscribe/unsubscribe and the community header are
             // available from the sidebar too.
-            let communityVC = CommunityOrLoadingViewController(
-                communityName: row.name,
-                instance: row.instanceActorId,
-                accountKeychainId: accountKeychainId,
-                dependencies: dependencies.nested
-            )
-            navigationController?.pushViewController(communityVC, animated: true)
+            //
+            // On iPad (regular width) push a two-column reading split — the
+            // community feed in the primary column, post detail in the secondary.
+            // `SubscriptionsViewController` is the Communities-tab nav root
+            // (full-screen, not inside a split primary column), so its
+            // `horizontalSizeClass` reliably reflects the window. In compact
+            // (iPhone, iPad multitasking) keep the single-column push; nesting a
+            // split inside a compact nav stack adds nothing and complicates back
+            // navigation.
+            if traitCollection.horizontalSizeClass == .regular {
+                let split = CommunityReadingSplitViewController(
+                    communityName: row.name,
+                    instance: row.instanceActorId,
+                    accountKeychainId: accountKeychainId,
+                    dependencies: dependencies.nested
+                )
+                navigationController?.pushViewController(split, animated: true)
+            } else {
+                let communityVC = CommunityOrLoadingViewController(
+                    communityName: row.name,
+                    instance: row.instanceActorId,
+                    accountKeychainId: accountKeychainId,
+                    dependencies: dependencies.nested
+                )
+                navigationController?.pushViewController(communityVC, animated: true)
+            }
 
         case .saved:
             let sortType = accountService.defaultSortType(forAccountKeychainId: accountKeychainId)
