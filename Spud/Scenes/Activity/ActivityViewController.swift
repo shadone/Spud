@@ -66,6 +66,8 @@ class ActivityViewController: UIViewController {
     private static let votedSparseThreshold = 5
 
     private let accountKeychainId: String
+    private let accountId: Int64
+    private let personRowId: Int64?
     private let viewModel: ActivityViewModel
 
     private var observationTask: Task<Void, Never>?
@@ -198,7 +200,7 @@ class ActivityViewController: UIViewController {
 
         let db = dependencies.appDatabase
         let serverPersonId = db.accountPersonServerIdSync(forKeychainId: accountKeychainId)
-        let personRowId = serverPersonId.flatMap {
+        let resolvedPersonRowId = serverPersonId.flatMap {
             db.personRowIdSync(forKeychainId: accountKeychainId, personId: $0)
         }
         let lemmyService = dependencies.accountService.scope(forAccountKeychainId: accountKeychainId).lemmyService
@@ -210,11 +212,13 @@ class ActivityViewController: UIViewController {
         }
         let coordinator = ActivityCoordinator(
             appDatabase: db,
-            personRowId: personRowId,
+            personRowId: resolvedPersonRowId,
             authoredSource: authoredSource
         )
-        let accountId = db.accountRowIdSync(forKeychainId: accountKeychainId) ?? 0
-        viewModel = ActivityViewModel(coordinator: coordinator, accountId: accountId, initialFilters: initialFilters)
+        let resolvedAccountId = db.accountRowIdSync(forKeychainId: accountKeychainId) ?? 0
+        accountId = resolvedAccountId
+        personRowId = resolvedPersonRowId
+        viewModel = ActivityViewModel(coordinator: coordinator, accountId: resolvedAccountId, initialFilters: initialFilters)
 
         super.init(nibName: nil, bundle: nil)
     }
@@ -237,6 +241,12 @@ class ActivityViewController: UIViewController {
         title = NSLocalizedString("Activity", comment: "Activity screen title")
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = true
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: NSLocalizedString("Summary", comment: "Activity nav bar Summary button"),
+            style: .plain,
+            target: self,
+            action: #selector(summaryButtonTapped)
+        )
 
         setupLayout()
         setupDataSource()
@@ -677,6 +687,20 @@ class ActivityViewController: UIViewController {
     @objc
     private func refreshTriggered() {
         viewModel.refresh()
+    }
+
+    @objc
+    private func summaryButtonTapped() {
+        openSummary()
+    }
+
+    private func openSummary() {
+        let summaryVC = SummaryViewController(
+            accountId: accountId,
+            personRowId: personRowId,
+            dependencies: dependencies.own
+        )
+        navigationController?.pushViewController(summaryVC, animated: true)
     }
 }
 
