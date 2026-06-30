@@ -538,23 +538,13 @@ class ActivityViewController: UIViewController {
     private func updateBanner(state: ActivityLoadState, filters: Set<ActivityFilterType>, itemCount: Int) {
         if state == .degraded {
             showBanner(
-                text: NSLocalizedString(
-                    "You're offline — showing what's on this device",
-                    comment: "Activity offline banner"
-                ),
-                actionTitle: NSLocalizedString("Retry", comment: "Activity offline banner retry button")
+                text: ActivityStateContent.offlineBannerText,
+                actionTitle: ActivityStateContent.offlineRetryTitle
             ) { [weak self] in
                 self?.viewModel.loadMore()
             }
         } else if filters.contains(.vote), itemCount > 0, itemCount < Self.votedSparseThreshold {
-            showBanner(
-                text: NSLocalizedString(
-                    "Votes start filling in now",
-                    comment: "Activity sparse-votes banner"
-                ),
-                actionTitle: nil,
-                action: nil
-            )
+            showBanner(text: ActivityStateContent.votedTitle, actionTitle: nil, action: nil)
         } else {
             hideBanner()
         }
@@ -577,44 +567,18 @@ class ActivityViewController: UIViewController {
         bannerView.isHidden = true
     }
 
-    /// The full-screen empty state, chosen from the active filters: the general
-    /// "Your story starts here" with escape hatches, the honest "Votes start
-    /// filling in now" first-run, or a generic per-filter empty.
+    /// The full-screen empty state, chosen from the active filters (see
+    /// `ActivityStateContent`). The general case's escape-hatch buttons get their
+    /// actions wired here.
     private func emptyBackgroundView(filters: Set<ActivityFilterType>) -> UIView {
-        var config = UIContentUnavailableConfiguration.empty()
+        var config = ActivityStateContent.emptyConfiguration(filters: filters)
         if filters.isEmpty {
-            config.image = UIImage(systemName: "sparkles")
-            config.text = NSLocalizedString("Your story starts here", comment: "Activity general empty title")
-            config.secondaryText = NSLocalizedString(
-                "Vote, comment, save, and read posts — what you do shows up here.",
-                comment: "Activity general empty message"
-            )
-            var browse = UIButton.Configuration.borderedProminent()
-            browse.title = NSLocalizedString("Browse communities", comment: "Activity empty: browse communities button")
-            config.button = browse
             config.buttonProperties.primaryAction = UIAction { [weak self] _ in
                 self?.browseCommunities()
             }
-            var saved = UIButton.Configuration.plain()
-            saved.title = NSLocalizedString("See saved", comment: "Activity empty: see saved button")
-            config.secondaryButton = saved
             config.secondaryButtonProperties.primaryAction = UIAction { [weak self] _ in
                 self?.seeSaved()
             }
-        } else if filters == [.vote] {
-            config.image = UIImage(systemName: "arrow.up.arrow.down")
-            config.text = NSLocalizedString("Votes start filling in now", comment: "Activity voted first-run title")
-            config.secondaryText = NSLocalizedString(
-                "Spud records the posts and comments you vote on from here on. Earlier votes aren't shown.",
-                comment: "Activity voted first-run message (forward-only, no version number)"
-            )
-        } else {
-            config.image = UIImage(systemName: "tray")
-            config.text = NSLocalizedString("Nothing here yet", comment: "Activity filtered empty title")
-            config.secondaryText = NSLocalizedString(
-                "Activity matching this filter will show up here.",
-                comment: "Activity filtered empty message"
-            )
         }
         return config.makeContentView()
     }
