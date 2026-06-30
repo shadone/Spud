@@ -5,8 +5,8 @@
 //
 
 import Foundation
+import SpudDataKit
 import Testing
-@testable import Spud
 
 struct PersonFormatterTests {
     @Test

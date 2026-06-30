@@ -33,6 +33,16 @@ public extension AppDatabase {
         let observation = ValueObservation
             .tracking { db -> SummaryStats in
                 // Server-sourced identity + karma ---------------------------------
+                // NOTE: We re-implement the person SELECT inline rather than
+                // composing `observePersonProfile`. `ValueObservation.tracking`
+                // requires all reads to happen within a single database transaction
+                // so that GRDB can record the observed tables atomically. Nesting
+                // one `ValueObservation` inside another's `tracking` closure is not
+                // supported — the inner observation would start its own transaction,
+                // breaking the atomicity guarantee and causing a runtime assertion.
+                // The inline 4-column projection is intentionally minimal; it mirrors
+                // the `COALESCE(displayName, name)` fallback that `PersonProfileRow`
+                // uses so the display name semantics are consistent.
                 let personRow = try Row.fetchOne(
                     db,
                     sql: """
