@@ -163,6 +163,7 @@ final class EditProfileViewModel {
                 displayName: displayName,
                 bio: bio,
                 avatar: avatarToSend,
+                banner: nil, // TODO: Task 4 will wire the banner field from the editor
                 showScores: showScores,
                 showBotAccounts: showBotAccounts,
                 showReadPosts: showReadPosts,
