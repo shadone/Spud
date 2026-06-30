@@ -70,7 +70,27 @@ class ActivityViewController: UIViewController {
     private let personRowId: Int64?
     private let viewModel: ActivityViewModel
 
+    /// Drives the four quick stats in the footprint rail. Reuses the exact view
+    /// model the Summary dashboard uses, so the formatted values are identical
+    /// (no forked formatters).
+    private lazy var summaryViewModel = SummaryViewModel(
+        appDatabase: appDatabase,
+        accountId: accountId,
+        personRowId: personRowId
+    )
+
+    /// When true (iPad split, where the Summary is pinned in the detail column),
+    /// the footprint rail is suppressed and the Summary nav button is hidden.
+    /// Defaults to `false`; only Task 3's container sets it `true`.
+    private var summaryIsPinned = false
+
+    /// Cached signature of the last composed table header (rail shown + measured
+    /// height + width), so a re-emission that doesn't change the header doesn't
+    /// reassign `tableHeaderView` and jolt the scroll position.
+    private var headerSignature: String?
+
     private var observationTask: Task<Void, Never>?
+    private var summaryObservationTask: Task<Void, Never>?
     private var displayPrefsObservationTasks: [Task<Void, Never>] = []
 
     /// Posts whose NSFW thumbnail the user revealed this session (by server post
@@ -90,6 +110,48 @@ class ActivityViewController: UIViewController {
         }
         return v
     }()
+
+    private lazy var footprintRailView: ActivityFootprintRailView = {
+        let v = ActivityFootprintRailView()
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.onTapSummary = { [weak self] in
+            self?.openSummary()
+        }
+        return v
+    }()
+
+    /// The header is a vertical stack with the filter bar always present and the
+    /// footprint rail conditionally beneath it. The container's height is sized
+    /// explicitly via `systemLayoutSizeFitting` (see `sizeAndAssignHeader`) - it
+    /// is NOT a magic number and grows with Dynamic Type.
+    private lazy var headerStack: UIStackView = {
+        let s = UIStackView(arrangedSubviews: [filterBarView])
+        s.translatesAutoresizingMaskIntoConstraints = false
+        s.axis = .vertical
+        return s
+    }()
+
+    private lazy var headerContainerView: UIView = {
+        let c = UIView()
+        c.addSubview(headerStack)
+        NSLayoutConstraint.activate([
+            headerStack.leadingAnchor.constraint(equalTo: c.leadingAnchor),
+            headerStack.trailingAnchor.constraint(equalTo: c.trailingAnchor),
+            headerStack.topAnchor.constraint(equalTo: c.topAnchor),
+            headerStack.bottomAnchor.constraint(equalTo: c.bottomAnchor),
+            // The filter bar (a horizontally-scrolling UIScrollView) has no
+            // intrinsic height, so pin it explicitly.
+            filterBarView.heightAnchor.constraint(equalToConstant: 50),
+        ])
+        return c
+    }()
+
+    private lazy var summaryButton = UIBarButtonItem(
+        title: NSLocalizedString("Summary", comment: "Activity nav bar Summary button"),
+        style: .plain,
+        target: self,
+        action: #selector(summaryButtonTapped)
+    )
 
     private lazy var tableView: UITableView = {
         let tv = UITableView(frame: .zero, style: .plain)
@@ -230,6 +292,7 @@ class ActivityViewController: UIViewController {
 
     deinit {
         observationTask?.cancel()
+        summaryObservationTask?.cancel()
         for task in displayPrefsObservationTasks {
             task.cancel()
         }
@@ -241,18 +304,15 @@ class ActivityViewController: UIViewController {
         title = NSLocalizedString("Activity", comment: "Activity screen title")
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = true
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: NSLocalizedString("Summary", comment: "Activity nav bar Summary button"),
-            style: .plain,
-            target: self,
-            action: #selector(summaryButtonTapped)
-        )
+        updateSummaryButtonVisibility()
 
         setupLayout()
         setupDataSource()
         startObservation()
+        startSummaryObservation()
         startDisplayObservations()
         viewModel.start()
+        summaryViewModel.start()
     }
 
     override func viewDidDisappear(_ animated: Bool) {
@@ -261,25 +321,114 @@ class ActivityViewController: UIViewController {
         // leaves the hierarchy (the view model's deinit also covers this).
         if isMovingFromParent || isBeingDismissed {
             viewModel.stop()
+            summaryViewModel.stop()
         }
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // Re-measure the header once the table has a real width (and again on
+        // rotation / size-class changes). The signature guard makes this a no-op
+        // when nothing changed.
+        sizeAndAssignHeader()
+    }
+
+    // MARK: Summary / footprint rail
+
+    /// Pins or unpins the Summary: when pinned (iPad split, Summary in the detail
+    /// column) the footprint rail is suppressed and the Summary nav button is
+    /// hidden. Defaults to unpinned; iPhone behavior is unchanged.
+    func setSummaryIsPinned(_ pinned: Bool) {
+        guard summaryIsPinned != pinned else { return }
+        summaryIsPinned = pinned
+        updateSummaryButtonVisibility()
+        rebuildTableHeader()
+    }
+
+    private func updateSummaryButtonVisibility() {
+        navigationItem.rightBarButtonItem = summaryIsPinned ? nil : summaryButton
+    }
+
+    /// Observes the Summary view model's `stats`, maps the first four tiles to
+    /// `FootprintStat`, and re-renders the rail. Re-uses `SummaryViewModel`'s
+    /// already-formatted values - no recomputation, no forked formatters.
+    private func startSummaryObservation() {
+        summaryObservationTask?.cancel()
+        let summaryViewModel = summaryViewModel
+        summaryObservationTask = Task { @MainActor [weak self] in
+            for await _ in ObservationStream.values(of: { summaryViewModel.stats }) {
+                if Task.isCancelled { break }
+                self?.applyFootprintStats()
+            }
+        }
+    }
+
+    private func applyFootprintStats() {
+        let footprint = (summaryViewModel.stats?.tiles.prefix(4) ?? []).map {
+            FootprintStat(value: $0.value, label: $0.label)
+        }
+        footprintRailView.configure(stats: Array(footprint), accent: preferencesService.accentColor.color)
+        // The rail height can change when stats first arrive (empty -> four
+        // columns), so re-measure the header.
+        rebuildTableHeader()
+    }
+
+    /// Rebuilds the header's structure (filter bar, plus the footprint rail when
+    /// `ActivityFootprintRail.isVisible` is true) and re-measures its height.
+    private func rebuildTableHeader() {
+        let showRail = ActivityFootprintRail.isVisible(
+            summaryIsPinned: summaryIsPinned,
+            activeFilters: viewModel.activeFilters,
+            defaultFilters: ActivityViewModel.defaultFilters,
+            hasSearchQuery: !viewModel.searchQuery.isEmpty,
+            hasContent: !viewModel.items.isEmpty
+        )
+
+        if showRail {
+            if footprintRailView.superview == nil {
+                headerStack.addArrangedSubview(footprintRailView)
+            }
+        } else if footprintRailView.superview != nil {
+            headerStack.removeArrangedSubview(footprintRailView)
+            footprintRailView.removeFromSuperview()
+        }
+
+        sizeAndAssignHeader()
+    }
+
+    /// The standard self-sizing `tableHeaderView` dance: measure the container at
+    /// the table's width with `systemLayoutSizeFitting`, set an explicit frame,
+    /// and (re)assign so the table picks up the height. Guarded by a signature so
+    /// it only reassigns when the rail visibility, width, or height changed.
+    private func sizeAndAssignHeader() {
+        let container = headerContainerView
+        let width = tableView.bounds.width > 0 ? tableView.bounds.width : view.bounds.width
+        guard width > 0 else { return }
+
+        container.frame.size.width = width
+        container.setNeedsLayout()
+        container.layoutIfNeeded()
+
+        let height = container.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        ).height
+
+        let signature = "\(footprintRailView.superview != nil)|\(Int(width.rounded()))|\(Int(height.rounded()))"
+        guard signature != headerSignature || tableView.tableHeaderView !== container else { return }
+        headerSignature = signature
+
+        container.frame = CGRect(x: 0, y: 0, width: width, height: height)
+        tableView.tableHeaderView = container
     }
 
     // MARK: Private
 
     private func setupLayout() {
-        let filterContainer = UIView()
-        filterContainer.translatesAutoresizingMaskIntoConstraints = false
-        filterContainer.addSubview(filterBarView)
-
-        NSLayoutConstraint.activate([
-            filterBarView.leadingAnchor.constraint(equalTo: filterContainer.leadingAnchor),
-            filterBarView.trailingAnchor.constraint(equalTo: filterContainer.trailingAnchor),
-            filterBarView.topAnchor.constraint(equalTo: filterContainer.topAnchor),
-            filterBarView.bottomAnchor.constraint(equalTo: filterContainer.bottomAnchor),
-            filterContainer.heightAnchor.constraint(equalToConstant: 50),
-        ])
-
-        tableView.tableHeaderView = filterContainer
+        // The composite header (filter bar + optional footprint rail) is sized
+        // explicitly once the table has a width (`viewDidLayoutSubviews`).
+        rebuildTableHeader()
 
         // A vertical layout: an optional banner (offline / sparse) above the
         // scrolling timeline. The banner collapses (zero height) when hidden.
@@ -478,6 +627,7 @@ class ActivityViewController: UIViewController {
                     continue
                 }
                 self?.reconfigureVisibleItems()
+                self?.applyFootprintStats()
             }
         })
     }
@@ -501,6 +651,9 @@ class ActivityViewController: UIViewController {
         dataSource.apply(snapshot, animatingDifferences: true)
 
         updateStates()
+        // Filter toggles, search-driven item changes, and empty<->non-empty
+        // transitions all flow through here; recompute the rail's visibility.
+        rebuildTableHeader()
     }
 
     /// Reconfigures the on-screen rows in place (e.g. after a display-preference
