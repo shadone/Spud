@@ -36,8 +36,10 @@ final class SummaryStatTileView: UIView {
             .preferredFontDescriptor(withTextStyle: .title2)
             .addingAttributes([
                 .featureSettings: [
-                    [UIFontDescriptor.FeatureKey.type: kNumberSpacingType,
-                     UIFontDescriptor.FeatureKey.selector: kMonospacedNumbersSelector],
+                    [
+                        UIFontDescriptor.FeatureKey.type: kNumberSpacingType,
+                        UIFontDescriptor.FeatureKey.selector: kMonospacedNumbersSelector,
+                    ],
                 ],
             ])
         l.font = UIFont(descriptor: descriptor, size: 0)

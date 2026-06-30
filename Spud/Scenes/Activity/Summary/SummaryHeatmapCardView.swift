@@ -138,7 +138,8 @@ final class SummaryHeatmapCardView: UIView {
 
     // MARK: Actions
 
-    @objc private func metricSegmentChanged() {
+    @objc
+    private func metricSegmentChanged() {
         let metrics = HeatmapMetric.allCases
         let index = metricControl.selectedSegmentIndex
         guard index >= 0, index < metrics.count else { return }
@@ -151,8 +152,8 @@ final class SummaryHeatmapCardView: UIView {
         if count >= 1_000_000 {
             let v = Double(count) / 1_000_000
             return String(format: "%.1fM", v)
-        } else if count >= 1_000 {
-            let v = Double(count) / 1_000
+        } else if count >= 1000 {
+            let v = Double(count) / 1000
             return String(format: "%.1fK", v)
         }
         return "\(count)"

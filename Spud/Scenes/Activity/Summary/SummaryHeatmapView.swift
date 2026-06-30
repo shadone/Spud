@@ -40,7 +40,7 @@ private final class HeatmapCellView: UIView {
         // Accessibility
         isAccessibilityElement = true
         let dateStr = dateFormatter.string(from: day.date)
-        if day.count == 0 {
+        if day.isEmpty {
             accessibilityLabel = String(
                 format: NSLocalizedString("%@, no activity", comment: "Heatmap cell accessibility label (no activity)"),
                 dateStr
@@ -110,12 +110,15 @@ final class SummaryHeatmapView: UIView {
     private static var gridWidth: CGFloat {
         CGFloat(weeksCount) * cellSize + CGFloat(weeksCount - 1) * cellGap
     }
+
     private static var gridHeight: CGFloat {
         CGFloat(daysPerWeek) * cellSize + CGFloat(daysPerWeek - 1) * cellGap
     }
+
     private static var totalWidth: CGFloat {
         dayLabelWidth + dayLabelGap + gridWidth
     }
+
     private static var totalHeight: CGFloat {
         monthLabelHeight + monthLabelGap + gridHeight + legendGap + legendHeight
     }
@@ -204,7 +207,7 @@ final class SummaryHeatmapView: UIView {
             }
         }
 
-        // Day labels: centred vertically on Mon/Wed/Fri rows (rows 0/2/4).
+        /// Day labels: centred vertically on Mon/Wed/Fri rows (rows 0/2/4).
         func yForDay(_ index: Int) -> CGFloat {
             gridTop + CGFloat(index) * (Self.cellSize + Self.cellGap)
         }

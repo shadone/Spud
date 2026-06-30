@@ -29,8 +29,8 @@ final class SummaryViewModel {
     private let personRowId: Int64?
     let asOf: Date
 
-    // `@ObservationIgnored` keeps these off the @Observable tracking
-    // machinery so the nonisolated `deinit` can cancel them safely.
+    /// `@ObservationIgnored` keeps these off the @Observable tracking
+    /// machinery so the nonisolated `deinit` can cancel them safely.
     @ObservationIgnored private var statsStreamTask: Task<Void, Never>?
 
     // MARK: Init
