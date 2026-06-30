@@ -10,18 +10,32 @@ The Activity screen shows a reverse-chronological timeline of everything the sig
 account has done: posts upvoted or downvoted, comments and posts authored, items saved,
 posts read, posts seen, and posts hidden. It supersedes the former History screen.
 
-The screen is reached from the Account tab via four shortcuts — "Saved", "Activity", "Your
-posts", and "Your comments" — each of which opens the same Activity screen but with a
-different filter preset active. Tapping "Saved" opens it with the Saved chip on; "Your
-posts" with Posts; "Your comments" with Comments; "Activity" opens it with no chips active
-(all types shown). The user can freely toggle any filter chips afterward.
+The screen is reached from the Account tab via three shortcuts — "Activity", "Your posts",
+and "Your comments" — each of which opens the same Activity screen but with a different
+filter preset active. "Your posts" opens it with the Posts chip on; "Your comments" with
+Comments; "Activity" opens it with no chips active (all types shown). The user can freely
+toggle any filter chips afterward. (The separate Account → "Saved" row does **not** open
+Activity — it opens the authoritative server-backed Saved feed; see below.)
 
 Each item in the timeline consists of a compact action header ("Upvoted · 3h ago") above
-either a post row or a comment row so you can see exactly what you acted on. Items are
-grouped by day (Today / Yesterday / day name within the past week / date string for older),
-with sticky section headers. A horizontally-scrollable filter chip bar below the navigation
+either a post row or a comment row so you can see exactly what you acted on. Post rows reuse
+the feed's post cell (thumbnail, body preview, vote arrows, NSFW blur, status badges) and
+comment rows reuse the search comment cell, so an activity row looks and behaves like its
+counterpart elsewhere in the app. Items are grouped by day (Today / Yesterday / day name
+within the past week / date string for older), with sticky section headers. A
+horizontally-scrollable filter chip bar (led by a funnel reset button) below the navigation
 bar lets you narrow the list to one or more action types. A search field narrows by title or
-body text. Tapping a row opens the post or comment's post in the detail view.
+body text. Pull-to-refresh re-fetches authored content, and the list honors the app's
+display-density preference. Tapping a row opens the post or comment's post in the detail view.
+
+## Saved is the server feed, not the Activity filter
+
+Activity exposes a **Saved** filter chip, but that view is a *local, best-effort* projection
+of saved items on this device — it can lag the server's saved set (e.g. items saved on
+another client, or before this device cached them). The authoritative list lives behind the
+Account tab's dedicated **"Saved"** row, which opens the server-backed `.saved` feed
+(`PostListViewController`), not Activity. The Activity empty state's "See saved" button and
+the Account "Saved" row both route there.
 
 ## Behavior and rules
 
@@ -71,8 +85,30 @@ body text. Tapping a row opens the post or comment's post in the detail view.
   Tapping a comment row calls the same method with the parent post id and passes
   `scrollToCommentId` so the detail view jumps to the comment.
 
-- **Empty state.** When the item list is empty (no local or authored activity yet), a
-  centered "No activity yet" label is shown.
+- **Snapshot-only voted comments can't be opened (Phase-1 limitation).** A comment you
+  voted on that isn't in the local cache is reconstructed from the vote-event snapshot,
+  which has no parent post id. Such a row still shows its body and score, but tapping it
+  does nothing (there's no post to open); its VoiceOver hint says it isn't available to
+  open. Once the comment's post is cached, the row becomes tappable.
+
+- **States.** The screen renders distinct states off the coordinator's load state and item
+  count:
+  - *Loading* — a spinner while the first authored page is in flight and nothing is shown yet.
+  - *General empty* ("Your story starts here") — no activity at all, with "Browse communities"
+    (switches to the Communities tab) and "See saved" (opens the server Saved feed) buttons.
+  - *Voted first run* ("Votes start filling in now") — the Votes filter is active but no votes
+    have been recorded yet; the copy is honest about votes being forward-only.
+  - *Filtered empty* ("Nothing here yet") — a specific filter matches nothing.
+  - *Offline banner* ("You're offline — showing what's on this device") — the authored fetch
+    failed (degraded); the local stream keeps showing and a Retry button re-attempts the page.
+  - *Sparse-votes banner* — the same "Votes start filling in now" note above a short
+    vote-filtered list.
+
+- **Accessibility.** Each timeline row is a single VoiceOver element with a composed label
+  ("You upvoted, 2h ago, <title>, in <community>, <score>, <comments>"); the inner cell's
+  glyph sub-elements are hidden so score/▲▼ are not read as "black up-pointing triangle".
+  Filter chips expose their on/off state via the selected trait and an "On"/"Off" value
+  (not by colour alone), with "<name>, filter" labels and a button trait.
 
 - **Account isolation.** The coordinator is constructed for a specific `accountKeychainId`;
   all queries are scoped to that account's person row and account id.
@@ -132,3 +168,18 @@ body text. Tapping a row opens the post or comment's post in the detail view.
 - **When** the list scrolls within 200 pt of the end
 - **Then** the next page of authored posts and comments is fetched
 - **And** newly loaded items appear above the old bottom as the merge frontier lowers
+
+### Account "Saved" opens the server feed, not Activity
+
+- **Given** I am signed in
+- **When** I tap the Account tab then tap "Saved"
+- **Then** the server-backed Saved feed opens (the authoritative saved list)
+- **And** it is the same feed reachable elsewhere, not the Activity screen's local Saved filter
+
+### Empty timeline offers a way forward
+
+- **Given** I am a brand-new signed-in user with no recorded activity
+- **When** I open Activity
+- **Then** I see "Your story starts here" with "Browse communities" and "See saved" buttons
+- **When** I tap "Browse communities"
+- **Then** the Communities tab is selected
