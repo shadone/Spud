@@ -27,6 +27,7 @@ class DiscoverViewController: UIViewController {
         HasPreferencesService
     typealias NestedDependencies =
         CommunityOrLoadingViewController.Dependencies &
+        CommunityReadingSplitViewController.Dependencies &
         InstanceDetailViewController.Dependencies
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
@@ -246,13 +247,27 @@ class DiscoverViewController: UIViewController {
             logger.error("Discover: could not parse instance from \(row.instanceHost, privacy: .public)")
             return
         }
-        let communityVC = CommunityOrLoadingViewController(
-            communityName: row.name,
-            instance: instance,
-            accountKeychainId: accountKeychainId,
-            dependencies: dependencies.nested
-        )
-        navigationController?.pushViewController(communityVC, animated: true)
+        // On iPad (regular width) push a two-column reading split — the community
+        // feed in the primary column, post detail in the secondary — matching the
+        // behaviour of the subscribed-community list in SubscriptionsViewController.
+        // In compact (iPhone, iPad multitasking) keep the single-column push.
+        if traitCollection.horizontalSizeClass == .regular {
+            let split = CommunityReadingSplitViewController(
+                communityName: row.name,
+                instance: instance,
+                accountKeychainId: accountKeychainId,
+                dependencies: dependencies.nested
+            )
+            navigationController?.pushViewController(split, animated: true)
+        } else {
+            let communityVC = CommunityOrLoadingViewController(
+                communityName: row.name,
+                instance: instance,
+                accountKeychainId: accountKeychainId,
+                dependencies: dependencies.nested
+            )
+            navigationController?.pushViewController(communityVC, animated: true)
+        }
     }
 }
 
