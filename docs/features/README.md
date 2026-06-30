@@ -79,7 +79,8 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Subscribe / unsubscribe](subscribe-unsubscribe.md) | `iphone`, `ipad` | shipped |
 | [Community screen](community-screen.md) | `iphone`, `ipad` | shipped — overflow: subscribe, favorite, mute, block, share |
 | [Person / user profile](person-profile.md) | `iphone`, `ipad` | shipped — Posts tab renders with the feed cell (vote / save, live state) |
-| [Accounts and switching](accounts-and-switching.md) | `iphone`, `ipad` | shipped — signed-in Account tab is a profile header + shortcuts list (Switch account / Saved / History / Your posts / Your comments / Log out) |
+| [Accounts and switching](accounts-and-switching.md) | `iphone`, `ipad` | shipped — signed-in Account tab is a profile header + shortcuts list (Switch account / Saved / Activity / Your posts / Your comments / Log out) |
+| [Account Activity](account-activity.md) | `iphone`, `ipad` | shipped (Phase 1) — reverse-chronological timeline of everything the signed-in account has done (authored posts + comments, upvoted/downvoted, saved, read, seen, hidden); rows reuse feed/search cells; filter chip bar (7 types); search; day-based grouping; states + pull-to-refresh; infinite scroll; Your posts/Your comments/Activity open it pre-filtered (the Saved row opens the server saved feed) |
 | [Edit your profile](profile-editing.md) | `iphone`, `ipad` | shipped — display name, bio, avatar + banner (live-preview header, pict-rs upload, remove) + server-synced toggles (scores / bots / read posts / avatars) + default feed |
 | [Signed-out browsing](signed-out-browsing.md) | `iphone`, `ipad` | shipped — signed-out Account tab is a grouped "Browsing anonymously" screen (Reading-from row, Create account / Log in, Settings) |
 | [Login](login.md) | `iphone`, `ipad` | shipped — incl. two-factor (TOTP) sign-in |
@@ -161,7 +162,8 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 
 **Account & auth**
 - [x] Multi-account, multi-instance + account switcher
-- [x] Account tab — signed-in home: tappable profile header (banner + avatar + display name + handle -> Edit your profile) over a shortcuts list (Switch account, Saved, History, Your posts, Your comments, Log out), Settings in the nav bar (accounts-and-switching.md)
+- [x] Account tab — signed-in home: tappable profile header (banner + avatar + display name + handle -> Edit your profile) over a shortcuts list (Switch account, Saved, Activity, Your posts, Your comments, Log out), Settings in the nav bar (accounts-and-switching.md)
+- [x] Account Activity — reverse-chronological timeline of posts/comments authored, upvoted/downvoted, saved, read, seen, hidden; rows reuse the feed/search cells; 7-type filter chip bar (funnel reset) with preset filters from Account tab shortcuts (Your posts/Your comments open it pre-filtered; the Saved row opens the server saved feed instead); search; day-based grouping; states (empty/loading/offline/voted-first-run); pull-to-refresh; infinite scroll (account-activity.md)
 - [x] Edit your profile — display name, bio, avatar + banner (pict-rs upload; live-preview header mirrors the public person profile; remove clears from the server; no in-app cropping), plus the server-synced account toggles (show scores / bot accounts / read posts / others' avatars) and default feed; saved via `save_user_settings` then refreshed; banner also shown in Account tab header (profile-editing.md)
 - [x] Signed-out browsing (bootstrap account) — signed-out Account tab is a grouped "Browsing anonymously" screen: guest header, Reading-from / change-server row, Create account / Log in, Settings (signed-out-browsing.md)
 - [x] Login — incl. two-factor (TOTP) sign-in (code collected and sent; a 2FA-required login auto-prompts for the code)

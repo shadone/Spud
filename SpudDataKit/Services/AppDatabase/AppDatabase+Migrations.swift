@@ -736,6 +736,43 @@ extension AppDatabase {
             try db.create(index: "index_diagnosticEvent_on_timestamp", on: "diagnosticEvent", columns: ["timestamp"])
         }
 
+        migrator.registerMigration("v27_voteEvent") { db in
+            // Forward-only log of votes cast by this account. One row per
+            // (accountId, entityType, entityServerId); upserted on each vote
+            // change and deleted on neutral (vote removed) or permanent outbox
+            // rollback. Snapshot columns let the Activity timeline render entries
+            // after the originating post/comment cache row is evicted.
+            try db.create(table: "voteEvent") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("accountId", .integer)
+                    .notNull()
+                    .references("account", onDelete: .cascade)
+                t.column("entityType", .text).notNull()
+                t.column("entityServerId", .integer).notNull()
+                t.column("voteAction", .integer).notNull()
+                t.column("votedAt", .double).notNull()
+                t.column("title", .text)
+                t.column("body", .text)
+                t.column("communityName", .text)
+                t.column("communityActorId", .text)
+                t.column("thumbnailUrl", .text)
+                t.column("score", .integer)
+            }
+            // One row per voted entity per account; upsert key.
+            try db.create(
+                index: "index_voteEvent_unique",
+                on: "voteEvent",
+                columns: ["accountId", "entityType", "entityServerId"],
+                unique: true
+            )
+            // Activity timeline sorts by votedAt.
+            try db.create(
+                index: "index_voteEvent_on_votedAt",
+                on: "voteEvent",
+                columns: ["votedAt"]
+            )
+        }
+
         return migrator
     }
 }

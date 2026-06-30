@@ -1498,6 +1498,21 @@ public actor LemmyService: LemmyServiceType {
             entityServerId: Int64(serverPostId),
             desiredState: .vote(desired)
         ))
+
+        // Log the vote for the Activity timeline (best-effort: never throws to the caller).
+        if let (accountRowId, _) = try? await accountSiteIds() {
+            let snapshot = try? await appDatabase.postVoteSnapshot(
+                forAccountKeychainId: accountIdentifierForLogging,
+                serverPostId: serverPostId
+            )
+            await writeVoteEvent(
+                accountId: accountRowId,
+                entityType: "post",
+                entityServerId: Int64(serverPostId),
+                desired: desired,
+                snapshot: snapshot
+            )
+        }
     }
 
     public func vote(
@@ -1541,6 +1556,68 @@ public actor LemmyService: LemmyServiceType {
             entityServerId: Int64(serverCommentId),
             desiredState: .vote(desired)
         ))
+
+        // Log the vote for the Activity timeline (best-effort: never throws to the caller).
+        if let (accountRowId, _) = try? await accountSiteIds() {
+            let snapshot = try? await appDatabase.commentVoteSnapshot(
+                forAccountKeychainId: accountIdentifierForLogging,
+                serverCommentId: serverCommentId
+            )
+            await writeVoteEvent(
+                accountId: accountRowId,
+                entityType: "comment",
+                entityServerId: Int64(serverCommentId),
+                desired: desired,
+                snapshot: snapshot
+            )
+        }
+    }
+
+    // MARK: - Vote event log
+
+    private func writeVoteEvent(
+        accountId: Int64,
+        entityType: String,
+        entityServerId: Int64,
+        desired: LikeStatus,
+        snapshot: VoteEventSnapshot?
+    ) async {
+        switch desired {
+        case .liked:
+            try? await appDatabase.upsertVoteEvent(
+                accountId: accountId,
+                entityType: entityType,
+                entityServerId: entityServerId,
+                voteAction: 1,
+                votedAt: Date().timeIntervalSince1970,
+                title: snapshot?.title,
+                body: snapshot?.body,
+                communityName: snapshot?.communityName,
+                communityActorId: snapshot?.communityActorId,
+                thumbnailUrl: snapshot?.thumbnailUrl,
+                score: snapshot?.score
+            )
+        case .disliked:
+            try? await appDatabase.upsertVoteEvent(
+                accountId: accountId,
+                entityType: entityType,
+                entityServerId: entityServerId,
+                voteAction: 0,
+                votedAt: Date().timeIntervalSince1970,
+                title: snapshot?.title,
+                body: snapshot?.body,
+                communityName: snapshot?.communityName,
+                communityActorId: snapshot?.communityActorId,
+                thumbnailUrl: snapshot?.thumbnailUrl,
+                score: snapshot?.score
+            )
+        case .neutral:
+            try? await appDatabase.deleteVoteEvent(
+                accountId: accountId,
+                entityType: entityType,
+                entityServerId: entityServerId
+            )
+        }
     }
 
     public func createComment(
