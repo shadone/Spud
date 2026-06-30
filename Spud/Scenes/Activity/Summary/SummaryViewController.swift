@@ -22,10 +22,6 @@ final class SummaryViewController: UIViewController {
     typealias Dependencies = OwnDependencies
     private let dependencies: OwnDependencies
 
-    private var appDatabase: AppDatabase {
-        dependencies.appDatabase
-    }
-
     // MARK: Private
 
     private let viewModel: SummaryViewModel

@@ -140,12 +140,22 @@ final class SummaryHeatmapView: UIView {
         let f = DateFormatter()
         f.dateStyle = .medium
         f.timeStyle = .none
+        // HeatmapDay.date is midnight UTC. Pin the timezone so VoiceOver cell
+        // labels stay on the correct day for users west of UTC, and so snapshot
+        // output is stable across machines regardless of the host timezone.
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.locale = Locale(identifier: "en_US_POSIX")
         return f
     }()
 
     private static let monthFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "MMM"
+        // Same UTC pin as dateFormatter so month-boundary weeks are labeled
+        // correctly at the heatmap grid level (month changes are derived from
+        // the same midnight-UTC dates).
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.locale = Locale(identifier: "en_US_POSIX")
         return f
     }()
 
@@ -266,8 +276,9 @@ final class SummaryHeatmapView: UIView {
             if month != lastMonth {
                 lastMonth = month
                 let label = UILabel()
-                label.font = .preferredFont(forTextStyle: .caption2)
-                label.adjustsFontForContentSizeCategory = true
+                // Month axis label uses a fixed font size to fit the fixed
+                // monthLabelHeight region at all Dynamic Type sizes.
+                label.font = UIFont.systemFont(ofSize: 11)
                 label.textColor = .secondaryLabel
                 label.text = Self.monthFormatter.string(from: monday.date)
                 label.sizeToFit()
@@ -289,8 +300,9 @@ final class SummaryHeatmapView: UIView {
 
     private static func dayLabel(_ text: String) -> UILabel {
         let l = UILabel()
-        l.font = .preferredFont(forTextStyle: .caption2)
-        l.adjustsFontForContentSizeCategory = true
+        // Axis labels use a fixed font size so they fit the fixed dayLabelWidth
+        // region at all Dynamic Type sizes. Grid cells and body text do scale.
+        l.font = UIFont.systemFont(ofSize: 11)
         l.textColor = .secondaryLabel
         l.text = text
         l.textAlignment = .right
@@ -299,14 +311,14 @@ final class SummaryHeatmapView: UIView {
 
     private static func makeLegend() -> UIView {
         let lessLabel = UILabel()
-        lessLabel.font = .preferredFont(forTextStyle: .caption2)
-        lessLabel.adjustsFontForContentSizeCategory = true
+        // Legend labels use a fixed font size to fit the fixed legendHeight
+        // region at all Dynamic Type sizes.
+        lessLabel.font = UIFont.systemFont(ofSize: 11)
         lessLabel.textColor = .secondaryLabel
         lessLabel.text = NSLocalizedString("Less", comment: "Heatmap legend less label")
 
         let moreLabel = UILabel()
-        moreLabel.font = .preferredFont(forTextStyle: .caption2)
-        moreLabel.adjustsFontForContentSizeCategory = true
+        moreLabel.font = UIFont.systemFont(ofSize: 11)
         moreLabel.textColor = .secondaryLabel
         moreLabel.text = NSLocalizedString("More", comment: "Heatmap legend more label")
 
