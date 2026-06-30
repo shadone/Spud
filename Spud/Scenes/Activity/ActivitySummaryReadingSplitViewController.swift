@@ -61,22 +61,43 @@ final class ActivitySummaryReadingSplitViewController: UIViewController {
     /// re-rooted as the detail stack on collapse.
     let summaryViewController: SummaryViewController
 
+    /// Creates the iPad timeline + Summary split.
+    ///
+    /// - Parameters:
+    ///   - accountKeychainId: Keychain id of the signed-in account whose activity
+    ///     is shown. The `accountId` and `personRowId` the Summary dashboard needs
+    ///     are resolved from it here, exactly the way `ActivityViewController.init`
+    ///     resolves them — so the two columns share one source of truth and the
+    ///     caller never has to thread those ids through.
+    ///   - initialFilters: Filter chips active when the timeline first opens.
+    ///   - dependencies: Dependency container.
+    ///   - asOf: Reference date for the Summary's time-bucketed stats (injectable
+    ///     for deterministic tests).
     init(
         accountKeychainId: String,
-        accountId: Int64,
-        personRowId: Int64?,
-        initialFilters: Set<ActivityFilterType>,
-        asOf: Date = Date(),
-        dependencies: Dependencies
+        initialFilters: Set<ActivityFilterType> = [],
+        dependencies: Dependencies,
+        asOf: Date = Date()
     ) {
         activityViewController = ActivityViewController(
             accountKeychainId: accountKeychainId,
             initialFilters: initialFilters,
             dependencies: dependencies
         )
+
+        // Resolve the Summary's ids from the keychain id the same way
+        // `ActivityViewController.init` does, so a tapped person/account row maps
+        // to the same rows both columns read.
+        let db = dependencies.appDatabase
+        let serverPersonId = db.accountPersonServerIdSync(forKeychainId: accountKeychainId)
+        let resolvedPersonRowId = serverPersonId.flatMap {
+            db.personRowIdSync(forKeychainId: accountKeychainId, personId: $0)
+        }
+        let resolvedAccountId = db.accountRowIdSync(forKeychainId: accountKeychainId) ?? 0
+
         summaryViewController = SummaryViewController(
-            accountId: accountId,
-            personRowId: personRowId,
+            accountId: resolvedAccountId,
+            personRowId: resolvedPersonRowId,
             asOf: asOf,
             dependencies: dependencies
         )

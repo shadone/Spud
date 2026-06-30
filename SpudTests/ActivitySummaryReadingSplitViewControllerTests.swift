@@ -30,8 +30,6 @@ struct ActivitySummaryReadingSplitViewControllerTests {
         )
         return ActivitySummaryReadingSplitViewController(
             accountKeychainId: keychainId,
-            accountId: 1,
-            personRowId: 1,
             initialFilters: [.post, .comment, .save],
             dependencies: dependencies
         )

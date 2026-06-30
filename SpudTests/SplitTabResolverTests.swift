@@ -142,6 +142,34 @@ struct SplitTabResolverTests {
     }
 
     @Test
+    func resolvesActivitySummarySplitOnTopOfNavStack() throws {
+        let posts = UISplitViewController(style: .doubleColumn)
+        let dependencies = FakeDependencies()
+        // `ActivityViewController.init` (built inside the container) eagerly
+        // resolves the account's `lemmyService` scope, which fatal-errors for an
+        // unregistered keychain id, so register a signed-out account first.
+        let instance = try #require(InstanceActorId(from: "https://example.com"))
+        let keychainId = dependencies.accountService.accountForSignedOut(
+            forInstance: instance,
+            isServiceAccount: false
+        )
+        let split = ActivitySummaryReadingSplitViewController(
+            accountKeychainId: keychainId,
+            initialFilters: [.post, .comment, .save],
+            dependencies: dependencies
+        )
+        let nav = UINavigationController(rootViewController: UIViewController())
+        nav.pushViewController(split, animated: false)
+
+        let target = SplitTabResolver.target(for: nav, postsSplit: posts)
+        guard case let .activitySummary(resolved) = target else {
+            Issue.record("expected .activitySummary, got \(target)")
+            return
+        }
+        #expect(resolved === split)
+    }
+
+    @Test
     func resolvesPlainNavWhenTopIsOrdinaryViewController() {
         let posts = UISplitViewController(style: .doubleColumn)
         let nav = UINavigationController(rootViewController: UIViewController())

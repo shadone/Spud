@@ -21,6 +21,10 @@ enum DetailRouteTarget {
     /// a `UISplitViewController`) is on top of the selected tab's nav stack —
     /// route detail into its secondary column via `showDetail(_:)`.
     case community(CommunityReadingSplitViewController)
+    /// An Activity timeline + Summary reading split (same container mechanic as
+    /// the community split) is on top of the selected tab's nav stack — route
+    /// detail over its pinned Summary in the secondary column via `showDetail(_:)`.
+    case activitySummary(ActivitySummaryReadingSplitViewController)
     /// A plain single-column tab — push onto its navigation stack.
     case plainNav(UINavigationController)
     /// No usable navigation context (e.g. a cold deep link before any tab UI is
@@ -49,6 +53,9 @@ enum SplitTabResolver {
         if let nav = selected as? UINavigationController {
             if let community = nav.viewControllers.last as? CommunityReadingSplitViewController {
                 return .community(community)
+            }
+            if let activity = nav.viewControllers.last as? ActivitySummaryReadingSplitViewController {
+                return .activitySummary(activity)
             }
             return .plainNav(nav)
         }

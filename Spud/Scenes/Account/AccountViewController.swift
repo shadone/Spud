@@ -319,14 +319,30 @@ class AccountViewController: UIViewController {
     /// The remaining Account tab action rows (Activity, Your posts, Your comments)
     /// funnel here; each supplies a different preset so the screen opens in the
     /// relevant view while the user can still toggle other filters freely.
+    ///
+    /// At regular width (iPad, full-screen) this builds the timeline + Summary
+    /// reading split so Summary is pinned beside the timeline and a tapped row
+    /// fills the detail column; at compact width it pushes the single-column
+    /// timeline exactly as before. The split is a full-screen nav root (not a
+    /// split column), so the gate is the same `horizontalSizeClass == .regular`
+    /// test the Subscriptions / Discover entry points use.
     private func openActivity(keychainId: String, initialFilters: Set<ActivityFilterType> = []) {
         Haptics.tap()
-        let activityVC = ActivityViewController(
-            accountKeychainId: keychainId,
-            initialFilters: initialFilters,
-            dependencies: dependencies.nested
-        )
-        navigationController?.pushViewController(activityVC, animated: true)
+        if traitCollection.horizontalSizeClass == .regular {
+            let split = ActivitySummaryReadingSplitViewController(
+                accountKeychainId: keychainId,
+                initialFilters: initialFilters,
+                dependencies: dependencies.nested
+            )
+            navigationController?.pushViewController(split, animated: true)
+        } else {
+            let activityVC = ActivityViewController(
+                accountKeychainId: keychainId,
+                initialFilters: initialFilters,
+                dependencies: dependencies.nested
+            )
+            navigationController?.pushViewController(activityVC, animated: true)
+        }
     }
 
     private func confirmLogout() {
