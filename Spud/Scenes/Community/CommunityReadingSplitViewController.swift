@@ -151,24 +151,28 @@ final class CommunityReadingSplitViewController: UIViewController {
 
     /// Builds the "Communities" leading button that mimics the system back button
     /// appearance (chevron + label) and pops the hosting nav stack back to the
-    /// subscriptions list. Injected onto every VC that appears in the primary
-    /// column via `UINavigationControllerDelegate`.
+    /// subscriptions list. Injected onto the primary column's root VC via
+    /// `UINavigationControllerDelegate`.
+    ///
+    /// Built as a standard `UIBarButtonItem` (no `customView`) so that:
+    /// - UIKit applies the `accessibilityLabel` on the item itself — the
+    ///   `customView` pattern routes VoiceOver to the embedded `UIButton`,
+    ///   making any label set on the item silently ineffective.
+    /// - The item is sized by UIKit to the HIG-mandated 44 pt minimum tap target,
+    ///   unlike a `.zero`-inset custom-view button which can fall short.
     private func makeBackButton() -> UIBarButtonItem {
         let action = UIAction { [weak self] _ in
             self?.navigationController?.popViewController(animated: true)
         }
-        var config = UIButton.Configuration.plain()
-        config.title = "Communities"
-        config.image = UIImage(systemName: "chevron.backward")
-        // Tighten the gap between the chevron and the label to match the system
-        // back button's compact look.
-        config.imagePadding = 4
-        config.contentInsets = .zero
-        let button = UIButton(configuration: config, primaryAction: action)
-        let item = UIBarButtonItem(customView: button)
-        // Provide an unambiguous VoiceOver label so the control announces as
-        // "Communities, back button" rather than just the button title.
-        item.accessibilityLabel = "Communities"
+        let item = UIBarButtonItem(
+            title: "Communities",
+            image: UIImage(systemName: "chevron.backward"),
+            primaryAction: action,
+            menu: nil
+        )
+        // Without a customView, UIKit reads this label directly, so VoiceOver
+        // announces "Back to Communities, button".
+        item.accessibilityLabel = "Back to Communities"
         return item
     }
 }
@@ -181,11 +185,19 @@ extension CommunityReadingSplitViewController: UINavigationControllerDelegate {
         willShow viewController: UIViewController,
         animated: Bool
     ) {
-        // Inject the "Communities" back button only onto VCs that haven't set
-        // their own leftBarButtonItem. CommunityViewController sets only
+        // Inject ONLY on the root (community feed), never on VCs pushed deeper
+        // into the stack. In regular (non-collapsed) mode posts always go to the
+        // secondary column, so this guard is a no-op. In collapsed mode (iPad
+        // Slide Over / narrow multitasking) `showDetail` pushes the post-detail
+        // VC onto the primary stack — without this guard `willShow` would stamp
+        // "Communities" over the post's standard "< CommunityName" back button
+        // and wire the tap to pop the entire container, discarding community
+        // context.
+        guard navigationController.viewControllers.first === viewController else { return }
+        // Inject only if the slot is unclaimed. CommunityViewController sets only
         // rightBarButtonItems (sort + overflow), so this always fires cleanly.
-        // The injection covers both the initial CommunityOrLoadingViewController
-        // and the resolved CommunityViewController after the async swap.
+        // Covers both the initial CommunityOrLoadingViewController and the
+        // resolved CommunityViewController after the async stack-swap.
         guard viewController.navigationItem.leftBarButtonItem == nil else { return }
         viewController.navigationItem.leftBarButtonItem = makeBackButton()
     }
