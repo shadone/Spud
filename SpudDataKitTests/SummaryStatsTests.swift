@@ -48,9 +48,14 @@ struct SummaryStatsTests {
     }
 
     /// Seeds a person row for the given siteId. Returns personRowId.
+    ///
+    /// - Parameter serverPersonId: The server-side person identifier stored in the
+    ///   `personId` column. Must be unique per `(siteId, personId)` — pass distinct
+    ///   values when seeding two persons on the same site.
     private static func seedPerson(
         _ db: Database,
         siteId: Int64,
+        serverPersonId: Int64 = 1,
         name: String = "alice",
         displayName: String? = nil,
         numberOfPosts: Int64 = 0,
@@ -62,10 +67,11 @@ struct SummaryStatsTests {
                 INSERT INTO person (siteId, personId, name, displayName, isAdmin, isBanned,
                                     isBotAccount, isDeleted, isLocal, numberOfPosts,
                                     numberOfComments, personCreatedDate, createdAt, updatedAt)
-                VALUES (?, 1, ?, ?, 0, 0, 0, 0, 0, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, 0, 0, 0, 0, 0, ?, ?, ?, ?, ?)
                 """,
             arguments: [
                 siteId,
+                serverPersonId,
                 name,
                 displayName,
                 numberOfPosts,
@@ -533,6 +539,30 @@ struct SummaryStatsTests {
         #expect(stats.joined != stats.cakeDay)
     }
 
+    // MARK: - countSavedItems — comment cross-account isolation
+
+    @Test
+    func countSavedItems_savedCommentUnderAccountA_doesNotAppearInAccountB() async throws {
+        let db = try AppDatabase.inMemory()
+        let (accA, accB) = try await db.writer.write { db -> (Int64, Int64) in
+            // Account A: one saved comment on its own post
+            let (accIdA, siteIdA) = try Self.seedAccount(db, host: "alpha.test")
+            let personA = try Self.seedPerson(db, siteId: siteIdA)
+            let commA = try Self.seedCommunity(db, accountId: accIdA)
+            let postRowIdA = try Self.insertPost(
+                db, accountId: accIdA, communityId: commA, personId: personA, serverPostId: 1
+            )
+            try Self.insertComment(db, postRowId: postRowIdA, personId: personA, localCommentId: 1, isSaved: true)
+
+            // Account B: no saved items
+            let (accIdB, _) = try Self.seedAccount(db, host: "beta.test")
+            return (accIdA, accIdB)
+        }
+        #expect(try db.countSavedItems(accountId: accA) == 1)
+        // Account B must not see account A's saved comment.
+        #expect(try db.countSavedItems(accountId: accB) == 0)
+    }
+
     // MARK: - observeSummaryStats — server-sourced karma
 
     @Test
@@ -583,5 +613,103 @@ struct SummaryStatsTests {
         let stats = try #require(await Self.firstBatch(db.observeSummaryStats(accountId: accountId, personRowId: personRowId)))
         let readTile = try #require(stats.tiles.first { $0.key == "read" })
         #expect(readTile.value == "2")
+    }
+
+    // MARK: - observeSummaryStats — account isolation
+
+    @Test
+    func observeSummaryStats_tileValuesAreAccountSpecific() async throws {
+        // Two accounts on the same DB; each has distinct saved/read/vote counts.
+        // observeSummaryStats must return values scoped to the requested account.
+        let t = Date(timeIntervalSince1970: 2_000_000)
+        let db = try AppDatabase.inMemory()
+
+        let (accA, personA, accB, personB) = try await db.writer.write { db -> (Int64, Int64, Int64, Int64) in
+            // Account A: 1 saved post, 1 opened post
+            let (accIdA, siteIdA) = try Self.seedAccount(db, host: "alpha.test")
+            let pIdA = try Self.seedPerson(
+                db,
+                siteId: siteIdA,
+                serverPersonId: 1,
+                name: "alice",
+                numberOfPosts: 10,
+                numberOfComments: 20
+            )
+            let commA = try Self.seedCommunity(db, accountId: accIdA)
+            _ = try Self.insertPost(
+                db,
+                accountId: accIdA,
+                communityId: commA,
+                personId: pIdA,
+                serverPostId: 1,
+                isSaved: true
+            )
+            try Self.insertInteraction(db, accountId: accIdA, postServerId: 1, lastOpenedAt: t)
+
+            // Account B: 3 saved posts, 2 opened posts
+            let (accIdB, siteIdB) = try Self.seedAccount(db, host: "beta.test")
+            let pIdB = try Self.seedPerson(
+                db,
+                siteId: siteIdB,
+                serverPersonId: 1,
+                name: "bob",
+                numberOfPosts: 5,
+                numberOfComments: 7
+            )
+            let commB = try Self.seedCommunity(db, accountId: accIdB)
+            _ = try Self.insertPost(
+                db,
+                accountId: accIdB,
+                communityId: commB,
+                personId: pIdB,
+                serverPostId: 10,
+                isSaved: true
+            )
+            _ = try Self.insertPost(
+                db,
+                accountId: accIdB,
+                communityId: commB,
+                personId: pIdB,
+                serverPostId: 11,
+                isSaved: true
+            )
+            _ = try Self.insertPost(
+                db,
+                accountId: accIdB,
+                communityId: commB,
+                personId: pIdB,
+                serverPostId: 12,
+                isSaved: true
+            )
+            try Self.insertInteraction(db, accountId: accIdB, postServerId: 10, lastOpenedAt: t)
+            try Self.insertInteraction(db, accountId: accIdB, postServerId: 11, lastOpenedAt: t)
+
+            return (accIdA, pIdA, accIdB, pIdB)
+        }
+
+        let statsA = try #require(await Self.firstBatch(db.observeSummaryStats(accountId: accA, personRowId: personA)))
+        let statsB = try #require(await Self.firstBatch(db.observeSummaryStats(accountId: accB, personRowId: personB)))
+
+        // Server-sourced karma is per-person-row, not shared.
+        let postsA = try #require(statsA.tiles.first { $0.key == "posts" })
+        let postsB = try #require(statsB.tiles.first { $0.key == "posts" })
+        #expect(postsA.value == "10")
+        #expect(postsB.value == "5")
+
+        // Local saved count is account-specific.
+        let savedA = try #require(statsA.tiles.first { $0.key == "saved" })
+        let savedB = try #require(statsB.tiles.first { $0.key == "saved" })
+        #expect(savedA.value == "1")
+        #expect(savedB.value == "3")
+
+        // Local read count is account-specific.
+        let readA = try #require(statsA.tiles.first { $0.key == "read" })
+        let readB = try #require(statsB.tiles.first { $0.key == "read" })
+        #expect(readA.value == "1")
+        #expect(readB.value == "2")
+
+        // Identity fields come from each account's own person row.
+        #expect(statsA.name == "alice")
+        #expect(statsB.name == "bob")
     }
 }
