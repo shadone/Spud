@@ -6,6 +6,7 @@
 
 import SnapshotTesting
 import SpudDataKit
+import SpudUtilKit
 import SwiftUI
 import UIKit
 import XCTest
@@ -114,6 +115,82 @@ final class IPadLayoutSnapshotTests: XCTestCase {
         )
         .environment(\.imageService, StaticImageService())
         .background(Color(UIColor.systemBackground))
+    }
+
+    // MARK: - Community reading split snapshot
+
+    /// A flat dependency bag satisfying the full `CommunityReadingSplitViewController.Dependencies`
+    /// protocol composition. All nested `Has*` protocols ultimately expand to the union below;
+    /// spelling it out avoids a recursive typealias cycle (PostList → PostDetail → Community →
+    /// PostList) and keeps the test self-contained.
+    @MainActor
+    private struct CommunitySplitDependencies:
+        HasAccountService, HasAlertService, HasAppDatabase, HasAppService,
+        HasAppearanceService, HasDiagnosticLog, HasImageService, HasLinkEmbedService,
+        HasPostContentDetectorService, HasPreferencesService, HasReachabilityMonitor, HasVoid
+    {
+        let accountService: AccountServiceType
+        let alertService: AlertServiceType
+        let appDatabase: AppDatabase
+        let appService: AppServiceType
+        let appearanceService: AppearanceServiceType
+        let diagnosticLog: DiagnosticLogging
+        let imageService: ImageServiceType
+        let linkEmbedService: LinkEmbedServiceType
+        let postContentDetectorService: PostContentDetectorServiceType
+        let preferencesService: PreferencesServiceType
+        let reachabilityMonitor: ReachabilityMonitoring
+    }
+
+    /// iPad-landscape snapshot of `CommunityReadingSplitViewController`: verifies the
+    /// two-column layout — primary community feed column and secondary "No posts selected"
+    /// placeholder column — renders correctly before any async network fetch completes.
+    ///
+    /// Uses `.image(on: .iPadPro11(.landscape), traits:)` so any simulator works.
+    /// The snapshot captures the loading state: the primary column shows the activity
+    /// indicator (the async `fetchCommunityInfo` Task has not yet run), and the secondary
+    /// column shows the "No posts selected" placeholder immediately (no async settling needed).
+    func test_communitySplit_emptyDetail_ipad_landscape() throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let preferencesService = PreferencesService()
+        let reachabilityMonitor = StaticReachabilityMonitor(isOnline: true)
+        let appService = AppService(
+            preferencesService: preferencesService,
+            appDatabase: appDatabase,
+            reachabilityMonitor: reachabilityMonitor,
+            webArchiveStore: nil
+        )
+        let dependencies = CommunitySplitDependencies(
+            accountService: AccountService(appDatabase: appDatabase),
+            alertService: AlertService(),
+            appDatabase: appDatabase,
+            appService: appService,
+            appearanceService: AppearanceService(preferencesService: preferencesService),
+            diagnosticLog: DiagnosticLog(appDatabase: appDatabase),
+            imageService: StaticImageService(),
+            linkEmbedService: LinkEmbedService(),
+            postContentDetectorService: PostContentDetectorService(),
+            preferencesService: preferencesService,
+            reachabilityMonitor: reachabilityMonitor
+        )
+        let instance = try XCTUnwrap(InstanceActorId(from: "https://lemmy.ml"))
+        let splitVC = CommunityReadingSplitViewController(
+            communityName: "programming",
+            instance: instance,
+            accountKeychainId: "snapshot",
+            dependencies: dependencies
+        )
+
+        assertSnapshot(
+            matching: splitVC,
+            as: .image(on: .iPadPro11(.landscape), traits: UITraitCollection(userInterfaceStyle: .light)),
+            named: "light"
+        )
+        assertSnapshot(
+            matching: splitVC,
+            as: .image(on: .iPadPro11(.landscape), traits: UITraitCollection(userInterfaceStyle: .dark)),
+            named: "dark"
+        )
     }
 
     // MARK: - Discover helpers
