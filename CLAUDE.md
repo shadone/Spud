@@ -71,7 +71,14 @@ container so the widget and extensions read the same database.
 
 Schema migrations are GRDB `DatabaseMigrator` registrations in
 `AppDatabase+Migrations.swift`. Add a new migration as the next case;
-don't edit existing ones. Latest is `v25_offlineWebArchive` (next is v26) — added since v20: v22_outboundEditPost, v23_privateMessage, v24_outboundDirectMessage, v25_offlineWebArchive.
+don't edit existing ones. Latest is `v26_diagnosticEvent` (next is v27) — added since v20: v22_outboundEditPost, v23_privateMessage, v24_outboundDirectMessage, v25_offlineWebArchive, v26_diagnosticEvent.
+
+**Durable diagnostic log.** Migration `v26_diagnosticEvent` adds a `diagnosticEvent` GRDB table that records curated lifecycle events from both outboxes, the scheduler, site-info fetches, unread refresh, offline downloads, Spotlight indexing, and app lifecycle. Events fan to both OSLog and the table via `DiagnosticLog` in `SpudDataKit/Services/Diagnostics/`. The table is pruned at launch to ≤10k rows / ≤14 days. The durable log persists across relaunches and backs the Event Log tab in About → Logs. See [docs/features/diagnostics-logging.md](docs/features/diagnostics-logging.md).
+
+Key instrumented paths:
+- `OutboxService` (mutation outbox): full drain lifecycle, including **`op.permanentRollback`** (error level) when a vote/save/hide is rolled back on a permanent server error (e.g. 403). This was previously entirely silent.
+- `ComposerOutboxService` (content outbox): full drain lifecycle, including `op.permanentPark` (error level) when a content send permanently fails.
+- `LemmyService.getSiteInfo`: `site.fetchFailed` (error level) now carries the **instance host** so the About → Logs viewer can answer "which site is failing" — the recurring 403 is no longer anonymous.
 
 **Two durable outbox-style queues — don't confuse them.**
 `OutboxService` / `pendingOperation` (v17): idempotent **state mutations**
