@@ -16,6 +16,7 @@ public struct AccountEditableProfile: Sendable, Equatable {
     public var displayName: String
     public var bio: String
     public var avatarUrl: String?
+    public var bannerUrl: String?
     /// The account's local username (`name`), shown read-only in the editor.
     public var name: String
     public var showScores: Bool
@@ -28,6 +29,7 @@ public struct AccountEditableProfile: Sendable, Equatable {
         displayName: String,
         bio: String,
         avatarUrl: String?,
+        bannerUrl: String?,
         name: String,
         showScores: Bool,
         showBotAccounts: Bool,
@@ -38,6 +40,7 @@ public struct AccountEditableProfile: Sendable, Equatable {
         self.displayName = displayName
         self.bio = bio
         self.avatarUrl = avatarUrl
+        self.bannerUrl = bannerUrl
         self.name = name
         self.showScores = showScores
         self.showBotAccounts = showBotAccounts

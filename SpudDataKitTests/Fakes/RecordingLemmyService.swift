@@ -302,6 +302,7 @@ actor RecordingLemmyService: LemmyServiceType {
         displayName _: String?,
         bio _: String?,
         avatar _: String?,
+        banner _: String?,
         showScores _: Bool,
         showBotAccounts _: Bool,
         showReadPosts _: Bool,

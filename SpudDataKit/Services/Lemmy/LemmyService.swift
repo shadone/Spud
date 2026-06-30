@@ -88,19 +88,23 @@ public protocol LemmyServiceType: Actor {
     /// up to the server. A signed-out account is a silent no-op.
     func setDefaultSortType(_ sortType: Components.Schemas.SortType) async throws
 
-    /// Push the signed-in account's editable profile (display name, bio, avatar)
-    /// and synced preference flags (show scores / bot accounts / read posts /
-    /// others' avatars, default feed) to the server via `saveUserSettings`, then
-    /// mirror the new values onto the local `PersonRecord` / `AccountRecord` so
-    /// the cached profile stays in sync. Requires a signed-in account: a
-    /// signed-out account throws `LemmyServiceError.requiresAuthentication`
-    /// (unlike the single-setting setters, there is no local-only fallback for a
-    /// profile edit). `displayName` / `bio` may be empty to clear the field on
-    /// the server; pass `avatar: nil` to leave the avatar unchanged.
+    /// Push the signed-in account's editable profile (display name, bio, avatar,
+    /// banner) and synced preference flags (show scores / bot accounts / read
+    /// posts / others' avatars, default feed) to the server via
+    /// `saveUserSettings`, then mirror the new values onto the local
+    /// `PersonRecord` / `AccountRecord` so the cached profile stays in sync.
+    /// Requires a signed-in account: a signed-out account throws
+    /// `LemmyServiceError.requiresAuthentication` (unlike the single-setting
+    /// setters, there is no local-only fallback for a profile edit).
+    /// `displayName` / `bio` may be empty to clear the field on the server;
+    /// pass `avatar: nil` to leave the avatar unchanged, `""` to clear it, or
+    /// a URL string to set a new one. Pass `banner: nil` to leave the banner
+    /// unchanged, `""` to clear it, or a URL string to set a new one.
     func saveProfile(
         displayName: String?,
         bio: String?,
         avatar: String?,
+        banner: String?,
         showScores: Bool,
         showBotAccounts: Bool,
         showReadPosts: Bool,
@@ -1097,6 +1101,7 @@ public actor LemmyService: LemmyServiceType {
         displayName: String?,
         bio: String?,
         avatar: String?,
+        banner: String?,
         showScores: Bool,
         showBotAccounts: Bool,
         showReadPosts: Bool,
@@ -1123,6 +1128,7 @@ public actor LemmyService: LemmyServiceType {
             _ = try await api.saveUserSettings(
                 defaultListingType: defaultListingType,
                 avatar: avatar,
+                banner: banner,
                 displayName: displayName,
                 bio: bio,
                 showAvatars: showAvatars,
@@ -1147,6 +1153,7 @@ public actor LemmyService: LemmyServiceType {
                 displayName: displayName,
                 bio: bio,
                 avatar: avatar,
+                banner: banner,
                 showScores: showScores,
                 showBotAccounts: showBotAccounts,
                 showReadPosts: showReadPosts,

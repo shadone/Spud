@@ -5,14 +5,14 @@
 //
 
 import LemmyKit
-import PhotosUI
 import SpudDataKit
 import SwiftUI
 
 /// The Edit Profile editor: a grouped Form that edits the signed-in account's
-/// display name, bio, and avatar, plus the server-synced preference flags and
-/// default feed. Save / Cancel live in the nav bar; on save success the view
-/// model signals the host to dismiss.
+/// display name, bio, avatar, and banner, plus the server-synced preference
+/// flags and default feed. A live-preview ``ProfileBannerHeaderView`` sits at
+/// the top of the form. Save / Cancel live in the nav bar; on save success the
+/// view model signals the host to dismiss.
 struct EditProfileView: View {
     @Bindable var viewModel: EditProfileViewModel
     let accent: Color
@@ -20,13 +20,9 @@ struct EditProfileView: View {
     /// same path works whether the editor is pushed or presented modally.
     let onCancel: () -> Void
 
-    /// The Photos pick, loaded as `Data` and handed to the view model to JPEG +
-    /// upload. Cleared after each pick so the same photo can be re-picked.
-    @State private var pickedItem: PhotosPickerItem?
-
     var body: some View {
         Form {
-            avatarSection
+            headerSection
             profileSection
             preferencesSection
         }
@@ -34,16 +30,7 @@ struct EditProfileView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
         .tint(accent)
-        .interactiveDismissDisabled(viewModel.isSaving || viewModel.isUploadingAvatar)
-        .onChange(of: pickedItem) { _, newItem in
-            guard let newItem else { return }
-            Task {
-                if let data = try? await newItem.loadTransferable(type: Data.self) {
-                    await viewModel.uploadAvatar(imageData: data)
-                }
-                pickedItem = nil
-            }
-        }
+        .interactiveDismissDisabled(viewModel.isSaving || viewModel.isUploadingAvatar || viewModel.isUploadingBanner)
         .alert(
             Text(verbatim: NSLocalizedString("Something went wrong", comment: "Edit Profile error alert title")),
             isPresented: errorBinding,
@@ -59,42 +46,32 @@ struct EditProfileView: View {
 
     // MARK: Sections
 
-    private var avatarSection: some View {
+    /// The live-preview banner + avatar header, wired to the view model's
+    /// upload / remove actions. Displayed as a `listRowInsets`-zero section so
+    /// it spans the full form width without Form's default insets.
+    private var headerSection: some View {
         Section {
-            HStack(spacing: 16) {
-                ZStack {
-                    ProfileAvatarView(avatarUrl: viewModel.avatarUrl, name: viewModel.name, size: 60)
-                    if viewModel.isUploadingAvatar {
-                        Circle()
-                            .fill(.black.opacity(0.35))
-                            .frame(width: 60, height: 60)
-                        ProgressView()
-                            .tint(.white)
-                    }
+            ProfileBannerHeaderView(
+                bannerUrl: viewModel.bannerUrl,
+                avatarUrl: viewModel.avatarUrl,
+                name: viewModel.name,
+                isUploadingBanner: viewModel.isUploadingBanner,
+                isUploadingAvatar: viewModel.isUploadingAvatar,
+                onPickBanner: { data in
+                    await viewModel.uploadBanner(imageData: data)
+                },
+                onPickAvatar: { data in
+                    await viewModel.uploadAvatar(imageData: data)
+                },
+                onRemoveBanner: {
+                    viewModel.removeBanner()
+                },
+                onRemoveAvatar: {
+                    viewModel.removeAvatar()
                 }
-                .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    PhotosPicker(
-                        selection: $pickedItem,
-                        matching: .images,
-                        photoLibrary: .shared()
-                    ) {
-                        Text(NSLocalizedString("Change Photo", comment: "Edit Profile: pick a new avatar"))
-                    }
-                    .disabled(viewModel.isUploadingAvatar)
-
-                    if viewModel.avatarUrl != nil {
-                        Button(role: .destructive) {
-                            viewModel.removeAvatar()
-                        } label: {
-                            Text(NSLocalizedString("Remove Photo", comment: "Edit Profile: clear the avatar"))
-                        }
-                        .disabled(viewModel.isUploadingAvatar)
-                    }
-                }
-            }
-            .padding(.vertical, 4)
+            )
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
         }
     }
 
