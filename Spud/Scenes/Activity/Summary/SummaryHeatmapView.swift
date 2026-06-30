@@ -40,7 +40,8 @@ private final class HeatmapCellView: UIView {
         // Accessibility
         isAccessibilityElement = true
         let dateStr = dateFormatter.string(from: day.date)
-        if day.isEmpty {
+        // swiftformat:disable:next isEmpty
+        if day.count == 0 {
             accessibilityLabel = String(
                 format: NSLocalizedString("%@, no activity", comment: "Heatmap cell accessibility label (no activity)"),
                 dateStr
