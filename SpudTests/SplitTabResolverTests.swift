@@ -28,9 +28,12 @@ private final class NullImageService: ImageServiceType, @unchecked Sendable {
 /// and a no-op image service). `CommunityReadingSplitViewController`'s
 /// `Dependencies` composition flattens — via the nested post-detail / person /
 /// instance screens — to nearly the entire graph, so providing the superset is
-/// the robust way to satisfy it without hand-tracing the recursion.
+/// the robust way to satisfy it without hand-tracing the recursion. Internal (not
+/// file-private) so sibling suites — e.g.
+/// `ActivitySummaryReadingSplitViewControllerTests` — reuse the same superset
+/// harness.
 @MainActor
-private struct FakeDependencies:
+struct FakeDependencies:
     HasVoid,
     HasAppDatabase,
     HasSiteService,
