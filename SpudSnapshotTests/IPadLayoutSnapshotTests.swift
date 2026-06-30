@@ -71,7 +71,52 @@ final class IPadLayoutSnapshotTests: XCTestCase {
         )
     }
 
-    // MARK: - Helpers
+    // MARK: - Profile banner iPad snapshot
+
+    /// Verifies that the profile banner is centred within a capped column on iPad
+    /// (regular size class) and does not render as a full-width filmstrip.
+    ///
+    /// Uses nil image URLs so the view renders the deterministic placeholder
+    /// synchronously — no async settling needed.
+    func test_profileBanner_ipad_landscape_light() {
+        let view = makeProfileBannerFixture()
+        let host = UIHostingController(rootView: AnyView(view))
+        host.view.frame = CGRect(
+            origin: .zero,
+            size: ViewImageConfig.iPadPro11(.landscape).size ?? CGSize(width: 1194, height: 834)
+        )
+        host.view.layoutIfNeeded()
+        assertSnapshot(
+            matching: host,
+            as: .image(
+                on: .iPadPro11(.landscape),
+                traits: UITraitCollection(userInterfaceStyle: .light)
+            ),
+            named: "light"
+        )
+    }
+
+    // MARK: - Profile banner helpers
+
+    /// Builds a display-only `ProfileBannerHeaderView` with nil URLs (placeholder)
+    /// suitable for a synchronous snapshot — mirrors `ProfileBannerSnapshotTests.makeBannerView`.
+    private func makeProfileBannerFixture() -> some View {
+        ProfileBannerHeaderView(
+            bannerUrl: nil,
+            avatarUrl: nil,
+            name: "testuser",
+            isUploadingBanner: false,
+            isUploadingAvatar: false,
+            onPickBanner: nil,
+            onPickAvatar: nil,
+            onRemoveBanner: nil,
+            onRemoveAvatar: nil
+        )
+        .environment(\.imageService, StaticImageService())
+        .background(Color(UIColor.systemBackground))
+    }
+
+    // MARK: - Discover helpers
 
     /// Poll on the main actor until `condition` holds, failing loudly if it never does.
     private func waitUntil(
