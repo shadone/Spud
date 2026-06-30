@@ -249,6 +249,10 @@ extension ComposerViewController {
             dependencies: dependencies
         )
         let navigationController = UINavigationController(rootViewController: composer)
+        // Set .pageSheet before reading sheetPresentationController: on iPad the
+        // default is .formSheet, which leaves that property nil and silently drops
+        // the detents configuration.
+        navigationController.modalPresentationStyle = .pageSheet
         if let sheet = navigationController.sheetPresentationController {
             sheet.detents = [.medium(), .large()]
             sheet.prefersGrabberVisible = true
