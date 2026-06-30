@@ -21,7 +21,7 @@ The Logs screen (Settings → About → Logs) is a two-tab viewer: the **Event L
 - The Event Log list is live-updating: GRDB observation delivers changes while the screen is open.
 - A vote, save, or hide that is permanently rolled back (e.g. because the server returned a 403) produces an `op.permanentRollback` event at error level, carrying the instance host and HTTP status in metadata. This event is durable and survives relaunch.
 - A content submission (comment / post / DM) that is permanently parked (never able to send) produces an `op.permanentPark` event at error level.
-- A site-info fetch failure (including the recurring `getSite` 403) produces a `site.fetchFailed` event carrying the **instance host** — making it possible to see which specific instance is failing, not just that some fetch failed.
+- A site-info fetch failure (including a `getSite` HTTP 403 from a CDN or WAF) produces a `site.fetchFailed` event carrying the **instance host** — making it possible to see which specific instance is failing, not just that some fetch failed. Because the scheduler now applies per-account exponential back-off on repeated failures (see [background-unread-refresh.md](background-unread-refresh.md)), the event appears a handful of times early on and then at most every ~2 hours rather than every 5 minutes — the instance is still identifiable, but the log is no longer spammed.
 - Lifecycle events (`launch`, `foreground`, `accountApplied`) are recorded so drain and refresh activity can be correlated to when the app was opened or brought to the foreground.
 - The System Log tab is read-only and limited to the current app session (OSLog cannot retrieve prior-session entries in-app). The Event Log tab persists across sessions.
 
@@ -59,10 +59,11 @@ The Logs screen (Settings → About → Logs) is a two-tab viewer: the **Event L
 
 ### See which instance is failing
 
-- **Given** site-info fetches are failing repeatedly for one of my accounts (visible in About → Logs as recurring errors)
+- **Given** site-info fetches are failing repeatedly for one of my accounts
 - **When** I open the Event Log and filter by category "site" or search for "fetchFailed"
-- **Then** I see `site.fetchFailed` error events that name the specific **instance host** (e.g. `lemmy.world`) and the HTTP status
+- **Then** I see `site.fetchFailed` error events naming the specific **instance host** (e.g. `lemmy.world`) and the HTTP status
 - **And** I can identify which server is failing and at what rate, without needing to inspect source code or Console.app
+- **And** because the scheduler backs off on repeated failures, entries appear a handful of times initially and then at most every ~2 hours — not once every 5 minutes — so the log stays readable
 
 ### Inspect a log entry in detail
 
