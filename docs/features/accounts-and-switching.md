@@ -12,17 +12,14 @@ Account tab. One account is always the active default; switching makes another a
 default and the whole app — feeds, inbox, search, and preferences — rebuilds for it live.
 Each account carries its own instance, credentials, and sort/listing preferences.
 
-The Account tab itself is the signed-in account's home: a tappable profile header (which
-opens [Edit your profile](profile-editing.md)) over a grouped list of shortcuts — Switch
-account, Saved, History, Your posts, Your comments, and Log out — with Settings in the nav
-bar.
+The Account tab itself is the signed-in account's home: a tappable profile header — full-width banner (if set) with the circular avatar overlapping its bottom edge, plus the display name and `@name@instance` handle — which opens [Edit your profile](profile-editing.md), over a grouped list of shortcuts — Switch account, Saved, History, Your posts, Your comments, and Log out — with Settings in the nav bar.
 
 ## Behavior and rules
 
 - **Many accounts, many instances.** Accounts are stored as rows keyed by a durable `accountKeychainId` (a string), each tied to a site and instance; a signed-in account's credential lives in the shared-group Keychain, not in the database. There is no per-instance limit and accounts on different instances coexist.
 - **Exactly one default.** A single account is marked default at any time. Marking one default clears the flag on all others in the same write, so the app always has one and only one active account.
 - **Switching is live and app-wide.** Selecting an account in the switcher marks it default; a database observation of the default account drives `MainWindow`, which rebuilds the tab bar (the post-list split view, Account, Search, Inbox, and Preferences tabs) for the newly active account. No app restart is needed, and a redundant re-emit of the same account does not rebuild.
-- **The signed-in Account tab.** A grouped list headed by the profile header (avatar, display name, `@name@instance`); tapping the header opens [Edit your profile](profile-editing.md). Below it are the account shortcuts: a "Switch account" row (subtitled with the number of signed-in accounts), Saved and History, "Your posts" and "Your comments" (which open your own [profile](person-profile.md) on the matching tab), and a destructive Log out. Settings lives in the nav bar (gear). The signed-out Account tab matches this grouped style — see [Signed-out browsing](signed-out-browsing.md): a "Browsing anonymously" header, a "Reading from <home server>" row (which opens the switcher to change servers), Create account / Log in buttons, and a Settings row, with the nav bar showing only the title.
+- **The signed-in Account tab.** A grouped list headed by the profile header (full-width banner with the circular avatar overlapping its bottom edge, display name, `@name@instance`); tapping the header opens [Edit your profile](profile-editing.md). Below it are the account shortcuts: a "Switch account" row (subtitled with the number of signed-in accounts), Saved and History, "Your posts" and "Your comments" (which open your own [profile](person-profile.md) on the matching tab), and a destructive Log out. Settings lives in the nav bar (gear). The signed-out Account tab matches this grouped style — see [Signed-out browsing](signed-out-browsing.md): a "Browsing anonymously" header, a "Reading from <home server>" row (which opens the switcher to change servers), Create account / Log in buttons, and a Settings row, with the nav bar showing only the title.
 - **The switcher.** "Switch account" — the list row when signed in, the "Reading from" row when signed out — opens an Accounts list as a modal sheet: each row shows the account as `nickname@instance` (or just the instance for a signed-out account), with the active account checkmarked. Tapping a row switches to it and dismisses.
 - **Adding an account.** The Accounts list has an add (`+`) button that opens the instance picker, which leads into login or sign up. This is the same add-account path the signed-out Account screen's Log in / Sign up buttons use. See [instance-picker.md](instance-picker.md), [login.md](login.md), and [registration.md](registration.md).
 - **Removing an account.** In the Accounts list's edit mode (or by swipe), any account except the currently active one can be deleted; the active account is switched away from rather than deleted. Removing a signed-in account also clears its Keychain credential.
@@ -34,7 +31,7 @@ bar.
 ### Open the profile editor from the Account tab
 
 - **Given** a signed-in account on the Account tab
-- **When** I tap the profile header (avatar + name)
+- **When** I tap the profile header (banner + avatar + name)
 - **Then** [Edit your profile](profile-editing.md) opens
 
 ### Jump to your own posts or comments
