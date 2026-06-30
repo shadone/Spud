@@ -13,7 +13,7 @@ You can also **edit** your own (non-deleted) comment: long-press it and choose E
 ## Behavior and rules
 
 - **Reply to a post or a comment.** The post's toolbar reply button (and the post's swipe/menu reply where configured) starts a top-level comment; a comment's Reply action (context menu or swipe slot) starts a nested reply to that comment. The composer titles itself "Add comment" for a post reply and "Reply" for a comment reply.
-- **Markdown composer sheet.** The composer is a medium/large sheet with a Write / Preview segmented control. (The markdown editor and its toolbar are documented separately; this feature covers the reply flow.)
+- **Markdown composer sheet.** The composer is a medium/large sheet with a Write / Preview segmented control. On a regular-width iPad the sheet presents with medium/large detents and sits over the content at a comfortable width, rather than expanding to a full-screen modal. (The markdown editor and its toolbar are documented separately; this feature covers the reply flow.)
 - **Post button gating.** Post is enabled only when the body has non-whitespace content and a submission is not already in flight.
 - **Signed-out gate.** A signed-out account cannot reply: a "Sign in to comment" alert is shown instead of the composer, and the service rejects the create from a signed-out account.
 - **Optimistic inline comment.** When you tap Post, the sheet dismisses immediately and the new comment appears at its real position in the thread (flush-left for a top-level reply; nested under its parent for a comment reply), dimmed with a "Sending..." status line. The send runs in the durable background queue; no manual refresh is needed to see your comment.

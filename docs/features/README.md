@@ -50,7 +50,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | Tag | Surface |
 |---|---|
 | `iphone` | iPhone, compact width — the primary single-column experience |
-| `ipad` | iPad, regular width — `NavigationSplitView` with a persistent detail pane |
+| `ipad` | iPad, regular width — two-column split views on the Posts tab and (when reading a community) the Communities tab; adaptive layouts for sheets and content-width screens |
 | `widget` | Home Screen widget (`SpudWidgetExtension`) — top posts at a glance |
 | `share-extension` | "Open in Spud" Safari Web Extension (`OpenInAppExtension`) — rewrites a Lemmy post page to a deep link that opens the post in the app |
 
@@ -61,7 +61,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Configurable swipe actions](swipe-actions.md) | `iphone`, `ipad` | shipped |
 | [Marking posts read and hiding read posts](mark-read-and-hiding.md) | `iphone`, `ipad` | shipped |
 | [NSFW content visibility and blur](nsfw-content.md) | `iphone`, `ipad` | shipped |
-| [Feeds and sorting](feeds-and-sorting.md) | `iphone`, `ipad` | shipped |
+| [Feeds and sorting](feeds-and-sorting.md) | `iphone`, `ipad` | shipped — feed switcher: left-edge back-swipe on iPhone; navbar-title popover on iPad (see [iPad split-view handoff](ipad-split-view.md)) |
 | [Feed loading and pagination](feed-loading.md) | `iphone`, `ipad` | shipped — cursor pagination + pull-to-refresh + offline/unreachable/malformed states with retry |
 | [Download a feed for offline browsing](offline-download.md) | `iphone`, `ipad` | shipped — choose 100/250/500 posts; predownload posts + comments + images (+ optional linked-page web archives read in an in-app offline reader) from the feed config popover, with progress + cancel |
 | [Post thumbnails and media badges](post-thumbnails.md) | `iphone`, `ipad` | shipped |
@@ -69,19 +69,19 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Post detail and comments](post-detail-and-comments.md) | `iphone`, `ipad` | shipped — incl. offline-aware comments (truthful failed/offline state with Retry — plus automatic re-fetch when connectivity returns — not a false "no comments yet") + header thumbnail-while-loading with a "Low-res preview" pill |
 | [Voting](voting.md) | `iphone`, `ipad` | shipped — incl. offline-aware "we'll send your vote when you're back online" toast |
 | [Saving](saving.md) | `iphone`, `ipad` | shipped — incl. offline-aware "we'll save this when you're back online" toast |
-| [Replying](replying.md) | `iphone`, `ipad` | shipped — reply + edit + delete/restore own comments, all optimistic + durable (see [Post detail and comments](post-detail-and-comments.md)) |
+| [Replying](replying.md) | `iphone`, `ipad` | shipped — reply + edit + delete/restore own comments, all optimistic + durable (see [Post detail and comments](post-detail-and-comments.md)); composer sheet uses proper medium/large detents on iPad |
 | [Sharing](sharing.md) | `iphone`, `ipad` | shipped |
 | [Media viewer and inline video](media-viewer.md) | `iphone`, `ipad` | shipped — incl. "Showing low-resolution preview" pill when the full-res image can't load over a thumbnail |
-| [Discover (Community Explorer)](discover.md) | `iphone`, `ipad` | shipped — rails (Starter packs / Trending / Rising / Because you follow / Browse by instance) each with "See all", over a sortable directory + same-name compare (per-variant subscribe) + live network-search fallback; auto-refreshes the directory on open (per Community Data settings) |
+| [Discover (Community Explorer)](discover.md) | `iphone`, `ipad` | shipped — rails (Starter packs / Trending / Rising / Because you follow / Browse by instance) each with "See all", over a sortable directory + same-name compare (per-variant subscribe) + live network-search fallback; auto-refreshes the directory on open (per Community Data settings); on iPad (regular width) rails render as an adaptive multi-column grid and the directory is width-capped/centered; tapping a community opens it in the two-column reading split |
 | [Search](search.md) | `iphone`, `ipad` | shipped — scopes: posts / communities / users / comments (federated) + instances (local directory) |
 | [Instance browsing (open an instance in-app)](instance-browsing.md) | `iphone`, `ipad` | shipped — directory hit + live `/api/v3/site` probe (Lemmy + PieFed); non-compatible hosts open in browser; communities fetched live via `/api/v3/community/list` when the directory has none |
 | [Communities tab (subscriptions)](subscriptions-sidebar.md) | `iphone`, `ipad` | shipped — first-class tab (was the iPad sidebar); feed shortcuts + Discover entry + subscribed list with favorites pinned, filter + sort |
 | [Subscribe / unsubscribe](subscribe-unsubscribe.md) | `iphone`, `ipad` | shipped |
-| [Community screen](community-screen.md) | `iphone`, `ipad` | shipped — overflow: subscribe, favorite, mute, block, share |
+| [Community screen](community-screen.md) | `iphone`, `ipad` | shipped — overflow: subscribe, favorite, mute, block, share; on iPad (regular width) opens as a two-column reading split (see [iPad split-view handoff](ipad-split-view.md)) |
 | [Person / user profile](person-profile.md) | `iphone`, `ipad` | shipped — Posts tab renders with the feed cell (vote / save, live state) |
 | [Accounts and switching](accounts-and-switching.md) | `iphone`, `ipad` | shipped — signed-in Account tab is a profile header + shortcuts list (Switch account / Saved / Activity / Your posts / Your comments / Log out) |
 | [Account Activity](account-activity.md) | `iphone`, `ipad` | shipped — reverse-chronological timeline of everything the signed-in account has done (authored posts + comments, upvoted/downvoted, saved, read, seen, hidden); rows reuse feed/search cells; filter chip bar (7 types); search; day-based grouping; states + pull-to-refresh; infinite scroll; Your posts/Your comments/Activity open it pre-filtered (the Saved row opens the server saved feed) + Summary screen (identity strip, 6 stat tiles, 18-week contribution heatmap with All/Reads/Votes metric picker, extras insights) |
-| [Edit your profile](profile-editing.md) | `iphone`, `ipad` | shipped — display name, bio, avatar + banner (live-preview header, pict-rs upload, remove) + server-synced toggles (scores / bots / read posts / avatars) + default feed |
+| [Edit your profile](profile-editing.md) | `iphone`, `ipad` | shipped — display name, bio, avatar + banner (live-preview header, pict-rs upload, remove) + server-synced toggles (scores / bots / read posts / avatars) + default feed; on iPad the live-preview banner is width-capped and centered rather than full-bleed |
 | [Signed-out browsing](signed-out-browsing.md) | `iphone`, `ipad` | shipped — signed-out Account tab is a grouped "Browsing anonymously" screen (Reading-from row, Create account / Log in, Settings) |
 | [Login](login.md) | `iphone`, `ipad` | shipped — incl. two-factor (TOTP) sign-in |
 | [Instance picker](instance-picker.md) | `iphone`, `ipad` | shipped |
@@ -91,7 +91,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Marking inbox items read](inbox-mark-read.md) | `iphone`, `ipad` | shipped |
 | [Private messages](private-messages.md) | `iphone`, `ipad` | shipped — GRDB-backed (offline-readable) threads + optimistic, durable sending (instant bubble, background retry, failure recovery via Drafts & Outbox); new-message compose (recipient picker) + Markdown bodies |
 | [Background unread refresh](background-unread-refresh.md) | `iphone`, `ipad` | shipped — foreground scene refresh (unread badge) + periodic scheduler site-info refresh with per-account exponential back-off (≈5 min → ~2 h cap) on persistent failures; reconnect clears back-off |
-| [New post](new-post.md) | `iphone`, `ipad` | shipped |
+| [New post](new-post.md) | `iphone`, `ipad` | shipped; composer sheet uses proper medium/large detents on iPad |
 | [Image upload](image-upload.md) | `iphone`, `ipad` | shipped |
 | [Markdown editor](markdown-editor.md) | `iphone`, `ipad` | shipped |
 | [Draft persistence](draft-persistence.md) | `iphone`, `ipad` | shipped |
@@ -107,7 +107,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Acknowledgements](acknowledgements.md) | `iphone`, `ipad` | shipped |
 | [Diagnostics and backup](diagnostics-and-backup.md) | `iphone`, `ipad` | shipped |
 | [Diagnostics logging](diagnostics-logging.md) | `iphone`, `ipad` | shipped — durable GRDB event log (survives relaunch) + two-tab viewer (Event Log with filter/search/detail/export; System Log OSLog tail with level/category filter + time window) |
-| [iPad split-view handoff](ipad-split-view.md) | `ipad`, `iphone` | shipped |
+| [iPad split-view handoff](ipad-split-view.md) | `ipad`, `iphone` | shipped — Posts two-column split + feed-switcher title popover; Communities two-column reading split; adaptive layouts (Discover grid, capped banners, sheet detents) at regular width |
 | [Empty, error, and loading states](empty-error-loading-states.md) | `iphone`, `ipad` | shipped |
 | [Accessibility](accessibility.md) | `iphone`, `ipad` | shipped |
 | [Home Screen widget (top posts)](widget.md) | `widget` | shipped |
@@ -151,7 +151,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Animated GIF playback; inline video
 
 **Discovery**
-- [x] Discover (Community Explorer) — browsable home in the Communities tab: Starter packs / Trending / Rising / Because you follow / Browse-by-instance rails (each with "See all" into the full ranked list) over a sortable, searchable directory; same-name dedupe + compare sheet (per-variant subscribe); live network-search fallback; long-press quick actions (subscribe, mute, block, share); NSFW + suspicious safety filtering; refreshes the directory from the network on open (per Community Data settings) (discover.md)
+- [x] Discover (Community Explorer) — browsable home in the Communities tab: Starter packs / Trending / Rising / Because you follow / Browse-by-instance rails (each with "See all" into the full ranked list) over a sortable, searchable directory; same-name dedupe + compare sheet (per-variant subscribe); live network-search fallback; long-press quick actions (subscribe, mute, block, share); NSFW + suspicious safety filtering; refreshes the directory from the network on open (per Community Data settings); on iPad (regular width) rails render as an adaptive multi-column grid and the directory is width-capped and centered; tapping a community opens it in the Communities tab's two-column reading split (discover.md)
 - [x] Search (posts / comments / communities / users federated, + instances over the local Explorer directory) + inline subscribe + paste-a-Lemmy-URL "Open in Spud" (canonical + frontend `/c/../p/<id>` form)
 - [x] Communities tab (subscriptions) — first-class tab on iPhone + iPad (was the iPad-only sidebar); feed shortcuts, Discover entry, subscribed list with favorites pinned, "Search your communities" filter + Alphabetical / By-instance sort
 - [x] Subscribe / unsubscribe
@@ -164,7 +164,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Multi-account, multi-instance + account switcher
 - [x] Account tab — signed-in home: tappable profile header (banner + avatar + display name + handle -> Edit your profile) over a shortcuts list (Switch account, Saved, Activity, Your posts, Your comments, Log out), Settings in the nav bar (accounts-and-switching.md)
 - [x] Account Activity — reverse-chronological timeline of posts/comments authored, upvoted/downvoted, saved, read, seen, hidden; rows reuse the feed/search cells; 7-type filter chip bar (funnel reset) with preset filters from Account tab shortcuts (Your posts/Your comments open it pre-filtered; the Saved row opens the server saved feed instead); search; day-based grouping; states (empty/loading/offline/voted-first-run); pull-to-refresh; infinite scroll; + Summary screen (identity strip, 6 stat tiles, 18-week contribution heatmap with All/Reads/Votes metric picker, extras insights) (account-activity.md)
-- [x] Edit your profile — display name, bio, avatar + banner (pict-rs upload; live-preview header mirrors the public person profile; remove clears from the server; no in-app cropping), plus the server-synced account toggles (show scores / bot accounts / read posts / others' avatars) and default feed; saved via `save_user_settings` then refreshed; banner also shown in Account tab header (profile-editing.md)
+- [x] Edit your profile — display name, bio, avatar + banner (pict-rs upload; live-preview header mirrors the public person profile; remove clears from the server; no in-app cropping), plus the server-synced account toggles (show scores / bot accounts / read posts / others' avatars) and default feed; saved via `save_user_settings` then refreshed; banner also shown in Account tab header; on iPad the live-preview banner is width-capped and centered rather than full-bleed (profile-editing.md)
 - [x] Signed-out browsing (bootstrap account) — signed-out Account tab is a grouped "Browsing anonymously" screen: guest header, Reading-from / change-server row, Create account / Log in, Settings (signed-out-browsing.md)
 - [x] Login — incl. two-factor (TOTP) sign-in (code collected and sent; a 2FA-required login auto-prompts for the code)
 - [x] Instance picker (site list)
@@ -178,11 +178,11 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Background unread-count refresh (foreground scene refresh; not a `BGAppRefreshTask`) + periodic scheduler site-info refresh with per-account exponential back-off on persistent failures (≈5 min doubling → ~2 h cap; reconnect clears; in-memory only)
 
 **Content creation**
-- [x] New post (text / link / image) + community picker + NSFW
+- [x] New post (text / link / image) + community picker + NSFW; on iPad the composer sheet uses proper medium/large detents (not a full-screen modal)
 - [x] Image upload (pict-rs)
 - [x] Markdown editor + toolbar + live preview
 - [x] Draft persistence — durable, per-target, auto-saved (survives dismiss / relaunch)
-- [x] Optimistic + durable sending — comments inline in the tree, posts via a pending screen, direct messages as inline chat bubbles; background retry with backoff
+- [x] Optimistic + durable sending — comments inline in the tree, posts via a pending screen, direct messages as inline chat bubbles; background retry with backoff; reply and new-post composer sheets use proper medium/large detents on iPad
 - [x] Drafts & Outbox recovery list (failed / sending / drafts; retry / discard)
 
 **Safety & moderation**
@@ -200,7 +200,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Diagnostic logging — durable GRDB event log (migration v26) recording outbox lifecycle (incl. `op.permanentRollback` on a rolled-back vote, `op.permanentPark` on a parked content send), site-info failures with instance host (`site.fetchFailed`), scheduler ticks, unread refresh, offline downloads, Spotlight reindex, and app lifecycle; pruned to ≤10k rows / ≤14 days; two-tab viewer (Event Log: filter by category + level, search, per-entry detail, export, clear; System Log: OSLog tail with level/category filter + time window); survives relaunch (diagnostics-logging.md)
 
 **Platform**
-- [x] iPad split-view handoff
+- [x] iPad split-view handoff — Posts two-column split + feed-switcher title popover (compact: left-edge swipe), Communities two-column reading split, collapse/expand with state preservation; adaptive layouts at regular width: Discover multi-column grid + width-capped directory, sheet detents (composer / new-post), capped banners (Edit Profile / Account tab)
 - [x] Empty / error / loading states
 - [x] Accessibility (Dynamic Type, VoiceOver, Reduce Motion)
 - [x] Home Screen widget (top posts)

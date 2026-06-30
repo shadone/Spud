@@ -61,6 +61,11 @@ struct ProfileBannerHeaderView: View {
     @State private var pickedBannerItem: PhotosPickerItem?
     @State private var pickedAvatarItem: PhotosPickerItem?
 
+    // MARK: Environment
+
+    /// Used to cap the banner width on iPad (regular size class).
+    @Environment(\.horizontalSizeClass) private var hSizeClass
+
     // MARK: Constants (match PersonHeaderView)
 
     private let bannerHeight: CGFloat = 100
@@ -85,6 +90,11 @@ struct ProfileBannerHeaderView: View {
         }
         // Reserve bottom space for the avatar half that hangs below the banner
         .padding(.bottom, avatarOverlap)
+        // On iPad (regular horizontal size class) centre the banner within a
+        // capped column so it does not stretch full-bleed across the wide canvas.
+        // Compact (iPhone) stays full-width (.infinity).
+        .frame(maxWidth: hSizeClass == .regular ? AdaptiveLayout.contentMaxWidth : .infinity)
+        .frame(maxWidth: .infinity, alignment: .center)
         // Decode picked banner data and forward to the callback
         .onChange(of: pickedBannerItem) { _, newItem in
             guard let newItem, let onPickBanner else { return }
@@ -287,10 +297,10 @@ private struct BannerImageView: View {
     private func loadBanner() async {
         image = nil
         guard let url, let imageService else { return }
-        // Banner is wide, downsample to a 3x screen-width target so we don't
-        // hold a full-resolution image in memory.
+        // Banner is wide; downsample to 3x the capped width so an iPad does not
+        // hold a needlessly large bitmap in memory (cap defined in AdaptiveLayout).
         let screenWidth = UIScreen.main.bounds.width
-        let target = CGSize(width: screenWidth * 3, height: 300)
+        let target = CGSize(width: AdaptiveLayout.bannerDownsampleWidth(screenWidth: screenWidth) * 3, height: 300)
         for await state in imageService.fetch(url, downsampleTo: target) {
             if case let .ready(loaded) = state {
                 image = loaded

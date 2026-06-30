@@ -580,6 +580,10 @@ extension NewPostViewController {
         )
         composer.onQueued = onQueued
         let navigationController = UINavigationController(rootViewController: composer)
+        // Set .pageSheet before reading sheetPresentationController: on iPad the
+        // default is .formSheet, which leaves that property nil and silently drops
+        // the detents configuration.
+        navigationController.modalPresentationStyle = .pageSheet
         if let sheet = navigationController.sheetPresentationController {
             sheet.detents = [.large()]
             sheet.prefersGrabberVisible = true
@@ -618,6 +622,10 @@ extension NewPostViewController {
         )
         composer.onEditQueued = onEditQueued
         let navigationController = UINavigationController(rootViewController: composer)
+        // Set .pageSheet before reading sheetPresentationController: on iPad the
+        // default is .formSheet, which leaves that property nil and silently drops
+        // the detents configuration.
+        navigationController.modalPresentationStyle = .pageSheet
         if let sheet = navigationController.sheetPresentationController {
             sheet.detents = [.large()]
             sheet.prefersGrabberVisible = true

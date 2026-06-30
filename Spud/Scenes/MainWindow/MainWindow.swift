@@ -626,18 +626,36 @@ class MainWindow: UIWindow {
 
     /// Pushes a screen into whichever tab the user is currently in, so Back
     /// returns to where they were (e.g. a community in the Communities tab)
-    /// instead of hijacking the Posts tab. Only the Posts tab is a split view and
-    /// needs the split-aware detail handling; every other tab is a plain
-    /// navigation controller, so a normal push is correct. Falls back to the
-    /// Posts tab when there is no current navigation context (e.g. a cold deep
-    /// link).
+    /// instead of hijacking the Posts tab.
+    ///
+    /// Each tab can host a different detail context, so the destination is
+    /// resolved through `SplitTabResolver`:
+    /// - The Posts tab is the real `UISplitViewController` — route via
+    ///   `pushDetail` (collapsed-aware push vs. secondary-column replace).
+    /// - A community reading split on top of another tab's nav stack (e.g.
+    ///   Communities) — route detail into ITS secondary column via
+    ///   `showDetail(_:)`, so the community feed stays visible beside it on iPad
+    ///   instead of the post pushing full-screen or hijacking the Posts tab.
+    /// - Any other (single-column) tab — a normal push onto its nav stack.
+    /// - No navigation context (e.g. a cold deep link) — fall back to the Posts
+    ///   tab.
     private func pushIntoCurrentContext(_ viewController: UIViewController) {
         let selected = tabBarController.selectedViewController
-        if selected === splitViewController {
+        guard let splitViewController else {
+            // No Posts split yet — the only sensible push target is the selected
+            // tab's nav stack, if there is one.
+            (selected as? UINavigationController)?.pushViewController(viewController, animated: true)
+            return
+        }
+
+        switch SplitTabResolver.target(for: selected, postsSplit: splitViewController) {
+        case .postsSplit:
             pushDetail(viewController: viewController)
-        } else if let navigationController = selected as? UINavigationController {
+        case let .community(community):
+            community.showDetail(viewController)
+        case let .plainNav(navigationController):
             navigationController.pushViewController(viewController, animated: true)
-        } else {
+        case .none:
             tabBarController.selectedIndex = 0
             pushDetail(viewController: viewController)
         }
@@ -703,60 +721,79 @@ extension MainWindow: AppNavigating {
 }
 
 extension MainWindow: UISplitViewControllerDelegate {
-    /// The post list navigation stack's base depth:
-    /// `[FeedSwitcherViewController, PostListViewController]` — the feed switcher
-    /// sits beneath the post list so a left-edge swipe reveals it. Anything pushed
-    /// above this base (a post detail and whatever the user drilled into from it)
-    /// is "detail" content that belongs in the secondary column when the split
-    /// view is expanded.
-    private static let postListBaseStackDepth = 2
-
     /// Collapsing from two columns (regular width) to one (compact width):
     /// e.g. rotating a Max-class iPhone back to portrait, or narrowing an iPad
-    /// multitasking split. Carry whatever post detail was visible in the
-    /// secondary column onto the (now single) compact navigation stack so it
-    /// stays on screen instead of vanishing.
+    /// multitasking split. Two jobs:
+    /// 1. Re-insert the feed switcher beneath the post list (its compact home),
+    ///    so the system left-edge back gesture reveals it again — it was stripped
+    ///    from the base while expanded (regular width uses a navbar-title popover).
+    /// 2. Carry whatever post detail was visible in the secondary column onto the
+    ///    (now single) compact navigation stack so it stays on screen instead of
+    ///    vanishing.
     func splitViewControllerDidCollapse(_ svc: UISplitViewController) {
         guard let splitViewController else { return }
         let primaryNav = splitViewController.postListNavigationController
 
-        guard
-            let secondaryNav = svc.viewController(for: .secondary) as? UINavigationController
-        else { return }
-
-        // Skip the empty placeholder; carry over any real detail content.
-        let detailViewControllers = secondaryNav.viewControllers.filter { viewController in
-            if let orEmpty = viewController as? PostDetailOrEmptyViewController {
-                return !orEmpty.isEmptyPlaceholder
-            }
-            return true
+        // 1. Re-insert the feed switcher at the base (index 0) if it was stripped
+        //    while expanded, so the compact back-swipe reveals it again.
+        var primaryStack = primaryNav.viewControllers
+        if
+            let feedSwitcher = splitViewController.feedSwitcherViewController,
+            !primaryStack.contains(feedSwitcher)
+        {
+            primaryStack.insert(feedSwitcher, at: 0)
         }
-        guard !detailViewControllers.isEmpty else { return }
 
-        secondaryNav.setViewControllers([], animated: false)
-        primaryNav.setViewControllers(
-            primaryNav.viewControllers + detailViewControllers,
-            animated: false
-        )
+        // 2. Carry any real detail content (skip the empty placeholder) from the
+        //    secondary column onto the now-single compact stack.
+        if let secondaryNav = svc.viewController(for: .secondary) as? UINavigationController {
+            let detailViewControllers = secondaryNav.viewControllers.filter { viewController in
+                if let orEmpty = viewController as? PostDetailOrEmptyViewController {
+                    return !orEmpty.isEmptyPlaceholder
+                }
+                return true
+            }
+            if !detailViewControllers.isEmpty {
+                secondaryNav.setViewControllers([], animated: false)
+                primaryStack += detailViewControllers
+            }
+        }
+
+        primaryNav.setViewControllers(primaryStack, animated: false)
     }
 
     /// Expanding from one column (compact width) to two (regular width): the
-    /// reverse handoff. Pull the detail content that was pushed onto the compact
-    /// navigation stack back out into the secondary column, leaving the primary
-    /// column showing just the post list.
+    /// reverse handoff. Two jobs:
+    /// 1. Strip the feed switcher from the base — in regular width the persistent
+    ///    primary column must never pop to it (feed selection is a navbar-title
+    ///    popover instead).
+    /// 2. Pull the detail content that was pushed onto the compact stack back out
+    ///    into the secondary column, leaving the primary column showing just the
+    ///    post list.
     func splitViewControllerDidExpand(_ svc: UISplitViewController) {
         guard let splitViewController else { return }
         let primaryNav = splitViewController.postListNavigationController
 
-        let stack = primaryNav.viewControllers
-        guard stack.count > Self.postListBaseStackDepth else {
-            // Nothing was drilled into; ensure the secondary shows the empty state.
+        // 1. Remove the feed switcher wherever it sits in the stack.
+        var stack = primaryNav.viewControllers
+        if let feedSwitcher = splitViewController.feedSwitcherViewController {
+            stack.removeAll { $0 === feedSwitcher }
+        }
+
+        // 2. With the switcher gone the regular-width base is the post list alone
+        //    (index 0); anything above it is detail to hand back to the secondary
+        //    column.
+        let baseDepth = 1
+        guard stack.count > baseDepth else {
+            // Nothing was drilled into; commit the switcher-stripped base and
+            // ensure the secondary shows the empty state.
+            primaryNav.setViewControllers(stack, animated: false)
             restoreEmptySecondaryColumn(in: svc)
             return
         }
 
-        let baseViewControllers = Array(stack.prefix(Self.postListBaseStackDepth))
-        let detailViewControllers = Array(stack.suffix(from: Self.postListBaseStackDepth))
+        let baseViewControllers = Array(stack.prefix(baseDepth))
+        let detailViewControllers = Array(stack.suffix(from: baseDepth))
 
         primaryNav.setViewControllers(baseViewControllers, animated: false)
 

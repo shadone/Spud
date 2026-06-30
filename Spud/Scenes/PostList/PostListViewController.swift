@@ -359,6 +359,11 @@ class PostListViewController: UIViewController {
         // header to it. Guarded against no-op churn, so this is cheap to call
         // every pass and handles rotation / width changes for free.
         layoutScrollingHeaderIfNeeded()
+        // A split collapse/expand changes the primary column's width (and thus
+        // whether the feed-name title control should be the tappable popover anchor
+        // or a plain title) but does NOT change this controller's own size class,
+        // so re-evaluate here, where `splitViewController?.isCollapsed` is accurate.
+        refreshTitleControlModeIfNeeded()
     }
 
     // MARK: Scrolling header
@@ -427,12 +432,100 @@ class PostListViewController: UIViewController {
 
     // MARK: Feed title
 
+    /// Set by the owning split controller (`MainWindowSplitViewController`) to
+    /// present the feed switcher as a popover anchored to `anchor`. Wired only for
+    /// the Posts-tab primary feed; nil elsewhere (e.g. the community-embedded feed,
+    /// whose host owns the navbar). Used solely in the regular size class — in
+    /// compact the switcher lives beneath the post list and is reached by the
+    /// system back-swipe instead.
+    var onPresentFeedSwitcher: ((_ anchor: UIView) -> Void)?
+
+    /// The tappable feed-name title shown in the regular size class: the current
+    /// feed name plus a trailing `chevron.down`, presenting the feed switcher as a
+    /// popover on tap. Replaced by a plain `navigationItem.title` in compact width
+    /// (and wherever `onPresentFeedSwitcher` is unset).
+    private lazy var titleButton: UIButton = {
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(
+            systemName: "chevron.down",
+            withConfiguration: UIImage.SymbolConfiguration(scale: .small)
+        )
+        config.imagePlacement = .trailing
+        config.imagePadding = 4
+        config.baseForegroundColor = .label
+        config.contentInsets = .zero
+        config.titleTextAttributesTransformer = UIConfigurationTextAttributesTransformer { incoming in
+            var outgoing = incoming
+            outgoing.font = .preferredFont(forTextStyle: .headline)
+            return outgoing
+        }
+        let button = UIButton(configuration: config)
+        button.addTarget(self, action: #selector(titleTapped), for: .touchUpInside)
+        button.accessibilityHint = NSLocalizedString(
+            "Shows the feed switcher",
+            comment: "Accessibility hint on the feed-name title button shown in the regular size class (iPad)"
+        )
+        return button
+    }()
+
+    /// Whether the tappable feed-name title control is currently installed.
+    /// Tracked so the layout-pass re-evaluation only mutates `navigationItem` when
+    /// the presentation mode actually flips.
+    private var isShowingFeedTitleControl = false
+
     private func configureTitle() {
         applyNavigationTitle()
     }
 
     private func applyNavigationTitle() {
-        navigationItem.title = viewModel.navigationTitle
+        applyTitleControl()
+    }
+
+    /// Installs either the tappable feed-name title control (the post list is the
+    /// base of an EXPANDED split view and the feed switcher is reachable as a
+    /// popover) or a plain title (a collapsed / compact single-column stack, where
+    /// the switcher lives beneath the list via the system back-swipe; or an
+    /// embedded feed whose host owns the navbar).
+    ///
+    /// Keyed on the containing split view's `isCollapsed`, NOT this controller's
+    /// own `horizontalSizeClass`: in an expanded split the narrow primary column
+    /// still reports a COMPACT horizontal size class, so the size class can't tell
+    /// an "expanded primary column" apart from a "compact single column".
+    /// True when the feed-title control (a tappable `UIButton` that opens the
+    /// feed-switcher popover) should be shown instead of the plain navigation
+    /// title. Evaluated from split-view collapse state, NOT from the primary
+    /// column's own `horizontalSizeClass` (a narrow primary column in an expanded
+    /// split still reports `.compact`, making the size class ambiguous here).
+    private var shouldShowFeedTitleControl: Bool {
+        splitViewController?.isCollapsed == false && onPresentFeedSwitcher != nil
+    }
+
+    private func applyTitleControl() {
+        if shouldShowFeedTitleControl {
+            titleButton.setTitle(viewModel.navigationTitle, for: .normal)
+            titleButton.sizeToFit()
+            navigationItem.titleView = titleButton
+            navigationItem.title = nil
+        } else {
+            navigationItem.titleView = nil
+            navigationItem.title = viewModel.navigationTitle
+        }
+        isShowingFeedTitleControl = shouldShowFeedTitleControl
+    }
+
+    /// Re-evaluates the title presentation mode and flips it only when it changed.
+    /// Cheap enough to call on every layout pass — that is how a split
+    /// collapse/expand (which changes the primary column's width but not this
+    /// controller's `horizontalSizeClass`) is detected.
+    private func refreshTitleControlModeIfNeeded() {
+        guard shouldShowFeedTitleControl != isShowingFeedTitleControl else { return }
+        applyTitleControl()
+    }
+
+    @objc
+    private func titleTapped() {
+        Haptics.tap()
+        onPresentFeedSwitcher?(titleButton)
     }
 
     /// The feed currently displayed. The feed switcher reads this to mark the
@@ -492,6 +585,23 @@ class PostListViewController: UIViewController {
         tableView.refreshControl = refreshControl
         startObservations()
         feedChanged()
+
+        // Backup trigger for the feed-name title control: re-evaluate on a
+        // horizontal-size-class change (e.g. some iPad multitasking resizes). The
+        // primary driver is `viewDidLayoutSubviews` (split collapse/expand changes
+        // the column width, not this controller's size class). Uses the iOS 17+
+        // registration API rather than the deprecated `traitCollectionDidChange(_:)`
+        // override (which would warn).
+        registerForTraitChanges([UITraitHorizontalSizeClass.self]) { (self: Self, _: UITraitCollection) in
+            self.refreshTitleControlModeIfNeeded()
+        }
+    }
+
+    override func viewIsAppearing(_ animated: Bool) {
+        super.viewIsAppearing(animated)
+        // `splitViewController?.isCollapsed` is resolved by now; install the correct
+        // title control for the current layout.
+        applyTitleControl()
     }
 
     override func viewDidAppear(_ animated: Bool) {
