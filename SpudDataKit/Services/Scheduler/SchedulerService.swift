@@ -85,6 +85,7 @@ public class SchedulerService: SchedulerServiceType {
         // accounts retry immediately instead of waiting out their back-off window
         // (up to 2 h). Mirrors the OutboxService.start() reachability pattern.
         let stream = reachabilityMonitor.statusStream
+        reachabilityTask?.cancel()
         reachabilityTask = Task { [weak self] in
             var wasOnline: Bool?
             for await online in stream {
@@ -149,7 +150,7 @@ public class SchedulerService: SchedulerServiceType {
     }
 
     /// Gate the fetch through the per-account back-off, then record the outcome.
-    /// All three per-account call sites funnel here so the back-off state is
+    /// All four per-account call sites funnel here so the back-off state is
     /// authoritative regardless of which sweep triggers the attempt.
     private func gatedFetchSiteInfo(forAccountKeychainId keychainId: String) async {
         guard backoff.shouldAttempt(keychainId: keychainId, now: now()) else { return }
@@ -160,7 +161,6 @@ public class SchedulerService: SchedulerServiceType {
     /// Perform the actual network call for one account. Returns `true` on success,
     /// `false` on any error (the error is still routed to `alertService` so the
     /// existing error-handling and `site.fetchFailed` diagnostic are unchanged).
-    @discardableResult
     private func fetchSiteInfo(forAccountKeychainId keychainId: String) async -> Bool {
         let instance = accountService.instanceActorId(forAccountKeychainId: keychainId)?.hostWithPort
         await diagnostics.record(
