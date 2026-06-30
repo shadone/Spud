@@ -143,15 +143,25 @@ final class IPadLayoutSnapshotTests: XCTestCase {
     }
 
     /// iPad-landscape snapshot of `CommunityReadingSplitViewController`: verifies the
-    /// two-column layout — primary community feed column and secondary "No posts selected"
-    /// placeholder column — renders correctly before any async network fetch completes.
+    /// two-column layout — primary column and secondary "No posts selected" placeholder —
+    /// in its settled post-error state (the `fetchCommunityInfo` Task has completed
+    /// and the loading indicator has stopped).
     ///
-    /// Uses `.image(on: .iPadPro11(.landscape), traits:)` so any simulator works.
-    /// The snapshot captures the loading state: the primary column shows the activity
-    /// indicator (the async `fetchCommunityInfo` Task has not yet run), and the secondary
-    /// column shows the "No posts selected" placeholder immediately (no async settling needed).
-    func test_communitySplit_emptyDetail_ipad_landscape() throws {
+    /// A minimal signed-out account is seeded so `AccountService.lemmyService()` can
+    /// create a `LemmyService` without a fatalError. The fetch to `example.com` fails
+    /// immediately (not a Lemmy endpoint), the indicator stops, and the snapshot captures
+    /// the empty-but-settled layout. The key assertion is structural: the split VC shows
+    /// two columns and the secondary column contains the "No posts selected" placeholder.
+    ///
+    /// Uses `drawHierarchyInKeyWindow: true` (rendered on-screen via a real `UIWindow`)
+    /// so the settled VC state is captured rather than a fresh re-render. This is the
+    /// same strategy used for `UIVisualEffectView` blur snapshots (see CLAUDE.md).
+    func test_communitySplit_emptyDetail_ipad_landscape() async throws {
         let appDatabase = try AppDatabase.inMemory()
+        // Seed a minimal signed-out account so AccountService.lemmyService(forAccountKeychainId:)
+        // can resolve the account row without fatalError-ing on a missing record.
+        try await seedTestAccount(into: appDatabase, keychainId: "snapshot")
+
         let preferencesService = PreferencesService()
         let reachabilityMonitor = StaticReachabilityMonitor(isOnline: true)
         let appService = AppService(
@@ -173,7 +183,7 @@ final class IPadLayoutSnapshotTests: XCTestCase {
             preferencesService: preferencesService,
             reachabilityMonitor: reachabilityMonitor
         )
-        let instance = try XCTUnwrap(InstanceActorId(from: "https://lemmy.ml"))
+        let instance = try XCTUnwrap(InstanceActorId(from: "https://example.com"))
         let splitVC = CommunityReadingSplitViewController(
             communityName: "programming",
             instance: instance,
@@ -181,16 +191,83 @@ final class IPadLayoutSnapshotTests: XCTestCase {
             dependencies: dependencies
         )
 
+        // Place the split VC on a visible UIWindow so all nested VCs (the embedded
+        // UISplitViewController, primaryNav, CommunityOrLoadingViewController) receive
+        // viewDidLoad and their async Tasks fire. Without an on-screen window the
+        // UINavigationController never loads its root VC's view and the loading
+        // indicator Task never starts — the snapshot would always capture mid-loading.
+        let size = ViewImageConfig.iPadPro11(.landscape).size ?? CGSize(width: 1194, height: 834)
+        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+        window.rootViewController = splitVC
+        window.makeKeyAndVisible()
+        window.layoutIfNeeded()
+
+        // Wait for the primary column's loading indicator to stop. The network fetch to
+        // example.com fails immediately (not a Lemmy endpoint) and
+        // CommunityOrLoadingViewController stops the indicator in its catch block.
+        let deadline = Date().addingTimeInterval(10)
+        while hasAnimatingIndicator(in: splitVC.view) {
+            if Date() > deadline {
+                XCTFail("Loading indicator never stopped — fetchCommunityInfo appears to be hanging")
+                window.rootViewController = nil
+                return
+            }
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 50_000_000)
+        }
+
+        // Snapshot the settled on-screen hierarchy. drawHierarchyInKeyWindow: true
+        // captures the live view state rather than doing a fresh offscreen re-render
+        // (which would replay viewDidLoad and show the spinner again).
+        window.overrideUserInterfaceStyle = .light
+        window.layoutIfNeeded()
         assertSnapshot(
             matching: splitVC,
-            as: .image(on: .iPadPro11(.landscape), traits: UITraitCollection(userInterfaceStyle: .light)),
+            as: .image(drawHierarchyInKeyWindow: true, size: size, traits: UITraitCollection(userInterfaceStyle: .light)),
             named: "light"
         )
+
+        window.overrideUserInterfaceStyle = .dark
+        window.layoutIfNeeded()
         assertSnapshot(
             matching: splitVC,
-            as: .image(on: .iPadPro11(.landscape), traits: UITraitCollection(userInterfaceStyle: .dark)),
+            as: .image(drawHierarchyInKeyWindow: true, size: size, traits: UITraitCollection(userInterfaceStyle: .dark)),
             named: "dark"
         )
+
+        window.rootViewController = nil
+    }
+
+    // MARK: - Community split helpers
+
+    /// Seed a minimal signed-out account row so `AccountService.lemmyService(forAccountKeychainId:)`
+    /// can resolve the account without hitting its `fatalError("No account registered…")`.
+    ///
+    /// Inserts InstanceRecord → SiteRecord → AccountRecord in a single GRDB write transaction,
+    /// following the same pattern used in `LemmyServiceSaveTests`.
+    private func seedTestAccount(into appDatabase: AppDatabase, keychainId: String) async throws {
+        try await appDatabase.writer.write { db in
+            var instance = InstanceRecord(actorId: "https://example.com")
+            try instance.insert(db)
+            var site = SiteRecord(instanceId: instance.id!)
+            try site.insert(db)
+            var account = AccountRecord(
+                siteId: site.id!,
+                accountKeychainId: keychainId,
+                isSignedOutAccountType: true
+            )
+            try account.insert(db)
+        }
+    }
+
+    /// Returns `true` if `view` or any of its descendants is an animating
+    /// `UIActivityIndicatorView`. Used to poll for the end of the community-load
+    /// network request in `test_communitySplit_emptyDetail_ipad_landscape`.
+    private func hasAnimatingIndicator(in view: UIView) -> Bool {
+        if let indicator = view as? UIActivityIndicatorView {
+            return indicator.isAnimating
+        }
+        return view.subviews.contains { hasAnimatingIndicator(in: $0) }
     }
 
     // MARK: - Discover helpers
