@@ -8,10 +8,10 @@ import SpudDataKit
 import SwiftUI
 
 /// The signed-in Account tab content: a tappable profile header over a grouped
-/// list of account actions (switch account, saved / your posts / your comments,
-/// log out). Navigation is owned by the hosting `AccountViewController`, reached
-/// through the callbacks wired here, so each row works the same on iPhone and
-/// iPad.
+/// list of account actions (switch account, saved / activity / your posts / your
+/// comments, log out). Navigation is owned by the hosting `AccountViewController`,
+/// reached through the callbacks wired here, so each row works the same on iPhone
+/// and iPad.
 struct AccountView: View {
     let viewModel: AccountViewModel
     let accent: Color
@@ -19,7 +19,7 @@ struct AccountView: View {
     let onEditProfile: () -> Void
     let onSwitchAccount: () -> Void
     let onOpenSaved: () -> Void
-    let onOpenHistory: () -> Void
+    let onOpenActivity: () -> Void
     let onOpenYourPosts: () -> Void
     let onOpenYourComments: () -> Void
     let onLogout: () -> Void
@@ -52,10 +52,10 @@ struct AccountView: View {
                     action: onOpenSaved
                 )
                 AccountRow(
-                    title: NSLocalizedString("History", comment: "Account row"),
-                    systemImage: "clock.arrow.circlepath",
+                    title: NSLocalizedString("Activity", comment: "Account row"),
+                    systemImage: "list.bullet.rectangle.portrait",
                     tint: accent,
-                    action: onOpenHistory
+                    action: onOpenActivity
                 )
                 AccountRow(
                     title: NSLocalizedString("Your posts", comment: "Account row"),

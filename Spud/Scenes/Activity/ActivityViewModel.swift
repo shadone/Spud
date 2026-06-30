@@ -29,9 +29,17 @@ final class ActivityViewModel {
 
     // MARK: Functions
 
-    init(coordinator: ActivityCoordinator, accountId: Int64) {
+    /// Creates an ActivityViewModel.
+    ///
+    /// - Parameters:
+    ///   - coordinator: The data coordinator that drives the activity stream.
+    ///   - accountId: Row id of the account whose activity is shown.
+    ///   - initialFilters: The filter chips that should be active when the screen
+    ///     first opens. Pass an empty set to show all activity (the default).
+    init(coordinator: ActivityCoordinator, accountId: Int64, initialFilters: Set<ActivityFilterType> = []) {
         self.coordinator = coordinator
         self.accountId = accountId
+        activeFilters = initialFilters
     }
 
     func start() {

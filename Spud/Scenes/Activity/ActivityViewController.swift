@@ -84,7 +84,18 @@ class ActivityViewController: UIViewController {
 
     // MARK: Functions
 
-    init(accountKeychainId: String, dependencies: Dependencies) {
+    /// Creates an ActivityViewController.
+    ///
+    /// - Parameters:
+    ///   - accountKeychainId: The keychain id of the signed-in account whose activity is shown.
+    ///   - initialFilters: The filter chips that should be active when the screen first opens.
+    ///     Pass an empty set (the default) to show all activity types.
+    ///   - dependencies: Dependency container.
+    init(
+        accountKeychainId: String,
+        initialFilters: Set<ActivityFilterType> = [],
+        dependencies: Dependencies
+    ) {
         self.accountKeychainId = accountKeychainId
         self.dependencies = (own: dependencies, nested: dependencies)
 
@@ -106,7 +117,7 @@ class ActivityViewController: UIViewController {
             authoredSource: authoredSource
         )
         let accountId = db.accountRowIdSync(forKeychainId: accountKeychainId) ?? 0
-        viewModel = ActivityViewModel(coordinator: coordinator, accountId: accountId)
+        viewModel = ActivityViewModel(coordinator: coordinator, accountId: accountId, initialFilters: initialFilters)
 
         super.init(nibName: nil, bundle: nil)
     }

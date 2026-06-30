@@ -5,19 +5,15 @@
 //
 
 import Foundation
-import LemmyKit
-import OSLog
 import SpudDataKit
 import SpudUIKit
 import SpudUtilKit
 import SwiftUI
 import UIKit
 
-private let logger = Logger.app
-
 /// The Account tab. When signed in it shows `AccountView`: a tappable profile
 /// header (-> Edit Profile) over a grouped list of account actions (Switch
-/// account, Saved, History, Your posts, Your comments, Log out), with Settings
+/// account, Saved, Activity, Your posts, Your comments, Log out), with Settings
 /// in the nav bar. When signed out it shows a clean call-to-action to Log in or
 /// Sign up, with anonymous browsing remaining the default.
 class AccountViewController: UIViewController {
@@ -174,10 +170,10 @@ class AccountViewController: UIViewController {
             accent: accent,
             onEditProfile: { [weak self] in self?.openEditProfile(keychainId: keychainId) },
             onSwitchAccount: { [weak self] in self?.accountsTapped() },
-            onOpenSaved: { [weak self] in self?.openSaved(keychainId: keychainId) },
-            onOpenHistory: { [weak self] in self?.openHistory(keychainId: keychainId) },
-            onOpenYourPosts: { [weak self] in self?.openOwnProfile(keychainId: keychainId, tab: .posts) },
-            onOpenYourComments: { [weak self] in self?.openOwnProfile(keychainId: keychainId, tab: .comments) },
+            onOpenSaved: { [weak self] in self?.openActivity(keychainId: keychainId, initialFilters: [.save]) },
+            onOpenActivity: { [weak self] in self?.openActivity(keychainId: keychainId) },
+            onOpenYourPosts: { [weak self] in self?.openActivity(keychainId: keychainId, initialFilters: [.post]) },
+            onOpenYourComments: { [weak self] in self?.openActivity(keychainId: keychainId, initialFilters: [.comment]) },
             onLogout: { [weak self] in self?.confirmLogout() }
         )
         .environment(\.imageService, imageService)
@@ -297,45 +293,19 @@ class AccountViewController: UIViewController {
         present(editor, animated: true)
     }
 
-    /// Pushes the account holder's own Person profile, opened on `tab` (Posts or
-    /// Comments). Resolves the own person ids; a no-op if they haven't been
-    /// imported yet (the header would already be hidden in that case).
-    private func openOwnProfile(keychainId: String, tab: PersonContentTab) {
+    /// Pushes the Activity screen pre-filtered to `initialFilters`.
+    ///
+    /// All four Account tab action rows (Saved, Activity, Your posts, Your comments)
+    /// funnel here; each supplies a different preset so the screen opens in the
+    /// relevant view while the user can still toggle other filters freely.
+    private func openActivity(keychainId: String, initialFilters: Set<ActivityFilterType> = []) {
         Haptics.tap()
-        guard let ownPerson = viewModel.ownPerson else { return }
-        let personVC = PersonViewController(
-            personRowId: ownPerson.personRowId,
-            serverPersonId: Components.Schemas.PersonID(ownPerson.serverPersonId),
+        let activityVC = ActivityViewController(
             accountKeychainId: keychainId,
-            dependencies: dependencies.nested,
-            initialTab: tab
-        )
-        navigationController?.pushViewController(personVC, animated: true)
-    }
-
-    private func openSaved(keychainId: String) {
-        Haptics.tap()
-        let sortType = accountService.defaultSortType(forAccountKeychainId: keychainId)
-        let feed = accountService.createFeed(
-            forAccountKeychainId: keychainId,
-            feedType: .saved(sortType: sortType)
-        )
-        let postListVC = PostListViewController(
-            feed: feed,
-            accountKeychainId: keychainId,
+            initialFilters: initialFilters,
             dependencies: dependencies.nested
         )
-        postListVC.navigationItem.title = NSLocalizedString("Saved", comment: "Saved posts screen title")
-        navigationController?.pushViewController(postListVC, animated: true)
-    }
-
-    private func openHistory(keychainId: String) {
-        Haptics.tap()
-        let historyVC = HistoryViewController(
-            accountKeychainId: keychainId,
-            dependencies: dependencies.nested
-        )
-        navigationController?.pushViewController(historyVC, animated: true)
+        navigationController?.pushViewController(activityVC, animated: true)
     }
 
     private func confirmLogout() {

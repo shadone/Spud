@@ -14,7 +14,7 @@ import XCTest
 
 /// Full-screen snapshot of the signed-in Account tab (`AccountView`): the
 /// tappable profile header (display name + monospaced handle + chevron) over the
-/// grouped account-action rows (Switch account, Saved / History / Your posts /
+/// grouped account-action rows (Switch account, Saved / Activity / Your posts /
 /// Your comments, Log out).
 ///
 /// `AccountViewModel` fills the header from **async** GRDB observations
@@ -52,7 +52,7 @@ final class AccountScreenSnapshotTests: XCTestCase {
                 onEditProfile: { },
                 onSwitchAccount: { },
                 onOpenSaved: { },
-                onOpenHistory: { },
+                onOpenActivity: { },
                 onOpenYourPosts: { },
                 onOpenYourComments: { },
                 onLogout: { }
