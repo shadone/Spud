@@ -100,6 +100,23 @@ struct ActivityCoordinatorTests {
         )
     }
 
+    /// A page that reports only the authored-post frontier (the post rows
+    /// themselves arrive via the live person-post observation, not the page).
+    /// Comments are reported exhausted so a comment frontier never constrains the
+    /// merge in posts-only tests.
+    private func postsPage(
+        oldestPostPublished: Date,
+        postsExhausted: Bool = false
+    ) -> AuthoredActivityPage {
+        AuthoredActivityPage(
+            comments: [],
+            oldestPostPublished: oldestPostPublished,
+            oldestCommentPublished: nil,
+            postsExhausted: postsExhausted,
+            commentsExhausted: true
+        )
+    }
+
     /// Polls `predicate` until it holds or the deadline passes.
     private func waitUntil(
         timeout: Duration = .seconds(3),
@@ -248,6 +265,99 @@ struct ActivityCoordinatorTests {
         #expect(await source.requestedPages == [1])
     }
 
+    @Test
+    func authoredPosts_clampAndInterleaveWithLocalStream() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let seeded = try await seedAuthoredAndSavedPosts(appDatabase)
+
+        // Page 1 reports the authored-post frontier at t=50 (the oldest authored
+        // post loaded) and that more posts may remain, so anything older than 50
+        // must be clamped off the merged prefix.
+        let source = FakeAuthoredSource(pages: [
+            postsPage(oldestPostPublished: Date(timeIntervalSince1970: 50)),
+        ])
+        let coordinator = ActivityCoordinator(
+            appDatabase: appDatabase,
+            personRowId: seeded.personRowId,
+            authoredSource: source
+        )
+
+        let collector = Collector<[ActivityItem]>()
+        let stream = await coordinator.activityStream(
+            accountId: seeded.accountId,
+            filters: [.post, .save],
+            searchQuery: nil
+        )
+        let consume = Task { for await snapshot in stream {
+            await collector.append(snapshot)
+        } }
+        defer { consume.cancel() }
+
+        // Once the auto-fired first page lands, the post frontier (t=50) clamps the
+        // older saved post (t=30) off, while the newer saved post (t=75)
+        // interleaves between the two authored posts (t=100 and t=50). This drives
+        // the live-observation -> postsLoadedOnce / postsOldestLoaded -> clamp seam
+        // end to end through the coordinator.
+        let expected = ["post-post-2001", "save-post-2003", "post-post-2002"]
+        let settled = await waitUntil { await (collector.last ?? []).map(\.id) == expected }
+        #expect(settled, "authored posts interleave with the local stream, clamped to the post frontier")
+
+        let ids = await (collector.last ?? []).map(\.id)
+        #expect(ids == expected)
+        #expect(
+            !ids.contains("save-post-2004"),
+            "the saved post older than the authored-post frontier is clamped off"
+        )
+        #expect(await source.requestedPages == [1], "only the auto-fired first page is fetched")
+    }
+
+    @Test
+    func statusStream_reSubscribeKeepsNewSubscriberLive() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let source = FakeAuthoredSource(pages: [
+            commentPage([commentItem("c-1", at: 100)]),
+            commentPage([], commentsExhausted: true),
+        ])
+        let coordinator = ActivityCoordinator(
+            appDatabase: appDatabase,
+            personRowId: nil,
+            authoredSource: source
+        )
+
+        let itemsStream = await coordinator.activityStream(accountId: 1, filters: [.comment], searchQuery: nil)
+        let consume = Task { for await _ in itemsStream { } }
+        defer { consume.cancel() }
+
+        // Let the auto-fired first page settle so later transitions are unambiguous.
+        _ = await waitUntil { await coordinator.loadState == .idle }
+
+        // Subscriber A, then subscriber B. B's registration finishes A's
+        // continuation; A's termination then schedules a clear that, without the
+        // identity guard, would nil B's continuation (the Issue 1 bug).
+        let collectorA = Collector<ActivityLoadState>()
+        let streamA = await coordinator.statusStream()
+        let consumeA = Task { for await state in streamA {
+            await collectorA.append(state)
+        } }
+        defer { consumeA.cancel() }
+
+        let collectorB = Collector<ActivityLoadState>()
+        let streamB = await coordinator.statusStream()
+        let consumeB = Task { for await state in streamB {
+            await collectorB.append(state)
+        } }
+        defer { consumeB.cancel() }
+
+        // Wait for B's replayed state and give A's now-stale termination clear a
+        // chance to run before the next transition is emitted.
+        _ = await waitUntil { await collectorB.values.contains(.idle) }
+
+        // A further transition must still reach B's continuation.
+        await coordinator.loadMore()
+        let bSawComplete = await waitUntil { await collectorB.values.contains(.complete) }
+        #expect(bSawComplete, "the new status subscriber keeps receiving transitions after a re-subscribe")
+    }
+
     // MARK: - Seeding
 
     /// Inserts the minimal graph for a single saved post owned by a fresh
@@ -305,6 +415,115 @@ struct ActivityCoordinatorTests {
                 arguments: [accountId, communityId, personId, title, Date(), Date(), Date()]
             )
             return accountId
+        }
+    }
+
+    /// Seeds two authored posts (by the returned `personRowId`) at t=100 / t=50
+    /// and two saved posts (by a different person) at t=75 / t=30, all under one
+    /// fresh account. Lets a posts-only test assert that the authored posts
+    /// interleave with the saved local stream and clamp anything older than the
+    /// authored-post frontier. Server post ids are fixed (2001..2004) so the test
+    /// can assert on stable `ActivityItem` ids.
+    private func seedAuthoredAndSavedPosts(
+        _ appDatabase: AppDatabase
+    ) async throws -> (accountId: Int64, personRowId: Int64) {
+        try await appDatabase.writer.write { db in
+            try db.execute(
+                sql: "INSERT INTO instance (actorId, createdAt) VALUES (?, ?)",
+                arguments: ["https://test.instance", Date()]
+            )
+            let instanceId = db.lastInsertedRowID
+            try db.execute(
+                sql: "INSERT INTO site (instanceId, createdAt, updatedAt) VALUES (?, ?, ?)",
+                arguments: [instanceId, Date(), Date()]
+            )
+            let siteId = db.lastInsertedRowID
+            // person 1 authors the posts under test; person 2 owns the saved posts
+            // so the person-post observation does not also surface them.
+            try db.execute(
+                sql: """
+                    INSERT INTO person (siteId, personId, name, isAdmin, isBanned, isBotAccount, isDeleted, isLocal,
+                                        numberOfPosts, numberOfComments, createdAt, updatedAt)
+                    VALUES (?, 10, 'author', 0, 0, 0, 0, 0, 0, 0, ?, ?)
+                    """,
+                arguments: [siteId, Date(), Date()]
+            )
+            let authorPersonId = db.lastInsertedRowID
+            try db.execute(
+                sql: """
+                    INSERT INTO person (siteId, personId, name, isAdmin, isBanned, isBotAccount, isDeleted, isLocal,
+                                        numberOfPosts, numberOfComments, createdAt, updatedAt)
+                    VALUES (?, 11, 'saver', 0, 0, 0, 0, 0, 0, 0, ?, ?)
+                    """,
+                arguments: [siteId, Date(), Date()]
+            )
+            let saverPersonId = db.lastInsertedRowID
+            try db.execute(
+                sql: """
+                    INSERT INTO account (siteId, accountKeychainId, isDefault, isServiceAccount,
+                                         isSignedOutAccountType, createdAt, updatedAt)
+                    VALUES (?, 'kc-activity', 0, 0, 0, ?, ?)
+                    """,
+                arguments: [siteId, Date(), Date()]
+            )
+            let accountId = db.lastInsertedRowID
+            try db.execute(
+                sql: """
+                    INSERT INTO community (accountId, communityId, name, actorId, isHidden, isLocal, isNsfw,
+                                           isPostingRestrictedToMods, isRemoved, subscribedState,
+                                           numberOfSubscribers, numberOfPosts, numberOfComments, createdAt, updatedAt)
+                    VALUES (?, 5, 'test', 'https://test.instance/c/test', 0, 0, 0, 0, 0, 'NotSubscribed', 0, 0, 0, ?, ?)
+                    """,
+                arguments: [accountId, Date(), Date()]
+            )
+            let communityId = db.lastInsertedRowID
+
+            func insertPost(serverPostId: Int64, creatorId: Int64, published: Date, isSaved: Bool) throws {
+                try db.execute(
+                    sql: """
+                        INSERT INTO post (accountId, communityId, creatorId, postId, title, originalPostUrl,
+                                          score, numberOfUpvotes, numberOfDownvotes, numberOfComments,
+                                          isRead, isSaved, isHidden, isRemoved, isLocked,
+                                          isFeaturedCommunity, isFeaturedLocal, isDeleted, published, createdAt, updatedAt)
+                        VALUES (?, ?, ?, ?, ?, ?,
+                                0, 0, 0, 0, 0, ?, 0, 0, 0, 0, 0, 0, ?, ?, ?)
+                        """,
+                    arguments: [
+                        accountId, communityId, creatorId, serverPostId,
+                        "post \(serverPostId)", "https://test.instance/post/\(serverPostId)",
+                        isSaved ? 1 : 0, published, Date(), Date(),
+                    ]
+                )
+            }
+
+            // Authored posts (by person 1): newest t=100, oldest t=50.
+            try insertPost(
+                serverPostId: 2001,
+                creatorId: authorPersonId,
+                published: Date(timeIntervalSince1970: 100),
+                isSaved: false
+            )
+            try insertPost(
+                serverPostId: 2002,
+                creatorId: authorPersonId,
+                published: Date(timeIntervalSince1970: 50),
+                isSaved: false
+            )
+            // Saved local posts (by person 2): t=75 interleaves, t=30 is below the frontier.
+            try insertPost(
+                serverPostId: 2003,
+                creatorId: saverPersonId,
+                published: Date(timeIntervalSince1970: 75),
+                isSaved: true
+            )
+            try insertPost(
+                serverPostId: 2004,
+                creatorId: saverPersonId,
+                published: Date(timeIntervalSince1970: 30),
+                isSaved: true
+            )
+
+            return (accountId, authorPersonId)
         }
     }
 }

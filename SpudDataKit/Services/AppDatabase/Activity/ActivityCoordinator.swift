@@ -101,12 +101,22 @@ public actor ActivityCoordinator {
 
     private var itemsContinuation: AsyncStream<[ActivityItem]>.Continuation?
     private var stateContinuation: AsyncStream<ActivityLoadState>.Continuation?
+    /// Bumped on every `statusStream()` subscription. Captured synchronously and
+    /// threaded into that stream's `onTermination` so a prior subscriber's
+    /// teardown (fired when we finish its continuation on re-subscribe) clears
+    /// only its own continuation - never the new one. Mirrors `streamGeneration`
+    /// on the items path.
+    private var stateGeneration: UInt64 = 0
     /// Last array yielded, so identical re-computations (e.g. a no-op DB change)
     /// don't spam the consumer.
     private var lastEmitted: [ActivityItem]?
 
     private var localTask: Task<Void, Never>?
     private var postsTask: Task<Void, Never>?
+    /// The auto-fired first-page fetch kicked on subscribe (see `beginStreaming`).
+    /// Tracked so teardown can cancel an in-flight initial load instead of letting
+    /// it outlive the subscription.
+    private var initialLoadTask: Task<Void, Never>?
 
     public init(
         appDatabase: AppDatabase,
@@ -143,7 +153,12 @@ public actor ActivityCoordinator {
         postsEnabled = filters.contains(.post) && authoredSource != nil && personRowId != nil
         commentsEnabled = filters.contains(.comment) && authoredSource != nil
 
-        return AsyncStream { [weak self] continuation in
+        // Capture the current generation synchronously so the stream's
+        // `onTermination` tears down only this subscription (see
+        // `stopStreaming(ifGeneration:)`). Only the newest snapshot matters, so
+        // buffer just one to avoid retaining superseded `[ActivityItem]` arrays.
+        let generation = streamGeneration
+        return AsyncStream(bufferingPolicy: .bufferingNewest(1)) { [weak self] continuation in
             guard let self else {
                 continuation.finish()
                 return
@@ -151,7 +166,7 @@ public actor ActivityCoordinator {
             let setup = Task { await self.beginStreaming(continuation: continuation) }
             continuation.onTermination = { _ in
                 setup.cancel()
-                Task { await self.stopStreaming() }
+                Task { await self.stopStreaming(ifGeneration: generation) }
             }
         }
     }
@@ -159,7 +174,12 @@ public actor ActivityCoordinator {
     /// A stream of authored load-state transitions (idle / loading / complete /
     /// degraded). Replays the current state on subscribe.
     public func statusStream() -> AsyncStream<ActivityLoadState> {
-        AsyncStream { [weak self] continuation in
+        // Bump synchronously (on the actor) so the generation is known before the
+        // async `registerStateContinuation` runs and can be captured by
+        // `onTermination`. Only the newest state matters, so buffer just one.
+        stateGeneration &+= 1
+        let generation = stateGeneration
+        return AsyncStream(bufferingPolicy: .bufferingNewest(1)) { [weak self] continuation in
             guard let self else {
                 continuation.finish()
                 return
@@ -167,7 +187,7 @@ public actor ActivityCoordinator {
             let setup = Task { await self.registerStateContinuation(continuation) }
             continuation.onTermination = { [weak self] _ in
                 setup.cancel()
-                Task { await self?.clearStateContinuation() }
+                Task { await self?.clearStateContinuation(ifGeneration: generation) }
             }
         }
     }
@@ -226,23 +246,35 @@ public actor ActivityCoordinator {
         startLocalObservation()
         startPostsObservation()
         if postsEnabled || commentsEnabled {
-            Task { await self.loadMore() }
+            // Track the auto-fired initial page so teardown can cancel it - an
+            // in-flight first fetch must not outlive the subscription.
+            initialLoadTask = Task { await self.loadMore() }
         }
     }
 
     private func registerStateContinuation(_ continuation: AsyncStream<ActivityLoadState>.Continuation) {
         // End any prior status subscriber cleanly so a re-subscribe doesn't leave
-        // it hanging on a continuation that will never finish.
+        // it hanging on a continuation that will never finish. The prior stream's
+        // `onTermination` then fires a `clearStateContinuation`, but it is
+        // generation-guarded so it clears only its own (now-stale) continuation,
+        // never this new one.
         stateContinuation?.finish()
         stateContinuation = continuation
         continuation.yield(loadState)
     }
 
-    private func clearStateContinuation() {
+    /// Generation-guarded teardown for the status stream's `onTermination`. Clears
+    /// the continuation only when `generation` is still the active subscription, so
+    /// a superseded subscriber's termination (fired when its continuation was
+    /// finished on re-subscribe) can't nil the new subscriber's continuation.
+    private func clearStateContinuation(ifGeneration generation: UInt64) {
+        guard generation == stateGeneration else { return }
         stateContinuation = nil
     }
 
     private func stopStreaming() {
+        initialLoadTask?.cancel()
+        initialLoadTask = nil
         localTask?.cancel()
         localTask = nil
         postsTask?.cancel()
@@ -251,6 +283,16 @@ public actor ActivityCoordinator {
         // cleanly ends the old stream instead of leaving its consumer hanging.
         itemsContinuation?.finish()
         itemsContinuation = nil
+    }
+
+    /// Generation-guarded teardown for the items stream's `onTermination`. Tears
+    /// down only when `generation` is still the active subscription, so a stale
+    /// termination from a superseded subscription can't cancel the fresh
+    /// `localTask` / `postsTask` / `initialLoadTask` or finish the new
+    /// `itemsContinuation`. Mirrors the `streamGeneration` guard on `loadMore`.
+    private func stopStreaming(ifGeneration generation: UInt64) {
+        guard generation == streamGeneration else { return }
+        stopStreaming()
     }
 
     private func resetState() {
