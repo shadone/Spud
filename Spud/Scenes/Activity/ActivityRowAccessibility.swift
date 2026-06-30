@@ -15,17 +15,19 @@ import SpudDataKit
 enum ActivityRowAccessibility {
     /// Composes the row label for a post activity. `postSummary` is the reused
     /// `PostListPostViewModel.accessibilityLabel` (title, community, score,
-    /// comments, saved/locked/pinned), which already reads cleanly.
-    static func postLabel(act: ActivityAct, occurredAt: Date, postSummary: String) -> String {
-        [act.accessibilityVerb, occurredAt.activityRelativeString, postSummary]
+    /// comments, saved/locked/pinned), which already reads cleanly. `now` is the
+    /// reference instant for the relative-time string; tests inject a fixed value.
+    static func postLabel(act: ActivityAct, occurredAt: Date, postSummary: String, now: Date = Date()) -> String {
+        [act.accessibilityVerb, occurredAt.activityRelativeString(now: now), postSummary]
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
     }
 
     /// Composes the row label for a comment activity from the comment's body, its
-    /// parent post, community, and score.
-    static func commentLabel(act: ActivityAct, occurredAt: Date, comment: ActivityCommentRow) -> String {
-        var parts: [String] = [act.accessibilityVerb, occurredAt.activityRelativeString]
+    /// parent post, community, and score. `now` is the reference instant for the
+    /// relative-time string; tests inject a fixed value.
+    static func commentLabel(act: ActivityAct, occurredAt: Date, comment: ActivityCommentRow, now: Date = Date()) -> String {
+        var parts: [String] = [act.accessibilityVerb, occurredAt.activityRelativeString(now: now)]
 
         let trimmedBody = comment.body.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedBody.isEmpty {

@@ -69,9 +69,11 @@ final class ActivityCommentRowCell: UITableViewCell {
 
     /// Configures the header, the reused comment rendering (body + an
     /// Activity-specific "<community> · <post title>" context line), and the
-    /// composed VoiceOver label. `hint` describes the tap action.
-    func configure(item: ActivityItem, comment: ActivityCommentRow, hint: String) {
-        actionHeader.configure(act: item.act, occurredAt: item.occurredAt)
+    /// composed VoiceOver label. `hint` describes the tap action. `now` is the
+    /// reference instant used for the relative-time string — tests inject a
+    /// fixed value; production uses `Date()` (the default).
+    func configure(item: ActivityItem, comment: ActivityCommentRow, hint: String, now: Date = Date()) {
+        actionHeader.configure(act: item.act, occurredAt: item.occurredAt, now: now)
 
         let context: String
         if comment.parentPostTitle.isEmpty {
@@ -86,7 +88,8 @@ final class ActivityCommentRowCell: UITableViewCell {
         accessibilityLabel = ActivityRowAccessibility.commentLabel(
             act: item.act,
             occurredAt: item.occurredAt,
-            comment: comment
+            comment: comment,
+            now: now
         )
         accessibilityHint = hint
         commentContentView.accessibilityElementsHidden = true

@@ -75,16 +75,19 @@ final class ActivityPostRowCell: UITableViewCell {
     /// Configures the action header and the composed VoiceOver label. The inner
     /// `postContentView` is configured separately by the view controller (view
     /// model + callbacks). `postSummary` is the reused `PostListPostViewModel`
-    /// accessibility label; `hint` describes the tap action.
-    func configure(item: ActivityItem, postSummary: String, hint: String) {
-        actionHeader.configure(act: item.act, occurredAt: item.occurredAt)
+    /// accessibility label; `hint` describes the tap action. `now` is the
+    /// reference instant used for the relative-time string — tests inject a
+    /// fixed value; production uses `Date()` (the default).
+    func configure(item: ActivityItem, postSummary: String, hint: String, now: Date = Date()) {
+        actionHeader.configure(act: item.act, occurredAt: item.occurredAt, now: now)
 
         isAccessibilityElement = true
         accessibilityTraits = .button
         accessibilityLabel = ActivityRowAccessibility.postLabel(
             act: item.act,
             occurredAt: item.occurredAt,
-            postSummary: postSummary
+            postSummary: postSummary,
+            now: now
         )
         accessibilityHint = hint
         // The row is one element; keep VoiceOver out of the inner content's

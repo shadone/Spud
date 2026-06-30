@@ -50,10 +50,10 @@ class ActivityActionHeaderView: UIView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    func configure(act: ActivityAct, occurredAt: Date) {
+    func configure(act: ActivityAct, occurredAt: Date, now: Date = Date()) {
         iconView.image = UIImage(systemName: act.systemImageName)
         iconView.tintColor = act.tintColor
-        label.text = "\(act.displayName) · \(occurredAt.activityRelativeString)"
+        label.text = "\(act.displayName) · \(occurredAt.activityRelativeString(now: now))"
     }
 
     // MARK: Private
@@ -132,8 +132,10 @@ extension ActivityAct {
 }
 
 extension Date {
-    var activityRelativeString: String {
-        let now = Date()
+    /// Returns a short relative-time string ("just now", "5m ago", "2h ago", "3d ago")
+    /// computed against the given reference instant. Tests inject a fixed `now` so
+    /// the rendered text is deterministic; production passes `Date()` (the default).
+    func activityRelativeString(now: Date = Date()) -> String {
         let seconds = now.timeIntervalSince(self)
         if seconds < 60 { return NSLocalizedString("just now", comment: "Activity relative time") }
         if seconds < 3600 {

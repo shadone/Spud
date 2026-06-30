@@ -28,21 +28,21 @@ final class ActivitySnapshotTests: XCTestCase {
     // MARK: - Composed post rows
 
     func test_postRow_upvoted() async {
-        await assertCell(renderPostRow(item: upvotePostItem()))
+        await assertCell(renderPostRow(item: upvotePostItem(), now: fixedNow))
     }
 
     func test_postRow_downvoted() async {
-        await assertCell(renderPostRow(item: downvotePostItem()))
+        await assertCell(renderPostRow(item: downvotePostItem(), now: fixedNow))
     }
 
     func test_postRow_read() async {
-        await assertCell(renderPostRow(item: readPostItem()))
+        await assertCell(renderPostRow(item: readPostItem(), now: fixedNow))
     }
 
     /// The composed post row at the largest accessibility text size, proving the
     /// reused feed cell + action header reflow rather than clip.
     func test_postRow_dynamicTypeXXXL() async {
-        let cell = await renderPostRow(item: upvotePostItem())
+        let cell = await renderPostRow(item: upvotePostItem(), now: fixedNow)
         snapshotCell(
             cell,
             style: .light,
@@ -58,13 +58,13 @@ final class ActivitySnapshotTests: XCTestCase {
     /// the row, this fails loudly instead of letting a re-recorded snapshot
     /// silently capture the regression. A real comfortable row is ~112pt.
     func test_postRow_doesNotCollapse() async {
-        let cell = await renderPostRow(item: upvotePostItem())
+        let cell = await renderPostRow(item: upvotePostItem(), now: fixedNow)
         let rowHeight = measuredHeight(of: cell.contentView)
 
         // The action header alone (verb chip + relative time) is the collapsed
         // height; a populated row stacks the full post rendering beneath it.
         let header = ActivityActionHeaderView()
-        header.configure(act: .upvote, occurredAt: referenceDate)
+        header.configure(act: .upvote, occurredAt: referenceDate, now: fixedNow)
         let headerHeight = measuredHeight(of: header)
 
         XCTAssertGreaterThan(
@@ -93,11 +93,11 @@ final class ActivitySnapshotTests: XCTestCase {
     // MARK: - Composed comment rows
 
     func test_commentRow_commented() async {
-        await assertCell(renderCommentRow(item: commentItem(), comment: sampleComment()))
+        await assertCell(renderCommentRow(item: commentItem(), comment: sampleComment(), now: fixedNow))
     }
 
     func test_commentRow_saved() async {
-        await assertCell(renderCommentRow(item: saveCommentItem(), comment: sampleComment()))
+        await assertCell(renderCommentRow(item: saveCommentItem(), comment: sampleComment(), now: fixedNow))
     }
 
     // MARK: - Populated timeline
@@ -110,9 +110,9 @@ final class ActivitySnapshotTests: XCTestCase {
     func test_timeline_populated() async {
         for style in [UIUserInterfaceStyle.light, .dark] {
             let rows: [UIView] = await [
-                renderPostRow(item: upvotePostItem()),
-                renderCommentRow(item: commentItem(), comment: sampleComment()),
-                renderPostRow(item: readPostItem()),
+                renderPostRow(item: upvotePostItem(), now: fixedNow),
+                renderCommentRow(item: commentItem(), comment: sampleComment(), now: fixedNow),
+                renderPostRow(item: readPostItem(), now: fixedNow),
             ]
             let container = composeVertically(rows)
             assertContainer(container, style: style, testName: #function, line: #line)
@@ -202,7 +202,7 @@ final class ActivitySnapshotTests: XCTestCase {
 
     // MARK: - Row builders
 
-    private func renderPostRow(item: ActivityItem) async -> ActivityPostRowCell {
+    private func renderPostRow(item: ActivityItem, now: Date) async -> ActivityPostRowCell {
         guard case let .post(row) = item.object else {
             fatalError("renderPostRow requires a post item")
         }
@@ -213,18 +213,18 @@ final class ActivitySnapshotTests: XCTestCase {
 
         let viewModel = makePostViewModel(row: row)
         cell.postContentView.configure(with: viewModel, imageService: ScriptedImageService([.failure]))
-        cell.configure(item: item, postSummary: viewModel.accessibilityLabel, hint: viewModel.accessibilityHint)
+        cell.configure(item: item, postSummary: viewModel.accessibilityLabel, hint: viewModel.accessibilityHint, now: now)
         try? await Task.sleep(nanoseconds: 80_000_000)
         await Task.yield()
         return cell
     }
 
-    private func renderCommentRow(item: ActivityItem, comment: ActivityCommentRow) -> ActivityCommentRowCell {
+    private func renderCommentRow(item: ActivityItem, comment: ActivityCommentRow, now: Date) -> ActivityCommentRowCell {
         let cell = ActivityCommentRowCell(style: .default, reuseIdentifier: nil)
         cell.tintColor = lemmyTeal
         cell.contentView.tintColor = lemmyTeal
         cell.contentView.backgroundColor = .systemBackground
-        cell.configure(item: item, comment: comment, hint: "Opens the comment in its post")
+        cell.configure(item: item, comment: comment, hint: "Opens the comment in its post", now: now)
         return cell
     }
 
@@ -366,6 +366,14 @@ final class ActivitySnapshotTests: XCTestCase {
     // MARK: - Test data
 
     private let referenceDate = Date(timeIntervalSince1970: 1_751_000_000) // 2025-06-27
+
+    /// A fixed "current time" injected into every header render so the relative
+    /// string ("2h ago") is constant regardless of when the test runs.
+    /// 2 hours after `referenceDate`, which yields "2h ago" for every fixture
+    /// whose `occurredAt == referenceDate`.
+    private var fixedNow: Date {
+        referenceDate.addingTimeInterval(2 * 3600)
+    }
 
     private func upvotePostItem() -> ActivityItem {
         ActivityItem(id: "upvote-post-1", act: .upvote, occurredAt: referenceDate, object: .post(samplePost(voteStatus: 1)))
