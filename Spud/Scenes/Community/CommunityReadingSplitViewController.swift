@@ -55,9 +55,12 @@ final class CommunityReadingSplitViewController: UIViewController {
 
     private let primaryNav = UINavigationController()
 
-    /// The secondary column's navigation stack. Exposed so the router (Task 8)
-    /// can inspect / drive the detail column directly.
-    let detailNavigationController = UINavigationController()
+    /// The secondary column's *initial* navigation stack (the empty
+    /// placeholder). Note `showDetail(_:)` wraps each shown detail in a fresh
+    /// navigation controller and replaces the secondary column, so this property
+    /// goes stale after the first call — the router drives detail exclusively
+    /// through `showDetail(_:)`, never by reading this back.
+    private let detailNavigationController = UINavigationController()
 
     init(
         communityName: String,

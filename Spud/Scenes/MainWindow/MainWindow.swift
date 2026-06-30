@@ -610,18 +610,36 @@ class MainWindow: UIWindow {
 
     /// Pushes a screen into whichever tab the user is currently in, so Back
     /// returns to where they were (e.g. a community in the Communities tab)
-    /// instead of hijacking the Posts tab. Only the Posts tab is a split view and
-    /// needs the split-aware detail handling; every other tab is a plain
-    /// navigation controller, so a normal push is correct. Falls back to the
-    /// Posts tab when there is no current navigation context (e.g. a cold deep
-    /// link).
+    /// instead of hijacking the Posts tab.
+    ///
+    /// Each tab can host a different detail context, so the destination is
+    /// resolved through `SplitTabResolver`:
+    /// - The Posts tab is the real `UISplitViewController` — route via
+    ///   `pushDetail` (collapsed-aware push vs. secondary-column replace).
+    /// - A community reading split on top of another tab's nav stack (e.g.
+    ///   Communities) — route detail into ITS secondary column via
+    ///   `showDetail(_:)`, so the community feed stays visible beside it on iPad
+    ///   instead of the post pushing full-screen or hijacking the Posts tab.
+    /// - Any other (single-column) tab — a normal push onto its nav stack.
+    /// - No navigation context (e.g. a cold deep link) — fall back to the Posts
+    ///   tab.
     private func pushIntoCurrentContext(_ viewController: UIViewController) {
         let selected = tabBarController.selectedViewController
-        if selected === splitViewController {
+        guard let splitViewController else {
+            // No Posts split yet — the only sensible push target is the selected
+            // tab's nav stack, if there is one.
+            (selected as? UINavigationController)?.pushViewController(viewController, animated: true)
+            return
+        }
+
+        switch SplitTabResolver.target(for: selected, postsSplit: splitViewController) {
+        case .postsSplit:
             pushDetail(viewController: viewController)
-        } else if let navigationController = selected as? UINavigationController {
+        case let .community(community):
+            community.showDetail(viewController)
+        case let .plainNav(navigationController):
             navigationController.pushViewController(viewController, animated: true)
-        } else {
+        case .none:
             tabBarController.selectedIndex = 0
             pushDetail(viewController: viewController)
         }

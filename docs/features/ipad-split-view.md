@@ -2,7 +2,7 @@
 
 - **Surfaces:** `ipad`, `iphone`
 - **Status:** shipped
-- **Related:** [Subscriptions sidebar](subscriptions-sidebar.md), [Feeds and sorting](feeds-and-sorting.md), [Post detail and comments](post-detail-and-comments.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Subscriptions sidebar](subscriptions-sidebar.md), [Community screen](community-screen.md), [Feeds and sorting](feeds-and-sorting.md), [Post detail and comments](post-detail-and-comments.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -12,7 +12,8 @@ The Posts tab is a two-column split view: a primary column holding the post list
 
 - **Two-column split view.** The Posts tab is a `.doubleColumn` split view. The detail column is a navigation stack rooted at the post detail pane. The primary column's base is size-class-dependent: at regular width it is the post list alone, and at compact width it is the feed switcher (`FeedSwitcherViewController`) with the post list pushed on top — the same `postListNavigationController` is reused for both, and the switcher is inserted on collapse / stripped on expand. At regular width the split shows one column beside the secondary, tiled. (The subscriptions list is not part of this stack — it is a separate Communities tab; see [Subscriptions sidebar](subscriptions-sidebar.md).)
 - **Feed selection differs by width.** At regular width the feed name in the navigation bar is a tappable title control (`chevron.down`) that presents the feed switcher as a popover, so the persistent primary column is never replaced. At compact width the switcher sits beneath the post list and is revealed by the left-edge back-swipe. See [Feeds and sorting](feeds-and-sorting.md).
-- **Only the Posts tab is split.** The app's other tabs — Account, Search, Inbox, Preferences — are plain navigation stacks. The split-view handoff applies to the Posts tab alone.
+- **The Posts tab is the tab-root split; the Communities tab opens its own.** The tab-root split-view handoff (collapse/expand of the column behavior above) applies to the Posts tab alone — Account, Search, and Inbox are plain navigation stacks. The Communities tab is a plain stack at its root too, but opening a community on a regular-width iPad pushes a two-column reading split (the community feed in its primary column, the selected post in its secondary), so reading a community on iPad mirrors the Posts side-by-side layout. At compact width a community opens as a single pushed screen instead.
+- **Detail opens in whichever context is active.** Opening a post, person, or community is routed to the active tab's detail surface rather than always hijacking the Posts split: when the Posts split is selected it fills that split's detail column; when a community reading split is on top of the current tab it fills *that* split's secondary column (so the community feed stays visible beside it); any other plain tab gets a normal full-screen push. This keeps Back returning to where the user was instead of jumping them to the Posts tab.
 - **Empty detail placeholder.** When no post is selected at regular width, the detail pane shows a centered "No posts selected" placeholder. Selecting a post in the list replaces it with that post's detail.
 - **Collapse carries the detail into the stack.** When the layout collapses to compact, the feed switcher is re-inserted at the base of the primary stack (if absent), and any open post detail is moved from the detail column onto the end of that (now single) navigation stack, so the post you were reading stays on screen. The empty placeholder is filtered out during this move — only a real post is carried over.
 - **Expand restores the detail column.** When the layout expands back to regular, the feed switcher is stripped from the primary stack, leaving the post list as the base; anything pushed above it — the post detail you had open — moves back into the detail column. If nothing was open, the empty placeholder is restored.
@@ -28,6 +29,14 @@ The Posts tab is a two-column split view: a primary column holding the post list
 - **When** I tap a post
 - **Then** the post detail opens in the detail pane beside the list
 - **And** the list stays visible in the primary column
+
+### A post opened from a community feed opens beside that feed on iPad
+
+- **Surfaces:** `ipad`
+- **Given** a community open in the Communities tab on a regular-width iPad (its two-column reading split)
+- **When** I tap a post in the community feed
+- **Then** the post detail opens in that reading split's secondary column
+- **And** the community feed stays visible in the primary column — the post does not open full-screen and does not switch me to the Posts tab
 
 ### The detail pane shows a placeholder when nothing is selected
 
