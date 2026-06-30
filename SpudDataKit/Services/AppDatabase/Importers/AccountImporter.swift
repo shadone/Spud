@@ -208,15 +208,25 @@ public extension AppDatabase {
     /// Edit Profile editor pushes via `saveUserSettings` onto the local rows for
     /// the account matching `keychainId`, so the cached `PersonRecord` /
     /// `AccountRecord` stay in sync without waiting on a full `getSite` refetch.
-    /// `displayName`/`bio`/`avatar` write through to the account's own person row;
-    /// the preference flags and `defaultListingType` write to the account row.
+    /// `displayName`/`bio`/`avatar`/`banner` write through to the account's own
+    /// person row; the preference flags and `defaultListingType` write to the
+    /// account row.
+    ///
     /// Pass `nil` for a profile field that wasn't edited (left as stored). No-op
     /// if the account row hasn't been imported yet.
+    ///
+    /// - Parameters:
+    ///   - banner: Three-state semantics — `nil` leaves the existing banner
+    ///     unchanged (field not part of this edit); `""` clears it (user removed
+    ///     the banner); a non-empty URL string sets it to that URL. This matches
+    ///     the `avatar` parameter convention and avoids silently wiping a banner
+    ///     that the caller never loaded.
     func setAccountProfile(
         forKeychainId keychainId: String,
         displayName: String?,
         bio: String?,
         avatar: String?,
+        banner: String? = nil,
         showScores: Bool,
         showBotAccounts: Bool,
         showReadPosts: Bool,
@@ -250,6 +260,9 @@ public extension AppDatabase {
             person.bio = bio.flatMap { $0.isEmpty ? nil : $0 }
             if let avatar {
                 person.avatarUrl = avatar.isEmpty ? nil : avatar
+            }
+            if let banner {
+                person.bannerUrl = banner.isEmpty ? nil : banner
             }
             person.updatedAt = now
             try person.update(db)
