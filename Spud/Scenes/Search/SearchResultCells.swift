@@ -384,14 +384,25 @@ final class SearchCommentCell: UITableViewCell {
     }
 
     func configure(with result: SearchCommentResult) {
-        contentLabel.text = result.content
-        contextLabel.text = String(
-            format: NSLocalizedString(
-                "%@ on \"%@\"",
-                comment: "Search comment row context: <author> on \"<post title>\""
-            ),
-            result.creatorName,
-            result.postTitle
+        configure(
+            content: result.content,
+            context: String(
+                format: NSLocalizedString(
+                    "%@ on \"%@\"",
+                    comment: "Search comment row context: <author> on \"<post title>\""
+                ),
+                result.creatorName,
+                result.postTitle
+            )
         )
+    }
+
+    /// Renders a comment body above an arbitrary context line. The
+    /// `SearchCommentResult` overload builds its `<author> on "<post>"` context on
+    /// top of this; other callers (e.g. the Activity timeline) supply their own
+    /// context, so the cell is reused rather than forked.
+    func configure(content: String, context: String) {
+        contentLabel.text = content
+        contextLabel.text = context
     }
 }

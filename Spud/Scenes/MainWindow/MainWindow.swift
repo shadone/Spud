@@ -50,6 +50,10 @@ class MainWindow: UIWindow {
 
     // MARK: Private
 
+    /// Index of the Communities tab (subscriptions / Explore). Tab order:
+    /// Posts 0 | Communities 1 | Search 2 | Inbox 3 | Account 4.
+    private static let communitiesTabIndex = 1
+
     /// Index of the Inbox tab in the tab bar; its `badgeValue` reflects the
     /// observable unread count.
     private static let inboxTabIndex = 3
@@ -423,6 +427,18 @@ class MainWindow: UIWindow {
         else { return }
         tabBarController.selectedIndex = Self.accountTabIndex
         (viewControllers[Self.accountTabIndex] as? UINavigationController)?
+            .popToRootViewController(animated: false)
+    }
+
+    /// Routes to the Communities tab (subscriptions / Explore) and resets it to
+    /// root. Used by the Activity empty state's "Browse communities" escape hatch.
+    func selectCommunitiesTab() {
+        guard
+            let viewControllers = tabBarController.viewControllers,
+            viewControllers.indices.contains(Self.communitiesTabIndex)
+        else { return }
+        tabBarController.selectedIndex = Self.communitiesTabIndex
+        (viewControllers[Self.communitiesTabIndex] as? UINavigationController)?
             .popToRootViewController(animated: false)
     }
 

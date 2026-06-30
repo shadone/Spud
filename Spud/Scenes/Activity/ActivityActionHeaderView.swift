@@ -68,7 +68,22 @@ class ActivityActionHeaderView: UIView {
     }
 }
 
-private extension ActivityAct {
+extension ActivityAct {
+    /// A natural-language verb for VoiceOver, phrased as a completed first-person
+    /// action ("You upvoted") so the composed row label reads as one utterance.
+    var accessibilityVerb: String {
+        switch self {
+        case .upvote: NSLocalizedString("You upvoted", comment: "Activity VoiceOver verb")
+        case .downvote: NSLocalizedString("You downvoted", comment: "Activity VoiceOver verb")
+        case .comment: NSLocalizedString("You commented", comment: "Activity VoiceOver verb")
+        case .post: NSLocalizedString("You posted", comment: "Activity VoiceOver verb")
+        case .save: NSLocalizedString("You saved", comment: "Activity VoiceOver verb")
+        case .read: NSLocalizedString("You read", comment: "Activity VoiceOver verb")
+        case .seen: NSLocalizedString("You saw", comment: "Activity VoiceOver verb")
+        case .hide: NSLocalizedString("You hid", comment: "Activity VoiceOver verb")
+        }
+    }
+
     var displayName: String {
         switch self {
         case .upvote: NSLocalizedString("Upvoted", comment: "Activity act label")
@@ -104,7 +119,7 @@ private extension ActivityAct {
     }
 }
 
-private extension Date {
+extension Date {
     var activityRelativeString: String {
         let now = Date()
         let seconds = now.timeIntervalSince(self)
