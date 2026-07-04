@@ -104,6 +104,10 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         await assertCell(row(url: nil, isRemoved: true))
     }
 
+    func test_unavailableBadge() async {
+        await assertCell(row(url: nil, isRemoved: false, isDeleted: false, isUnavailable: true))
+    }
+
     func test_featured() async {
         await assertCell(row(url: nil, isFeaturedCommunity: true))
     }
@@ -273,6 +277,7 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         isFeaturedCommunity: Bool = false,
         isFeaturedLocal: Bool = false,
         isDeleted: Bool = false,
+        isUnavailable: Bool = false,
         isNsfw: Bool = false
     ) -> PostListRow {
         PostListRow(
@@ -302,6 +307,7 @@ final class PostListPostCellSnapshotTests: XCTestCase {
             isFeaturedCommunity: isFeaturedCommunity,
             isFeaturedLocal: isFeaturedLocal,
             isDeleted: isDeleted,
+            isUnavailable: isUnavailable,
             isNsfw: isNsfw,
             published: Date(timeIntervalSinceNow: -5 * 3600)
         )
