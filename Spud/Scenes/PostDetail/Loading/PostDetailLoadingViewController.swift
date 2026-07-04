@@ -34,6 +34,10 @@ class PostDetailLoadingViewController: UIViewController {
     /// server post id ready for the content view controller to consume.
     var didFinishLoading: ((Components.Schemas.PostID) -> Void)?
 
+    /// Fires when the post cannot be loaded because the server reports it gone
+    /// (`couldnt_find_post`). The parent swaps in the unavailable placeholder.
+    var didFail: ((PostUnavailableReason) -> Void)?
+
     // MARK: - Private
 
     lazy var stackView: UIStackView = {
@@ -121,19 +125,28 @@ class PostDetailLoadingViewController: UIViewController {
 
         observationTask?.cancel()
         observationTask = Task { @MainActor [weak self] in
-            await self?.fetchPostInfo()
-            await self?.notifyIfRowAvailable()
+            guard let self else { return }
+            if await fetchPostInfoReportingNotFound() {
+                didFail?(.unavailable)
+                return
+            }
+            await notifyIfRowAvailable()
         }
     }
 
-    private func fetchPostInfo() async {
+    /// Returns `true` when the post is gone server-side (`couldnt_find_post`);
+    /// other errors are logged and return `false` (fall through to row check).
+    private func fetchPostInfoReportingNotFound() async -> Bool {
         do {
             try await dependencies.own.accountService
                 .scope(forAccountKeychainId: accountKeychainId)
                 .lemmyService
                 .fetchPostInfo(serverPostId: serverPostId)
+            return false
         } catch {
+            if ContentNotFound.matchesPost(error) { return true }
             alertService.handle(error, for: .fetchPostInfo)
+            return false
         }
     }
 

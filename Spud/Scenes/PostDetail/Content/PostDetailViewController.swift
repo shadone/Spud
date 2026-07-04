@@ -157,6 +157,13 @@ class PostDetailViewController: UIViewController {
         return button
     }()
 
+    // MARK: - Public
+
+    /// Fires when the observed post flips to a gone state (removed / deleted by
+    /// someone else / `couldnt_find_post`) and the current account is not a
+    /// moderator or the author. The parent swaps in the unavailable placeholder.
+    var didBecomeUnavailable: ((PostUnavailableReason) -> Void)?
+
     // MARK: - Private
 
     private var viewModel: PostDetailViewModel
@@ -613,6 +620,10 @@ class PostDetailViewController: UIViewController {
             for await row in appDatabase.observePostDetailHeader(postRowId: postRowId) {
                 if Task.isCancelled { break }
                 headerRow = row
+                if let row, let reason = unavailableReason(for: row) {
+                    didBecomeUnavailable?(reason)
+                    break
+                }
                 updateHeaderPrivacy()
                 // Rebuild so the Save/Unsave label, Mute target, and the
                 // own-post-gated Report/Block items reflect the latest row.
@@ -657,6 +668,22 @@ class PostDetailViewController: UIViewController {
                 snapshot: snapshotAndCount?.snapshot
             )
         }
+    }
+
+    /// Maps an observed header row to the placeholder reason, or nil to keep the
+    /// content. Mods keep removed posts; authors keep their own deleted posts.
+    private func unavailableReason(for row: PostDetailHeaderRow) -> PostUnavailableReason? {
+        let canModerate = moderationCapability.canModerate(
+            communityId: Components.Schemas.CommunityID(row.serverCommunityId)
+        )
+        let isOwnPost = row.creatorPersonId == viewModel.currentAccountPersonId
+        return PostUnavailableReason.forHeader(
+            isRemoved: row.isRemoved,
+            isDeleted: row.isDeleted,
+            isUnavailable: row.isUnavailable,
+            canModerate: canModerate,
+            isOwnPost: isOwnPost
+        )
     }
 
     private func startCommentObservation(postRowId: Int64) {
