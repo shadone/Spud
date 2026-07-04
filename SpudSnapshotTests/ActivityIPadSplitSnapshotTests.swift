@@ -58,6 +58,24 @@ import XCTest
 /// replay `viewDidLoad` and could recapture a transient state). Structural code
 /// assertions walk the live hierarchy *before* the pixel diff so broken split
 /// routing fails loudly in code, not silently in a snapshot.
+///
+/// ## Cross-suite determinism (the safe-area pin)
+///
+/// `drawHierarchyInKeyWindow: true` makes swift-snapshot-testing render into the
+/// process's **current key window** (`getKeyWindow()`), which is the host window
+/// this fixture makes key just before capturing. A *stock* `UIWindow` derives its
+/// `safeAreaInsets` from whatever window-scene it happens to be attached to, and
+/// that attachment state is perturbed by any snapshot suite that ran earlier in the
+/// same test process (e.g. `SummarySnapshotTests`' host windows). The split's nav
+/// bars and the timeline table's `adjustedContentInset` are laid out under that top
+/// inset, so a differing ambient inset shifted the *entire* two-column content
+/// vertically (~38 pt) between an isolated run and a run that followed another
+/// suite — the recorded ref then matched only the process state it was recorded in.
+/// To make the capture independent of ambient scene state, the host window is a
+/// `FixedSafeAreaWindow` that pins `safeAreaInsets` to `.zero` (matching the
+/// zero-safe-area the `drawHierarchyInKeyWindow` strategy already forces via its
+/// off-screen draw), so first-layout and draw-layout agree and the render is
+/// byte-identical whatever ran before it.
 @MainActor
 final class ActivityIPadSplitSnapshotTests: XCTestCase {
     // MARK: - Dependency bag
@@ -106,6 +124,9 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
     private let size = ViewImageConfig.iPadPro11(.landscape).size ?? CGSize(width: 1194, height: 834)
 
     func test_activitySplit_ipad_landscape_light() async throws {
+        let restoreAnimations = disableAnimationsForCapture()
+        defer { restoreAnimations() }
+
         let (container, window) = try await makeSettledSplit(style: .light)
         defer { window.rootViewController = nil }
 
@@ -122,6 +143,9 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
     }
 
     func test_activitySplit_ipad_landscape_dark() async throws {
+        let restoreAnimations = disableAnimationsForCapture()
+        defer { restoreAnimations() }
+
         let (container, window) = try await makeSettledSplit(style: .dark)
         defer { window.rootViewController = nil }
 
@@ -185,7 +209,12 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
             asOf: fixedAsOf
         )
 
-        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+        // A `FixedSafeAreaWindow` (pinned `.zero` safe area) rather than a stock
+        // `UIWindow`: `drawHierarchyInKeyWindow: true` renders into whichever window
+        // is key, and a stock window's safe area drifts with ambient scene state that
+        // an earlier suite can perturb — pinning it makes the capture deterministic
+        // across suites (see the "Cross-suite determinism" note above).
+        let window = FixedSafeAreaWindow(frame: CGRect(origin: .zero, size: size))
         window.tintColor = lemmyTeal
         window.overrideUserInterfaceStyle = style
         window.rootViewController = container
@@ -203,6 +232,24 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
         RunLoop.current.run(until: Date())
 
         try await waitUntilSettled(container: container)
+
+        // Pin every scroll view to its top so a stray non-zero content offset can
+        // never leak into the pixel capture — belt-and-braces alongside the safe-area
+        // pin. Both columns start scrolled to the top, so this is normally a no-op.
+        window.layoutIfNeeded()
+        pinScrollViewsToTop(in: container.view)
+        window.layoutIfNeeded()
+
+        // Snap any in-flight animation to its final (model) value. Animations are
+        // already disabled for the capture (see `disableAnimationsForCapture`), but
+        // some UIKit controls kick off CATransaction-level implicit animations that
+        // ignore `UIView.areAnimationsEnabled` — notably the `UISegmentedControl`
+        // selection indicator in the Summary heatmap card, which otherwise settles at
+        // a different frame depending on how long the async observation took to land
+        // (the first test in a process caught it mid-settle, the second caught it
+        // settled). Removing every layer animation makes the capture reflect the
+        // final state regardless of timing.
+        snapAllAnimations(in: window)
         return (container, window)
     }
 
@@ -323,6 +370,48 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
         return view.subviews.contains { hasAnimatingIndicator(in: $0) }
     }
 
+    /// Resets every `UIScrollView` in the subtree to its natural top offset
+    /// (`-adjustedContentInset.top`). Both columns start at the top, so this is
+    /// normally a no-op; it exists so a stray content offset (e.g. from a mid-load
+    /// layout pass) can never make the pixel capture non-deterministic.
+    private func pinScrollViewsToTop(in view: UIView) {
+        if let scrollView = view as? UIScrollView {
+            scrollView.contentOffset = CGPoint(x: 0, y: -scrollView.adjustedContentInset.top)
+        }
+        for subview in view.subviews {
+            pinScrollViewsToTop(in: subview)
+        }
+    }
+
+    /// Disables UIView animations for the duration of a capture and returns a
+    /// closure that restores the previous state. Snapshot tests must render the
+    /// settled *final* state, not a transient animation frame; disabling animations
+    /// makes state changes applied during fixture assembly (e.g. chip / segment
+    /// selection) take effect instantly rather than fading.
+    private func disableAnimationsForCapture() -> () -> Void {
+        let previous = UIView.areAnimationsEnabled
+        UIView.setAnimationsEnabled(false)
+        return { UIView.setAnimationsEnabled(previous) }
+    }
+
+    /// Recursively removes every CoreAnimation animation from a view's whole layer
+    /// tree (including layers not backed by a `UIView`, such as a
+    /// `UISegmentedControl`'s selection indicator), snapping each layer to its final
+    /// model value so the pixel capture is timing-independent.
+    private func snapAllAnimations(in view: UIView) {
+        snapAllAnimations(inLayer: view.layer)
+        for subview in view.subviews {
+            snapAllAnimations(in: subview)
+        }
+    }
+
+    private func snapAllAnimations(inLayer layer: CALayer) {
+        layer.removeAllAnimations()
+        for sublayer in layer.sublayers ?? [] {
+            snapAllAnimations(inLayer: sublayer)
+        }
+    }
+
     /// Window-space frame of the first non-hidden `UILabel` whose text contains
     /// `needle` in the `root` subtree, or `nil` if none is found. Used to measure
     /// where a column's content sits so the two-column geometry can be asserted
@@ -417,5 +506,25 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
                 }
             }
         }
+    }
+}
+
+// MARK: - Fixed-safe-area host window
+
+/// A `UIWindow` whose `safeAreaInsets` are pinned to a constant, so a snapshot
+/// rendered through `drawHierarchyInKeyWindow: true` is independent of the ambient
+/// window-scene state.
+///
+/// swift-snapshot-testing's key-window render path reuses whichever `UIWindow` is
+/// key and lays the view hierarchy out under *that window's* safe area. A stock
+/// `UIWindow` derives its safe area from its scene attachment, which an earlier
+/// snapshot suite in the same process can perturb — shifting the whole capture
+/// vertically. Overriding `safeAreaInsets` removes that dependency; `.zero` matches
+/// the zero-safe-area the strategy already forces via its off-screen draw, so
+/// first-layout and draw-layout agree. This mirrors the private `Window` subclass
+/// swift-snapshot-testing uses for its own non-key-window render path.
+private final class FixedSafeAreaWindow: UIWindow {
+    override var safeAreaInsets: UIEdgeInsets {
+        .zero
     }
 }
