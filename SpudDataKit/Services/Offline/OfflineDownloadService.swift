@@ -540,9 +540,9 @@ public actor OfflineDownloadService {
             // contributed no new posts (all duplicates already in the feed).
             let beforeCount = persistedCount
 
-            // Pace the request, then attempt it with bounded retries on transient errors.
-            // A permanent error (4xx) surfaces immediately — `withRetry` rethrows it.
-            try await pacer.acquire()
+            // Pace every attempt (first + each retry) inside the operation closure so
+            // that retries are also subject to the per-request spacing. A permanent
+            // error (4xx) surfaces immediately — `withRetry` rethrows it.
             do {
                 let nextCursor = try await withRetry(
                     maxAttempts: pacing.maxRetryAttempts,
@@ -567,7 +567,8 @@ public actor OfflineDownloadService {
                         )
                     }
                 ) {
-                    try await lemmyService.fetchFeed(
+                    try await pacer.acquire()
+                    return try await lemmyService.fetchFeed(
                         feed,
                         pageCursor: cursor,
                         showNsfw: showNsfw
@@ -613,7 +614,7 @@ public actor OfflineDownloadService {
                 if persistedCount > 0 {
                     await diagnostics.record(
                         category: .offlineDownload,
-                        level: .error,
+                        level: .notice,
                         event: "download.pageFetchIncomplete",
                         message: "Page fetch failed after \(persistedCount) posts were already saved; finishing partial",
                         instance: instance,
