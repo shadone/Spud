@@ -49,10 +49,24 @@ final class HeaderInlineImageSnapshotTests: XCTestCase {
         }
     }
 
-    /// Pins `header` to a fixed-width container, waits for its inline image to
-    /// load (signalled via `loaded`) rather than a fixed delay, then returns the
-    /// container and its fitted height for a deterministic snapshot.
-    private func fit(_ header: UIView, loaded: () -> Bool) -> (UIView, CGFloat) {
+    /// Pins `header` to a fixed-width container and drives its run loop until the
+    /// content has fully settled, then returns the container and its fitted height
+    /// for a deterministic snapshot.
+    ///
+    /// `loaded` is a per-header content-size signal (`onBodyImageLoaded` /
+    /// `onDescriptionHeightChanged`), but it fires on ANY height change — the first
+    /// one is plain text layout, BEFORE the inline image finishes rendering — so it
+    /// is a necessary gate, not a sufficient one. When `expectsInlineImage` is set we
+    /// additionally require the rendered inline image to actually be on screen (the
+    /// loaded `ImageBlockView` is the only non-symbol `UIImageView` in these headers)
+    /// and the fitted height to hold steady for `requiredStableIterations` consecutive
+    /// polls. Fails loudly on timeout so a genuine non-render is a named failure
+    /// rather than a silently pre-settled (image-less) snapshot.
+    private func fit(
+        _ header: UIView,
+        expectsInlineImage: Bool = false,
+        loaded: () -> Bool
+    ) -> (UIView, CGFloat) {
         let container = UIView()
         container.backgroundColor = .systemBackground
         header.translatesAutoresizingMaskIntoConstraints = false
@@ -67,19 +81,56 @@ final class HeaderInlineImageSnapshotTests: XCTestCase {
         container.frame = CGRect(x: 0, y: 0, width: width, height: 2000)
         container.layoutIfNeeded()
 
-        let deadline = Date().addingTimeInterval(2)
-        while Date() < deadline, !loaded() {
-            RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+        func fittedHeight() -> CGFloat {
+            container.layoutIfNeeded()
+            return container.systemLayoutSizeFitting(
+                CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+                withHorizontalFittingPriority: .required,
+                verticalFittingPriority: .fittingSizeLevel
+            ).height
         }
-        container.layoutIfNeeded()
 
-        let height = container.systemLayoutSizeFitting(
-            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
-            withHorizontalFittingPriority: .required,
-            verticalFittingPriority: .fittingSizeLevel
-        ).height
+        let requiredStableIterations = 4
+        let epsilon: CGFloat = 0.5
+        let deadline = Date().addingTimeInterval(2)
+        var lastHeight = fittedHeight()
+        var stableCount = 0
+        var settled = false
+        while Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+            let height = fittedHeight()
+            let imageReady = !expectsInlineImage || containsRenderedImage(header)
+            if loaded(), imageReady, abs(height - lastHeight) <= epsilon {
+                stableCount += 1
+                if stableCount >= requiredStableIterations {
+                    settled = true
+                    break
+                }
+            } else {
+                stableCount = 0
+            }
+            lastHeight = height
+        }
+        if !settled {
+            XCTFail("Header content did not settle within 2s")
+        }
 
-        return (container, height)
+        return (container, fittedHeight())
+    }
+
+    /// Whether the view tree contains a rendered (non-placeholder) inline image.
+    /// The loaded `ImageBlockView` hosts a `UIImageView` with the actual bitmap;
+    /// every other image in these headers is an SF Symbol (avatar / icon / status
+    /// glyphs) or nil, so a non-symbol image uniquely marks the inline image as
+    /// on screen.
+    private func containsRenderedImage(_ view: UIView) -> Bool {
+        if let imageView = view as? UIImageView,
+           let image = imageView.image,
+           !image.isSymbolImage
+        {
+            return true
+        }
+        return view.subviews.contains { containsRenderedImage($0) }
     }
 
     func test_personBio_withInlineImage_rendersImage() {
@@ -95,7 +146,7 @@ final class HeaderInlineImageSnapshotTests: XCTestCase {
             bioMarkdown: "Mathematician and writer.\n\n![portrait](https://example.com/ada.png)\n\nFirst programmer."
         )
 
-        let (view, height) = fit(header) { loaded }
+        let (view, height) = fit(header, expectsInlineImage: true) { loaded }
         assertSnapshot(
             matching: view,
             as: .image(size: CGSize(width: width, height: height), traits: traits(.light))
@@ -145,7 +196,7 @@ final class HeaderInlineImageSnapshotTests: XCTestCase {
             blurBanner: false
         )
 
-        let (view, height) = fit(header) { loaded }
+        let (view, height) = fit(header, expectsInlineImage: true) { loaded }
         assertSnapshot(
             matching: view,
             as: .image(size: CGSize(width: width, height: height), traits: traits(.light))
