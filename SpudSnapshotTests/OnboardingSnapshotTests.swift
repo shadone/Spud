@@ -21,7 +21,7 @@ final class OnboardingSnapshotTests: XCTestCase {
             viewController.view.tintColor = lemmyTeal
             assertSnapshot(
                 matching: viewController,
-                as: .image(on: .iPhone13Pro, traits: UITraitCollection(userInterfaceStyle: style)),
+                as: .image(on: .deterministicPhone, traits: UITraitCollection(userInterfaceStyle: style)),
                 named: style == .dark ? "dark" : "light"
             )
         }
