@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Configurable swipe actions](swipe-actions.md), [NSFW content visibility](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Configurable swipe actions](swipe-actions.md), [NSFW content visibility](nsfw-content.md), [Removed and unavailable posts](removed-unavailable-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -19,7 +19,7 @@ Marking & Hiding and applies live.
 - **Hide Read Posts.** When on, a "When" picker chooses the hiding mode:
   - **Immediately** — a post leaves the feed the instant it is marked read.
   - **On Refresh** — only posts that were already read when the feed last refreshed are hidden; posts read during the current session stay until the next refresh, so nothing vanishes mid-scroll.
-- **Hiding is a view filter, not a mutation.** The full ordered feed is produced once and never altered; the visible list is filtered down to what should currently show (`HideReadPostsFilter`). Read state, ordering, and pagination are untouched — turning hiding off restores the posts in place.
+- **Hiding is a view filter, not a mutation.** The full ordered feed is produced once and never altered; the visible list is filtered down to what should currently show (`HideReadPostsFilter`). Read state, ordering, and pagination are untouched — turning hiding off restores the posts in place. Posts that are gone from the server are not automatically hidden by this filter; they remain in the feed with a neutral badge — see [Removed and unavailable posts](removed-unavailable-content.md).
 - **Everything applies live.** The post list observes the same preference streams, so toggling any of these reflects immediately without a relaunch.
 - **The same settings screen also hosts the "Show NSFW Content" toggle.** That preference is a separate, server-side feed filter documented in [NSFW content visibility](nsfw-content.md); it is grouped here because it is another content-visibility control.
 

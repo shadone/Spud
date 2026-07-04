@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Feed loading and pagination](feed-loading.md), [Search](search.md), [Inbox](inbox.md), [Person / user profile](person-profile.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Feed loading and pagination](feed-loading.md), [Search](search.md), [Inbox](inbox.md), [Person / user profile](person-profile.md), [Removed and unavailable posts](removed-unavailable-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -71,4 +71,4 @@ Across its scenes Spud shows designed states for the moments before, instead of,
 
 - **No custom empty-state component.** The states are the system content-unavailable presentation configured per scene, not a bespoke Spud view; there is no shared empty-state class to theme. They are not wired to the app's design tokens beyond the symbols passed in.
 - **No retry button on empty states or Search/Inbox errors.** Empty placeholders and Search/Inbox inline-error states carry a symbol, title, and message but no action button; recovery is by retrying the action (for example pull-to-refresh where a scene offers it), not by tapping the placeholder. (The feed error state is an exception — it does include retry, work offline, and copy-diagnostics buttons.)
-- **Errors are not silently swallowed but are not always inline.** Many fetch failures log and surface as an alert rather than an inline error state; the feed renders a designed inline error with buttons, while Search and Inbox render simpler inline errors without buttons.
+- **Errors are not silently swallowed but are not always inline.** Many fetch failures log and surface as an alert rather than an inline error state; the feed renders a designed inline error with buttons, while Search and Inbox render simpler inline errors without buttons. Posts that are no longer found on the server (`couldnt_find_post`) are handled separately — see [Removed and unavailable posts](removed-unavailable-content.md).

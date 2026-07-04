@@ -109,6 +109,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Diagnostics logging](diagnostics-logging.md) | `iphone`, `ipad` | shipped — durable GRDB event log (survives relaunch) + two-tab viewer (Event Log with filter/search/detail/export; System Log OSLog tail with level/category filter + time window) |
 | [iPad split-view handoff](ipad-split-view.md) | `ipad`, `iphone` | shipped — Posts two-column split + feed-switcher title popover; Communities two-column reading split; adaptive layouts (Discover grid, capped banners, sheet detents) at regular width |
 | [Empty, error, and loading states](empty-error-loading-states.md) | `iphone`, `ipad` | shipped |
+| [Removed and unavailable posts](removed-unavailable-content.md) | `iphone`, `ipad` | shipped — neutral feed badge + placeholder screen for gone posts; cause-specific copy (ambiguous / removed / deleted); moderator + author bypass; automatic recovery on re-fetch; deep-link resolves to placeholder not spinner |
 | [Accessibility](accessibility.md) | `iphone`, `ipad` | shipped |
 | [Home Screen widget (top posts)](widget.md) | `widget` | shipped |
 | [App Shortcuts, Siri & Spotlight](app-shortcuts-and-siri.md) | `iphone`, `ipad` | shipped — 7 App Intents (incl. Open Saved, Switch Account); Spotlight indexes communities + saved/history posts |
@@ -202,6 +203,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 **Platform**
 - [x] iPad split-view handoff — Posts two-column split + feed-switcher title popover (compact: left-edge swipe), Communities two-column reading split, collapse/expand with state preservation; adaptive layouts at regular width: Discover multi-column grid + width-capped directory, sheet detents (composer / new-post), capped banners (Edit Profile / Account tab)
 - [x] Empty / error / loading states
+- [x] Removed and unavailable posts — neutral feed badge (exclamationmark.octagon) + cause-specific placeholder screen when a cached post is no longer found on the server; moderators and the post's author bypass the placeholder and keep access to Restore; automatic recovery on a successful re-fetch (removed-unavailable-content.md)
 - [x] Accessibility (Dynamic Type, VoiceOver, Reduce Motion)
 - [x] Home Screen widget (top posts)
 - [x] App Shortcuts, Siri & Spotlight — 7 App Intents (Open Feed / Search / New Post / Inbox / Open Community / Open Saved / Switch Account); Spotlight indexes communities + saved/history posts
