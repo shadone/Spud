@@ -29,7 +29,15 @@ public extension AppDatabase {
     ///     count queries).
     ///   - personRowId: Primary key of the `person` row (used for the
     ///     server-sourced karma and identity fields).
-    func observeSummaryStats(accountId: Int64, personRowId: Int64) -> AsyncStream<SummaryStats> {
+    ///   - asOf: Reference instant for the relative "joined" age string.
+    ///     Defaults to the current wall clock (production); snapshot/unit tests
+    ///     inject a fixed date so the rendered age is deterministic and never
+    ///     leaks the record-time clock.
+    func observeSummaryStats(
+        accountId: Int64,
+        personRowId: Int64,
+        asOf: Date = Date()
+    ) -> AsyncStream<SummaryStats> {
         let observation = ValueObservation
             .tracking { db -> SummaryStats in
                 // Server-sourced identity + karma ---------------------------------
@@ -100,7 +108,7 @@ public extension AppDatabase {
 
                 // Format identity fields -----------------------------------------
                 let joined = personCreatedDate.map {
-                    PersonFormatter.string(personCreatedDate: $0)
+                    PersonFormatter.string(personCreatedDate: $0, asOf: asOf)
                 } ?? ""
                 let cakeDay = personCreatedDate.map {
                     PersonFormatter.cakeDayString(personCreatedDate: $0)

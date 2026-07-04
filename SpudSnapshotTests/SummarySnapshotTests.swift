@@ -28,11 +28,30 @@ import XCTest
 /// test fails loudly (not silently records a blank) if the observation never
 /// fires.
 ///
-/// ## Snapshot size
+/// ## Rendering strategy (the safe-area pin)
 ///
-/// `.image(on: .iPhone13Pro, size:, traits:)` is device-independent (the
-/// `size:` override fixes pixel dimensions). The full-dashboard size is tall
-/// enough to hold all four card sections without scrolling.
+/// The full-screen dashboards are hosted on a real on-screen ``FixedSafeAreaWindow``
+/// (safe area pinned to `.zero`) and captured via `drawHierarchyInKeyWindow: true`,
+/// exactly like `ActivityIPadSplitSnapshotTests`. This is deliberate: the earlier
+/// `.image(on: .iPhone13Pro, size:, traits:)` off-screen strategy laid the nav
+/// controller out under a device safe-area inset whose value drifted across the
+/// snapshot library / SDK environment, shifting the whole capture vertically by
+/// ~44 pt — a pure Y-shift with byte-identical content — so the recorded refs only
+/// matched the environment they were recorded in (and `test_empty`, untouched by
+/// this branch, drifted too). Pinning the safe area to a known `.zero` and
+/// rendering through the key window neutralizes that ambient dependency and makes
+/// the render deterministic across suites and re-runs.
+///
+/// Trade-off: a `drawHierarchyInKeyWindow` capture renders at the *host device's*
+/// native scale, so these refs are pinned to the reference simulator (iPhone 17 Pro
+/// @3x) rather than being device-independent. That matches the app-level snapshot
+/// convention already documented for this project, and the suite was already
+/// failing on the reference device, so device-independence was lost in practice
+/// anyway. `test_votesEmptyHeatmapCard` renders a standalone card with no safe area
+/// via `.image(size:traits:)` and is left on that (passing) path.
+///
+/// The full-dashboard size is tall enough to hold all four card sections without
+/// scrolling.
 @MainActor
 final class SummarySnapshotTests: XCTestCase {
     // MARK: - Fake dependencies
@@ -46,12 +65,12 @@ final class SummarySnapshotTests: XCTestCase {
     /// 2025-03-24T00:00:00Z (Monday) — anchors the 18-week heatmap window.
     private let fixedAsOf = Date(timeIntervalSince1970: 1_742_774_400)
 
-    /// Portrait iPhone 13 Pro dimensions — tall enough to show all four
-    /// dashboard cards without needing to scroll.
+    /// Fixed capture size (390 pt wide — a standard phone portrait width — and
+    /// tall enough to show all four dashboard cards without needing to scroll).
     private let snapshotSize = CGSize(width: 390, height: 810)
 
-    /// iPhone 13 Pro portrait dimensions with extra height for XXXL Dynamic
-    /// Type, which causes each card to expand significantly.
+    /// Same 390 pt width with extra height for XXXL Dynamic Type, which causes
+    /// each card to expand significantly.
     private let xxxlSnapshotSize = CGSize(width: 390, height: 1300)
 
     private let lemmyTeal = UIColor(red: 0.0, green: 0.59, blue: 0.53, alpha: 1.0)
@@ -193,18 +212,52 @@ final class SummarySnapshotTests: XCTestCase {
         )
     }
 
-    // MARK: - VC construction helper
+    // MARK: - VC hosting helpers
 
-    private func makeNavController(
+    /// Hosts `vc` in a `UINavigationController` on a real on-screen
+    /// ``FixedSafeAreaWindow`` (safe area pinned to `.zero`) at `size`, in the
+    /// requested appearance / Dynamic Type environment, and returns both so the
+    /// caller can settle the async observation before capturing.
+    ///
+    /// Hosting on a key window with a pinned safe area is what makes the capture
+    /// deterministic across suites: the tests render via
+    /// `drawHierarchyInKeyWindow: true`, which reuses whichever `UIWindow` is
+    /// key, and a stock window's safe area drifts with ambient scene state that
+    /// an earlier snapshot suite can perturb — the ~44 pt vertical drift this
+    /// suite was hardened against. See ``FixedSafeAreaWindow``.
+    private func hostInWindow(
         vc: UIViewController,
-        size: CGSize
-    ) -> UINavigationController {
+        size: CGSize,
+        style: UIUserInterfaceStyle,
+        contentSizeCategory: UIContentSizeCategory? = nil
+    ) -> (nav: UINavigationController, window: FixedSafeAreaWindow) {
         let nav = UINavigationController(rootViewController: vc)
-        nav.loadViewIfNeeded()
-        nav.view.frame = CGRect(origin: .zero, size: size)
-        nav.view.tintColor = lemmyTeal
-        nav.view.layoutIfNeeded()
-        return nav
+        let window = FixedSafeAreaWindow(frame: CGRect(origin: .zero, size: size))
+        window.tintColor = lemmyTeal
+        window.overrideUserInterfaceStyle = style
+        // Force Dynamic Type on the live hierarchy (not just in the render
+        // context) so the fonts are laid out at the target size before capture.
+        if let contentSizeCategory {
+            window.traitOverrides.preferredContentSizeCategory = contentSizeCategory
+        }
+        window.rootViewController = nav
+        window.makeKeyAndVisible()
+        window.layoutIfNeeded()
+        // One run-loop pass so the initial appearance / layout callbacks flush
+        // before we start polling for the async observation.
+        RunLoop.current.run(until: Date())
+        return (nav, window)
+    }
+
+    /// Settles the deterministic capture: pins scroll views to their top offset
+    /// and snaps any in-flight layer animation (e.g. the heatmap card's
+    /// `UISegmentedControl` selection indicator) to its final value, so the
+    /// pixels are timing- and offset-independent.
+    private func settleForCapture(window: UIWindow) {
+        window.layoutIfNeeded()
+        SnapshotDeterminism.pinScrollViewsToTop(in: window)
+        window.layoutIfNeeded()
+        SnapshotDeterminism.snapAllAnimations(in: window)
     }
 
     // MARK: - Test: populated dashboard (light + dark)
@@ -212,6 +265,9 @@ final class SummarySnapshotTests: XCTestCase {
     /// Full summary dashboard with seeded person data (display name, post/comment
     /// counts, join date) and vote events that produce non-zero heatmap buckets.
     func test_populated() async throws {
+        let restoreAnimations = SnapshotDeterminism.disableAnimationsForCapture()
+        defer { restoreAnimations() }
+
         for style in [UIUserInterfaceStyle.light, .dark] {
             let appDatabase = try AppDatabase.inMemory()
             let (accountId, personRowId) = try await seedAccount(
@@ -231,15 +287,16 @@ final class SummarySnapshotTests: XCTestCase {
                 asOf: fixedAsOf,
                 dependencies: dependencies
             )
-            let nav = makeNavController(vc: vc, size: snapshotSize)
+            let (nav, window) = hostInWindow(vc: vc, size: snapshotSize, style: style)
+            defer { window.rootViewController = nil }
 
             await waitUntilRendered(sentinel: "Lemmy User", in: vc)
-            nav.view.layoutIfNeeded()
+            settleForCapture(window: window)
 
             assertSnapshot(
                 matching: nav,
                 as: .image(
-                    on: .iPhone13Pro,
+                    drawHierarchyInKeyWindow: true,
                     size: snapshotSize,
                     traits: UITraitCollection(userInterfaceStyle: style)
                 ),
@@ -258,6 +315,9 @@ final class SummarySnapshotTests: XCTestCase {
     /// "Posts" tile caption which is configured when any `SummaryStats` arrives
     /// (even empty), so the tiles area is definitely rendered before we snapshot.
     func test_empty() async throws {
+        let restoreAnimations = SnapshotDeterminism.disableAnimationsForCapture()
+        defer { restoreAnimations() }
+
         for style in [UIUserInterfaceStyle.light, .dark] {
             let appDatabase = try AppDatabase.inMemory()
 
@@ -268,18 +328,19 @@ final class SummarySnapshotTests: XCTestCase {
                 asOf: fixedAsOf,
                 dependencies: dependencies
             )
-            let nav = makeNavController(vc: vc, size: snapshotSize)
+            let (nav, window) = hostInWindow(vc: vc, size: snapshotSize, style: style)
+            defer { window.rootViewController = nil }
 
             // The observation fires with zero-value SummaryStats; poll for the
             // "Posts" tile caption (set by statTilesView.configure) to confirm
             // the observation delivered and the tiles are configured.
             await waitUntilRendered(sentinel: "Posts", in: vc)
-            nav.view.layoutIfNeeded()
+            settleForCapture(window: window)
 
             assertSnapshot(
                 matching: nav,
                 as: .image(
-                    on: .iPhone13Pro,
+                    drawHierarchyInKeyWindow: true,
                     size: snapshotSize,
                     traits: UITraitCollection(userInterfaceStyle: style)
                 ),
@@ -339,6 +400,9 @@ final class SummarySnapshotTests: XCTestCase {
     /// Full summary dashboard at `.accessibilityExtraExtraExtraLarge` content
     /// size to verify that no label or control uses a fixed font size.
     func test_dynamicTypeXXXL() async throws {
+        let restoreAnimations = SnapshotDeterminism.disableAnimationsForCapture()
+        defer { restoreAnimations() }
+
         let appDatabase = try AppDatabase.inMemory()
         let (accountId, personRowId) = try await seedAccount(
             into: appDatabase,
@@ -357,17 +421,28 @@ final class SummarySnapshotTests: XCTestCase {
             asOf: fixedAsOf,
             dependencies: dependencies
         )
-        let nav = makeNavController(vc: vc, size: xxxlSnapshotSize)
+        // Pin the style to `.light` as well as the content-size category so the
+        // capture never depends on the simulator's ambient appearance.
+        let (nav, window) = hostInWindow(
+            vc: vc,
+            size: xxxlSnapshotSize,
+            style: .light,
+            contentSizeCategory: .accessibilityExtraExtraExtraLarge
+        )
+        defer { window.rootViewController = nil }
 
         await waitUntilRendered(sentinel: "Lemmy User", in: vc)
-        nav.view.layoutIfNeeded()
+        settleForCapture(window: window)
 
         assertSnapshot(
             matching: nav,
             as: .image(
-                on: .iPhone13Pro,
+                drawHierarchyInKeyWindow: true,
                 size: xxxlSnapshotSize,
-                traits: UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge)
+                traits: UITraitCollection(traitsFrom: [
+                    UITraitCollection(userInterfaceStyle: .light),
+                    UITraitCollection(preferredContentSizeCategory: .accessibilityExtraExtraExtraLarge),
+                ])
             ),
             named: "xxxl"
         )

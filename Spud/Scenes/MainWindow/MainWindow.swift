@@ -636,6 +636,9 @@ class MainWindow: UIWindow {
     ///   Communities) — route detail into ITS secondary column via
     ///   `showDetail(_:)`, so the community feed stays visible beside it on iPad
     ///   instead of the post pushing full-screen or hijacking the Posts tab.
+    /// - An Activity timeline + Summary split on top of a tab's nav stack (the
+    ///   Account tab's Activity at regular width) — likewise route detail into ITS
+    ///   secondary column via `showDetail(_:)`, over the pinned Summary.
     /// - Any other (single-column) tab — a normal push onto its nav stack.
     /// - No navigation context (e.g. a cold deep link) — fall back to the Posts
     ///   tab.
@@ -653,6 +656,8 @@ class MainWindow: UIWindow {
             pushDetail(viewController: viewController)
         case let .community(community):
             community.showDetail(viewController)
+        case let .activitySummary(split):
+            split.showDetail(viewController)
         case let .plainNav(navigationController):
             navigationController.pushViewController(viewController, animated: true)
         case .none:

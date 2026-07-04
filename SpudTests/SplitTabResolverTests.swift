@@ -28,9 +28,12 @@ private final class NullImageService: ImageServiceType, @unchecked Sendable {
 /// and a no-op image service). `CommunityReadingSplitViewController`'s
 /// `Dependencies` composition flattens — via the nested post-detail / person /
 /// instance screens — to nearly the entire graph, so providing the superset is
-/// the robust way to satisfy it without hand-tracing the recursion.
+/// the robust way to satisfy it without hand-tracing the recursion. Internal (not
+/// file-private) so sibling suites — e.g.
+/// `ActivitySummaryReadingSplitViewControllerTests` — reuse the same superset
+/// harness.
 @MainActor
-private struct FakeDependencies:
+struct FakeDependencies:
     HasVoid,
     HasAppDatabase,
     HasSiteService,
@@ -136,6 +139,34 @@ struct SplitTabResolverTests {
             return
         }
         #expect(resolved === community)
+    }
+
+    @Test
+    func resolvesActivitySummarySplitOnTopOfNavStack() throws {
+        let posts = UISplitViewController(style: .doubleColumn)
+        let dependencies = FakeDependencies()
+        // `ActivityViewController.init` (built inside the container) eagerly
+        // resolves the account's `lemmyService` scope, which fatal-errors for an
+        // unregistered keychain id, so register a signed-out account first.
+        let instance = try #require(InstanceActorId(from: "https://example.com"))
+        let keychainId = dependencies.accountService.accountForSignedOut(
+            forInstance: instance,
+            isServiceAccount: false
+        )
+        let split = ActivitySummaryReadingSplitViewController(
+            accountKeychainId: keychainId,
+            initialFilters: [.post, .comment, .save],
+            dependencies: dependencies
+        )
+        let nav = UINavigationController(rootViewController: UIViewController())
+        nav.pushViewController(split, animated: false)
+
+        let target = SplitTabResolver.target(for: nav, postsSplit: posts)
+        guard case let .activitySummary(resolved) = target else {
+            Issue.record("expected .activitySummary, got \(target)")
+            return
+        }
+        #expect(resolved === split)
     }
 
     @Test

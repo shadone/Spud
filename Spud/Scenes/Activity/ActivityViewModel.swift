@@ -11,6 +11,12 @@ import SpudDataKit
 @Observable
 @MainActor
 final class ActivityViewModel {
+    /// The default active-filter set. An empty set shows every activity type;
+    /// the funnel reset returns to this, and it is the seed when no
+    /// `initialFilters` are supplied. The footprint rail's "default glance"
+    /// visibility is keyed off equality with this set.
+    static let defaultFilters: Set<ActivityFilterType> = []
+
     // MARK: Observable state
 
     private(set) var items: [ActivityItem] = []
@@ -86,7 +92,7 @@ final class ActivityViewModel {
     }
 
     func resetFilters() {
-        activeFilters = []
+        activeFilters = Self.defaultFilters
         searchQuery = ""
         searchDebounceTask?.cancel()
         restartItemStream()

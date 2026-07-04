@@ -70,7 +70,8 @@ final class SummaryViewModel {
     func start() {
         let stream = appDatabase.observeSummaryStats(
             accountId: accountId,
-            personRowId: personRowId ?? 0
+            personRowId: personRowId ?? 0,
+            asOf: asOf
         )
         statsStreamTask?.cancel()
         statsStreamTask = Task { [weak self] in
