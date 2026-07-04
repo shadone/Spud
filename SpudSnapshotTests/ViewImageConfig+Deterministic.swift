@@ -39,4 +39,20 @@ extension ViewImageConfig {
         config.safeArea = .zero
         return config
     }
+
+    /// `.iPadPro11(.landscape)`'s size and traits, but with the safe area pinned to
+    /// `.zero` — the iPad-landscape analog of ``deterministicPhone``.
+    ///
+    /// Same rationale: `.iPadPro11(.landscape)` carries a non-zero device safe area
+    /// whose installation drifted across swift-snapshot-testing versions, shifting
+    /// every VC-hosted capture, and its non-zero safe area routes the render through
+    /// the on-screen key-window path where a prior suite can contaminate it. Pinning
+    /// `.zero` forces the deterministic fully-off-screen path while keeping the wide
+    /// iPad canvas, so the iPad-adaptive-layout assertions (grid rails, capped
+    /// directory column) still render at their real regular-size-class width.
+    static var deterministicIPadLandscape: ViewImageConfig {
+        var config = ViewImageConfig.iPadPro11(.landscape)
+        config.safeArea = .zero
+        return config
+    }
 }
