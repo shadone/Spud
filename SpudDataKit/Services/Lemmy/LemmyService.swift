@@ -855,6 +855,12 @@ public actor LemmyService: LemmyServiceType {
                 postId=\(serverPostId, privacy: .public). \
                 \(String(describing: error), privacy: .public)
                 """)
+            if ContentNotFound.matchesPost(error) {
+                try? await appDatabase.markPostUnavailable(
+                    forKeychainId: accountIdentifierForLogging,
+                    serverPostId: Int64(serverPostId)
+                )
+            }
             throw LemmyServiceError(from: error)
         }
 
@@ -2088,6 +2094,12 @@ public actor LemmyService: LemmyServiceType {
                 Fetch post failed. postId=\(serverPostId, privacy: .public). \
                 \(String(describing: error), privacy: .public)
                 """)
+            if ContentNotFound.matchesPost(error) {
+                try? await appDatabase.markPostUnavailable(
+                    forKeychainId: accountIdentifierForLogging,
+                    serverPostId: Int64(serverPostId)
+                )
+            }
             throw LemmyServiceError(from: error)
         }
 
