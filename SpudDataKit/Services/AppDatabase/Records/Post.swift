@@ -50,6 +50,12 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
     public var isFeaturedCommunity: Bool
     public var isFeaturedLocal: Bool
     public var isDeleted: Bool
+    /// The server rejected a request for this post with `couldnt_find_post`
+    /// (removed on its origin, author-deleted, or de-federated) while we still
+    /// hold a stale cached copy. Distinct from `isRemoved`/`isDeleted`, which
+    /// mean the server returned the post object and told us so; `isUnavailable`
+    /// means we only know it is gone, not why. Cleared by a fresh PostView import.
+    public var isUnavailable: Bool
     public var published: Date
     public var createdAt: Date
     public var updatedAt: Date
@@ -84,6 +90,7 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         isFeaturedCommunity: Bool = false,
         isFeaturedLocal: Bool = false,
         isDeleted: Bool = false,
+        isUnavailable: Bool = false,
         published: Date,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
@@ -117,6 +124,7 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         self.isFeaturedCommunity = isFeaturedCommunity
         self.isFeaturedLocal = isFeaturedLocal
         self.isDeleted = isDeleted
+        self.isUnavailable = isUnavailable
         self.published = published
         self.createdAt = createdAt
         self.updatedAt = updatedAt

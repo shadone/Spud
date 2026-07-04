@@ -773,6 +773,17 @@ extension AppDatabase {
             )
         }
 
+        migrator.registerMigration("v28_postUnavailable") { db in
+            // Set when the server rejects a request for a post with
+            // `couldnt_find_post` while we still hold a stale cached copy.
+            // Distinct from isRemoved/isDeleted (which the server affirms via a
+            // returned post object); this only records "gone, reason unknown".
+            // Cleared by any fresh PostView import.
+            try db.alter(table: "post") { t in
+                t.add(column: "isUnavailable", .boolean).notNull().defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }
