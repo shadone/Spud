@@ -19,6 +19,7 @@ public struct DownloadPacingConfig: Sendable {
     public var maxImageRetryAttempts: Int
     /// First-retry back-off; doubles each retry, capped at `retryMaxDelay`.
     public var retryBaseDelay: Duration
+    /// Upper bound on the (pre-jitter) exponential back-off delay.
     public var retryMaxDelay: Duration
     /// Global cool-down injected into the pacer on a 429 / 503 / rate-limit.
     public var serverPushbackCooldown: Duration

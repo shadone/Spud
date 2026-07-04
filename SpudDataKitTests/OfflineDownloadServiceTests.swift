@@ -859,6 +859,46 @@ struct OfflineDownloadServiceTests {
         #expect(commentCalls.count == DownloadPacingConfig.immediate().maxRetryAttempts)
     }
 
+    /// When the image service never yields `.ready` (stream closes without a
+    /// value, which `drainImageFetch` maps to `OfflineImageFetchError.notReady`),
+    /// `warmImage` retries up to `maxImageRetryAttempts` times and then swallows
+    /// the error (best-effort). The post still counts as completed and the run
+    /// finishes; the image service records one call per attempt.
+    @Test
+    func imageWarmingRetriesThenSwallowsOnPersistentFailure() async throws {
+        let lemmy = makeLemmy(pages: [.init(postCount: 1, nextCursor: nil)])
+        let imageService = RecordingImageService(yieldsReady: false)
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase, imageService: imageService,
+            diagnostics: DiagnosticLogSpy(), pacing: .immediate()
+        )
+
+        let progress = await runDownload(service: service, lemmy: lemmy)
+
+        let terminal = try #require(progress.last)
+        #expect(terminal.phase == .finished, "a failed image warm must not abort the run")
+        #expect(terminal.itemsCompleted == 1, "the post still counts as completed (best-effort)")
+
+        // The thumbnail for server post id 1 is the only image warm target
+        // (post has no image url via the default seed with imageUrlForSeededPosts
+        // still set — but RecordingImageService.fetch(_:downsampleTo:) is what
+        // warmImage calls for both full and thumbnail; here the full-image url is
+        // also set, so both are attempted). Each warm retries maxImageRetryAttempts
+        // times before giving up, so total recorded fetches = 2 * maxImageRetryAttempts
+        // (thumbnail + full image, each attempted that many times).
+        let pacing = DownloadPacingConfig.immediate()
+        // Each of the 2 image urls is attempted maxImageRetryAttempts times.
+        let expectedFetches = 2 * pacing.maxImageRetryAttempts
+        #expect(
+            imageService.fetchedURLs.count == expectedFetches,
+            "each image warm retries exactly maxImageRetryAttempts times"
+        )
+        // The thumbnail url for server post id 1 must be among the recorded fetches.
+        let thumbnailURL = "https://example.com/thumb/1.jpg"
+        let thumbnailCount = imageService.fetchedURLs.filter { $0.absoluteString == thumbnailURL }.count
+        #expect(thumbnailCount == pacing.maxImageRetryAttempts, "thumbnail retried maxImageRetryAttempts times")
+    }
+
     // MARK: - Paced + retried page fetch
 
     /// A page that fails with a transient error (HTTP 503) must be retried

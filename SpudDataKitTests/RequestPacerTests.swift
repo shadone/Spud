@@ -8,35 +8,6 @@ import Foundation
 import Testing
 @testable import SpudDataKit
 
-/// A controllable clock for `RequestPacer`: `now` advances only when `sleepUntil`
-/// is asked to wait, so tests never wait in real time yet observe the exact
-/// deadlines the pacer reserved.
-private final class ManualClock: @unchecked Sendable {
-    private let lock = NSLock()
-    private var current: ContinuousClock.Instant
-    private(set) var reservedDeadlines: [ContinuousClock.Instant] = []
-    let base: ContinuousClock.Instant
-
-    init() {
-        let start = ContinuousClock().now
-        base = start
-        current = start
-    }
-
-    var now: @Sendable () -> ContinuousClock.Instant {
-        { [self] in lock.withLock { current } }
-    }
-
-    var sleepUntil: @Sendable (ContinuousClock.Instant) async throws -> Void {
-        { [self] deadline in
-            lock.withLock {
-                reservedDeadlines.append(deadline)
-                if deadline > current { current = deadline }
-            }
-        }
-    }
-}
-
 @Suite(.serialized)
 struct RequestPacerTests {
     @Test
@@ -66,5 +37,36 @@ struct RequestPacerTests {
 
         let gap = clock.reservedDeadlines[0].duration(to: clock.reservedDeadlines[1])
         #expect(gap >= .seconds(8), "penalize should push the next slot out by the cooldown")
+    }
+
+    /// `penalize(.zero)` must never rewind an established schedule: the candidate
+    /// `now + .zero == now` is always <= the accumulated `nextPermitAt`, so the
+    /// guard `candidate > nextPermitAt` is false and the slot is left untouched.
+    /// In other words, a zero-cooldown penalty is a no-op for future slots.
+    @Test
+    func penalizeWithZeroCooldownDoesNotRewindSchedule() async throws {
+        let clock = ManualClock()
+        // Use a 200 ms interval so the schedule accumulates quickly.
+        let pacer = RequestPacer(minInterval: .milliseconds(200), now: clock.now, sleepUntil: clock.sleepUntil)
+
+        // Build up a schedule: base, base+200ms, base+400ms, base+600ms.
+        try await pacer.acquire() // slot 0
+        try await pacer.acquire() // slot 1
+        try await pacer.acquire() // slot 2
+        try await pacer.acquire() // slot 3
+
+        // Penalize with .zero — this must be a no-op (candidate = now = base+600ms
+        // which equals nextPermitAt, so candidate > nextPermitAt is false).
+        await pacer.penalize(.zero)
+
+        // The next slot must still be spaced by minInterval from the existing
+        // schedule, not pulled back to "now".
+        try await pacer.acquire() // slot 4
+
+        #expect(clock.reservedDeadlines.count == 5)
+        // Slot 3 to slot 4 must be exactly minInterval (the zero-cooldown penalty
+        // must not have rewound nextPermitAt to an earlier position).
+        let gap = clock.reservedDeadlines[3].duration(to: clock.reservedDeadlines[4])
+        #expect(gap == .milliseconds(200), "zero-cooldown penalize must not rewind the schedule")
     }
 }

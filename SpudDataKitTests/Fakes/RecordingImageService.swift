@@ -12,14 +12,22 @@ import UIKit
 /// A test double for `ImageServiceType` that records the URLs it was asked to
 /// fetch (the offline downloader warms images through `fetch(_:downsampleTo:)`).
 ///
-/// Each `fetch` immediately yields `.ready` and finishes, so the downloader's
-/// stream-draining completes without real I/O. URLs are recorded under an
-/// `NSLock` since the downloader drives several fetches concurrently.
+/// Each `fetch` immediately finishes the stream. When `yieldsReady` is `true`
+/// (the default) it emits `.ready` first, so the downloader's stream-draining
+/// completes as a success. When `yieldsReady` is `false` the stream ends without
+/// any value — `drainImageFetch` sees no `.ready` and throws `.notReady`,
+/// letting retry + swallow tests exercise that path.
+///
+/// URLs are recorded under an `NSLock` since the downloader drives several
+/// fetches concurrently.
 final class RecordingImageService: ImageServiceType, @unchecked Sendable {
     private let lock = NSLock()
     private var _fetchedURLs: [URL] = []
+    private let yieldsReady: Bool
 
-    init() { }
+    init(yieldsReady: Bool = true) {
+        self.yieldsReady = yieldsReady
+    }
 
     /// All URLs passed to `fetch(_:downsampleTo:)`, in completion order.
     var fetchedURLs: [URL] {
@@ -30,16 +38,18 @@ final class RecordingImageService: ImageServiceType, @unchecked Sendable {
 
     func fetch(_ url: URL, thumbnail _: URL?) -> AsyncStream<ImageLoadingState> {
         record(url)
+        let yieldsReady = yieldsReady
         return AsyncStream { continuation in
-            continuation.yield(.ready(UIImage()))
+            if yieldsReady { continuation.yield(.ready(UIImage())) }
             continuation.finish()
         }
     }
 
     func fetch(_ url: URL, downsampleTo _: CGSize) -> AsyncStream<ImageLoadingState> {
         record(url)
+        let yieldsReady = yieldsReady
         return AsyncStream { continuation in
-            continuation.yield(.ready(UIImage()))
+            if yieldsReady { continuation.yield(.ready(UIImage())) }
             continuation.finish()
         }
     }
