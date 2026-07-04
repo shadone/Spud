@@ -178,5 +178,6 @@ class PostDetailOrEmptyViewController: UIViewController {
 
         add(child: newViewController)
         addSubviewWithEdgeConstraints(child: newViewController)
+        currentViewController = newViewController
     }
 }
