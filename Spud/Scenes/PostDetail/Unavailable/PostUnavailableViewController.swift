@@ -58,17 +58,29 @@ final class PostUnavailableViewController: UIViewController {
             stack.addArrangedSubview(subtitleLabel)
         }
 
-        // One VoiceOver element reading the full message.
-        stack.isAccessibilityElement = true
-        stack.accessibilityTraits = .staticText
-        stack.accessibilityLabel = [reason.title, reason.subtitle].compactMap { $0 }.joined(separator: ". ")
+        // Wrap the stack in a plain UIView so the accessibility element is reliable.
+        // UIStackView's `isAccessibilityElement` can be inconsistent across iOS versions;
+        // a standard UIView with a composed label is the conventional pattern.
+        let container = UIView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+        container.isAccessibilityElement = true
+        container.accessibilityTraits = .staticText
+        container.accessibilityLabel = [reason.title, reason.subtitle].compactMap { $0 }.joined(separator: ". ")
 
-        view.addSubview(stack)
+        container.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            stack.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 32),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -32),
-            stack.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            stack.topAnchor.constraint(equalTo: container.topAnchor),
+            stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+        ])
+
+        view.addSubview(container)
+        NSLayoutConstraint.activate([
+            container.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            container.leadingAnchor.constraint(greaterThanOrEqualTo: view.leadingAnchor, constant: 32),
+            container.trailingAnchor.constraint(lessThanOrEqualTo: view.trailingAnchor, constant: -32),
+            container.centerXAnchor.constraint(equalTo: view.centerXAnchor),
         ])
     }
 }

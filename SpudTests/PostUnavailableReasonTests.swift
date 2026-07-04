@@ -47,4 +47,9 @@ struct PostUnavailableReasonTests {
     func otherDeletedShowsDeleted() {
         #expect(reason(deleted: true) == .deleted)
     }
+
+    @Test
+    func deletedModKeepsContent() {
+        #expect(reason(deleted: true, canModerate: true) == nil)
+    }
 }
