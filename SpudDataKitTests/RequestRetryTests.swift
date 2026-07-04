@@ -95,8 +95,6 @@ struct RequestRetryTests {
 
     // MARK: - Pushback vs. non-pushback penalize
 
-    // MARK: - Pushback vs. non-pushback penalize
-
     /// A server-pushback error (HTTP 503) causes `withRetry` to call
     /// `pacer.penalize(pushbackCooldown)` before sleeping. With a `ManualClock`-backed
     /// pacer (`minInterval: .zero`) the penalty is observable: after `withRetry`
