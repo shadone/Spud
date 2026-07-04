@@ -23,8 +23,13 @@ import XCTest
 /// so every date-driven value is pinned:
 ///
 /// - A **fixed `asOf`** (`2025-03-24T00:00:00Z`, a Monday) is threaded to the
-///   Summary column so the 18-week heatmap window and the "joined … ago" relative
-///   string are identical on every run, whatever the wall clock says. This matches
+///   Summary column so the 18-week heatmap window *and* the "Joined … " relative
+///   age string are identical on every run, whatever the wall clock says. The age
+///   is genuinely pinned: `asOf` flows `SummaryViewModel → observeSummaryStats →
+///   PersonFormatter.string(personCreatedDate:asOf:)`, so the string is measured
+///   against `asOf` (2025-03-24), **not** `Date()`. With a seeded join date of
+///   2020-09-13 it therefore reads a stable "Joined 5y" rather than a record-time
+///   value that would drift as the wall clock advances. This matches
 ///   `SummarySnapshotTests`, whose seeding we reuse verbatim.
 /// - The **timeline column is rendered network-free**: the seeded account is a
 ///   signed-out record (so `AccountService.lemmyService(…)` never touches the

@@ -10,9 +10,14 @@ import SpudUtilKit
 /// Formats person/account metadata into user-visible display strings.
 public enum PersonFormatter {
     /// Relative time string describing when an account was created
-    /// (e.g. "3 years ago"). Backed by `Date.relativeString`.
-    public static func string(personCreatedDate date: Date) -> String {
-        date.relativeString
+    /// (e.g. "3y"), measured from `asOf` (default: the current wall clock).
+    /// Backed by `Date.relativeString(asOf:)`.
+    ///
+    /// `asOf` is additive: production and widget callers omit it and get the
+    /// `Date()` default (behaviour unchanged), while snapshot/unit tests inject
+    /// a fixed reference date so the string is deterministic.
+    public static func string(personCreatedDate date: Date, asOf: Date = Date()) -> String {
+        date.relativeString(asOf: asOf)
     }
 
     /// Absolute "cake day" — the calendar date the account was created,
