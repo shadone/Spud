@@ -146,6 +146,13 @@ final class ActivityFootprintRailView: UIView {
         isAccessibilityElement = true
         accessibilityTraits = .button
 
+        // The border color is a CGColor, so it doesn't re-resolve on a
+        // light/dark switch on its own. Re-resolve it via the iOS 17+
+        // trait-change registration API.
+        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+            self.cardView.layer.borderColor = UIColor.separator.resolvedColor(with: self.traitCollection).cgColor
+        }
+
         applyAccent()
     }
 
@@ -171,13 +178,6 @@ final class ActivityFootprintRailView: UIView {
     override func accessibilityActivate() -> Bool {
         onTapSummary?()
         return true
-    }
-
-    override func traitCollectionDidChange(_ previous: UITraitCollection?) {
-        super.traitCollectionDidChange(previous)
-        // The border color is a CGColor, so it doesn't re-resolve on a
-        // light/dark switch on its own.
-        cardView.layer.borderColor = UIColor.separator.resolvedColor(with: traitCollection).cgColor
     }
 
     private func applyAccent() {
@@ -212,6 +212,10 @@ final class ActivityFootprintRailView: UIView {
         labelLabel.textColor = .secondaryLabel
         labelLabel.text = stat.label
         labelLabel.numberOfLines = 1
+        // Match the value label: shrink to fit rather than truncate to an
+        // ellipsis at XXXL Dynamic Type across four fillEqually columns.
+        labelLabel.adjustsFontSizeToFitWidth = true
+        labelLabel.minimumScaleFactor = 0.6
 
         let column = UIStackView(arrangedSubviews: [valueLabel, labelLabel])
         column.axis = .vertical

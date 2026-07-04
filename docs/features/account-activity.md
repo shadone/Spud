@@ -274,7 +274,7 @@ the Account "Saved" row both route there.
 
 ### Open Summary from Activity (iPhone / compact)
 
-- **Surfaces:** `iphone`
+- **Surfaces:** `iphone`, `ipad`
 - **Given** I am on the Activity screen on an iPhone (or compact width)
 - **When** I tap the "Summary" navigation bar button
 - **Then** the Summary screen pushes onto the navigation stack
@@ -310,7 +310,7 @@ the Account "Saved" row both route there.
 
 ### "Your footprint" rail appears above the timeline in the default state
 
-- **Surfaces:** `iphone`
+- **Surfaces:** `iphone`, `ipad`
 - **Given** I am on the Activity screen on an iPhone with no filter chips active and no search query
 - **And** the timeline has at least one item
 - **When** the list renders
@@ -320,10 +320,17 @@ the Account "Saved" row both route there.
 
 ### "Your footprint" rail is hidden when filters or search are active
 
-- **Surfaces:** `iphone`
+- **Surfaces:** `iphone`, `ipad`
 - **Given** I am on the Activity screen with one or more filter chips active or a search query entered
 - **When** the timeline renders
 - **Then** the "Your footprint" rail is not shown
+
+### Footprint rail is hidden when the Summary is pinned (iPad regular width)
+
+- **Surfaces:** `ipad`
+- **Given** I am on a regular-width iPad with Account → Activity showing the two-column split
+- **When** the timeline is the primary column
+- **Then** the "Your footprint" rail is not shown, because the Summary dashboard is already visible in the detail column
 
 ### Switch heatmap metric to Votes
 
