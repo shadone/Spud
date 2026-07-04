@@ -28,9 +28,33 @@ bar lets you narrow the list to one or more action types. A search field narrows
 body text. Pull-to-refresh re-fetches authored content, and the list honors the app's
 display-density preference. Tapping a row opens the post or comment's post in the detail view.
 
+## iPad — split view
+
+On a regular-width iPad (full-screen or a wide multitasking split), Account → Activity opens as
+a two-column split. The primary column holds the Activity timeline. The detail column permanently
+homes the Summary dashboard — it is pinned there, not a screen the user navigates to; the
+"Summary" navigation bar button is hidden on iPad because Summary is already visible in the
+detail column.
+
+Tapping a post or comment row in the timeline opens that item in the detail column, sliding over
+the Summary, with a "Summary" back button to return to the Summary dashboard. An "Account" back
+button at the top of the primary column returns to the Account tab.
+
+When the layout narrows to compact width — an iPhone, an iPad in Slide Over, or a multitasking
+split that crosses the width boundary — the split merges into a single column showing the
+timeline. Any post or comment detail open in the detail column is dropped on collapse; the
+collapsed stack shows only the timeline. The "Summary" navigation bar button reappears. When the
+layout widens back to regular, the Summary is re-pinned in the detail column.
+
+On iPhone and at compact width in general, the Activity screen is a single-column navigation
+stack, identical in behavior to the pre-split experience except for the "Your footprint" rail
+described below.
+
 ## Activity Summary screen
 
-From the Activity screen's navigation bar a "Summary" button opens the Summary screen.
+On iPhone and compact width, the Activity screen's navigation bar shows a "Summary" button that
+opens the Summary screen. On iPad at regular width the Summary is already pinned in the detail
+column — no button is needed.
 The Summary screen presents a statistical overview of the account's activity for roughly
 the past 18 weeks (126 days), ending at "today" each time it is opened. It is not a
 real-time feed — it is a read-only analytics view driven entirely from the on-device
@@ -115,6 +139,14 @@ the Account "Saved" row both route there.
   coordinator, which fetches the next authored page and lowers the merge frontier so the
   prefix extends. The local stream is always complete; only the authored side paginates.
 
+- **Your footprint rail (iPhone / compact width).** When the active filters are the default set,
+  there is no search query, and the timeline has content, a glance card — "Your footprint" —
+  appears above the first timeline row. It shows up to four quick stats drawn from the same stat
+  pipeline as the Summary dashboard's stat tiles (no independent formatters), and a "Summary ›"
+  affordance that opens the Summary screen. The rail is suppressed when the Summary is already
+  pinned in the detail column (iPad regular width), since the footprint data is already visible
+  there.
+
 - **Navigation.** Tapping a post row calls `MainWindow.display(serverPostId:accountKeychainId:)`.
   Tapping a comment row calls the same method with the parent post id and passes
   `scrollToCommentId` so the detail view jumps to the comment.
@@ -166,7 +198,8 @@ the Account "Saved" row both route there.
   from local data; the identity strip is populated from the cached `person` row.
 
 - **Summary — metric persistence.** The selected metric (All / Reads / Votes) is
-  per-session only; it resets to All each time the Summary screen is pushed.
+  per-session only; it resets to All each time the Summary screen is opened (iPhone: pushed
+  onto the stack; iPad: re-pinned in the detail column on expand).
 
 ## Scenarios
 
@@ -239,14 +272,58 @@ the Account "Saved" row both route there.
 - **When** I tap "Browse communities"
 - **Then** the Communities tab is selected
 
-### Open Summary from Activity
+### Open Summary from Activity (iPhone / compact)
 
-- **Given** I am on the Activity screen
+- **Surfaces:** `iphone`
+- **Given** I am on the Activity screen on an iPhone (or compact width)
 - **When** I tap the "Summary" navigation bar button
 - **Then** the Summary screen pushes onto the navigation stack
 - **And** the stat tiles show my all-time local counts
 - **And** the heatmap shows 18 weeks of "All" activity with dot intensity proportional to event count
 - **And** the identity strip shows my avatar, display name, joined date, and cake day
+
+### Summary is pinned in the detail column on iPad
+
+- **Surfaces:** `ipad`
+- **Given** I am signed in and open Account → Activity on a regular-width iPad
+- **When** the Activity screen opens
+- **Then** the Activity timeline appears in the primary column
+- **And** the Summary dashboard is pinned in the detail column, visible without navigating to it
+- **And** the "Summary" navigation bar button is not shown
+
+### Tap a timeline row to open it in the detail column on iPad
+
+- **Surfaces:** `ipad`
+- **Given** I am on the Activity timeline on a regular-width iPad
+- **When** I tap a post or comment row
+- **Then** the post detail opens in the detail column, over the Summary
+- **And** a "Summary" back button in the navigation bar returns me to the Summary dashboard
+
+### Activity collapses to a single column when the layout narrows
+
+- **Surfaces:** `ipad`
+- **Given** the Activity split is open at regular width on iPad
+- **When** the layout narrows to compact (Slide Over, multitasking split, or rotation across the width boundary)
+- **Then** the columns merge into a single column showing the timeline
+- **And** the "Summary" navigation bar button reappears
+- **And** any post detail that was open in the detail column is dropped (not carried into the stack)
+
+### "Your footprint" rail appears above the timeline in the default state
+
+- **Surfaces:** `iphone`
+- **Given** I am on the Activity screen on an iPhone with no filter chips active and no search query
+- **And** the timeline has at least one item
+- **When** the list renders
+- **Then** a "Your footprint" glance card appears above the first timeline row
+- **And** it shows up to four quick stats (same figures as the Summary stat tiles)
+- **And** a "Summary ›" affordance opens the Summary screen when tapped
+
+### "Your footprint" rail is hidden when filters or search are active
+
+- **Surfaces:** `iphone`
+- **Given** I am on the Activity screen with one or more filter chips active or a search query entered
+- **When** the timeline renders
+- **Then** the "Your footprint" rail is not shown
 
 ### Switch heatmap metric to Votes
 
