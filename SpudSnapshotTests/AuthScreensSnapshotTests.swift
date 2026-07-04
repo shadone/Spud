@@ -50,7 +50,7 @@ final class AuthScreensSnapshotTests: XCTestCase {
             viewController.view.tintColor = lemmyTeal
             assertSnapshot(
                 matching: viewController,
-                as: .image(on: .iPhone13Pro, traits: traits(style)),
+                as: .image(on: .deterministicPhone, traits: traits(style)),
                 named: style == .dark ? "dark" : "light",
                 testName: testName,
                 line: line

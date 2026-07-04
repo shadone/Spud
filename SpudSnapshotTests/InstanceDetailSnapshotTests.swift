@@ -74,7 +74,7 @@ final class InstanceDetailSnapshotTests: XCTestCase {
             assertSnapshot(
                 matching: navigationController,
                 as: .image(
-                    on: .iPhone13Pro,
+                    on: .deterministicPhone,
                     size: size,
                     traits: UITraitCollection(userInterfaceStyle: style)
                 ),

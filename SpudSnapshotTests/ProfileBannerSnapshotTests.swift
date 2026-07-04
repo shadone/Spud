@@ -32,7 +32,7 @@ import XCTest
 /// Accessibility tests use a plain `UIHostingController` (no window required)
 /// and verify structural properties that are available without VoiceOver active.
 ///
-/// Pinned config: `.image(on: .iPhone13Pro, traits:)` — device-independent, so
+/// Pinned config: `.image(on: .deterministicPhone, traits:)` — device-independent + safe-area-pinned, so
 /// any simulator runtime works and refs are stable across OS versions.
 @MainActor
 final class ProfileBannerSnapshotTests: XCTestCase {
@@ -54,7 +54,7 @@ final class ProfileBannerSnapshotTests: XCTestCase {
         let host = try await makeSettledHostWithImages(interactive: true, style: .light)
         assertSnapshot(
             matching: host,
-            as: .image(on: .iPhone13Pro, traits: UITraitCollection(userInterfaceStyle: .light)),
+            as: .image(on: .deterministicPhone, traits: UITraitCollection(userInterfaceStyle: .light)),
             named: "light"
         )
     }
@@ -63,7 +63,7 @@ final class ProfileBannerSnapshotTests: XCTestCase {
         let host = try await makeSettledHostWithImages(interactive: true, style: .dark)
         assertSnapshot(
             matching: host,
-            as: .image(on: .iPhone13Pro, traits: UITraitCollection(userInterfaceStyle: .dark)),
+            as: .image(on: .deterministicPhone, traits: UITraitCollection(userInterfaceStyle: .dark)),
             named: "dark"
         )
     }
@@ -74,7 +74,7 @@ final class ProfileBannerSnapshotTests: XCTestCase {
         let host = try await makeSettledHostWithImages(interactive: false, style: .light)
         assertSnapshot(
             matching: host,
-            as: .image(on: .iPhone13Pro, traits: UITraitCollection(userInterfaceStyle: .light)),
+            as: .image(on: .deterministicPhone, traits: UITraitCollection(userInterfaceStyle: .light)),
             named: "light"
         )
     }
@@ -83,7 +83,7 @@ final class ProfileBannerSnapshotTests: XCTestCase {
         let host = try await makeSettledHostWithImages(interactive: false, style: .dark)
         assertSnapshot(
             matching: host,
-            as: .image(on: .iPhone13Pro, traits: UITraitCollection(userInterfaceStyle: .dark)),
+            as: .image(on: .deterministicPhone, traits: UITraitCollection(userInterfaceStyle: .dark)),
             named: "dark"
         )
     }
@@ -196,7 +196,7 @@ final class ProfileBannerSnapshotTests: XCTestCase {
         host.view.layoutIfNeeded()
         assertSnapshot(
             matching: host,
-            as: .image(on: .iPhone13Pro, traits: UITraitCollection(userInterfaceStyle: style)),
+            as: .image(on: .deterministicPhone, traits: UITraitCollection(userInterfaceStyle: style)),
             named: name,
             file: file,
             testName: testName,

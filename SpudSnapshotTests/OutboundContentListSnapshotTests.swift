@@ -213,7 +213,7 @@ final class OutboundContentListSnapshotTests: XCTestCase {
             assertSnapshot(
                 matching: nav,
                 as: .image(
-                    on: .iPhone13Pro,
+                    on: .deterministicPhone,
                     size: size,
                     traits: UITraitCollection(userInterfaceStyle: style)
                 ),

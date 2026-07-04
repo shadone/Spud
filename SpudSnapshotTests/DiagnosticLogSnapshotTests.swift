@@ -252,7 +252,7 @@ final class DiagnosticLogSnapshotTests: XCTestCase {
             assertSnapshot(
                 matching: navigationController,
                 as: .image(
-                    on: .iPhone13Pro,
+                    on: .deterministicPhone,
                     size: snapshotSize,
                     traits: UITraitCollection(userInterfaceStyle: style)
                 ),
@@ -307,7 +307,7 @@ final class DiagnosticLogSnapshotTests: XCTestCase {
             assertSnapshot(
                 matching: navigationController,
                 as: .image(
-                    on: .iPhone13Pro,
+                    on: .deterministicPhone,
                     size: snapshotSize,
                     traits: UITraitCollection(userInterfaceStyle: style)
                 ),
@@ -356,7 +356,7 @@ final class DiagnosticLogSnapshotTests: XCTestCase {
             assertSnapshot(
                 matching: hostingController,
                 as: .image(
-                    on: .iPhone13Pro,
+                    on: .deterministicPhone,
                     size: snapshotSize,
                     traits: UITraitCollection(userInterfaceStyle: style)
                 ),
@@ -420,7 +420,7 @@ final class DiagnosticLogSnapshotTests: XCTestCase {
         assertSnapshot(
             matching: navigationController,
             as: .image(
-                on: .iPhone13Pro,
+                on: .deterministicPhone,
                 size: snapshotSize,
                 traits: xxxl
             ),

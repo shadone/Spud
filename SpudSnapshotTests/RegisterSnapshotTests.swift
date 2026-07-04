@@ -72,7 +72,7 @@ final class RegisterSnapshotTests: XCTestCase {
             navigationController.view.tintColor = lemmyTeal
             assertSnapshot(
                 matching: navigationController,
-                as: .image(on: .iPhone13Pro, traits: UITraitCollection(userInterfaceStyle: style)),
+                as: .image(on: .deterministicPhone, traits: UITraitCollection(userInterfaceStyle: style)),
                 named: style == .dark ? "dark" : "light"
             )
         }
@@ -99,7 +99,7 @@ final class RegisterSnapshotTests: XCTestCase {
             navigationController.view.tintColor = lemmyTeal
             assertSnapshot(
                 matching: navigationController,
-                as: .image(on: .iPhone13Pro, traits: UITraitCollection(userInterfaceStyle: style)),
+                as: .image(on: .deterministicPhone, traits: UITraitCollection(userInterfaceStyle: style)),
                 named: style == .dark ? "dark" : "light"
             )
         }

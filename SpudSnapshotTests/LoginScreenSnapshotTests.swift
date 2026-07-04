@@ -74,7 +74,7 @@ final class LoginScreenSnapshotTests: XCTestCase {
             configure(viewController)
             assertSnapshot(
                 matching: navigationController,
-                as: .image(on: .iPhone13Pro, traits: UITraitCollection(userInterfaceStyle: style)),
+                as: .image(on: .deterministicPhone, traits: UITraitCollection(userInterfaceStyle: style)),
                 named: style == .dark ? "dark" : "light",
                 testName: testName,
                 line: line

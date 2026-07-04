@@ -65,7 +65,7 @@ final class IPadLayoutSnapshotTests: XCTestCase {
         assertSnapshot(
             matching: host,
             as: .image(
-                on: .iPadPro11(.landscape),
+                on: .deterministicIPadLandscape,
                 traits: UITraitCollection(userInterfaceStyle: .light)
             ),
             named: "light"
@@ -90,7 +90,7 @@ final class IPadLayoutSnapshotTests: XCTestCase {
         assertSnapshot(
             matching: host,
             as: .image(
-                on: .iPadPro11(.landscape),
+                on: .deterministicIPadLandscape,
                 traits: UITraitCollection(userInterfaceStyle: .light)
             ),
             named: "light"
@@ -210,7 +210,13 @@ final class IPadLayoutSnapshotTests: XCTestCase {
         // UINavigationController never loads its root VC's view and the loading
         // indicator Task never starts — the snapshot would always capture mid-loading.
         let size = ViewImageConfig.iPadPro11(.landscape).size ?? CGSize(width: 1194, height: 834)
-        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+        // A `FixedSafeAreaWindow` (pinned `.zero` safe area) rather than a stock
+        // `UIWindow`: `drawHierarchyInKeyWindow: true` renders into whichever window
+        // is key, and a stock window's safe area drifts with ambient scene state that
+        // an earlier suite can perturb — pinning it makes the capture deterministic
+        // across suites, and prevents THIS suite from leaking a drifted-safe-area key
+        // window that contaminates later suites (mirrors ActivityIPadSplit).
+        let window = FixedSafeAreaWindow(frame: CGRect(origin: .zero, size: size))
         window.rootViewController = splitVC
         window.makeKeyAndVisible()
         window.layoutIfNeeded()
@@ -242,8 +248,15 @@ final class IPadLayoutSnapshotTests: XCTestCase {
         // Snapshot the settled on-screen hierarchy. drawHierarchyInKeyWindow: true
         // captures the live view state rather than doing a fresh offscreen re-render
         // (which would replay viewDidLoad and show the spinner again).
+        // Neutralize in-flight / implicit (CATransaction-level) animations so the
+        // on-screen capture reflects the settled final state regardless of timing.
+        let restoreAnimations = SnapshotDeterminism.disableAnimationsForCapture()
+        defer { restoreAnimations() }
+
         window.overrideUserInterfaceStyle = .light
         window.layoutIfNeeded()
+        SnapshotDeterminism.pinScrollViewsToTop(in: splitVC.view)
+        SnapshotDeterminism.snapAllAnimations(in: window)
         assertSnapshot(
             matching: splitVC,
             as: .image(drawHierarchyInKeyWindow: true, size: size, traits: UITraitCollection(userInterfaceStyle: .light)),
@@ -252,6 +265,8 @@ final class IPadLayoutSnapshotTests: XCTestCase {
 
         window.overrideUserInterfaceStyle = .dark
         window.layoutIfNeeded()
+        SnapshotDeterminism.pinScrollViewsToTop(in: splitVC.view)
+        SnapshotDeterminism.snapAllAnimations(in: window)
         assertSnapshot(
             matching: splitVC,
             as: .image(drawHierarchyInKeyWindow: true, size: size, traits: UITraitCollection(userInterfaceStyle: .dark)),
