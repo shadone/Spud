@@ -39,4 +39,15 @@ struct PostStatusBadgeTests {
         )
         #expect(badges.isEmpty)
     }
+
+    @Test
+    func deletedTakesPriorityOverUnavailable() {
+        let badges = PostStatusBadge.badges(
+            isRemoved: false, isDeleted: true, isUnavailable: true,
+            isLocked: false, isFeatured: false
+        )
+        #expect(badges.count == 1)
+        #expect(badges[0].symbolName == "trash.fill")
+        #expect(badges[0].color == .systemRed)
+    }
 }

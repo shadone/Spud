@@ -12,7 +12,7 @@ When a post disappears from the server — because a moderator removed it, the a
 
 - **Detection at every server touchpoint.** Spud marks a post "unavailable" when the server returns a `couldnt_find_post` error on any of: opening the post detail (the comment fetch), pull-to-refresh (`getPost`), or any outbox mutation (vote, save, hide). The flag is persisted immediately and survives app relaunch.
 - **Three server-side states.** The app distinguishes:
-  - **Ambiguous unavailability** (`couldnt_find_post` with no further detail): "This post is no longer available — It may have been removed."
+  - **Ambiguous unavailability** (`couldnt_find_post` with no further detail): title "This post is no longer available", message "It may have been removed."
   - **Server-confirmed removal** (the post view carries `removed: true`, non-moderator viewer): "Removed by moderator."
   - **Server-confirmed deletion** (the post view carries `deleted: true`, viewer is not the author and not a moderator): "Deleted by author."
 - **Visibility gating for privileged viewers.** Moderators of the post's community and the post's own author still see the full post content even when the post is removed or deleted, because they may need to act on or review it. The placeholder is shown only to unprivileged viewers.

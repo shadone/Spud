@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Foundation
 import GRDB
 
 public extension AppDatabase {

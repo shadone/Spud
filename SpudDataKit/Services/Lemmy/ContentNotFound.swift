@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import Foundation
 import LemmyKit
 
 /// Recognizes the Lemmy "this post does not exist" rejection so read paths and
