@@ -7,10 +7,19 @@
 import Foundation
 import LemmyKit
 
+/// Why an outbox operation permanently failed, when the UI needs to react
+/// differently. `.notFound` means the target post no longer exists on the
+/// server (`couldnt_find_post`); everything else is `.other`.
+public enum OutboxFailureReason: Sendable, Equatable {
+    case notFound
+    case other
+}
+
 public struct OutboxFailure: Sendable, Equatable {
     public let entityType: OutboxEntityType
     public let entityServerId: Int64
     public let kind: OutboxKind
+    public let reason: OutboxFailureReason
 }
 
 public protocol OutboxServiceType: Actor {
@@ -248,11 +257,26 @@ public actor OutboxService: OutboxServiceType {
                             entityServerId: op.entityServerId
                         )
                     }
+                    // A not-found rejection means the post is gone server-side.
+                    // Tombstone the stale cache so the feed badge + detail
+                    // placeholder reflect reality, and tag the failure so the
+                    // toast can be specific.
+                    let reason: OutboxFailureReason
+                    if op.entityType == .post, ContentNotFound.matchesPost(error) {
+                        try? await appDatabase.markPostUnavailable(
+                            accountId: accountId,
+                            serverPostId: op.entityServerId
+                        )
+                        reason = .notFound
+                    } else {
+                        reason = .other
+                    }
                     rolledBack += 1
                     emitFailure(OutboxFailure(
                         entityType: op.entityType,
                         entityServerId: op.entityServerId,
-                        kind: op.kind
+                        kind: op.kind,
+                        reason: reason
                     ))
                 }
             }

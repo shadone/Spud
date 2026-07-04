@@ -360,15 +360,22 @@ class MainWindow: UIWindow {
 
     private func presentOutboxFailureToast(_ failure: OutboxFailure) {
         let message: String
-        switch failure.kind {
-        case .vote:
-            message = NSLocalizedString("Couldn't vote", comment: "Toast when a vote permanently failed and was reverted")
-        case .save:
-            message = NSLocalizedString("Couldn't save", comment: "Toast when a save permanently failed and was reverted")
-        case .hide:
-            message = NSLocalizedString("Couldn't hide", comment: "Toast when a hide permanently failed and was reverted")
-        case .delete:
-            message = NSLocalizedString("Couldn't update comment", comment: "Toast when a comment delete/restore permanently failed and was reverted")
+        if failure.reason == .notFound {
+            message = NSLocalizedString(
+                "This post is no longer available",
+                comment: "Toast when an action failed because the post was removed/deleted on the server"
+            )
+        } else {
+            switch failure.kind {
+            case .vote:
+                message = NSLocalizedString("Couldn't vote", comment: "Toast when a vote permanently failed and was reverted")
+            case .save:
+                message = NSLocalizedString("Couldn't save", comment: "Toast when a save permanently failed and was reverted")
+            case .hide:
+                message = NSLocalizedString("Couldn't hide", comment: "Toast when a hide permanently failed and was reverted")
+            case .delete:
+                message = NSLocalizedString("Couldn't update comment", comment: "Toast when a comment delete/restore permanently failed and was reverted")
+            }
         }
         ToastPresenter.shared.show(message, in: self)
     }
