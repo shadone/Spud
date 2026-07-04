@@ -35,11 +35,25 @@ actor RecordingLemmyService: LemmyServiceType {
         /// `appendFeedPage` de-dupes these, so the persisted count does NOT grow
         /// for such a page. When non-empty, `postCount` is ignored.
         let duplicatePostIds: [Int64]
+        /// Throw a transient (HTTP 503) error this many times for this page
+        /// before it actually seeds — models a page that fails then recovers.
+        let transientFailures: Int
+        /// When true, every `fetchFeed` for this page throws a permanent (HTTP 403)
+        /// error and never seeds — models a page that fails for good.
+        let permanentFailure: Bool
 
-        init(postCount: Int, nextCursor: String?, duplicatePostIds: [Int64] = []) {
+        init(
+            postCount: Int,
+            nextCursor: String?,
+            duplicatePostIds: [Int64] = [],
+            transientFailures: Int = 0,
+            permanentFailure: Bool = false
+        ) {
             self.postCount = postCount
             self.nextCursor = nextCursor
             self.duplicatePostIds = duplicatePostIds
+            self.transientFailures = transientFailures
+            self.permanentFailure = permanentFailure
         }
     }
 
@@ -70,6 +84,9 @@ actor RecordingLemmyService: LemmyServiceType {
     /// exhausted, further `fetchFeed` calls insert nothing and return nil.
     private var pages: [Page]
     private var pageIndex = 0
+    /// Remaining scripted transient failures for the CURRENT page, lazily seeded
+    /// from `Page.transientFailures` the first time the page is reached.
+    private var currentPageTransientRemaining: Int?
     /// Running server-post-id counter, so each seeded post is distinct. Starts
     /// at `firstServerPostId` so a test that pre-seeds "already browsed" posts
     /// can continue the id space past them and avoid colliding fresh ids.
@@ -157,6 +174,23 @@ actor RecordingLemmyService: LemmyServiceType {
             return exhaustedCursor
         }
         let page = pages[pageIndex]
+
+        // Scripted permanent failure: throw every time; never advance or seed.
+        if page.permanentFailure {
+            throw LemmyServiceError.apiError(.unknownServerError(httpStatusCode: 403, error: nil))
+        }
+
+        // Scripted transient failures: throw N times (503), then fall through to
+        // seed on the next call. Do NOT advance `pageIndex` until it seeds.
+        if currentPageTransientRemaining == nil {
+            currentPageTransientRemaining = page.transientFailures
+        }
+        if let remaining = currentPageTransientRemaining, remaining > 0 {
+            currentPageTransientRemaining = remaining - 1
+            throw LemmyServiceError.apiError(.unknownServerError(httpStatusCode: 503, error: nil))
+        }
+        currentPageTransientRemaining = nil
+
         pageIndex += 1
 
         let feedKey = feed.feedKey

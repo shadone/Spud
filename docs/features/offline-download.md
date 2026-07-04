@@ -17,8 +17,9 @@ Saves the current feed for reading offline — useful before a flight or a long 
 - **Reading saved links offline.** When you're offline and tap a saved post's external link, it opens in an in-app reader showing the saved snapshot (marked "Saved offline"), with Share and "Open in Browser" actions. When you're online, links open the live page as usual — the snapshot is a no-connection fallback, not a replacement. Offline links that weren't saved show a brief "This page isn't saved for offline" note.
 - **Progress + cancel.** A sheet shows a progress bar and status ("Fetching posts…", then "Saving posts, comments & images — N of M") with a Cancel button. Cancelling (or swiping the sheet away) stops the download promptly; what was already saved remains usable. Only one download runs at a time.
 - **Requires a connection to start.** Predownloading needs the network, so the action shows a brief "You're offline" message and doesn't start when there's no connection.
-- **Best-effort per post.** A single post whose comments, image, or linked page fail to download doesn't abort the rest — the download continues and completes with what it could fetch.
-- **Polite to the instance.** Comment and image fetches run with a small concurrency limit rather than all at once; web-page snapshots are captured one at a time.
+- **Best-effort per post.** A single post whose comments, image, or linked page fail to download doesn't abort the rest — the download continues and completes with what it could fetch. A transient failure (a timeout or a server "busy"/"slow down") is retried a few times with a growing back-off before the post is given up on.
+- **Survives a bad patch, keeps what it got.** If a feed page keeps failing even after retries, the download stops paging but keeps every post it already saved, downloads their content, and finishes — telling you it couldn't reach the whole feed (e.g. "Downloaded 80 posts — some of the feed couldn't be reached.") rather than throwing everything away. Only a failure on the very first page (nothing saved yet) reports an outright failure.
+- **Polite to the instance.** Requests are spaced out so a download never floods the server, comment and image fetches run with a small concurrency limit rather than all at once, and when the server signals it's overloaded (HTTP 429/503) the download briefly backs the whole run off before continuing. Web-page snapshots are captured one at a time.
 - **Bounded and durable.** The post count is capped at your choice; images live in the app's existing on-disk image cache (about 200 MB, least-recently-used); saved web pages are bounded by their own cache (about 150 MB, oldest evicted first). All survive relaunch.
 
 ## Scenarios
@@ -60,6 +61,13 @@ Saves the current feed for reading offline — useful before a flight or a long 
 - **Given** I have no connection
 - **When** I tap "Download for offline"
 - **Then** I'm told I'm offline and no download starts
+
+### A flaky connection during a download
+
+- **Given** a download that has already saved some of the feed
+- **When** a later page keeps failing even after automatic retries
+- **Then** the download stops paging but keeps and finishes the posts it already saved
+- **And** the progress sheet completes with a notice that not all of the feed could be reached (not an error that discards everything)
 
 ## Not supported / out of scope
 

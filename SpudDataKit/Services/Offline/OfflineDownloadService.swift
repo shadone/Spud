@@ -26,6 +26,7 @@ public actor OfflineDownloadService {
     private let appDatabase: AppDatabase
     private let imageService: any ImageServiceType
     private let diagnostics: DiagnosticLogging
+    private let pacing: DownloadPacingConfig
 
     /// Captures an external-link post's target page as a web archive, used only
     /// when a download opts into `archiveLinks`. Optional so a service built
@@ -139,6 +140,9 @@ public actor OfflineDownloadService {
     ///   - imageService: The image service used to warm post images into the
     ///     durable disk cache.
     ///   - diagnostics: Diagnostic recorder for structured download events.
+    ///   - pacing: Request-pacing and retry tunables. Defaults to `.live`
+    ///     (200 ms spacing, 4 attempts). Tests inject `.immediate()` to
+    ///     eliminate wall-clock waits.
     ///   - webArchiveCapturer: Optional capturer for external-link pages; required
     ///     for `archiveLinks` runs and otherwise unused. `@MainActor`-bound and
     ///     self-serializing.
@@ -148,12 +152,14 @@ public actor OfflineDownloadService {
         appDatabase: AppDatabase,
         imageService: any ImageServiceType,
         diagnostics: DiagnosticLogging,
+        pacing: DownloadPacingConfig = .live,
         webArchiveCapturer: (any WebArchiveCapturing)? = nil,
         webArchiveStore: OfflineWebArchiveStore? = nil
     ) {
         self.appDatabase = appDatabase
         self.imageService = imageService
         self.diagnostics = diagnostics
+        self.pacing = pacing
         self.webArchiveCapturer = webArchiveCapturer
         self.webArchiveStore = webArchiveStore
     }
@@ -338,16 +344,29 @@ public actor OfflineDownloadService {
         // a duration. Captured before Phase 1 so page-fetch time is included.
         let startedAt = Date()
 
+        // One pacer per run: paces all feed-page fetches and absorbs pushback
+        // penalties (429 / 503) by inserting a global cool-down.
+        let pacer = RequestPacer(
+            minInterval: pacing.minRequestInterval,
+            now: pacing.now,
+            sleepUntil: pacing.sleepUntil
+        )
+
         // Phase 1: page through the feed, persisting each page to GRDB.
         let postsFetched: Int
+        let wasPartial: Bool
         do {
-            postsFetched = try await fetchPages(
+            let result = try await fetchPages(
                 feed: feed,
                 lemmyService: lemmyService,
                 showNsfw: showNsfw,
                 maxPosts: maxPosts,
+                pacer: pacer,
+                instance: instance,
                 emit: emit
             )
+            postsFetched = result.count
+            wasPartial = result.wasPartial
         } catch is CancellationError {
             // Surface however many posts the cancelled page loop had already
             // persisted so the terminal `.cancelled` (and its
@@ -423,6 +442,8 @@ public actor OfflineDownloadService {
             postsFetched: postsFetched,
             totalPosts: totalPosts,
             instance: instance,
+            pacer: pacer,
+            pacing: pacing,
             emit: emit
         )
 
@@ -466,20 +487,35 @@ public actor OfflineDownloadService {
             phase: .finished,
             postsFetched: postsFetched,
             totalPosts: totalPosts,
-            itemsCompleted: completed
+            itemsCompleted: completed,
+            warningMessage: wasPartial
+                ? "Downloaded \(postsFetched) posts — some of the feed couldn't be reached."
+                : nil
         ))
     }
 
     /// Page through `feed` until the persisted post count reaches `maxPosts`,
-    /// the cursor is nil, or the task is cancelled. Returns the final persisted
-    /// post count. Rethrows a `fetchFeed` failure (handled as fatal by `run`).
+    /// the cursor is nil, or the task is cancelled.
+    ///
+    /// Each page fetch is paced (``RequestPacer/acquire()``) and wrapped in
+    /// ``withRetry`` so transient failures (5xx, timeouts) are retried with
+    /// jittered exponential back-off. A permanent failure (4xx) is NOT retried:
+    ///
+    /// - If at least one page has already been persisted (`persistedCount > 0`),
+    ///   the loop exits early and returns `(count: persistedCount, wasPartial: true)`.
+    ///   The run then finishes as a partial success with a warning message, rather
+    ///   than aborting — the user still gets the posts that did land.
+    /// - If no page has been persisted yet, the error is rethrown so `run` can
+    ///   emit a `.failed` terminal.
     private func fetchPages(
         feed: FeedHandle,
         lemmyService: any LemmyServiceType,
         showNsfw: Bool,
         maxPosts: Int,
+        pacer: RequestPacer,
+        instance: String?,
         emit: @Sendable (OfflineDownloadProgress) -> Void
-    ) async throws -> Int {
+    ) async throws -> (count: Int, wasPartial: Bool) {
         emit(OfflineDownloadProgress(phase: .fetchingPosts))
 
         // Scale the page backstop to the chosen post cap so a larger run still
@@ -506,45 +542,97 @@ public actor OfflineDownloadService {
             // contributed no new posts (all duplicates already in the feed).
             let beforeCount = persistedCount
 
-            let nextCursor = try await lemmyService.fetchFeed(
-                feed,
-                pageCursor: cursor,
-                showNsfw: showNsfw
-            )
-            pagesFetched += 1
+            // Pace every attempt (first + each retry) inside the operation closure so
+            // that retries are also subject to the per-request spacing. A permanent
+            // error (4xx) surfaces immediately — `withRetry` rethrows it.
+            do {
+                let nextCursor = try await withRetry(
+                    maxAttempts: pacing.maxRetryAttempts,
+                    baseDelay: pacing.retryBaseDelay,
+                    maxDelay: pacing.retryMaxDelay,
+                    pushbackCooldown: pacing.serverPushbackCooldown,
+                    pacer: pacer,
+                    sleep: pacing.sleep,
+                    jitter: pacing.jitter,
+                    onRetry: { [diagnostics, instance] attempt, delay, error in
+                        await diagnostics.record(
+                            category: .offlineDownload,
+                            level: .notice,
+                            event: "download.retry",
+                            message: "Retrying page fetch (attempt \(attempt))",
+                            instance: instance,
+                            metadata: [
+                                "attempt": String(attempt),
+                                "delayMs": String(Int(delay.asTimeInterval * 1000)),
+                                "error": String(describing: error),
+                            ]
+                        )
+                    }
+                ) {
+                    try await pacer.acquire()
+                    return try await lemmyService.fetchFeed(
+                        feed,
+                        pageCursor: cursor,
+                        showNsfw: showNsfw
+                    )
+                }
+                pagesFetched += 1
 
-            persistedCount = appDatabase.offlineFeedPostCountSync(feedKey: feed.feedKey)
-            emit(OfflineDownloadProgress(phase: .fetchingPosts, postsFetched: persistedCount))
+                persistedCount = appDatabase.offlineFeedPostCountSync(feedKey: feed.feedKey)
+                emit(OfflineDownloadProgress(phase: .fetchingPosts, postsFetched: persistedCount))
 
-            // Consecutive-no-growth break: a page that upserted only posts
-            // already in the feed adds nothing (the already-browsed top page on
-            // the first call, an already-populated re-download, ranking-churn
-            // duplicates, or a feed with fewer than maxPosts unique posts). One
-            // such page is normal — stopping on it was the shipped bug that
-            // ended a 500-post download at the ~handful of already-loaded posts.
-            // A page that grows the count resets the counter; only when the
-            // feed yields nothing new for ``maxConsecutiveEmptyPages`` pages in
-            // a row do we treat it as exhausted and stop (otherwise, with a
-            // forever-non-nil cursor, the loop would never terminate).
-            if persistedCount > beforeCount {
-                consecutiveEmptyPages = 0
-            } else {
-                consecutiveEmptyPages += 1
-                guard consecutiveEmptyPages < Self.maxConsecutiveEmptyPages else { break }
+                // Consecutive-no-growth break: a page that upserted only posts
+                // already in the feed adds nothing (the already-browsed top page on
+                // the first call, an already-populated re-download, ranking-churn
+                // duplicates, or a feed with fewer than maxPosts unique posts). One
+                // such page is normal — stopping on it was the shipped bug that
+                // ended a 500-post download at the ~handful of already-loaded posts.
+                // A page that grows the count resets the counter; only when the
+                // feed yields nothing new for ``maxConsecutiveEmptyPages`` pages in
+                // a row do we treat it as exhausted and stop (otherwise, with a
+                // forever-non-nil cursor, the loop would never terminate).
+                if persistedCount > beforeCount {
+                    consecutiveEmptyPages = 0
+                } else {
+                    consecutiveEmptyPages += 1
+                    guard consecutiveEmptyPages < Self.maxConsecutiveEmptyPages else { break }
+                }
+
+                // nil cursor means the server has no more pages.
+                guard let nextCursor, !nextCursor.isEmpty else { break }
+                cursor = nextCursor
+
+                // Hard page-count backstop: even a server that trickles one new
+                // post per page (so the count keeps creeping up and the
+                // consecutive-no-growth guard never fires) can't keep the loop alive
+                // indefinitely.
+                guard pagesFetched < maxPages else { break }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                // Permanent failure (already rethrown by withRetry after exhausting retries
+                // or immediately for a 4xx). If at least one page landed, keep what we have
+                // and finish as partial — the user gets partial content rather than nothing.
+                if persistedCount > 0 {
+                    await diagnostics.record(
+                        category: .offlineDownload,
+                        level: .notice,
+                        event: "download.pageFetchIncomplete",
+                        message: "Page fetch failed after \(persistedCount) posts were already saved; finishing partial",
+                        instance: instance,
+                        metadata: [
+                            "persistedCount": String(persistedCount),
+                            "error": String(describing: error),
+                        ]
+                    )
+                    return (count: persistedCount, wasPartial: true)
+                }
+                // Zero posts persisted — nothing useful to return; let run emit .failed.
+                throw error
             }
-
-            // nil cursor means the server has no more pages.
-            guard let nextCursor, !nextCursor.isEmpty else { break }
-            cursor = nextCursor
-
-            // Hard page-count backstop: even a server that trickles one new
-            // post per page (so the count keeps creeping up and the
-            // consecutive-no-growth guard never fires) can't keep the loop alive
-            // indefinitely.
-            guard pagesFetched < maxPages else { break }
         } while persistedCount < maxPosts
 
-        return persistedCount
+        return (count: persistedCount, wasPartial: false)
     }
 
     /// Process `targets` through a bounded `TaskGroup` (cap
@@ -570,6 +658,8 @@ public actor OfflineDownloadService {
         postsFetched: Int,
         totalPosts: Int,
         instance: String?,
+        pacer: RequestPacer,
+        pacing: DownloadPacingConfig,
         emit: @Sendable (OfflineDownloadProgress) -> Void
     ) async -> (completed: Int, failed: Int) {
         guard !targets.isEmpty else { return (0, 0) }
@@ -610,7 +700,9 @@ public actor OfflineDownloadService {
                         webArchiveCapturer: capturer,
                         webArchiveStore: store,
                         captureTimeout: captureTimeout,
-                        sanitizeURL: sanitizeURL
+                        sanitizeURL: sanitizeURL,
+                        pacer: pacer,
+                        pacing: pacing
                     )
                     return (succeeded: succeeded, serverPostId: serverPostId)
                 }
@@ -682,7 +774,9 @@ public actor OfflineDownloadService {
         webArchiveCapturer: (any WebArchiveCapturing)?,
         webArchiveStore: OfflineWebArchiveStore?,
         captureTimeout: TimeInterval,
-        sanitizeURL: (@Sendable (URL) -> URL)?
+        sanitizeURL: (@Sendable (URL) -> URL)?,
+        pacer: RequestPacer,
+        pacing: DownloadPacingConfig
     ) async -> Bool {
         if Task.isCancelled { return true }
 
@@ -692,12 +786,24 @@ public actor OfflineDownloadService {
         // A failure is surfaced to the caller for diagnostic purposes but does
         // NOT abort the rest of this post's work — images and web archives are
         // always attempted (best-effort), matching the pre-existing contract.
+        // Transient failures are retried before being swallowed.
         var commentSucceeded = true
         do {
-            try await lemmyService.fetchComments(
-                serverPostId: Components.Schemas.PostID(target.serverPostId),
-                sortType: commentSort
-            )
+            try await withRetry(
+                maxAttempts: pacing.maxRetryAttempts,
+                baseDelay: pacing.retryBaseDelay,
+                maxDelay: pacing.retryMaxDelay,
+                pushbackCooldown: pacing.serverPushbackCooldown,
+                pacer: pacer,
+                sleep: pacing.sleep,
+                jitter: pacing.jitter
+            ) {
+                try await pacer.acquire()
+                try await lemmyService.fetchComments(
+                    serverPostId: Components.Schemas.PostID(target.serverPostId),
+                    sortType: commentSort
+                )
+            }
         } catch {
             commentSucceeded = false
         }
@@ -705,13 +811,13 @@ public actor OfflineDownloadService {
         if Task.isCancelled { return true }
 
         if let thumbnailUrl = target.thumbnailUrl {
-            await drainImageFetch(imageService, url: thumbnailUrl, downsampleTo: thumbnailDownsampleSize)
+            await Self.warmImage(imageService, url: thumbnailUrl, downsampleTo: thumbnailDownsampleSize, pacer: pacer, pacing: pacing)
         }
 
         if Task.isCancelled { return true }
 
         if let imageUrl = target.imageUrl {
-            await drainImageFetch(imageService, url: imageUrl, downsampleTo: fullImageDownsampleSize)
+            await Self.warmImage(imageService, url: imageUrl, downsampleTo: fullImageDownsampleSize, pacer: pacer, pacing: pacing)
         }
 
         if Task.isCancelled { return true }
@@ -744,18 +850,57 @@ public actor OfflineDownloadService {
         return commentSucceeded
     }
 
+    /// Thrown when an image stream completes without ever reaching `.ready`
+    /// (a transient warm failure). Lets a warm flow through `withRetry`, which
+    /// treats it as transient (`OutboxFailureClass.classify` default).
+    private enum OfflineImageFetchError: Error { case notReady }
+
     /// Drive `imageService.fetch(_:downsampleTo:)` to completion so the bytes
     /// land in the durable disk cache. We use `fetch` (not `startPrefetching`,
     /// which is memory-only and doesn't survive relaunch) and consume the whole
     /// stream — the value isn't used here; the side effect (the disk write) is
-    /// the point.
+    /// the point. Throws ``OfflineImageFetchError/notReady`` if the stream ends
+    /// without a `.ready` state (image failed), so the caller can retry.
     private static func drainImageFetch(
         _ imageService: any ImageServiceType,
         url: URL,
         downsampleTo size: CGSize
+    ) async throws {
+        var sawReady = false
+        for await state in imageService.fetch(url, downsampleTo: size) {
+            try Task.checkCancellation()
+            if case .ready = state { sawReady = true }
+        }
+        if !sawReady { throw OfflineImageFetchError.notReady }
+    }
+
+    /// Best-effort image warm: paced + retried (a lower attempt bound, since an
+    /// image failure carries no classifiable error), swallowing the final failure
+    /// so one bad image never affects the post's completion — matching the
+    /// pre-existing best-effort contract.
+    private static func warmImage(
+        _ imageService: any ImageServiceType,
+        url: URL,
+        downsampleTo size: CGSize,
+        pacer: RequestPacer,
+        pacing: DownloadPacingConfig
     ) async {
-        for await _ in imageService.fetch(url, downsampleTo: size) {
-            if Task.isCancelled { return }
+        do {
+            try await withRetry(
+                maxAttempts: pacing.maxImageRetryAttempts,
+                baseDelay: pacing.retryBaseDelay,
+                maxDelay: pacing.retryMaxDelay,
+                pushbackCooldown: pacing.serverPushbackCooldown,
+                pacer: pacer,
+                sleep: pacing.sleep,
+                jitter: pacing.jitter
+            ) {
+                try await pacer.acquire()
+                try await drainImageFetch(imageService, url: url, downsampleTo: size)
+            }
+        } catch {
+            // Best-effort: swallow (incl. CancellationError — the content loop's
+            // own `Task.isCancelled` checks drive the .cancelled terminal).
         }
     }
 }
