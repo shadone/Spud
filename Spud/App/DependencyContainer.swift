@@ -52,11 +52,20 @@ struct DependencyContainer:
         }
         linkEmbedService = LinkEmbedService()
 
-        do {
-            appDatabase = try AppDatabase()
-        } catch {
-            fatalError("Failed to open AppDatabase: \(error)")
-        }
+        // Reuse the process-wide singleton rather than opening a SECOND
+        // DatabasePool. `AppDelegate`'s launch-time prune tasks touch
+        // `AppDatabase.shared`, so creating a distinct instance here meant two
+        // connections ran the GRDB migrator against the same file at first
+        // launch. They raced on `BEGIN IMMEDIATE` (SQLITE_BUSY) and — once a busy
+        // timeout serialized that — the second connection re-applied migrations
+        // the first had already run ("table already exists"), because the
+        // migrator is not safe to run concurrently from two connections. The
+        // singleton's `static let` guarantees exactly one thread-safe init, so the
+        // migrator runs once no matter whether the prune task or the DI graph
+        // touches the database first. (`AppDatabase.shared` fatalErrors on a
+        // genuine open failure, preserving the previous crash-on-unavailable-DB
+        // behavior.)
+        appDatabase = .shared
 
         diagnosticLog = DiagnosticLog(appDatabase: appDatabase)
         reachabilityMonitor = ReachabilityMonitor()

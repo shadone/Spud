@@ -63,7 +63,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [NSFW content visibility and blur](nsfw-content.md) | `iphone`, `ipad` | shipped |
 | [Feeds and sorting](feeds-and-sorting.md) | `iphone`, `ipad` | shipped — feed switcher: left-edge back-swipe on iPhone; navbar-title popover on iPad (see [iPad split-view handoff](ipad-split-view.md)) |
 | [Feed loading and pagination](feed-loading.md) | `iphone`, `ipad` | shipped — cursor pagination + pull-to-refresh + offline/unreachable/malformed states with retry |
-| [Download a feed for offline browsing](offline-download.md) | `iphone`, `ipad` | shipped — choose 100/250/500 posts; predownload posts + comments + images (+ optional linked-page web archives read in an in-app offline reader) from the feed config popover, with progress + cancel |
+| [Download a feed for offline browsing](offline-download.md) | `iphone`, `ipad` | shipped — choose 100/250/500 posts; predownload posts + comments + images (+ optional linked-page web archives read in an in-app offline reader) from the feed config popover, with progress + cancel; paced + retried requests (back-off on transient/pushback errors) and partial-success (keeps what it got when a page permanently fails) |
 | [Post thumbnails and media badges](post-thumbnails.md) | `iphone`, `ipad` | shipped |
 | [Post peek (context-menu preview)](post-peek.md) | `iphone`, `ipad` | shipped |
 | [Post detail and comments](post-detail-and-comments.md) | `iphone`, `ipad` | shipped — incl. offline-aware comments (truthful failed/offline state with Retry — plus automatic re-fetch when connectivity returns — not a false "no comments yet") + header thumbnail-while-loading with a "Low-res preview" pill |
@@ -127,7 +127,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Saved feed (documented in saving.md)
 - [x] Pull-to-refresh — main feed (refresh-in-place + toast on failure), inbox, profiles, post detail
 - [x] Infinite scroll (cursor pagination)
-- [x] Download a feed for offline browsing — "Download for offline" in the feed config popover opens a chooser (100/250/500 posts; optional "save linked web pages") then bulk-saves posts + comments + images into the local store + durable image cache (+ external-link web archives, read offline in an in-app WKWebView reader); progress sheet + cancel; offline, the GRDB-first feed/detail browse from the saved copy (offline-download.md)
+- [x] Download a feed for offline browsing — "Download for offline" in the feed config popover opens a chooser (100/250/500 posts; optional "save linked web pages") then bulk-saves posts + comments + images into the local store + durable image cache (+ external-link web archives, read offline in an in-app WKWebView reader); progress sheet + cancel; requests are paced and retried with back-off (and back off further on a 429/503), and a page that permanently fails after some pages landed finishes partial rather than aborting; offline, the GRDB-first feed/detail browse from the saved copy (offline-download.md)
 - [x] Inline thumbnails (text / link / image / video) + media badges
 - [x] Context-menu peek on posts
 - [x] Marking posts read / hiding read posts

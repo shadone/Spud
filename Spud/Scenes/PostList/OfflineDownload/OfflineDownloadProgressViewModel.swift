@@ -58,6 +58,9 @@ final class OfflineDownloadProgressViewModel {
             )
             return String(format: format, progress.itemsCompleted, progress.totalPosts)
         case .finished:
+            if let warning = progress.warningMessage {
+                return warning
+            }
             return NSLocalizedString(
                 "Done",
                 comment: "Offline download status line when finished"

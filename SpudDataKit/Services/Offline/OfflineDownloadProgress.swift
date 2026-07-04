@@ -57,18 +57,27 @@ public struct OfflineDownloadProgress: Sendable, Equatable {
     /// ``phase`` is ``Phase/failed``.
     public var failureMessage: String?
 
+    /// A non-fatal notice about a completed run — e.g. not every feed page could
+    /// be reached, so fewer posts were downloaded than requested. Set only on
+    /// ``Phase/finished``; nil for a fully-complete run. Distinct from
+    /// ``failureMessage`` (fatal): a run with a `warningMessage` still finished,
+    /// so ``fractionCompleted`` is 1.
+    public var warningMessage: String?
+
     public init(
         phase: Phase,
         postsFetched: Int = 0,
         totalPosts: Int = 0,
         itemsCompleted: Int = 0,
-        failureMessage: String? = nil
+        failureMessage: String? = nil,
+        warningMessage: String? = nil
     ) {
         self.phase = phase
         self.postsFetched = postsFetched
         self.totalPosts = totalPosts
         self.itemsCompleted = itemsCompleted
         self.failureMessage = failureMessage
+        self.warningMessage = warningMessage
     }
 
     /// A `0...1` completion fraction for a progress bar.

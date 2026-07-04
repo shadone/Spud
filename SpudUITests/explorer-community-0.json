@@ -1,0 +1,23 @@
+[
+  {
+    "baseurl": "lemmy.world",
+    "url": "https://lemmy.world/c/tincidunt",
+    "name": "tincidunt",
+    "title": "Tincidunt est id molestie bibendum",
+    "desc": "Nulla fermentum dui pellentesque lacus ultrices",
+    "icon": "https://lemmy.world/pictrs/image/1457718c-43b7-41df-b443-85747c9c5396.jpeg",
+    "nsfw": false,
+    "score": 0.99,
+    "isSuspicious": false,
+    "published": 1686533624000,
+    "counts": {
+      "subscribers": 48211,
+      "posts": 245,
+      "comments": 1823,
+      "users_active_day": 412,
+      "users_active_week": 1894,
+      "users_active_month": 4452,
+      "users_active_half_year": 6123
+    }
+  }
+]
