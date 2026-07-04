@@ -442,6 +442,8 @@ public actor OfflineDownloadService {
             postsFetched: postsFetched,
             totalPosts: totalPosts,
             instance: instance,
+            pacer: pacer,
+            pacing: pacing,
             emit: emit
         )
 
@@ -656,6 +658,8 @@ public actor OfflineDownloadService {
         postsFetched: Int,
         totalPosts: Int,
         instance: String?,
+        pacer: RequestPacer,
+        pacing: DownloadPacingConfig,
         emit: @Sendable (OfflineDownloadProgress) -> Void
     ) async -> (completed: Int, failed: Int) {
         guard !targets.isEmpty else { return (0, 0) }
@@ -696,7 +700,9 @@ public actor OfflineDownloadService {
                         webArchiveCapturer: capturer,
                         webArchiveStore: store,
                         captureTimeout: captureTimeout,
-                        sanitizeURL: sanitizeURL
+                        sanitizeURL: sanitizeURL,
+                        pacer: pacer,
+                        pacing: pacing
                     )
                     return (succeeded: succeeded, serverPostId: serverPostId)
                 }
@@ -768,7 +774,9 @@ public actor OfflineDownloadService {
         webArchiveCapturer: (any WebArchiveCapturing)?,
         webArchiveStore: OfflineWebArchiveStore?,
         captureTimeout: TimeInterval,
-        sanitizeURL: (@Sendable (URL) -> URL)?
+        sanitizeURL: (@Sendable (URL) -> URL)?,
+        pacer: RequestPacer,
+        pacing: DownloadPacingConfig
     ) async -> Bool {
         if Task.isCancelled { return true }
 
@@ -778,12 +786,24 @@ public actor OfflineDownloadService {
         // A failure is surfaced to the caller for diagnostic purposes but does
         // NOT abort the rest of this post's work — images and web archives are
         // always attempted (best-effort), matching the pre-existing contract.
+        // Transient failures are retried before being swallowed.
         var commentSucceeded = true
         do {
-            try await lemmyService.fetchComments(
-                serverPostId: Components.Schemas.PostID(target.serverPostId),
-                sortType: commentSort
-            )
+            try await withRetry(
+                maxAttempts: pacing.maxRetryAttempts,
+                baseDelay: pacing.retryBaseDelay,
+                maxDelay: pacing.retryMaxDelay,
+                pushbackCooldown: pacing.serverPushbackCooldown,
+                pacer: pacer,
+                sleep: pacing.sleep,
+                jitter: pacing.jitter
+            ) {
+                try await pacer.acquire()
+                try await lemmyService.fetchComments(
+                    serverPostId: Components.Schemas.PostID(target.serverPostId),
+                    sortType: commentSort
+                )
+            }
         } catch {
             commentSucceeded = false
         }
@@ -791,13 +811,13 @@ public actor OfflineDownloadService {
         if Task.isCancelled { return true }
 
         if let thumbnailUrl = target.thumbnailUrl {
-            await drainImageFetch(imageService, url: thumbnailUrl, downsampleTo: thumbnailDownsampleSize)
+            await Self.warmImage(imageService, url: thumbnailUrl, downsampleTo: thumbnailDownsampleSize, pacer: pacer, pacing: pacing)
         }
 
         if Task.isCancelled { return true }
 
         if let imageUrl = target.imageUrl {
-            await drainImageFetch(imageService, url: imageUrl, downsampleTo: fullImageDownsampleSize)
+            await Self.warmImage(imageService, url: imageUrl, downsampleTo: fullImageDownsampleSize, pacer: pacer, pacing: pacing)
         }
 
         if Task.isCancelled { return true }
@@ -830,18 +850,57 @@ public actor OfflineDownloadService {
         return commentSucceeded
     }
 
+    /// Thrown when an image stream completes without ever reaching `.ready`
+    /// (a transient warm failure). Lets a warm flow through `withRetry`, which
+    /// treats it as transient (`OutboxFailureClass.classify` default).
+    private enum OfflineImageFetchError: Error { case notReady }
+
     /// Drive `imageService.fetch(_:downsampleTo:)` to completion so the bytes
     /// land in the durable disk cache. We use `fetch` (not `startPrefetching`,
     /// which is memory-only and doesn't survive relaunch) and consume the whole
     /// stream — the value isn't used here; the side effect (the disk write) is
-    /// the point.
+    /// the point. Throws ``OfflineImageFetchError/notReady`` if the stream ends
+    /// without a `.ready` state (image failed), so the caller can retry.
     private static func drainImageFetch(
         _ imageService: any ImageServiceType,
         url: URL,
         downsampleTo size: CGSize
+    ) async throws {
+        var sawReady = false
+        for await state in imageService.fetch(url, downsampleTo: size) {
+            try Task.checkCancellation()
+            if case .ready = state { sawReady = true }
+        }
+        if !sawReady { throw OfflineImageFetchError.notReady }
+    }
+
+    /// Best-effort image warm: paced + retried (a lower attempt bound, since an
+    /// image failure carries no classifiable error), swallowing the final failure
+    /// so one bad image never affects the post's completion — matching the
+    /// pre-existing best-effort contract.
+    private static func warmImage(
+        _ imageService: any ImageServiceType,
+        url: URL,
+        downsampleTo size: CGSize,
+        pacer: RequestPacer,
+        pacing: DownloadPacingConfig
     ) async {
-        for await _ in imageService.fetch(url, downsampleTo: size) {
-            if Task.isCancelled { return }
+        do {
+            try await withRetry(
+                maxAttempts: pacing.maxImageRetryAttempts,
+                baseDelay: pacing.retryBaseDelay,
+                maxDelay: pacing.retryMaxDelay,
+                pushbackCooldown: pacing.serverPushbackCooldown,
+                pacer: pacer,
+                sleep: pacing.sleep,
+                jitter: pacing.jitter
+            ) {
+                try await pacer.acquire()
+                try await drainImageFetch(imageService, url: url, downsampleTo: size)
+            }
+        } catch {
+            // Best-effort: swallow (incl. CancellationError — the content loop's
+            // own `Task.isCancelled` checks drive the .cancelled terminal).
         }
     }
 }

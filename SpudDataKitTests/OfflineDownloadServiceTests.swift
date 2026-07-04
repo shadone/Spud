@@ -832,6 +832,33 @@ struct OfflineDownloadServiceTests {
         )
     }
 
+    // MARK: - Paced + retried content fetch
+
+    /// A comment fetch that fails is now retried before being swallowed: with a
+    /// permanently-failing comment id, the fake sees `maxRetryAttempts` calls for
+    /// that post (not one), and the run still finishes (best-effort per item).
+    @Test
+    func commentFetchIsRetriedThenSwallowed() async throws {
+        let lemmy = makeLemmy(
+            pages: [.init(postCount: 1, nextCursor: nil)],
+            failingCommentPostIds: [1]
+        )
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase, imageService: RecordingImageService(),
+            diagnostics: DiagnosticLogSpy(), pacing: .immediate()
+        )
+
+        let progress = await runDownload(service: service, lemmy: lemmy)
+
+        let terminal = try #require(progress.last)
+        #expect(terminal.phase == .finished, "a failing comment must not fail the run")
+        #expect(terminal.itemsCompleted == 1, "the post still counts as completed (best-effort)")
+
+        // Post id 1 was retried: attempts == maxRetryAttempts, all recorded.
+        let commentCalls = await lemmy.recordedFetchCommentsPostIds().filter { $0 == 1 }
+        #expect(commentCalls.count == DownloadPacingConfig.immediate().maxRetryAttempts)
+    }
+
     // MARK: - Paced + retried page fetch
 
     /// A page that fails with a transient error (HTTP 503) must be retried
