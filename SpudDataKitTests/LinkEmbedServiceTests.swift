@@ -24,6 +24,13 @@ private actor Flag {
     }
 }
 
+private actor URLCapture {
+    private(set) var url: URL?
+    func set(_ value: URL) {
+        url = value
+    }
+}
+
 struct LinkEmbedServiceTests {
     private func youtubeOEmbedJSON(title: String) -> Data {
         #"{"title":"\#(title)","thumbnail_url":"https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"}"#.data(using: .utf8)!
@@ -79,11 +86,17 @@ struct LinkEmbedServiceTests {
     @Test
     func piped_returnsTitleAndThumbnailFromStreamsApi() async throws {
         let json = #"{"title":"Some Video","thumbnailUrl":"https://api.piped.video/thumb.jpg"}"#.data(using: .utf8)!
-        let service = LinkEmbedService { _ in json }
+        let capture = URLCapture()
+        let service = LinkEmbedService { url in
+            await capture.set(url)
+            return json
+        }
         let result = try await service.embed(for: #require(URL(string: "https://piped.video/watch?v=dQw4w9WgXcQ")))
         let embed = try #require(result)
         #expect(embed.kind == .video)
         #expect(embed.title == "Some Video")
         #expect(embed.thumbnailURL?.absoluteString == "https://api.piped.video/thumb.jpg")
+        let fetched = await capture.url
+        #expect(fetched?.absoluteString == "https://api.piped.video/streams/dQw4w9WgXcQ")
     }
 }
