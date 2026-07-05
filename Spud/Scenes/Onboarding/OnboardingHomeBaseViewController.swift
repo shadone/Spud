@@ -376,32 +376,12 @@ final class OnboardingHomeBaseViewController: UIViewController {
         guard let members = row.usersTotal, members > 0 else {
             return signup
         }
-        let formatted = Self.compactCount(members)
+        let formatted = CompactCount.string(members)
         let membersText = String(
             format: NSLocalizedString("%@ members", comment: "Instance member count"),
             formatted
         )
         return "\(membersText) · \(signup)"
-    }
-
-    /// Compact count, e.g. "1.2M", "32K", "312".
-    private static func compactCount(_ value: Int64) -> String {
-        let n = Double(value)
-        switch value {
-        case 1_000_000...:
-            return trim(n / 1_000_000) + "M"
-        case 1000...:
-            return trim(n / 1000) + "K"
-        default:
-            return "\(value)"
-        }
-    }
-
-    private static func trim(_ value: Double) -> String {
-        if value >= 100 || value == value.rounded() {
-            return "\(Int(value.rounded()))"
-        }
-        return String(format: "%.1f", value)
     }
 
     // MARK: Icons
