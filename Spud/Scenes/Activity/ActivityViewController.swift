@@ -807,27 +807,6 @@ class ActivityViewController: UIViewController {
         }
     }
 
-    /// Votes on the post through the per-account optimistic outbox path (the same
-    /// `lemmyService.vote` the feed uses): the local write applies synchronously
-    /// and flows back through the activity observation; failures are retried by
-    /// the outbox.
-    private func vote(serverPostId: Int64, action: VoteStatus.Action) async {
-        let scope = accountService.scope(forAccountKeychainId: accountKeychainId)
-        guard !scope.isSignedOut else {
-            presentSignInGate(
-                title: NSLocalizedString("Sign in to vote", comment: "Sign-in gate title when a signed-out user tries to vote")
-            )
-            return
-        }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        do {
-            try await scope.lemmyService
-                .vote(serverPostId: Components.Schemas.PostID(serverPostId), vote: action)
-        } catch {
-            alertService.handle(error, for: .vote)
-        }
-    }
-
     /// Opens an external-link post's url, honoring the user's "Open External
     /// Links in" preference.
     private func openExternalLink(_ url: URL) {
@@ -854,6 +833,24 @@ class ActivityViewController: UIViewController {
             dependencies: dependencies.own
         )
         navigationController?.pushViewController(summaryVC, animated: true)
+    }
+}
+
+// MARK: - PostActionDispatching
+
+extension ActivityViewController: PostActionDispatching {
+    var postActionsAccountScope: AccountScope {
+        accountService.scope(forAccountKeychainId: accountKeychainId)
+    }
+
+    var postActionsAlertService: AlertServiceType {
+        alertService
+    }
+
+    /// Activity has no post-save affordance today, so nothing observes a saved
+    /// state to toggle against; report unsaved.
+    func currentSavedState(serverPostId _: Int64) -> Bool {
+        false
     }
 }
 

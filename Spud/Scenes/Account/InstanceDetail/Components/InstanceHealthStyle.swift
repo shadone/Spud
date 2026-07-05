@@ -49,18 +49,6 @@ enum InstanceHealthStyle {
     /// Compact count (e.g. "1.2K", "32K"). Returns "—" for nil/zero.
     static func formatCount(_ value: Int64?) -> String {
         guard let value, value > 0 else { return "—" }
-        let n = Double(value)
-        switch value {
-        case 1_000_000...: return trim(n / 1_000_000) + "M"
-        case 1000...: return trim(n / 1000) + "K"
-        default: return "\(value)"
-        }
-    }
-
-    private static func trim(_ value: Double) -> String {
-        if value >= 100 || value == value.rounded() {
-            return "\(Int(value.rounded()))"
-        }
-        return String(format: "%.1f", value)
+        return CompactCount.string(value)
     }
 }

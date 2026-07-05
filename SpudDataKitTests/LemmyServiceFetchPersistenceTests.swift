@@ -170,21 +170,6 @@ struct LemmyServiceFetchPersistenceTests {
 
     // MARK: - Factory helpers
 
-    private func makeService(transport: any ClientTransport) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: false,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     private func makeGetPostResponse() -> GetPostResponse {
         let person = Person.fake
         let community = Community.fake
@@ -241,7 +226,11 @@ struct LemmyServiceFetchPersistenceTests {
         let serverPostId = response.post_view.post.id
 
         let transport = try StubGetPostTransport(response: response)
-        let service = makeService(transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: transport
+        )
 
         do {
             try await service.fetchPostInfo(serverPostId: serverPostId)
@@ -268,7 +257,11 @@ struct LemmyServiceFetchPersistenceTests {
         let serverPostId = response.post_view.post.id
 
         let transport = try StubGetPostTransport(response: response)
-        let service = makeService(transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: transport
+        )
 
         do {
             try await service.fetchPostInfo(serverPostId: serverPostId)
@@ -294,7 +287,11 @@ struct LemmyServiceFetchPersistenceTests {
         let serverPersonId = response.person_view.person.id
 
         let transport = try StubGetPersonDetailsTransport(response: response)
-        let service = makeService(transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: transport
+        )
 
         do {
             try await service.fetchPersonInfo(serverPersonId: serverPersonId)
@@ -320,7 +317,11 @@ struct LemmyServiceFetchPersistenceTests {
         let serverPersonId = response.person_view.person.id
 
         let transport = try StubGetPersonDetailsTransport(response: response)
-        let service = makeService(transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: transport
+        )
 
         do {
             try await service.fetchPersonInfo(serverPersonId: serverPersonId)
@@ -347,7 +348,11 @@ struct LemmyServiceFetchPersistenceTests {
         let response = makeGetCommentsResponse()
 
         let transport = try StubGetCommentsTransport(response: response)
-        let service = makeService(transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: transport
+        )
 
         do {
             try await service.fetchComments(

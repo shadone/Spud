@@ -4,7 +4,7 @@
 # and is gitignored. project.yml is the source of truth. Regenerate after pulling
 # changes to project.yml or adding/removing source files.
 
-.PHONY: project release-project bootstrap explorer-seed safari-matches verify-archive verify-ipa
+.PHONY: project release-project bootstrap explorer-seed safari-matches verify-archive verify-ipa build test test-only snapshot
 
 # Regenerate Spud.xcodeproj from project.yml.
 project:
@@ -49,3 +49,34 @@ verify-archive:
 
 verify-ipa:
 	scripts/check-app-entitlements.sh "$(IPA)"
+
+# Common xcodebuild invocation pieces. The plugin/macro skip flags are required
+# for non-interactive builds (LemmyKit pulls in swift-openapi-generator's
+# build-tool plugin, which xcodebuild won't validate headlessly).
+XCB_FLAGS := -skipPackagePluginValidation -skipMacroValidation
+TEST_DEST = $(shell scripts/resolve-test-destination.sh)
+SNAPSHOT_DEST = $(shell scripts/resolve-test-destination.sh --reference)
+
+# Build the app for the booted (or reference) simulator.
+build:
+	xcodebuild -project Spud.xcodeproj -scheme Spud -destination '$(TEST_DEST)' $(XCB_FLAGS) build
+
+# Run the full Spud unit-test plan. Timeouts make a deadlocked Swift Testing
+# test fail-and-name instead of hanging forever.
+test:
+	xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan Spud \
+	  -destination '$(TEST_DEST)' $(XCB_FLAGS) \
+	  -test-timeouts-enabled YES -default-test-execution-time-allowance 60 test
+
+# Run a single test target from the Spud plan: make test-only ONLY=SpudDataKitTests
+test-only:
+	xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan Spud \
+	  -only-testing:$(ONLY) \
+	  -destination '$(TEST_DEST)' $(XCB_FLAGS) \
+	  -test-timeouts-enabled YES -default-test-execution-time-allowance 60 test
+
+# Run the snapshot plan on the pinned reference device (iPhone 17 Pro /
+# iOS 26.3.x). Fails fast if a different simulator is booted.
+snapshot:
+	xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan SpudSnapshots \
+	  -destination '$(SNAPSHOT_DEST)' $(XCB_FLAGS) test

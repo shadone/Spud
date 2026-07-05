@@ -302,7 +302,7 @@ public actor ComposerOutboxService: ComposerOutboxServiceType {
                         )
                         parked += 1
                     } else {
-                        let next = now() + Self.composerBackoffDelay(attempts: attempts)
+                        let next = now() + OutboxBackoff.delay(attempts: attempts)
                         try? await appDatabase.markOutboundRetrying(
                             id: id, lastError: String(describing: error), nextAttemptAt: next, now: now()
                         )
@@ -376,9 +376,5 @@ public actor ComposerOutboxService: ComposerOutboxServiceType {
             do { try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000)) } catch { return }
             await self?.drainOnce()
         }
-    }
-
-    public static func composerBackoffDelay(attempts: Int64) -> Double {
-        min(2.0 * pow(2.0, Double(max(0, attempts - 1))), 300)
     }
 }

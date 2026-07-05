@@ -243,6 +243,12 @@ class SpudUITests: XCTestCase {
         )
     }
 
+    // TODO(follow-up spec 2026-07-05): Instance wrapper navbar tripwire
+    // (`InstanceOrLoadingViewController`) — unreachable from the signed-out seed:
+    // every reachable instance host is in the bundled Explorer directory (a
+    // directory hit bypasses the wrapper), and no seeded surface links an
+    // off-directory host. See docs/superpowers/specs/2026-07-05-follow-ups.md.
+
     /// Bug fix: a person's handle must show THEIR OWN instance host, not the
     /// signed-in account's home instance. finibus is a remote user
     /// (https://lemmy.world/u/finibus) viewed under the test's discuss.tchncs.de
@@ -275,18 +281,33 @@ class SpudUITests: XCTestCase {
 
     /// The person profile navbar offers an overflow menu (sharing, like the
     /// Community / Post Detail screens) and a sort button, both always present.
+    ///
+    /// Also the Person sibling of
+    /// `test_VisitCommunityFromPostContextMenu_showsNavbarActions`: tapping a
+    /// post's creator pushes `PersonOrLoadingViewController` — the
+    /// resolve-then-show wrapper that hosts the real `PersonViewController`. The
+    /// overflow (`More`) menu and `Sort` button live on that hosted controller's
+    /// `navigationItem`, so they only render if the wrapper PROMOTES the content
+    /// into the navigation stack. A child view controller's `navigationItem` is
+    /// ignored by UIKit, so had the wrapper embedded the content as a child (the
+    /// same mistake that shipped invisibly on the Community path), this navbar
+    /// would come up empty. The buttons are queried navbar-scoped
+    /// (`app.navigationBars.buttons[...]`) to keep this a real tripwire for that
+    /// bug class.
     func test_PersonProfile_navbarHasOverflowMenuAndSort() {
         navigateToFinibusProfile()
 
+        let navBar = app.navigationBars
+
         XCTAssertTrue(
-            app.buttons["Sort"].waitForExistence(timeout: 5),
-            "Person profile should expose a Sort button"
+            navBar.buttons["Sort"].waitForExistence(timeout: 10),
+            "Person navbar should show the Sort button"
         )
 
-        let overflow = app.buttons["More"]
+        let overflow = navBar.buttons["More"]
         XCTAssertTrue(
-            overflow.waitForExistence(timeout: 5),
-            "Person profile should expose a More overflow menu"
+            overflow.waitForExistence(timeout: 10),
+            "Person navbar should show the overflow (More) menu button"
         )
         overflow.tap()
 

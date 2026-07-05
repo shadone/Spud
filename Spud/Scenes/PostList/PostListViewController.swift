@@ -1619,49 +1619,6 @@ class PostListViewController: UIViewController {
         )
     }
 
-    private func vote(serverPostId: Int64, action: VoteStatus.Action) async {
-        guard !viewModel.accountScope.isSignedOut else {
-            presentSignInGate(
-                title: NSLocalizedString("Sign in to vote", comment: "Sign-in gate title when a signed-out user tries to vote")
-            )
-            return
-        }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        do {
-            try await viewModel.accountScope.lemmyService
-                .vote(serverPostId: Components.Schemas.PostID(serverPostId), vote: action)
-        } catch {
-            // The optimistic write already applied synchronously inside enqueue;
-            // network failures are retried by the outbox and surfaced via toast.
-            // This catch is now a defensive log only.
-            alertService.handle(error, for: .vote)
-        }
-    }
-
-    /// Toggles the saved state for `serverPostId` against its currently
-    /// observed value, gating on sign-in.
-    private func toggleSaved(serverPostId: Int64) {
-        guard !viewModel.accountScope.isSignedOut else {
-            presentSignInGate(
-                title: NSLocalizedString("Sign in to save", comment: "Sign-in gate title when a signed-out user tries to save a post")
-            )
-            return
-        }
-
-        let currentlySaved = rowsByServerPostId[serverPostId]?.isSaved ?? false
-        Task { await setSaved(serverPostId: serverPostId, saved: !currentlySaved) }
-    }
-
-    private func setSaved(serverPostId: Int64, saved: Bool) async {
-        Haptics.tap()
-        do {
-            try await viewModel.accountScope.lemmyService
-                .setSaved(serverPostId: Components.Schemas.PostID(serverPostId), saved: saved)
-        } catch {
-            alertService.handle(error, for: .save)
-        }
-    }
-
     /// Shares the post's canonical URL. Prefers the post's `ap_id` permalink;
     /// falls back to constructing it from the account instance.
     private func sharePost(serverPostId: Int64) {
@@ -1740,6 +1697,22 @@ class PostListViewController: UIViewController {
                 )
             }
         }
+    }
+}
+
+// MARK: - PostActionDispatching
+
+extension PostListViewController: PostActionDispatching {
+    var postActionsAccountScope: AccountScope {
+        viewModel.accountScope
+    }
+
+    var postActionsAlertService: AlertServiceType {
+        alertService
+    }
+
+    func currentSavedState(serverPostId: Int64) -> Bool {
+        rowsByServerPostId[serverPostId]?.isSaved ?? false
     }
 }
 

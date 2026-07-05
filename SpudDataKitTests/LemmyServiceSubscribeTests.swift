@@ -90,24 +90,6 @@ struct LemmyServiceSubscribeTests {
         }
     }
 
-    private func makeService(
-        accountIsSignedOut: Bool,
-        transport: any ClientTransport
-    ) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: accountIsSignedOut ? nil : LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: accountIsSignedOut,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     // MARK: Subscribe
 
     @Test
@@ -119,7 +101,12 @@ struct LemmyServiceSubscribeTests {
         let response = CommunityResponse(community_view: subscribedView, discussion_languages: [])
 
         let transport = try StubFollowCommunityTransport(communityResponse: response)
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.setSubscribed(serverCommunityId: serverCommunityId, subscribed: true)
 
@@ -143,7 +130,12 @@ struct LemmyServiceSubscribeTests {
         let subscribedView = CommunityView.fake(community: .fake, subscribed: .Subscribed)
         let response = CommunityResponse(community_view: subscribedView, discussion_languages: [])
         let transport = try StubFollowCommunityTransport(communityResponse: response)
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.setSubscribed(serverCommunityId: serverCommunityId, subscribed: true)
 
@@ -164,16 +156,26 @@ struct LemmyServiceSubscribeTests {
         let subscribeTransport = try StubFollowCommunityTransport(
             communityResponse: CommunityResponse(community_view: subscribedView, discussion_languages: [])
         )
-        try await makeService(accountIsSignedOut: false, transport: subscribeTransport)
-            .setSubscribed(serverCommunityId: serverCommunityId, subscribed: true)
+        try await LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: subscribeTransport
+        )
+        .setSubscribed(serverCommunityId: serverCommunityId, subscribed: true)
 
         // Then unsubscribe; the confirmed view carries .NotSubscribed.
         let unsubscribedView = CommunityView.fake(community: .fake, subscribed: .NotSubscribed)
         let unsubscribeTransport = try StubFollowCommunityTransport(
             communityResponse: CommunityResponse(community_view: unsubscribedView, discussion_languages: [])
         )
-        try await makeService(accountIsSignedOut: false, transport: unsubscribeTransport)
-            .setSubscribed(serverCommunityId: serverCommunityId, subscribed: false)
+        try await LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: unsubscribeTransport
+        )
+        .setSubscribed(serverCommunityId: serverCommunityId, subscribed: false)
 
         let followedCount = try await appDatabase.writer.read { db -> Int in
             try AccountFollowedCommunityRecord
@@ -188,7 +190,12 @@ struct LemmyServiceSubscribeTests {
         try await seedAccountAndSite()
 
         let transport = try StubFollowCommunityTransport(communityResponse: nil)
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             try await service.setSubscribed(serverCommunityId: serverCommunityId, subscribed: true)

@@ -92,24 +92,6 @@ struct LemmyServiceCreatePostTests {
         }
     }
 
-    private func makeService(
-        accountIsSignedOut: Bool,
-        transport: any ClientTransport
-    ) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: accountIsSignedOut ? nil : LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: accountIsSignedOut,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     /// Builds a canned createPost response carrying a post with a distinct
     /// server id so the mirror can be unambiguously read back.
     private func makePostResponse() -> PostResponse {
@@ -129,7 +111,12 @@ struct LemmyServiceCreatePostTests {
 
         let response = makePostResponse()
         let transport = try StubCreatePostTransport(postResponse: response)
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         let returnedId = try await service.createPost(
             serverCommunityId: serverCommunityId,
@@ -159,7 +146,12 @@ struct LemmyServiceCreatePostTests {
 
         let response = makePostResponse()
         let transport = try StubCreatePostTransport(postResponse: response)
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             _ = try await service.createPost(

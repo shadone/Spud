@@ -98,21 +98,6 @@ struct SaveProfileBannerTests {
         }
     }
 
-    private func makeService(transport: any ClientTransport) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: false,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     /// Reads the `PersonRecord` linked to the test account.
     private func fetchPerson() async throws -> PersonRecord? {
         let keychainId = keychainId
@@ -136,7 +121,11 @@ struct SaveProfileBannerTests {
         try await seedAccountWithPerson()
 
         let transport = StubSaveUserSettingsTransport()
-        let service = makeService(transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: transport
+        )
 
         try await service.saveProfile(
             displayName: nil,

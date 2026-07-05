@@ -43,6 +43,5 @@
 # rules
 
 --enable initCoderUnavailable
---enable isEmpty
 --enable redundantStaticSelf
 

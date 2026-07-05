@@ -156,24 +156,6 @@ struct LemmyServiceModerationTests {
         return Int64(post.id)
     }
 
-    private func makeService(
-        accountIsSignedOut: Bool,
-        transport: any ClientTransport
-    ) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: accountIsSignedOut ? nil : LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: accountIsSignedOut,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     // MARK: removePost mirrors state
 
     @Test
@@ -192,7 +174,12 @@ struct LemmyServiceModerationTests {
         removedPost.removed = true
         let response = PostResponse(post_view: .fake(post: removedPost, creator: person, community: community))
         let transport = try StubModerationTransport(removePost: response)
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.removePost(serverPostId: postId, removed: true, reason: "spam")
 
@@ -214,7 +201,12 @@ struct LemmyServiceModerationTests {
         try await seedAccountAndSite()
 
         let transport = try StubModerationTransport(removePost: nil)
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             try await service.removePost(serverPostId: 1, removed: true, reason: nil)
@@ -254,7 +246,12 @@ struct LemmyServiceModerationTests {
             recipient_ids: []
         )
         let transport = try StubModerationTransport(distinguishComment: response)
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.distinguishComment(serverCommentId: commentId, distinguished: true)
 
@@ -276,7 +273,12 @@ struct LemmyServiceModerationTests {
         try await seedAccountAndSite()
 
         let transport = try StubModerationTransport(ban: nil)
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             try await service.banFromCommunity(
@@ -300,7 +302,12 @@ struct LemmyServiceModerationTests {
         modCommunity.id = 42
         let getSite = GetSiteResponse.fake(moderates: [modCommunity], isAdmin: false)
         let transport = try StubModerationTransport(getSite: getSite)
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         let capability = try await service.fetchModerationCapability()
 
@@ -318,7 +325,12 @@ struct LemmyServiceModerationTests {
 
         let getSite = GetSiteResponse.fake(moderates: [], isAdmin: true)
         let transport = try StubModerationTransport(getSite: getSite)
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         let capability = try await service.fetchModerationCapability()
 
@@ -335,7 +347,12 @@ struct LemmyServiceModerationTests {
         try await seedAccountAndSite()
 
         let transport = try StubModerationTransport(getSite: nil)
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         let capability = try await service.fetchModerationCapability()
 

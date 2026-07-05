@@ -204,7 +204,7 @@ public actor OutboxService: OutboxServiceType {
                 let online = await MainActor.run { reachability.isOnline }
                 switch OutboxFailureClass.classify(error, isOnline: online) {
                 case .transient:
-                    let next = now() + backoffDelay(attempts: record.attempts + 1)
+                    let next = now() + OutboxBackoff.delay(attempts: record.attempts + 1)
                     try? await appDatabase.recordOutboxAttempt(
                         id: id,
                         lastError: String(describing: error),
@@ -294,10 +294,6 @@ public actor OutboxService: OutboxServiceType {
                 "rolledBack": String(rolledBack),
             ]
         )
-    }
-
-    func backoffDelay(attempts: Int64) -> Double {
-        min(2.0 * pow(2.0, Double(max(0, attempts - 1))), 300)
     }
 
     private static func operation(from record: PendingOperationRecord) -> OutboxOperation? {

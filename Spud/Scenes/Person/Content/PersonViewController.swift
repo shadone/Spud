@@ -872,49 +872,6 @@ class PersonViewController: UIViewController {
         }
     }
 
-    /// Votes on the post through the per-account optimistic outbox path (the
-    /// same `lemmyService.vote` the feed calls): the local write applies
-    /// synchronously and flows back through the `postRows` observation; network
-    /// failures are retried by the outbox.
-    private func vote(serverPostId: Int64, action: VoteStatus.Action) async {
-        guard !viewModel.accountScope.isSignedOut else {
-            presentSignInGate(
-                title: NSLocalizedString("Sign in to vote", comment: "Sign-in gate title when a signed-out user tries to vote")
-            )
-            return
-        }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        do {
-            try await viewModel.accountScope.lemmyService
-                .vote(serverPostId: Components.Schemas.PostID(serverPostId), vote: action)
-        } catch {
-            alertService.handle(error, for: .vote)
-        }
-    }
-
-    /// Toggles saved against the currently observed value, gating on sign-in.
-    /// Routes through `lemmyService.setSaved` — the optimistic outbox path.
-    private func toggleSaved(serverPostId: Int64) {
-        guard !viewModel.accountScope.isSignedOut else {
-            presentSignInGate(
-                title: NSLocalizedString("Sign in to save", comment: "Sign-in gate title when a signed-out user tries to save a post")
-            )
-            return
-        }
-        let currentlySaved = rowsByServerPostId[serverPostId]?.isSaved ?? false
-        Task { await setSaved(serverPostId: serverPostId, saved: !currentlySaved) }
-    }
-
-    private func setSaved(serverPostId: Int64, saved: Bool) async {
-        Haptics.tap()
-        do {
-            try await viewModel.accountScope.lemmyService
-                .setSaved(serverPostId: Components.Schemas.PostID(serverPostId), saved: saved)
-        } catch {
-            alertService.handle(error, for: .save)
-        }
-    }
-
     /// Opens the composer to reply to the post (a top-level comment), gating on
     /// sign-in.
     private func replyToPost(serverPostId: Int64) {
@@ -971,6 +928,22 @@ class PersonViewController: UIViewController {
     @objc
     private func refreshTriggered() {
         viewModel.loadContent()
+    }
+}
+
+// MARK: - PostActionDispatching
+
+extension PersonViewController: PostActionDispatching {
+    var postActionsAccountScope: AccountScope {
+        viewModel.accountScope
+    }
+
+    var postActionsAlertService: AlertServiceType {
+        alertService
+    }
+
+    func currentSavedState(serverPostId: Int64) -> Bool {
+        rowsByServerPostId[serverPostId]?.isSaved ?? false
     }
 }
 

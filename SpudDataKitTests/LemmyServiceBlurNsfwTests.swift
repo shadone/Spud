@@ -68,24 +68,6 @@ struct LemmyServiceBlurNsfwTests {
         }
     }
 
-    private func makeService(
-        accountIsSignedOut: Bool,
-        transport: any ClientTransport
-    ) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: accountIsSignedOut ? nil : LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: accountIsSignedOut,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     // MARK: Signed in
 
     @Test
@@ -93,7 +75,12 @@ struct LemmyServiceBlurNsfwTests {
         try await seedAccountAndSite()
 
         let transport = StubBlurNsfwTransport()
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.setBlurNsfw(false)
 
@@ -108,7 +95,12 @@ struct LemmyServiceBlurNsfwTests {
         try await seedAccountAndSite()
 
         let transport = StubBlurNsfwTransport()
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.setBlurNsfw(false)
 
@@ -124,7 +116,12 @@ struct LemmyServiceBlurNsfwTests {
     @Test
     func setBlurNsfw_signedOut_isNoOp() async throws {
         let transport = StubBlurNsfwTransport()
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         try await service.setBlurNsfw(false)
 

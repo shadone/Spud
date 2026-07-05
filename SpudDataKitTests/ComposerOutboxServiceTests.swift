@@ -204,9 +204,9 @@ struct ComposerOutboxServiceTests {
 
     @Test
     func backoffGrowsAndCaps() {
-        #expect(ComposerOutboxService.composerBackoffDelay(attempts: 1) == 2)
-        #expect(ComposerOutboxService.composerBackoffDelay(attempts: 2) == 4)
-        #expect(ComposerOutboxService.composerBackoffDelay(attempts: 20) == 300)
+        #expect(OutboxBackoff.delay(attempts: 1) == 2)
+        #expect(OutboxBackoff.delay(attempts: 2) == 4)
+        #expect(OutboxBackoff.delay(attempts: 20) == 300)
     }
 
     // MARK: - Edit

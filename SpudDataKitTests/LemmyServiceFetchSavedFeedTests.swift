@@ -84,30 +84,17 @@ struct LemmyServiceFetchSavedFeedTests {
         }
     }
 
-    private func makeService(
-        accountIsSignedOut: Bool,
-        transport: any ClientTransport
-    ) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: accountIsSignedOut ? nil : LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: accountIsSignedOut,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     @Test
     func fetchSavedFeedRequestsSavedOnlyFilter() async throws {
         try await seedAccountAndSite()
 
         let transport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         let feed = FeedHandle(
             feedKey: UUID().uuidString,
@@ -135,7 +122,12 @@ struct LemmyServiceFetchSavedFeedTests {
 
         // Hidden by default: show_nsfw=false on the wire.
         let hideTransport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
-        let hideService = makeService(accountIsSignedOut: false, transport: hideTransport)
+        let hideService = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: hideTransport
+        )
         _ = try await hideService.fetchFeed(feed, pageCursor: nil, showNsfw: false)
         let hideQuery = try #require(hideTransport.lastQuery)
         #expect(
@@ -145,7 +137,12 @@ struct LemmyServiceFetchSavedFeedTests {
 
         // Shown when enabled: show_nsfw=true on the wire.
         let showTransport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
-        let showService = makeService(accountIsSignedOut: false, transport: showTransport)
+        let showService = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: showTransport
+        )
         _ = try await showService.fetchFeed(feed, pageCursor: nil, showNsfw: true)
         let showQuery = try #require(showTransport.lastQuery)
         #expect(
@@ -159,7 +156,12 @@ struct LemmyServiceFetchSavedFeedTests {
         try await seedAccountAndSite()
 
         let transport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         let feed = FeedHandle(
             feedKey: UUID().uuidString,

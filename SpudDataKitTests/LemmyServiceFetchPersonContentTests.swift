@@ -86,21 +86,6 @@ struct LemmyServiceFetchPersonContentTests {
         }
     }
 
-    private func makeService(transport: any ClientTransport) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: false,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     private func personView(id: Components.Schemas.PersonID, name: String, posts: Int64, comments: Int64) -> PersonView {
         var person = Person.fake
         person.id = id
@@ -139,7 +124,11 @@ struct LemmyServiceFetchPersonContentTests {
         )
 
         let transport = try StubGetPersonDetailsTransport(response: response)
-        let service = makeService(transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: transport
+        )
 
         let result = try await service.fetchPersonContent(
             serverPersonId: person.id,
@@ -195,7 +184,11 @@ struct LemmyServiceFetchPersonContentTests {
         )
 
         let transport = try StubGetPersonDetailsTransport(response: response)
-        let service = makeService(transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: transport
+        )
 
         let result = try await service.fetchPersonContent(
             serverPersonId: person.id,

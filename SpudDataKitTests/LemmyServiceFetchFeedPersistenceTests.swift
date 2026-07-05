@@ -77,24 +77,6 @@ struct LemmyServiceFetchFeedPersistenceTests {
         }
     }
 
-    private func makeService(
-        accountIsSignedOut: Bool,
-        transport: any ClientTransport
-    ) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: accountIsSignedOut ? nil : LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: accountIsSignedOut,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     /// When no account/site row has been seeded, `fetchFeed` must throw rather
     /// than silently succeeding and leaving the feed row uncreated. This
     /// exercises the nil-return path of `accountSiteIds()` inside
@@ -104,7 +86,12 @@ struct LemmyServiceFetchFeedPersistenceTests {
         // Intentionally do NOT seed an account/site row.
 
         let transport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         let feed = FeedHandle(
             feedKey: UUID().uuidString,
@@ -131,7 +118,12 @@ struct LemmyServiceFetchFeedPersistenceTests {
         try await seedAccountAndSite()
 
         let transport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         let feed = FeedHandle(
             feedKey: UUID().uuidString,
