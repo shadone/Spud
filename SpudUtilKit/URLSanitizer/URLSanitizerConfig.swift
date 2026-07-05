@@ -31,6 +31,12 @@ public struct URLSanitizerConfig: Codable, Equatable, Sendable {
     /// Category master for front-end redirects. Individual services are gated
     /// by their own ``FrontEndConfig/isEnabled`` in ``frontEnds``.
     public var redirectToFrontEnds: Bool
+    /// When true, links already on a third-party front-end (Invidious/Piped) are
+    /// also normalized to the chosen YouTube front-end host — e.g. open Invidious
+    /// links in Piped. Subordinate to ``redirectToFrontEnds`` and the youtube
+    /// service being enabled. Canonical youtube.com/youtu.be rewriting ignores
+    /// this flag.
+    public var rewriteThirdPartyFrontEnds: Bool
     public var frontEnds: [FrontEndConfig]
 
     public init(
@@ -40,6 +46,7 @@ public struct URLSanitizerConfig: Codable, Equatable, Sendable {
         upgradeToHTTPS: Bool,
         deAMP: Bool,
         redirectToFrontEnds: Bool,
+        rewriteThirdPartyFrontEnds: Bool,
         frontEnds: [FrontEndConfig]
     ) {
         self.isEnabled = isEnabled
@@ -48,7 +55,21 @@ public struct URLSanitizerConfig: Codable, Equatable, Sendable {
         self.upgradeToHTTPS = upgradeToHTTPS
         self.deAMP = deAMP
         self.redirectToFrontEnds = redirectToFrontEnds
+        self.rewriteThirdPartyFrontEnds = rewriteThirdPartyFrontEnds
         self.frontEnds = frontEnds
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
+        stripTrackingParams = try container.decode(Bool.self, forKey: .stripTrackingParams)
+        unwrapRedirectors = try container.decode(Bool.self, forKey: .unwrapRedirectors)
+        upgradeToHTTPS = try container.decode(Bool.self, forKey: .upgradeToHTTPS)
+        deAMP = try container.decode(Bool.self, forKey: .deAMP)
+        redirectToFrontEnds = try container.decode(Bool.self, forKey: .redirectToFrontEnds)
+        frontEnds = try container.decode([FrontEndConfig].self, forKey: .frontEnds)
+        // New in 2026-07: absent in configs written by older builds.
+        rewriteThirdPartyFrontEnds = try container.decodeIfPresent(Bool.self, forKey: .rewriteThirdPartyFrontEnds) ?? false
     }
 
     /// Safe steps on, front-end redirects off, hosts seeded from the catalog.
@@ -59,6 +80,7 @@ public struct URLSanitizerConfig: Codable, Equatable, Sendable {
         upgradeToHTTPS: true,
         deAMP: true,
         redirectToFrontEnds: false,
+        rewriteThirdPartyFrontEnds: false,
         frontEnds: FrontEndCatalog.entries.map {
             FrontEndConfig(service: $0.service, isEnabled: false, host: $0.defaultHost)
         }

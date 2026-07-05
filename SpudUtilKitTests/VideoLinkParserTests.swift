@@ -13,14 +13,19 @@ struct VideoLinkParserTests {
         VideoLinkParser.parse(URL(string: s)!)
     }
 
+    private func oEmbedURL(_ v: VideoLink) -> URL? {
+        if case let .oEmbed(url) = v.metadataSource { return url }
+        return nil
+    }
+
     @Test
     func youtubeWatch_idFromQuery() throws {
         let v = try #require(parse("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=5"))
         #expect(v.host == .youtube)
         #expect(v.videoId == "dQw4w9WgXcQ")
         #expect(v.thumbnailURL?.absoluteString == "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg")
-        #expect(v.oEmbedURL?.host == "www.youtube.com")
-        #expect(v.oEmbedURL?.path == "/oembed")
+        #expect(oEmbedURL(v)?.host == "www.youtube.com")
+        #expect(oEmbedURL(v)?.path == "/oembed")
     }
 
     @Test
@@ -44,7 +49,7 @@ struct VideoLinkParserTests {
         #expect(v.thumbnailURL?.host == "i.ytimg.com")
         #expect(v.thumbnailURL?.absoluteString == "https://i.ytimg.com/vi/hwq-xr2fDBU/hqdefault.jpg")
         // oEmbed 404s on the /embed form, so the url= param MUST be the canonical watch URL.
-        let oEmbed = try #require(v.oEmbedURL)
+        let oEmbed = try #require(oEmbedURL(v))
         #expect(oEmbed.host == "www.youtube.com")
         #expect(oEmbed.path == "/oembed")
         let oEmbedComponents = try #require(URLComponents(url: oEmbed, resolvingAgainstBaseURL: false))
@@ -56,7 +61,7 @@ struct VideoLinkParserTests {
     func youtubeOEmbedUrlIsCanonicalWatch_forYoutuBe() throws {
         // youtu.be original must still produce a canonical watch oEmbed url= param.
         let v = try #require(parse("https://youtu.be/dQw4w9WgXcQ"))
-        let oEmbed = try #require(v.oEmbedURL)
+        let oEmbed = try #require(oEmbedURL(v))
         let oEmbedComponents = try #require(URLComponents(url: oEmbed, resolvingAgainstBaseURL: false))
         let urlParam = try #require(oEmbedComponents.queryItems?.first { $0.name == "url" }?.value)
         #expect(urlParam == "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
@@ -71,7 +76,7 @@ struct VideoLinkParserTests {
         #expect(v.videoId == "hwq-xr2fDBU")
         #expect(v.thumbnailURL?.host == "i.ytimg.com")
         #expect(v.thumbnailURL?.absoluteString == "https://i.ytimg.com/vi/hwq-xr2fDBU/hqdefault.jpg")
-        let oEmbed = try #require(v.oEmbedURL)
+        let oEmbed = try #require(oEmbedURL(v))
         #expect(oEmbed.host == "www.youtube.com")
         let oEmbedComponents = try #require(URLComponents(url: oEmbed, resolvingAgainstBaseURL: false))
         let urlParam = try #require(oEmbedComponents.queryItems?.first { $0.name == "url" }?.value)
@@ -94,7 +99,7 @@ struct VideoLinkParserTests {
         #expect(v.thumbnailURL?.absoluteString == "https://yewtu.be/vi/dQw4w9WgXcQ/hqdefault.jpg")
         // URLComponents percent-encodes the url= query value but the exact encoding of '?' vs '%3F'
         // is platform-defined; assert on components rather than the raw string.
-        let oEmbed = try #require(v.oEmbedURL)
+        let oEmbed = try #require(oEmbedURL(v))
         #expect(oEmbed.host == "yewtu.be")
         #expect(oEmbed.path == "/oembed")
         let oEmbedComponents = try #require(URLComponents(url: oEmbed, resolvingAgainstBaseURL: false))
@@ -109,11 +114,24 @@ struct VideoLinkParserTests {
         #expect(short.host == .peertube)
         #expect(short.videoId == "abc123XYZ")
         #expect(short.thumbnailURL == nil, "PeerTube thumbnail comes from oEmbed, not derivable")
-        #expect(short.oEmbedURL?.path == "/services/oembed")
+        #expect(oEmbedURL(short)?.path == "/services/oembed")
 
         let long = try #require(parse("https://video.example/videos/watch/9c9de5e8-0a1e-484a-b099-e80766180a6d"))
         #expect(long.host == .peertube)
         #expect(long.videoId == "9c9de5e8-0a1e-484a-b099-e80766180a6d")
+    }
+
+    @Test
+    func piped_classifiedAsPipedWithStreamsMetadata() throws {
+        let v = try #require(parse("https://piped.video/watch?v=dQw4w9WgXcQ"))
+        #expect(v.host == .piped)
+        #expect(v.videoId == "dQw4w9WgXcQ")
+        #expect(v.thumbnailURL == nil, "Piped thumbnail comes from the /streams API, not derivable")
+        guard case let .pipedStreams(url) = v.metadataSource else {
+            Issue.record("expected .pipedStreams metadata source")
+            return
+        }
+        #expect(url.absoluteString == "https://pipedapi.kavin.rocks/streams/dQw4w9WgXcQ")
     }
 
     @Test

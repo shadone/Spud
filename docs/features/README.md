@@ -195,7 +195,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Themes (System / Light / Dark / True Black) + accent color
 - [x] Post density + thumbnail position + text scale
 - [x] Default post / comment sort — comment sort persisted in preferences; default post sort persisted per account
-- [x] External-link handling — open mode (in-app / system browser), Reader Mode, universal links, "Load Link Previews" (oEmbed fetch for video cards)
+- [x] External-link handling — open mode (in-app / system browser), Reader Mode, universal links, "Load Link Previews" (YouTube via oEmbed, Invidious via oEmbed, Piped via `/streams` API, PeerTube via oEmbed), Privacy & Link Cleaning (tracking-param strip, redirector unwrap, HTTPS upgrade, De-AMP, front-end redirect with "Rewrite Third-Party Front-ends" toggle)
 - [x] App icon variants — switching is wired; alternate art is placeholder (grid's "not wired" was stale)
 - [x] Acknowledgements; backup export (raw SQLite database via share sheet)
 - [x] Diagnostic logging — durable GRDB event log (migration v26) recording outbox lifecycle (incl. `op.permanentRollback` on a rolled-back vote, `op.permanentPark` on a parked content send), site-info failures with instance host (`site.fetchFailed`), scheduler ticks, unread refresh, offline downloads, Spotlight reindex, and app lifecycle; pruned to ≤10k rows / ≤14 days; two-tab viewer (Event Log: filter by category + level, search, per-entry detail, export, clear; System Log: OSLog tail with level/category filter + time window); survives relaunch (diagnostics-logging.md)

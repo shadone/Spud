@@ -34,10 +34,22 @@ public final class LinkEmbedService: LinkEmbedServiceType {
 
         var title: String?
         var thumbnailURL = video.thumbnailURL
-        if let oEmbedURL = video.oEmbedURL, let data = await fetch(oEmbedURL) {
-            let response = try? JSONDecoder().decode(OEmbedResponse.self, from: data)
-            title = response?.title
-            if thumbnailURL == nil { thumbnailURL = response?.thumbnailUrl.flatMap(URL.init(string:)) }
+
+        switch video.metadataSource {
+        case let .oEmbed(endpoint):
+            if let data = await fetch(endpoint) {
+                let response = try? JSONDecoder().decode(OEmbedResponse.self, from: data)
+                title = response?.title
+                if thumbnailURL == nil { thumbnailURL = response?.thumbnailUrl.flatMap(URL.init(string:)) }
+            }
+        case let .pipedStreams(endpoint):
+            if let data = await fetch(endpoint) {
+                let response = try? JSONDecoder().decode(PipedStreamsResponse.self, from: data)
+                title = response?.title
+                if thumbnailURL == nil { thumbnailURL = response?.thumbnailUrl.flatMap(URL.init(string:)) }
+            }
+        case .none:
+            break
         }
 
         let embed = LinkEmbed(kind: .video, title: title, thumbnailURL: thumbnailURL)
@@ -54,6 +66,13 @@ private struct OEmbedResponse: Decodable {
         case title
         case thumbnailUrl = "thumbnail_url"
     }
+}
+
+/// Piped's `/streams/<id>` response (subset). Piped uses camelCase `thumbnailUrl`,
+/// which maps 1:1 under the default key strategy.
+private struct PipedStreamsResponse: Decodable {
+    let title: String?
+    let thumbnailUrl: String?
 }
 
 /// Small in-memory cache. An actor for thread-safety; results are cheap to

@@ -41,6 +41,33 @@ struct URLSanitizerConfigTests {
     }
 
     @Test
+    func default_rewriteThirdPartyFrontEndsOff() {
+        #expect(!(URLSanitizerConfig.default.rewriteThirdPartyFrontEnds))
+    }
+
+    @Test
+    func decodesLegacyConfigWithoutRewriteFlag() throws {
+        // JSON written before rewriteThirdPartyFrontEnds existed.
+        let legacy = #"""
+            {"isEnabled":true,"stripTrackingParams":true,"unwrapRedirectors":true,"upgradeToHTTPS":true,"deAMP":true,"redirectToFrontEnds":true,"frontEnds":[]}
+            """#.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(URLSanitizerConfig.self, from: legacy)
+        #expect(!(decoded.rewriteThirdPartyFrontEnds))
+        #expect(decoded.redirectToFrontEnds)
+        #expect(decoded.isEnabled)
+    }
+
+    @Test
+    func rewriteFlagRoundTrips() throws {
+        var config = URLSanitizerConfig.default
+        config.rewriteThirdPartyFrontEnds = true
+        let data = try JSONEncoder().encode(config)
+        let decoded = try JSONDecoder().decode(URLSanitizerConfig.self, from: data)
+        #expect(decoded.rewriteThirdPartyFrontEnds)
+        #expect(decoded == config)
+    }
+
+    @Test
     func codableRoundTrip() throws {
         var config = URLSanitizerConfig.default
         config.redirectToFrontEnds = true
