@@ -67,6 +67,7 @@ final class VoteFoldView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        guard status != .neutral else { return }
         let s = bounds.size
         let path = UIBezierPath()
         if status == .down {

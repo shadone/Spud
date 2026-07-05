@@ -407,8 +407,10 @@ class PostListPostContentView: UIView {
         style(upvoteButton, filled: status == .up, fill: appliedUpvoteColor)
         style(downvoteButton, filled: status == .down, fill: appliedDownvoteColor)
 
-        // Toggle which vertical corner the fold anchors to.
-        voteFoldTop.isActive = status == .up
+        // Keep a valid vertical anchor in every state (the fold is hidden for
+        // neutral, but leaving both inactive makes AutoLayout complain). Top by
+        // default; a downvote moves it to the bottom corner.
+        voteFoldTop.isActive = status != .down
         voteFoldBottom.isActive = status == .down
         voteFold.configure(
             status: showFold ? status : .neutral,
