@@ -784,6 +784,32 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v29_ephemeralAccountAndSiteGiveUp") { db in
+            // Provenance flag: accounts auto-created solely to browse a remote
+            // instance are ephemeral and excluded from the recurring site-info
+            // sweep (see SchedulerQueries / AccountImporter.bestAccountKeychainId).
+            try db.alter(table: "account") { t in
+                t.add(column: "isEphemeral", .boolean).notNull().defaults(to: false)
+            }
+            // Persisted scheduler give-up state (replaces the in-memory back-off
+            // for the two site-info sweeps).
+            try db.alter(table: "site") { t in
+                t.add(column: "siteInfoConsecutivePermanentFailures", .integer).notNull().defaults(to: 0)
+                t.add(column: "siteInfoNextAttemptAt", .double)
+            }
+            // Backfill: existing non-default, non-service, signed-out accounts are
+            // browse accounts (the only path that creates them is
+            // bestAccountKeychainId's auto-create; the bootstrap/default account is
+            // isDefault=1). Flag them so the fix applies to current data.
+            try db.execute(sql: """
+                    UPDATE account
+                    SET isEphemeral = 1
+                    WHERE isSignedOutAccountType = 1
+                      AND isDefault = 0
+                      AND isServiceAccount = 0
+                """)
+        }
+
         return migrator
     }
 }
