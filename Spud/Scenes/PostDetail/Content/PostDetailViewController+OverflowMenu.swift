@@ -41,7 +41,8 @@ extension PostDetailViewController {
                 : NSLocalizedString("Save", comment: "Overflow-menu action to save a post"),
             image: UIImage(systemName: isSaved ? "bookmark.slash" : "bookmark")
         ) { [weak self] _ in
-            self?.toggleSavedOnPost()
+            guard let self else { return }
+            toggleSaved(serverPostId: Int64(viewModel.serverPostId))
         }
         let shareAction = UIAction(
             title: NSLocalizedString("Share", comment: "Overflow-menu action to share a post"),

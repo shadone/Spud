@@ -1580,28 +1580,6 @@ class PostDetailViewController: UIViewController {
         )
     }
 
-    private func voteOnPost(_ action: VoteStatus.Action) async {
-        guard !viewModel.accountScope.isSignedOut else {
-            presentSignInGate(
-                title: NSLocalizedString("Sign in to vote", comment: "Sign-in gate title when a signed-out user tries to vote")
-            )
-            return
-        }
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        // The optimistic write applied synchronously inside `vote`; reassure the
-        // user it will be sent once they're back online.
-        showOfflineActionToastIfNeeded(message: Self.offlineVoteToast)
-        do {
-            try await viewModel.accountScope.lemmyService
-                .vote(serverPostId: viewModel.serverPostId, vote: action)
-        } catch {
-            // The optimistic write already applied synchronously inside enqueue;
-            // network failures are retried by the outbox and surfaced via toast.
-            // This catch is now a defensive log only.
-            alertService.handle(error, for: .vote)
-        }
-    }
-
     /// The current toggle state a comment row exposes to the swipe presentation
     /// layer (save/collapse/vote glyphs reflect it).
     private static func swipeState(
@@ -1666,26 +1644,6 @@ class PostDetailViewController: UIViewController {
             // network failures are retried by the outbox and surfaced via toast.
             // This catch is now a defensive log only.
             alertService.handle(error, for: .vote)
-        }
-    }
-
-    // internal: shared with PostDetailViewController+OverflowMenu
-    func toggleSavedOnPost() {
-        guard canSaveOrPresentSignInAlert() else { return }
-        let currentlySaved = headerRow?.isSaved ?? false
-        Task { await setSavedOnPost(saved: !currentlySaved) }
-    }
-
-    private func setSavedOnPost(saved: Bool) async {
-        Haptics.tap()
-        // The optimistic write applied synchronously inside `setSaved`; reassure
-        // the user it will be sent once they're back online.
-        showOfflineActionToastIfNeeded(message: Self.offlineSaveToast)
-        do {
-            try await viewModel.accountScope.lemmyService
-                .setSaved(serverPostId: viewModel.serverPostId, saved: saved)
-        } catch {
-            alertService.handle(error, for: .save)
         }
     }
 
@@ -1859,13 +1817,16 @@ extension PostDetailViewController {
                     Task { await appService.open(url: url, on: self) }
                 }
                 cell.upvoteTapped = { [weak self] in
-                    Task { await self?.voteOnPost(.upvote) }
+                    guard let self else { return }
+                    Task { await self.vote(serverPostId: Int64(self.viewModel.serverPostId), action: .upvote) }
                 }
                 cell.downvoteTapped = { [weak self] in
-                    Task { await self?.voteOnPost(.downvote) }
+                    guard let self else { return }
+                    Task { await self.vote(serverPostId: Int64(self.viewModel.serverPostId), action: .downvote) }
                 }
                 cell.saveTapped = { [weak self] in
-                    self?.toggleSavedOnPost()
+                    guard let self else { return }
+                    toggleSaved(serverPostId: Int64(viewModel.serverPostId))
                 }
                 cell.onBodyLinkTapped = { [weak self] url in
                     self?.linkTapped(MarkdownInternalLink.resolve(url) ?? url)

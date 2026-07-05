@@ -81,3 +81,39 @@ extension PostDetailViewController {
         return true
     }
 }
+
+// MARK: - PostSaveDispatching
+
+/// Folds PostDetail's post-level vote/save into the shared post-action protocol
+/// so the header cell, swipe, and overflow-menu affordances go through the same
+/// optimistic-outbox dispatch the feed uses. PostDetail supplies the per-screen
+/// bits and — via `postActionWillDispatch` — its offline-action toast, matching
+/// the pre-fold `voteOnPost`/`setSavedOnPost` byte-for-byte (post-haptic,
+/// pre-send). The COMMENT-level vote/save path stays on the main file and keeps
+/// using `canSaveOrPresentSignInAlert` / `showOfflineActionToastIfNeeded`.
+extension PostDetailViewController: PostSaveDispatching {
+    var postActionsAccountScope: AccountScope {
+        viewModel.accountScope
+    }
+
+    var postActionsAlertService: AlertServiceType {
+        alertService
+    }
+
+    /// PostDetail shows exactly one post, so its saved state is the header row's
+    /// (the `serverPostId` argument is always this post's id).
+    func currentSavedState(serverPostId _: Int64) -> Bool {
+        headerRow?.isSaved ?? false
+    }
+
+    /// Post-haptic, pre-send offline reassurance toast — the exact toast the
+    /// pre-fold `voteOnPost` / `setSavedOnPost` showed at this point.
+    func postActionWillDispatch(_ action: PostActionKind) {
+        switch action {
+        case .vote:
+            showOfflineActionToastIfNeeded(message: Self.offlineVoteToast)
+        case .save:
+            showOfflineActionToastIfNeeded(message: Self.offlineSaveToast)
+        }
+    }
+}
