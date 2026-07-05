@@ -139,6 +139,20 @@ from dozens of refs per UI change to a few.
 the layer that stays. Not dropping the on-screen blur snapshots (they exist
 because `deterministicPhone` can't render `UIVisualEffectView`).
 
+**Addendum (2026-07-05, found during the reflect-refactor final verify): sim
+UserDefaults leak into cell snapshots.** `PostListPostCellSnapshotTests` builds a
+"fresh `PreferencesService`" per render, but `@UserDefaultsBacked` reads the
+persisted sim defaults, so `thumbnailPosition` / `showVoteButtons` (gates at
+`PostListPostContentView.swift:383-443`) silently change the rendered layout.
+The `test_unavailableBadge` refs re-recorded at `771b6e75` were captured with
+non-default preferences (no thumbnail placeholder, no vote buttons) and fail
+against a clean-install render (780x159 ref vs 780x224 actual, light+dark) —
+the one red test in an otherwise green 250-test suite run. Fix when doing this
+initiative: snapshot fixtures must pin preference-backed layout inputs
+explicitly (inject values, never read persisted defaults), then re-record the
+contaminated ref under pinned state. Until then, that test's verdict depends on
+the sim's app-preference state, not the code.
+
 ## 6. git-annex special remote + push cadence
 
 **Problem.** 100% of the snapshot reference PNG content exists ONLY on this
