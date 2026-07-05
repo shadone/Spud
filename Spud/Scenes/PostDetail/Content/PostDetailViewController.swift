@@ -166,7 +166,8 @@ class PostDetailViewController: UIViewController {
 
     // MARK: - Private
 
-    private var viewModel: PostDetailViewModel
+    // internal: shared with PostDetailViewController+Content / +Report / +DeleteRestore
+    var viewModel: PostDetailViewModel
     private var headerRow: PostDetailHeaderRow?
     /// The body string last pre-warmed into `MarkdownBlockCache` off the main
     /// thread. The header observation re-emits on every vote/save with the same
@@ -1570,32 +1571,6 @@ class PostDetailViewController: UIViewController {
         )
     }
 
-    /// Shows a coalescing, non-blocking toast reassuring the user that an
-    /// optimistic action (vote/save) will be sent once they're back online.
-    /// No-op when online (the action goes out immediately) or when there is no
-    /// window to present in. Relies on `ToastPresenter`'s plain-toast coalescing
-    /// so rapid taps update the same pill instead of stacking.
-    ///
-    /// The optimistic DB write + the durable mutation outbox already record and
-    /// resend the action; this toast only sets the user's expectation. No extra
-    /// haptic is fired here — the calling action already plays its own.
-    private func showOfflineActionToastIfNeeded(message: String) {
-        guard !reachabilityMonitor.isOnline, let window = view.window else { return }
-        ToastPresenter.shared.show(message, in: window)
-    }
-
-    /// Toast copy for an optimistic vote queued while offline.
-    private static let offlineVoteToast = NSLocalizedString(
-        "You're offline — we'll send your vote when you're back online.",
-        comment: "Toast shown after voting while offline; the vote is queued and resent automatically"
-    )
-
-    /// Toast copy for an optimistic save/unsave queued while offline.
-    private static let offlineSaveToast = NSLocalizedString(
-        "You're offline — we'll save this when you're back online.",
-        comment: "Toast shown after saving while offline; the action is queued and resent automatically"
-    )
-
     private func voteOnPost(_ action: VoteStatus.Action) async {
         guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
@@ -1685,18 +1660,6 @@ class PostDetailViewController: UIViewController {
         }
     }
 
-    /// Whether the backing account can perform save actions. Signed-out
-    /// accounts get a "Sign in to save" alert and a warning haptic.
-    private func canSaveOrPresentSignInAlert() -> Bool {
-        guard !viewModel.accountScope.isSignedOut else {
-            presentSignInGate(
-                title: NSLocalizedString("Sign in to save", comment: "Sign-in gate title when a signed-out user tries to save")
-            )
-            return false
-        }
-        return true
-    }
-
     private func toggleSavedOnPost() {
         guard canSaveOrPresentSignInAlert() else { return }
         let currentlySaved = headerRow?.isSaved ?? false
@@ -1734,176 +1697,6 @@ class PostDetailViewController: UIViewController {
                 .setSaved(serverCommentId: Components.Schemas.CommentID(serverCommentId), saved: saved)
         } catch {
             alertService.handle(error, for: .save)
-        }
-    }
-
-    // MARK: - Report
-
-    /// True when `creatorPersonId` matches the backing account's own person id.
-    /// Reporting your own content is meaningless, so the "Report" action is
-    /// hidden for it.
-    private func isOwnContent(creatorPersonId: Int64?) -> Bool {
-        guard let creatorPersonId else { return false }
-        guard let own = appDatabase.accountOwnPersonIdsSync(
-            forKeychainId: viewModel.accountKeychainId
-        ) else { return false }
-        return creatorPersonId == own.serverPersonId
-    }
-
-    /// Whether the backing account can report content. Signed-out accounts get
-    /// a "Sign in to report" alert and a warning haptic.
-    private func canReportOrPresentSignInAlert() -> Bool {
-        guard !viewModel.accountScope.isSignedOut else {
-            presentSignInGate(
-                title: NSLocalizedString("Sign in to report", comment: "Sign-in gate title when a signed-out user tries to report")
-            )
-            return false
-        }
-        return true
-    }
-
-    private func reportPost() {
-        guard canReportOrPresentSignInAlert() else { return }
-        presentReportReasonAlert(
-            title: NSLocalizedString("Report post", comment: "Report post dialog title"),
-            message: NSLocalizedString("Tell the moderators why you're reporting this post.", comment: "Report post dialog message")
-        ) { [weak self] reason in
-            Task { await self?.submitPostReport(reason: reason) }
-        }
-    }
-
-    private func submitPostReport(reason: String) async {
-        Haptics.tap()
-        do {
-            try await viewModel.accountScope.lemmyService
-                .reportPost(serverPostId: viewModel.serverPostId, reason: reason)
-            Haptics.success()
-            presentReportSubmittedConfirmation()
-        } catch {
-            alertService.handle(error, for: .reportPost)
-        }
-    }
-
-    private func reportComment(serverCommentId: Int64) {
-        guard canReportOrPresentSignInAlert() else { return }
-        presentReportReasonAlert(
-            title: NSLocalizedString("Report comment", comment: "Report comment dialog title"),
-            message: NSLocalizedString("Tell the moderators why you're reporting this comment.", comment: "Report comment dialog message")
-        ) { [weak self] reason in
-            Task { await self?.submitCommentReport(serverCommentId: serverCommentId, reason: reason) }
-        }
-    }
-
-    private func submitCommentReport(serverCommentId: Int64, reason: String) async {
-        Haptics.tap()
-        do {
-            try await viewModel.accountScope.lemmyService
-                .reportComment(serverCommentId: Components.Schemas.CommentID(serverCommentId), reason: reason)
-            Haptics.success()
-            presentReportSubmittedConfirmation()
-        } catch {
-            alertService.handle(error, for: .reportComment)
-        }
-    }
-
-    // MARK: - Delete / Restore (own comment)
-
-    /// Confirm deleting the user's own comment, then enqueue the optimistic
-    /// delete through the outbox. Restoring needs no confirmation.
-    private func promptDeleteComment(serverCommentId: Int64) {
-        let alert = UIAlertController(
-            title: NSLocalizedString("Delete comment?", comment: "Confirmation title for deleting the user's own comment"),
-            message: NSLocalizedString("This removes the comment for everyone. You can restore it later.", comment: "Confirmation message for deleting the user's own comment"),
-            preferredStyle: .actionSheet
-        )
-        alert.addAction(UIAlertAction(
-            title: NSLocalizedString("Delete", comment: "Destructive confirm button to delete the user's own comment"),
-            style: .destructive
-        ) { [weak self] _ in
-            self?.setDeletedOnComment(serverCommentId: serverCommentId, deleted: true)
-        })
-        alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
-
-        // iPad: anchor the popover to avoid a regular-width crash.
-        if let popover = alert.popoverPresentationController {
-            popover.sourceView = view
-            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
-            popover.permittedArrowDirections = []
-        }
-        present(alert, animated: true)
-    }
-
-    /// Opens the composer in edit mode for the user's own comment, seeded with
-    /// its current body. Saving enqueues an optimistic edit to the content outbox.
-    private func editOwnComment(serverCommentId: Int64, currentBody: String) {
-        presentComposer(
-            target: .editComment(
-                serverPostId: viewModel.serverPostId,
-                serverCommentId: Components.Schemas.CommentID(serverCommentId)
-            ),
-            initialBody: currentBody
-        )
-    }
-
-    private func setDeletedOnComment(serverCommentId: Int64, deleted: Bool) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            Haptics.tap()
-            do {
-                try await viewModel.accountScope.lemmyService
-                    .deleteComment(serverCommentId: Components.Schemas.CommentID(serverCommentId), deleted: deleted)
-            } catch {
-                // The optimistic write already applied synchronously inside
-                // enqueue; network failures are retried by the outbox and a
-                // permanent failure rolls back + surfaces via the failure stream.
-                alertService.handle(error, for: .deleteComment)
-            }
-        }
-    }
-
-    // MARK: - Delete / Restore (own post)
-
-    /// Confirm deleting the user's own post, then enqueue the optimistic delete
-    /// through the outbox. Restoring needs no confirmation.
-    private func promptDeletePost(serverPostId: Components.Schemas.PostID) {
-        let alert = UIAlertController(
-            title: NSLocalizedString("Delete post?", comment: "Confirmation title for deleting the user's own post"),
-            message: NSLocalizedString(
-                "This removes the post for everyone. You can restore it later.",
-                comment: "Confirmation message for deleting the user's own post"
-            ),
-            preferredStyle: .actionSheet
-        )
-        alert.addAction(UIAlertAction(
-            title: NSLocalizedString("Delete", comment: "Destructive confirm button to delete the user's own post"),
-            style: .destructive
-        ) { [weak self] _ in
-            self?.setDeletedOnPost(serverPostId: serverPostId, deleted: true)
-        })
-        alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
-
-        // iPad: anchor the popover to avoid a regular-width crash.
-        if let popover = alert.popoverPresentationController {
-            popover.sourceView = view
-            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
-            popover.permittedArrowDirections = []
-        }
-        present(alert, animated: true)
-    }
-
-    private func setDeletedOnPost(serverPostId: Components.Schemas.PostID, deleted: Bool) {
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            Haptics.tap()
-            do {
-                try await viewModel.accountScope.lemmyService
-                    .deletePost(serverPostId: serverPostId, deleted: deleted)
-            } catch {
-                // The optimistic write already applied synchronously inside
-                // enqueue; network failures are retried by the outbox and a
-                // permanent failure rolls back + surfaces via the failure stream.
-                alertService.handle(error, for: .deletePost)
-            }
         }
     }
 
@@ -2201,7 +1994,8 @@ class PostDetailViewController: UIViewController {
     /// signed-out account gets a "sign in to comment" alert instead. `initialBody`
     /// seeds the editor when no saved draft exists (used by the failed-comment
     /// Edit flow to preserve the user's text).
-    private func presentComposer(target: ComposerTarget, initialBody: String? = nil) {
+    // internal: shared with PostDetailViewController+DeleteRestore
+    func presentComposer(target: ComposerTarget, initialBody: String? = nil) {
         let keychainId = viewModel.accountKeychainId
         guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
