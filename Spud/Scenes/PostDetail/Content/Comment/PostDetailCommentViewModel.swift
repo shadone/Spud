@@ -58,6 +58,22 @@ struct PostDetailCommentViewModel {
     let isMore: Bool
     let moreText: NSAttributedString?
 
+    /// The current vote state on this comment — drives the score-pill fill and
+    /// the pill's accessibility label.
+    let voteStatus: VoteStatus
+
+    /// The comment's display score. Moved out of the subtitle and into the
+    /// score-pill in the voted state; still surfaced in the accessibility label.
+    let score: Int64
+
+    /// The upvote active fill color, resolved from the appearance at VM build
+    /// time.  The cell reads this instead of reaching into the appearance service.
+    let upvoteActiveColor: UIColor
+
+    /// The downvote active fill color, resolved from the appearance at VM build
+    /// time.
+    let downvoteActiveColor: UIColor
+
     /// Author role/status pills shown after the name, in order.
     let badges: [CommentBadge]
 
@@ -283,30 +299,21 @@ struct PostDetailCommentViewModel {
             blockedShowText = nil
         }
 
-        // MARK: Subtitle (score · age · saved)
+        // MARK: Subtitle (age · saved)
 
-        let voteStatus: VoteStatus = {
+        voteStatus = {
             switch row.voteStatus {
             case 1: return .up
             case 0: return .down
             default: return .neutral
             }
         }()
+        score = row.score
+        upvoteActiveColor = appearance.general.upvoteButtonActiveColor
+        downvoteActiveColor = appearance.general.downvoteButtonActiveColor
 
         let space = NSAttributedString(string: "  ", attributes: secondaryAttributes)
-        // A deleted/removed comment has no meaningful score — hiding it is what
-        // makes the placeholder read as "gone" rather than a normal downvoted row.
-        let hideScore = isDeleted || isRemoved
         var subtitlePieces: [NSAttributedString] = []
-        if !hideScore {
-            subtitlePieces.append(IconValueFormatter.attributedString(
-                numberOfVotesOrScore: row.score,
-                voteStatus: voteStatus,
-                attributes: monoAttributes,
-                appearance: appearance.general
-            ))
-            subtitlePieces.append(space)
-        }
         if let published = row.published {
             subtitlePieces.append(IconValueFormatter.attributedString(
                 relativeDate: published,
@@ -383,14 +390,13 @@ struct PostDetailCommentViewModel {
                 comment: "VoiceOver hint for the load-more-replies row"
             )
         } else {
-            // The subtitle element carries the full comment metadata for
-            // VoiceOver — score, age, depth, collapsed and moderation state —
-            // since the visible run is icon glyphs it cannot pronounce. The
-            // author (a link) and body are read as their own elements.
+            // The subtitle element carries comment metadata (age, depth,
+            // collapsed and moderation state) for VoiceOver — the visible run
+            // is icon glyphs it cannot pronounce. Score is spoken via the
+            // score-pill accessibility label instead (so voted comments read
+            // the score exactly once). The author (a link) and body are read
+            // as their own elements.
             var pieces: [String] = []
-            if !hideScore {
-                pieces.append(VoteAccessibility.scoreLabel(score: row.score, voteStatus: voteStatus))
-            }
             if isOriginalPoster {
                 pieces.append(NSLocalizedString("original poster", comment: "VoiceOver: comment written by the post's author"))
             }

@@ -149,6 +149,7 @@ class PostDetailCommentCell: UITableViewCell {
             newDotView,
             authorLabel,
             badgesStackView,
+            scorePillLabel,
             subtitleLabel,
             spacerView,
             collapsedBadgeLabel,
@@ -161,6 +162,7 @@ class PostDetailCommentCell: UITableViewCell {
         stackView.setCustomSpacing(6, after: newDotView)
         stackView.setCustomSpacing(6, after: authorLabel)
         stackView.setCustomSpacing(6, after: badgesStackView)
+        stackView.setCustomSpacing(6, after: scorePillLabel)
         stackView.setCustomSpacing(6, after: collapsedBadgeLabel)
 
         return stackView
@@ -219,6 +221,21 @@ class PostDetailCommentCell: UITableViewCell {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.backgroundColor = .clear
         label.accessibilityIdentifier = "collapsedBadge"
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
+        return label
+    }()
+
+    /// Inline score pill shown between the role badges and the metadata subtitle
+    /// when the comment has a non-neutral vote (up or down). A solid fill on the
+    /// vote token's color carries a white arrow + white number; neutral state hides
+    /// the pill entirely and renders nothing (score moved out of the subtitle line).
+    lazy var scorePillLabel: BadgeLabel = {
+        let label = BadgeLabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.layer.cornerRadius = VoteFillStyle.capsuleCornerRadius
+        label.clipsToBounds = true
+        label.accessibilityIdentifier = "score"
         label.setContentHuggingPriority(.required, for: .horizontal)
         label.setContentCompressionResistancePriority(.required, for: .horizontal)
         return label
@@ -454,6 +471,9 @@ class PostDetailCommentCell: UITableViewCell {
         collapsedNewBadgeLabel.attributedText = nil
         collapsedNewBadgeLabel.backgroundColor = .clear
         collapsedNewBadgeLabel.isHidden = true
+        scorePillLabel.attributedText = nil
+        scorePillLabel.backgroundColor = .clear
+        scorePillLabel.isHidden = true
         // Drop the bodies now so any in-flight inline-image loads are cancelled
         // before the cell is reused for another comment.
         bodyView.setBlocks([])
@@ -662,6 +682,49 @@ class PostDetailCommentCell: UITableViewCell {
         // moderation placeholder).
         configureLinkPreviews(viewModel)
 
+        // Score pill: filled (white glyph + white number on vote-token color) for
+        // upvoted/downvoted; hidden for neutral. "load more" rows and deleted/removed
+        // comments carry no meaningful score, so the pill is also hidden there.
+        // The VM pre-resolves the vote colors so the cell doesn't reach into
+        // the appearance service.
+        let pillFillColor: UIColor? = {
+            switch viewModel.voteStatus {
+            case .up: return viewModel.upvoteActiveColor
+            case .down: return viewModel.downvoteActiveColor
+            case .neutral: return nil
+            }
+        }()
+        let isDeletedOrRemoved = viewModel.body.length > 0 && viewModel.bodyBlocks.isEmpty
+        if let fillColor = pillFillColor, !viewModel.isMore, !isDeletedOrRemoved {
+            let glyphColor = VoteFillStyle.filledGlyphColor
+            let pillAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.monospacedDigitSystemFont(ofSize: 11, weight: .bold),
+                .foregroundColor: glyphColor,
+            ]
+            let glyphName = viewModel.voteStatus == .up ? "arrow.up" : "arrow.down"
+            let pillText = NSMutableAttributedString()
+            if let image = UIImage(systemName: glyphName) {
+                pillText.append(NSAttributedString.symbol(from: image, attributes: pillAttributes))
+                pillText.append(NSAttributedString(string: " ", attributes: pillAttributes))
+            }
+            pillText.append(NSAttributedString(
+                string: UpvotesFormatter.string(from: viewModel.score),
+                attributes: pillAttributes
+            ))
+            scorePillLabel.attributedText = pillText
+            scorePillLabel.backgroundColor = fillColor
+            scorePillLabel.accessibilityLabel = VoteAccessibility.scoreLabel(
+                score: viewModel.score,
+                voteStatus: viewModel.voteStatus
+            )
+            scorePillLabel.isHidden = false
+        } else {
+            scorePillLabel.attributedText = nil
+            scorePillLabel.backgroundColor = .clear
+            scorePillLabel.accessibilityLabel = nil
+            scorePillLabel.isHidden = true
+        }
+
         collapsedBadgeLabel.attributedText = viewModel.collapsedBadgeText
         collapsedBadgeLabel.isHidden = viewModel.collapsedBadgeText == nil
 
@@ -774,6 +837,10 @@ class PostDetailCommentCell: UITableViewCell {
         collapsedNewBadgeLabel.isHidden = true
         newDotView.isHidden = true
         newDotView.backgroundColor = .clear
+        // Pending rows have no vote state, so hide the score pill.
+        scorePillLabel.attributedText = nil
+        scorePillLabel.backgroundColor = .clear
+        scorePillLabel.isHidden = true
 
         tintBackingView.backgroundColor = .clear
         contentView.alpha = state.status == .sending ? 0.6 : 1.0

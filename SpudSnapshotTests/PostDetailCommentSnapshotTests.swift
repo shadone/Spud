@@ -119,6 +119,28 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         ))
     }
 
+    func test_downvoted() {
+        assertComment(viewModel: makeViewModel(
+            row: row(score: -42, voteStatus: 0)
+        ))
+    }
+
+    func test_upvoted_fresh() {
+        // Upvoted and new: the teal gutter-dot and the filled score pill coexist.
+        assertComment(viewModel: makeViewModel(
+            row: row(score: 256, voteStatus: 1),
+            isNew: true
+        ))
+    }
+
+    func test_op_upvoted() {
+        // OP tag + upvoted score pill: badges and pill sit side by side in the header.
+        assertComment(viewModel: makeViewModel(
+            row: row(score: 256, voteStatus: 1, creatorPersonId: 42),
+            postCreatorPersonId: 42
+        ))
+    }
+
     func test_deeplyNested() {
         // depth 4 => 3 ancestor rails, so DepthRailsView draws a stack.
         assertComment(viewModel: makeViewModel(
