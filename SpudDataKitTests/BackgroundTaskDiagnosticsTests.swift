@@ -79,6 +79,7 @@ private final class StubAccountService: AccountServiceType {
     }
 
     func setDefaultSortType(_: Components.Schemas.SortType, forAccountKeychainId _: String) { }
+    func refreshSiteInfoOnDemandIfNeeded(forAccountKeychainId _: String) { }
     func scope(forAccountKeychainId _: String) -> AccountScope {
         fatalError("not used in tests")
     }

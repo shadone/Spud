@@ -18,6 +18,7 @@ public struct AccountRecord: Codable, Sendable, Equatable, Identifiable {
     public var isDefault: Bool
     public var isServiceAccount: Bool
     public var isSignedOutAccountType: Bool
+    public var isEphemeral: Bool
     public var localAccountId: Int64?
     public var email: String?
     public var emailVerified: Bool?
@@ -41,6 +42,7 @@ public struct AccountRecord: Codable, Sendable, Equatable, Identifiable {
         isDefault: Bool = false,
         isServiceAccount: Bool = false,
         isSignedOutAccountType: Bool = false,
+        isEphemeral: Bool = false,
         localAccountId: Int64? = nil,
         email: String? = nil,
         emailVerified: Bool? = nil,
@@ -63,6 +65,7 @@ public struct AccountRecord: Codable, Sendable, Equatable, Identifiable {
         self.isDefault = isDefault
         self.isServiceAccount = isServiceAccount
         self.isSignedOutAccountType = isSignedOutAccountType
+        self.isEphemeral = isEphemeral
         self.localAccountId = localAccountId
         self.email = email
         self.emailVerified = emailVerified

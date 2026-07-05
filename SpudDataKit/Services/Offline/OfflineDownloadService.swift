@@ -432,8 +432,10 @@ public actor OfflineDownloadService {
         )
 
         // Phase 3: download per-post content (comments + images, plus an opt-in
-        // web archive for external-link posts), best-effort.
-        let (completed, failed) = await downloadContent(
+        // web archive for external-link posts), best-effort. The aggregate
+        // per-item warm-failure counts come back here so the run summary can
+        // report them without spamming the curated table with one event per image.
+        let (completed, failed, imageWarmFailures, archiveCaptureFailures) = await downloadContent(
             targets: targets,
             lemmyService: lemmyService,
             commentSort: commentSort,
@@ -480,6 +482,12 @@ public actor OfflineDownloadService {
                 "downloadedCount": String(completed),
                 "failedCount": String(failed),
                 "durationMs": String(durationMs),
+                // Curated aggregates: the total per-item image and web-archive
+                // warm failures across the whole run. The individual failures are
+                // OSLog-only chatter (see `warmImage` / `processTarget`); only
+                // these run-level sums land in the durable diagnostic table.
+                "imageWarmFailures": String(imageWarmFailures),
+                "archiveCaptureFailures": String(archiveCaptureFailures),
             ]
         )
 
@@ -562,9 +570,14 @@ public actor OfflineDownloadService {
                             message: "Retrying page fetch (attempt \(attempt))",
                             instance: instance,
                             metadata: [
+                                "phase": "page",
                                 "attempt": String(attempt),
                                 "delayMs": String(Int(delay.asTimeInterval * 1000)),
                                 "error": String(describing: error),
+                                // Distinguishes a server "slow down" (429 / 503 /
+                                // rate-limit) from other transient blips, so the
+                                // log viewer can spot rate-limiting at a glance.
+                                "pushback": String(isServerPushback(error)),
                             ]
                         )
                     }
@@ -642,8 +655,15 @@ public actor OfflineDownloadService {
     /// its target page as a web archive. Every post counts as completed for the
     /// progress UI regardless of per-step errors; a comment-fetch failure is also
     /// counted in the diagnostic `failed` tally and emits a `download.itemFailed`
-    /// event. Returns the total completed and failed counts. Emits a progress
-    /// snapshot after each post.
+    /// event. Emits a progress snapshot after each post.
+    ///
+    /// Returns the total completed and failed counts, plus the run-wide aggregate
+    /// per-item warm failures (`imageWarmFailures` = the number of individual
+    /// thumbnail/full-image warms that failed for good; `archiveCaptureFailures` =
+    /// the number of external-link posts whose web-archive capture returned nil).
+    /// These aggregates are surfaced in the `download.finish` summary so the
+    /// durable table records the count without one row per image (per-item detail
+    /// stays in OSLog — see ``warmImage`` / ``processTarget``).
     ///
     /// The archive capturer is `@MainActor` + self-serializing, so even though up
     /// to ``contentConcurrency`` posts are processed concurrently, their archive
@@ -661,8 +681,8 @@ public actor OfflineDownloadService {
         pacer: RequestPacer,
         pacing: DownloadPacingConfig,
         emit: @Sendable (OfflineDownloadProgress) -> Void
-    ) async -> (completed: Int, failed: Int) {
-        guard !targets.isEmpty else { return (0, 0) }
+    ) async -> (completed: Int, failed: Int, imageWarmFailures: Int, archiveCaptureFailures: Int) {
+        guard !targets.isEmpty else { return (0, 0, 0, 0) }
 
         emit(OfflineDownloadProgress(
             phase: .downloadingContent,
@@ -672,6 +692,10 @@ public actor OfflineDownloadService {
         ))
 
         let imageService = imageService
+        // Carry the recorder into the per-post work so a content-phase retry can
+        // record a `download.retry`; captured as a local (like `imageService`)
+        // because the `@Sendable` `addTask` closure can't reach `self`.
+        let diagnostics = diagnostics
         // Only carry the capturer/store into the per-post work when archiving is
         // requested AND the service was built with them — otherwise leave them
         // nil so `processTarget` skips the capture branch entirely.
@@ -680,8 +704,13 @@ public actor OfflineDownloadService {
         let captureTimeout = Self.webArchiveCaptureTimeout
         var completed = 0
         var failed = 0
+        // Run-wide sums of the per-item best-effort warm failures. These are the
+        // ONLY durable trace of individual image/archive failures — the failures
+        // themselves are OSLog-only (see `warmImage` / `processTarget`).
+        var imageWarmFailures = 0
+        var archiveCaptureFailures = 0
 
-        await withTaskGroup(of: (succeeded: Bool, serverPostId: Int64).self) { group in
+        await withTaskGroup(of: (outcome: TargetOutcome, serverPostId: Int64).self) { group in
             var iterator = targets.makeIterator()
             var inFlight = 0
 
@@ -692,7 +721,7 @@ public actor OfflineDownloadService {
                 inFlight += 1
                 let serverPostId = target.serverPostId
                 group.addTask {
-                    let succeeded = await Self.processTarget(
+                    let outcome = await Self.processTarget(
                         target,
                         lemmyService: lemmyService,
                         commentSort: commentSort,
@@ -702,9 +731,11 @@ public actor OfflineDownloadService {
                         captureTimeout: captureTimeout,
                         sanitizeURL: sanitizeURL,
                         pacer: pacer,
-                        pacing: pacing
+                        pacing: pacing,
+                        diagnostics: diagnostics,
+                        instance: instance
                     )
-                    return (succeeded: succeeded, serverPostId: serverPostId)
+                    return (outcome: outcome, serverPostId: serverPostId)
                 }
             }
 
@@ -722,7 +753,12 @@ public actor OfflineDownloadService {
                     // `failed` counter is diagnostic-only and is NOT deducted
                     // from `completed`.
                     completed += 1
-                    if !result.succeeded {
+                    // Image/archive warm failures are independent best-effort
+                    // steps, tallied for every finished post regardless of the
+                    // comment outcome.
+                    imageWarmFailures += result.outcome.imageWarmFailures
+                    archiveCaptureFailures += result.outcome.archiveCaptureFailed ? 1 : 0
+                    if !result.outcome.commentSucceeded {
                         failed += 1
                         await diagnostics.record(
                             category: .offlineDownload,
@@ -744,16 +780,42 @@ public actor OfflineDownloadService {
             }
         }
 
-        return (completed, failed)
+        return (completed, failed, imageWarmFailures, archiveCaptureFailures)
+    }
+
+    /// The per-post result of ``processTarget(_:lemmyService:commentSort:imageService:webArchiveCapturer:webArchiveStore:captureTimeout:sanitizeURL:pacer:pacing:diagnostics:instance:)``.
+    ///
+    /// Surfaced so the content loop can (a) drive `download.itemFailed` off the
+    /// comment outcome, and (b) aggregate the per-item image/archive warm failures
+    /// into the run summary. The per-item image and archive failures are
+    /// deliberately NOT individual durable events — that would spam the curated
+    /// `diagnosticEvent` table with one row per image. They go to OSLog for detail
+    /// and are summed into `download.finish`'s `imageWarmFailures` /
+    /// `archiveCaptureFailures` metadata instead.
+    private struct TargetOutcome {
+        /// Whether the comment-tree fetch ultimately succeeded (false = a real
+        /// error after retries; drives `download.itemFailed`). A cancelled post
+        /// reports `true` — cancellation is not a content failure.
+        var commentSucceeded: Bool
+        /// How many of this post's image warms (thumbnail + full image) failed for
+        /// good after retries. 0, 1, or 2.
+        var imageWarmFailures: Int
+        /// Whether an attempted web-archive capture returned nil (load error /
+        /// timeout). Stays `false` when the archive branch isn't taken at all
+        /// (archiving off, no capturer, or not an external-link post).
+        var archiveCaptureFailed: Bool
     }
 
     /// Best-effort predownload of one post's content: its comment tree, then its
     /// thumbnail and full image, then (when requested) a web archive of its
     /// external link. Every step continues regardless of prior failures so all
-    /// content is attempted for every post. Returns `true` when the comment fetch
-    /// succeeded (or was cancelled), `false` when it threw a real error — the
-    /// caller uses this to emit `download.itemFailed` and tally the failure in
-    /// the diagnostic metadata.
+    /// content is attempted for every post.
+    ///
+    /// Returns a ``TargetOutcome``: `commentSucceeded` is `true` when the comment
+    /// fetch succeeded (or was cancelled), `false` when it threw a real error (the
+    /// caller uses this to emit `download.itemFailed`); `imageWarmFailures` and
+    /// `archiveCaptureFailed` carry the per-item warm failures the caller sums into
+    /// the curated run summary (the individual failures are OSLog-only chatter).
     ///
     /// - Parameters:
     ///   - webArchiveCapturer: When non-nil AND the post has an
@@ -766,6 +828,11 @@ public actor OfflineDownloadService {
     ///   - sanitizeURL: Applied to the post's `externalLinkUrl` before capture +
     ///     store, so the archive is keyed under the SAME (sanitized) URL the open
     ///     path looks it up by. Nil = use the raw URL unchanged.
+    ///   - diagnostics: Recorder used to emit a `download.retry` when the comment
+    ///     fetch is retried (content-phase retry visibility). Sendable, so it can
+    ///     be captured into this static method's task.
+    ///   - instance: The Lemmy instance host for the retry event's `instance`
+    ///     field; nil when unknown.
     private static func processTarget(
         _ target: OfflineDownloadTarget,
         lemmyService: any LemmyServiceType,
@@ -776,9 +843,14 @@ public actor OfflineDownloadService {
         captureTimeout: TimeInterval,
         sanitizeURL: (@Sendable (URL) -> URL)?,
         pacer: RequestPacer,
-        pacing: DownloadPacingConfig
-    ) async -> Bool {
-        if Task.isCancelled { return true }
+        pacing: DownloadPacingConfig,
+        diagnostics: DiagnosticLogging,
+        instance: String?
+    ) async -> TargetOutcome {
+        // An all-clear outcome, returned at each cancellation checkpoint:
+        // cancellation is not a content failure, so nothing is counted against it.
+        let allClear = TargetOutcome(commentSucceeded: true, imageWarmFailures: 0, archiveCaptureFailed: false)
+        if Task.isCancelled { return allClear }
 
         // Comments first: persisted to GRDB so post-detail renders offline.
         // The DB stores server ids as Int64; the API id type is narrower
@@ -786,7 +858,10 @@ public actor OfflineDownloadService {
         // A failure is surfaced to the caller for diagnostic purposes but does
         // NOT abort the rest of this post's work — images and web archives are
         // always attempted (best-effort), matching the pre-existing contract.
-        // Transient failures are retried before being swallowed.
+        // Transient failures are retried before being swallowed; each retry is
+        // recorded as a content-phase `download.retry` so the comment-fetch
+        // retries are as visible as the page-fetch ones.
+        let serverPostId = target.serverPostId
         var commentSucceeded = true
         do {
             try await withRetry(
@@ -796,7 +871,24 @@ public actor OfflineDownloadService {
                 pushbackCooldown: pacing.serverPushbackCooldown,
                 pacer: pacer,
                 sleep: pacing.sleep,
-                jitter: pacing.jitter
+                jitter: pacing.jitter,
+                onRetry: { [diagnostics, instance, serverPostId] attempt, delay, error in
+                    await diagnostics.record(
+                        category: .offlineDownload,
+                        level: .notice,
+                        event: "download.retry",
+                        message: "Retrying comment fetch (attempt \(attempt))",
+                        instance: instance,
+                        metadata: [
+                            "phase": "content",
+                            "serverPostId": String(serverPostId),
+                            "attempt": String(attempt),
+                            "delayMs": String(Int(delay.asTimeInterval * 1000)),
+                            "error": String(describing: error),
+                            "pushback": String(isServerPushback(error)),
+                        ]
+                    )
+                }
             ) {
                 try await pacer.acquire()
                 try await lemmyService.fetchComments(
@@ -808,25 +900,34 @@ public actor OfflineDownloadService {
             commentSucceeded = false
         }
 
-        if Task.isCancelled { return true }
+        if Task.isCancelled { return allClear }
+
+        // Per-item warm failures are counted locally and returned to the caller,
+        // which sums them into the curated `download.finish` summary. The
+        // individual failures are OSLog-only chatter (see `warmImage`) — we do NOT
+        // emit a durable event per image, which would flood the diagnostic table.
+        var imageWarmFailures = 0
 
         if let thumbnailUrl = target.thumbnailUrl {
-            await Self.warmImage(imageService, url: thumbnailUrl, downsampleTo: thumbnailDownsampleSize, pacer: pacer, pacing: pacing)
+            let succeeded = await Self.warmImage(imageService, url: thumbnailUrl, downsampleTo: thumbnailDownsampleSize, pacer: pacer, pacing: pacing)
+            if !succeeded { imageWarmFailures += 1 }
         }
 
-        if Task.isCancelled { return true }
+        if Task.isCancelled { return allClear }
 
         if let imageUrl = target.imageUrl {
-            await Self.warmImage(imageService, url: imageUrl, downsampleTo: fullImageDownsampleSize, pacer: pacer, pacing: pacing)
+            let succeeded = await Self.warmImage(imageService, url: imageUrl, downsampleTo: fullImageDownsampleSize, pacer: pacer, pacing: pacing)
+            if !succeeded { imageWarmFailures += 1 }
         }
 
-        if Task.isCancelled { return true }
+        if Task.isCancelled { return allClear }
 
         // Web archive last (it's the heaviest, slowest step). Only for
         // external-link posts, and only when archiving was requested. The
         // capturer self-serializes, so concurrent posts queue here rather than
         // launching N web views at once. A nil capture (load error / timeout) is
-        // skipped — best-effort, never fatal.
+        // skipped — best-effort, never fatal — but tallied into the run summary.
+        var archiveCaptureFailed = false
         if
             let webArchiveCapturer,
             let webArchiveStore,
@@ -844,10 +945,19 @@ public actor OfflineDownloadService {
                     title: result.title,
                     data: result.data
                 )
+            } else {
+                // Per-item chatter: OSLog only, aggregated into the run summary's
+                // `archiveCaptureFailures` — never an individual durable event.
+                archiveCaptureFailed = true
+                logger.debug("Offline web-archive capture failed for \(archiveKey.absoluteString, privacy: .public) (serverPostId \(serverPostId, privacy: .public))")
             }
         }
 
-        return commentSucceeded
+        return TargetOutcome(
+            commentSucceeded: commentSucceeded,
+            imageWarmFailures: imageWarmFailures,
+            archiveCaptureFailed: archiveCaptureFailed
+        )
     }
 
     /// Thrown when an image stream completes without ever reaching `.ready`
@@ -878,13 +988,21 @@ public actor OfflineDownloadService {
     /// image failure carries no classifiable error), swallowing the final failure
     /// so one bad image never affects the post's completion — matching the
     /// pre-existing best-effort contract.
+    ///
+    /// Returns `true` when the image ultimately reached the durable disk cache (or
+    /// the warm was cancelled — cancellation is not a content failure and must not
+    /// count), `false` when it failed for good after exhausting retries. The
+    /// caller aggregates these `false`s into the run summary's `imageWarmFailures`.
+    /// The individual failure is per-item chatter: it goes to OSLog only, never as
+    /// its own durable `diagnosticEvent` (that would flood the curated table with
+    /// one row per image).
     private static func warmImage(
         _ imageService: any ImageServiceType,
         url: URL,
         downsampleTo size: CGSize,
         pacer: RequestPacer,
         pacing: DownloadPacingConfig
-    ) async {
+    ) async -> Bool {
         do {
             try await withRetry(
                 maxAttempts: pacing.maxImageRetryAttempts,
@@ -898,9 +1016,16 @@ public actor OfflineDownloadService {
                 try await pacer.acquire()
                 try await drainImageFetch(imageService, url: url, downsampleTo: size)
             }
+            return true
+        } catch is CancellationError {
+            // Cancellation is driven by the content loop's own `Task.isCancelled`
+            // checks; it is not an image failure, so don't count it.
+            return true
         } catch {
-            // Best-effort: swallow (incl. CancellationError — the content loop's
-            // own `Task.isCancelled` checks drive the .cancelled terminal).
+            // Best-effort: swallow, but leave an OSLog breadcrumb naming the image
+            // so a run's failures are diagnosable without a durable event per image.
+            logger.debug("Offline image warm failed for \(url.absoluteString, privacy: .public): \(String(describing: error), privacy: .public)")
+            return false
         }
     }
 }

@@ -32,6 +32,14 @@ public struct SiteRecord: Codable, Sendable, Equatable, Identifiable {
     public var numberOfUsersHalfYear: Int64?
     public var infoCreatedDate: Date?
     public var infoUpdatedDate: Date?
+    /// Consecutive permanent (4xx) site-info fetch failures. Drives the
+    /// scheduler give-up: at `AppDatabase.siteInfoGiveUpThreshold` the site is
+    /// dropped from the recurring site-info sweeps. Reset to 0 on any success.
+    public var siteInfoConsecutivePermanentFailures: Int
+    /// Persisted back-off deadline (the site is not swept before this instant).
+    /// Nil means immediately eligible. Survives relaunch (unlike the old
+    /// in-memory `SchedulerBackoff`).
+    public var siteInfoNextAttemptAt: Date?
     public var createdAt: Date
     public var updatedAt: Date
 
@@ -58,6 +66,8 @@ public struct SiteRecord: Codable, Sendable, Equatable, Identifiable {
         numberOfUsersHalfYear: Int64? = nil,
         infoCreatedDate: Date? = nil,
         infoUpdatedDate: Date? = nil,
+        siteInfoConsecutivePermanentFailures: Int = 0,
+        siteInfoNextAttemptAt: Date? = nil,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -83,6 +93,8 @@ public struct SiteRecord: Codable, Sendable, Equatable, Identifiable {
         self.numberOfUsersHalfYear = numberOfUsersHalfYear
         self.infoCreatedDate = infoCreatedDate
         self.infoUpdatedDate = infoUpdatedDate
+        self.siteInfoConsecutivePermanentFailures = siteInfoConsecutivePermanentFailures
+        self.siteInfoNextAttemptAt = siteInfoNextAttemptAt
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

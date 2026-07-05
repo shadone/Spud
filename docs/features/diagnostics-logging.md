@@ -18,10 +18,13 @@ The Logs screen (Settings → About → Logs) is a two-tab viewer: the **Event L
 - Events carry a `category` (outbox / composerOutbox / scheduler / site / offlineDownload / unread / spotlight / lifecycle), a `level` (debug / info / notice / error), a short machine-readable `event` name (e.g. `op.permanentRollback`, `site.fetchFailed`), a human-readable `message`, an optional `instance` host (e.g. `lemmy.world`), and optional structured `metadata` (JSON object with fields such as httpStatus, entityType, entityServerId, attempts, error).
 - The instance host stored in the log is public and non-secret (it is the Lemmy instance hostname, not a token or password). Auth tokens, passwords, and the raw `accountKeychainId` are never recorded.
 - Export is a deliberate, user-initiated share-sheet action. Nothing leaves the device automatically.
+- Individual events can be copied without exporting the whole log: long-pressing a row copies its one-line summary, and the detail view's **Copy Event** button copies the full event (summary plus metadata). Both write to the clipboard only — nothing leaves the device. The row copy, the detail copy, and each exported line share one text formatter, so their formats stay identical.
 - The Event Log list is live-updating: GRDB observation delivers changes while the screen is open.
 - A vote, save, or hide that is permanently rolled back (e.g. because the server returned a 403) produces an `op.permanentRollback` event at error level, carrying the instance host and HTTP status in metadata. This event is durable and survives relaunch.
 - A content submission (comment / post / DM) that is permanently parked (never able to send) produces an `op.permanentPark` event at error level.
-- A site-info fetch failure (including a `getSite` HTTP 403 from a CDN or WAF) produces a `site.fetchFailed` event carrying the **instance host** — making it possible to see which specific instance is failing, not just that some fetch failed. Because the scheduler now applies per-account exponential back-off on repeated failures (see [background-unread-refresh.md](background-unread-refresh.md)), the event appears a handful of times early on and then at most every ~2 hours rather than every 5 minutes — the instance is still identifiable, but the log is no longer spammed.
+- A site-info fetch failure (including a `getSite` HTTP 403 from a CDN or WAF) produces a `site.fetchFailed` event (`.error`) carrying the **instance host** — making it possible to see which specific instance is failing, not just that some fetch failed. The event is now **bounded**: after N = 5 consecutive permanent (4xx) failures the scheduler gives up on that site (see [account-provenance-and-site-refresh.md](account-provenance-and-site-refresh.md)), so `site.fetchFailed` entries for a permanently-blocked instance stop appearing after the give-up rather than recurring forever. For instances still being retried, exponential back-off means entries appear a handful of times early on and then at most every ~2 hours.
+- When the scheduler reaches the abandonment threshold for a site it records a **`site.giveUp`** event (category `.site`, level `.notice`, metadata `failureCount`) — a single entry naming the instance host and the number of permanent failures that triggered the give-up. This event makes it possible to see in About → Logs exactly why an instance stopped being polled ("gave up after 5 permanent failures"), rather than just noticing that `site.fetchFailed` entries stopped appearing.
+- An offline download (category `offlineDownload`, see [offline-download.md](offline-download.md)) records a curated run lifecycle rather than per-item chatter: `download.start` and a `download.finish` summary, plus `download.retry`, `download.itemFailed`, `download.pageFetchIncomplete`, and `download.cancelled`. The `download.finish` metadata carries `downloadedCount`, `failedCount`, `durationMs`, and the run-wide aggregates `imageWarmFailures` and `archiveCaptureFailures` — the total individual image warms and linked-page snapshots that failed. Those per-item failures are **OSLog-only** (one durable row per image would flood the table); only the run-level sums are persisted. A `download.retry` carries `phase` (`page` for a feed-page fetch, `content` for a post's comment fetch), `attempt`, `delayMs`, `error`, and `pushback` (`true` when the retry was for a server rate-limit signal — HTTP 429/503 or a `rate_limit*` error — so rate-limiting is distinguishable from a plain transient blip); a content-phase retry also carries the `serverPostId`.
 - Lifecycle events (`launch`, `foreground`, `accountApplied`) are recorded so drain and refresh activity can be correlated to when the app was opened or brought to the foreground.
 - The System Log tab is read-only and limited to the current app session (OSLog cannot retrieve prior-session entries in-app). The Event Log tab persists across sessions.
 
@@ -64,12 +67,27 @@ The Logs screen (Settings → About → Logs) is a two-tab viewer: the **Event L
 - **Then** I see `site.fetchFailed` error events naming the specific **instance host** (e.g. `lemmy.world`) and the HTTP status
 - **And** I can identify which server is failing and at what rate, without needing to inspect source code or Console.app
 - **And** because the scheduler backs off on repeated failures, entries appear a handful of times initially and then at most every ~2 hours — not once every 5 minutes — so the log stays readable
+- **And** if the instance never recovers, after 5 consecutive permanent failures a single `site.giveUp` notice entry appears and `site.fetchFailed` entries stop — the log explains that the scheduler gave up rather than continuing to spam failures
+
+### See why an instance stopped being polled
+
+- **Given** a `site.giveUp` notice event appears in About → Logs for an instance
+- **When** I tap the row to open its detail
+- **Then** I see the instance host, the `failureCount` metadata field (showing how many consecutive permanent failures triggered the give-up), and the exact timestamp
+- **And** I know the scheduler is no longer polling that instance in the background
 
 ### Inspect a log entry in detail
 
 - **Given** the Event Log tab is open
 - **When** I tap any row
 - **Then** a detail view shows the full message, exact timestamp, category, level, instance host, and all structured metadata fields (formatted for readability)
+- **And** a **Copy Event** toolbar button copies the whole event as text — the one-line summary plus a sorted metadata block — to the clipboard (with a light haptic)
+
+### Copy a single event from the list
+
+- **Given** the Event Log tab is open
+- **When** I long-press a row and choose **Copy**
+- **Then** that event's one-line summary (`<timestamp> [<LEVEL>] <category> <event> — <message> [instance]`) is copied to the clipboard — the same format the export uses for each line — without opening the detail view
 
 ### Export the log for a bug report
 
