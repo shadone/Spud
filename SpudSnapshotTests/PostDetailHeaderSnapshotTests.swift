@@ -138,7 +138,7 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
     /// with a white arrow glyph — a real weight change, not just a tint.
     func test_image_upvoted() async {
         await assertHeader(
-            row: row(url: imageUrl, voteStatus: .up),
+            row: row(url: imageUrl, voteStatus: 1),
             imageService: ScriptedImageService([.ready(photo())])
         )
     }
@@ -147,7 +147,7 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
     /// capsule with a white arrow glyph.
     func test_image_downvoted() async {
         await assertHeader(
-            row: row(url: imageUrl, voteStatus: .down),
+            row: row(url: imageUrl, voteStatus: 0),
             imageService: ScriptedImageService([.ready(photo())])
         )
     }
@@ -405,7 +405,7 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         urlEmbedTitle: String? = nil,
         urlEmbedDescription: String? = nil,
         isNsfw: Bool = false,
-        voteStatus: VoteStatus? = nil
+        voteStatus: Int64? = nil
     ) -> PostDetailHeaderRow {
         PostDetailHeaderRow(
             id: 1,
