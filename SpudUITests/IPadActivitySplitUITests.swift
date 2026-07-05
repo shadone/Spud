@@ -26,6 +26,17 @@ import XCTest
 /// (and the repo prefers many small files). It keeps the iPad-only `XCTSkip` guard
 /// that the sibling class uses.
 ///
+/// ## Order-independent on a dirty simulator
+///
+/// The App Group `AppDatabase` survives SBT's `ResetFilesystem` AND
+/// `simctl uninstall`, so a default account persisted by an earlier suite (e.g.
+/// the signed-out `IPadSplitUITests`) would make the signed-in seed no-op and
+/// land the Account tab on the signed-out screen — this test used to require a
+/// manually-cleaned DB and failed if a signed-out suite ran first. It now passes
+/// `AppLaunchArgument.wipeAppDatabase`, which deletes the on-disk database
+/// directory before it opens, so the clean-DB precondition is GONE: the test is
+/// self-sufficient and order-independent regardless of what ran before it.
+///
 /// ## What proves the two-column split
 ///
 /// The signed-in Account tab renders from the seeded **local** person row (not a
@@ -58,6 +69,13 @@ class IPadActivitySplitUITests: XCTestCase {
             SBTUITunneledApplicationLaunchOptionResetFilesystem,
             SBTUITunneledApplicationLaunchOptionDisableUITextFieldAutocomplete,
             AppLaunchArgument.staticImageService.rawValue,
+            // Wipe the App Group AppDatabase before it opens. It survives SBT's
+            // ResetFilesystem and `simctl uninstall`, so a default account left by
+            // an earlier suite on the same sim would make the signed-in seed below
+            // no-op (both seeds guard on there being no default account) and land
+            // the Account tab on the signed-out screen. The wipe makes this test
+            // order-independent: it no longer depends on a manually-cleaned DB.
+            AppLaunchArgument.wipeAppDatabase.rawValue,
             // The SIGNED-IN seed (person row + fake JWT, fixed keychainId) so the
             // Account tab shows the signed-in screen with a tappable Activity row.
             // Deliberately NOT the signed-out seed: the signed-out seed would win
@@ -105,7 +123,12 @@ class IPadActivitySplitUITests: XCTestCase {
         let activityRow = app.buttons["Activity"].firstMatch
         XCTAssertTrue(
             activityRow.waitForExistence(timeout: 10),
-            "Activity row not found on the signed-in Account tab (is the signed-in seed active?)"
+            """
+            Activity row not found on the signed-in Account tab — the signed-in seed did not \
+            take, so the Account tab is on the signed-out screen. DB contamination is ruled out \
+            (SPUDWipeAppDatabase deletes the App Group store before launch), so suspect the seed \
+            itself or a MainWindow account-routing change rather than a stale persisted account.
+            """
         )
         activityRow.tap()
 
