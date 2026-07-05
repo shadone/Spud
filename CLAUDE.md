@@ -71,7 +71,7 @@ container so the widget and extensions read the same database.
 
 Schema migrations are GRDB `DatabaseMigrator` registrations in
 `AppDatabase+Migrations.swift`. Add a new migration as the next case;
-don't edit existing ones. Migrations are named `vNN_description`; the file itself is the source of truth for what exists — find the latest with `grep registerMigration AppDatabase+Migrations.swift | tail -1` and name your new one the next `vNN`.
+don't edit existing ones. Migrations are named `vNN_description`; the file itself is the source of truth for what exists — find the latest with `grep registerMigration AppDatabase+Migrations.swift | tail -1` and name your new one the next `vNN`. To test a **backfill** migration, use the `AppDatabase.migrator` seam (a `static var`): build a `DatabaseQueue`, `try await AppDatabase.migrator.migrate(db, upTo: "vNN")` (migrate is **async** here), insert legacy rows, `migrate(db)`, assert. `AppDatabase.inMemory()` applies ALL migrations at once, so it can't exercise an intermediate backfill.
 
 **Durable diagnostic log.** Migration `v26_diagnosticEvent` adds a `diagnosticEvent` GRDB table that records curated lifecycle events from both outboxes, the scheduler, site-info fetches, unread refresh, offline downloads, Spotlight indexing, and app lifecycle. Events fan to both OSLog and the table via `DiagnosticLog` in `SpudDataKit/Services/Diagnostics/`. The table is pruned at launch to ≤10k rows / ≤14 days. The durable log persists across relaunches and backs the Event Log tab in About → Logs. See [docs/features/diagnostics-logging.md](docs/features/diagnostics-logging.md).
 
@@ -123,6 +123,16 @@ NULL *left* column wrongly collapses the whole expression to nil (a
 double-optional type-inference footgun) instead of falling through to the
 right column. Use `Row.coalescingString("a", "b")`. (`row["a"] ?? "literal"`
 is fine; only two chained subscripts trip it.)
+
+GRDB **`Date` storage is a mixed convention** — get it wrong and comparisons
+silently break. Codable-record date columns (declared `.datetime`, e.g.
+`createdAt` / `nextAttemptAt` on a `*Record`) store as ISO-8601 **text**: bind a
+`Date` in SQL args (`arguments: [now]`), NOT `.timeIntervalSince1970` — a
+Double-vs-text `<= ?` is silently always-false (SQLite sorts all REAL before
+TEXT), so the row is never selected and no error is raised. The epoch-`.double`
+date columns (`voteEvent.votedAt`, outbox `nextAttemptAt`, `diagnosticEvent.timestamp`)
+are the exception — written/read via **raw SQL** as `timeIntervalSince1970`
+(`Date(timeIntervalSince1970:)`). Match the column's existing convention.
 
 To see what an importer actually stored, query the live app DB on a booted
 sim: `find ~/Library/Developer/CoreSimulator/Devices -name AppDatabase.sqlite`
@@ -233,6 +243,7 @@ First internal build shipped 2026-06-23 — App Store Connect app "Spud for Lemm
 - **"Simulator device failed to launch ... Busy (Application failed preflight checks)"** is sim contention, NOT a code/snapshot failure: `-destination 'name=iPhone 17...'` boots a *second* sim while another iPhone 17 sim is already booted (e.g. running unit then snapshot tests back-to-back). Target the booted sim by **id** — `-destination 'platform=iOS Simulator,id=<UUID>'` (from `xcrun simctl list devices | grep Booted`) — and re-run.
 - **Stale `Spud.app` on the SHARED sim → phantom failures.** The reference sim is shared across all worktrees/agents; a stale app installed from another worktree's *older* build makes a run crash with a phantom dyld `Symbol not found` (an OLD function signature) or produce spurious wrong-*size* snapshot failures — **even with a fresh `-derivedDataPath`** (the sim reuses the installed app whose dylib references the old framework). Source is fine; don't chase it as a code bug. Fix: `xcrun simctl uninstall <sim-id> info.ddenis.Spud` (+ `.xctrunner`), then a clean build. A size-mismatch diff (vs a content diff — check with PIL) is the tell it's a build artifact, not a regression.
 - **Swift Testing results don't appear in xcodebuild's XCTest "Executed N tests" summary** (it prints "Executed 0 tests" for a Swift-Testing-only target) — look for `✔ Test run with N tests in M suites passed` and the per-test `✔`/`✘` lines instead.
+- `xcodebuild` test output spews benign environment noise: `OSStatus error:[-34018]` keychain "entitlement isn't present", `DTDKRemoteDeviceConnection ... "passcode protected"`, plus the deliberate `site.fetchFailed` / `couldnt_find_post` logs from error-path tests. None are failures — trust the `✔ Test run with N tests ... passed` line.
 - Don't reach for `sending` on init parameters whose type is already an actor — actors are auto-Sendable, so the `Sending '<value>' risks causing data races` diagnostic is coming from elsewhere (typically a stale Package.resolved or wrong simulator SDK).
 - `build_and_test.py` on a *framework* scheme (e.g. `SpudDataKit`) defaults to the macOS ("My Mac") destination and fails the deployment-target check — pass `--simulator "iPhone 17"` (or `--platform iOS`) for iOS framework unit tests.
 - `build_and_test.py --test --suite SpudDataKit` intermittently misfires with "Tests in the target 'SpudDataKit' can't be run because 'SpudDataKit' isn't a member of the specified test plan or scheme" (reports 0/0). Fall back to `xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan Spud -only-testing:SpudDataKitTests -destination 'platform=iOS Simulator,name=iPhone 17' -skipPackagePluginValidation -skipMacroValidation test`.
