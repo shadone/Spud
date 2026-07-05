@@ -16,7 +16,8 @@ enum PipedProxy {
     /// - Returns: the proxied URL, or nil if either URL cannot be parsed.
     static func rewrite(streamURL: String, proxyPrefix: String) -> URL? {
         guard var comps = URLComponents(string: streamURL), let originalHost = comps.host,
-              let proxy = URLComponents(string: proxyPrefix), let proxyHost = proxy.host
+              let proxy = URLComponents(string: proxyPrefix),
+              let proxyHost = proxy.host, !proxyHost.isEmpty
         else {
             return nil
         }

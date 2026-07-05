@@ -28,6 +28,11 @@ struct PipedProxyTests {
         #expect(PipedProxy.rewrite(streamURL: "", proxyPrefix: "https://p.host") == nil)
         #expect(PipedProxy.rewrite(streamURL: "https://x.googlevideo.com/v", proxyPrefix: "") == nil)
     }
+
+    @Test
+    func returnsNilWhenProxyPrefixHasNoHost() {
+        #expect(PipedProxy.rewrite(streamURL: "https://x.googlevideo.com/v?a=1", proxyPrefix: "https://") == nil)
+    }
 }
 
 struct PipedInstanceResolverTests {
@@ -56,9 +61,19 @@ struct PipedInstanceResolverTests {
     }
 
     @Test
-    func youtubeUrlIsNilWhenFrontEndNotPiped() {
+    func youtubeUrlIsNilWhenRedirectDisabled() {
         // Default: redirectToFrontEnds off -> no Piped instance for a raw youtube link.
         #expect(apiHost("https://www.youtube.com/watch?v=dQw4w9WgXcQ", .default) == nil)
+    }
+
+    @Test
+    func youtubeUrlIsNilWhenFrontEndIsInvidious() {
+        var c = URLSanitizerConfig.default
+        c.redirectToFrontEnds = true
+        c.frontEnds = c.frontEnds.map {
+            $0.service == .youtube ? FrontEndConfig(service: .youtube, isEnabled: true, host: "yewtu.be") : $0
+        }
+        #expect(apiHost("https://www.youtube.com/watch?v=dQw4w9WgXcQ", c) == nil)
     }
 
     @Test
@@ -165,6 +180,13 @@ struct PipedVideoHostResolutionTests {
     func networkErrorWhenFetchNil() async {
         await #expect(throws: VideoHostResolutionError.network) {
             try await host(returning: nil, config: pipedConfig).resolve(ytMatch)
+        }
+    }
+
+    @Test
+    func throwsDecodingOnGarbage() async {
+        await #expect(throws: VideoHostResolutionError.decoding) {
+            try await host(returning: "not json", config: pipedConfig).resolve(ytMatch)
         }
     }
 }
