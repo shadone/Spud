@@ -14,4 +14,10 @@ enum AppLaunchArgument: String {
     /// auto-bootstrap used to provide, now that onboarding gates a fresh
     /// install. Never set by the shipping app.
     case seedSignedOutDefaultAccount = "SPUDSeedSignedOutDefaultAccount"
+
+    /// Test-only: seed a signed-in default account on discuss.tchncs.de at
+    /// launch (fixed keychain id, fake JWT) so UI tests can land on the app
+    /// already authenticated, without a live login. DEBUG-only seam; never
+    /// set by the shipping app.
+    case seedSignedInDefaultAccount = "SPUDSeedSignedInDefaultAccount"
 }

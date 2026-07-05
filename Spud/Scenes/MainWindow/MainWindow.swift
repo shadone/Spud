@@ -96,6 +96,12 @@ class MainWindow: UIWindow {
         super.init(windowScene: windowScene)
 
         seedDefaultAccountForUITestsIfRequested()
+        #if DEBUG
+        // Mutually exclusive with the signed-out seed above via the shared
+        // `currentDefaultAccountKeychainId() == nil` guard: if both launch
+        // arguments are passed, the signed-out seed runs first and wins.
+        seedSignedInDefaultAccountForUITestsIfRequested()
+        #endif
 
         // Durable launch event: fires once per cold start and records the instance
         // if an account is already present (fresh installs emit nil).
@@ -168,6 +174,23 @@ class MainWindow: UIWindow {
         else { return }
         accountService.signInAsSignedOut(atInstance: instance)
     }
+
+    #if DEBUG
+    /// UI tests stub the feed for discuss.tchncs.de and expect to land on it
+    /// already signed in. Mirrors `seedDefaultAccountForUITestsIfRequested`
+    /// but seeds a signed-in account (fixed keychain id, fake JWT) via the
+    /// DEBUG-only `AccountServiceType.seedSignedInDefaultAccount` seam. No-op
+    /// otherwise; never compiled into release builds.
+    private func seedSignedInDefaultAccountForUITestsIfRequested() {
+        guard
+            ProcessInfo.processInfo.arguments
+            .contains(AppLaunchArgument.seedSignedInDefaultAccount.rawValue),
+            accountService.currentDefaultAccountKeychainId() == nil,
+            let instance = InstanceActorId(from: "https://discuss.tchncs.de")
+        else { return }
+        accountService.seedSignedInDefaultAccount(atInstance: instance)
+    }
+    #endif
 
     private func showOnboarding() {
         let welcomeViewController = OnboardingWelcomeViewController()
