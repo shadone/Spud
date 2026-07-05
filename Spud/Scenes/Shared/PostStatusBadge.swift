@@ -22,6 +22,7 @@ struct PostStatusBadge {
         badges(
             isRemoved: row.isRemoved,
             isDeleted: row.isDeleted,
+            isUnavailable: row.isUnavailable,
             isLocked: row.isLocked,
             isFeatured: row.isFeaturedCommunity || row.isFeaturedLocal
         )
@@ -31,14 +32,16 @@ struct PostStatusBadge {
         badges(
             isRemoved: row.isRemoved,
             isDeleted: row.isDeleted,
+            isUnavailable: row.isUnavailable,
             isLocked: row.isLocked,
             isFeatured: row.isFeaturedCommunity || row.isFeaturedLocal
         )
     }
 
-    private static func badges(
+    static func badges(
         isRemoved: Bool,
         isDeleted: Bool,
+        isUnavailable: Bool,
         isLocked: Bool,
         isFeatured: Bool
     ) -> [PostStatusBadge] {
@@ -47,6 +50,10 @@ struct PostStatusBadge {
             badges.append(.init(symbolName: "trash.slash.fill", color: .systemRed))
         } else if isDeleted {
             badges.append(.init(symbolName: "trash.fill", color: .systemRed))
+        } else if isUnavailable {
+            // Neutral, not red: for `couldnt_find_post` we know the post is gone
+            // but not whether it was removed, deleted, or de-federated.
+            badges.append(.init(symbolName: "exclamationmark.octagon", color: .secondaryLabel))
         }
         if isFeatured {
             badges.append(.init(symbolName: "pin.fill", color: .systemGreen))

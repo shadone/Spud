@@ -89,4 +89,54 @@ struct OutboxServiceTests {
         #expect(vote == nil)
         #expect(events.first?.kind == .vote)
     }
+
+    @Test
+    func nonNotFoundPermanentFailureReportsReasonOther() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, siteId) = try await seedAccountAndSite(appDatabase)
+        let postId = try await seedPost(appDatabase, accountId: accountId, siteId: siteId, score: 5, voteStatus: nil)
+        let performer = FakeOutboxPerformer()
+        await performer.setOutcome(.fail(LemmyServiceError.requiresAuthentication), for: .vote)
+        let service = makeService(appDatabase, performer, accountId: accountId)
+
+        var events: [OutboxFailure] = []
+        let stream = await service.failureEvents
+        let collector = Task { for await event in stream {
+            events.append(event)
+            break
+        } }
+        await service.enqueue(.init(entityType: .post, entityServerId: postId, desiredState: .vote(.liked)))
+        _ = await collector.value
+
+        #expect(events.count == 1)
+        #expect(events[0].reason == .other)
+    }
+
+    @Test
+    func notFoundVoteMarksPostUnavailableAndReportsReason() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, siteId) = try await seedAccountAndSite(appDatabase)
+        let postId = try await seedPost(appDatabase, accountId: accountId, siteId: siteId, score: 5, voteStatus: nil)
+        let performer = FakeOutboxPerformer()
+        let notFound = LemmyApiError.serverError(
+            Components.Schemas.ErrorResponse(error: "couldnt_find_post", message: nil)
+        )
+        await performer.setOutcome(.fail(notFound), for: .vote)
+        let service = makeService(appDatabase, performer, accountId: accountId)
+
+        var events: [OutboxFailure] = []
+        let stream = await service.failureEvents
+        let collector = Task { for await event in stream {
+            events.append(event)
+            break
+        } }
+
+        await service.enqueue(.init(entityType: .post, entityServerId: postId, desiredState: .vote(.liked)))
+        _ = await collector.value
+
+        #expect(try await readPostUnavailable(appDatabase, accountId: accountId, serverPostId: postId) == true)
+        #expect(events.count == 1)
+        #expect(events[0].reason == .notFound)
+        #expect(events[0].kind == .vote)
+    }
 }

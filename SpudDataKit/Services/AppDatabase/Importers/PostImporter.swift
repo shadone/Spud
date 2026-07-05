@@ -205,6 +205,9 @@ public extension AppDatabase {
         record.isFeaturedCommunity = post.featured_community
         record.isFeaturedLocal = post.featured_local
         record.isDeleted = post.deleted
+        // A fresh authoritative PostView means the post exists again — clear any
+        // stale "unavailable" tombstone from a prior couldnt_find_post.
+        record.isUnavailable = false
         record.isNsfw = post.nsfw
 
         switch view.my_vote {

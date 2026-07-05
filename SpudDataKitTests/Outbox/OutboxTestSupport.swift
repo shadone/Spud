@@ -194,6 +194,20 @@ func readPostDeleted(
     }
 }
 
+func readPostUnavailable(
+    _ appDatabase: AppDatabase,
+    accountId: Int64,
+    serverPostId: Int64
+) async throws -> Bool {
+    try await appDatabase.writer.read { db -> Bool in
+        let row = try PostRecord
+            .filter(Column("postId") == serverPostId)
+            .filter(Column("accountId") == accountId)
+            .fetchOne(db)
+        return row?.isUnavailable ?? false
+    }
+}
+
 func readCommentVote(
     _ appDatabase: AppDatabase,
     accountId: Int64,

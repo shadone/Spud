@@ -66,6 +66,18 @@ public enum OptimisticWrites {
         )
     }
 
+    public static func setPostUnavailable(
+        _ db: Database,
+        accountId: Int64,
+        serverPostId: Int64,
+        isUnavailable: Bool
+    ) throws {
+        try db.execute(
+            sql: "UPDATE post SET isUnavailable = ? WHERE postId = ? AND accountId = ?",
+            arguments: [isUnavailable, serverPostId, accountId]
+        )
+    }
+
     /// Apply an edit's title/body/url/nsfw to the local post row optimistically so
     /// the open post header reflects it immediately, before the content outbox
     /// confirms it server-side. The post-edit reconcile guard keeps these values

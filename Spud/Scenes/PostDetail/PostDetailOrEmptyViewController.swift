@@ -51,6 +51,7 @@ class PostDetailOrEmptyViewController: UIViewController {
         case empty
         case post(serverPostId: Components.Schemas.PostID)
         case load(serverPostId: Components.Schemas.PostID)
+        case unavailable(reason: PostUnavailableReason)
     }
 
     private var state: State {
@@ -152,6 +153,10 @@ class PostDetailOrEmptyViewController: UIViewController {
             // FIXME: this is hacky, make custom ChildVC base class for handling navitems
             navigationItem.rightBarButtonItem = contentViewController.navigationItem.rightBarButtonItem
 
+            contentViewController.didBecomeUnavailable = { [weak self] reason in
+                self?.state = .unavailable(reason: reason)
+            }
+
         case let .load(serverPostId):
             let loadingViewController = PostDetailLoadingViewController(
                 serverPostId: serverPostId,
@@ -163,9 +168,16 @@ class PostDetailOrEmptyViewController: UIViewController {
             loadingViewController.didFinishLoading = { [weak self] serverPostId in
                 self?.state = .post(serverPostId: serverPostId)
             }
+            loadingViewController.didFail = { [weak self] reason in
+                self?.state = .unavailable(reason: reason)
+            }
+
+        case let .unavailable(reason):
+            newViewController = PostUnavailableViewController(reason: reason)
         }
 
         add(child: newViewController)
         addSubviewWithEdgeConstraints(child: newViewController)
+        currentViewController = newViewController
     }
 }

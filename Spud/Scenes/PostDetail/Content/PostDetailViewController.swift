@@ -157,6 +157,13 @@ class PostDetailViewController: UIViewController {
         return button
     }()
 
+    // MARK: - Public
+
+    /// Fires when the observed post flips to a gone state (removed / deleted by
+    /// someone else / `couldnt_find_post`) and the current account is not a
+    /// moderator or the author. The parent swaps in the unavailable placeholder.
+    var didBecomeUnavailable: ((PostUnavailableReason) -> Void)?
+
     // MARK: - Private
 
     private var viewModel: PostDetailViewModel
@@ -205,6 +212,14 @@ class PostDetailViewController: UIViewController {
     /// on appearance. Drives whether mod actions show in the context menus.
     /// `.none` until the first fetch (and for signed-out accounts).
     private var moderationCapability: ModerationCapability = .none
+    /// True once `refreshModerationCapability()` has completed its async fetch.
+    /// Until then the removed/deleted placeholder decision is deferred (see
+    /// `PostUnavailableReason.forHeader`) to avoid racing a moderator/author
+    /// out of their Restore access.
+    private var moderationCapabilityResolved = false
+    /// Guards `didBecomeUnavailable` so the placeholder fires at most once,
+    /// whether triggered by an observed row or by the capability resolving.
+    private var didFirePlaceholder = false
     /// Per-collapsed-parent hidden-descendant counts from the last visible-tree
     /// computation. Used to render the "+N" badge on collapsed cells.
     private var collapsedDescendantCounts: [Int64: Int] = [:]
@@ -574,6 +589,10 @@ class PostDetailViewController: UIViewController {
             ) ?? .none
             guard !Task.isCancelled else { return }
             moderationCapability = capability
+            moderationCapabilityResolved = true
+            // A row may have already arrived while the capability was still
+            // resolving (it was deferred); re-evaluate it now.
+            reevaluateUnavailability()
         }
     }
 
@@ -613,6 +632,8 @@ class PostDetailViewController: UIViewController {
             for await row in appDatabase.observePostDetailHeader(postRowId: postRowId) {
                 if Task.isCancelled { break }
                 headerRow = row
+                reevaluateUnavailability()
+                if didFirePlaceholder { break }
                 updateHeaderPrivacy()
                 // Rebuild so the Save/Unsave label, Mute target, and the
                 // own-post-gated Report/Block items reflect the latest row.
@@ -657,6 +678,33 @@ class PostDetailViewController: UIViewController {
                 snapshot: snapshotAndCount?.snapshot
             )
         }
+    }
+
+    /// Fires the unavailable placeholder for the current header row if the
+    /// gating rule now warrants it. Fires at most once.
+    private func reevaluateUnavailability() {
+        guard !didFirePlaceholder, let headerRow, let reason = unavailableReason(for: headerRow) else {
+            return
+        }
+        didFirePlaceholder = true
+        didBecomeUnavailable?(reason)
+    }
+
+    /// Maps an observed header row to the placeholder reason, or nil to keep the
+    /// content. Mods keep removed posts; authors keep their own deleted posts.
+    private func unavailableReason(for row: PostDetailHeaderRow) -> PostUnavailableReason? {
+        let canModerate = moderationCapability.canModerate(
+            communityId: Components.Schemas.CommunityID(row.serverCommunityId)
+        )
+        let isOwnPost = row.creatorPersonId == viewModel.currentAccountPersonId
+        return PostUnavailableReason.forHeader(
+            isRemoved: row.isRemoved,
+            isDeleted: row.isDeleted,
+            isUnavailable: row.isUnavailable,
+            canModerate: canModerate,
+            isOwnPost: isOwnPost,
+            moderationCapabilityResolved: moderationCapabilityResolved
+        )
     }
 
     private func startCommentObservation(postRowId: Int64) {
