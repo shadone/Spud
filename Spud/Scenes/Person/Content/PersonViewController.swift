@@ -821,7 +821,8 @@ class PersonViewController: UIViewController {
         }
 
         cell.videoTapped = { [weak self] videoUrl in
-            self?.presentVideoPlayer(url: videoUrl)
+            guard let self else { return }
+            Task { await self.playVideo(url: videoUrl, appService: self.appService) }
         }
 
         cell.linkTapped = { [weak self] linkUrl in

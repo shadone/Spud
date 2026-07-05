@@ -521,7 +521,8 @@ class ActivityViewController: UIViewController {
             )
         }
         container.postContentView.videoTapped = { [weak self] videoUrl in
-            self?.presentVideoPlayer(url: videoUrl)
+            guard let self else { return }
+            Task { await self.playVideo(url: videoUrl, appService: self.appService) }
         }
         container.postContentView.linkTapped = { [weak self] linkUrl in
             self?.openExternalLink(linkUrl)
