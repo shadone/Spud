@@ -1,7 +1,7 @@
 # Diagnostics logging
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** shipped — pending release (on `feat/logging-observability`)
+- **Status:** shipped
 - **Related:** [diagnostics-and-backup.md](diagnostics-and-backup.md), [drafts-and-outbox.md](drafts-and-outbox.md), [docs/superpowers/specs/2026-06-29-observability-logging-design.md](../superpowers/specs/2026-06-29-observability-logging-design.md)
 
 ## What it does

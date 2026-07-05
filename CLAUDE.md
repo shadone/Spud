@@ -22,7 +22,7 @@ The goal is a genuinely great app — top-notch UI/UX that looks and feels like 
 
 ## Project layout
 
-`Spud.xcodeproj` is generated from `project.yml` via XcodeGen (`make project` / `xcodegen generate`); the generated project is gitignored, so `project.yml` is the source of truth. There is no longer a workspace — `LemmyKit` is consumed as a **versioned remote SPM package** (`url:` + `exactVersion:` in `project.yml`, currently pinned to 0.5.0), resolved from its git remote. The sibling `../LemmyKit` directory is the development checkout of that package, **not** what Spud builds against — edits there don't reach Spud until they're tagged a release and the pin is bumped.
+`Spud.xcodeproj` is generated from `project.yml` via XcodeGen (`make project` / `xcodegen generate`); the generated project is gitignored, so `project.yml` is the source of truth. There is no longer a workspace — `LemmyKit` is consumed as a **versioned remote SPM package** (`url:` + `exactVersion:` in `project.yml`; see that file for the pinned version), resolved from its git remote. The sibling `../LemmyKit` directory is the development checkout of that package, **not** what Spud builds against — edits there don't reach Spud until they're tagged a release and the pin is bumped.
 
 ```
 info.ddenis/Spud/
@@ -57,11 +57,11 @@ Dependency direction: `Spud` → `SpudDataKit` → `SpudUtilKit`; `Spud` → `Sp
 
 ## Schemes & test plans
 
-- `Spud.xcscheme` — primary; uses `Spud.xctestplan` (Spud + SpudDataKit + SpudUtilKit + UI tests)
+- `Spud.xcscheme` — primary; uses `Spud.xctestplan` (all five unit-test targets — SpudTests, SpudDataKitTests, SpudUtilKitTests, SpudUIKitTests, SpudMarkdownKitTests — plus SpudUITests) and, as a second plan, `SpudSnapshots.xctestplan`
 - `SpudDataKit.xcscheme` — framework dev loop
 - `SpudWidgetExtension.xcscheme` — widget dev loop
 - `SpudUITests.xcscheme` — UI tests in isolation
-- `SpudSnapshots.xctestplan` — snapshot tests only; **run on iPhone 17 Pro, portrait** (the reference device), otherwise the app-level reference images won't match (they drift across iOS minor versions). Pin the OS in `-destination` — `name=iPhone 17 Pro` alone can resolve to the wrong runtime. **As of 2026-06 the installed runtime is `26.3.1`, and `OS=26.3` no longer resolves (it falls through to a physical-device error)** — pin `OS=26.3.1`, or target the booted sim / its device id.
+- `SpudSnapshots.xctestplan` — snapshot tests only (in the `Spud` scheme, not a separate scheme); references were recorded on the reference device **iPhone 17 Pro, portrait, iOS 26.3.x**, and the app-level images only match there (they drift across iOS minor versions). Run it with `make snapshot`, which resolves the reference device/runtime and fails fast on the wrong sim (`scripts/resolve-test-destination.sh`) — don't hand-pin a drifting `OS=` string. See [`SpudSnapshotTests/CLAUDE.md`](SpudSnapshotTests/CLAUDE.md).
 
 ## Persistence
 
@@ -145,6 +145,8 @@ identifier is `accountKeychainId: String`.
 
 ## Build & test
 
+Prefer the `make` targets — they wrap `xcodebuild` with the required plugin/macro skip flags (`-skipPackagePluginValidation -skipMacroValidation`, needed because LemmyKit pulls in swift-openapi-generator's build-tool plugin that `xcodebuild` won't validate non-interactively) and resolve the `-destination` from `scripts/resolve-test-destination.sh`, so there's no hand-typed simulator string to drift.
+
 ```sh
 # One-time
 brew install mint xcodegen
@@ -154,54 +156,40 @@ ln -sf ../../scripts/git-hooks/pre-commit .git/hooks/pre-commit
 # Regenerate the project after editing project.yml or adding/removing sources
 make project                              # xcodegen generate
 
-# Build (bare project — no workspace). The agentic build_and_test.py wrapper expects
-# --simulator "iPhone 17 Pro" — match that here unless you know a 15 Pro is installed.
-# Fresh derived-data builds need the plugin/macro skip flags (LemmyKit pulls in
-# swift-openapi-generator's build-tool plugin, which xcodebuild won't validate
-# non-interactively): add -skipPackagePluginValidation -skipMacroValidation.
-xcodebuild -project Spud.xcodeproj -scheme Spud \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
-
-# Unit tests
-xcodebuild -project Spud.xcodeproj -scheme Spud \
-  -testPlan Spud -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
-
-# Snapshot tests — run on iPhone 17 Pro **iOS 26.3** (pin the OS!). The full-screen
-# app-level snapshots are font/runtime-sensitive: the refs were recorded on iOS 26.3
-# and FAIL EN MASSE on iOS 26.0 (anti-aliasing/hinting drift), even with no code change.
-# `name=iPhone 17 Pro` alone is ambiguous — multiple iPhone 17 Pro sims can exist on
-# different runtimes (26.0 / 26.3) and the name picks an arbitrary one. ALWAYS pin OS=26.3.
-# first run records missing refs + fails, rerun verifies.
-xcodebuild -project Spud.xcodeproj -scheme Spud \
-  -testPlan SpudSnapshots \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3' test
-
-# Run a single snapshot class (the build_and_test.py wrapper has no --testPlan, so use
-# xcodebuild). Newer screen snapshots pin a config (.image(on: .iPhone13Pro, traits:)) so
-# they're device-independent — any sim works; first run records missing refs + fails, rerun verifies.
-xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan SpudSnapshots \
-  -only-testing:SpudSnapshotTests/InstanceDetailSnapshotTests \
-  -destination 'platform=iOS Simulator,name=iPhone 17' \
-  -skipPackagePluginValidation -skipMacroValidation test
-
-# Faster build path used in agentic sessions — incremental, parses errors/warnings,
-# supports --json. Fall back to xcodebuild only if you need flags it doesn't expose.
-python3 /Users/denis/dev/info.ddenis/dotfiles/agent-rules/skills/xcode-skill/scripts/build_and_test.py --scheme Spud
-python3 /Users/denis/dev/info.ddenis/dotfiles/agent-rules/skills/xcode-skill/scripts/build_and_test.py --scheme SpudWidgetExtension
+# Build + test (destination auto-resolved)
+make build                                # build the app for the booted/reference sim
+make test                                 # full Spud unit-test plan (all five unit-test targets + UI tests)
+make test-only ONLY=SpudDataKitTests      # a single target from the Spud plan
+make snapshot                             # snapshot plan on the reference device (iPhone 17 Pro / iOS 26.3.x)
 ```
 
-The Xcode project is generated by XcodeGen, so `project.pbxproj` is no longer committed — the `scripts/sort-Xcode-project-file.pl` sort step the pre-commit hook used to run is no longer required (the script is kept for reference).
+`scripts/resolve-test-destination.sh` targets an already-booted sim BY ID (booting a second sim by name causes "SBMainWorkspace Busy" failures) or, when nothing is booted, the reference iPhone 17 Pro on the newest iOS 26.3.x runtime. `make snapshot` additionally FAILS if the booted sim isn't the reference device — the app-level snapshot refs only match on iPhone 17 Pro / iOS 26.3.x (see [`SpudSnapshotTests/CLAUDE.md`](SpudSnapshotTests/CLAUDE.md)). `make test` / `test-only` already pass `-test-timeouts-enabled YES -default-test-execution-time-allowance 60` so a deadlocked Swift Testing test fails-and-names instead of hanging.
+
+Fallbacks — the faster incremental `build_and_test.py` wrapper (parses errors/warnings, supports `--json`) and raw `xcodebuild` when you need a flag the make targets don't expose. Get the `-destination` from the resolver so you never hard-code a drifting `OS=` string:
+
+```sh
+python3 /Users/denis/dev/info.ddenis/dotfiles/agent-rules/skills/xcode-skill/scripts/build_and_test.py --scheme Spud
+python3 /Users/denis/dev/info.ddenis/dotfiles/agent-rules/skills/xcode-skill/scripts/build_and_test.py --scheme SpudWidgetExtension
+
+# Raw xcodebuild fallback
+xcodebuild -project Spud.xcodeproj -scheme Spud \
+  -destination "$(scripts/resolve-test-destination.sh)" \
+  -skipPackagePluginValidation -skipMacroValidation build
+
+# A single snapshot class (make snapshot runs the whole plan). Newer screen snapshots
+# pin a device-independent config (.image(on: .deterministicPhone)) so any sim works;
+# first run records missing refs + fails, rerun verifies.
+xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan SpudSnapshots \
+  -only-testing:SpudSnapshotTests/InstanceDetailSnapshotTests \
+  -destination "$(scripts/resolve-test-destination.sh --reference)" \
+  -skipPackagePluginValidation -skipMacroValidation test
+```
+
+The Xcode project is generated by XcodeGen, so `project.pbxproj` is no longer committed — the `scripts/sort-Xcode-project-file.pl` sort step the pre-commit hook used to run is no longer required (the script is kept for reference). The pre-commit hook now runs SwiftFormat in lint mode and **BLOCKS the commit on a formatting violation** (fix with `mint run swiftformat .` and re-stage).
 
 ## Release / TestFlight
 
-First internal build shipped 2026-06-23 — App Store Connect app "Spud for Lemmy", APP_ID 6783281123.
-
-- **Archive with `make release-project`, never `make project`.** It strips test-only deps (the `# >>> release-strip` sentinel block in `project.yml`, currently `SBTUITestTunnelServer`) — shipping that server links the private `__NSMakeSpecialForwardingCaptureBlock` and the build is rejected with **ITMS-90338**. `make project` (dev) keeps it for Debug/UI tests (the app's `import` + `takeOff()` are `#if DEBUG`).
-- **Build release archives with Xcode 26.x.** Xcode 16.4 can't compile the project (Nuke's `isolated deinit` needs Swift 6.2).
-- **Distribution is `asc`-driven**, not Xcode Cloud (which isn't set up; the ASC API also can't create app records — web UI only). Flow: `make release-project` → Release archive (`generic/platform=iOS`) → manual-signed `-exportArchive` (Apple Distribution cert) → `ASC_TIMEOUT=180s asc builds upload --app 6783281123 --ipa <ipa> --wait` (the API is flaky on short timeouts) → once VALID, **distribute to internal testers with `ASC_TIMEOUT=180s asc builds add-groups --build-id <id> --group 9033005f-cd9f-45ce-a33a-59bf992f5082`** (builds do NOT auto-reach the "Internal Testers" group; no `--submit` for internal). `add-groups` is flaky like the upload — on "context deadline exceeded" just retry it (idempotent). `ITSAppUsesNonExemptEncryption=false` is already set, so no export-compliance step. Cert/keychain/profile specifics are in the session auto-memory. The archive embeds **4** signable bundles (Spud + Widget + OpenInAppExtension + OpenInSpudAction) — each needs an `IOS_APP_STORE` profile or `-exportArchive` fails one extension at a time; automatic signing fails headlessly (no Xcode account → "No Accounts"), so sign **manually** and fetch/install all 4 profiles with `asc signing fetch --bundle-id <id> --profile-type IOS_APP_STORE --create-missing` (they're tied to the local distribution identity in the login keychain).
-- **Entitlement gate — run before EVERY upload.** `make verify-archive ARCHIVE=<path.xcarchive>` and `make verify-ipa IPA=<path.ipa>` (wrapping `scripts/check-app-entitlements.sh`) fail if the App Group (`group.info.ddenis.Spud.shared`) or keychain group is missing from the signed app; a non-zero exit MUST block `asc builds upload`. **Never archive with `CODE_SIGNING_ALLOWED=NO`** — it drops the app's entitlements, which crashes the app at launch (`AppDatabase` → `appGroupContainerUnavailable` → `fatalError`) AND makes iOS wipe the App Group container (user data loss). This is invisible to tests + the simulator (sim builds legitimately have empty entitlements and don't enforce app groups), so the gate is the only safety net. Build 12 shipped this exact regression; build 13 re-archived WITH signing to fix it.
-- After archiving with `make release-project`, run `make project` to restore the dev project (the release variant has the test tunnel stripped, so UI tests won't build against it).
-- Bump `CURRENT_PROJECT_VERSION` in `project.yml` before each release (next ≥24 as of 2026-06; the session auto-memory `spud-testflight-release-setup` tracks the exact current build number).
+Archive with `make release-project` (never `make project` — it strips the test-only tunnel that otherwise triggers ITMS-90338), then gate EVERY upload with `make verify-archive ARCHIVE=<path>` / `make verify-ipa IPA=<path>` — a non-zero exit MUST block the upload (a mis-signed archive drops the App Group entitlement, crashes the app at launch, and makes iOS wipe user data). Full runbook — `asc`-driven distribution flow, manual signing, build-number bump, and Release-crash reproduction / `.ips` symbolication — in [docs/release-runbook.md](docs/release-runbook.md).
 
 ## Code style
 
@@ -218,9 +206,9 @@ First internal build shipped 2026-06-23 — App Store Connect app "Spud for Lemm
 
 ## Tooling quirks
 
-- **Swift Testing (unit tests).** All five unit-test targets are Swift Testing, not XCTest. Suites are `struct` (or `@MainActor struct`); tests are `@Test func` (no `test` prefix); `#expect`/`#require`/`Issue.record`. Run a single target via the right scheme: `SpudTests`/`SpudDataKitTests`/`SpudUtilKitTests` are in the **Spud** scheme's `Spud` test plan (`-only-testing:<target>`); `SpudUIKitTests` runs only via the **SpudUIKit** scheme; `SpudMarkdownKitTests` via the **SpudMarkdownKit** scheme (add `-only-testing:SpudMarkdownKitTests` to skip its snapshot sibling). Add `-test-timeouts-enabled YES -default-test-execution-time-allowance 60` so a deadlocked test fails-and-names instead of hanging (Swift Testing waits forever for a stuck `@Test`).
+- **Swift Testing (unit tests).** All five unit-test targets are Swift Testing, not XCTest. Suites are `struct` (or `@MainActor struct`); tests are `@Test func` (no `test` prefix); `#expect`/`#require`/`Issue.record`. The **Spud** scheme's `Spud` test plan now covers all five (`SpudTests`, `SpudDataKitTests`, `SpudUtilKitTests`, `SpudUIKitTests`, `SpudMarkdownKitTests`), so run one with `make test-only ONLY=<target>`. `SpudDataKitTests` / `SpudUIKitTests` also still run via their own **SpudDataKit** / **SpudUIKit** schemes, and `SpudMarkdownKitTests` via the **SpudMarkdownKit** scheme (add `-only-testing:SpudMarkdownKitTests` to skip its snapshot sibling). The make targets already pass `-test-timeouts-enabled YES -default-test-execution-time-allowance 60` so a deadlocked test fails-and-names instead of hanging (Swift Testing waits forever for a stuck `@Test`).
 - **Swift Testing runs a suite's tests in PARALLEL** (XCTest ran a class serially). Suites touching process-global mutable state (a shared `UserDefaults` suite, a `.shared` singleton, a fixed-path DB) need `@Suite(.serialized)` — see `UserDefaultsBackedTests`. `@MainActor` suites with synchronous tests are already serialized on the main actor; per-test `AppDatabase.inMemory()` is isolated.
-- **`.swiftformat` has `--enable isEmpty`**, which rewrites `x.count == 0` → `x.isEmpty`. On a type without `isEmpty` (it can't tell), this breaks the build. Converting `XCTAssertEqual(x.count, 0)` to `#expect(x.count == 0)` trips this — guard the line with `// swiftformat:disable:next isEmpty`. **Always run `mint run swiftformat` BEFORE the final test verify**, never after — formatting after a green verify can slip a broken rewrite into the commit.
+- **Always run `mint run swiftformat` BEFORE the final test verify**, never after — formatting after a green verify can slip a rewrite into the commit that changes behavior/breaks the build. (Historical: the `--enable isEmpty` rule used to rewrite `x.count == 0` → `x.isEmpty` and break on types without `isEmpty`; it has since been removed from `.swiftformat`.)
 - `import Testing` does NOT re-export Foundation (XCTest did) — files using `Date`/`URL`/`URLError`/`Data` need an explicit `import Foundation`.
 - SourceKit "No such module" diagnostics in editor tooling are unreliable here — trust `build_and_test.py` over IDE squiggles.
 - `project.pbxproj` is generated by XcodeGen and gitignored — never hand-edit it; change `project.yml` and run `make project`. (The old advice to monkey-patch `pbxproj`'s `remove_file_by_id` for SPM `productRef` no longer applies.)
@@ -231,26 +219,18 @@ First internal build shipped 2026-06-23 — App Store Connect app "Spud for Lemm
 - LemmyKit surfaces a non-2xx response carrying a Lemmy error body as `LemmyApiError.serverError(ErrorResponse)` (e.g. `couldnt_find_post`), NOT `.unknownServerError`. A stub `ClientTransport` returning HTTP 400 + `{"error":"..."}` reproduces it for error-path tests (see `LemmyServiceContentNotFoundTests`).
 - `xcrun simctl list devices | grep Booted` — see which simulator is booted; the build wrapper auto-picks it (and its iOS version) over the configured iPhone 17 Pro unless `--simulator` is passed.
 - **"Simulator device failed to launch ... Busy (Application failed preflight checks)"** is sim contention, NOT a code/snapshot failure: `-destination 'name=iPhone 17...'` boots a *second* sim while another iPhone 17 sim is already booted (e.g. running unit then snapshot tests back-to-back). Target the booted sim by **id** — `-destination 'platform=iOS Simulator,id=<UUID>'` (from `xcrun simctl list devices | grep Booted`) — and re-run.
-- **Stale `Spud.app` on the SHARED sim → phantom failures.** The reference sim is shared across all worktrees/agents; a stale app installed from another worktree's *older* build makes a run crash with a phantom dyld `Symbol not found` (an OLD function signature) or produce spurious wrong-*size* snapshot failures — **even with a fresh `-derivedDataPath`** (the sim reuses the installed app whose dylib references the old framework). Source is fine; don't chase it as a code bug. Fix: `xcrun simctl uninstall <sim-id> info.ddenis.Spud` (+ `.xctrunner`), then a clean build. A size-mismatch diff (vs a content diff — check with PIL) is the tell it's a build artifact, not a regression.
 - **Swift Testing results don't appear in xcodebuild's XCTest "Executed N tests" summary** (it prints "Executed 0 tests" for a Swift-Testing-only target) — look for `✔ Test run with N tests in M suites passed` and the per-test `✔`/`✘` lines instead.
 - Don't reach for `sending` on init parameters whose type is already an actor — actors are auto-Sendable, so the `Sending '<value>' risks causing data races` diagnostic is coming from elsewhere (typically a stale Package.resolved or wrong simulator SDK).
 - `build_and_test.py` on a *framework* scheme (e.g. `SpudDataKit`) defaults to the macOS ("My Mac") destination and fails the deployment-target check — pass `--simulator "iPhone 17"` (or `--platform iOS`) for iOS framework unit tests.
 - `build_and_test.py --test --suite SpudDataKit` intermittently misfires with "Tests in the target 'SpudDataKit' can't be run because 'SpudDataKit' isn't a member of the specified test plan or scheme" (reports 0/0). Fall back to `xcodebuild -project Spud.xcodeproj -scheme Spud -testPlan Spud -only-testing:SpudDataKitTests -destination 'platform=iOS Simulator,name=iPhone 17' -skipPackagePluginValidation -skipMacroValidation test`.
-- Snapshot a view controller by passing a fake struct conforming to its `Dependencies` composition (e.g. `StaticImageService()` + `AlertService()` + `AccountService(appDatabase: try AppDatabase.inMemory())`); fixtures with nil image URLs render placeholders deterministically (no async image loading).
 - A resolve-then-show wrapper VC (`*OrLoadingViewController`, e.g. `CommunityOrLoadingViewController`) must REPLACE itself with the resolved content VC in the nav stack (`navigationController.setViewControllers(...)`), NOT host it via `add(child:)`: UIKit only renders the `navigationItem` of the controller *on* the stack, so an embedded child's navbar (overflow menu, sort button, dynamic title) silently never appears. Snapshot tests render the content VC in isolation so they DON'T catch this — cover it with a UITest that walks the real wrapper path (`test_VisitCommunityFromPostContextMenu_showsNavbarActions`). (This shipped invisible from build 8 until fixed in build 9.) Swap gotcha: if the content VC was first embedded as a child via `addSubviewWithEdgeConstraints` (which sets `translatesAutoresizingMaskIntoConstraints = false`), reset it to `true` before `setViewControllers`, or UIKit frames the new nav-root to a ZERO frame and the content area renders blank (navbar fine, body empty).
 - SBTUITestTunnel stub fixtures must include EVERY required (non-`?`) field of the OpenAPI-generated response type, or decoding throws and the screen silently bails with no error UI (the importer/`*OrLoading` VC just returns). Cross-check required fields against the generated `Types.swift` (DerivedData `*LemmyKit*/…/GeneratedSources/Types.swift`). Easily-missed `GetCommunityResponse`/`Community`/`CommunityView`/`CommunityAggregates` requirements: `visibility`, `banned_from_community`, `subscribers_local` (the older `post-detail-*.json` omits `visibility` but gets away with it only because that test never asserts on the community).
-- Snapshotting a scrollable screen with `.image(on: .iPhone13Pro)` captures only the device viewport — pass a `size:` (full content height) so below-the-fold sections are in frame.
-- Snapshotting a screen VC that renders via an **async GRDB observation**: a synchronous `RunLoop.main.run(until:)` busy-spin starves the `@MainActor` observation continuation and records BLANK refs. Seed the DB first, then poll asynchronously (`await Task.sleep` / `Task.yield`) until the real view hierarchy shows the seeded content, and `XCTFail` if it never renders (so a broken render fails loudly instead of recording a blank). Example: `PendingPostSnapshotTests`.
-- Snapshotting a `UIVisualEffectView` blur/material (e.g. the NSFW blur overlay) needs **on-screen** rendering: the default `.image(size:traits:)` strategy renders offscreen via `layer.render(in:)`, which does **not** render `UIVisualEffectView` blur **nor any view inside its `contentView`** — the blur and its glyph come out invisible, so "blurred" and "revealed" refs look pixel-identical. Use `.image(drawHierarchyInKeyWindow: true, size:, traits:)` (renders against the key window via `drawViewHierarchy(afterScreenUpdates:)`) to capture the real frosted blur; it's stable across runs. Back it with a render-independent unit assertion too (the blur is environment-sensitive). Examples: `PostListNsfwBlurSnapshotTests`, `PostDetailHeaderSnapshotTests.test_image_nsfwBlurred`. (Putting the overlay's glyph as a sibling **above** the blur view, not inside its `contentView`, also keeps it visible offscreen.)
 - In an `async` test, `appDatabase.writer.write { }` resolves to GRDB's async overload — it needs `await` (synchronous tests don't).
-- Large binaries: **git-lfs** tracks `SpudDataKit/Resources/*.lzfse` (bundled Explorer seed); **git-annex** (unlocked, scoped via `.gitattributes` to all of `SpudSnapshotTests/__Snapshots__/**`) tracks every snapshot reference. Annex content is **local-only** (origin has no git-annex) — a fresh clone needs `git annex get`; sharing needs an annex special remote.
-- **Snapshot safe-area drift + the `deterministicPhone` fix.** VC-hosted `.image(on: .iPhone13Pro)` captures drift (~44pt vertical shift) when swift-snapshot-testing's device safe-area handling changes across versions, and their failure *count* is cross-suite-contamination/run-order dependent. Fix: `.image(on: .deterministicPhone)` (`SpudSnapshotTests/ViewImageConfig+Deterministic.swift` — `.iPhone13Pro` with `safeArea=.zero`, which forces the library's fully-offscreen render → immune to both drift and contamination, still device-independent). On-screen captures (blur / SwiftUI `.task`) use `FixedSafeAreaWindow` + `SnapshotDeterminism`; animating spinners get `precision: 0.98`. Verify in the FULL `SpudSnapshots` plan (not just isolation). Re-record = delete refs → run (records+fails) → rerun (verifies); `SNAPSHOT_TESTING_RECORD` does NOT forward to the sim here.
-- Re-recording snapshot refs (git-annex): record/verify **one snapshot class at a time** and never `git annex restage` between the record and verify runs — restage reverts the just-written PNGs (verify then reports "No reference"); after a green verify, `git add` (the annex clean filter stores them). The "content availability has changed … unable to update the index" status is cosmetic (`git add`/`commit` work) but makes refs read as persistently "modified", which blocks `git merge`/`git checkout`/`cherry-pick` ("local changes would be overwritten" / "Merge with strategy ort failed") — run `git annex restage` to clear the cosmetic status, then retry the merge/cherry-pick (committing-new-refs-first only helps when YOU recorded refs). Count written PNGs with `find`, not `ls …/*.png` (zsh aborts on no-match). `.image(size:traits:)` snapshots (the header/cell renders) AND the full-screen app-level snapshots ARE device+RUNTIME-sensitive (font/image rendering varies by sim AND iOS minor version), unlike `.image(on:)` ones — so they only match on the reference device+runtime: **iPhone 17 Pro, iOS 26.3**. Running the app-level suite on iOS 26.0 (a second iPhone 17 Pro sim that the bare `name=` can resolve to) fails ~129/185 with pure anti-aliasing/font-hinting drift (only text outlines differ — confirm with a PIL `ImageChops.difference` heatmap before assuming a regression); pin `OS=26.3`. A device/runtime mismatch reads as "Snapshot does not match" even for code you never changed. When refreshing refs, `git add` ONLY the specific refs you re-recorded (explicit paths) — the suite carries dozens of cosmetically-`M` annex refs that aren't your change, so `git add …/__Snapshots__/` would sweep them in.
-- `git status` here is configured `showUntrackedFiles=no` — plain `git status` / `--short` shows only *modified* files and silently hides untracked ones. Use `git status -uall` to see new files before committing, or you'll miss newly-added sources/tests/snapshots. Stage explicit paths (never `git add -A`): `.remember/remember.md` is a session-handoff buffer that's almost always dirty and is not yours to commit.
+- **Snapshot & git-annex specifics live in [`SpudSnapshotTests/CLAUDE.md`](SpudSnapshotTests/CLAUDE.md)** (auto-loaded when you work in that dir). The essentials: run the suite with `make snapshot` (resolves the reference device/runtime, fails fast on the wrong sim); references were recorded on iPhone 17 Pro / iOS 26.3.x and the full-screen app-level ones are font/runtime-sensitive; snapshot refs are git-annex-tracked (local-only — a fresh clone needs `git annex get`) while the bundled Explorer seed (`*.lzfse`) is git-lfs; re-record **one class at a time** and `git add` only the explicit refs you changed. Full ceremony (the `deterministicPhone` fix, blur on-screen rendering, async-GRDB seeding, annex restage rules, stale-app-on-shared-sim) is in that file.
+- Stage explicit paths (never `git add -A`) — `.remember/` is a gitignored, untracked session-handoff buffer that's not yours to commit, and explicit paths keep unrelated cosmetically-modified annex snapshot refs out of your commit.
 - Body markdown rendering: parse once via `MarkdownBlockCache.shared.blocks(for:)` (safe to warm off-main), then `MarkdownBodyView(context: MarkdownContext(kind: .post/.comment, textScale:, density:))`; set `.imageLoader` (a `@MainActor (URL) async -> UIImage?` wrapping `ImageService.fetch`) and `.delegate` (`MarkdownBodyDelegate`) before `setBlocks(_:)`. `MarkdownContext` bakes fonts at init, so recreate the view when the text-scale preference changes (canonical example: `PostDetailHeaderCell.makeBodyView`).
 - Body-text links (post & comment) render through `SpudMarkdownKit`: `InlineLexer` autolinks bare URLs and Lemmy mention shorthands (`!c@i`, `@u@i`) at parse time, and `InlineAttributedStringBuilder` stamps `.link` attributes. Bare URLs keep their real `http(s)` URL; mentions/communities become synthetic `spud-markdown://mention|community?name=…&instance=…` URLs. At **tap** time the body's `MarkdownBodyDelegate.markdownBody(didTapLink:)` fires; `MarkdownInternalLink.resolve` (`Spud/Utils/MarkdownInternalLink.swift`) translates a `spud-markdown://` link into the app's internal `URL.SpudInternalLink` (decoded by `URL.spud`), and any other URL falls through to `LemmyURLParser.classify` (path-based `/post` `/c`, bare-instance → internal link). Explicit markdown links whose destination is a Lemmy user / community / post / comment URL (`/u/name`, `/c/name`, `/post/<id>`, `/comment/<id>`, plus the frontend post form `/c/<community>/p/<id>[/<slug>]` some instances use, e.g. feddit.online) are rewritten to a synthetic `spud-markdown://` URL at render time by `InlineAttributedStringBuilder.lemmyReferenceURL` (`mention`/`community` carry name+instance; `object` carries the full URL → `.objectAtURL`), so they resolve **in-app** too (not just shorthand mentions) — bypassing `classify`'s known-instance (Explorer-directory) gate that otherwise sent unknown-instance links to Safari. (The Search field's paste-to-open uses a parallel `LemmyURLParser.frontendPostURL` for the same shape.) The old `MarkdownRenderer` / `addingAutolinks` path has been retired (the `Down` SPM dependency is gone).
-- **Reproduce a Release-only / first-launch crash on the sim** (Debug builds + UITests hide them — e.g. the build-24 launch crash): `xcodebuild -configuration Release -destination 'platform=iOS Simulator,id=<booted>' build` — do NOT add `-sdk iphonesimulator` (it makes swift-openapi-generator's build-tool plugin compile for the sim SDK → `_OpenAPIGeneratorCore is only to be used by swift-openapi-generator itself`). Then `simctl install`/`launch`, and read the crash from `xcrun simctl spawn <sim> log show --last 3m --predicate 'process=="Spud"'` (a Swift `fatalError` prints its full message there).
-- **Symbolicate a TestFlight crash `.ips`:** a Swift `fatalError` = EXC_BREAKPOINT/SIGTRAP, and its message is NOT in the `.ips` (device console only — see previous bullet to recover it). Symbolicate a frame with the archive's dSYM: `atos -o <archive>.xcarchive/dSYMs/Spud.app.dSYM/Contents/Resources/DWARF/Spud -arch arm64 -l 0x100000000 <0x100000000+imageOffset>` — use the dSYM LINK base `0x100000000` plus the frame's `imageOffset`, NOT the report's slid `base` (which yields raw addresses). Confirm the dSYM UUID matches the report's `usedImages[0].uuid`.
+- Reproducing a Release-only / first-launch crash on the sim and symbolicating a TestFlight `.ips` are in [docs/release-runbook.md](docs/release-runbook.md).
 - **idb tap automation is DEAD here** (idb crashes under Homebrew Python 3.14: `asyncio.get_event_loop()` no-event-loop), so the `ios-simulator-skill`'s navigator / screen_mapper / tap don't work, and `xcrun simctl openurl` with the `info.ddenis.spud://` scheme raises an untappable "Open in Spud?" SpringBoard prompt. Drive on-device UI with **XCUITest** (in-process taps work) — see auto-memory `spud_ui_test_sim_flake`.
 - **`SBTStubResponse(fileNamed:)` NSAsserts at registration if the fixture file is missing** → the whole UITest class crashes in `setUp` and reports "Executed 0 tests" (reads like it never ran, not like a failure — this silently disabled the iPad split test). Every fixture JSON referenced in a UITest's stubs must exist in the UITest target.
 
@@ -260,7 +240,7 @@ First internal build shipped 2026-06-23 — App Store Connect app "Spud for Lemm
 
 LemmyKit is at Swift 6 language mode (since 0.3.0) with Sendable on its hand-written types and openapi-generator >= 1.5 emits Sendable on every generated response type, so `import LemmyKit` (no `@preconcurrency`) works in SpudDataKit. Required: LemmyKit checkout has the openapi-generator dep bump (>= 1.12) **and** the build targets iOS 18+ SDK — iOS 17 SDK still flags `Sending 'self.api'` at every cross-actor `await api.xxx(...)` site.
 
-The bare `Spud.xcodeproj` is the only build target — it resolves LemmyKit from its pinned remote release (`exactVersion: 0.5.0`), which transitively brings openapi-generator 1.12.x, satisfying the >= 1.12 requirement above. The old workspace-vs-project gotcha (11 `Sending 'self.api' risks causing data races` errors in `LemmyService.swift` from a stale pinned resolve of older openapi versions) no longer applies: there is no workspace, and a release pin can't drift mid-session the way the live sibling checkout could.
+The bare `Spud.xcodeproj` is the only build target — it resolves LemmyKit from its pinned remote release (the `exactVersion:` in `project.yml`), which transitively brings openapi-generator 1.12.x, satisfying the >= 1.12 requirement above. The old workspace-vs-project gotcha (11 `Sending 'self.api' risks causing data races` errors in `LemmyService.swift` from a stale pinned resolve of older openapi versions) no longer applies: there is no workspace, and a release pin can't drift mid-session the way the live sibling checkout could.
 
 `ValueObservation.start` defaults to `.async(onQueue: .main)` which is `@MainActor`-isolated and illegal from non-isolated AsyncStream init closures. All `*Observations.swift` helpers pass `.async(onQueue: .global(qos: .userInitiated))` explicitly.
 
