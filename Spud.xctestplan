@@ -44,6 +44,20 @@
         "identifier" : "62EF48AF0E264E0CA169203C",
         "name" : "SpudUtilKitTests"
       }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Spud.xcodeproj",
+        "identifier" : "F5386A2AD33479CF26F9D392",
+        "name" : "SpudUIKitTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:Spud.xcodeproj",
+        "identifier" : "63AEBA1FFA7E36ECC98C5DFE",
+        "name" : "SpudMarkdownKitTests"
+      }
     }
   ],
   "version" : 1
