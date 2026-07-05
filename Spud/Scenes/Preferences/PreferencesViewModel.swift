@@ -522,6 +522,10 @@ final class PreferencesViewModel {
         mutateSanitizerConfig { $0.redirectToFrontEnds = value }
     }
 
+    func updateRewriteThirdPartyFrontEnds(_ value: Bool) {
+        mutateSanitizerConfig { $0.rewriteThirdPartyFrontEnds = value }
+    }
+
     func updateFrontEndEnabled(_ service: FrontEndService, _ value: Bool) {
         mutateSanitizerConfig { config in
             config.frontEnds = config.frontEnds.map { entry in

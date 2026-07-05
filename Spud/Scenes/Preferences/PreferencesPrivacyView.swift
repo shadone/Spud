@@ -50,6 +50,10 @@ struct PreferencesPrivacyView: View {
                 Toggle("Redirect to Front-ends", isOn: toggle(viewModel.urlSanitizerConfig.redirectToFrontEnds) {
                     viewModel.updateRedirectToFrontEnds($0)
                 })
+                Toggle("Rewrite Third-Party Front-ends", isOn: toggle(viewModel.urlSanitizerConfig.rewriteThirdPartyFrontEnds) {
+                    viewModel.updateRewriteThirdPartyFrontEnds($0)
+                })
+                .disabled(!viewModel.urlSanitizerConfig.redirectToFrontEnds)
                 ForEach(FrontEndService.allCases, id: \.self) { service in
                     NavigationLink {
                         FrontEndEditView(viewModel: viewModel, service: service)
@@ -66,7 +70,7 @@ struct PreferencesPrivacyView: View {
             } header: {
                 Text("Front-ends")
             } footer: {
-                Text("Public front-end instances change often. If one stops working, edit its host or turn it off.")
+                Text("Public front-end instances change often. If one stops working, edit its host or turn it off. \"Rewrite Third-Party Front-ends\" also re-points links already on a front-end (e.g. Invidious) to your chosen host.")
             }
             .disabled(!viewModel.urlSanitizerConfig.isEnabled)
         }
