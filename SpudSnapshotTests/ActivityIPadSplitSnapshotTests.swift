@@ -178,7 +178,7 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
         let (accountId, _) = try await seedAccount(into: appDatabase)
         try await seedVoteEvents(into: appDatabase, accountId: accountId)
 
-        let preferencesService = PreferencesService()
+        let preferencesService = SnapshotPreferences.ephemeral()
         let reachabilityMonitor = StaticReachabilityMonitor(isOnline: true)
         let appService = AppService(
             preferencesService: preferencesService,

@@ -45,7 +45,7 @@ final class DiscoverScreenSnapshotTests: XCTestCase {
                 accountService: AccountService(appDatabase: appDatabase),
                 alertService: AlertService(),
                 appDatabase: appDatabase,
-                preferencesService: PreferencesService()
+                preferencesService: SnapshotPreferences.ephemeral()
             )
             let viewModel = DiscoverViewModel(
                 accountScope: dependencies.accountService.scope(forAccountKeychainId: "snapshot-signed-out"),

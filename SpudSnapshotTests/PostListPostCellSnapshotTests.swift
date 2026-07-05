@@ -259,19 +259,13 @@ final class PostListPostCellSnapshotTests: XCTestCase {
     }
 
     private func makeViewModel(row: PostListRow, density: PostDensity, showVoteButtons: Bool = true) -> PostListPostViewModel {
-        // A fresh preferences service per render so the density override is
-        // isolated to the requesting test method.
-        let preferences = PreferencesService()
+        // A fresh, private UserDefaults suite per render so preference-backed
+        // layout gates read their canonical defaults, isolated from the sim's
+        // persisted state and from other tests. `thumbnailPosition` reads its
+        // `.left` default from the clean suite; `postDensity`/`showVoteButtons`
+        // are per-test inputs (some tests render with vote buttons hidden).
+        let preferences = SnapshotPreferences.ephemeral()
         preferences.postDensity = density
-        // Pin the two preference-backed layout gates to their canonical
-        // defaults. `PreferencesService` is `@UserDefaultsBacked`, so an
-        // unpinned instance reads the *sim's* persisted defaults —
-        // `thumbnailPosition` and `showVoteButtons` (gates at
-        // `PostListPostContentView.applyLayout`) then silently change the
-        // rendered cell, making the refs depend on the sim's app-preference
-        // state rather than the code. See the addendum in §5 of
-        // docs/superpowers/specs/2026-07-05-follow-ups.md.
-        preferences.thumbnailPosition = .left
         preferences.showVoteButtons = showVoteButtons
         let appearance = AppearanceService(preferencesService: preferences)
         return PostListPostViewModel(

@@ -14,9 +14,10 @@ import Testing
 struct PostDetailAppearanceTextScaleTests {
     @Test
     func postDetailTextScale_followsSliderAndMatchesPostList() {
-        let preferencesService = PreferencesService()
-        let originalScale = preferencesService.postTextScale
-        defer { preferencesService.postTextScale = originalScale }
+        // A fresh, private UserDefaults suite so the writes below never touch
+        // the shared `.standard` (`info.ddenis.Spud`) domain — no defer-restore
+        // needed.
+        let preferencesService = PreferencesService.ephemeral()
 
         let appearance = AppearanceService(preferencesService: preferencesService)
 

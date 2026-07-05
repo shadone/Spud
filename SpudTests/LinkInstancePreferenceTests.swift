@@ -12,11 +12,9 @@ import Testing
 struct LinkInstancePreferenceTests {
     @Test
     func defaults_preserveCurrentBehavior() {
-        // Clear any persisted values so we observe the declared defaults.
-        UserDefaults.standard.removeObject(forKey: "openInBrowserInstance")
-        UserDefaults.standard.removeObject(forKey: "shareLinkInstance")
-
-        let service = PreferencesService()
+        // A fresh, private UserDefaults suite has no persisted values, so the
+        // service observes the declared defaults without clobbering `.standard`.
+        let service = PreferencesService.ephemeral()
 
         #expect(service.openInBrowserInstance == .myInstance)
         #expect(service.shareLinkInstance == .originalInstance)

@@ -19,6 +19,12 @@ class SpudUITests: XCTestCase {
             SBTUITunneledApplicationLaunchOptionResetFilesystem,
             SBTUITunneledApplicationLaunchOptionDisableUITextFieldAutocomplete,
             AppLaunchArgument.staticImageService.rawValue,
+            // Wipe the App Group DB first: it survives SBT's ResetFilesystem, so a
+            // signed-in account left by an alphabetically-earlier suite would
+            // otherwise make the signed-out seed below a no-op (reverse
+            // contamination) and this suite would run signed in. Wiping makes it
+            // order-independent regardless of what a prior suite left behind.
+            AppLaunchArgument.wipeAppDatabase.rawValue,
             // Onboarding gates a fresh install; seed a default account so these
             // tests land on the feed (the old auto-bootstrap they relied on is gone).
             AppLaunchArgument.seedSignedOutDefaultAccount.rawValue,

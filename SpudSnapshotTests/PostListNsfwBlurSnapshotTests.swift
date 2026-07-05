@@ -116,11 +116,11 @@ final class PostListNsfwBlurSnapshotTests: XCTestCase {
         blurNsfw: Bool,
         isRevealed: Bool
     ) -> PostListPostViewModel {
-        let preferences = PreferencesService()
-        // Pin layout to the standard feed defaults so the snapshot is
-        // independent of whatever UserDefaults state a prior test left behind.
-        preferences.thumbnailPosition = .left
-        preferences.showVoteButtons = true
+        // A fresh, private UserDefaults suite so the snapshot is independent of
+        // whatever preference state a prior test or the sim left behind.
+        // `thumbnailPosition`/`showVoteButtons` read their `.left`/`true`
+        // defaults from the clean suite.
+        let preferences = SnapshotPreferences.ephemeral()
         let appearance = AppearanceService(preferencesService: preferences)
         return PostListPostViewModel(
             row: row,

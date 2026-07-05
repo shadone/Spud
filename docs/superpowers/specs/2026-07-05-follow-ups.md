@@ -79,13 +79,17 @@ everything stays SBT-stubbed.
 `AccountService` seed: person row + fake JWT, fixed keychainId) + the
 `SPUDWipeAppDatabase` launch argument (the App Group DB survives SBT's
 ResetFilesystem / `simctl uninstall`; the wipe makes signed-in tests
-order-independent regardless of what a prior suite left behind) + two consumers
-green: `IPadActivitySplitUITests` un-skipping the Activity split, and
-`SignedInVoteUITests` pinning optimistic-vote-with-no-gate against a 500 send.
-Remaining scope stays open: login/compose/inbox e2e, and the 12-item
-verification-debt burn-down; wipe arg on the legacy signed-out suites
-(reverse contamination: signed-in leftovers currently make them run signed-in;
-needs re-proof on both devices).
+order-independent regardless of what a prior suite left behind), rolled out to
+both the new signed-in suites and the legacy signed-out ones — `SpudUITests`
+and `IPadSplitUITests` now pass `SPUDWipeAppDatabase` alongside their
+signed-out seed too, closing the reverse-contamination gap where a signed-in
+account left by an alphabetically-earlier suite could make a signed-out seed a
+no-op. Four consumers green: `IPadActivitySplitUITests` un-skipping the
+Activity split, `SignedInVoteUITests` pinning optimistic-vote-with-no-gate
+against a 500 send, and the two legacy suites re-proven order-independent in
+both directions on both the reference iPhone and the M5 iPad. Remaining scope
+stays open: login/compose/inbox e2e, and the 12-item verification-debt
+burn-down.
 
 ## 3. SpudWidget test target
 
@@ -164,11 +168,12 @@ the one red test in an otherwise green 250-test suite run.
 Immediate fix landed (same day): `PostListPostCellSnapshotTests.makeViewModel`
 now pins `thumbnailPosition = .left` + `showVoteButtons = true` explicitly, and
 the two contaminated refs were re-recorded under pinned clean-default state
-(full plan 250/250 green). Still owed by this initiative: 9 other snapshot
-fixture files construct a bare `PreferencesService()` and carry the same latent
-leak (masked while the sim stays clean) — the durable fix is an injectable
-`UserDefaults` store on `PreferencesService` (30 `@UserDefaultsBacked`
-properties hardcode `.standard` today), applied across all snapshot fixtures.
+(full plan 250/250 green). Owed by this initiative at the time: 9 other
+snapshot fixture files construct a bare `PreferencesService()` and carry the
+same latent leak (masked while the sim stays clean) — the durable fix was an
+injectable `UserDefaults` store on `PreferencesService` (30
+`@UserDefaultsBacked` properties hardcoded `.standard` at the time), applied
+across all snapshot fixtures.
 
 **Second addendum (2026-07-05, found during the signed-in-seam Task 5 final
 verify): the same leak reaches across process boundaries into live UI tests,
@@ -181,13 +186,25 @@ the same one a later `SpudUITests` launch reads from, and SBT's
 persisted (no cleanup after its last write), which made the new
 `SignedInVoteUITests` (section 2) fail 5/5 times when run as part of the full
 `make test` plan — but always pass in isolation, since an `-only-testing` run
-never executes `SpudTests` first. Fixed: `QuickSwitchViewModelTests`,
+never executes `SpudTests` first. Fixed at the time: `QuickSwitchViewModelTests`,
 `OfflineDownloadOptionsViewModelTests`, and `PostDetailConfigViewModelTests`
-now `defer`-restore every mutated key to its documented default and are
-`@Suite(.serialized)` (Swift Testing runs a struct's tests in parallel by
+were made to `defer`-restore every mutated key to its documented default and
+were `@Suite(.serialized)`d (Swift Testing runs a struct's tests in parallel by
 default, racing the same shared keys otherwise); `make test` reran green twice
-after. Not audited: whether any OTHER `SpudTests` file leaks a different key
-this way — the durable fix remains the same injectable-store initiative above.
+after. Not audited then: whether any OTHER `SpudTests` file leaks a different
+key this way — the durable fix was the same injectable-store initiative above.
+
+**Landed (2026-07-05):** the injectable `UserDefaults` store on
+`PreferencesService` plus `PreferencesService.ephemeral()` (SpudTests) /
+`SnapshotPreferences.ephemeral()` (SpudSnapshotTests) shipped (plan:
+`docs/superpowers/plans/2026-07-05-test-determinism.md`), and every fixture
+named above — plus the rest of the affected snapshot and unit fixtures — was
+migrated onto a private per-instance `UserDefaults` suite. The defer-restore /
+`@Suite(.serialized)` workaround described in both addenda above is retired;
+it remains appropriate only for a suite that deliberately exercises
+`.standard` itself (`PreferencesServiceStorageIsolationTests`). This closes
+both addenda's leak; the rest of this section's scope — trimming the
+runtime-pinned snapshot population itself — is unchanged and still open.
 
 ## 6. git-annex special remote + push cadence
 

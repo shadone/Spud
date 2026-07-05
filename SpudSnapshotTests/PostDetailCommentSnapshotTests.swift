@@ -241,10 +241,12 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
         isNew: Bool = false,
         commentDensity: PostDensity = .comfortable
     ) -> PostDetailCommentViewModel {
-        let preferences = PreferencesService()
+        // A fresh, private UserDefaults suite per render so the density override
+        // is isolated to the requesting test and can never leak into another.
+        let preferences = SnapshotPreferences.ephemeral()
         preferences.commentDensity = commentDensity
         let appearance = AppearanceService(preferencesService: preferences)
-        let viewModel = PostDetailCommentViewModel(
+        return PostDetailCommentViewModel(
             row: row,
             appearance: appearance,
             postCreatorPersonId: postCreatorPersonId,
@@ -253,10 +255,6 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
             collapsedNewDescendantCount: collapsedNewDescendantCount,
             isNew: isNew
         )
-        // The VM captured the density at init; restore the global default so no
-        // other snapshot renders compact.
-        preferences.commentDensity = .comfortable
-        return viewModel
     }
 
     // MARK: - DepthRailsView component states

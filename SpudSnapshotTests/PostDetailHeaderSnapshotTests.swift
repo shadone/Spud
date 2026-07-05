@@ -361,7 +361,7 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         blurNsfw: Bool = false,
         isRevealed: Bool = false
     ) -> PostDetailHeaderViewModel {
-        let appearance = AppearanceService(preferencesService: PreferencesService())
+        let appearance = AppearanceService(preferencesService: SnapshotPreferences.ephemeral())
         return PostDetailHeaderViewModel(
             row: row,
             appearance: appearance,
