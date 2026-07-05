@@ -134,4 +134,23 @@ struct CommentLinkPreviewTests {
         #expect(previews.first?.kind == .video)
         #expect(previews.first?.anchorText == "a video")
     }
+
+    @Test
+    func frontendPostLink_tapsInAppFederatedResolve() throws {
+        // A frontend post URL (`/c/<community>/p/<id>[/<slug>]`, e.g. PieFed /
+        // feddit) must open in-app via a federated resolve, not the browser —
+        // even on an instance outside the Explorer directory. The card taps the
+        // raw URL straight through the known-instance-gated `LemmyURLParser.classify`,
+        // so without resolving `tapURL` here it would bounce to Safari, unlike the
+        // inline-text render rewrite and the search paste path. `displayURL` stays
+        // the human-readable link.
+        let raw = try #require(URL(string: "https://piefed.world/c/tech/p/1235129/nsa-is-sabotaging"))
+        let canonical = try #require(URL(string: "https://piefed.world/post/1235129"))
+        let expectedTap = URL.SpudInternalLink.objectAtURL(url: canonical).url
+
+        let previews = paragraph(autolink(raw.absoluteString)).commentLinkPreviews(limit: 3)
+        #expect(previews.count == 1)
+        #expect(previews.first?.tapURL == expectedTap)
+        #expect(previews.first?.displayURL == raw)
+    }
 }

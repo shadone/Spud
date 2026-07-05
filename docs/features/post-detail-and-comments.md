@@ -39,7 +39,7 @@ account has them.
 - **Per-post context menu.** Long-pressing the post header offers Share, then Report (only when it is not your own post), then — on your own post — **Edit** (pencil), **Delete** (destructive, with a confirmation), or **Restore** when it's already deleted, then the same Moderation submenu when applicable. The post is saved from the toolbar / header action bar, not from this menu.
 - **Edit / delete / restore your own post.** The post overflow ("•••") menu and the header long-press offer these on your own post. **Edit** opens the new-post composer prefilled with the post's current title / body / URL / NSFW (the community is fixed, not changeable); saving updates the post optimistically (the header reflects the change immediately) and durably through the content outbox (`editPost`) — on success the server's version reconciles, and a permanent failure parks the edit as failed (keeping your text) for retry, just like a comment edit. **Delete / Restore** flips the post's deleted state instantly through the idempotent mutation outbox (the same vote / save / hide / comment-delete pipeline that retries transient failures and rolls back a permanent one); while deleted, the post's title is dimmed and a red "Deleted" marker shows in its attribution.
 - **Moderator and admin actions are capability-gated.** The account's moderation capability is fetched from the server when the screen appears (`fetchModerationCapability`). The Moderation submenu only appears when the account moderates this post's community, or is a site admin; otherwise it is absent. A signed-out account never sees it.
-- **In-body link preview cards.** Links in post bodies and comment bodies render as a tappable preview card that always shows the link's anchor text (the `[label](url)` text from markdown). For YouTube, Invidious, and PeerTube video links, when the "Load Link Previews" setting is on, the card additionally shows a thumbnail with a play badge and the video title fetched via oEmbed; when the setting is off, the card shows only the anchor text and host. The post-header link card (for link-type posts) always shows the server-provided title and thumbnail regardless of this setting. Tapping any card opens the link through the external-link preference — see [External link handling](external-link-handling.md).
+- **In-body link preview cards.** Links in post bodies and comment bodies render as a tappable preview card that always shows the link's anchor text (the `[label](url)` text from markdown). For YouTube, Invidious, and PeerTube video links, when the "Load Link Previews" setting is on, the card additionally shows a thumbnail with a play badge and the video title fetched via oEmbed; when the setting is off, the card shows only the anchor text and host. The post-header link card (for link-type posts) always shows the server-provided title and thumbnail regardless of this setting. Tapping a card opens the link through the external-link preference — except a card whose link is a recognized threadiverse post (the frontend form `/c/<community>/p/<id>[/<slug>]` that Lemmy/PieFed/feddit render), which resolves in-app through the shared link router instead of the browser, even on instances outside the Explorer directory (matching how the same link resolves as inline body text). See [External link handling](external-link-handling.md).
 - **The post's vote / save / reply / report behaviors** are documented in their own features — see [Voting](voting.md), [Saving](saving.md), [Replying](replying.md), [Sharing](sharing.md).
 
 ## Scenarios
@@ -150,6 +150,14 @@ account has them.
 - **And** when "Load Link Previews" is off, the card shows only the anchor text and host — no third-party fetch is made
 - **When** I tap the card
 - **Then** the link opens through the external-link preference
+
+### Tapping a frontend-post-URL card resolves it in-app
+
+- **Given** a post or comment body containing a threadiverse frontend post link (`/c/<community>/p/<id>[/<slug>]`, e.g. a PieFed or feddit URL)
+- **And** the link's instance is not in the bundled Explorer directory
+- **When** I tap its preview card
+- **Then** the post opens in-app via a federated resolve — the same as tapping the equivalent inline body-text link — rather than bouncing to the browser
+- **And** if the post cannot be resolved on the current account it falls back to the external-link preference
 
 ### Post-header link card shows server-provided title and thumbnail
 
