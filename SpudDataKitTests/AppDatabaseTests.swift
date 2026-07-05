@@ -43,7 +43,6 @@ struct AppDatabaseTests {
                 "feed",
                 "instance",
                 "mutedCommunity",
-                "nodeInfo",
                 "offlineWebArchive",
                 "outboundContent",
                 "page",
