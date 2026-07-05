@@ -506,6 +506,7 @@ public extension AppDatabase {
                 accountKeychainId: UUID().uuidString,
                 isServiceAccount: false,
                 isSignedOutAccountType: true,
+                isEphemeral: true,
                 createdAt: now,
                 updatedAt: now
             )

@@ -6,49 +6,57 @@
 
 import Foundation
 import GRDB
-import LemmyKit
 import OSLog
 import SpudUtilKit
 
 private let logger = Logger.appDatabase
 
 public extension AppDatabase {
-    /// Keychain ids of signed-out accounts whose home site has not had its
-    /// site info imported yet. Drives SchedulerService's first-fetch path:
-    /// `site.name` is nil exactly when `SiteImporter.apply` has never run
-    /// for the row.
-    func signedOutAccountsAwaitingSiteInfo() async throws -> [String] {
+    /// KeychainId + siteId pairs for non-ephemeral signed-out accounts whose
+    /// home site has not had its site info imported yet and has not exceeded the
+    /// give-up threshold. Sites still inside their back-off window
+    /// (`siteInfoNextAttemptAt > now`) are excluded.
+    ///
+    /// Drives SchedulerService's first-fetch path: `site.name` is nil exactly
+    /// when `SiteImporter.apply` has never run for the row.
+    func signedOutAccountsAwaitingSiteInfo(now: Date) async throws -> [(keychainId: String, siteId: Int64)] {
         try await writer.read { db in
-            try String.fetchAll(db, sql: """
-                    SELECT account.accountKeychainId
+            try Row.fetchAll(db, sql: """
+                    SELECT account.accountKeychainId AS keychainId, site.id AS siteId
                     FROM account
                     JOIN site ON site.id = account.siteId
                     WHERE account.isSignedOutAccountType = 1
+                      AND account.isEphemeral = 0
                       AND site.name IS NULL
-                """)
+                      AND site.siteInfoConsecutivePermanentFailures < \(AppDatabase.siteInfoGiveUpThreshold)
+                      AND (site.siteInfoNextAttemptAt IS NULL OR site.siteInfoNextAttemptAt <= ?)
+                """, arguments: [now])
+                .map { (keychainId: $0["keychainId"], siteId: $0["siteId"]) }
         }
     }
 
-    /// Instance actor ids of sites that have no associated account yet AND
-    /// no imported site info.
-    func ownerlessSitesAwaitingInfo() async throws -> [InstanceActorId] {
-        let raws = try await writer.read { db in
-            try String.fetchAll(db, sql: """
-                    SELECT instance.actorId
+    /// ActorId + siteId pairs for sites that have no associated account yet,
+    /// no imported site info, have not exceeded the give-up threshold, and are
+    /// not inside a back-off window (`siteInfoNextAttemptAt > now`).
+    func ownerlessSitesAwaitingInfo(now: Date) async throws -> [(actorId: InstanceActorId, siteId: Int64)] {
+        let rows: [Row] = try await writer.read { db in
+            try Row.fetchAll(db, sql: """
+                    SELECT instance.actorId AS actorId, site.id AS siteId
                     FROM site
                     JOIN instance ON instance.id = site.instanceId
                     WHERE site.name IS NULL
-                      AND NOT EXISTS (
-                          SELECT 1 FROM account WHERE account.siteId = site.id
-                      )
-                """)
+                      AND NOT EXISTS (SELECT 1 FROM account WHERE account.siteId = site.id)
+                      AND site.siteInfoConsecutivePermanentFailures < \(AppDatabase.siteInfoGiveUpThreshold)
+                      AND (site.siteInfoNextAttemptAt IS NULL OR site.siteInfoNextAttemptAt <= ?)
+                """, arguments: [now])
         }
-        return raws.compactMap { raw in
+        return rows.compactMap { row in
+            let raw: String = row["actorId"]
             guard let actorId = InstanceActorId(from: raw) else {
                 logger.error("Skipping unparseable instance actor id: \(raw, privacy: .public)")
                 return nil
             }
-            return actorId
+            return (actorId: actorId, siteId: row["siteId"])
         }
     }
 

@@ -173,6 +173,12 @@ public extension AppDatabase {
         record.infoCreatedDate = view.local_site.published
         record.infoUpdatedDate = view.local_site.updated
 
+        // A successful site-info import clears any scheduler give-up state, so a
+        // previously-abandoned instance resumes background refresh and a user
+        // visit that succeeds self-heals it.
+        record.siteInfoConsecutivePermanentFailures = 0
+        record.siteInfoNextAttemptAt = nil
+
         record.updatedAt = now
     }
 }

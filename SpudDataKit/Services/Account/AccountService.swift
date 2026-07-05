@@ -129,6 +129,14 @@ public protocol AccountServiceType: AnyObject {
     /// nil when the account or its instance can't be found. Used to name the
     /// instance in feed error states.
     func instanceActorId(forAccountKeychainId keychainId: String) -> InstanceActorId?
+
+    /// Fire one best-effort `getSite` for an ephemeral browse instance whose
+    /// site info is missing, so a browse screen can show the instance's name/icon.
+    /// No retry, no recurrence, errors swallowed — an unreachable instance fails
+    /// silently. A success flows through `SiteImporter`, which also clears any
+    /// give-up state (self-healing). No-op for non-ephemeral accounts or ones
+    /// whose site info is already present.
+    func refreshSiteInfoOnDemandIfNeeded(forAccountKeychainId keychainId: String)
 }
 
 @MainActor
@@ -350,6 +358,12 @@ public class AccountService: AccountServiceType {
             logger.error("Failed to read instanceActorId: \(error.localizedDescription, privacy: .public)")
             return nil
         }
+    }
+
+    public func refreshSiteInfoOnDemandIfNeeded(forAccountKeychainId keychainId: String) {
+        guard appDatabase.shouldFetchSiteInfoOnDemandSync(forAccountKeychainId: keychainId) else { return }
+        let service = lemmyService(forAccountKeychainId: keychainId)
+        Task { try? await service.fetchSiteInfo() }
     }
 
     public func signInAsSignedOut(atInstance instance: InstanceActorId) {
