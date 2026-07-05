@@ -168,7 +168,7 @@ class PostDetailViewController: UIViewController {
 
     // internal: shared with PostDetailViewController+Content / +Report / +DeleteRestore / +Moderation / +PendingComments / +OverflowMenu
     var viewModel: PostDetailViewModel
-    // internal: shared with PostDetailViewController+Moderation / +OverflowMenu
+    // internal: shared with PostDetailViewController+Moderation / +OverflowMenu / +Content
     var headerRow: PostDetailHeaderRow?
     /// The body string last pre-warmed into `MarkdownBlockCache` off the main
     /// thread. The header observation re-emits on every vote/save with the same
@@ -1667,6 +1667,8 @@ class PostDetailViewController: UIViewController {
             alertService.handle(error, for: .save)
         }
     }
+
+    // MARK: - Composing
 
     /// Reply to the post itself (a top-level comment).
     // internal: shared with PostDetailViewController+OverflowMenu
