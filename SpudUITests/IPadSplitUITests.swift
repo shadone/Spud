@@ -27,6 +27,10 @@ class IPadSplitUITests: XCTestCase {
             SBTUITunneledApplicationLaunchOptionResetFilesystem,
             SBTUITunneledApplicationLaunchOptionDisableUITextFieldAutocomplete,
             AppLaunchArgument.staticImageService.rawValue,
+            // Wipe the App Group DB first (it survives SBT's ResetFilesystem) so a
+            // signed-in account left by an alphabetically-earlier suite can't make
+            // the signed-out seed below a no-op — keeps this suite order-independent.
+            AppLaunchArgument.wipeAppDatabase.rawValue,
             AppLaunchArgument.seedSignedOutDefaultAccount.rawValue,
         ]
         app.launchTunnel(withOptions: launchOptions) {
