@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import GRDB
 import LemmyKit
 import SpudUtilKit
 import Testing
@@ -13,119 +14,126 @@ import Testing
 // MARK: - Test doubles
 
 /// A no-op `AlertServiceType` that silently discards every error.
-/// `SchedulerService` calls `alertService.handle` on fetch failure; the test
-/// does not assert on those calls, so sinking them here keeps the test focused.
+/// `SchedulerService` calls `alertService.handle` on fetch failure; these tests
+/// do not assert on those calls, so sinking them here keeps them focused.
 private final class NullAlertService: AlertServiceType, @unchecked Sendable {
     func handle(_: Error, for _: AlertHandlerRequest) { }
     func image(error _: ImageLoadingError, for _: URL) { }
 }
 
-/// A `LemmyServiceType` fake that always throws on `fetchSiteInfo()` and
-/// counts every call. The counter is read by the test to verify back-off gating.
-private actor FetchSiteLemmyService: LemmyServiceType {
+/// A `LemmyServiceType` fake whose `fetchSiteInfo()` always throws an
+/// `unknownServerError` carrying a configurable HTTP status (403 → permanent,
+/// 503 → transient once `OutboxFailureClass.classify` sees it), and counts every
+/// call. The counter is read by the tests to verify sweep gating / abandonment.
+private actor GiveUpLemmyService: LemmyServiceType {
     private(set) var fetchSiteInfoCallCount = 0
+    private let httpStatusCode: Int
+
+    init(httpStatusCode: Int) {
+        self.httpStatusCode = httpStatusCode
+    }
 
     func fetchSiteInfo() async throws {
         fetchSiteInfoCallCount += 1
-        throw LemmyApiError.unknownServerError(httpStatusCode: 403, error: nil)
+        throw LemmyApiError.unknownServerError(httpStatusCode: httpStatusCode, error: nil)
     }
 
     // MARK: - Unused protocol requirements (trap if reached)
 
     func getSiteInfo() async throws -> Components.Schemas.GetSiteResponse {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func unreadCount() async throws -> UnreadCount {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func setShowNsfw(_: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func setBlurNsfw(_: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func setDefaultSortType(_: Components.Schemas.SortType) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func saveProfile(displayName _: String?, bio _: String?, avatar _: String?, banner _: String?, showScores _: Bool, showBotAccounts _: Bool, showReadPosts _: Bool, showAvatars _: Bool, defaultListingType _: Components.Schemas.ListingType) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func fetchPersonInfo(serverPersonId _: Components.Schemas.PersonID) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func fetchPersonContent(serverPersonId _: Components.Schemas.PersonID, sort _: Components.Schemas.SortType, page _: Int64) async throws -> Components.Schemas.GetPersonDetailsResponse {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func fetchCommunityInfo(serverCommunityId _: Components.Schemas.CommunityID) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func fetchCommunityInfo(communityName _: String) async throws -> Components.Schemas.CommunityID {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func search(query _: String, type _: Components.Schemas.SearchType, sort _: Components.Schemas.SortType, listingType _: Components.Schemas.ListingType, page _: Int64) async throws -> Components.Schemas.SearchResponse {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func listCommunities(type _: Components.Schemas.ListingType, sort _: Components.Schemas.SortType?, limit _: Int64?) async throws -> [Components.Schemas.CommunityView] {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func setSubscribed(serverCommunityId _: Components.Schemas.CommunityID, subscribed _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func vote(serverPostId _: Components.Schemas.PostID, vote _: VoteStatus.Action) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func vote(serverCommentId _: Components.Schemas.CommentID, vote _: VoteStatus.Action) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func createComment(serverPostId _: Components.Schemas.PostID, content _: String, parentCommentId _: Components.Schemas.CommentID?) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func createPost(serverCommunityId _: Components.Schemas.CommunityID, name _: String, url _: String?, body _: String?, nsfw _: Bool) async throws -> Components.Schemas.PostID {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func uploadImage(imageData _: Data, fileName _: String, mimeType _: String) async throws -> URL {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func setSaved(serverPostId _: Components.Schemas.PostID, saved _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func setSaved(serverCommentId _: Components.Schemas.CommentID, saved _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func deleteComment(serverCommentId _: Components.Schemas.CommentID, deleted _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func deletePost(serverPostId _: Components.Schemas.PostID, deleted _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func fetchPostInfo(serverPostId _: Components.Schemas.PostID) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func hidePost(serverPostId _: Components.Schemas.PostID, hidden _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func outboxFailureEvents() async -> AsyncStream<OutboxFailure> {
@@ -133,39 +141,39 @@ private actor FetchSiteLemmyService: LemmyServiceType {
     }
 
     func drainPendingOutbox() async {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func saveDraft(_: OutboundDraftInput) async throws -> String {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func submitDraft(clientToken _: String) async {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func retryComposition(clientToken _: String) async {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func discardComposition(clientToken _: String) async {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func loadDraft(draftKey _: String) async throws -> OutboundContentRecord? {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func saveDirectMessageDraft(body _: String, recipientServerPersonId _: Int64) async throws -> String {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func sendDirectMessage(body _: String, recipientServerPersonId _: Int64) async throws -> String {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func applyOptimisticPostEdit(serverPostId _: Components.Schemas.PostID, title _: String, body _: String?, url _: String?, nsfw _: Bool) async {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func composerFailureEvents() async -> AsyncStream<ComposerOutboxFailure> {
@@ -177,110 +185,110 @@ private actor FetchSiteLemmyService: LemmyServiceType {
     }
 
     func markAsRead(serverPostId _: Components.Schemas.PostID) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.GetRepliesResponse {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.GetPersonMentionsResponse {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.PrivateMessagesResponse {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func markReplyAsRead(commentReplyId _: Components.Schemas.CommentReplyID, read _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func markMentionAsRead(personMentionId _: Components.Schemas.PersonMentionID, read _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func markPrivateMessageAsRead(privateMessageId _: Components.Schemas.PrivateMessageID, read _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func markAllInboxAsRead() async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func sendPrivateMessage(content _: String, recipientId _: Components.Schemas.PersonID) async throws -> Components.Schemas.PrivateMessageView {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func setBlocked(serverPersonId _: Components.Schemas.PersonID, blocked _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func setBlocked(serverCommunityId _: Components.Schemas.CommunityID, blocked _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func reportPost(serverPostId _: Components.Schemas.PostID, reason _: String) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func reportComment(serverCommentId _: Components.Schemas.CommentID, reason _: String) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func fetchBlockedList() async throws -> BlockedList {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func fetchModerationCapability() async throws -> ModerationCapability {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func removePost(serverPostId _: Components.Schemas.PostID, removed _: Bool, reason _: String?) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func lockPost(serverPostId _: Components.Schemas.PostID, locked _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func featurePost(serverPostId _: Components.Schemas.PostID, featured _: Bool, local _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func removeComment(serverCommentId _: Components.Schemas.CommentID, removed _: Bool, reason _: String?) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func distinguishComment(serverCommentId _: Components.Schemas.CommentID, distinguished _: Bool) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func banFromCommunity(serverCommunityId _: Components.Schemas.CommunityID, serverPersonId _: Components.Schemas.PersonID, ban _: Bool, removeData _: Bool, reason _: String?) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func resolveObject(query _: String) async throws -> ResolvedLemmyObject {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func fetchFeed(_: FeedHandle, pageCursor _: String?, showNsfw _: Bool) async throws -> String? {
-        unreachable()
+        giveUpUnreachable()
     }
 
     func fetchComments(serverPostId _: Components.Schemas.PostID, sortType _: Components.Schemas.CommentSortType) async throws {
-        unreachable()
+        giveUpUnreachable()
     }
 }
 
-private func unreachable(_ function: StaticString = #function) -> Never {
-    fatalError("FetchSiteLemmyService.\(function) must not be called in SchedulerServiceBackoffTests")
+private func giveUpUnreachable(_ function: StaticString = #function) -> Never {
+    fatalError("GiveUpLemmyService.\(function) must not be called in SchedulerServiceGiveUpTests")
 }
 
 /// Minimal `@MainActor` fake for `AccountServiceType` that returns a single shared
 /// `LemmyServiceType` for every keychainId. All other protocol requirements trap.
 @MainActor
-private final class BackoffAccountService: AccountServiceType {
+private final class GiveUpAccountService: AccountServiceType {
     let stubbedLemmyService: any LemmyServiceType
 
     init(lemmyService: any LemmyServiceType) {
@@ -292,7 +300,7 @@ private final class BackoffAccountService: AccountServiceType {
     }
 
     func instanceActorId(forAccountKeychainId _: String) -> InstanceActorId? {
-        InstanceActorId(from: "https://backoff-test.example.com")
+        InstanceActorId(from: "https://giveup-test.example.com")
     }
 
     func accountForSignedOut(forInstance _: InstanceActorId, isServiceAccount _: Bool) -> String {
@@ -331,120 +339,144 @@ private final class BackoffAccountService: AccountServiceType {
 
     func setDefaultSortType(_: Components.Schemas.SortType, forAccountKeychainId _: String) { }
     func scope(forAccountKeychainId _: String) -> AccountScope {
-        fatalError("not used in SchedulerServiceBackoffTests")
+        fatalError("not used in SchedulerServiceGiveUpTests")
     }
 }
 
-// MARK: - ClockBox
+// MARK: - GiveUpClockBox
 
 /// A reference-type clock wrapper so the `@Sendable` `now` closure can
 /// capture a mutable date without triggering a Swift 6 data-race diagnostic.
 /// Both the closure (called from `@MainActor` SchedulerService) and the
 /// test mutations run on `@MainActor`, so concurrent access never occurs.
-private final class ClockBox: @unchecked Sendable {
+private final class GiveUpClockBox: @unchecked Sendable {
     var date: Date
     init(_ date: Date) {
         self.date = date
     }
 }
 
-// MARK: - SchedulerServiceBackoffTests
+// MARK: - SchedulerServiceGiveUpTests
 
-/// Verifies that `SchedulerService` gates `fetchSiteInfo` calls through
-/// `SchedulerBackoff` and resets the back-off on a reachability reconnect.
+/// Verifies that `SchedulerService`'s signed-out sweep records the *persisted*
+/// give-up state (via `recordSiteInfoPermanentFailure` / `recordSiteInfoTransientFailure`)
+/// and emits a `site.giveUp` diagnostic exactly once when an instance's site info
+/// permanently fails `siteInfoGiveUpThreshold` times in a row — after which the
+/// sweep query stops selecting it. Transient failures never abandon.
 ///
 /// The suite is `@MainActor` (SchedulerService is `@MainActor`) and serialized
 /// because the fake AccountService is also `@MainActor`.
 @MainActor
 @Suite(.serialized)
-struct SchedulerServiceBackoffTests {
-    // MARK: - Back-off gating + reconnect reset
-
-    @Test
-    func backoff_gatesRepeatedFetchesAndResetsOnReconnect() async throws {
-        // Arrange: in-memory DB seeded with one signed-in account awaiting its
-        // initial MyUserInfo fetch. It appears in `signedInAccountsAwaitingMyUserInfo()`
-        // because `localAccountId IS NULL` (never fetched), and the signed-in sweep
-        // routes through the in-memory `SchedulerBackoff` this test exercises.
-        //
-        // (The signed-out sweep no longer uses `SchedulerBackoff` — it gates on the
-        // persisted give-up state instead, covered by SchedulerServiceGiveUpTests /
-        // SiteInfoSweepGatingTests — so this test drives the signed-in path, which is
-        // the only remaining consumer of the in-memory back-off + reconnect reset.)
-        let appDatabase = try AppDatabase.inMemory()
-        let keychainId = "kc-backoff-test-1"
-        let seedDate = Date(timeIntervalSince1970: 1_000_000)
-
+struct SchedulerServiceGiveUpTests {
+    /// Seed one non-ephemeral signed-out account whose home site is awaiting its
+    /// first site-info import (`name IS NULL`), so it is eligible for the sweep.
+    /// Returns the site's row id so the test can read back the persisted state.
+    private func seedSignedOutSite(_ appDatabase: AppDatabase, keychainId: String) async throws -> Int64 {
         try await appDatabase.writer.write { db in
-            try db.execute(
-                sql: "INSERT INTO instance (actorId, createdAt) VALUES (?, ?)",
-                arguments: ["https://backoff-test.example.com", seedDate]
+            var instance = InstanceRecord(actorId: "https://giveup-test.example.com", createdAt: Date(), updatedAt: Date())
+            try instance.insert(db)
+            var site = SiteRecord(instanceId: instance.id!)
+            try site.insert(db)
+            var account = AccountRecord(
+                siteId: site.id!,
+                accountKeychainId: keychainId,
+                isSignedOutAccountType: true,
+                isEphemeral: false
             )
-            let instanceId = db.lastInsertedRowID
-            try db.execute(
-                sql: "INSERT INTO site (instanceId, createdAt, updatedAt) VALUES (?, ?, ?)",
-                arguments: [instanceId, seedDate, seedDate]
-            )
-            let siteId = db.lastInsertedRowID
-            try db.execute(
-                sql: """
-                    INSERT INTO account
-                        (siteId, accountKeychainId, isDefault, isServiceAccount, isSignedOutAccountType, createdAt, updatedAt)
-                    VALUES (?, ?, 1, 0, 0, ?, ?)
-                    """,
-                arguments: [siteId, keychainId, seedDate, seedDate]
-            )
+            try account.insert(db)
+            return site.id!
         }
+    }
 
-        let fakeLemmyService = FetchSiteLemmyService()
-        let fakeAccountService = BackoffAccountService(lemmyService: fakeLemmyService)
-        let fakeReachability = StaticReachabilityMonitor(isOnline: false)
-        let clock = ClockBox(Date(timeIntervalSince1970: 2_000_000))
-
-        let service = SchedulerService(
+    private func makeService(
+        appDatabase: AppDatabase,
+        lemmyService: any LemmyServiceType,
+        diagnostics: DiagnosticLogSpy,
+        clock: GiveUpClockBox
+    ) -> SchedulerService {
+        SchedulerService(
             appDatabase: appDatabase,
-            accountService: fakeAccountService,
+            accountService: GiveUpAccountService(lemmyService: lemmyService),
             alertService: NullAlertService(),
-            diagnostics: DiagnosticLogSpy(),
+            diagnostics: diagnostics,
             now: { clock.date },
-            reachabilityMonitor: fakeReachability
+            reachabilityMonitor: StaticReachabilityMonitor(isOnline: true)
         )
+    }
 
-        // Subscribe to the reachability stream so step (d) exercises the real
-        // reconnect path. The Timer and asyncAfter inside startService() won't
-        // fire during the test (their delays are real-time based), so they don't
-        // interfere with the manual tick() calls below.
-        service.startService()
+    /// A signed-out account whose getSite throws a permanent 403 on every tick is
+    /// abandoned after siteInfoGiveUpThreshold ticks: it stops being attempted and
+    /// a site.giveUp diagnostic is recorded exactly once.
+    @Test
+    func permanentFailuresAbandonSiteAndRecordGiveUp() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let keychainId = "kc-giveup-permanent"
+        let siteId = try await seedSignedOutSite(appDatabase, keychainId: keychainId)
 
-        // (a) First tick: no back-off entry exists → fetch is attempted.
-        await service.tick()
-        var count = await fakeLemmyService.fetchSiteInfoCallCount
-        #expect(count == 1, "first tick should attempt the fetch")
+        let fakeLemmy = GiveUpLemmyService(httpStatusCode: 403)
+        let diagnostics = DiagnosticLogSpy()
+        let clock = GiveUpClockBox(Date(timeIntervalSince1970: 2_000_000))
+        let service = makeService(appDatabase: appDatabase, lemmyService: fakeLemmy, diagnostics: diagnostics, clock: clock)
 
-        // (b) Immediate second tick, clock unchanged: the back-off window (5 min)
-        //     has not elapsed → fetch is gated out, count stays at 1.
-        await service.tick()
-        count = await fakeLemmyService.fetchSiteInfoCallCount
-        #expect(count == 1, "second tick with same clock should be gated by back-off")
-
-        // (c) Advance the injected clock past the 5-minute back-off delay.
-        //     The back-off window has now elapsed → fetch is attempted again.
-        clock.date = clock.date.addingTimeInterval(6 * 60) // 6 minutes
-        await service.tick()
-        count = await fakeLemmyService.fetchSiteInfoCallCount
-        #expect(count == 2, "tick after clock advance past back-off window should attempt again")
-
-        // (d) Flip reachability to online. The reachabilityTask (started by startService())
-        //     receives the transition, calls backoff.reset(), then fires tick() directly.
-        //     Poll with Task.yield() so that internal Task can run to completion.
-        //     Clock is unchanged from step (c); the reset means shouldAttempt returns true.
-        fakeReachability.setOnline(true)
-        var finalCount = await fakeLemmyService.fetchSiteInfoCallCount
-        for _ in 0..<50 {
-            if finalCount == 3 { break }
-            await Task.yield()
-            finalCount = await fakeLemmyService.fetchSiteInfoCallCount
+        // Drive threshold + 2 ticks. Between each tick, step the clock 3 h forward —
+        // well past every pre-abandonment back-off window (max ~40 min), so the
+        // persisted `siteInfoNextAttemptAt` gate lets the sweep re-select the site
+        // each time until it is abandoned at the threshold.
+        let threeHours: TimeInterval = 3 * 60 * 60
+        for _ in 0..<(AppDatabase.siteInfoGiveUpThreshold + 2) {
+            await service.tick()
+            clock.date = clock.date.addingTimeInterval(threeHours)
         }
-        #expect(finalCount == 3, "reconnect transition should reset back-off and fire an immediate tick")
+
+        // site.giveUp is emitted exactly once, at the threshold.
+        let giveUpEvents = diagnostics.events(matching: "site.giveUp")
+        #expect(giveUpEvents.count == 1)
+        let giveUp = try #require(giveUpEvents.first)
+        #expect(giveUp.category == .site)
+        #expect(giveUp.level == .notice)
+        #expect(giveUp.instance == "giveup-test.example.com")
+        #expect(giveUp.metadata?["failureCount"] == String(AppDatabase.siteInfoGiveUpThreshold))
+
+        // After abandonment the sweep no longer selects the site, so exactly
+        // `siteInfoGiveUpThreshold` fetches were attempted (the two extra ticks
+        // are no-ops).
+        let callCount = await fakeLemmy.fetchSiteInfoCallCount
+        #expect(callCount == AppDatabase.siteInfoGiveUpThreshold)
+
+        // The persisted counter reflects abandonment across relaunches.
+        let site = try await appDatabase.writer.read { db in try SiteRecord.fetchOne(db, key: siteId) }
+        #expect(site?.siteInfoConsecutivePermanentFailures == AppDatabase.siteInfoGiveUpThreshold)
+    }
+
+    /// Transient (503) failures never abandon: the account keeps being attempted
+    /// and the persisted permanent counter stays at zero.
+    @Test
+    func transientFailuresNeverAbandon() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let keychainId = "kc-giveup-transient"
+        let siteId = try await seedSignedOutSite(appDatabase, keychainId: keychainId)
+
+        let fakeLemmy = GiveUpLemmyService(httpStatusCode: 503)
+        let diagnostics = DiagnosticLogSpy()
+        let clock = GiveUpClockBox(Date(timeIntervalSince1970: 2_000_000))
+        let service = makeService(appDatabase: appDatabase, lemmyService: fakeLemmy, diagnostics: diagnostics, clock: clock)
+
+        // Drive many ticks, stepping past the short transient retry window (5 min)
+        // each time so the sweep re-selects the site on every tick.
+        let sixMinutes: TimeInterval = 6 * 60
+        let tickCount = AppDatabase.siteInfoGiveUpThreshold + 3
+        for _ in 0..<tickCount {
+            await service.tick()
+            clock.date = clock.date.addingTimeInterval(sixMinutes)
+        }
+
+        // Never abandoned: no give-up event, attempted on every tick, and the
+        // permanent counter never moved off zero.
+        #expect(diagnostics.events(matching: "site.giveUp").isEmpty)
+        let callCount = await fakeLemmy.fetchSiteInfoCallCount
+        #expect(callCount == tickCount)
+        let site = try await appDatabase.writer.read { db in try SiteRecord.fetchOne(db, key: siteId) }
+        #expect(site?.siteInfoConsecutivePermanentFailures == 0)
     }
 }

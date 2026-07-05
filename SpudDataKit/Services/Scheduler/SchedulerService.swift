@@ -133,35 +133,35 @@ public class SchedulerService: SchedulerServiceType {
 
     // MARK: Site Info
 
-    private func fetchSiteInfo(forInstance actorId: InstanceActorId) async {
-        logger.info("Fetching site info for \(actorId.actorId, privacy: .public)")
-
-        // TODO: separate fetching of generic "site info" and account specific info
-        // For now we fetch site info as signed out user only,
-        // but better would be to fetch site info for each account (to fetch subscriptions)
-        // and also extract generic site info from server response.
-
-        let keychainId = accountService.accountForSignedOut(
-            forInstance: actorId,
-            isServiceAccount: true
-        )
-
-        await gatedFetchSiteInfo(forAccountKeychainId: keychainId)
+    /// Outcome of a single site-info fetch. Distinct from a bare `Bool` so the
+    /// signed-out / ownerless sweeps can tell a permanent (4xx) failure — which
+    /// counts toward the persisted give-up — apart from a transient one.
+    private enum SiteInfoOutcome {
+        case success
+        case permanentFailure
+        case transientFailure
     }
 
-    /// Gate the fetch through the per-account back-off, then record the outcome.
-    /// All four per-account call sites funnel here so the back-off state is
-    /// authoritative regardless of which sweep triggers the attempt.
+    /// Gate a signed-in fetch through the in-memory per-account back-off, then
+    /// record the outcome. Signed-in sweeps still use `SchedulerBackoff`; the
+    /// signed-out / ownerless sweeps use the persisted give-up state instead and
+    /// call `fetchSiteInfoOutcome` + `recordSiteInfoResult` directly
+    /// (see `fetchSiteInfoForSignedOutIfNeeded`).
     private func gatedFetchSiteInfo(forAccountKeychainId keychainId: String) async {
         guard backoff.shouldAttempt(keychainId: keychainId, now: now()) else { return }
-        let succeeded = await fetchSiteInfo(forAccountKeychainId: keychainId)
-        backoff.recordResult(keychainId: keychainId, succeeded: succeeded, now: now())
+        let outcome = await fetchSiteInfoOutcome(forAccountKeychainId: keychainId)
+        backoff.recordResult(keychainId: keychainId, succeeded: outcome == .success, now: now())
     }
 
-    /// Perform the actual network call for one account. Returns `true` on success,
-    /// `false` on any error (the error is still routed to `alertService` so the
-    /// existing error-handling and `site.fetchFailed` diagnostic are unchanged).
-    private func fetchSiteInfo(forAccountKeychainId keychainId: String) async -> Bool {
+    /// Perform the actual network call for one account and classify the result.
+    /// The error is still routed to `alertService` (so the existing error handling
+    /// and the `site.fetchFailed` diagnostic emitted inside `LemmyService` are
+    /// unchanged); its permanence is classified with the shared `OutboxFailureClass`
+    /// (as `RequestRetry` does): a 4xx is permanent (drives give-up); 5xx / timeout /
+    /// offline is transient. `isOnline: true` is safe because a genuine offline
+    /// failure surfaces as a `URLError`, which `OutboxFailureClass` treats as
+    /// transient regardless of the flag.
+    private func fetchSiteInfoOutcome(forAccountKeychainId keychainId: String) async -> SiteInfoOutcome {
         let instance = accountService.instanceActorId(forAccountKeychainId: keychainId)?.hostWithPort
         await diagnostics.record(
             category: .scheduler,
@@ -175,39 +175,76 @@ public class SchedulerService: SchedulerServiceType {
             try await accountService
                 .lemmyService(forAccountKeychainId: keychainId)
                 .fetchSiteInfo()
-            return true
+            return .success
         } catch {
             alertService.handle(error, for: .fetchSiteInfo)
-            return false
+            return OutboxFailureClass.classify(error, isOnline: true) == .permanent
+                ? .permanentFailure
+                : .transientFailure
+        }
+    }
+
+    /// Record the persisted give-up state for a site after a signed-out / ownerless
+    /// fetch, and emit `site.giveUp` the first time the consecutive-permanent count
+    /// reaches the threshold (after which the sweep queries stop selecting the site).
+    private func recordSiteInfoResult(_ outcome: SiteInfoOutcome, siteId: Int64, instance: String?) async {
+        switch outcome {
+        case .success:
+            // Give-up state is reset inside `SiteImporter` on the successful import;
+            // nothing to do here.
+            break
+        case .transientFailure:
+            try? appDatabase.recordSiteInfoTransientFailure(siteId: siteId, now: now())
+        case .permanentFailure:
+            let count = (try? appDatabase.recordSiteInfoPermanentFailure(siteId: siteId, now: now())) ?? 0
+            if count == AppDatabase.siteInfoGiveUpThreshold {
+                await diagnostics.record(
+                    category: .site,
+                    level: .notice,
+                    event: "site.giveUp",
+                    message: "Stopped fetching site info after repeated permanent failures",
+                    instance: instance,
+                    metadata: ["failureCount": String(count)]
+                )
+            }
         }
     }
 
     private func fetchSiteInfoForSignedOutIfNeeded() async {
-        // Fetch initial site info, i.e. sites that have never fetched corresponding site info.
-        // But only for signed out accounts (signed in accounts site info will be fetched
-        // together with subscribed communities).
-        let signedOutKeychainIds: [String]
+        // Fetch initial site info, i.e. sites that have never fetched corresponding
+        // site info, but only for signed out accounts (signed in accounts' site
+        // info is fetched together with subscribed communities). The query itself
+        // gates on the persisted give-up state (back-off window + give-up
+        // threshold), so no in-memory `SchedulerBackoff` is consulted here.
+        let signedOut: [(keychainId: String, siteId: Int64)]
         do {
-            signedOutKeychainIds = try await appDatabase.signedOutAccountsAwaitingSiteInfo(now: Date()).map(\.keychainId)
+            signedOut = try await appDatabase.signedOutAccountsAwaitingSiteInfo(now: now())
         } catch {
             logger.error("Failed to query signed-out accounts awaiting site info: \(String(describing: error), privacy: .public)")
-            signedOutKeychainIds = []
+            signedOut = []
         }
-        for keychainId in signedOutKeychainIds {
-            await gatedFetchSiteInfo(forAccountKeychainId: keychainId)
+        for row in signedOut {
+            let instance = accountService.instanceActorId(forAccountKeychainId: row.keychainId)?.hostWithPort
+            let outcome = await fetchSiteInfoOutcome(forAccountKeychainId: row.keychainId)
+            await recordSiteInfoResult(outcome, siteId: row.siteId, instance: instance)
         }
 
-        // Fetch initial site info, i.e. sites that have never fetched corresponding site info.
-        // But only for sites that we do not have any account for (not even signed out).
-        let ownerlessActorIds: [InstanceActorId]
+        // Fetch initial site info for sites that we do not have any account for
+        // (not even signed out).
+        let ownerless: [(actorId: InstanceActorId, siteId: Int64)]
         do {
-            ownerlessActorIds = try await appDatabase.ownerlessSitesAwaitingInfo(now: Date()).map(\.actorId)
+            ownerless = try await appDatabase.ownerlessSitesAwaitingInfo(now: now())
         } catch {
             logger.error("Failed to query ownerless sites: \(String(describing: error), privacy: .public)")
-            ownerlessActorIds = []
+            ownerless = []
         }
-        for actorId in ownerlessActorIds {
-            await fetchSiteInfo(forInstance: actorId)
+        for row in ownerless {
+            let keychainId = accountService.accountForSignedOut(
+                forInstance: row.actorId,
+                isServiceAccount: true
+            )
+            let outcome = await fetchSiteInfoOutcome(forAccountKeychainId: keychainId)
+            await recordSiteInfoResult(outcome, siteId: row.siteId, instance: row.actorId.hostWithPort)
         }
 
         // TODO: Also periodically re-fetch Site info for sites that we do not have a local account for?
