@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Feeds and sorting](feeds-and-sorting.md), [Feed loading and pagination](feed-loading.md), [Post detail and comments](post-detail-and-comments.md), [Post thumbnails and media badges](post-thumbnails.md), [External link handling](external-link-handling.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Feeds and sorting](feeds-and-sorting.md), [Feed loading and pagination](feed-loading.md), [Post detail and comments](post-detail-and-comments.md), [Post thumbnails and media badges](post-thumbnails.md), [External link handling](external-link-handling.md), [Diagnostics logging](diagnostics-logging.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -21,6 +21,7 @@ Saves the current feed for reading offline — useful before a flight or a long 
 - **Survives a bad patch, keeps what it got.** If a feed page keeps failing even after retries, the download stops paging but keeps every post it already saved, downloads their content, and finishes — telling you it couldn't reach the whole feed (e.g. "Downloaded 80 posts — some of the feed couldn't be reached.") rather than throwing everything away. Only a failure on the very first page (nothing saved yet) reports an outright failure.
 - **Polite to the instance.** Requests are spaced out so a download never floods the server, comment and image fetches run with a small concurrency limit rather than all at once, and when the server signals it's overloaded (HTTP 429/503) the download briefly backs the whole run off before continuing. Web-page snapshots are captured one at a time.
 - **Bounded and durable.** The post count is capped at your choice; images live in the app's existing on-disk image cache (about 200 MB, least-recently-used); saved web pages are bounded by their own cache (about 150 MB, oldest evicted first). All survive relaunch.
+- **Diagnosable after the fact.** Each run records curated events to the durable diagnostic log (see [Diagnostics logging](diagnostics-logging.md)): a start and a finish summary. The finish summary carries run-wide aggregate counts of how many individual image warms failed (`imageWarmFailures`) and how many linked-page snapshots failed (`archiveCaptureFailures`), so a download that quietly missed some media is still explainable — without one durable row per image (those per-item failures go to the system log only). Automatic retries are recorded too, tagged by phase (fetching feed pages vs. downloading a post's comments) and flagged when the server asked the app to slow down (a 429/503/rate-limit `pushback`), so a slow or partial download can be understood later from the logs.
 
 ## Scenarios
 
@@ -55,6 +56,12 @@ Saves the current feed for reading offline — useful before a flight or a long 
 - **Given** a download in progress
 - **When** I tap Cancel or swipe the sheet away
 - **Then** the download stops and the posts already saved remain available offline
+
+### Diagnose a download that missed some media
+
+- **Given** I ran an offline download over a flaky connection and some images or linked pages failed to save
+- **When** I later open Settings → About → Logs → Event Log and find the download's finish summary
+- **Then** it reports aggregate counts of the failed image warms and linked-page snapshots (rather than one row per item), and any retries are tagged with their phase and whether the server was rate-limiting — so I can see what the download couldn't reach and why
 
 ### Can't download while offline
 

@@ -962,4 +962,136 @@ struct OfflineDownloadServiceTests {
         #expect(terminal.phase == .failed)
         #expect(terminal.failureMessage != nil)
     }
+
+    // MARK: - Aggregated per-item failure diagnostics
+
+    /// A run whose images never reach `.ready` (they fail for good) must surface
+    /// the failure as an aggregate `imageWarmFailures` count in the
+    /// `download.finish` summary — NOT as one durable event per image (that
+    /// per-item chatter is OSLog-only).
+    @Test
+    func imageWarmFailuresAppearInFinishSummary() async throws {
+        let lemmy = makeLemmy(pages: [.init(postCount: 1, nextCursor: nil)])
+        // Every warm's stream closes without `.ready`, so both the thumbnail and
+        // the full-image warm fail for good after their retries.
+        let imageService = RecordingImageService(yieldsReady: false)
+        let diagnostics = DiagnosticLogSpy()
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase, imageService: imageService,
+            diagnostics: diagnostics, pacing: .immediate()
+        )
+
+        let progress = await runDownload(service: service, lemmy: lemmy)
+        let terminal = try #require(progress.last)
+        #expect(terminal.phase == .finished, "a failed image warm must not abort the run")
+
+        let finish = try #require(diagnostics.events(matching: "download.finish").last)
+        let raw = try #require(finish.metadata?["imageWarmFailures"])
+        let count = try #require(Int(raw))
+        #expect(count >= 1, "a run whose images never reach .ready must report imageWarmFailures in the summary")
+    }
+
+    /// A transient COMMENT failure in the content phase must now be visible: each
+    /// retry records a `download.retry` event tagged `phase == "content"` (the
+    /// page-fetch retries were already visible; this proves the content-phase ones
+    /// are too).
+    @Test
+    func contentPhaseCommentRetryIsRecorded() async throws {
+        // Post 1's comment fetch throws every time -> it is retried, and each
+        // retry records a content-phase `download.retry`.
+        let lemmy = makeLemmy(
+            pages: [.init(postCount: 1, nextCursor: nil)],
+            failingCommentPostIds: [1]
+        )
+        let diagnostics = DiagnosticLogSpy()
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase, imageService: RecordingImageService(),
+            diagnostics: diagnostics, pacing: .immediate()
+        )
+
+        let progress = await runDownload(service: service, lemmy: lemmy)
+        let terminal = try #require(progress.last)
+        #expect(terminal.phase == .finished, "a failing comment must not fail the run")
+
+        // The single page fetch here has no transient failure, so every
+        // `download.retry` is a content-phase (comment) retry.
+        let contentRetries = diagnostics.events(matching: "download.retry")
+            .filter { $0.metadata?["phase"] == "content" }
+        #expect(!contentRetries.isEmpty, "a retried comment fetch must record a content-phase download.retry")
+        #expect(
+            contentRetries.allSatisfy { $0.metadata?["serverPostId"] == "1" },
+            "a content-phase retry names the post it is retrying"
+        )
+    }
+
+    /// A 503 (server pushback) page failure's `download.retry` must be tagged
+    /// `phase == "page"` AND `pushback == "true"`, so the log viewer can tell
+    /// rate-limiting apart from a plain transient blip.
+    @Test
+    func pageRetryTagsPushbackAndPhase() async throws {
+        let lemmy = makeLemmy(pages: [
+            .init(postCount: 5, nextCursor: "p2"),
+            // The second page fails once with HTTP 503 (server pushback), then
+            // recovers.
+            .init(postCount: 5, nextCursor: nil, transientFailures: 1),
+        ])
+        let diagnostics = DiagnosticLogSpy()
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase, imageService: RecordingImageService(),
+            diagnostics: diagnostics, pacing: .immediate()
+        )
+
+        let progress = await runDownload(service: service, lemmy: lemmy)
+        let terminal = try #require(progress.last)
+        #expect(terminal.phase == .finished, "a retried transient failure must not fail the run")
+
+        let pageRetries = diagnostics.events(matching: "download.retry")
+            .filter { $0.metadata?["phase"] == "page" }
+        let retry = try #require(pageRetries.first, "a 503 page failure must record a page-phase download.retry")
+        #expect(retry.metadata?["pushback"] == "true", "a 503 is server pushback")
+    }
+
+    /// An `archiveLinks` run whose capture returns nil (load error / timeout) must
+    /// surface the failure as an aggregate `archiveCaptureFailures` count in the
+    /// `download.finish` summary (again, no per-item durable event).
+    @Test
+    func archiveCaptureFailuresAppearInFinishSummary() async throws {
+        // External-link posts (no image extension) so the archive branch runs.
+        let lemmy = makeLemmy(
+            pages: [.init(postCount: 3, nextCursor: nil)],
+            imageUrlForSeededPosts: "https://example.com/article"
+        )
+        let capturer = RecordingWebArchiveCapturer(returnsNil: true)
+        let store = try makeArchiveStore()
+        let diagnostics = DiagnosticLogSpy()
+        let service = OfflineDownloadService(
+            appDatabase: appDatabase,
+            imageService: RecordingImageService(),
+            diagnostics: diagnostics,
+            pacing: .immediate(),
+            webArchiveCapturer: capturer,
+            webArchiveStore: store
+        )
+
+        var collected: [OfflineDownloadProgress] = []
+        for await progress in service.download(
+            feed: feed,
+            lemmyService: lemmy,
+            accountId: accountId,
+            siteId: siteId,
+            commentSort: commentSort,
+            showNsfw: false,
+            maxPosts: OfflineDownloadService.defaultMaxPosts,
+            archiveLinks: true
+        ) {
+            collected.append(progress)
+        }
+        let terminal = try #require(collected.last)
+        #expect(terminal.phase == .finished, "a failed capture must not abort the run")
+
+        let finish = try #require(diagnostics.events(matching: "download.finish").last)
+        let raw = try #require(finish.metadata?["archiveCaptureFailures"])
+        let count = try #require(Int(raw))
+        #expect(count >= 1, "an archiveLinks run whose capture returns nil must report archiveCaptureFailures")
+    }
 }
