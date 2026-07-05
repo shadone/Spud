@@ -40,7 +40,7 @@ final class VoteFoldView: UIView {
     }
 
     /// Shows the fold for a voted status (hidden when neutral). `upColor` /
-    /// `downColor` are the resolved vote tokens (accent / periwinkle).
+    /// `downColor` are the resolved vote tokens (accent / indigo).
     func configure(status: VoteStatus, upColor: UIColor, downColor: UIColor) {
         self.status = status
         switch status {

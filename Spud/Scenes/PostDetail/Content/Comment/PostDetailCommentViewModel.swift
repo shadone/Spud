@@ -352,12 +352,8 @@ struct PostDetailCommentViewModel {
             ))
             scorePillText = text
 
-            // Voted: fill with the vote-token color; neutral: no fill (clear bg).
-            switch row.voteStatus {
-            case 1: scorePillFillColor = appearance.general.upvoteButtonActiveColor
-            case 0: scorePillFillColor = appearance.general.downvoteButtonActiveColor
-            default: scorePillFillColor = nil
-            }
+            // Voted: fill with the vote-token color (shared helper); neutral: no fill (clear bg).
+            scorePillFillColor = VoteFillStyle.fillColor(for: voteStatus, appearance: appearance.general)
         } else {
             scorePillText = nil
             scorePillFillColor = nil

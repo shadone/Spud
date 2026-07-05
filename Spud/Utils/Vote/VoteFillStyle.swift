@@ -14,7 +14,7 @@ import UIKit
 /// The state is carried by a real weight change — a solid fill with a white
 /// glyph vs a hairline/tertiary outline — not by hue alone, so it survives a
 /// glance and color-blindness. Colors reuse the app's existing vote tokens
-/// (accent for up, periwinkle for down) rather than hardcoded values, so the
+/// (accent for up, indigo for down) rather than hardcoded values, so the
 /// upvote fill tracks the user's chosen accent.
 @MainActor
 enum VoteFillStyle {

@@ -222,7 +222,7 @@ class PostListPostContentView: UIView {
 
     /// Dog-ear fold shown at the trailing corner when arrows are hidden and the
     /// post is voted. Sits above `swipeActionView` as a non-interactive overlay.
-    lazy var voteFold: VoteFoldView = {
+    private lazy var voteFold: VoteFoldView = {
         let view = VoteFoldView(frame: .zero)
         view.translatesAutoresizingMaskIntoConstraints = false
         view.isHidden = true
@@ -260,6 +260,11 @@ class PostListPostContentView: UIView {
     /// already-shown image gets torn down and re-fetched on every snapshot apply,
     /// which read as the thumbnail "zooming in". Reset on reuse.
     private var appliedThumbnailUrl: URL?
+    /// The vote status applied during the most recent `configure` call, or `nil`
+    /// when the cell has been freshly reused (reset in `prepareForReuse`). Used
+    /// to distinguish an in-place optimistic vote reconfigure (which must animate)
+    /// from a fresh bind after cell reuse (which must not).
+    private var appliedVoteStatus: VoteStatus?
 
     /// Vertical-anchor constraints that position the 28×28 fold at the top or
     /// bottom trailing corner. Exactly one is active at a time (the other is
@@ -330,6 +335,12 @@ class PostListPostContentView: UIView {
         // describe the current layout, and `configure` only relays when they
         // change. Resetting them here would force a needless relayout on every
         // reuse.
+        //
+        // `appliedVoteStatus` IS reset: nil signals that the next `configure` is
+        // a fresh bind (no animation), not an in-place optimistic vote reconfigure
+        // (which should animate). `prepareForReuse` runs on cell reuse but NOT on
+        // the `reconfigureItems` path — that's the key distinction.
+        appliedVoteStatus = nil
 
         swipeActionConfiguration = nil
         swipeActionTriggered = nil
@@ -511,7 +522,14 @@ class PostListPostContentView: UIView {
         // applyLayout must run first: it sets `appliedShowVoteButtons`, which
         // `applyVoteState` reads to decide whether to show the pill or the fold.
         applyLayout(position: viewModel.thumbnailPosition, showVoteButtons: viewModel.showVoteButtons)
-        applyVoteState(viewModel.voteStatus, animated: false)
+        // Animate only when THIS same cell's vote flips to a voted state in place
+        // (an optimistic vote reconfigures the cell without prepareForReuse); a
+        // fresh bind after reuse (appliedVoteStatus == nil) or a scroll must not spring.
+        let animateVote = appliedVoteStatus != nil
+            && appliedVoteStatus != viewModel.voteStatus
+            && viewModel.voteStatus != .neutral
+        applyVoteState(viewModel.voteStatus, animated: animateVote)
+        appliedVoteStatus = viewModel.voteStatus
 
         // A hidden thumbnail needs no image work.
         guard viewModel.thumbnailPosition.showsThumbnail else {

@@ -85,8 +85,8 @@ The voted state is a **structural cue** — a real weight change that reads at a
 
 ### Motion and accessibility
 
-- **Spring animation.** The fill springs in on commit (scale 0.9 → 1.0, ~180 ms); the opposite arrow dims. Springs back out on removal.
-- **Reduce Motion.** Cross-fades the fill instead of scaling. Gated on the system Reduce Motion setting; no peel or spring plays.
+- **Spring animation.** The fill springs in on commit (scale 0.9 → 1.0, ~180 ms) and scales/fades back out on removal; the opposite arrow dims simultaneously. Reduce Motion cross-fades the fill in and out instead of scaling.
+- **Reduce Motion.** Gated on the system Reduce Motion setting; no scale spring plays. Fill appears and disappears via a cross-fade instead.
 - **VoiceOver.** Fill weight and arrow shape carry the state structurally; color is reinforcement only. The active vote control gains the `.selected` trait so VoiceOver announces the current state. The dog-ear fold is marked decorative (`isAccessibilityElement = false`).
 - **Dynamic Type.** The capsule and mini-pill grow with the glyph metrics at the current text size. The fold is fixed geometry.
 - **No new user setting.** The pill-vs-fold choice is driven entirely by the existing `Show Vote Buttons` preference; the two cues never stack.
