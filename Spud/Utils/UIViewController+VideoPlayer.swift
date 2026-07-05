@@ -5,6 +5,7 @@
 //
 
 import AVKit
+import SpudDataKit
 import UIKit
 
 extension UIViewController {
@@ -17,6 +18,29 @@ extension UIViewController {
         controller.player = player
         present(controller, animated: true) {
             player.play()
+        }
+    }
+
+    /// Routes a tapped post video URL to inline playback. A direct video file
+    /// (mp4 / mov / m4v) plays immediately. A recognized video-host page (e.g.
+    /// streamable) shows a brief spinner while it is resolved to a stream, then
+    /// plays inline; if resolution fails (offline, removed, API error) it falls
+    /// back to opening the page with the normal link flow.
+    @MainActor
+    func playVideo(url: URL, appService: AppServiceType) async {
+        let registry = VideoHostRegistry()
+        let overlay: VideoResolvingOverlay? = registry.recognize(url) != nil
+            ? VideoResolvingOverlay.present(in: self)
+            : nil
+
+        let action = await videoPlaybackAction(forVideoAt: url, using: registry)
+        overlay?.dismiss()
+
+        switch action {
+        case let .play(streamUrl):
+            presentVideoPlayer(url: streamUrl)
+        case let .openExternally(pageUrl):
+            await appService.open(url: pageUrl, on: self)
         }
     }
 }
