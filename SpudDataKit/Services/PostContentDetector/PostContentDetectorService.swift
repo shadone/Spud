@@ -26,7 +26,11 @@ public protocol HasPostContentDetectorService {
 }
 
 public class PostContentDetectorService: PostContentDetectorServiceType {
-    public init() { }
+    private let videoHostRecognizer: VideoHostRecognizing
+
+    public init(videoHostRecognizer: VideoHostRecognizing = VideoHostRegistry()) {
+        self.videoHostRecognizer = videoHostRecognizer
+    }
 
     public func contentTypeForUrl(
         url: URL?,
@@ -86,6 +90,13 @@ public class PostContentDetectorService: PostContentDetectorServiceType {
         ].contains { path.endsWith($0) }
 
         if hasPlayableVideoExtension {
+            return .video(.init(videoUrl: url, thumbnailUrl: thumbnailUrl))
+        }
+
+        // A recognized video-host page (e.g. streamable) is a playable video post.
+        // The page URL is carried as videoUrl; the app resolves it to a stream at
+        // tap time. The poster comes from the server thumbnail (thumbnailUrl).
+        if videoHostRecognizer.recognize(url) != nil {
             return .video(.init(videoUrl: url, thumbnailUrl: thumbnailUrl))
         }
 

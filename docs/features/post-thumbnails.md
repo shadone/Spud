@@ -10,7 +10,7 @@ Each post in the feed shows a small square thumbnail next to its title and subti
 
 ## Behavior and rules
 
-- **Content type drives the thumbnail.** Spud classifies a post's URL into image, video, external link, or text/empty, and picks the thumbnail accordingly. Image detection is by file extension (`.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`); playable video is AVFoundation-decodable containers only (`.mp4`, `.mov`, `.m4v`).
+- **Content type drives the thumbnail.** Spud classifies a post's URL into image, video, external link, or text/empty, and picks the thumbnail accordingly. Image detection is by file extension (`.jpg`, `.jpeg`, `.png`, `.webp`, `.gif`); a post is video either by a playable file extension (`.mp4`, `.mov`, `.m4v`) or by being a recognized video host (currently streamable.com). A recognized-host video shows the server thumbnail as its poster with the play indicator, just like a direct video post.
 - **Image post.** Shows the post's thumbnail image (or the full image if no thumbnail). Tapping it opens the full-screen image viewer; the already-loaded thumbnail is handed to the viewer for an instant first frame.
 - **GIF badge.** When an image post's full image is an animated GIF, the inline thumbnail shows a static frame with a small dark rounded "GIF" badge in its lower-left corner. The badge signals the post plays; the animation itself plays in the full-screen viewer, not inline.
 - **Video post.** Shows the poster frame (when the post carries one) with a centered play indicator overlaid; tapping plays the video. A video post with no poster shows the text placeholder behind the play indicator.
@@ -74,7 +74,7 @@ Each post in the feed shows a small square thumbnail next to its title and subti
 
 - **NSFW thumbnails.** When "Blur NSFW" is on and "Show NSFW" is on, thumbnails for NSFW posts are covered by a frosted-glass overlay until tapped. This is governed by the NSFW preference, not by thumbnail-display settings; see [NSFW content visibility and blur](nsfw-content.md).
 - The inline thumbnail never animates — a GIF shows a static frame plus the badge; animation happens only in the full-screen viewer.
-- Non-AVFoundation video containers (e.g. webm, mkv) are treated as external links, not video posts, and get no play indicator.
+- Non-AVFoundation video containers (e.g. webm, mkv) that are not a recognized video host are treated as external links, not video posts, and get no play indicator.
 - No badge other than "GIF" is shown on feed thumbnails; the badge component is generic but only the GIF case is wired up here.
 - Thumbnail size is fixed (64-point square) and is not user-configurable; only its position (left / right / hidden) is.
 - The full-screen image viewer, GIF playback, and inline/full-screen video player are separate Media capabilities and are not described here.

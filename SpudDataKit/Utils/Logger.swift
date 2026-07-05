@@ -16,6 +16,7 @@ extension Logger {
     static let siteService = Logger(subsystem: subsystem, category: "SiteService")
     static let schedulerService = Logger(subsystem: subsystem, category: "SchedulerService")
     static let postContentDetectorService = Logger(subsystem: subsystem, category: "PostContentDetectorService")
+    static let resolvableVideoHost = Logger(subsystem: subsystem, category: "ResolvableVideoHost")
     static let imageService = Logger(subsystem: subsystem, category: "ImageService")
     static let alertService = Logger(subsystem: subsystem, category: "AlertService")
     static let appDatabase = Logger(subsystem: subsystem, category: "AppDatabase")

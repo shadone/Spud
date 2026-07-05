@@ -1346,7 +1346,7 @@ class PostListViewController: UIViewController {
 
                 cell.videoTapped = { [weak self] videoUrl in
                     guard let self else { return }
-                    presentVideoPlayer(url: videoUrl)
+                    Task { await self.playVideo(url: videoUrl, appService: self.appService) }
                     if markPostsRead {
                         markReadInBackground(serverPostId: serverPostId)
                     }
