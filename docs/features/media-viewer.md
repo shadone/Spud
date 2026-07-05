@@ -59,10 +59,12 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
   full-screen, AirPlay, and Picture-in-Picture controls. Only AVFoundation-playable
   containers (mp4 / mov / m4v) are treated as video.
 - **Recognized video hosts play inline.** A post whose link is a recognized video-host page
-  (currently streamable.com) is treated as a video post: it shows the video treatment in the
-  feed and the post-detail header (using the server-provided thumbnail as its poster), and
-  tapping it resolves the host page to its stream and plays it inline in the system player. A
-  brief spinner is shown while it resolves.
+  (streamable.com, or a PeerTube instance) is treated as a video post: it shows the video
+  treatment in the feed and the post-detail header (using the server-provided thumbnail as its
+  poster), and tapping it resolves the host page to its stream and plays it inline in the
+  system player. A brief spinner is shown while it resolves. PeerTube is recognized by URL
+  shape (it is federated, with no host list), so a rare non-PeerTube link may be treated as a
+  video and, on tap, fall back to the browser when the instance API does not confirm it.
 - **Host resolution failure falls back to the browser.** If a recognized host cannot be
   resolved to a playable stream (offline, removed video, or an API error), tapping opens the
   original page with the normal link flow (in-app Safari, the system browser, or the offline
@@ -160,12 +162,12 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
   source thumbnail.
 - webm and mkv are not played in-app; AVFoundation cannot decode them, so they are routed to
   the browser as external links.
-- Video hosts other than streamable (e.g. YouTube) are not played inline; only streamable is
-  resolved to a stream today. A post whose own link is a streamable video always plays inline.
-  A streamable link written inside post or comment **body text** also plays inline when tapped
-  in the post-detail screen — its external-link handling re-runs video detection — while on
-  other screens (a community or person description, direct messages) a body-text link opens
-  in the browser.
+- Video hosts other than streamable and PeerTube (e.g. YouTube) are not played inline; only
+  streamable and PeerTube are resolved to a stream today. A post whose own link is a
+  streamable or PeerTube video always plays inline. A streamable link written inside post or
+  comment **body text** also plays inline when tapped in the post-detail screen — its
+  external-link handling re-runs video detection — while on other screens (a community or
+  person description, direct messages) a body-text link opens in the browser.
 - Save targets the Photos library only; there is no "save to Files" or other destination.
 - Zoom tops out at a fixed maximum (at least 3x fit, never below native resolution); there
   is no unbounded zoom.
