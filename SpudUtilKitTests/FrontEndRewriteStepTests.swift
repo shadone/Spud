@@ -88,4 +88,46 @@ struct FrontEndRewriteStepTests {
         let c = allEnabled()
         #expect(rewritten("mailto:jack@twitter.com", c) == "mailto:jack@twitter.com")
     }
+
+    @Test
+    func youtubeVideo_rewritesToWatchGrammarOnChosenHost() {
+        let c = allEnabled() // youtube host = catalog default "yewtu.be"
+        #expect(rewritten("https://youtu.be/dQw4w9WgXcQ?t=90", c) == "https://yewtu.be/watch?v=dQw4w9WgXcQ&t=90")
+        #expect(rewritten("https://www.youtube.com/shorts/dQw4w9WgXcQ", c) == "https://yewtu.be/watch?v=dQw4w9WgXcQ")
+        #expect(rewritten("https://www.youtube.com/watch?v=dQw4w9WgXcQ", c) == "https://yewtu.be/watch?v=dQw4w9WgXcQ")
+    }
+
+    @Test
+    func thirdPartyFrontEnd_rewrittenOnlyWhenFlagOn() {
+        var c = allEnabled()
+        // Flag off (default): a front-end video link is left unchanged.
+        #expect(rewritten("https://piped.video/watch?v=dQw4w9WgXcQ", c) == "https://piped.video/watch?v=dQw4w9WgXcQ")
+        #expect(rewritten("https://inv.nadeko.net/watch?v=dQw4w9WgXcQ", c) == "https://inv.nadeko.net/watch?v=dQw4w9WgXcQ")
+
+        // Flag on: normalize to the chosen host.
+        c.rewriteThirdPartyFrontEnds = true
+        #expect(rewritten("https://piped.video/watch?v=dQw4w9WgXcQ", c) == "https://yewtu.be/watch?v=dQw4w9WgXcQ")
+        #expect(rewritten("https://inv.nadeko.net/watch?v=dQw4w9WgXcQ", c) == "https://yewtu.be/watch?v=dQw4w9WgXcQ")
+    }
+
+    @Test
+    func invidiousLinkOpensInPipedWhenChosen() {
+        var c = allEnabled()
+        c.rewriteThirdPartyFrontEnds = true
+        c.frontEnds = c.frontEnds.map { entry in
+            guard entry.service == .youtube else { return entry }
+            return FrontEndConfig(service: .youtube, isEnabled: true, host: "piped.video")
+        }
+        #expect(rewritten("https://yewtu.be/watch?v=dQw4w9WgXcQ", c) == "https://piped.video/watch?v=dQw4w9WgXcQ")
+    }
+
+    @Test
+    func youtubeVideoNotRewrittenWhenYoutubeServiceDisabled() {
+        var c = allEnabled()
+        c.frontEnds = c.frontEnds.map { entry in
+            guard entry.service == .youtube else { return entry }
+            return FrontEndConfig(service: .youtube, isEnabled: false, host: entry.host)
+        }
+        #expect(rewritten("https://youtu.be/dQw4w9WgXcQ", c) == "https://youtu.be/dQw4w9WgXcQ")
+    }
 }
