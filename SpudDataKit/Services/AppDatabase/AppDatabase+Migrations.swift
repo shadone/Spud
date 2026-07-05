@@ -784,12 +784,6 @@ extension AppDatabase {
             }
         }
 
-        // The nodeInfo table was written by a Diaspora NodeInfo prototype that
-        // never shipped a reader; the record types are gone. Drop the table.
-        migrator.registerMigration("v29_dropNodeInfo") { db in
-            try db.drop(table: "nodeInfo")
-        }
-
         return migrator
     }
 }
