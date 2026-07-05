@@ -243,6 +243,65 @@ class SpudUITests: XCTestCase {
         )
     }
 
+    /// Person sibling of `test_VisitCommunityFromPostContextMenu_showsNavbarActions`.
+    /// Tapping a post's creator pushes `PersonOrLoadingViewController` — the
+    /// resolve-then-show wrapper that hosts the real `PersonViewController`. That
+    /// hosted controller's overflow (`More`) menu and `Sort` button live on ITS
+    /// `navigationItem`, so they only render if the wrapper PROMOTES the content
+    /// into the navigation stack. A child view controller's `navigationItem` is
+    /// ignored by UIKit, so had the wrapper embedded the content as a child (the
+    /// same mistake that shipped invisibly on the Community path), this navbar
+    /// would come up empty. Guards that regression for the Person wrapper.
+    ///
+    /// Note: `test_PersonProfile_navbarHasOverflowMenuAndSort` asserts the same
+    /// two buttons app-wide; this is the navbar-scoped, wrapper-framed tripwire
+    /// (mirrors the Community guard's style) and they may be de-duplicated later.
+    func test_VisitPersonFromPostDetail_showsNavbarActions() {
+        navigateToFinibusProfile()
+
+        let navBar = app.navigationBars
+
+        let overflowButton = navBar.buttons["More"]
+        XCTAssertTrue(
+            overflowButton.waitForExistence(timeout: 10),
+            "Person navbar should show the overflow (More) menu button"
+        )
+
+        let sortButton = navBar.buttons["Sort"]
+        XCTAssertTrue(
+            sortButton.exists,
+            "Person navbar should show the sort button"
+        )
+    }
+
+    /// Instance sibling of the Person / Community wrapper navbar tripwires, for
+    /// `InstanceOrLoadingViewController`. SKIPPED: the instance wrapper is not
+    /// reachable from the signed-out seed without disproportionate new fixtures.
+    ///
+    /// `InstanceRouter.openInstance` only pushes the wrapper for hosts NOT in the
+    /// bundled Lemmy Explorer directory (a directory hit pushes
+    /// `InstanceExploreViewController` directly, bypassing the wrapper). Every
+    /// instance host reachable from this seed — lemmy.world, discuss.tchncs.de —
+    /// is in the bundled directory, and no seeded surface renders a tappable
+    /// internal `.instance` link to an off-directory host. Exercising the wrapper
+    /// therefore needs (a) a new fixture whose person/community lives on an
+    /// off-directory host, (b) a tappable internal instance link to it, and (c) a
+    /// full `GetSiteResponse` (`/api/v3/site`) fixture so the wrapper's probe can
+    /// promote to the content VC. Recorded for the follow-up specs (Task 12).
+    ///
+    /// When implemented, assert on the promoted `InstanceExploreViewController`:
+    /// `app.navigationBars[host]` (title == the probed host) and its single
+    /// share bar button (`square.and.arrow.up`), after `waitForExistence(timeout: 10)`.
+    func test_VisitInstanceWrapper_showsNavbar() throws {
+        throw XCTSkip(
+            "Instance wrapper unreachable from the signed-out seed: every reachable "
+                + "instance host is in the bundled directory (directory hit bypasses the "
+                + "wrapper), and no seeded surface links an off-directory host. Needs an "
+                + "off-directory fixture + tappable internal instance link + a GetSiteResponse "
+                + "fixture. Recorded for Task 12."
+        )
+    }
+
     /// Bug fix: a person's handle must show THEIR OWN instance host, not the
     /// signed-in account's home instance. finibus is a remote user
     /// (https://lemmy.world/u/finibus) viewed under the test's discuss.tchncs.de
