@@ -69,5 +69,7 @@ struct YouTubeReferenceTests {
         #expect(YouTubeFrontEndCatalog.instance(forHost: "piped.video")?.kind == .piped)
         #expect(YouTubeFrontEndCatalog.instance(forHost: "piped.video")?.apiHost != nil)
         #expect(YouTubeFrontEndCatalog.instance(forHost: "unknown.example") == nil)
+        #expect(YouTubeFrontEndCatalog.instance(forHost: "www.yewtu.be")?.kind == .invidious)
+        #expect(YouTubeFrontEndCatalog.instance(forHost: "m.piped.video")?.kind == .piped)
     }
 }

@@ -40,7 +40,8 @@ public enum YouTubeFrontEndCatalog {
         YouTubeFrontEndInstance(host: "yewtu.be", kind: .invidious, apiHost: nil),
         YouTubeFrontEndInstance(host: "inv.nadeko.net", kind: .invidious, apiHost: nil),
         YouTubeFrontEndInstance(host: "yt.artemislena.eu", kind: .invidious, apiHost: nil),
-        // apiHost verified against the live instance in Task 6; graceful-degrades if wrong.
+        // apiHost should be verified against the live Piped instance; a wrong value
+        // degrades the preview gracefully (no title/thumbnail) and never contacts Google.
         YouTubeFrontEndInstance(host: "piped.video", kind: .piped, apiHost: "api.piped.video"),
     ]
 
