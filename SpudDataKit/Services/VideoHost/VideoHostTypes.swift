@@ -10,6 +10,7 @@ import Foundation
 public enum VideoHostKind: Equatable, Sendable {
     case streamable
     case peertube
+    case piped
 }
 
 /// A URL recognized as belonging to a `VideoHostKind`, carrying the host-specific
