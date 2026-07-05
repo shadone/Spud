@@ -59,7 +59,8 @@ normalized model is built now.
 ## Goals
 
 - Detect instance software/version via NodeInfo, cached, probed only on explicit engagement.
-- Block non-Lemmy home connections honestly; badge instance detail; signpost bare-instance links.
+- Block non-Lemmy home connections (login/register) honestly; badge instance detail.
+  (Bare-instance link signposting deferred — see §Integration 3.)
 - Leave a clean extension point (`PlatformProfile`/`PlatformRouter`) for future adaptation.
 
 ## Non-goals (the YAGNI boundary)
@@ -106,8 +107,8 @@ PlatformRouter  ──▶  HomeConnectionDecision(.allow | .block)
 | `DiasporaNodeInfo` (SPM pin) | `/.well-known/nodeinfo` discovery + parse. Already built. | — |
 | `NodeInfoFetching` (protocol) | One-method seam over the package for hermetic tests. | DiasporaNodeInfo |
 | `InstanceSoftware` (enum) | Map `software.name` → known case or `.other(String)`. | — |
-| `NodeInfoService` (actor) | `detect(host:)`: cache read → fetch → map → cache write; TTL; timeout; never throws. | NodeInfoFetching, `NodeInfoRecord` |
-| `NodeInfoRecord` (GRDB, kept) | Cache row: `host` (unique), `softwareName`, `version`, `fetchedAt`. | AppDatabase |
+| `NodeInfoService` (actor) | `detect(host:)`: cache read → fetch → map → cache write; TTL; timeout; never throws. | NodeInfoFetching, `NodeInfoCacheRecord` |
+| `NodeInfoCacheRecord` (GRDB, new) | Host-keyed cache row: `host` (unique), `softwareName`, `softwareVersion`, `fetchedAt`. New `v30_nodeInfoCache` migration. | AppDatabase |
 | `PlatformProfile` (struct) | Capability lookup from `InstanceSoftware`. No I/O. | InstanceSoftware |
 | `PlatformRouter` | `evaluateHomeConnection(host:)` → allow/block. The seam. | NodeInfoService, PlatformProfile |
 | `PlatformUnsupportedError` | Typed error carrying software + display name for the UI. | InstanceSoftware |
@@ -157,18 +158,22 @@ caller treats `.unknown` as *proceed with today's behavior* (fail-open), never a
 block. Some healthy Lemmy instances sit behind a CDN/WAF that 403s automated probes (the
 same wall as the recurring `getSite` 403 we already see) — those must still work.
 
-### Cache — reuse `NodeInfoRecord`
+### Cache — new host-keyed `NodeInfoCacheRecord`
 
-Columns: `host` (unique), `softwareName`, `version`, `fetchedAt`. `fetchedAt` drives the
-TTL; a stale row is refreshed on the next explicit engagement (instances do migrate
-software — no permanent pinning).
+Recon (2026-07-05) showed the existing `NodeInfoRecord` is **not** the right cache shape:
+it is *instance-scoped* (`instanceId` NOT-NULL unique FK to the `instance` table, plus
+counts/registration columns), created in `v1`, and currently unused. The feature needs a
+**host-keyed** cache available *before* an instance row exists (the pre-flight probes a
+host the user hasn't committed to). Contorting the instance-scoped record is worse than a
+small dedicated table.
 
-**Migration note:** the `NodeInfoRecord` table was added by an earlier migration, then a
-`v29_dropNodeInfo` was authored and reverted (the record is deliberately kept). At
-implementation time, **re-check the live migrations** in `AppDatabase+Migrations.swift`
-(`grep registerMigration … | tail -1`) to confirm whether the table currently exists; if
-not, add it at the next free `vNN`. (Known gotcha: an earlier session dodged a `v29`
-collision — verify the number.)
+Therefore: create a new `NodeInfoCacheRecord` — columns `host` (TEXT, unique),
+`softwareName` (TEXT), `softwareVersion` (TEXT, nullable), `fetchedAt` (datetime) — via a
+new **`v30_nodeInfoCache`** migration (the latest live migration is
+`v29_ephemeralAccountAndSiteGiveUp`; re-confirm at implementation time). `fetchedAt` drives
+the TTL; a stale row is refreshed on the next explicit engagement (instances migrate
+software — no permanent pinning). The legacy instance-scoped `NodeInfoRecord` is left
+**untouched** (it is unused and kept for a possible later instance-detail data feature).
 
 ### Concurrency
 
@@ -216,9 +221,16 @@ Logic — **detected-non-Lemmy blocks; couldn't-detect never blocks:**
 
 ### 1. Home-connection pre-flight (primary)
 
-In `SpudDataKit/Services/Account/AccountService.swift`, before constructing/using the
-unauthenticated `LemmyApi` in `login(atInstance:…)` (~505), `register(…)` (~552), and
-`signInAsSignedOut(atInstance:)` (~377), call `router.evaluateHomeConnection(host:)`.
+In `SpudDataKit/Services/Account/AccountService.swift`, before the unauthenticated
+`api.login(...)` (L516→520) and `api.register(...)` (L568→572) calls — both already
+`async throws`, and both taking `instance: InstanceActorId` (use `instance.host`) — call
+`router.evaluateHomeConnection(host:)`.
+
+**Recon-driven scoping:** `signInAsSignedOut(atInstance:)` (L377) is **excluded** from v1.
+It is synchronous / non-throwing and is also the automatic first-launch **bootstrap** path
+(a hardcoded known-Lemmy instance); guarding it would force it `async` and probe a known
+instance on every launch for no benefit. User-initiated signed-out "visit this instance"
+guarding (if such an entry exists in instance detail) is a follow-up, not v1.
 
 - `.block` → throw `PlatformUnsupportedError(software, displayName)`. The login /
   instance-picker scene catches it and presents a sheet:
@@ -237,13 +249,22 @@ The instance detail screen (Discover → instance) calls `detect(host:)` on appe
 renders a small "Lemmy · 0.19.5" / "PieFed · 1.0" label. `.unknown` → hide the badge (no
 error state). Cached → re-opens are instant.
 
-### 3. Bare-instance link tap (tertiary, small)
+### 3. Bare-instance link tap (tertiary) — DEFERRED pending scoping decision
 
-When the user taps a link whose URL is a **bare host root** (no Lemmy-shaped path) and
-`detect` returns `.known(non-Lemmy)`, show a lightweight signpost ("This is a Mastodon
-server") + Open in Safari, instead of a silent Safari punt. `.known(.lemmy)`, `.unknown`,
-object links, and mentions → unchanged. This is the only link-path change and it is
-additive.
+Recon (2026-07-05) showed the intended insertion point — `InternalLinkRouting`'s
+`routeToExternal(url)` fallback (L79) — is the fallback for **all** unclassified external
+links (news articles, images, arbitrary sites), not just bare instances. Probing NodeInfo
+there would fire against arbitrary websites, conflicting with decision #3 (probe only
+instance-y hosts on explicit engagement). So the originally-approved approach is unsound as
+specified.
+
+This surface is **deferred out of v1** pending a scoping decision. The better-scoped
+candidate is the **Search paste-to-open** path (`SearchURLDetector`): when the user
+explicitly pastes a URL and it is a bare host that returns no Lemmy suggestion today,
+probe it and, if `.known(non-Lemmy)`, offer "Open <host> (<software>) in Safari." That is
+explicit (a paste), narrow (search only), and never touches the generic tap fallback. v1
+ships the two solid surfaces (login/register pre-flight + instance-detail badge); this
+surface is decided separately.
 
 ## Error handling & edge cases
 
@@ -317,9 +338,10 @@ flaky-real-network trap). Swift Testing; `AppDatabase.inMemory()` for cache test
 ## Prerequisites & open items
 
 - [ ] DiasporaNodeInfo: confirm/cut a release tag to pin (blocking).
-- [ ] Re-check the latest `vNN` migration and whether `NodeInfoRecord`'s table is live.
-- [ ] Identify the exact login / instance-picker VC that presents the block sheet.
+- [ ] New migration is `v30_nodeInfoCache` (latest live is `v29_ephemeralAccountAndSiteGiveUp`) — re-confirm at implementation.
+- [x] Block-sheet presenters identified: `LoginViewModel.login()` generic catch (L131) and `RegisterViewModel.register()` generic catch (L140); badge in `InstanceDetailViewController` (existing "Software" row ~L426).
 - [ ] Decide (denis) whether to add the optional version-agnostic accessor to the package.
+- [ ] Decide (denis) the deferred bare-instance signpost scoping (Search paste-to-open vs drop) — see §Integration 3.
 
 ## Future (out of scope — recorded for continuity)
 
