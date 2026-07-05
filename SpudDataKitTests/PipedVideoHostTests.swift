@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import SpudUtilKit
 import Testing
 @testable import SpudDataKit
 
@@ -26,5 +27,42 @@ struct PipedProxyTests {
     func returnsNilOnUnparseableInput() {
         #expect(PipedProxy.rewrite(streamURL: "", proxyPrefix: "https://p.host") == nil)
         #expect(PipedProxy.rewrite(streamURL: "https://x.googlevideo.com/v", proxyPrefix: "") == nil)
+    }
+}
+
+struct PipedInstanceResolverTests {
+    /// A config whose YouTube front-end is the cataloged Piped instance, enabled.
+    private var pipedFrontEnd: URLSanitizerConfig {
+        var c = URLSanitizerConfig.default
+        c.redirectToFrontEnds = true
+        c.frontEnds = c.frontEnds.map {
+            $0.service == .youtube ? FrontEndConfig(service: .youtube, isEnabled: true, host: "piped.video") : $0
+        }
+        return c
+    }
+
+    private func apiHost(_ urlString: String, _ config: URLSanitizerConfig) -> String? {
+        PipedInstanceResolver.apiHost(forYouTubePageURL: URL(string: urlString)!, config: config)
+    }
+
+    @Test
+    func pipedVideoUrlUsesCatalogApiHost() {
+        #expect(apiHost("https://piped.video/watch?v=dQw4w9WgXcQ", .default) == "pipedapi.kavin.rocks")
+    }
+
+    @Test
+    func youtubeUrlUsesUsersPipedFrontEnd() {
+        #expect(apiHost("https://www.youtube.com/watch?v=dQw4w9WgXcQ", pipedFrontEnd) == "pipedapi.kavin.rocks")
+    }
+
+    @Test
+    func youtubeUrlIsNilWhenFrontEndNotPiped() {
+        // Default: redirectToFrontEnds off -> no Piped instance for a raw youtube link.
+        #expect(apiHost("https://www.youtube.com/watch?v=dQw4w9WgXcQ", .default) == nil)
+    }
+
+    @Test
+    func nonYoutubeUrlIsNil() {
+        #expect(apiHost("https://example.com/article", .default) == nil)
     }
 }
