@@ -149,6 +149,7 @@ class PostDetailCommentCell: UITableViewCell {
             newDotView,
             authorLabel,
             badgesStackView,
+            scorePillLabel,
             subtitleLabel,
             spacerView,
             collapsedBadgeLabel,
@@ -161,6 +162,7 @@ class PostDetailCommentCell: UITableViewCell {
         stackView.setCustomSpacing(6, after: newDotView)
         stackView.setCustomSpacing(6, after: authorLabel)
         stackView.setCustomSpacing(6, after: badgesStackView)
+        stackView.setCustomSpacing(6, after: scorePillLabel)
         stackView.setCustomSpacing(6, after: collapsedBadgeLabel)
 
         return stackView
@@ -219,6 +221,22 @@ class PostDetailCommentCell: UITableViewCell {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.backgroundColor = .clear
         label.accessibilityIdentifier = "collapsedBadge"
+        label.setContentHuggingPriority(.required, for: .horizontal)
+        label.setContentCompressionResistancePriority(.required, for: .horizontal)
+        return label
+    }()
+
+    /// Inline score pill shown between the role badges and the metadata subtitle.
+    /// Voted state (up/down): solid fill on the vote-token color with a white arrow
+    /// + white number. Neutral state: same arrow + number in secondaryLabel with no
+    /// fill, so the score is always visible. Pill is hidden only for "load more"
+    /// rows and deleted/removed comments (no meaningful score).
+    lazy var scorePillLabel: BadgeLabel = {
+        let label = BadgeLabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.layer.cornerRadius = VoteFillStyle.capsuleCornerRadius
+        label.clipsToBounds = true
+        label.accessibilityIdentifier = "score"
         label.setContentHuggingPriority(.required, for: .horizontal)
         label.setContentCompressionResistancePriority(.required, for: .horizontal)
         return label
@@ -454,6 +472,9 @@ class PostDetailCommentCell: UITableViewCell {
         collapsedNewBadgeLabel.attributedText = nil
         collapsedNewBadgeLabel.backgroundColor = .clear
         collapsedNewBadgeLabel.isHidden = true
+        scorePillLabel.attributedText = nil
+        scorePillLabel.backgroundColor = .clear
+        scorePillLabel.isHidden = true
         // Drop the bodies now so any in-flight inline-image loads are cancelled
         // before the cell is reused for another comment.
         bodyView.setBlocks([])
@@ -662,6 +683,26 @@ class PostDetailCommentCell: UITableViewCell {
         // moderation placeholder).
         configureLinkPreviews(viewModel)
 
+        // Score pill: the VM pre-builds the attributed text with a Dynamic-Type-
+        // scaling monospaced font. Neutral comments show the score with no fill
+        // (secondaryLabel color, clear background); voted comments show white text
+        // on the vote-token fill. "Load more" rows and deleted/removed comments
+        // have nil scorePillText and hide the pill entirely.
+        if let pillText = viewModel.scorePillText {
+            scorePillLabel.attributedText = pillText
+            scorePillLabel.backgroundColor = viewModel.scorePillFillColor ?? .clear
+            scorePillLabel.accessibilityLabel = VoteAccessibility.scoreLabel(
+                score: viewModel.score,
+                voteStatus: viewModel.voteStatus
+            )
+            scorePillLabel.isHidden = false
+        } else {
+            scorePillLabel.attributedText = nil
+            scorePillLabel.backgroundColor = .clear
+            scorePillLabel.accessibilityLabel = nil
+            scorePillLabel.isHidden = true
+        }
+
         collapsedBadgeLabel.attributedText = viewModel.collapsedBadgeText
         collapsedBadgeLabel.isHidden = viewModel.collapsedBadgeText == nil
 
@@ -774,6 +815,10 @@ class PostDetailCommentCell: UITableViewCell {
         collapsedNewBadgeLabel.isHidden = true
         newDotView.isHidden = true
         newDotView.backgroundColor = .clear
+        // Pending rows have no vote state, so hide the score pill.
+        scorePillLabel.attributedText = nil
+        scorePillLabel.backgroundColor = .clear
+        scorePillLabel.isHidden = true
 
         tintBackingView.backgroundColor = .clear
         contentView.alpha = state.status == .sending ? 0.6 : 1.0

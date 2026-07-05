@@ -58,6 +58,26 @@ struct PostDetailCommentViewModel {
     let isMore: Bool
     let moreText: NSAttributedString?
 
+    /// The current vote state on this comment — drives the score-pill fill and
+    /// the pill's accessibility label.
+    let voteStatus: VoteStatus
+
+    /// The comment's display score. Moved out of the subtitle and into the
+    /// score-pill in the voted state; still surfaced in the accessibility label.
+    let score: Int64
+
+    /// The pre-built attributed text for the score pill (arrow glyph + number),
+    /// using the scaled monospaced font so the pill tracks Dynamic Type. `nil`
+    /// for "load more" rows and deleted/removed comments (no meaningful score).
+    ///
+    /// Neutral state produces a `.secondaryLabel`-coloured no-fill string;
+    /// voted states produce a white string intended to sit on `scorePillFillColor`.
+    let scorePillText: NSAttributedString?
+
+    /// The background fill for the score pill. `nil` for neutral (transparent
+    /// background so the capsule is invisible, letting the score float inline).
+    let scorePillFillColor: UIColor?
+
     /// Author role/status pills shown after the name, in order.
     let badges: [CommentBadge]
 
@@ -283,30 +303,64 @@ struct PostDetailCommentViewModel {
             blockedShowText = nil
         }
 
-        // MARK: Subtitle (score · age · saved)
+        // MARK: Subtitle (age · saved)
 
-        let voteStatus: VoteStatus = {
+        voteStatus = {
             switch row.voteStatus {
             case 1: return .up
             case 0: return .down
             default: return .neutral
             }
         }()
+        score = row.score
+
+        // MARK: Score pill attributed text
+
+        // Build the pill once in the VM so (a) the font scales with Dynamic Type
+        // via the same `scaledMonospaceDigitSystemFont` used for the subtitle, and
+        // (b) neutral comments still show a score (no fill, secondaryLabel color).
+        // "Load more" rows and deleted/removed comments carry no meaningful score.
+        let hideScore = isDeleted || isRemoved
+        if !hideScore, row.moreChildCount == nil {
+            // Neutral: secondaryLabel, regular weight (matches the pre-Task-5
+            // subtitle appearance). Voted: white on the vote-token fill, bold so
+            // the number reads heavier against the colored background.
+            let isVoted = voteStatus != .neutral
+            let pillFont = UIFont.scaledMonospaceDigitSystemFont(
+                style: .body,
+                relativeSize: -1 + textSizeAdjustment,
+                weight: isVoted ? .bold : .regular
+            )
+            let pillColor: UIColor = isVoted ? VoteFillStyle.filledGlyphColor : .secondaryLabel
+            let pillAttributes: [NSAttributedString.Key: Any] = [
+                .font: pillFont,
+                .foregroundColor: pillColor,
+            ]
+            let glyphName: String
+            switch row.voteStatus {
+            case 0: glyphName = "arrow.down"
+            default: glyphName = "arrow.up"
+            }
+            let text = NSMutableAttributedString()
+            if let image = UIImage(systemName: glyphName) {
+                text.append(NSAttributedString.symbol(from: image, attributes: pillAttributes))
+                text.append(NSAttributedString(string: " ", attributes: pillAttributes))
+            }
+            text.append(NSAttributedString(
+                string: UpvotesFormatter.string(from: row.score),
+                attributes: pillAttributes
+            ))
+            scorePillText = text
+
+            // Voted: fill with the vote-token color (shared helper); neutral: no fill (clear bg).
+            scorePillFillColor = VoteFillStyle.fillColor(for: voteStatus, appearance: appearance.general)
+        } else {
+            scorePillText = nil
+            scorePillFillColor = nil
+        }
 
         let space = NSAttributedString(string: "  ", attributes: secondaryAttributes)
-        // A deleted/removed comment has no meaningful score — hiding it is what
-        // makes the placeholder read as "gone" rather than a normal downvoted row.
-        let hideScore = isDeleted || isRemoved
         var subtitlePieces: [NSAttributedString] = []
-        if !hideScore {
-            subtitlePieces.append(IconValueFormatter.attributedString(
-                numberOfVotesOrScore: row.score,
-                voteStatus: voteStatus,
-                attributes: monoAttributes,
-                appearance: appearance.general
-            ))
-            subtitlePieces.append(space)
-        }
         if let published = row.published {
             subtitlePieces.append(IconValueFormatter.attributedString(
                 relativeDate: published,
@@ -383,14 +437,13 @@ struct PostDetailCommentViewModel {
                 comment: "VoiceOver hint for the load-more-replies row"
             )
         } else {
-            // The subtitle element carries the full comment metadata for
-            // VoiceOver — score, age, depth, collapsed and moderation state —
-            // since the visible run is icon glyphs it cannot pronounce. The
-            // author (a link) and body are read as their own elements.
+            // The subtitle element carries comment metadata (age, depth,
+            // collapsed and moderation state) for VoiceOver — the visible run
+            // is icon glyphs it cannot pronounce. Score is spoken via the
+            // score-pill accessibility label instead (so voted comments read
+            // the score exactly once). The author (a link) and body are read
+            // as their own elements.
             var pieces: [String] = []
-            if !hideScore {
-                pieces.append(VoteAccessibility.scoreLabel(score: row.score, voteStatus: voteStatus))
-            }
             if isOriginalPoster {
                 pieces.append(NSLocalizedString("original poster", comment: "VoiceOver: comment written by the post's author"))
             }

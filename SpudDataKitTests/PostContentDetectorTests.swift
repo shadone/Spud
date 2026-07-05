@@ -163,4 +163,58 @@ struct PostContentDetectorTests {
             return
         }
     }
+
+    @Test
+    func streamableUrl_isDetectedAsVideo() {
+        let type = contentType(url: "https://streamable.com/67295820")
+        guard case let .video(video) = type else {
+            Issue.record("streamable should be a video, got \(type)")
+            return
+        }
+        #expect(video.videoUrl.absoluteString == "https://streamable.com/67295820")
+    }
+
+    @Test
+    func streamableUrl_usesServerThumbnailAsPoster() {
+        let type = contentType(
+            url: "https://streamable.com/67295820",
+            thumbnailUrl: "https://server.example/thumb.jpg"
+        )
+        guard case let .video(video) = type else {
+            Issue.record("streamable should be a video, got \(type)")
+            return
+        }
+        #expect(video.thumbnailUrl?.absoluteString == "https://server.example/thumb.jpg")
+    }
+
+    @Test
+    func peerTubeUrl_isDetectedAsVideo() {
+        let url = "https://tube.example/videos/watch/0e3c8d2a-1234-4abc-9def-0123456789ab"
+        let type = contentType(url: url)
+        guard case let .video(video) = type else {
+            Issue.record("PeerTube URL should be a video, got \(type)")
+            return
+        }
+        #expect(video.videoUrl.absoluteString == url)
+    }
+
+    @Test
+    func youTubeUrl_isDetectedAsVideo() {
+        let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        let type = contentType(url: url)
+        guard case let .video(video) = type else {
+            Issue.record("YouTube URL should be a video, got \(type)")
+            return
+        }
+        #expect(video.videoUrl.absoluteString == url)
+    }
+
+    @Test
+    func unrecognizedLink_staysExternalLink() {
+        let type = contentType(url: "https://example.com/some/article")
+        guard case .externalLink = type else {
+            Issue.record("unrecognized link should be externalLink, got \(type)")
+            return
+        }
+    }
 }

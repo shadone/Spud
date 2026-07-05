@@ -1419,7 +1419,7 @@ class PostDetailViewController: UIViewController {
         case let .image(image):
             presentMediaViewer(imageUrl: image.imageUrl, thumbnailUrl: image.thumbnailUrl, preloadedImage: nil)
         case let .video(video):
-            presentVideoPlayer(url: video.videoUrl)
+            Task { await self.playVideo(url: video.videoUrl, appService: self.appService) }
         case .externalLink, .textOrEmpty:
             Task { await appService.open(url: url, on: self) }
         }
@@ -2642,7 +2642,8 @@ extension PostDetailViewController {
                     )
                 }
                 cell.videoTapped = { [weak self] videoUrl in
-                    self?.presentVideoPlayer(url: videoUrl)
+                    guard let self else { return }
+                    Task { await self.playVideo(url: videoUrl, appService: self.appService) }
                 }
                 cell.openInBrowser = { [weak self] url in
                     guard let self else { return }

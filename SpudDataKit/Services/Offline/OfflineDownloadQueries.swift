@@ -137,6 +137,9 @@ public extension AppDatabase {
                     case let .externalLink(link):
                         imageUrl = nil
                         externalLinkUrl = link.url
+                    // A recognized video-host post (e.g. streamable) now classifies as `.video`
+                    // rather than `.externalLink`, so — like other videos — its page is not
+                    // web-archived for offline reading (the stream itself isn't predownloaded either).
                     case .textOrEmpty, .video:
                         imageUrl = nil
                         externalLinkUrl = nil

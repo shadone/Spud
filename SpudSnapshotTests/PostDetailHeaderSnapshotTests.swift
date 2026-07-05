@@ -132,6 +132,26 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - Vote states
+
+    /// The upvoted state: upvote button renders as a solid accent-filled capsule
+    /// with a white arrow glyph — a real weight change, not just a tint.
+    func test_image_upvoted() async {
+        await assertHeader(
+            row: row(url: imageUrl, voteStatus: 1),
+            imageService: ScriptedImageService([.ready(photo())])
+        )
+    }
+
+    /// The downvoted state: downvote button renders as a solid indigo-filled
+    /// capsule with a white arrow glyph.
+    func test_image_downvoted() async {
+        await assertHeader(
+            row: row(url: imageUrl, voteStatus: 0),
+            imageService: ScriptedImageService([.ready(photo())])
+        )
+    }
+
     // MARK: - Logic
 
     func test_isImageBlurred_logic() {
@@ -384,7 +404,8 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         imageHeight: Int? = nil,
         urlEmbedTitle: String? = nil,
         urlEmbedDescription: String? = nil,
-        isNsfw: Bool = false
+        isNsfw: Bool = false,
+        voteStatus: Int64? = nil
     ) -> PostDetailHeaderRow {
         PostDetailHeaderRow(
             id: 1,
@@ -408,7 +429,7 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
             creatorActorId: "https://lemmy.world",
             score: 1234,
             numberOfComments: 56,
-            voteStatus: nil,
+            voteStatus: voteStatus,
             isSaved: false,
             isRemoved: false,
             isLocked: false,

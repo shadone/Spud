@@ -1179,18 +1179,22 @@ class PostListViewController: UIViewController {
             config.secondaryText = empty.message
             contentUnavailableConfiguration = config
         case let .failed(failure):
-            // A failed pull-to-refresh keeps the existing posts on screen and
-            // surfaces the failure as a transient toast, rather than replacing
-            // the list with the full error surface. With no posts to keep (or a
-            // normal initial-load failure), fall back to the error surface.
-            // `displayedRows` still holds the prior feed until the new feed's
-            // first snapshot swaps it in, so it is non-empty exactly when a
-            // refresh failed (in `loadFirstPage`) before any new content arrived.
-            if refreshControl.isRefreshing, !displayedRows.isEmpty {
-                refreshControl.endRefreshing()
+            // Never replace on-screen posts with the full error surface: it's a
+            // transparent `UIContentUnavailableConfiguration`, so overlaying it on
+            // live posts renders the error copy see-through on top of them. When
+            // the feed already has content (`displayedRows` still holds the prior
+            // feed until a new feed's first snapshot swaps it in), keep it and
+            // surface the failure as a transient toast; only fall back to the full
+            // surface when the list is empty (a normal initial-load failure), where
+            // there is nothing behind it. Gating on `displayedRows` alone — not on
+            // `refreshControl.isRefreshing` — is what makes this hold for any reload
+            // path (reconnect retry, in-place feed switch) and immune to a racing
+            // `endRefreshing()` that clears the flag while posts remain.
+            refreshControl.endRefreshing()
+            switch FeedFailurePresentation.decide(hasContent: !displayedRows.isEmpty) {
+            case .keepContentWithToast:
                 showRefreshFailureToast(for: failure)
-            } else {
-                refreshControl.endRefreshing()
+            case .fullErrorSurface:
                 hideLoadingSkeleton()
                 contentUnavailableConfiguration = makeErrorConfiguration(for: failure)
             }
@@ -1346,7 +1350,7 @@ class PostListViewController: UIViewController {
 
                 cell.videoTapped = { [weak self] videoUrl in
                     guard let self else { return }
-                    presentVideoPlayer(url: videoUrl)
+                    Task { await self.playVideo(url: videoUrl, appService: self.appService) }
                     if markPostsRead {
                         markReadInBackground(serverPostId: serverPostId)
                     }

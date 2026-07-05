@@ -283,10 +283,17 @@ class PostDetailHeaderCell: UITableViewCellBase {
             }
 
             if button.isSelected {
-                // The upvoted state follows the user's accent (the design tints
-                // every upvote with it), read live so it tracks accent changes.
-                newConfiguration.imageColorTransformer = .init { _ in ThemeManager.currentAccentColor }
-                newConfiguration.baseBackgroundColor = ThemeManager.currentAccentColor
+                // Solid filled capsule: the accent as the fill, a white glyph on
+                // top — a real weight change, not just a tint. Read live so it
+                // tracks the user's accent choice. `.plain()` ignores
+                // `baseBackgroundColor`, so set `background.backgroundColor`
+                // and corner radius explicitly.
+                newConfiguration.imageColorTransformer = .init { _ in VoteFillStyle.filledGlyphColor }
+                newConfiguration.background.backgroundColor = ThemeManager.currentAccentColor
+                newConfiguration.background.cornerRadius = VoteFillStyle.capsuleCornerRadius
+            } else {
+                newConfiguration.imageColorTransformer = .init { $0 }
+                newConfiguration.background.backgroundColor = .clear
             }
 
             button.configuration = newConfiguration
@@ -318,8 +325,14 @@ class PostDetailHeaderCell: UITableViewCellBase {
             }
 
             if button.isSelected {
-                newConfiguration.imageColorTransformer = .init { _ in GeneralAppearance.downColor }
-                newConfiguration.baseBackgroundColor = GeneralAppearance.downColor
+                // Solid filled capsule: the down-vote color as the fill, a white
+                // glyph on top. Symmetrical to the upvote handler above.
+                newConfiguration.imageColorTransformer = .init { _ in VoteFillStyle.filledGlyphColor }
+                newConfiguration.background.backgroundColor = GeneralAppearance.downColor
+                newConfiguration.background.cornerRadius = VoteFillStyle.capsuleCornerRadius
+            } else {
+                newConfiguration.imageColorTransformer = .init { $0 }
+                newConfiguration.background.backgroundColor = .clear
             }
 
             button.configuration = newConfiguration
@@ -1064,11 +1077,26 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
     @objc
     private func upvoteButtonTapped() {
+        // Pre-paint the selected state so the fill capsule is visible when
+        // animateCommit springs it in. The later async `configure` write is a
+        // no-op if the optimistic value matches; it will correct the state on
+        // rollback. Upvoting clears any active downvote. Animate only on
+        // selection — un-voting has nothing to fill.
+        let willBeSelected = !upvoteBarButton.isSelected
+        upvoteBarButton.isSelected = willBeSelected
+        downvoteBarButton.isSelected = false
+        if willBeSelected { VoteFillStyle.animateCommit(upvoteBarButton) }
         upvoteTapped?()
     }
 
     @objc
     private func downvoteButtonTapped() {
+        // Symmetrical to upvoteButtonTapped — pre-paint, then animate on
+        // selection only. Downvoting clears any active upvote.
+        let willBeSelected = !downvoteBarButton.isSelected
+        downvoteBarButton.isSelected = willBeSelected
+        upvoteBarButton.isSelected = false
+        if willBeSelected { VoteFillStyle.animateCommit(downvoteBarButton) }
         downvoteTapped?()
     }
 
