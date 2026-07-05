@@ -50,6 +50,20 @@ adds witness-table dispatch and a shadowing footgun).
 not Combine). Not merging comment-level vote into the post-level protocol. Not
 reworking `CommunityViewModel`'s already-correct read-side observation.
 
+**Landed (2026-07-06): Phase 1** (plan:
+docs/superpowers/plans/2026-07-06-postdetail-phase1.md). `PostDetailViewController`
+shrank 3,098 -> 2,268 lines via six pure-motion sibling files (+Content, +Report,
++DeleteRestore, +Moderation, +PendingComments, +OverflowMenu; token-level motion
+audits). Both open review notes resolved: the protocol is now split into
+`PostVoteDispatching` / `PostSaveDispatching` (Activity dropped its stub) and the
+`presentSignInGate` requirement is gone; a `postActionWillDispatch` hook carries
+PostDetail's offline-action toast, and PostDetail's post-level vote/save now fold
+into `PostSaveDispatching` (behavior byte-identical, review-proven). Still open
+(Phase 2): the GRDB observation-loop move into `PostDetailViewModel` (needs an
+observable comments-revision signal — `orderedComments` is deliberately
+`@ObservationIgnored` — plus DB-backed VM tests), the lemmyService mutations'
+move, and a PostDetail header-vote e2e mirroring `SignedInVoteUITests`.
+
 ## 2. Signed-in UITest seam
 
 **Problem.** The only account seam today is `seedSignedOutDefaultAccount`
