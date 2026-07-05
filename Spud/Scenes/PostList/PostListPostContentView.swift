@@ -220,6 +220,15 @@ class PostListPostContentView: UIView {
         return view
     }()
 
+    /// Dog-ear fold shown at the trailing corner when arrows are hidden and the
+    /// post is voted. Sits above `swipeActionView` as a non-interactive overlay.
+    lazy var voteFold: VoteFoldView = {
+        let view = VoteFoldView(frame: .zero)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.isHidden = true
+        return view
+    }()
+
     // MARK: Private
 
     private var thumbnailLoadTask: Task<Void, Never>?
@@ -252,12 +261,23 @@ class PostListPostContentView: UIView {
     /// which read as the thumbnail "zooming in". Reset on reuse.
     private var appliedThumbnailUrl: URL?
 
+    /// Vertical-anchor constraints that position the 28×28 fold at the top or
+    /// bottom trailing corner. Exactly one is active at a time (the other is
+    /// deactivated), toggled in `applyVoteState` based on status.
+    private lazy var voteFoldTop = voteFold.topAnchor.constraint(equalTo: topAnchor)
+    private lazy var voteFoldBottom = voteFold.bottomAnchor.constraint(equalTo: bottomAnchor)
+
     // MARK: Functions
 
     init() {
         super.init(frame: .zero)
 
         addSubview(swipeActionView)
+        // The fold sits above the swipe layer as a non-interactive overlay. It
+        // is pinned to the cell's trailing edge (flush to the visible right edge
+        // of the content area) and anchored vertically via `voteFoldTop` /
+        // `voteFoldBottom` (toggled in `applyVoteState`).
+        addSubview(voteFold)
 
         let subviews = [
             thumbnailView,
@@ -277,6 +297,8 @@ class PostListPostContentView: UIView {
             thumbnailView.heightAnchor.constraint(equalToConstant: Self.thumbnailDimension),
 
             voteColumn.widthAnchor.constraint(equalToConstant: 34),
+
+            voteFold.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
 
         thumbnailView.isUserInteractionEnabled = true
@@ -373,15 +395,31 @@ class PostListPostContentView: UIView {
     }
 
     /// Renders the active arrow as a filled capsule (white glyph on the vote
-    /// token) and the other as a tertiary hairline. `animated` springs the newly
-    /// filled capsule in; it must be `false` on cell reuse (`configure`) so
-    /// scrolling doesn't animate every recycled cell.
+    /// token) and the other as a tertiary hairline. When vote arrows are hidden
+    /// (`appliedShowVoteButtons == false`), shows the dog-ear fold instead.
+    /// The pill and the fold are mutually exclusive.
+    ///
+    /// Must be called after `applyLayout` in `configure` so that
+    /// `appliedShowVoteButtons` is already set.
     private func applyVoteState(_ status: VoteStatus, animated: Bool) {
+        // Pill (arrows shown) and fold (arrows hidden) are mutually exclusive.
+        let showFold = appliedShowVoteButtons == false && status != .neutral
         style(upvoteButton, filled: status == .up, fill: appliedUpvoteColor)
         style(downvoteButton, filled: status == .down, fill: appliedDownvoteColor)
+
+        // Toggle which vertical corner the fold anchors to.
+        voteFoldTop.isActive = status == .up
+        voteFoldBottom.isActive = status == .down
+        voteFold.configure(
+            status: showFold ? status : .neutral,
+            upColor: appliedUpvoteColor,
+            downColor: appliedDownvoteColor
+        )
+
         if animated {
-            if status == .up { VoteFillStyle.animateCommit(upvoteButton) }
-            if status == .down { VoteFillStyle.animateCommit(downvoteButton) }
+            if !showFold, status == .up { VoteFillStyle.animateCommit(upvoteButton) }
+            if !showFold, status == .down { VoteFillStyle.animateCommit(downvoteButton) }
+            if showFold { VoteFillStyle.animateCommit(voteFold) }
         }
     }
 
@@ -466,10 +504,12 @@ class PostListPostContentView: UIView {
 
         appliedUpvoteColor = viewModel.upvoteActiveColor
         appliedDownvoteColor = viewModel.downvoteActiveColor
-        applyVoteState(viewModel.voteStatus, animated: false)
 
         applyDensity(viewModel.density)
+        // applyLayout must run first: it sets `appliedShowVoteButtons`, which
+        // `applyVoteState` reads to decide whether to show the pill or the fold.
         applyLayout(position: viewModel.thumbnailPosition, showVoteButtons: viewModel.showVoteButtons)
+        applyVoteState(viewModel.voteStatus, animated: false)
 
         // A hidden thumbnail needs no image work.
         guard viewModel.thumbnailPosition.showsThumbnail else {

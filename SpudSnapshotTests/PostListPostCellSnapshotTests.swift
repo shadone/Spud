@@ -133,6 +133,20 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - Fold (arrows hidden)
+
+    func test_fold_upvoted() async {
+        await assertCell(row(url: nil, voteStatus: 1), showVoteButtons: false)
+    }
+
+    func test_fold_downvoted() async {
+        await assertCell(row(url: nil, voteStatus: 0), showVoteButtons: false)
+    }
+
+    func test_fold_neutral() async {
+        await assertCell(row(url: nil, voteStatus: nil), showVoteButtons: false)
+    }
+
     // MARK: - Subtitle wrapping
 
     /// A long community handle pushes the subtitle past the row width, so it
@@ -167,6 +181,7 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         _ row: PostListRow,
         imageService: @autoclosure () -> ImageServiceType = ScriptedImageService([.failure]),
         density: PostDensity = .comfortable,
+        showVoteButtons: Bool = true,
         testName: String = #function,
         line: UInt = #line
     ) async {
@@ -174,7 +189,8 @@ final class PostListPostCellSnapshotTests: XCTestCase {
             let cell = await renderCell(
                 row: row,
                 imageService: imageService(),
-                density: density
+                density: density,
+                showVoteButtons: showVoteButtons
             )
             snapshot(cell, style: style, testName: testName, line: line)
         }
@@ -183,7 +199,8 @@ final class PostListPostCellSnapshotTests: XCTestCase {
     private func renderCell(
         row: PostListRow,
         imageService: ImageServiceType,
-        density: PostDensity
+        density: PostDensity,
+        showVoteButtons: Bool = true
     ) async -> PostListPostCell {
         let cell = PostListPostCell(style: .default, reuseIdentifier: nil)
         // Pin the accent on the snapshot root: the `.image` strategy reparents
@@ -198,7 +215,7 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         // stays legible (white-on-transparent would vanish in dark mode).
         cell.contentView.backgroundColor = .systemBackground
 
-        cell.configure(with: makeViewModel(row: row, density: density), imageService: imageService)
+        cell.configure(with: makeViewModel(row: row, density: density, showVoteButtons: showVoteButtons), imageService: imageService)
         await settle()
 
         return cell
@@ -241,7 +258,7 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         ])
     }
 
-    private func makeViewModel(row: PostListRow, density: PostDensity) -> PostListPostViewModel {
+    private func makeViewModel(row: PostListRow, density: PostDensity, showVoteButtons: Bool = true) -> PostListPostViewModel {
         // A fresh preferences service per render so the density override is
         // isolated to the requesting test method.
         let preferences = PreferencesService()
@@ -255,7 +272,7 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         // state rather than the code. See the addendum in §5 of
         // docs/superpowers/specs/2026-07-05-follow-ups.md.
         preferences.thumbnailPosition = .left
-        preferences.showVoteButtons = true
+        preferences.showVoteButtons = showVoteButtons
         let appearance = AppearanceService(preferencesService: preferences)
         return PostListPostViewModel(
             row: row,
