@@ -83,7 +83,9 @@ order-independent regardless of what a prior suite left behind) + two consumers
 green: `IPadActivitySplitUITests` un-skipping the Activity split, and
 `SignedInVoteUITests` pinning optimistic-vote-with-no-gate against a 500 send.
 Remaining scope stays open: login/compose/inbox e2e, and the 12-item
-verification-debt burn-down.
+verification-debt burn-down; wipe arg on the legacy signed-out suites
+(reverse contamination: signed-in leftovers currently make them run signed-in;
+needs re-proof on both devices).
 
 ## 3. SpudWidget test target
 

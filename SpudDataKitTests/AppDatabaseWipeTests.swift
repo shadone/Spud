@@ -8,6 +8,8 @@ import Foundation
 import Testing
 @testable import SpudDataKit
 
+#if DEBUG
+
 /// Guards ``AppDatabase/wipePersistentStore(at:)`` — the DEBUG UI-test seam that
 /// deletes the on-disk database directory so a test run starts from a truly
 /// fresh install (the App Group database survives SBT's ResetFilesystem and
@@ -52,3 +54,5 @@ struct AppDatabaseWipeTests {
         #expect(!fm.fileExists(atPath: directory.path))
     }
 }
+
+#endif

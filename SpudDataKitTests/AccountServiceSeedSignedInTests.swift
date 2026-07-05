@@ -11,6 +11,8 @@ import SpudUtilKit
 import Testing
 @testable import SpudDataKit
 
+#if DEBUG
+
 /// In-memory `CredentialStore` standing in for the keychain, which the test
 /// bundle can't reach (no shared-group entitlement). Records stored credentials
 /// so the seed's persistence can be asserted.
@@ -139,3 +141,5 @@ struct AccountServiceSeedSignedInTests {
         #expect(credentialStore.count == 0)
     }
 }
+
+#endif
