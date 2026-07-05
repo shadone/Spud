@@ -171,72 +171,252 @@ protocol HasPreferencesService {
 
 @MainActor
 class PreferencesService: PreferencesServiceType {
-    @UserDefaultsBacked(key: "defaultCommentSortType")
-    var defaultCommentSortType: Components.Schemas.CommentSortType = .Hot
+    @UserDefaultsBacked
+    var defaultCommentSortType: Components.Schemas.CommentSortType
 
     var defaultCommentSortTypeStream: AsyncStream<Components.Schemas.CommentSortType> {
         $defaultCommentSortType
     }
 
-    @UserDefaultsBacked(key: "appTheme")
-    var appTheme: AppTheme = .system
+    @UserDefaultsBacked
+    var appTheme: AppTheme
 
     var appThemeStream: AsyncStream<AppTheme> {
         $appTheme
     }
 
-    @UserDefaultsBacked(key: "accentColor")
-    var accentColor: AccentColor = .lemmy
+    @UserDefaultsBacked
+    var accentColor: AccentColor
 
     var accentColorStream: AsyncStream<AccentColor> {
         $accentColor
     }
 
-    @UserDefaultsBacked(key: "openExternalLinks")
-    var openExternalLinks: Preferences.OpenExternalLink = .safariViewController
+    @UserDefaultsBacked
+    var openExternalLinks: Preferences.OpenExternalLink
 
     var openExternalLinksStream: AsyncStream<Preferences.OpenExternalLink> {
         $openExternalLinks
     }
 
-    @UserDefaultsBacked(key: "openInBrowserInstance")
-    var openInBrowserInstance: Preferences.LinkInstance = .myInstance
+    @UserDefaultsBacked
+    var openInBrowserInstance: Preferences.LinkInstance
 
     var openInBrowserInstanceStream: AsyncStream<Preferences.LinkInstance> {
         $openInBrowserInstance
     }
 
-    @UserDefaultsBacked(key: "shareLinkInstance")
-    var shareLinkInstance: Preferences.LinkInstance = .originalInstance
+    @UserDefaultsBacked
+    var shareLinkInstance: Preferences.LinkInstance
 
     var shareLinkInstanceStream: AsyncStream<Preferences.LinkInstance> {
         $shareLinkInstance
     }
 
-    @UserDefaultsBacked(key: "openExternalLinksInSafariVCReaderMode")
-    var openExternalLinksInSafariVCReaderMode = true
+    @UserDefaultsBacked
+    var openExternalLinksInSafariVCReaderMode: Bool
 
     var openExternalLinksInSafariVCReaderModeStream: AsyncStream<Bool> {
         $openExternalLinksInSafariVCReaderMode
     }
 
-    @UserDefaultsBacked(key: "openUniversalLinkInApp")
-    var openUniversalLinkInApp: Bool = true
+    @UserDefaultsBacked
+    var openUniversalLinkInApp: Bool
 
-    @UserDefaultsBacked(key: "rewriteTwitterLinksToXcancel")
-    var rewriteTwitterLinksToXcancel: Bool = false
+    @UserDefaultsBacked
+    var rewriteTwitterLinksToXcancel: Bool
 
-    @UserDefaultsBacked(key: "urlSanitizerConfig")
-    var urlSanitizerConfig: URLSanitizerConfig = .default
+    @UserDefaultsBacked
+    var urlSanitizerConfig: URLSanitizerConfig
 
     var urlSanitizerConfigStream: AsyncStream<URLSanitizerConfig> {
         $urlSanitizerConfig
     }
 
-    @UserDefaultsBacked(key: "didMigrateXcancelToSanitizer")
-    private var didMigrateXcancelToSanitizer: Bool = false
+    @UserDefaultsBacked
+    private var didMigrateXcancelToSanitizer: Bool
 
-    init() {
+    @UserDefaultsBacked
+    var postSwipeActions: SwipeActionConfig
+
+    var postSwipeActionsStream: AsyncStream<SwipeActionConfig> {
+        $postSwipeActions
+    }
+
+    @UserDefaultsBacked
+    var commentSwipeActions: SwipeActionConfig
+
+    var commentSwipeActionsStream: AsyncStream<SwipeActionConfig> {
+        $commentSwipeActions
+    }
+
+    // MARK: Reading / display (M8)
+
+    @UserDefaultsBacked
+    var postDensity: PostDensity
+
+    var postDensityStream: AsyncStream<PostDensity> {
+        $postDensity
+    }
+
+    @UserDefaultsBacked
+    var commentDensity: PostDensity
+
+    var commentDensityStream: AsyncStream<PostDensity> {
+        $commentDensity
+    }
+
+    @UserDefaultsBacked
+    var thumbnailPosition: ThumbnailPosition
+
+    var thumbnailPositionStream: AsyncStream<ThumbnailPosition> {
+        $thumbnailPosition
+    }
+
+    @UserDefaultsBacked
+    var postTextScale: CGFloat
+
+    var postTextScaleStream: AsyncStream<CGFloat> {
+        $postTextScale
+    }
+
+    @UserDefaultsBacked
+    var showVoteButtons: Bool
+
+    var showVoteButtonsStream: AsyncStream<Bool> {
+        $showVoteButtons
+    }
+
+    @UserDefaultsBacked
+    var showNsfw: Bool
+
+    var showNsfwStream: AsyncStream<Bool> {
+        $showNsfw
+    }
+
+    @UserDefaultsBacked
+    var blurNsfw: Bool
+
+    var blurNsfwStream: AsyncStream<Bool> {
+        $blurNsfw
+    }
+
+    @UserDefaultsBacked
+    var fetchLinkEmbeds: Bool
+
+    var fetchLinkEmbedsStream: AsyncStream<Bool> {
+        $fetchLinkEmbeds
+    }
+
+    @UserDefaultsBacked
+    var hasAcknowledgedNsfwAge: Bool
+
+    // MARK: Mark-read / hide (M8)
+
+    @UserDefaultsBacked
+    var markPostsRead: Bool
+
+    var markPostsReadStream: AsyncStream<Bool> {
+        $markPostsRead
+    }
+
+    @UserDefaultsBacked
+    var markPostsReadOnScroll: Bool
+
+    var markPostsReadOnScrollStream: AsyncStream<Bool> {
+        $markPostsReadOnScroll
+    }
+
+    @UserDefaultsBacked
+    var hideReadPosts: Bool
+
+    var hideReadPostsStream: AsyncStream<Bool> {
+        $hideReadPosts
+    }
+
+    @UserDefaultsBacked
+    var hideReadPostsMode: HideReadPostsFilter.Mode
+
+    var hideReadPostsModeStream: AsyncStream<HideReadPostsFilter.Mode> {
+        $hideReadPostsMode
+    }
+
+    // MARK: Community directory (Explorer)
+
+    @UserDefaultsBacked
+    var explorerAutoRefreshEnabled: Bool
+
+    var explorerAutoRefreshEnabledStream: AsyncStream<Bool> {
+        $explorerAutoRefreshEnabled
+    }
+
+    @UserDefaultsBacked
+    var explorerRefreshInterval: Preferences.ExplorerRefreshInterval
+
+    var explorerRefreshIntervalStream: AsyncStream<Preferences.ExplorerRefreshInterval> {
+        $explorerRefreshInterval
+    }
+
+    // MARK: Offline
+
+    @UserDefaultsBacked
+    var offlineDownloadPostCount: Preferences.OfflineDownloadPostCount
+
+    @UserDefaultsBacked
+    var offlineDownloadArchiveLinks: Bool
+
+    /// Designated initializer. Injects the `UserDefaults` store that backs every
+    /// `@UserDefaultsBacked` property so tests can run against a private,
+    /// disposable suite instead of `.standard`. Each assignment must preserve the
+    /// property's exact key string and default value.
+    init(storage: UserDefaults) {
+        _defaultCommentSortType = .init(wrappedValue: .Hot, key: "defaultCommentSortType", storage: storage)
+        _appTheme = .init(wrappedValue: .system, key: "appTheme", storage: storage)
+        _accentColor = .init(wrappedValue: .lemmy, key: "accentColor", storage: storage)
+        _openExternalLinks = .init(wrappedValue: .safariViewController, key: "openExternalLinks", storage: storage)
+        _openInBrowserInstance = .init(wrappedValue: .myInstance, key: "openInBrowserInstance", storage: storage)
+        _shareLinkInstance = .init(wrappedValue: .originalInstance, key: "shareLinkInstance", storage: storage)
+        _openExternalLinksInSafariVCReaderMode = .init(
+            wrappedValue: true,
+            key: "openExternalLinksInSafariVCReaderMode",
+            storage: storage
+        )
+        _openUniversalLinkInApp = .init(wrappedValue: true, key: "openUniversalLinkInApp", storage: storage)
+        _rewriteTwitterLinksToXcancel = .init(wrappedValue: false, key: "rewriteTwitterLinksToXcancel", storage: storage)
+        _urlSanitizerConfig = .init(wrappedValue: .default, key: "urlSanitizerConfig", storage: storage)
+        _didMigrateXcancelToSanitizer = .init(
+            wrappedValue: false,
+            key: "didMigrateXcancelToSanitizer",
+            storage: storage
+        )
+        _postSwipeActions = .init(wrappedValue: .defaultPosts, key: "postSwipeActions", storage: storage)
+        _commentSwipeActions = .init(wrappedValue: .defaultComments, key: "commentSwipeActions", storage: storage)
+        _postDensity = .init(wrappedValue: .comfortable, key: "postDensity", storage: storage)
+        _commentDensity = .init(wrappedValue: .comfortable, key: "commentDensity", storage: storage)
+        _thumbnailPosition = .init(wrappedValue: .left, key: "thumbnailPosition", storage: storage)
+        _postTextScale = .init(wrappedValue: 0, key: "postTextScale", storage: storage)
+        _showVoteButtons = .init(wrappedValue: true, key: "showVoteButtons", storage: storage)
+        _showNsfw = .init(wrappedValue: false, key: "showNsfw", storage: storage)
+        _blurNsfw = .init(wrappedValue: true, key: "blurNsfw", storage: storage)
+        _fetchLinkEmbeds = .init(wrappedValue: true, key: "fetchLinkEmbeds", storage: storage)
+        _hasAcknowledgedNsfwAge = .init(wrappedValue: false, key: "hasAcknowledgedNsfwAge", storage: storage)
+        _markPostsRead = .init(wrappedValue: true, key: "markPostsRead", storage: storage)
+        _markPostsReadOnScroll = .init(wrappedValue: false, key: "markPostsReadOnScroll", storage: storage)
+        _hideReadPosts = .init(wrappedValue: false, key: "hideReadPosts", storage: storage)
+        _hideReadPostsMode = .init(wrappedValue: .onRefresh, key: "hideReadPostsMode", storage: storage)
+        _explorerAutoRefreshEnabled = .init(wrappedValue: true, key: "explorerAutoRefreshEnabled", storage: storage)
+        _explorerRefreshInterval = .init(wrappedValue: .daily, key: "explorerRefreshInterval", storage: storage)
+        _offlineDownloadPostCount = .init(
+            wrappedValue: .default,
+            key: "offlineDownloadPostCount",
+            storage: storage
+        )
+        _offlineDownloadArchiveLinks = .init(
+            wrappedValue: false,
+            key: "offlineDownloadArchiveLinks",
+            storage: storage
+        )
+
         if let migrated = URLSanitizerConfig.migratingFromLegacyXcancel(
             legacyEnabled: rewriteTwitterLinksToXcancel,
             alreadyMigrated: didMigrateXcancelToSanitizer
@@ -246,132 +426,9 @@ class PreferencesService: PreferencesServiceType {
         didMigrateXcancelToSanitizer = true
     }
 
-    @UserDefaultsBacked(key: "postSwipeActions")
-    var postSwipeActions: SwipeActionConfig = .defaultPosts
-
-    var postSwipeActionsStream: AsyncStream<SwipeActionConfig> {
-        $postSwipeActions
+    /// Convenience initializer backing every preference with `UserDefaults.standard`.
+    /// Keeps all existing `PreferencesService()` call sites source-compatible.
+    convenience init() {
+        self.init(storage: .standard)
     }
-
-    @UserDefaultsBacked(key: "commentSwipeActions")
-    var commentSwipeActions: SwipeActionConfig = .defaultComments
-
-    var commentSwipeActionsStream: AsyncStream<SwipeActionConfig> {
-        $commentSwipeActions
-    }
-
-    // MARK: Reading / display (M8)
-
-    @UserDefaultsBacked(key: "postDensity")
-    var postDensity: PostDensity = .comfortable
-
-    var postDensityStream: AsyncStream<PostDensity> {
-        $postDensity
-    }
-
-    @UserDefaultsBacked(key: "commentDensity")
-    var commentDensity: PostDensity = .comfortable
-
-    var commentDensityStream: AsyncStream<PostDensity> {
-        $commentDensity
-    }
-
-    @UserDefaultsBacked(key: "thumbnailPosition")
-    var thumbnailPosition: ThumbnailPosition = .left
-
-    var thumbnailPositionStream: AsyncStream<ThumbnailPosition> {
-        $thumbnailPosition
-    }
-
-    @UserDefaultsBacked(key: "postTextScale")
-    var postTextScale: CGFloat = 0
-
-    var postTextScaleStream: AsyncStream<CGFloat> {
-        $postTextScale
-    }
-
-    @UserDefaultsBacked(key: "showVoteButtons")
-    var showVoteButtons: Bool = true
-
-    var showVoteButtonsStream: AsyncStream<Bool> {
-        $showVoteButtons
-    }
-
-    @UserDefaultsBacked(key: "showNsfw")
-    var showNsfw: Bool = false
-
-    var showNsfwStream: AsyncStream<Bool> {
-        $showNsfw
-    }
-
-    @UserDefaultsBacked(key: "blurNsfw")
-    var blurNsfw: Bool = true
-
-    var blurNsfwStream: AsyncStream<Bool> {
-        $blurNsfw
-    }
-
-    @UserDefaultsBacked(key: "fetchLinkEmbeds")
-    var fetchLinkEmbeds: Bool = true
-
-    var fetchLinkEmbedsStream: AsyncStream<Bool> {
-        $fetchLinkEmbeds
-    }
-
-    @UserDefaultsBacked(key: "hasAcknowledgedNsfwAge")
-    var hasAcknowledgedNsfwAge: Bool = false
-
-    // MARK: Mark-read / hide (M8)
-
-    @UserDefaultsBacked(key: "markPostsRead")
-    var markPostsRead: Bool = true
-
-    var markPostsReadStream: AsyncStream<Bool> {
-        $markPostsRead
-    }
-
-    @UserDefaultsBacked(key: "markPostsReadOnScroll")
-    var markPostsReadOnScroll: Bool = false
-
-    var markPostsReadOnScrollStream: AsyncStream<Bool> {
-        $markPostsReadOnScroll
-    }
-
-    @UserDefaultsBacked(key: "hideReadPosts")
-    var hideReadPosts: Bool = false
-
-    var hideReadPostsStream: AsyncStream<Bool> {
-        $hideReadPosts
-    }
-
-    @UserDefaultsBacked(key: "hideReadPostsMode")
-    var hideReadPostsMode: HideReadPostsFilter.Mode = .onRefresh
-
-    var hideReadPostsModeStream: AsyncStream<HideReadPostsFilter.Mode> {
-        $hideReadPostsMode
-    }
-
-    // MARK: Community directory (Explorer)
-
-    @UserDefaultsBacked(key: "explorerAutoRefreshEnabled")
-    var explorerAutoRefreshEnabled: Bool = true
-
-    var explorerAutoRefreshEnabledStream: AsyncStream<Bool> {
-        $explorerAutoRefreshEnabled
-    }
-
-    @UserDefaultsBacked(key: "explorerRefreshInterval")
-    var explorerRefreshInterval: Preferences.ExplorerRefreshInterval = .daily
-
-    var explorerRefreshIntervalStream: AsyncStream<Preferences.ExplorerRefreshInterval> {
-        $explorerRefreshInterval
-    }
-
-    // MARK: Offline
-
-    @UserDefaultsBacked(key: "offlineDownloadPostCount")
-    var offlineDownloadPostCount: Preferences.OfflineDownloadPostCount = .default
-
-    @UserDefaultsBacked(key: "offlineDownloadArchiveLinks")
-    var offlineDownloadArchiveLinks: Bool = false
 }
