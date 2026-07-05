@@ -4,7 +4,25 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import Foundation
 import UIKit
+@testable import Spud
+
+/// Builds a `PreferencesService` backed by a fresh, private `UserDefaults`
+/// suite, so a snapshot render can never depend on — or leak into — the shared
+/// `.standard` (`info.ddenis.Spud`) domain that a prior test or the sim's app
+/// state might have left dirty. Each call gets a unique suite, so every fixture
+/// reads the documented preference defaults regardless of what ran before it.
+///
+/// This replaces the interim "pin `thumbnailPosition`/`showVoteButtons` to
+/// their defaults" workaround: `.left`/`true` ARE those defaults, so a fresh
+/// suite renders identically without the manual pins.
+@MainActor
+enum SnapshotPreferences {
+    static func ephemeral() -> PreferencesService {
+        PreferencesService(storage: UserDefaults(suiteName: "snapshot-\(UUID().uuidString)")!)
+    }
+}
 
 /// A `UIWindow` whose `safeAreaInsets` are pinned to `.zero`, so a snapshot
 /// rendered through `drawHierarchyInKeyWindow: true` is independent of the

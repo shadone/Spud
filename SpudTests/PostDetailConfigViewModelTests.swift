@@ -9,20 +9,16 @@ import SpudUIKit
 import Testing
 @testable import Spud
 
-/// `PreferencesService()` has no injectable storage, so this target (hosted
-/// inside the `Spud` app target per `project.yml`) writes the REAL
-/// `info.ddenis.Spud` `UserDefaults.standard` domain — the same one a later
-/// `SpudUITests` launch reads from, and `ResetFilesystem` does not reliably
-/// clear it (see `QuickSwitchViewModelTests`'s doc comment for the concrete
-/// UI-test failure this caused elsewhere). Serialized, and each mutating test
-/// `defer`-restores `commentDensity` to its documented default.
+/// Each test builds its `PreferencesService` on a fresh, private `UserDefaults`
+/// suite (`PreferencesService.ephemeral()`), so mutating `commentDensity` never
+/// touches the shared `.standard` (`info.ddenis.Spud`) domain a later
+/// `SpudUITests` launch reads from. That isolation removes the need for the old
+/// `.serialized` + `defer`-restore workaround.
 @MainActor
-@Suite(.serialized)
 struct PostDetailConfigViewModelTests {
     @Test
     func seedsFromPreferencesAndCurrentSort() {
-        let prefs = PreferencesService()
-        defer { prefs.commentDensity = .comfortable }
+        let prefs = PreferencesService.ephemeral()
         prefs.commentDensity = .compact
         let viewModel = PostDetailConfigViewModel(
             preferencesService: prefs,
@@ -35,8 +31,7 @@ struct PostDetailConfigViewModelTests {
 
     @Test
     func updateCommentDensityWritesThrough() {
-        let prefs = PreferencesService()
-        defer { prefs.commentDensity = .comfortable }
+        let prefs = PreferencesService.ephemeral()
         prefs.commentDensity = .comfortable
         let viewModel = PostDetailConfigViewModel(
             preferencesService: prefs,
@@ -52,7 +47,7 @@ struct PostDetailConfigViewModelTests {
     func selectSortRoutesAndUpdates() {
         var selected: Components.Schemas.CommentSortType?
         let viewModel = PostDetailConfigViewModel(
-            preferencesService: PreferencesService(),
+            preferencesService: PreferencesService.ephemeral(),
             currentSort: .Hot,
             onSelectSort: { selected = $0 }
         )

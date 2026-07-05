@@ -67,9 +67,7 @@ final class PostListNsfwBlurLogicTests: XCTestCase {
         blurNsfw: Bool,
         isRevealed: Bool
     ) -> PostListPostViewModel {
-        let preferences = PreferencesService()
-        preferences.thumbnailPosition = .left
-        preferences.showVoteButtons = true
+        let preferences = SnapshotPreferences.ephemeral()
         let appearance = AppearanceService(preferencesService: preferences)
         return PostListPostViewModel(
             row: nsfwRow(isNsfw: isNsfw),

@@ -93,7 +93,7 @@ final class PersonPostsCellSnapshotTests: XCTestCase {
     }
 
     private func makeViewModel(row: PostListRow) -> PostListPostViewModel {
-        let preferences = PreferencesService()
+        let preferences = SnapshotPreferences.ephemeral()
         let appearance = AppearanceService(preferencesService: preferences)
         return PostListPostViewModel(
             row: row,

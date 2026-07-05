@@ -9,21 +9,13 @@ import SpudUIKit
 import Testing
 @testable import Spud
 
-/// `PreferencesService()` has no injectable storage (`@UserDefaultsBacked`
-/// hardcodes `.standard`), so every instance here reads/writes the REAL
-/// `UserDefaults.standard` domain. `SpudTests` is hosted inside the `Spud`
-/// app target (`project.yml`'s `dependencies: - target: Spud`), so that
-/// domain is the SAME `info.ddenis.Spud` UserDefaults a later `SpudUITests`
-/// launch of the real app reads from (and `ResetFilesystem` does not
-/// reliably clear it — see `SignedInVoteUITests`'s discovery that this
-/// leaked `showVoteButtons = false` into its first cold launch in a full
-/// `make test` run). Every test that mutates a preference restores its
-/// documented default via `defer` so this target never leaves stray state
-/// for whichever process reads `.standard` next. Also serialized: these tests
-/// share that same mutable `.standard` domain, and Swift Testing runs a
-/// struct's `@Test` funcs in parallel by default.
+/// Each test builds its `PreferencesService` on a fresh, private `UserDefaults`
+/// suite (`PreferencesService.ephemeral()`), so mutating a preference never
+/// touches the shared `.standard` (`info.ddenis.Spud`) domain a later
+/// `SpudUITests` launch reads from. That isolation makes the old
+/// `defer`-restore and `.serialized` workaround unnecessary: nothing is shared,
+/// so parallel `@Test` funcs can't race.
 @MainActor
-@Suite(.serialized)
 struct QuickSwitchViewModelTests {
     private func makeViewModel(
         preferences: PreferencesService,
@@ -39,12 +31,7 @@ struct QuickSwitchViewModelTests {
 
     @Test
     func seedsFromPreferences() {
-        let prefs = PreferencesService()
-        defer {
-            prefs.postDensity = .comfortable
-            prefs.thumbnailPosition = .left
-            prefs.showVoteButtons = true
-        }
+        let prefs = PreferencesService.ephemeral()
         prefs.postDensity = .compact
         prefs.thumbnailPosition = .right
         prefs.showVoteButtons = false
@@ -59,8 +46,7 @@ struct QuickSwitchViewModelTests {
 
     @Test
     func updatePostDensityWritesThrough() {
-        let prefs = PreferencesService()
-        defer { prefs.postDensity = .comfortable }
+        let prefs = PreferencesService.ephemeral()
         prefs.postDensity = .comfortable
         let viewModel = makeViewModel(preferences: prefs)
 
@@ -72,8 +58,7 @@ struct QuickSwitchViewModelTests {
 
     @Test
     func updateThumbnailPositionWritesThrough() {
-        let prefs = PreferencesService()
-        defer { prefs.thumbnailPosition = .left }
+        let prefs = PreferencesService.ephemeral()
         prefs.thumbnailPosition = .left
         let viewModel = makeViewModel(preferences: prefs)
 
@@ -85,8 +70,7 @@ struct QuickSwitchViewModelTests {
 
     @Test
     func updateShowVoteButtonsWritesThrough() {
-        let prefs = PreferencesService()
-        defer { prefs.showVoteButtons = true }
+        let prefs = PreferencesService.ephemeral()
         prefs.showVoteButtons = true
         let viewModel = makeViewModel(preferences: prefs)
 
@@ -98,8 +82,7 @@ struct QuickSwitchViewModelTests {
 
     @Test
     func updateShowNsfwWritesThrough() {
-        let prefs = PreferencesService()
-        defer { prefs.showNsfw = false }
+        let prefs = PreferencesService.ephemeral()
         prefs.showNsfw = false
         let viewModel = makeViewModel(preferences: prefs)
         #expect(viewModel.showNsfw == false)
@@ -112,7 +95,7 @@ struct QuickSwitchViewModelTests {
 
     @Test
     func selectSortInvokesCallbackAndUpdatesCurrent() {
-        let prefs = PreferencesService()
+        let prefs = PreferencesService.ephemeral()
         var selected: Components.Schemas.SortType?
         let viewModel = makeViewModel(
             preferences: prefs,

@@ -396,7 +396,7 @@ final class ActivitySnapshotTests: XCTestCase {
     }
 
     private func makePostViewModel(row: PostListRow) -> PostListPostViewModel {
-        let preferences = PreferencesService()
+        let preferences = SnapshotPreferences.ephemeral()
         let appearance = AppearanceService(preferencesService: preferences)
         return PostListPostViewModel(
             row: row,

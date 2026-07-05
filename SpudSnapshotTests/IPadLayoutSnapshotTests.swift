@@ -39,7 +39,7 @@ final class IPadLayoutSnapshotTests: XCTestCase {
             accountService: AccountService(appDatabase: appDatabase),
             alertService: AlertService(),
             appDatabase: appDatabase,
-            preferencesService: PreferencesService()
+            preferencesService: SnapshotPreferences.ephemeral()
         )
         let viewModel = DiscoverViewModel(
             accountScope: dependencies.accountService.scope(forAccountKeychainId: "snapshot-signed-out"),
@@ -175,7 +175,7 @@ final class IPadLayoutSnapshotTests: XCTestCase {
         // can resolve the account row without fatalError-ing on a missing record.
         try await seedTestAccount(into: appDatabase, keychainId: "snapshot")
 
-        let preferencesService = PreferencesService()
+        let preferencesService = SnapshotPreferences.ephemeral()
         let reachabilityMonitor = StaticReachabilityMonitor(isOnline: true)
         let appService = AppService(
             preferencesService: preferencesService,
