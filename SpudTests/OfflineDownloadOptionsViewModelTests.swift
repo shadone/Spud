@@ -13,7 +13,13 @@ import Testing
 /// `PreferencesService` is backed by the shared `UserDefaults`; each test seeds
 /// the `offlineDownloadPostCount` / `offlineDownloadArchiveLinks` keys explicitly
 /// before asserting, so the tests are self-contained. Serialized so concurrent
-/// tests don't race those shared keys.
+/// tests don't race those shared keys. Each mutating test also `defer`-restores
+/// its key to the documented default: `PreferencesService()` has no injectable
+/// storage, so this target (hosted inside the `Spud` app target per
+/// `project.yml`) writes the REAL `info.ddenis.Spud` `UserDefaults.standard`
+/// domain — the same one a later `SpudUITests` launch reads from, and
+/// `ResetFilesystem` does not reliably clear it (see `QuickSwitchViewModelTests`'s
+/// doc comment for the concrete UI-test failure this caused elsewhere).
 @MainActor
 @Suite(.serialized)
 struct OfflineDownloadOptionsViewModelTests {
@@ -30,6 +36,7 @@ struct OfflineDownloadOptionsViewModelTests {
     @Test
     func seedsFromRememberedPreference() {
         let prefs = PreferencesService()
+        defer { prefs.offlineDownloadPostCount = .default }
         prefs.offlineDownloadPostCount = .fiveHundred
 
         let viewModel = makeViewModel(preferences: prefs)
@@ -40,6 +47,7 @@ struct OfflineDownloadOptionsViewModelTests {
     @Test
     func defaultsToOneHundredWhenUnset() {
         let prefs = PreferencesService()
+        defer { prefs.offlineDownloadPostCount = .default }
         prefs.offlineDownloadPostCount = .default
 
         let viewModel = makeViewModel(preferences: prefs)
@@ -51,6 +59,7 @@ struct OfflineDownloadOptionsViewModelTests {
     @Test
     func updatePostCountPersistsThrough() {
         let prefs = PreferencesService()
+        defer { prefs.offlineDownloadPostCount = .default }
         prefs.offlineDownloadPostCount = .oneHundred
         let viewModel = makeViewModel(preferences: prefs)
 
@@ -65,6 +74,10 @@ struct OfflineDownloadOptionsViewModelTests {
     @Test
     func startHandsBackChosenCountAndArchiveFlag() {
         let prefs = PreferencesService()
+        defer {
+            prefs.offlineDownloadPostCount = .default
+            prefs.offlineDownloadArchiveLinks = false
+        }
         var startedCount: Int?
         var startedArchive: Bool?
         let viewModel = makeViewModel(preferences: prefs, onStart: { count, archive in
@@ -83,6 +96,7 @@ struct OfflineDownloadOptionsViewModelTests {
     @Test
     func seedsArchiveLinksFromRememberedPreference() {
         let prefs = PreferencesService()
+        defer { prefs.offlineDownloadArchiveLinks = false }
         prefs.offlineDownloadArchiveLinks = true
 
         let viewModel = makeViewModel(preferences: prefs)
@@ -93,6 +107,7 @@ struct OfflineDownloadOptionsViewModelTests {
     @Test
     func archiveLinksDefaultsOff() {
         let prefs = PreferencesService()
+        defer { prefs.offlineDownloadArchiveLinks = false }
         prefs.offlineDownloadArchiveLinks = false
 
         let viewModel = makeViewModel(preferences: prefs)
@@ -103,6 +118,7 @@ struct OfflineDownloadOptionsViewModelTests {
     @Test
     func updateArchiveLinksPersistsThrough() {
         let prefs = PreferencesService()
+        defer { prefs.offlineDownloadArchiveLinks = false }
         prefs.offlineDownloadArchiveLinks = false
         let viewModel = makeViewModel(preferences: prefs)
 

@@ -17,7 +17,28 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         UIApplication.shared.delegate as! AppDelegate
     }
 
-    let coordinator = AppCoordinator()
+    let coordinator: AppCoordinator
+
+    override init() {
+        // Test-only: wipe the App Group AppDatabase BEFORE anything opens it.
+        // `AppCoordinator()` below builds the DI graph, whose
+        // `DependencyContainer.init` sets `appDatabase = .shared` — the FIRST
+        // open of the on-disk store in the app process. That open happens during
+        // this instance's initialization (the coordinator is a stored property),
+        // which precedes `application(_:didFinishLaunchingWithOptions:)`, so the
+        // wipe cannot live there and be early enough — it must run here, ahead of
+        // the coordinator. The App Group database survives SBT's ResetFilesystem
+        // and `simctl uninstall`, so this is the only reliable fresh-install seam
+        // for UI tests. Reads no `self` state, so it is legal before the stored
+        // property is assigned. Never reached in the shipping app.
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains(AppLaunchArgument.wipeAppDatabase.rawValue) {
+            AppDatabase.wipePersistentStoreForUITests()
+        }
+        #endif
+        coordinator = AppCoordinator()
+        super.init()
+    }
 
     func application(
         _ application: UIApplication,

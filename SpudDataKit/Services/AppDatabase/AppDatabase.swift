@@ -141,14 +141,21 @@ public final class AppDatabase: Sendable {
         return config
     }
 
-    private static func defaultStoreURL() throws -> URL {
+    /// The `AppDatabase` directory inside the App Group container (holding the
+    /// SQLite file plus its WAL/SHM sidecars and the migration lock). Does NOT
+    /// create it — callers that need it on disk go through ``defaultStoreURL()``.
+    static func defaultStoreDirectoryURL() throws -> URL {
         let appGroupIdentifier = "group.info.ddenis.Spud.shared"
         guard let containerURL = FileManager.default
             .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)
         else {
             throw AppDatabaseError.appGroupContainerUnavailable
         }
-        let directory = containerURL.appendingPathComponent("AppDatabase", isDirectory: true)
+        return containerURL.appendingPathComponent("AppDatabase", isDirectory: true)
+    }
+
+    private static func defaultStoreURL() throws -> URL {
+        let directory = try defaultStoreDirectoryURL()
         try FileManager.default.createDirectory(
             at: directory,
             withIntermediateDirectories: true
@@ -156,6 +163,35 @@ public final class AppDatabase: Sendable {
         return directory.appendingPathComponent("AppDatabase.sqlite", isDirectory: false)
     }
 }
+
+#if DEBUG
+public extension AppDatabase {
+    /// Test-only: deletes the on-disk `AppDatabase` directory in the App Group
+    /// container so a UI test begins from a truly fresh install. Removes the
+    /// whole directory (SQLite file + WAL/SHM sidecars + migration lock), not
+    /// just the `.sqlite`, so nothing survives to be re-opened. No-op when the
+    /// directory is absent or the App Group container is unavailable.
+    ///
+    /// Must run BEFORE ``AppDatabase/shared`` (or any pool) first opens the
+    /// store — it is invoked at the top of `AppDelegate.init`, ahead of the DI
+    /// graph. Gated behind the `SPUDWipeAppDatabase` launch argument; never
+    /// reached in the shipping app.
+    static func wipePersistentStoreForUITests() {
+        guard let directory = try? defaultStoreDirectoryURL() else { return }
+        wipePersistentStore(at: directory)
+    }
+}
+
+extension AppDatabase {
+    /// Deletes the database directory at `url`. Split out (and parameterized)
+    /// from ``wipePersistentStoreForUITests()`` so unit tests can exercise it
+    /// against a temp directory without touching the real shared container.
+    /// Safe when the directory is absent (`removeItem` no-ops via `try?`).
+    static func wipePersistentStore(at url: URL) {
+        try? FileManager.default.removeItem(at: url)
+    }
+}
+#endif
 
 @MainActor
 public protocol HasAppDatabase {

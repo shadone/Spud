@@ -75,6 +75,18 @@ auth-gated wrappers and the Instance wrapper tripwire (section 7).
 launch-arg seed, not a driver fix. Not running e2e against live Lemmy instances;
 everything stays SBT-stubbed.
 
+**Landed (2026-07-05):** the `SPUDSeedSignedInDefaultAccount` seam (DEBUG
+`AccountService` seed: person row + fake JWT, fixed keychainId) + the
+`SPUDWipeAppDatabase` launch argument (the App Group DB survives SBT's
+ResetFilesystem / `simctl uninstall`; the wipe makes signed-in tests
+order-independent regardless of what a prior suite left behind) + two consumers
+green: `IPadActivitySplitUITests` un-skipping the Activity split, and
+`SignedInVoteUITests` pinning optimistic-vote-with-no-gate against a 500 send.
+Remaining scope stays open: login/compose/inbox e2e, and the 12-item
+verification-debt burn-down; wipe arg on the legacy signed-out suites
+(reverse contamination: signed-in leftovers currently make them run signed-in;
+needs re-proof on both devices).
+
 ## 3. SpudWidget test target
 
 **Problem.** SpudWidget is 22-24 source files (~1,200 lines) — timeline provider,
@@ -157,6 +169,25 @@ fixture files construct a bare `PreferencesService()` and carry the same latent
 leak (masked while the sim stays clean) — the durable fix is an injectable
 `UserDefaults` store on `PreferencesService` (30 `@UserDefaultsBacked`
 properties hardcode `.standard` today), applied across all snapshot fixtures.
+
+**Second addendum (2026-07-05, found during the signed-in-seam Task 5 final
+verify): the same leak reaches across process boundaries into live UI tests,
+not just snapshots.** `SpudTests` is hosted inside the `Spud` app target
+(`project.yml`'s `dependencies: - target: Spud`), so a bare `PreferencesService()`
+there reads/writes the REAL `info.ddenis.Spud` `UserDefaults.standard` domain —
+the same one a later `SpudUITests` launch reads from, and SBT's
+`ResetFilesystem` does not reliably clear it. `QuickSwitchViewModelTests` left
+`showVoteButtons = false` / `thumbnailPosition = .right` / `postDensity = .compact`
+persisted (no cleanup after its last write), which made the new
+`SignedInVoteUITests` (section 2) fail 5/5 times when run as part of the full
+`make test` plan — but always pass in isolation, since an `-only-testing` run
+never executes `SpudTests` first. Fixed: `QuickSwitchViewModelTests`,
+`OfflineDownloadOptionsViewModelTests`, and `PostDetailConfigViewModelTests`
+now `defer`-restore every mutated key to its documented default and are
+`@Suite(.serialized)` (Swift Testing runs a struct's tests in parallel by
+default, racing the same shared keys otherwise); `make test` reran green twice
+after. Not audited: whether any OTHER `SpudTests` file leaks a different key
+this way — the durable fix remains the same injectable-store initiative above.
 
 ## 6. git-annex special remote + push cadence
 

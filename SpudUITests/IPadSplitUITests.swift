@@ -256,31 +256,10 @@ class IPadSplitUITests: XCTestCase {
         )
     }
 
-    /// The account's Activity area (`ActivitySummaryReadingSplitViewController`)
-    /// renders as the same two-column reading split on iPad regular width — the
-    /// timeline in the primary column, the Summary dashboard pinned in the secondary.
-    ///
-    /// **Skipped — auth-gated with no UITest seam.** The Activity row lives on the
-    /// *signed-in* Account tab (`AccountViewController` swaps in
-    /// `AccountSignedOutViewController` when the default account is signed out), so
-    /// driving this screen needs a signed-in account in the app's database. The only
-    /// account-seeding launch argument that exists is
-    /// `AppLaunchArgument.seedSignedOutDefaultAccount` (a *signed-out* account, so the
-    /// Account tab shows the signed-out screen — no Activity row). There is no
-    /// signed-in seed, no login launch argument, and no SBTUITestTunnel login/JWT
-    /// stub. Building one is explicitly out of scope for this task.
-    ///
-    /// The two-column layout is instead proven deterministically, without auth, by
-    /// `SpudSnapshotTests/ActivityIPadSplitSnapshotTests` (in-memory DB, fixed
-    /// `asOf`, `.iPadPro11(.landscape)`), which asserts the same side-by-side column
-    /// geometry (timeline left, Summary right) that this UITest would have. The live
-    /// tap path is covered by manual on-device verification.
-    func test_accountActivity_showsTwoColumnSplit() throws {
-        throw XCTSkip(
-            "Activity is auth-gated (signed-in Account tab) with no signed-in-account UITest seam; " +
-                "covered by ActivityIPadSplitSnapshotTests + manual on-device verify"
-        )
-    }
+    // The signed-in Activity two-column split test lives in its own class,
+    // `IPadActivitySplitUITests`, because it needs the SIGNED-IN seed launch
+    // argument instead of the signed-out one this class bakes into every launch
+    // (the two seeds are mutually exclusive). See that file for the rationale.
 
     /// Opening a community from Discover on iPad (regular width) and then tapping a post
     /// fills the SECONDARY (detail) column of `CommunityReadingSplitViewController`.
