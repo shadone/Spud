@@ -106,24 +106,6 @@ struct LemmyServiceCreateCommentTests {
         return (ids.0, ids.1)
     }
 
-    private func makeService(
-        accountIsSignedOut: Bool,
-        transport: any ClientTransport
-    ) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: accountIsSignedOut ? nil : LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: accountIsSignedOut,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     @Test
     func createCommentUpsertsReturnedCommentIntoDatabase() async throws {
         try await seedAccountSiteAndPost()
@@ -148,7 +130,12 @@ struct LemmyServiceCreateCommentTests {
         let response = CommentResponse(comment_view: commentView, recipient_ids: [])
 
         let transport = try StubCreateCommentTransport(commentResponse: response)
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.createComment(
             serverPostId: serverPostId,
@@ -186,7 +173,12 @@ struct LemmyServiceCreateCommentTests {
         let response = CommentResponse(comment_view: commentView, recipient_ids: [])
 
         let transport = try StubCreateCommentTransport(commentResponse: response)
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             try await service.createComment(

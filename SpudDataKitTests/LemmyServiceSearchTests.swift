@@ -89,21 +89,6 @@ struct LemmyServiceSearchTests {
         }
     }
 
-    private func makeService(transport: any ClientTransport) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: false,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     private func personView(id: Components.Schemas.PersonID, name: String) -> PersonView {
         var person = Person.fake
         person.id = id
@@ -130,7 +115,11 @@ struct LemmyServiceSearchTests {
         )
 
         let transport = try StubSearchTransport(searchResponse: response)
-        let service = makeService(transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: transport
+        )
 
         let result = try await service.search(
             query: "alice",
@@ -167,7 +156,11 @@ struct LemmyServiceSearchTests {
         )
 
         let transport = try StubSearchTransport(searchResponse: response)
-        let service = makeService(transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: transport
+        )
 
         let result = try await service.search(
             query: "nothing-here",

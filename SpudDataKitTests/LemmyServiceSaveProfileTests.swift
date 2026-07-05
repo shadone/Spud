@@ -96,24 +96,6 @@ struct LemmyServiceSaveProfileTests {
         }
     }
 
-    private func makeService(
-        accountIsSignedOut: Bool,
-        transport: any ClientTransport
-    ) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: accountIsSignedOut ? nil : LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: accountIsSignedOut,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     // MARK: Signed in
 
     @Test
@@ -121,7 +103,12 @@ struct LemmyServiceSaveProfileTests {
         try await seedAccountAndSite()
 
         let transport = try StubSaveProfileTransport(getSite: .fake())
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.saveProfile(
             displayName: "Ada Lovelace",
@@ -150,7 +137,12 @@ struct LemmyServiceSaveProfileTests {
         try await seedAccountAndSite()
 
         let transport = try StubSaveProfileTransport(getSite: .fake())
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.saveProfile(
             displayName: "Ada Lovelace",
@@ -180,7 +172,12 @@ struct LemmyServiceSaveProfileTests {
     @Test
     func saveProfile_signedOut_throwsRequiresAuthentication() async throws {
         let transport = try StubSaveProfileTransport(getSite: .fake())
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         await #expect(throws: LemmyServiceError.self) {
             try await service.saveProfile(

@@ -124,24 +124,6 @@ struct LemmyServiceSaveTests {
         return (ids.0, ids.1)
     }
 
-    private func makeService(
-        accountIsSignedOut: Bool,
-        transport: any ClientTransport
-    ) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: accountIsSignedOut ? nil : LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: accountIsSignedOut,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     // MARK: Post
 
     @Test
@@ -157,7 +139,12 @@ struct LemmyServiceSaveTests {
         let response = PostResponse(post_view: savedPostView)
 
         let transport = try StubSaveTransport(postResponse: response)
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.setSaved(serverPostId: serverPostId, saved: true)
 
@@ -178,7 +165,12 @@ struct LemmyServiceSaveTests {
         try await seedAccountSiteAndPost()
 
         let transport = try StubSaveTransport(postResponse: nil)
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             try await service.setSaved(serverPostId: serverPostId, saved: true)
@@ -220,7 +212,12 @@ struct LemmyServiceSaveTests {
         let response = CommentResponse(comment_view: savedCommentView, recipient_ids: [])
 
         let transport = try StubSaveTransport(commentResponse: response)
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.setSaved(serverCommentId: serverCommentId, saved: true)
 
@@ -240,7 +237,12 @@ struct LemmyServiceSaveTests {
         try await seedAccountSiteAndPost()
 
         let transport = try StubSaveTransport(commentResponse: nil)
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             try await service.setSaved(serverCommentId: 42, saved: true)

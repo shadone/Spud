@@ -122,24 +122,6 @@ struct LemmyServiceBlockReportTests {
         }
     }
 
-    private func makeService(
-        accountIsSignedOut: Bool,
-        transport: any ClientTransport
-    ) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: accountIsSignedOut ? nil : LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: accountIsSignedOut,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     // MARK: Fakes
 
     private func postReportResponse() -> PostReportResponse {
@@ -222,7 +204,12 @@ struct LemmyServiceBlockReportTests {
         let person = Person.fake
         let response = BlockPersonResponse(person_view: .fake(person: person), blocked: true)
         let transport = try StubBlockReportTransport(blockPerson: response)
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.setBlocked(serverPersonId: person.id, blocked: true)
 
@@ -244,7 +231,12 @@ struct LemmyServiceBlockReportTests {
         try await seedAccountAndSite()
 
         let transport = try StubBlockReportTransport(blockPerson: nil)
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             try await service.setBlocked(serverPersonId: 1, blocked: true)
@@ -268,7 +260,12 @@ struct LemmyServiceBlockReportTests {
             blocked: true
         )
         let transport = try StubBlockReportTransport(blockCommunity: response)
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.setBlocked(serverCommunityId: community.id, blocked: true)
 
@@ -289,7 +286,12 @@ struct LemmyServiceBlockReportTests {
         try await seedAccountAndSite()
 
         let transport = try StubBlockReportTransport(blockCommunity: nil)
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             try await service.setBlocked(serverCommunityId: 1, blocked: true)
@@ -308,7 +310,12 @@ struct LemmyServiceBlockReportTests {
         try await seedAccountAndSite()
 
         let transport = try StubBlockReportTransport(postReport: postReportResponse())
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.reportPost(serverPostId: 1, reason: "spam")
 
@@ -320,7 +327,12 @@ struct LemmyServiceBlockReportTests {
         try await seedAccountAndSite()
 
         let transport = try StubBlockReportTransport(postReport: nil)
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             try await service.reportPost(serverPostId: 1, reason: "spam")
@@ -339,7 +351,12 @@ struct LemmyServiceBlockReportTests {
         try await seedAccountAndSite()
 
         let transport = try StubBlockReportTransport(commentReport: commentReportResponse())
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.reportComment(serverCommentId: 7, reason: "harassment")
 
@@ -351,7 +368,12 @@ struct LemmyServiceBlockReportTests {
         try await seedAccountAndSite()
 
         let transport = try StubBlockReportTransport(commentReport: nil)
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             try await service.reportComment(serverCommentId: 7, reason: "harassment")

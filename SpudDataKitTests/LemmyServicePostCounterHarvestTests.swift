@@ -107,21 +107,6 @@ struct LemmyServicePostCounterHarvestTests {
         }
     }
 
-    private func makeService(transport: any ClientTransport) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: false,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     private func makePostView(
         postId: Components.Schemas.PostID = 1,
         commentCount: Int64
@@ -164,7 +149,11 @@ struct LemmyServicePostCounterHarvestTests {
             moderators: [],
             cross_posts: []
         )
-        let service = try makeService(transport: StubGetPostTransport(response: getPostResponse))
+        let service = try LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: StubGetPostTransport(response: getPostResponse)
+        )
 
         try await service.fetchPostInfo(serverPostId: serverPostId)
 
@@ -188,7 +177,11 @@ struct LemmyServicePostCounterHarvestTests {
             moderators: [],
             cross_posts: [crossA, crossB]
         )
-        let service = try makeService(transport: StubGetPostTransport(response: getPostResponse))
+        let service = try LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: StubGetPostTransport(response: getPostResponse)
+        )
 
         try await service.fetchPostInfo(serverPostId: mainView.post.id)
 

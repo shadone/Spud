@@ -94,24 +94,6 @@ struct LemmyServiceInboxTests {
         }
     }
 
-    private func makeService(
-        accountIsSignedOut: Bool,
-        transport: any ClientTransport
-    ) -> LemmyService {
-        let api = LemmyApi(
-            instanceUrl: URL(string: "https://example.com")!,
-            credential: accountIsSignedOut ? nil : LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
-        )
-        return LemmyService(
-            accountKeychainId: keychainId,
-            accountIsSignedOut: accountIsSignedOut,
-            appDatabase: appDatabase,
-            api: api,
-            reachability: StaticReachabilityMonitor(isOnline: true)
-        )
-    }
-
     private func replyView(id: Components.Schemas.CommentReplyID, read: Bool) -> CommentReplyView {
         let person = Person.fake
         let community = Community.fake
@@ -170,7 +152,12 @@ struct LemmyServiceInboxTests {
             "getUnreadCount",
             GetUnreadCountResponse(replies: 3, mentions: 2, private_messages: 5)
         )
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         let count = try await service.unreadCount()
 
@@ -186,7 +173,12 @@ struct LemmyServiceInboxTests {
         try await seedAccountAndSite()
 
         let transport = StubInboxTransport()
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             _ = try await service.unreadCount()
@@ -211,7 +203,12 @@ struct LemmyServiceInboxTests {
                 replyView(id: 11, read: true),
             ])
         )
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         let response = try await service.fetchReplies(unreadOnly: false, page: 1)
 
@@ -225,7 +222,12 @@ struct LemmyServiceInboxTests {
         try await seedAccountAndSite()
 
         let transport = StubInboxTransport()
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             _ = try await service.fetchReplies(unreadOnly: false, page: 1)
@@ -247,7 +249,12 @@ struct LemmyServiceInboxTests {
             "markCommentReplyAsRead",
             CommentReplyResponse(comment_reply_view: replyView(id: 10, read: true))
         )
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         try await service.markReplyAsRead(commentReplyId: 10, read: true)
 
@@ -272,7 +279,12 @@ struct LemmyServiceInboxTests {
             "createPrivateMessage",
             PrivateMessageResponse(private_message_view: messageView(id: 99, creator: creator, recipient: recipient))
         )
-        let service = makeService(accountIsSignedOut: false, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
 
         let view = try await service.sendPrivateMessage(content: "hi there", recipientId: 7)
 
@@ -286,7 +298,12 @@ struct LemmyServiceInboxTests {
         try await seedAccountAndSite()
 
         let transport = StubInboxTransport()
-        let service = makeService(accountIsSignedOut: true, transport: transport)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: true,
+            transport: transport
+        )
 
         do {
             _ = try await service.sendPrivateMessage(content: "hi", recipientId: 7)
