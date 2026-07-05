@@ -239,6 +239,12 @@ class PostListPostContentView: UIView {
     private var appliedShowVoteButtons: Bool?
     /// The density applied to the current layout, same rationale.
     private var appliedDensity: PostDensity?
+    /// Resolved active colors cached from `configure` so `applyVoteState` has
+    /// them without needing the view model. Default to `.tertiaryLabel` (the
+    /// neutral-state tint) so the initial state before the first configure is
+    /// visually correct.
+    private var appliedUpvoteColor: UIColor = .tertiaryLabel
+    private var appliedDownvoteColor: UIColor = .tertiaryLabel
     /// The thumbnail image URL currently shown or loading. `reconfigureItems`
     /// re-runs `configure` on the live on-screen cell, so this lets the image
     /// load short-circuit when the post's thumbnail is unchanged — otherwise the
@@ -355,9 +361,34 @@ class PostListPostContentView: UIView {
             for: .normal
         )
         button.tintColor = .tertiaryLabel
+        button.layer.cornerRadius = VoteFillStyle.capsuleCornerRadius
+        button.clipsToBounds = true
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: 32),
+            button.heightAnchor.constraint(equalToConstant: 28),
+        ])
         button.accessibilityLabel = accessibilityLabel
         button.addTarget(self, action: action, for: .touchUpInside)
         return button
+    }
+
+    /// Renders the active arrow as a filled capsule (white glyph on the vote
+    /// token) and the other as a tertiary hairline. `animated` springs the newly
+    /// filled capsule in; it must be `false` on cell reuse (`configure`) so
+    /// scrolling doesn't animate every recycled cell.
+    private func applyVoteState(_ status: VoteStatus, animated: Bool) {
+        style(upvoteButton, filled: status == .up, fill: appliedUpvoteColor)
+        style(downvoteButton, filled: status == .down, fill: appliedDownvoteColor)
+        if animated {
+            if status == .up { VoteFillStyle.animateCommit(upvoteButton) }
+            if status == .down { VoteFillStyle.animateCommit(downvoteButton) }
+        }
+    }
+
+    private func style(_ button: UIButton, filled: Bool, fill: UIColor) {
+        button.backgroundColor = filled ? fill : .clear
+        button.tintColor = filled ? VoteFillStyle.filledGlyphColor : .tertiaryLabel
+        button.accessibilityTraits = filled ? [.button, .selected] : [.button]
     }
 
     /// Applies the post-density cell metrics: outer content margin, the gap
@@ -433,8 +464,9 @@ class PostListPostContentView: UIView {
         bodyLabel.attributedText = viewModel.bodyPreview
         bodyLabel.isHidden = viewModel.bodyPreview == nil
 
-        upvoteButton.tintColor = viewModel.voteStatus == .up ? viewModel.upvoteActiveColor : .tertiaryLabel
-        downvoteButton.tintColor = viewModel.voteStatus == .down ? viewModel.downvoteActiveColor : .tertiaryLabel
+        appliedUpvoteColor = viewModel.upvoteActiveColor
+        appliedDownvoteColor = viewModel.downvoteActiveColor
+        applyVoteState(viewModel.voteStatus, animated: false)
 
         applyDensity(viewModel.density)
         applyLayout(position: viewModel.thumbnailPosition, showVoteButtons: viewModel.showVoteButtons)
