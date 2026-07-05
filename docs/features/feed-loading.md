@@ -18,6 +18,7 @@ A feed loads its first page automatically when it has nothing to show, then keep
 - **Reload resets to the head.** Reloading a feed (changing sort, re-selecting it from the sidebar, or a programmatic reload after blocking a user or community) builds a fresh feed, clears the cursor, and fetches from the top again.
 - **Empty state.** Once the first snapshot has arrived and the feed is genuinely empty (and nothing is fetching), the list shows an empty-state placeholder with an icon, title, and message. It is suppressed during the initial and in-flight loads so it never flashes before content arrives.
 - **Pull-to-refresh.** Pulling the list down refreshes the feed in place: a refresh spinner overlays the existing posts. On success the list updates; on failure a toast is shown and the existing posts stay — the feed does not drop into an error state when it already has content.
+- **Failures never overlap on-screen posts.** The full inline error state replaces the list only when the feed is actually empty. Whenever posts are already visible, *any* load failure — a failed pull-to-refresh, a reconnect retry, or an in-place feed switch — keeps them on screen and surfaces the failure as a toast, rather than laying the (transparent) error placeholder over the live posts. The decision keys off whether posts are displayed, not off which gesture triggered the load.
 - **Initial-load states.** Before the first page arrives the list shows a shimmer skeleton. If the first load fails, the feed renders a designed inline state classified as **Offline**, **Unreachable**, or **Malformed** (each with its own copy and a retry affordance) rather than an alert. A slow first load shows a "slow connection" hint after a few seconds, and the attempt times out at ~25 s into the Unreachable state.
 - **Automatic retry on reconnect.** A reachability monitor (`NWPathMonitor`) watches connectivity; after an offline failure the feed re-fetches automatically once the network is back.
 - **Pagination failures are non-destructive.** A failed next-page fetch shows a toast and leaves the loaded posts intact; the footer spinner is removed.
@@ -75,6 +76,13 @@ A feed loads its first page automatically when it has nothing to show, then keep
 - **Given** I open a feed with no network
 - **When** the first page fails
 - **Then** the list shows an Offline state (not an alert), and it retries automatically when connectivity returns
+
+### A failure on a flaky network does not overlap the visible posts
+
+- **Given** a feed with posts already on screen
+- **When** a reload fails for any reason other than a pull-to-refresh gesture (a reconnect retry, an in-place feed switch, or a background-triggered reload on a flaky connection)
+- **Then** the existing posts stay on screen and the failure is shown as a toast
+- **And** the transparent error placeholder is never laid over the visible posts
 
 ## Not supported / out of scope
 
