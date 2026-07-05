@@ -226,10 +226,11 @@ class PostDetailCommentCell: UITableViewCell {
         return label
     }()
 
-    /// Inline score pill shown between the role badges and the metadata subtitle
-    /// when the comment has a non-neutral vote (up or down). A solid fill on the
-    /// vote token's color carries a white arrow + white number; neutral state hides
-    /// the pill entirely and renders nothing (score moved out of the subtitle line).
+    /// Inline score pill shown between the role badges and the metadata subtitle.
+    /// Voted state (up/down): solid fill on the vote-token color with a white arrow
+    /// + white number. Neutral state: same arrow + number in secondaryLabel with no
+    /// fill, so the score is always visible. Pill is hidden only for "load more"
+    /// rows and deleted/removed comments (no meaningful score).
     lazy var scorePillLabel: BadgeLabel = {
         let label = BadgeLabel()
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -682,37 +683,14 @@ class PostDetailCommentCell: UITableViewCell {
         // moderation placeholder).
         configureLinkPreviews(viewModel)
 
-        // Score pill: filled (white glyph + white number on vote-token color) for
-        // upvoted/downvoted; hidden for neutral. "load more" rows and deleted/removed
-        // comments carry no meaningful score, so the pill is also hidden there.
-        // The VM pre-resolves the vote colors so the cell doesn't reach into
-        // the appearance service.
-        let pillFillColor: UIColor? = {
-            switch viewModel.voteStatus {
-            case .up: return viewModel.upvoteActiveColor
-            case .down: return viewModel.downvoteActiveColor
-            case .neutral: return nil
-            }
-        }()
-        let isDeletedOrRemoved = viewModel.body.length > 0 && viewModel.bodyBlocks.isEmpty
-        if let fillColor = pillFillColor, !viewModel.isMore, !isDeletedOrRemoved {
-            let glyphColor = VoteFillStyle.filledGlyphColor
-            let pillAttributes: [NSAttributedString.Key: Any] = [
-                .font: UIFont.monospacedDigitSystemFont(ofSize: 11, weight: .bold),
-                .foregroundColor: glyphColor,
-            ]
-            let glyphName = viewModel.voteStatus == .up ? "arrow.up" : "arrow.down"
-            let pillText = NSMutableAttributedString()
-            if let image = UIImage(systemName: glyphName) {
-                pillText.append(NSAttributedString.symbol(from: image, attributes: pillAttributes))
-                pillText.append(NSAttributedString(string: " ", attributes: pillAttributes))
-            }
-            pillText.append(NSAttributedString(
-                string: UpvotesFormatter.string(from: viewModel.score),
-                attributes: pillAttributes
-            ))
+        // Score pill: the VM pre-builds the attributed text with a Dynamic-Type-
+        // scaling monospaced font. Neutral comments show the score with no fill
+        // (secondaryLabel color, clear background); voted comments show white text
+        // on the vote-token fill. "Load more" rows and deleted/removed comments
+        // have nil scorePillText and hide the pill entirely.
+        if let pillText = viewModel.scorePillText {
             scorePillLabel.attributedText = pillText
-            scorePillLabel.backgroundColor = fillColor
+            scorePillLabel.backgroundColor = viewModel.scorePillFillColor ?? .clear
             scorePillLabel.accessibilityLabel = VoteAccessibility.scoreLabel(
                 score: viewModel.score,
                 voteStatus: viewModel.voteStatus

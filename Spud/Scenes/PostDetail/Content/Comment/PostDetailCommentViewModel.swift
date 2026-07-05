@@ -74,6 +74,18 @@ struct PostDetailCommentViewModel {
     /// time.
     let downvoteActiveColor: UIColor
 
+    /// The pre-built attributed text for the score pill (arrow glyph + number),
+    /// using the scaled monospaced font so the pill tracks Dynamic Type. `nil`
+    /// for "load more" rows and deleted/removed comments (no meaningful score).
+    ///
+    /// Neutral state produces a `.secondaryLabel`-coloured no-fill string;
+    /// voted states produce a white string intended to sit on `scorePillFillColor`.
+    let scorePillText: NSAttributedString?
+
+    /// The background fill for the score pill. `nil` for neutral (transparent
+    /// background so the capsule is invisible, letting the score float inline).
+    let scorePillFillColor: UIColor?
+
     /// Author role/status pills shown after the name, in order.
     let badges: [CommentBadge]
 
@@ -311,6 +323,55 @@ struct PostDetailCommentViewModel {
         score = row.score
         upvoteActiveColor = appearance.general.upvoteButtonActiveColor
         downvoteActiveColor = appearance.general.downvoteButtonActiveColor
+
+        // MARK: Score pill attributed text
+
+        // Build the pill once in the VM so (a) the font scales with Dynamic Type
+        // via the same `scaledMonospaceDigitSystemFont` used for the subtitle, and
+        // (b) neutral comments still show a score (no fill, secondaryLabel color).
+        // "Load more" rows and deleted/removed comments carry no meaningful score.
+        let hideScore = isDeleted || isRemoved
+        if !hideScore, row.moreChildCount == nil {
+            // Neutral: secondaryLabel, regular weight (matches the pre-Task-5
+            // subtitle appearance). Voted: white on the vote-token fill, bold so
+            // the number reads heavier against the colored background.
+            let isVoted = row.voteStatus == 1 || row.voteStatus == 0
+            let pillFont = UIFont.scaledMonospaceDigitSystemFont(
+                style: .body,
+                relativeSize: -1 + textSizeAdjustment,
+                weight: isVoted ? .bold : .regular
+            )
+            let pillColor: UIColor = isVoted ? VoteFillStyle.filledGlyphColor : .secondaryLabel
+            let pillAttributes: [NSAttributedString.Key: Any] = [
+                .font: pillFont,
+                .foregroundColor: pillColor,
+            ]
+            let glyphName: String
+            switch row.voteStatus {
+            case 0: glyphName = "arrow.down"
+            default: glyphName = "arrow.up"
+            }
+            let text = NSMutableAttributedString()
+            if let image = UIImage(systemName: glyphName) {
+                text.append(NSAttributedString.symbol(from: image, attributes: pillAttributes))
+                text.append(NSAttributedString(string: " ", attributes: pillAttributes))
+            }
+            text.append(NSAttributedString(
+                string: UpvotesFormatter.string(from: row.score),
+                attributes: pillAttributes
+            ))
+            scorePillText = text
+
+            // Voted: fill with the vote-token color; neutral: no fill (clear bg).
+            switch row.voteStatus {
+            case 1: scorePillFillColor = appearance.general.upvoteButtonActiveColor
+            case 0: scorePillFillColor = appearance.general.downvoteButtonActiveColor
+            default: scorePillFillColor = nil
+            }
+        } else {
+            scorePillText = nil
+            scorePillFillColor = nil
+        }
 
         let space = NSAttributedString(string: "  ", attributes: secondaryAttributes)
         var subtitlePieces: [NSAttributedString] = []
