@@ -4,6 +4,10 @@
 # tracked project.pbxproj to sort. The project is the source of truth in
 # project.yml; regenerate with `xcodegen generate` / `make project`.
 
-mint run swiftformat --lint .
-
-exit 0
+# SwiftFormat lint gate: a formatting violation blocks the commit.
+# Fix with: mint run swiftformat <paths>
+if ! mint run swiftformat --lint . ; then
+    echo "" >&2
+    echo "pre-commit: SwiftFormat lint failed. Run 'mint run swiftformat .' and re-stage." >&2
+    exit 1
+fi

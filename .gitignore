@@ -67,3 +67,6 @@ xcuserdata/
 # never committed. This overrides the "!*.xcodeproj/project.pbxproj" re-include
 # in the Xcode Patch section above.
 Spud.xcodeproj/
+
+# Session-handoff buffer (per-machine, never committed)
+.remember/
