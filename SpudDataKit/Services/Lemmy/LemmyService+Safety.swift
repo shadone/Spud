@@ -12,6 +12,7 @@ private let logger = Logger.lemmyService
 
 // MARK: - Safety (block / report)
 
+/// Safety actions: block person/community, report post/comment, hide post, and read the blocked list.
 public extension LemmyService {
     func setBlocked(
         serverPersonId: Components.Schemas.PersonID,

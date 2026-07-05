@@ -38,10 +38,11 @@ if [ -n "$booted_line" ]; then
 fi
 
 # No booted sim: resolve the reference device on the newest 26.3.x runtime.
+# simctl lists runtimes in ascending version order, so the LAST match is the newest 26.3.x.
 ref_id=$(printf '%s\n' "$devices" \
     | awk '/-- iOS 26\.3/{run=1; next} /^--/{run=0} run && /iPhone 17 Pro \(/ {print}' \
     | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}' \
-    | head -1 || true)
+    | tail -1 || true)
 if [ -z "$ref_id" ]; then
     echo "error: no iPhone 17 Pro simulator on an iOS 26.3.x runtime found." >&2
     echo "hint: xcrun simctl list devices | grep 'iPhone 17 Pro'" >&2

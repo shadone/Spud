@@ -12,6 +12,7 @@ private let logger = Logger.lemmyService
 
 // MARK: - Composer outbox
 
+/// Composer: durable drafts, optimistic post edits, and direct-message sends forwarded through the composer outbox.
 public extension LemmyService {
     /// Lazily builds (and `start()`s) the per-account `ComposerOutboxService`,
     /// returning `nil` only when the account row can't be resolved. Memoized via

@@ -12,6 +12,7 @@ private let logger = Logger.lemmyService
 
 // MARK: - Inbox
 
+/// Inbox: replies, mentions, and private messages — fetch, unread count, and mark-as-read.
 public extension LemmyService {
     func fetchReplies(
         unreadOnly: Bool,

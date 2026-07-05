@@ -11,7 +11,7 @@ import OSLog
 private let logger = Logger.lemmyService
 
 /// Moderation / admin write actions. These mirror the safety (block / report)
-/// spine in `LemmyService.swift`: sign-out guard -> api call -> mirror the
+/// spine in `LemmyService+Safety.swift`: sign-out guard -> api call -> mirror the
 /// updated view. Permission gating (is the account a moderator of the target
 /// community, or a site admin) is the UI's responsibility, sourced from
 /// `fetchModerationCapability()`; the server is the ultimate authority and
