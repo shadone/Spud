@@ -46,6 +46,15 @@ class SignedInVoteUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
 
+        // Device orientation is simulator-hardware state, not app data: it
+        // survives ResetFilesystem and can leak in from a DIFFERENT UITest
+        // class (or an interrupted prior run) that left the simulator in
+        // landscape without resetting it. In landscape the inline vote
+        // arrows are not discoverable within this test's timeouts, so pin
+        // portrait explicitly rather than assume it (mirrors the reset
+        // `SpudUITests.tearDownWithError` does for its own rotation test).
+        XCUIDevice.shared.orientation = .portrait
+
         app = SBTUITunneledApplication()
         let launchOptions: [String] = [
             SBTUITunneledApplicationLaunchOptionResetFilesystem,
