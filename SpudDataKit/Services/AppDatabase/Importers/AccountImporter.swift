@@ -473,6 +473,59 @@ public extension AppDatabase {
         }
     }
 
+    #if DEBUG
+    /// Synchronous, DEBUG-only: ensures a signed-IN account for `instance` under
+    /// the fixed `keychainId`, together with its instance+site rows and a local
+    /// `PersonRecord` (named `personName`) that the account's `personId` points
+    /// at — everything the Account tab needs to resolve a header instead of
+    /// spinning. Idempotent on `keychainId`: returns the existing account
+    /// unchanged if one is already present. Mirrors the one-transaction shape of
+    /// ``ensureSignedOutAccountKeychainId(forInstance:isServiceAccount:)`` but
+    /// produces a signed-in (not signed-out) account plus its person row. The
+    /// caller pairs it with a stored credential and marks it default. A UI-test
+    /// seam only — excluded from release builds.
+    func ensureSignedInAccountKeychainId(
+        forInstance instance: InstanceActorId,
+        keychainId: String,
+        personName: String
+    ) throws -> String {
+        try writer.write { db in
+            let (_, siteId) = try Self.ensureInstanceAndSite(
+                forInstance: instance,
+                in: db
+            )
+            if let existing = try AccountRecord
+                .filter(Column("accountKeychainId") == keychainId)
+                .fetchOne(db)
+            {
+                return existing.accountKeychainId
+            }
+            let now = Date()
+            var person = PersonRecord(
+                siteId: siteId,
+                personId: 1,
+                name: personName,
+                actorId: "\(instance.actorId)/u/\(personName)",
+                isLocal: true,
+                createdAt: now,
+                updatedAt: now
+            )
+            try person.insert(db)
+            var account = AccountRecord(
+                siteId: siteId,
+                personId: person.id!,
+                accountKeychainId: keychainId,
+                isServiceAccount: false,
+                isSignedOutAccountType: false,
+                createdAt: now,
+                updatedAt: now
+            )
+            try account.insert(db)
+            return account.accountKeychainId
+        }
+    }
+    #endif
+
     /// Synchronous: returns the keychainId of the most appropriate account
     /// for `instance` — the default account on that site if any, otherwise
     /// the first signed-out account on that site, creating a signed-out

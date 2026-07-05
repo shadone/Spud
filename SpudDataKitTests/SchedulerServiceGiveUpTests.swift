@@ -312,6 +312,9 @@ private final class GiveUpAccountService: AccountServiceType {
     }
 
     func signInAsSignedOut(atInstance _: InstanceActorId) { }
+    #if DEBUG
+    func seedSignedInDefaultAccount(atInstance _: InstanceActorId) { }
+    #endif
     func login(atInstance _: InstanceActorId, username _: String, password _: String, totp2faToken _: String?) async throws { }
     func register(atInstance _: InstanceActorId, username _: String, email _: String?, password _: String, passwordVerify _: String, showNsfw _: Bool, captchaUuid _: String?, captchaAnswer _: String?, answer _: String?) async throws -> AccountServiceRegisterResult {
         .loggedIn

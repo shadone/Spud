@@ -28,6 +28,14 @@ public protocol AccountServiceType: AnyObject {
     /// it as the default account.
     func signInAsSignedOut(atInstance instance: InstanceActorId)
 
+    #if DEBUG
+    /// DEBUG-only UI-test seam: seeds a signed-IN default account on `instance`
+    /// under a fixed keychain id, backed by a fake JWT and a local person row, so
+    /// a UI test can launch straight into the signed-in app without a live login.
+    /// No-ops if a default account already exists. Excluded from release builds.
+    func seedSignedInDefaultAccount(atInstance instance: InstanceActorId)
+    #endif
+
     /// Log in to a given Lemmy instance with explicitly provided username and password.
     ///
     /// `totp2faToken` carries the current time-based one-time (TOTP) code when
@@ -377,6 +385,34 @@ public class AccountService: AccountServiceType {
             logger.error("signInAsSignedOut failed: \(error.localizedDescription, privacy: .public)")
         }
     }
+
+    #if DEBUG
+    /// Fixed keychain id for the DEBUG signed-in UI-test seed account, so the
+    /// seam and its verifiers (unit tests, the MainWindow launch hook) agree on
+    /// one value instead of a generated UUID.
+    public static let uiTestSignedInKeychainId = "uitest-signed-in-default"
+
+    public func seedSignedInDefaultAccount(atInstance instance: InstanceActorId) {
+        // Mirror the signed-out seed's caller-side guard: only seed on a truly
+        // fresh install, so an already-signed-in user is never clobbered. Kept in
+        // the method (not just the caller) so the seam is idempotent on its own.
+        guard currentDefaultAccountKeychainId() == nil else {
+            logger.debug("seedSignedInDefaultAccount no-op: a default account already exists")
+            return
+        }
+        do {
+            let keychainId = try appDatabase.ensureSignedInAccountKeychainId(
+                forInstance: instance,
+                keychainId: Self.uiTestSignedInKeychainId,
+                personName: "uitester"
+            )
+            try appDatabase.setDefaultAccountSync(keychainId: keychainId)
+            writeCredential(LemmyCredential(jwt: "fake-jwt"), forKeychainId: keychainId)
+        } catch {
+            logger.error("seedSignedInDefaultAccount failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+    #endif
 
     public func setDefaultAccount(forAccountKeychainId keychainId: String) {
         do {
