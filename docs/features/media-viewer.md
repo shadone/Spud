@@ -164,7 +164,7 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
   the browser as external links.
 - Video hosts other than streamable and PeerTube (e.g. YouTube) are not played inline; only
   streamable and PeerTube are resolved to a stream today. A post whose own link is a
-  streamable or PeerTube video always plays inline. A streamable link written inside post or
+  streamable or PeerTube video always plays inline. A streamable or PeerTube link written inside post or
   comment **body text** also plays inline when tapped in the post-detail screen — its
   external-link handling re-runs video detection — while on other screens (a community or
   person description, direct messages) a body-text link opens in the browser.

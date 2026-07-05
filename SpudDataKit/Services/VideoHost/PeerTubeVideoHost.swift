@@ -60,19 +60,18 @@ public struct PeerTubeVideoHost: SpudDataKit.VideoHost {
         return ResolvedVideo(streamUrl: streamUrl, posterUrl: posterUrl, title: response.name)
     }
 
-    /// Prefer the highest-resolution progressive mp4 (from `files` or the HLS
-    /// playlists' own files); fall back to an HLS `.m3u8` playlist that AVPlayer
-    /// streams natively. Throw `.noPlayableFile` if neither exists.
+    /// Prefer a standalone progressive Web Video (top-level `files`) — a complete,
+    /// independently-playable mp4. Otherwise hand AVPlayer the HLS master playlist
+    /// so it can stream and adapt bitrate. Do NOT progressive-play the files nested
+    /// under `streamingPlaylists`: those are fragmented mp4 segments that are only
+    /// playable through the `.m3u8` playlist that references them.
     private static func playableStreamUrl(from response: Response) throws -> URL {
-        let progressive = (response.files ?? [])
-            + (response.streamingPlaylists ?? []).flatMap { $0.files ?? [] }
-        let best = progressive
+        let best = (response.files ?? [])
             .compactMap { file -> (url: String, res: Int)? in
                 guard let url = file.fileUrl else { return nil }
                 return (url, file.resolution?.id ?? 0)
             }
             .max { $0.res < $1.res }
-
         if let best, let url = URL(string: best.url) {
             return url
         }
@@ -96,7 +95,6 @@ public struct PeerTubeVideoHost: SpudDataKit.VideoHost {
 
         struct StreamingPlaylist: Decodable {
             let playlistUrl: String?
-            let files: [File]?
         }
 
         let name: String?

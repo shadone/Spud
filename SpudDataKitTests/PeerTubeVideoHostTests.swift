@@ -37,8 +37,15 @@ struct PeerTubeVideoHostRecognitionTests {
     @Test
     func rejectsNonVideoUrls() {
         #expect(match("https://example.com/some/article") == nil)
-        // "abc" is < 6 chars, so VideoLinkParser's isPeerTubeId rejects it.
+        // too short for VideoLinkParser's PeerTube heuristic
         #expect(match("https://tube.example/w/abc") == nil)
+    }
+}
+
+private actor URLBox {
+    var url: URL?
+    func set(_ u: URL) {
+        url = u
     }
 }
 
@@ -77,13 +84,25 @@ struct PeerTubeVideoHostResolutionTests {
     }
 
     @Test
-    func prefersNestedProgressiveFileOverPlaylist() async throws {
+    func prefersHlsPlaylistOverNestedFragments() async throws {
+        // No top-level progressive files; the nested files are HLS fragments, so
+        // the master playlist must win, not a fragment fileUrl.
         let json = """
             {"files":[],"streamingPlaylists":[{"playlistUrl":"https://tube.example/hls/master.m3u8",\
-            "files":[{"fileUrl":"https://tube.example/hls/1080.mp4","resolution":{"id":1080}}]}]}
+            "files":[{"fileUrl":"https://tube.example/hls/1080-fragmented.mp4","resolution":{"id":1080}}]}]}
             """
         let resolved = try await host(returning: json).resolve(match)
-        #expect(resolved.streamUrl.absoluteString == "https://tube.example/hls/1080.mp4")
+        #expect(resolved.streamUrl.absoluteString == "https://tube.example/hls/master.m3u8")
+    }
+
+    @Test
+    func prefersTopLevelProgressiveOverHls() async throws {
+        let json = """
+            {"files":[{"fileUrl":"https://tube.example/static/1080.mp4","resolution":{"id":1080}}],\
+            "streamingPlaylists":[{"playlistUrl":"https://tube.example/hls/master.m3u8"}]}
+            """
+        let resolved = try await host(returning: json).resolve(match)
+        #expect(resolved.streamUrl.absoluteString == "https://tube.example/static/1080.mp4")
     }
 
     @Test
@@ -106,5 +125,25 @@ struct PeerTubeVideoHostResolutionTests {
         await #expect(throws: VideoHostResolutionError.noPlayableFile) {
             try await host(returning: json).resolve(match)
         }
+    }
+
+    @Test
+    func buildsApiUrlFromInstanceHostAndIdentifier() async throws {
+        let box = URLBox()
+        let json = #"{"files":[{"fileUrl":"https://tube.example/v.mp4","resolution":{"id":720}}]}"#
+        let host = PeerTubeVideoHost(fetch: { url in
+            await box.set(url)
+            return Data(json.utf8)
+        })
+        _ = try await host.resolve(match)
+        let captured = await box.url
+        #expect(captured?.absoluteString == "https://tube.example/api/v1/videos/kR2p9qXy")
+    }
+
+    @Test
+    func usesThumbnailPathWhenNoPreviewPath() async throws {
+        let json = #"{"thumbnailPath":"/static/thumbs/t.jpg","files":[{"fileUrl":"https://tube.example/v.mp4","resolution":{"id":720}}]}"#
+        let resolved = try await host(returning: json).resolve(match)
+        #expect(resolved.posterUrl?.absoluteString == "https://tube.example/static/thumbs/t.jpg")
     }
 }
