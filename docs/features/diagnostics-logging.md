@@ -18,6 +18,7 @@ The Logs screen (Settings → About → Logs) is a two-tab viewer: the **Event L
 - Events carry a `category` (outbox / composerOutbox / scheduler / site / offlineDownload / unread / spotlight / lifecycle), a `level` (debug / info / notice / error), a short machine-readable `event` name (e.g. `op.permanentRollback`, `site.fetchFailed`), a human-readable `message`, an optional `instance` host (e.g. `lemmy.world`), and optional structured `metadata` (JSON object with fields such as httpStatus, entityType, entityServerId, attempts, error).
 - The instance host stored in the log is public and non-secret (it is the Lemmy instance hostname, not a token or password). Auth tokens, passwords, and the raw `accountKeychainId` are never recorded.
 - Export is a deliberate, user-initiated share-sheet action. Nothing leaves the device automatically.
+- Individual events can be copied without exporting the whole log: long-pressing a row copies its one-line summary, and the detail view's **Copy Event** button copies the full event (summary plus metadata). Both write to the clipboard only — nothing leaves the device. The row copy, the detail copy, and each exported line share one text formatter, so their formats stay identical.
 - The Event Log list is live-updating: GRDB observation delivers changes while the screen is open.
 - A vote, save, or hide that is permanently rolled back (e.g. because the server returned a 403) produces an `op.permanentRollback` event at error level, carrying the instance host and HTTP status in metadata. This event is durable and survives relaunch.
 - A content submission (comment / post / DM) that is permanently parked (never able to send) produces an `op.permanentPark` event at error level.
@@ -80,6 +81,13 @@ The Logs screen (Settings → About → Logs) is a two-tab viewer: the **Event L
 - **Given** the Event Log tab is open
 - **When** I tap any row
 - **Then** a detail view shows the full message, exact timestamp, category, level, instance host, and all structured metadata fields (formatted for readability)
+- **And** a **Copy Event** toolbar button copies the whole event as text — the one-line summary plus a sorted metadata block — to the clipboard (with a light haptic)
+
+### Copy a single event from the list
+
+- **Given** the Event Log tab is open
+- **When** I long-press a row and choose **Copy**
+- **Then** that event's one-line summary (`<timestamp> [<LEVEL>] <category> <event> — <message> [instance]`) is copied to the clipboard — the same format the export uses for each line — without opening the detail view
 
 ### Export the log for a bug report
 
