@@ -26,6 +26,10 @@ protocol AppServiceType: AnyObject {
 
     /// Returns the SFSafariViewController configured as per user preferences. This is meant to be used in context menu link previews.
     func safariViewControllerForPreview(url: URL) -> SFSafariViewController
+
+    /// The user's current URL-sanitizer config (front-end preferences). Read on the
+    /// main actor to build a preference-aware video-host registry for playback.
+    var urlSanitizerConfig: URLSanitizerConfig { get }
 }
 
 @MainActor
@@ -77,6 +81,10 @@ class AppService: AppServiceType {
 
     func safariViewControllerForPreview(url: URL) -> SFSafariViewController {
         createSafariViewController(url: resolvedExternalURL(url))
+    }
+
+    var urlSanitizerConfig: URLSanitizerConfig {
+        preferencesService.urlSanitizerConfig
     }
 
     func open(url: URL, on viewController: UIViewController) async {

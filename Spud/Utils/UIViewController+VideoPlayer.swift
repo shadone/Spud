@@ -6,6 +6,7 @@
 
 import AVKit
 import SpudDataKit
+import SpudUtilKit
 import UIKit
 
 extension UIViewController {
@@ -28,7 +29,7 @@ extension UIViewController {
     /// back to opening the page with the normal link flow.
     @MainActor
     func playVideo(url: URL, appService: AppServiceType) async {
-        let registry = VideoHostRegistry()
+        let registry = VideoHostRegistry(pipedConfig: appService.urlSanitizerConfig)
         let overlay: VideoResolvingOverlay? = registry.recognize(url) != nil
             ? VideoResolvingOverlay.present(in: self)
             : nil
