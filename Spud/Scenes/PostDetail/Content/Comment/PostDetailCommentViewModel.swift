@@ -66,14 +66,6 @@ struct PostDetailCommentViewModel {
     /// score-pill in the voted state; still surfaced in the accessibility label.
     let score: Int64
 
-    /// The upvote active fill color, resolved from the appearance at VM build
-    /// time.  The cell reads this instead of reaching into the appearance service.
-    let upvoteActiveColor: UIColor
-
-    /// The downvote active fill color, resolved from the appearance at VM build
-    /// time.
-    let downvoteActiveColor: UIColor
-
     /// The pre-built attributed text for the score pill (arrow glyph + number),
     /// using the scaled monospaced font so the pill tracks Dynamic Type. `nil`
     /// for "load more" rows and deleted/removed comments (no meaningful score).
@@ -321,8 +313,6 @@ struct PostDetailCommentViewModel {
             }
         }()
         score = row.score
-        upvoteActiveColor = appearance.general.upvoteButtonActiveColor
-        downvoteActiveColor = appearance.general.downvoteButtonActiveColor
 
         // MARK: Score pill attributed text
 
@@ -335,7 +325,7 @@ struct PostDetailCommentViewModel {
             // Neutral: secondaryLabel, regular weight (matches the pre-Task-5
             // subtitle appearance). Voted: white on the vote-token fill, bold so
             // the number reads heavier against the colored background.
-            let isVoted = row.voteStatus == 1 || row.voteStatus == 0
+            let isVoted = voteStatus != .neutral
             let pillFont = UIFont.scaledMonospaceDigitSystemFont(
                 style: .body,
                 relativeSize: -1 + textSizeAdjustment,
