@@ -188,7 +188,7 @@ public class SchedulerService: SchedulerServiceType {
         // together with subscribed communities).
         let signedOutKeychainIds: [String]
         do {
-            signedOutKeychainIds = try await appDatabase.signedOutAccountsAwaitingSiteInfo()
+            signedOutKeychainIds = try await appDatabase.signedOutAccountsAwaitingSiteInfo(now: Date()).map(\.keychainId)
         } catch {
             logger.error("Failed to query signed-out accounts awaiting site info: \(String(describing: error), privacy: .public)")
             signedOutKeychainIds = []
@@ -201,7 +201,7 @@ public class SchedulerService: SchedulerServiceType {
         // But only for sites that we do not have any account for (not even signed out).
         let ownerlessActorIds: [InstanceActorId]
         do {
-            ownerlessActorIds = try await appDatabase.ownerlessSitesAwaitingInfo()
+            ownerlessActorIds = try await appDatabase.ownerlessSitesAwaitingInfo(now: Date()).map(\.actorId)
         } catch {
             logger.error("Failed to query ownerless sites: \(String(describing: error), privacy: .public)")
             ownerlessActorIds = []
