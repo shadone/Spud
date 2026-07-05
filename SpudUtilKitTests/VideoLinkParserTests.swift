@@ -131,7 +131,7 @@ struct VideoLinkParserTests {
             Issue.record("expected .pipedStreams metadata source")
             return
         }
-        #expect(url.absoluteString == "https://api.piped.video/streams/dQw4w9WgXcQ")
+        #expect(url.absoluteString == "https://pipedapi.kavin.rocks/streams/dQw4w9WgXcQ")
     }
 
     @Test

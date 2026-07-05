@@ -97,6 +97,6 @@ struct LinkEmbedServiceTests {
         #expect(embed.title == "Some Video")
         #expect(embed.thumbnailURL?.absoluteString == "https://api.piped.video/thumb.jpg")
         let fetched = await capture.url
-        #expect(fetched?.absoluteString == "https://api.piped.video/streams/dQw4w9WgXcQ")
+        #expect(fetched?.absoluteString == "https://pipedapi.kavin.rocks/streams/dQw4w9WgXcQ")
     }
 }

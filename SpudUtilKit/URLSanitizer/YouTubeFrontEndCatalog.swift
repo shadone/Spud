@@ -40,9 +40,10 @@ public enum YouTubeFrontEndCatalog {
         YouTubeFrontEndInstance(host: "yewtu.be", kind: .invidious, apiHost: nil),
         YouTubeFrontEndInstance(host: "inv.nadeko.net", kind: .invidious, apiHost: nil),
         YouTubeFrontEndInstance(host: "yt.artemislena.eu", kind: .invidious, apiHost: nil),
-        // apiHost should be verified against the live Piped instance; a wrong value
+        // apiHost: piped.video's own opensearch.xml advertises pipedapi.kavin.rocks.
+        // api.piped.video has no DNS A record and does not resolve. A wrong value
         // degrades the preview gracefully (no title/thumbnail) and never contacts Google.
-        YouTubeFrontEndInstance(host: "piped.video", kind: .piped, apiHost: "api.piped.video"),
+        YouTubeFrontEndInstance(host: "piped.video", kind: .piped, apiHost: "pipedapi.kavin.rocks"),
     ]
 
     /// The catalog entry for `host` (`www.`/`m.` stripped, lowercased), or nil.

@@ -14,7 +14,7 @@ Settings → General → Links controls how external links from posts and commen
 - **Reader Mode (in-app only).** When on, the in-app Safari view is configured to enter Reader automatically if the page supports it. The default is on. It has no effect in system-browser mode.
 - **Open in Apps / universal links (in-app only).** When on (the default), tapping a link first asks iOS to open it in an installed app that registered for it (a universal link); only if no app handles it does the in-app Safari view open. With it off, the link goes straight to the in-app Safari view. This check applies in In-App Safari mode; in system-browser mode the link is handed to the OS directly, which applies its own universal-link routing.
 - **Same path for link previews.** The in-app Safari view used for context-menu link previews is built with the same Reader-Mode configuration, so previews match the opened result.
-- **Load Link Previews (default on).** When on, in-body link preview cards for YouTube, Invidious, and PeerTube video links fetch a thumbnail and title via oEmbed before displaying. When off, those cards show only the anchor text and host without making any third-party network request. This preference lives in Settings → General → Links and only gates the client-side embed fetch; tapping a card always opens the link through the open-mode setting above.
+- **Load Link Previews (default on).** When on, in-body link preview cards for YouTube, Invidious, Piped, and PeerTube video links fetch a thumbnail and title before displaying — YouTube via Google's oEmbed, Invidious via the instance's own oEmbed, and Piped via its `/streams` API (front-end links are resolved from the front-end itself, never Google). When off, those cards show only the anchor text and host without making any third-party network request. This preference lives in Settings → General → Links and only gates the client-side embed fetch; tapping a card always opens the link through the open-mode setting above.
 - **Settings testing area.** The Links section footer has a normal link and a universal link that, when tapped, route through the same open path so you can verify your settings without leaving Settings.
 - **This governs external links only.** Opening the post's own page on its instance (the "open in browser" action) always uses an in-app Safari view; that is part of [sharing.md](sharing.md), not this preference.
 
@@ -27,7 +27,7 @@ Settings → General → Links → "Privacy & Link Cleaning" (PreferencesPrivacy
 - **Unwrap Redirectors** — follows redirect domains to their real destinations.
 - **Upgrade to HTTPS** — rewrites `http://` URLs to `https://` where safe.
 - **De-AMP** — converts Google AMP URLs to their canonical forms.
-- **Redirect to Front-ends** — routes known sites to privacy-focused front-end instances (e.g. YouTube → Invidious, Twitter → Nitter). Each front-end service has an editable hostname, defaulting to a public instance; services can be individually disabled if an instance fails.
+- **Redirect to Front-ends** — routes known sites to privacy-focused front-end instances (e.g. YouTube → Invidious, Twitter → Nitter). Each front-end service has an editable hostname, defaulting to a public instance; services can be individually disabled if an instance fails. Video links are recognized on any wrapper form (`youtu.be`, `/shorts`, `/live`, Invidious, Piped) and rewritten to a grammar-correct `/watch?v=<id>` on the chosen host. A separate "Rewrite Third-Party Front-ends" toggle controls whether links already on a front-end (e.g. Invidious) are re-pointed to your chosen host (e.g. open Invidious links in Piped); when off, only canonical `youtube.com`/`youtu.be` links are rewritten.
 
 The sanitized URL is then passed to the open-mode logic (In-App Safari or system browser).
 
@@ -85,6 +85,27 @@ See [sharing.md](sharing.md) for the full context of these actions.
 - **Given** the Links section testing area
 - **When** I tap its sample link
 - **Then** it opens through the same path the current settings define
+
+### Piped link preview resolves privately via Piped's API
+
+- **Given** Load Link Previews is on
+- **And** a comment contains a `piped.video/watch?v=<id>` link
+- **Then** the preview card shows the video title and thumbnail fetched from Piped's `/streams` API
+- **And** no request is made to Google (`i.ytimg.com` / `youtube.com`)
+
+### Rewrite Third-Party Front-ends on — Invidious link opens in the chosen front-end
+
+- **Given** Clean Outgoing Links and Redirect to Front-ends are on
+- **And** the YouTube front-end host is set to `piped.video`
+- **And** Rewrite Third-Party Front-ends is on
+- **When** the user opens an `yewtu.be/watch?v=<id>` link
+- **Then** it opens as `https://piped.video/watch?v=<id>`
+
+### Rewrite Third-Party Front-ends off — front-end links are left alone
+
+- **Given** Redirect to Front-ends is on and Rewrite Third-Party Front-ends is off
+- **When** the user opens an `yewtu.be/watch?v=<id>` link
+- **Then** it opens unchanged (only canonical youtube.com/youtu.be links are rewritten)
 
 ## Not supported / out of scope
 
