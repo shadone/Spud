@@ -220,6 +220,15 @@ class PostListPostContentView: UIView {
         return view
     }()
 
+    /// Dog-ear fold shown at the trailing corner when arrows are hidden and the
+    /// post is voted. Sits above `swipeActionView` as a non-interactive overlay.
+    private lazy var voteFold: VoteFoldView = {
+        let view = VoteFoldView(frame: .zero)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.isHidden = true
+        return view
+    }()
+
     // MARK: Private
 
     private var thumbnailLoadTask: Task<Void, Never>?
@@ -239,12 +248,29 @@ class PostListPostContentView: UIView {
     private var appliedShowVoteButtons: Bool?
     /// The density applied to the current layout, same rationale.
     private var appliedDensity: PostDensity?
+    /// Resolved active colors cached from `configure` so `applyVoteState` has
+    /// them without needing the view model. Default to `.tertiaryLabel` (the
+    /// neutral-state tint) so the initial state before the first configure is
+    /// visually correct.
+    private var appliedUpvoteColor: UIColor = .tertiaryLabel
+    private var appliedDownvoteColor: UIColor = .tertiaryLabel
     /// The thumbnail image URL currently shown or loading. `reconfigureItems`
     /// re-runs `configure` on the live on-screen cell, so this lets the image
     /// load short-circuit when the post's thumbnail is unchanged — otherwise the
     /// already-shown image gets torn down and re-fetched on every snapshot apply,
     /// which read as the thumbnail "zooming in". Reset on reuse.
     private var appliedThumbnailUrl: URL?
+    /// The vote status applied during the most recent `configure` call, or `nil`
+    /// when the cell has been freshly reused (reset in `prepareForReuse`). Used
+    /// to distinguish an in-place optimistic vote reconfigure (which must animate)
+    /// from a fresh bind after cell reuse (which must not).
+    private var appliedVoteStatus: VoteStatus?
+
+    /// Vertical-anchor constraints that position the 28×28 fold at the top or
+    /// bottom trailing corner. Exactly one is active at a time (the other is
+    /// deactivated), toggled in `applyVoteState` based on status.
+    private lazy var voteFoldTop = voteFold.topAnchor.constraint(equalTo: topAnchor)
+    private lazy var voteFoldBottom = voteFold.bottomAnchor.constraint(equalTo: bottomAnchor)
 
     // MARK: Functions
 
@@ -252,6 +278,11 @@ class PostListPostContentView: UIView {
         super.init(frame: .zero)
 
         addSubview(swipeActionView)
+        // The fold sits above the swipe layer as a non-interactive overlay. It
+        // is pinned to the cell's trailing edge (flush to the visible right edge
+        // of the content area) and anchored vertically via `voteFoldTop` /
+        // `voteFoldBottom` (toggled in `applyVoteState`).
+        addSubview(voteFold)
 
         let subviews = [
             thumbnailView,
@@ -271,6 +302,8 @@ class PostListPostContentView: UIView {
             thumbnailView.heightAnchor.constraint(equalToConstant: Self.thumbnailDimension),
 
             voteColumn.widthAnchor.constraint(equalToConstant: 34),
+
+            voteFold.trailingAnchor.constraint(equalTo: trailingAnchor),
         ])
 
         thumbnailView.isUserInteractionEnabled = true
@@ -302,6 +335,12 @@ class PostListPostContentView: UIView {
         // describe the current layout, and `configure` only relays when they
         // change. Resetting them here would force a needless relayout on every
         // reuse.
+        //
+        // `appliedVoteStatus` IS reset: nil signals that the next `configure` is
+        // a fresh bind (no animation), not an in-place optimistic vote reconfigure
+        // (which should animate). `prepareForReuse` runs on cell reuse but NOT on
+        // the `reconfigureItems` path — that's the key distinction.
+        appliedVoteStatus = nil
 
         swipeActionConfiguration = nil
         swipeActionTriggered = nil
@@ -355,9 +394,52 @@ class PostListPostContentView: UIView {
             for: .normal
         )
         button.tintColor = .tertiaryLabel
+        button.layer.cornerRadius = VoteFillStyle.capsuleCornerRadius
+        button.clipsToBounds = true
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: 32),
+            button.heightAnchor.constraint(equalToConstant: 28),
+        ])
         button.accessibilityLabel = accessibilityLabel
         button.addTarget(self, action: action, for: .touchUpInside)
         return button
+    }
+
+    /// Renders the active arrow as a filled capsule (white glyph on the vote
+    /// token) and the other as a tertiary hairline. When vote arrows are hidden
+    /// (`appliedShowVoteButtons == false`), shows the dog-ear fold instead.
+    /// The pill and the fold are mutually exclusive.
+    ///
+    /// Must be called after `applyLayout` in `configure` so that
+    /// `appliedShowVoteButtons` is already set.
+    private func applyVoteState(_ status: VoteStatus, animated: Bool) {
+        // Pill (arrows shown) and fold (arrows hidden) are mutually exclusive.
+        let showFold = appliedShowVoteButtons == false && status != .neutral
+        style(upvoteButton, filled: status == .up, fill: appliedUpvoteColor)
+        style(downvoteButton, filled: status == .down, fill: appliedDownvoteColor)
+
+        // Keep a valid vertical anchor in every state (the fold is hidden for
+        // neutral, but leaving both inactive makes AutoLayout complain). Top by
+        // default; a downvote moves it to the bottom corner.
+        voteFoldTop.isActive = status != .down
+        voteFoldBottom.isActive = status == .down
+        voteFold.configure(
+            status: showFold ? status : .neutral,
+            upColor: appliedUpvoteColor,
+            downColor: appliedDownvoteColor
+        )
+
+        if animated {
+            if !showFold, status == .up { VoteFillStyle.animateCommit(upvoteButton) }
+            if !showFold, status == .down { VoteFillStyle.animateCommit(downvoteButton) }
+            if showFold { VoteFillStyle.animateCommit(voteFold) }
+        }
+    }
+
+    private func style(_ button: UIButton, filled: Bool, fill: UIColor) {
+        button.backgroundColor = filled ? fill : .clear
+        button.tintColor = filled ? VoteFillStyle.filledGlyphColor : .tertiaryLabel
+        button.accessibilityTraits = filled ? [.button, .selected] : [.button]
     }
 
     /// Applies the post-density cell metrics: outer content margin, the gap
@@ -433,11 +515,21 @@ class PostListPostContentView: UIView {
         bodyLabel.attributedText = viewModel.bodyPreview
         bodyLabel.isHidden = viewModel.bodyPreview == nil
 
-        upvoteButton.tintColor = viewModel.voteStatus == .up ? viewModel.upvoteActiveColor : .tertiaryLabel
-        downvoteButton.tintColor = viewModel.voteStatus == .down ? viewModel.downvoteActiveColor : .tertiaryLabel
+        appliedUpvoteColor = viewModel.upvoteActiveColor
+        appliedDownvoteColor = viewModel.downvoteActiveColor
 
         applyDensity(viewModel.density)
+        // applyLayout must run first: it sets `appliedShowVoteButtons`, which
+        // `applyVoteState` reads to decide whether to show the pill or the fold.
         applyLayout(position: viewModel.thumbnailPosition, showVoteButtons: viewModel.showVoteButtons)
+        // Animate only when THIS same cell's vote flips to a voted state in place
+        // (an optimistic vote reconfigures the cell without prepareForReuse); a
+        // fresh bind after reuse (appliedVoteStatus == nil) or a scroll must not spring.
+        let animateVote = appliedVoteStatus != nil
+            && appliedVoteStatus != viewModel.voteStatus
+            && viewModel.voteStatus != .neutral
+        applyVoteState(viewModel.voteStatus, animated: animateVote)
+        appliedVoteStatus = viewModel.voteStatus
 
         // A hidden thumbnail needs no image work.
         guard viewModel.thumbnailPosition.showsThumbnail else {

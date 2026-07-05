@@ -67,7 +67,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Post thumbnails and media badges](post-thumbnails.md) | `iphone`, `ipad` | shipped |
 | [Post peek (context-menu preview)](post-peek.md) | `iphone`, `ipad` | shipped |
 | [Post detail and comments](post-detail-and-comments.md) | `iphone`, `ipad` | shipped — incl. offline-aware comments (truthful failed/offline state with Retry — plus automatic re-fetch when connectivity returns — not a false "no comments yet") + header thumbnail-while-loading with a "Low-res preview" pill |
-| [Voting](voting.md) | `iphone`, `ipad` | shipped — incl. offline-aware "we'll send your vote when you're back online" toast |
+| [Voting](voting.md) | `iphone`, `ipad` | shipped — incl. offline-aware "we'll send your vote when you're back online" toast; structural voted-state cue: filled capsule (vote buttons on) or dog-ear fold (vote buttons off) on posts, filled capsule on post-detail header, filled mini-pill on comment score; downvote color changed app-wide to indigo |
 | [Saving](saving.md) | `iphone`, `ipad` | shipped — incl. offline-aware "we'll save this when you're back online" toast |
 | [Replying](replying.md) | `iphone`, `ipad` | shipped — reply + edit + delete/restore own comments, all optimistic + durable (see [Post detail and comments](post-detail-and-comments.md)); composer sheet uses proper medium/large detents on iPad |
 | [Sharing](sharing.md) | `iphone`, `ipad` | shipped |
@@ -138,7 +138,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 
 **Posts & comments**
 - [x] Post detail (header + comment tree); in-body link preview cards (anchor text always; video thumbnail + title when "Load Link Previews" is on; post-header link card uses server-provided title + thumbnail); offline-aware — a failed comment load shows a truthful offline/unreachable/malformed state with Retry (never a false "No comments yet"), and an offline failure re-fetches automatically once connectivity returns, and the header keeps the cached feed thumbnail while the full image loads, falling back to a tappable "Low-res preview" pill when the full image can't load
-- [x] Upvote / downvote (post & comment) — offline votes queue with a "we'll send your vote when you're back online" toast
+- [x] Upvote / downvote (post & comment) — offline votes queue with a "we'll send your vote when you're back online" toast; structural voted-state cue: filled capsule when vote buttons are visible (default), dog-ear fold when they're hidden (post list); filled capsule on post-detail header; filled score mini-pill on voted comments (neutral comments still show their score unfilled); downvote color changed app-wide to indigo; Reduce Motion cross-fades the fill instead of scaling; active vote control gains the `.selected` VoiceOver trait
 - [x] Save / unsave (post & comment) — offline saves queue with a "we'll save this when you're back online" toast
 - [x] Threaded comment collapse + jump-to-next-top-level
 - [x] Reply / edit / delete / restore own comments — all optimistic + durable (reply + edit via the content outbox; delete / restore via the mutation outbox)
