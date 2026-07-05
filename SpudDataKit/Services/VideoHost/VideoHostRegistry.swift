@@ -12,7 +12,7 @@ import Foundation
 public struct VideoHostRegistry: VideoHostRecognizing, VideoHostResolving {
     private let hosts: [any VideoHost]
 
-    public init(hosts: [any VideoHost] = [StreamableVideoHost()]) {
+    public init(hosts: [any VideoHost] = [StreamableVideoHost(), PeerTubeVideoHost()]) {
         self.hosts = hosts
     }
 
