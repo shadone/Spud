@@ -58,6 +58,15 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
   `AVPlayerViewController` and starts playback; the system player supplies the scrubber,
   full-screen, AirPlay, and Picture-in-Picture controls. Only AVFoundation-playable
   containers (mp4 / mov / m4v) are treated as video.
+- **Recognized video hosts play inline.** A post whose link is a recognized video-host page
+  (currently streamable.com) is treated as a video post: it shows the video treatment in the
+  feed and the post-detail header (using the server-provided thumbnail as its poster), and
+  tapping it resolves the host page to its stream and plays it inline in the system player. A
+  brief spinner is shown while it resolves.
+- **Host resolution failure falls back to the browser.** If a recognized host cannot be
+  resolved to a playable stream (offline, removed video, or an API error), tapping opens the
+  original page with the normal link flow (in-app Safari, the system browser, or the offline
+  toast) instead of a dead player.
 - **Unplayable video falls back to the browser.** A link whose extension AVFoundation can't
   decode (such as webm or mkv) is classified as an external link, not a video, so it opens
   in the browser rather than a dead player.
@@ -125,6 +134,18 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
 - **When** I tap it
 - **Then** the system video player opens and starts playing, with scrubber, full-screen, AirPlay, and Picture-in-Picture controls
 
+### Play a streamable video inline
+
+- **Given** a post whose link is a streamable.com video
+- **When** I tap it
+- **Then** a brief spinner shows while the video resolves, then it plays inline in the system player
+
+### A streamable video that can't resolve opens in the browser
+
+- **Given** a streamable post that is offline, removed, or fails to resolve
+- **When** I tap it
+- **Then** it opens the streamable page in the browser instead of a dead player
+
 ### An unplayable video opens in the browser
 
 - **Given** a post linking to a webm (or other container the device can't decode)
@@ -139,6 +160,9 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
   source thumbnail.
 - webm and mkv are not played in-app; AVFoundation cannot decode them, so they are routed to
   the browser as external links.
+- Video hosts other than streamable (e.g. YouTube) are not played inline; only streamable is
+  resolved to a stream today. Streamable links embedded inside post/comment body text are not
+  played inline either — only a post whose own link is a streamable video.
 - Save targets the Photos library only; there is no "save to Files" or other destination.
 - Zoom tops out at a fixed maximum (at least 3x fit, never below native resolution); there
   is no unbounded zoom.

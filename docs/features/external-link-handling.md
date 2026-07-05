@@ -17,6 +17,9 @@ Settings → General → Links controls how external links from posts and commen
 - **Load Link Previews (default on).** When on, in-body link preview cards for YouTube, Invidious, Piped, and PeerTube video links fetch a thumbnail and title before displaying — YouTube via Google's oEmbed, Invidious via the instance's own oEmbed, and Piped via its `/streams` API (front-end links are resolved from the front-end itself, never Google). When off, those cards show only the anchor text and host without making any third-party network request. This preference lives in Settings → General → Links and only gates the client-side embed fetch; tapping a card opens the link through the open-mode setting above (except a card pointing at a recognized threadiverse post — the frontend `/c/<community>/p/<id>` form — which resolves in-app through the shared link router instead, even for instances outside the Explorer directory).
 - **Settings testing area.** The Links section footer has a normal link and a universal link that, when tapped, route through the same open path so you can verify your settings without leaving Settings.
 - **This governs external links only.** Opening the post's own page on its instance (the "open in browser" action) always uses an in-app Safari view; that is part of [sharing.md](sharing.md), not this preference.
+- **Recognized video hosts are not opened as links by default.** A streamable.com video post
+  is classified as a video and played inline; the browser is only the fallback when inline
+  resolution fails. See [Media viewer and inline video](media-viewer.md).
 
 ## Privacy & Link Cleaning
 
