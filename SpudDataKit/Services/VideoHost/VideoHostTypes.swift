@@ -9,6 +9,7 @@ import Foundation
 /// A video-hosting service Spud can play inline by resolving its page URL to a stream.
 public enum VideoHostKind: Equatable, Sendable {
     case streamable
+    case peertube
 }
 
 /// A URL recognized as belonging to a `VideoHostKind`, carrying the host-specific
