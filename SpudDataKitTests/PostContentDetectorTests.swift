@@ -199,6 +199,17 @@ struct PostContentDetectorTests {
     }
 
     @Test
+    func youTubeUrl_isDetectedAsVideo() {
+        let url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        let type = contentType(url: url)
+        guard case let .video(video) = type else {
+            Issue.record("YouTube URL should be a video, got \(type)")
+            return
+        }
+        #expect(video.videoUrl.absoluteString == url)
+    }
+
+    @Test
     func unrecognizedLink_staysExternalLink() {
         let type = contentType(url: "https://example.com/some/article")
         guard case .externalLink = type else {

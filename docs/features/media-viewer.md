@@ -65,6 +65,11 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
   system player. A brief spinner is shown while it resolves. PeerTube is recognized by URL
   shape (it is federated, with no host list), so a rare non-PeerTube link may be treated as a
   video and, on tap, fall back to the browser when the instance API does not confirm it.
+  YouTube links (`youtube.com`/`youtu.be`/`piped.video`) play inline **through the user's
+  Piped front-end** — the stream is fetched from the Piped instance and served via its proxy,
+  so Google's servers are never contacted. This works only when the user's YouTube front-end
+  (Privacy settings) is a Piped instance; otherwise the post opens in the browser. Livestreams
+  are supported (HLS).
 - **Host resolution failure falls back to the browser.** If a recognized host cannot be
   resolved to a playable stream (offline, removed video, or an API error), tapping opens the
   original page with the normal link flow (in-app Safari, the system browser, or the offline
@@ -162,10 +167,14 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
   source thumbnail.
 - webm and mkv are not played in-app; AVFoundation cannot decode them, so they are routed to
   the browser as external links.
-- Video hosts other than streamable and PeerTube (e.g. YouTube) are not played inline; only
-  streamable and PeerTube are resolved to a stream today. A post whose own link is a
-  streamable or PeerTube video always plays inline. A streamable or PeerTube link written inside post or
-  comment **body text** also plays inline when tapped in the post-detail screen — its
+- Inline video-host playback covers streamable, PeerTube, and YouTube-via-Piped. YouTube plays
+  inline only when the user's front-end is a Piped instance; Invidious and other front-ends open
+  in the browser. Google's servers are never contacted for playback — if a proxied stream
+  can't be produced, the video opens in the browser instead. A post whose own link is a
+  streamable or PeerTube video always plays inline; a YouTube/Piped post always shows the
+  video badge, but inline playback happens only when the user's front-end is a Piped instance
+  (otherwise it opens in the browser). A streamable or PeerTube link written inside
+  post or comment **body text** also plays inline when tapped in the post-detail screen — its
   external-link handling re-runs video detection — while on other screens (a community or
   person description, direct messages) a body-text link opens in the browser.
 - Save targets the Photos library only; there is no "save to Files" or other destination.

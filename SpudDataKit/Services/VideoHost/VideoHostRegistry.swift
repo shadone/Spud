@@ -5,15 +5,26 @@
 //
 
 import Foundation
+import SpudUtilKit
+
+// Note: `VideoHost` is qualified as `SpudDataKit.VideoHost` throughout this file because
+// `import SpudUtilKit` also exports a `VideoHost` enum (for link-parsing).
 
 /// Aggregates the known video hosts. Recognition returns the first host that
 /// claims a URL; resolution dispatches to the host matching the match's kind.
 /// Adding a host = appending it to `hosts`.
 public struct VideoHostRegistry: VideoHostRecognizing, VideoHostResolving {
-    private let hosts: [any VideoHost]
+    private let hosts: [any SpudDataKit.VideoHost]
 
-    public init(hosts: [any VideoHost] = [StreamableVideoHost(), PeerTubeVideoHost()]) {
+    public init(hosts: [any SpudDataKit.VideoHost]) {
         self.hosts = hosts
+    }
+
+    /// Production default. `pipedConfig` is the caller's snapshot of the user's
+    /// URL-sanitizer config; it gates Piped-based YouTube resolution (recognition
+    /// is preference-free). The detector uses `.default` (it never resolves).
+    public init(pipedConfig: URLSanitizerConfig = .default) {
+        self.init(hosts: [StreamableVideoHost(), PeerTubeVideoHost(), PipedVideoHost(config: pipedConfig)])
     }
 
     public func recognize(_ url: URL) -> VideoHostMatch? {

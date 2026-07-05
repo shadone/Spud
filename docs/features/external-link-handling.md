@@ -20,6 +20,10 @@ Settings → General → Links controls how external links from posts and commen
 - **Recognized video hosts are not opened as links by default.** A streamable.com video post
   is classified as a video and played inline; the browser is only the fallback when inline
   resolution fails. See [Media viewer and inline video](media-viewer.md).
+- **YouTube plays inline via Piped when configured.** A YouTube link is classified as a video;
+  tapping resolves it through the user's Piped front-end (never Google) and plays inline, or —
+  when the front-end isn't Piped or resolution fails — opens in the browser (rewritten to the
+  chosen front-end). See [Media viewer and inline video](media-viewer.md).
 
 ## Privacy & Link Cleaning
 
