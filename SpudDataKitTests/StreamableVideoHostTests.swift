@@ -109,4 +109,12 @@ struct StreamableVideoHostResolutionTests {
             try await host(returning: nil).resolve(match)
         }
     }
+
+    @Test
+    func throwsDecodingWhenStatusMissing() async {
+        let json = #"{"files":{"mp4":{"url":"https://cdn.streamable.com/abc.mp4"}}}"#
+        await #expect(throws: VideoHostResolutionError.decoding) {
+            try await host(returning: json).resolve(match)
+        }
+    }
 }

@@ -60,8 +60,15 @@ public struct StreamableVideoHost: VideoHost {
         guard let response = try? JSONDecoder().decode(Response.self, from: data) else {
             throw VideoHostResolutionError.decoding
         }
-        // streamable status: 0 uploading, 1 processing, 2 ready, 3 error.
-        guard response.status == 2 else {
+        // A missing `status` means the response wasn't the shape we expect (decode-level).
+        // A present status other than 2 is not-ready: streamable uses 1 (processing, transient)
+        // and 3 (error, a permanently-failed upload). The app treats ANY resolution failure as a
+        // browser fallback (see videoPlaybackAction in a later task), so both non-ready states
+        // resolve to the same user-facing outcome and need no separate error case.
+        guard let status = response.status else {
+            throw VideoHostResolutionError.decoding
+        }
+        guard status == 2 else {
             throw VideoHostResolutionError.notReady
         }
 
@@ -78,7 +85,7 @@ public struct StreamableVideoHost: VideoHost {
     }
 
     /// streamable returns protocol-relative URLs (`//cdn...`); make them absolute https.
-    static func normalizedUrl(_ string: String) -> URL? {
+    private static func normalizedUrl(_ string: String) -> URL? {
         if string.hasPrefix("//") {
             return URL(string: "https:" + string)
         }
