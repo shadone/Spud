@@ -161,8 +161,11 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
 - webm and mkv are not played in-app; AVFoundation cannot decode them, so they are routed to
   the browser as external links.
 - Video hosts other than streamable (e.g. YouTube) are not played inline; only streamable is
-  resolved to a stream today. Streamable links embedded inside post/comment body text are not
-  played inline either — only a post whose own link is a streamable video.
+  resolved to a stream today. A post whose own link is a streamable video always plays inline.
+  A streamable link written inside post or comment **body text** also plays inline when tapped
+  in the post-detail screen — its external-link handling re-runs video detection — while on
+  other screens (a community or person description, direct messages) a body-text link opens
+  in the browser.
 - Save targets the Photos library only; there is no "save to Files" or other destination.
 - Zoom tops out at a fixed maximum (at least 3x fit, never below native resolution); there
   is no unbounded zoom.

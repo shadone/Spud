@@ -36,6 +36,10 @@ extension UIViewController {
         let action = await videoPlaybackAction(forVideoAt: url, using: registry)
         overlay?.dismiss()
 
+        // If the user navigated away during resolution, don't present on a
+        // popped view controller.
+        guard view.window != nil else { return }
+
         switch action {
         case let .play(streamUrl):
             presentVideoPlayer(url: streamUrl)
