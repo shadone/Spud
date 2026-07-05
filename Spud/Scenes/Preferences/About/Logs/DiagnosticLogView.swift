@@ -7,6 +7,15 @@
 import Foundation
 import SpudDataKit
 import SwiftUI
+import UIKit
+
+/// Copies `text` to the general pasteboard with a light haptic confirmation.
+/// Shared by the per-row "Copy" action and the Event Detail "Copy Event" action.
+@MainActor
+private func copyToPasteboard(_ text: String) {
+    UIPasteboard.general.string = text
+    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+}
 
 /// Settings → About → Logs (new structured view).
 ///
@@ -145,6 +154,13 @@ struct DiagnosticLogView: View {
                     DiagnosticLogRowView(event: wrapper.record)
                 }
                 .buttonStyle(.plain)
+                .contextMenu {
+                    Button {
+                        copyToPasteboard(DiagnosticEventText.line(wrapper.record))
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
+                }
             }
         }
     }
@@ -341,6 +357,14 @@ struct DiagnosticLogDetailView: View {
         .navigationTitle("Event Detail")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    copyToPasteboard(DiagnosticEventText.detail(event))
+                } label: {
+                    Label("Copy Event", systemImage: "doc.on.doc")
+                }
+                .accessibilityLabel("Copy event")
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Done") { dismiss() }
             }
