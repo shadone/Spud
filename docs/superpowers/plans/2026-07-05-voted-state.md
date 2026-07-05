@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- **Reuse existing color tokens, do not hardcode the mock's hexes.** Up = `GeneralAppearance.upvoteButtonActiveColor` (`ThemeManager.currentAccentColor`); Down = `GeneralAppearance.downvoteButtonActiveColor` (`GeneralAppearance.downColor`, periwinkle `#7c8df0`). Filled-capsule glyph/number = `.white`. Inactive/neutral = `.tertiaryLabel`.
+- **Up token reused, down token changed to the mock's indigo.** Up = `GeneralAppearance.upvoteButtonActiveColor` (`ThemeManager.currentAccentColor`) — unchanged. Down = `GeneralAppearance.downvoteButtonActiveColor` (`GeneralAppearance.downColor`), **changed from periwinkle `#7c8df0` to indigo `#5b57e0`** (RGB ≈ 0.357, 0.341, 0.878) in Task 1 — the single source, so it propagates to every downvote surface app-wide (user-approved). Filled-capsule glyph/number = `.white`. Inactive/neutral = `.tertiaryLabel`.
 - **`VoteStatus`** (SpudDataKit) has cases `.up`, `.down`, `.neutral` — never `.none`.
 - **Modes never stack.** The pill (arrows shown) and the fold (arrows hidden) are gated by the SAME existing `showVoteButtons` preference (default `true`). A cell shows exactly one.
 - **Accessibility.** Active vote controls gain the `.selected` trait; keep using `VoteAccessibility` for labels/score phrasing; each arrow keeps ≥44 pt hit area; the fold is `isAccessibilityElement = false`.
@@ -36,12 +36,29 @@ The single source of truth for the filled-capsule look and its commit animation,
 
 **Interfaces:**
 - Consumes: `VoteStatus` (SpudDataKit), `GeneralAppearance` (`Spud/Services/Appearance/GeneralAppearance.swift`) exposing `upvoteButtonActiveColor` / `downvoteButtonActiveColor`.
+- Also in this task: **change the downvote token** `GeneralAppearance.downColor` from periwinkle to the mock's indigo (see Step 0). It's the single downvote-color source, so this is one edit that repaints every downvote surface.
 - Produces (later tasks rely on these exact signatures):
   - `enum VoteFillStyle`
   - `static func fillColor(for status: VoteStatus, appearance: GeneralAppearance) -> UIColor?` — accent for `.up`, periwinkle for `.down`, `nil` for `.neutral`.
   - `static let filledGlyphColor: UIColor` (= `.white`)
   - `static let capsuleCornerRadius: CGFloat` (= 8)
   - `static func animateCommit(_ view: UIView)` — spring scale 0.9→1.0 (~180 ms) when Motion is allowed; a quick opacity cross-fade otherwise. Reads `UIAccessibility.isReduceMotionEnabled` internally.
+
+- [ ] **Step 0: Change the downvote token to indigo `#5b57e0`**
+
+In `Spud/Services/Appearance/GeneralAppearance.swift`, change `downColor` from periwinkle to the mock's indigo (keep the existing decimal style and the doc comment, updating the hex):
+
+```swift
+/// The design's "down" token (#5b57e0): the downvoted state and negative
+/// scores. A fixed indigo, distinct from the accent (which drives the
+/// upvoted state). Computed so it stays concurrency-safe (UIColor isn't
+/// `Sendable`, so it can't be a shared `static let`).
+static var downColor: UIColor {
+    UIColor(red: 0.357, green: 0.341, blue: 0.878, alpha: 1)
+}
+```
+
+This is the single downvote-color source (list arrows, header/comment score, swipe-action backgrounds), so every downvote surface picks up the indigo. Expect several extra snapshot refs beyond the voted-state ones to drift — handled in Task 7 Step 3.
 
 - [ ] **Step 1: Write the helper**
 
@@ -139,7 +156,7 @@ struct VoteFillStyleTests {
         #expect(fill == ThemeManager.currentAccentColor)
     }
 
-    @Test func downResolvesToPeriwinkleToken() {
+    @Test func downResolvesToDownToken() {
         let fill = VoteFillStyle.fillColor(for: .down, appearance: appearance())
         #expect(fill == GeneralAppearance.downColor)
     }
@@ -707,7 +724,7 @@ Expected: green — `✔ Test run ... passed`, including `VoteFillStyleTests`.
 - [ ] **Step 3: Full snapshot plan on the reference sim**
 
 Run: `make snapshot`
-Expected: green. If any voted/fold/header/comment ref is "No reference" or mismatched, it was mis-recorded — re-record that ONE class per the ceremony and re-run. Confirm no unrelated app-level refs drifted (runtime mismatch reads as a diff — verify the booted sim is the reference device; `make snapshot` fails fast otherwise).
+Expected: green EXCEPT for downvote-showing refs beyond the ones re-recorded per task — the `downColor` change (Task 1 Step 0) repaints every downvoted score/arrow/swipe across the suite (e.g. Activity/Person cells, any downvoted subtitle). Enumerate the mismatches, confirm each diff is ONLY the periwinkle→indigo hue shift (a PIL `ImageChops.difference` heatmap localized to the downvote glyph/pill — NOT a layout/size change), then re-record each affected class ONE at a time per the ceremony and re-run. If a ref is "No reference" it was mis-recorded. A runtime mismatch also reads as a diff — verify the booted sim is the reference device (`make snapshot` fails fast otherwise).
 
 - [ ] **Step 4: Accessibility spot-check (manual, documented)**
 
@@ -722,7 +739,7 @@ Run: `git status -uall` (ensure only intended files staged/committed; `.remember
 ## Self-Review
 
 **Spec coverage:**
-- Vote pill (arrows shown) → Task 2. Dog-ear fold (arrows hidden) → Task 3. Header filled button → Task 4. Comment score mini-pill → Task 5. Shared color/metrics/animation → Task 1. Reduce Motion → Task 1 (`animateCommit`) applied in 2/3/4/5. `.selected` trait → Task 2 (list), Task 4 (header); comment pill is non-interactive (score display) so it carries the spoken score label, not a control trait — matches today's behavior. Colors reuse existing tokens → Global Constraints + Task 1. Docs → Task 6. Verification (build + unit + snapshot + a11y) → Task 7.
+- Vote pill (arrows shown) → Task 2. Dog-ear fold (arrows hidden) → Task 3. Header filled button → Task 4. Comment score mini-pill → Task 5. Shared color/metrics/animation → Task 1. Reduce Motion → Task 1 (`animateCommit`) applied in 2/3/4/5. `.selected` trait → Task 2 (list), Task 4 (header); comment pill is non-interactive (score display) so it carries the spoken score label, not a control trait — matches today's behavior. Up token reused / down token changed to indigo `#5b57e0` → Global Constraints + Task 1 Step 0 (single source, app-wide). Docs → Task 6 (note the downvote color change in voting.md + appearance doc). Verification (build + unit + snapshot incl. the broader downvote re-record + a11y) → Task 7.
 - Gap check: the mock's "commit spring + light haptic" — haptic already exists (Global Constraints notes not to double-fire); the spring is Task 1's `animateCommit`, wired on the tap paths in Tasks 2/4 and on the fold in Task 3.
 
 **Placeholder scan:** No TBD/TODO. Each code step shows real code. The two spots that say "read the file first / confirm the access path" (Task 4 Step 3 tap-handler placement, Task 5 Step 3 appearance reachability) are genuine per-codebase confirmations, not deferred work — the surrounding code is given.

@@ -49,13 +49,17 @@ stacks the pill and the fold together.
 
 ## Colors — reuse the existing tokens (adaptation)
 
-The mock hardcodes up = teal `#009687`, down = indigo `#5b57e0`. **The app already
-implements this exact system** and we reuse it rather than hardcoding hexes:
+The mock uses up = teal `#009687`, down = indigo `#5b57e0`. **The app already
+implements the up side of this system**; we reuse its accent token there and
+**adopt the mock's indigo for down**, changing the single existing downvote token:
 
 - **Up** = `GeneralAppearance.upvoteButtonActiveColor` → `ThemeManager.currentAccentColor`
-  (the user's accent; default Lemmy teal ≈ `#009687`). Accent-aware by design.
-- **Down** = `GeneralAppearance.downvoteButtonActiveColor` → `GeneralAppearance.downColor`
-  = periwinkle `#7c8df0` (fixed; distinct from every teal state).
+  (the user's accent; default Lemmy teal ≈ `#009687`). Accent-aware by design; unchanged.
+- **Down** = `GeneralAppearance.downvoteButtonActiveColor` → `GeneralAppearance.downColor`,
+  **changed from periwinkle `#7c8df0` to the mock's indigo `#5b57e0`** (RGB ≈ 0.357,
+  0.341, 0.878). This is the single source for every downvote surface, so the deeper
+  indigo propagates app-wide (score arrows, swipe actions, header/comment/list) — a
+  deliberate, user-approved change, not just the new capsule.
 - **Filled-capsule glyph/number** = white (`.white`), sized for contrast on both tokens.
 - **Neutral / inactive** = `.tertiaryLabel` (unchanged).
 
@@ -83,5 +87,5 @@ implements this exact system** and we reuse it rather than hardcoding hexes:
   voting, sign-in gate) — this is presentation only.
 - No new user setting; the treatment is driven entirely by the existing
   `showVoteButtons` preference.
-- Downvote color stays the app's periwinkle token (not the mock's indigo) for DRY
-  and accent-system consistency.
+- The downvote token IS changed (periwinkle → indigo `#5b57e0`) app-wide — the one
+  intentional color change, made at the single `GeneralAppearance.downColor` source.
