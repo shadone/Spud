@@ -1704,9 +1704,9 @@ class PostListViewController: UIViewController {
     }
 }
 
-// MARK: - PostActionDispatching
+// MARK: - PostSaveDispatching
 
-extension PostListViewController: PostActionDispatching {
+extension PostListViewController: PostSaveDispatching {
     var postActionsAccountScope: AccountScope {
         viewModel.accountScope
     }

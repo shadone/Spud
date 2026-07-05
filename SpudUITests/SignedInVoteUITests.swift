@@ -15,7 +15,7 @@ import XCTest
 ///
 /// ## Why this is the seam's proof
 ///
-/// `PostActionDispatching.vote` gates on `accountScope.isSignedOut`: signed out it
+/// `PostVoteDispatching.vote` gates on `accountScope.isSignedOut`: signed out it
 /// presents the "Sign in to vote" gate and returns; signed in it enqueues an
 /// optimistic outbox write. This test lands the app already authenticated via
 /// `AppLaunchArgument.seedSignedInDefaultAccount` (a local person row + fake JWT on

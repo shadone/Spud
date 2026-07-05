@@ -837,21 +837,15 @@ class ActivityViewController: UIViewController {
     }
 }
 
-// MARK: - PostActionDispatching
+// MARK: - PostVoteDispatching
 
-extension ActivityViewController: PostActionDispatching {
+extension ActivityViewController: PostVoteDispatching {
     var postActionsAccountScope: AccountScope {
         accountService.scope(forAccountKeychainId: accountKeychainId)
     }
 
     var postActionsAlertService: AlertServiceType {
         alertService
-    }
-
-    /// Activity has no post-save affordance today, so nothing observes a saved
-    /// state to toggle against; report unsaved.
-    func currentSavedState(serverPostId _: Int64) -> Bool {
-        false
     }
 }
 

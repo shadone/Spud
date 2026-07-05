@@ -932,9 +932,9 @@ class PersonViewController: UIViewController {
     }
 }
 
-// MARK: - PostActionDispatching
+// MARK: - PostSaveDispatching
 
-extension PersonViewController: PostActionDispatching {
+extension PersonViewController: PostSaveDispatching {
     var postActionsAccountScope: AccountScope {
         viewModel.accountScope
     }
