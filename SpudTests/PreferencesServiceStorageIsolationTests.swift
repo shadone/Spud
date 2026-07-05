@@ -15,10 +15,15 @@ import Testing
 /// hosted `SpudTests` process and later `SpudUITests` launches.
 ///
 /// Test 3 deliberately writes to `.standard` to prove the default initializer
-/// still reads/writes it; it touches exactly ONE key and restores it in a
-/// `defer`, following the `QuickSwitchViewModelTests` pattern. The suite is
-/// `.serialized` because Swift Testing runs a struct's `@Test` funcs in
-/// parallel by default and Test 3 mutates the shared `.standard` domain.
+/// still reads/writes it; it mutates exactly ONE key and restores it in a
+/// `defer`, following the `QuickSwitchViewModelTests` pattern. (Constructing
+/// any `PreferencesService`, including a default-init one, also runs the
+/// xcancel -> sanitizer migration, which idempotently writes
+/// `didMigrateXcancelToSanitizer` to its store — so Test 3's actual
+/// `.standard` footprint is that flag plus the one deliberately-mutated key.)
+/// The suite is `.serialized` because Swift Testing runs a struct's `@Test`
+/// funcs in parallel by default and Test 3 mutates the shared `.standard`
+/// domain.
 @MainActor
 @Suite(.serialized)
 struct PreferencesServiceStorageIsolationTests {
