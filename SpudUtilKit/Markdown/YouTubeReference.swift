@@ -64,7 +64,8 @@ public struct YouTubeReference: Equatable, Sendable {
         }
         // Cataloged front-end: /watch?v=<id> or /embed/<id>.
         if let entry = YouTubeFrontEndCatalog.instance(forHost: host),
-           let id = frontEndPathId(segments: segments, url: url) {
+           let id = frontEndPathId(segments: segments, url: url)
+        {
             return YouTubeReference(videoId: id, sourceHost: host, sourceKind: .frontEnd(entry.kind), timestampSeconds: timestamp)
         }
         // Unknown host, /watch?v=<id> shape (best-effort Invidious).
@@ -96,7 +97,8 @@ public struct YouTubeReference: Equatable, Sendable {
             if let raw = queryValue(name, url), let seconds = Int(raw) { return seconds }
         }
         if let fragment = URLComponents(url: url, resolvingAgainstBaseURL: false)?.fragment,
-           fragment.hasPrefix("t="), let seconds = Int(fragment.dropFirst(2)) {
+           fragment.hasPrefix("t="), let seconds = Int(fragment.dropFirst(2))
+        {
             return seconds
         }
         return nil

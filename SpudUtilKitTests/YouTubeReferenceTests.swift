@@ -14,7 +14,7 @@ struct YouTubeReferenceTests {
     }
 
     @Test
-    func youtubeWatchEmbedShortsLiveV() throws {
+    func youtubeWatchEmbedShortsLiveV() {
         #expect(ref("https://www.youtube.com/watch?v=dQw4w9WgXcQ")?.sourceKind == .youtube)
         #expect(ref("https://m.youtube.com/watch?v=dQw4w9WgXcQ")?.videoId == "dQw4w9WgXcQ")
         #expect(ref("https://www.youtube.com/embed/dQw4w9WgXcQ")?.videoId == "dQw4w9WgXcQ")
@@ -58,9 +58,9 @@ struct YouTubeReferenceTests {
     func negatives() {
         #expect(ref("https://example.com/article") == nil)
         #expect(ref("https://www.youtube.com/watch?v=short") == nil) // id must be 11 chars
-        #expect(ref("https://youtu.be/dQw4w9WgXcQ/extra") == nil)   // id must be sole segment
+        #expect(ref("https://youtu.be/dQw4w9WgXcQ/extra") == nil) // id must be sole segment
         #expect(ref("https://www.youtube.com/results?search_query=cats") == nil) // non-video path
-        #expect(ref("ftp://youtu.be/dQw4w9WgXcQ") == nil)           // non-http scheme
+        #expect(ref("ftp://youtu.be/dQw4w9WgXcQ") == nil) // non-http scheme
     }
 
     @Test
