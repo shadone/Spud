@@ -147,11 +147,16 @@ persisted sim defaults, so `thumbnailPosition` / `showVoteButtons` (gates at
 The `test_unavailableBadge` refs re-recorded at `771b6e75` were captured with
 non-default preferences (no thumbnail placeholder, no vote buttons) and fail
 against a clean-install render (780x159 ref vs 780x224 actual, light+dark) —
-the one red test in an otherwise green 250-test suite run. Fix when doing this
-initiative: snapshot fixtures must pin preference-backed layout inputs
-explicitly (inject values, never read persisted defaults), then re-record the
-contaminated ref under pinned state. Until then, that test's verdict depends on
-the sim's app-preference state, not the code.
+the one red test in an otherwise green 250-test suite run.
+
+Immediate fix landed (same day): `PostListPostCellSnapshotTests.makeViewModel`
+now pins `thumbnailPosition = .left` + `showVoteButtons = true` explicitly, and
+the two contaminated refs were re-recorded under pinned clean-default state
+(full plan 250/250 green). Still owed by this initiative: 9 other snapshot
+fixture files construct a bare `PreferencesService()` and carry the same latent
+leak (masked while the sim stays clean) — the durable fix is an injectable
+`UserDefaults` store on `PreferencesService` (30 `@UserDefaultsBacked`
+properties hardcode `.standard` today), applied across all snapshot fixtures.
 
 ## 6. git-annex special remote + push cadence
 
