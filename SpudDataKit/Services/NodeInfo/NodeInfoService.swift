@@ -48,7 +48,7 @@ public actor NodeInfoService: NodeInfoServiceType {
                 try await fetcher.fetch(host: host)
             }
             try? await appDatabase.writer.write { db in
-                var record = NodeInfoCacheRecord(
+                let record = NodeInfoCacheRecord(
                     host: host, softwareName: name, softwareVersion: version, fetchedAt: Date()
                 )
                 try record.upsert(db)
