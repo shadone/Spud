@@ -163,4 +163,36 @@ struct PostContentDetectorTests {
             return
         }
     }
+
+    @Test
+    func streamableUrl_isDetectedAsVideo() {
+        let type = contentType(url: "https://streamable.com/67295820")
+        guard case let .video(video) = type else {
+            Issue.record("streamable should be a video, got \(type)")
+            return
+        }
+        #expect(video.videoUrl.absoluteString == "https://streamable.com/67295820")
+    }
+
+    @Test
+    func streamableUrl_usesServerThumbnailAsPoster() {
+        let type = contentType(
+            url: "https://streamable.com/67295820",
+            thumbnailUrl: "https://server.example/thumb.jpg"
+        )
+        guard case let .video(video) = type else {
+            Issue.record("streamable should be a video, got \(type)")
+            return
+        }
+        #expect(video.thumbnailUrl?.absoluteString == "https://server.example/thumb.jpg")
+    }
+
+    @Test
+    func unrecognizedLink_staysExternalLink() {
+        let type = contentType(url: "https://example.com/some/article")
+        guard case .externalLink = type else {
+            Issue.record("unrecognized link should be externalLink, got \(type)")
+            return
+        }
+    }
 }
