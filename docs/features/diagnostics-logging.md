@@ -21,7 +21,8 @@ The Logs screen (Settings → About → Logs) is a two-tab viewer: the **Event L
 - The Event Log list is live-updating: GRDB observation delivers changes while the screen is open.
 - A vote, save, or hide that is permanently rolled back (e.g. because the server returned a 403) produces an `op.permanentRollback` event at error level, carrying the instance host and HTTP status in metadata. This event is durable and survives relaunch.
 - A content submission (comment / post / DM) that is permanently parked (never able to send) produces an `op.permanentPark` event at error level.
-- A site-info fetch failure (including a `getSite` HTTP 403 from a CDN or WAF) produces a `site.fetchFailed` event carrying the **instance host** — making it possible to see which specific instance is failing, not just that some fetch failed. Because the scheduler now applies per-account exponential back-off on repeated failures (see [background-unread-refresh.md](background-unread-refresh.md)), the event appears a handful of times early on and then at most every ~2 hours rather than every 5 minutes — the instance is still identifiable, but the log is no longer spammed.
+- A site-info fetch failure (including a `getSite` HTTP 403 from a CDN or WAF) produces a `site.fetchFailed` event (`.error`) carrying the **instance host** — making it possible to see which specific instance is failing, not just that some fetch failed. The event is now **bounded**: after N = 5 consecutive permanent (4xx) failures the scheduler gives up on that site (see [account-provenance-and-site-refresh.md](account-provenance-and-site-refresh.md)), so `site.fetchFailed` entries for a permanently-blocked instance stop appearing after the give-up rather than recurring forever. For instances still being retried, exponential back-off means entries appear a handful of times early on and then at most every ~2 hours.
+- When the scheduler reaches the abandonment threshold for a site it records a **`site.giveUp`** event (category `.site`, level `.notice`, metadata `failureCount`) — a single entry naming the instance host and the number of permanent failures that triggered the give-up. This event makes it possible to see in About → Logs exactly why an instance stopped being polled ("gave up after 5 permanent failures"), rather than just noticing that `site.fetchFailed` entries stopped appearing.
 - Lifecycle events (`launch`, `foreground`, `accountApplied`) are recorded so drain and refresh activity can be correlated to when the app was opened or brought to the foreground.
 - The System Log tab is read-only and limited to the current app session (OSLog cannot retrieve prior-session entries in-app). The Event Log tab persists across sessions.
 
@@ -64,6 +65,14 @@ The Logs screen (Settings → About → Logs) is a two-tab viewer: the **Event L
 - **Then** I see `site.fetchFailed` error events naming the specific **instance host** (e.g. `lemmy.world`) and the HTTP status
 - **And** I can identify which server is failing and at what rate, without needing to inspect source code or Console.app
 - **And** because the scheduler backs off on repeated failures, entries appear a handful of times initially and then at most every ~2 hours — not once every 5 minutes — so the log stays readable
+- **And** if the instance never recovers, after 5 consecutive permanent failures a single `site.giveUp` notice entry appears and `site.fetchFailed` entries stop — the log explains that the scheduler gave up rather than continuing to spam failures
+
+### See why an instance stopped being polled
+
+- **Given** a `site.giveUp` notice event appears in About → Logs for an instance
+- **When** I tap the row to open its detail
+- **Then** I see the instance host, the `failureCount` metadata field (showing how many consecutive permanent failures triggered the give-up), and the exact timestamp
+- **And** I know the scheduler is no longer polling that instance in the background
 
 ### Inspect a log entry in detail
 

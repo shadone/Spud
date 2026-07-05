@@ -64,45 +64,48 @@ refresh tied to the unread badge.
 
 In addition to the foreground unread-count refresh above, Spud runs a periodic **scheduler** (`SchedulerService`) that keeps account and site information current. On a five-minute tick it checks each account for pending or stale site data (display name, site configuration) and fetches it from the server when needed. This path has no visible UI; its health is observable through About → Logs.
 
-### Back-off on persistent failures
+### Back-off and give-up on persistent failures
 
-When a site-info fetch fails repeatedly — for example, because a CDN or WAF is returning a persistent HTTP 403 for that instance — the scheduler applies **per-account exponential back-off** rather than retrying every tick. The back-off schedule is approximately:
+When a site-info fetch fails repeatedly — for example, because a CDN or WAF is returning a persistent HTTP 403 for that instance — the scheduler applies **per-site exponential back-off** and, after enough permanent failures, **permanently gives up**. The back-off schedule is approximately:
 
-| Consecutive failures | Retry delay |
+| Consecutive permanent failures | Retry delay |
 |---|---|
 | 1 | ~5 min |
 | 2 | ~10 min |
 | 3 | ~20 min |
 | 4 | ~40 min |
-| 5 | ~80 min |
-| 6+ | ~2 h (cap) |
+| 5 | give-up — background polling stops |
 
-Once the cap is reached the account is retried roughly every two hours until the instance recovers or the app is relaunched.
+After N = 5 consecutive permanent (4xx) failures the scheduler marks the site as given up and excludes it from both site-info sweeps permanently. A transient failure (5xx / timeout) does not count toward the permanent-failure total; it applies a short ~5-minute back-off but the site is never abandoned for transient reasons.
+
+The back-off deadline (`siteInfoNextAttemptAt`) and the permanent-failure count are stored in the database per site, so they survive cold app relaunches. A persistently-failing instance is no longer re-probed within seconds of each launch.
 
 ### Behavior and rules (scheduler)
 
-- **Transient failures self-heal.** A successful fetch clears the back-off. A brief outage that recovers before the next tick leaves no lasting effect.
-- **Reconnect triggers an immediate retry.** When network connectivity returns, all per-account back-off counters are cleared so previously-failing accounts are retried at the next scheduler tick without waiting out their back-off window.
-- **The failure stays visible in About → Logs.** A `site.fetchFailed` event is recorded on each actual attempt. With back-off, entries appear at most a handful of times early on and then at most every ~2 hours — not once every 5 minutes. The instance host is always named so it is easy to identify which server is failing.
-- **In-memory only; resets on cold launch.** Back-off state is not persisted to the database. A cold app relaunch resets all counters, so a recovered instance is attempted promptly on the first tick after launch.
-- **No visible UI.** There is no in-app indicator that a specific account is backed off. The About → Logs viewer is the diagnostic surface.
+- **Transient failures self-heal.** A successful fetch clears the back-off and the permanent-failure count. A brief outage that recovers before the next tick leaves no lasting effect.
+- **Reconnect triggers an immediate retry for the signed-in daily-refresh path.** When network connectivity returns, the signed-in daily-refresh clears its in-memory back-off and retries on the next tick. The two site-info sweeps (signed-out-awaiting and ownerless) honor their persisted `siteInfoNextAttemptAt` deadline and do not immediately retry on reconnect — they wait until the stored deadline passes.
+- **The failure stays visible in About → Logs.** A `site.fetchFailed` event is recorded on each actual attempt. With back-off, entries appear at most a handful of times early on. Once the give-up threshold is reached, a single `site.giveUp` notice is recorded and entries stop — see [diagnostics-logging.md](diagnostics-logging.md).
+- **Back-off and give-up state are persisted per site.** The back-off deadline and permanent-failure count are stored in the database, so a cold app relaunch does not reset them. A persistently-failing instance is not re-probed within seconds of launch.
+- **Give-up is self-healing.** The on-demand site-info fetch (user navigating to the instance) still fires regardless of give-up state. A successful fetch from any path (scheduler or on-demand) resets the give-up state and resumes background refresh.
+- **No visible UI.** There is no in-app indicator that a specific instance is backed off or given up. The About → Logs viewer is the diagnostic surface.
 
 ### Scenarios (scheduler)
 
-#### Persistently-failing instance is backed off progressively
+#### Persistently-failing instance is backed off and eventually abandoned
 
-- **Given** one of my accounts' Lemmy instances is returning persistent errors (e.g. HTTP 403 from a WAF)
+- **Given** one of my accounts' Lemmy instances is returning persistent HTTP 403 errors (e.g. from a WAF)
 - **When** the scheduler ticks
-- **Then** the first failed attempt records a `site.fetchFailed` event in About → Logs
-- **And** the next retry is scheduled roughly 5 minutes later, then doubling each time, up to a cap of about 2 hours
-- **And** the instance is no longer attempted on every 5-minute tick — log spam stops after the first few entries
+- **Then** the first failed attempt records a `site.fetchFailed` error event in About → Logs, and the back-off deadline is written to the database
+- **And** subsequent retries are spaced roughly 5 minutes, 10 minutes, 20 minutes, and 40 minutes apart
+- **And** after the fifth consecutive permanent failure a `site.giveUp` notice event is recorded and the scheduler stops polling that instance — log entries stop appearing
 
-#### Connectivity returning clears back-off
+#### Connectivity returning clears back-off (signed-in path)
 
-- **Given** an account has backed off due to repeated site-fetch failures
+- **Given** the signed-in daily-refresh has backed off due to repeated site-fetch failures
 - **When** network connectivity returns (the device comes back online)
-- **Then** the per-account back-off is cleared
-- **And** the scheduler retries that account on the next tick without waiting out the remaining back-off window
+- **Then** the in-memory back-off for the signed-in path is cleared
+- **And** the scheduler retries that account on the next tick without waiting out the remaining window
+- **Note:** the two site-info sweeps (signed-out-awaiting and ownerless) honor their persisted back-off deadlines and do not immediately retry on reconnect
 
 #### A transient failure self-heals
 
@@ -120,6 +123,7 @@ Once the cap is reached the account is retried roughly every two hours until the
 
 ## Not supported / out of scope (scheduler)
 
-- No UI indicator surfaces the back-off state for a specific account.
-- The scheduler does not distinguish between a transient network error and a permanent authentication/authorization failure (e.g. expired session vs. CDN block). A "session needs re-login" hint is a separate, deferred feature.
-- The ownerless-sites sweep (instances not yet associated with any account) is covered too: each instance resolves to a stable signed-out service account, so its repeated failures back off per instance like any account's would.
+- No UI indicator surfaces the back-off state or give-up state for a specific instance. About → Logs is the only diagnostic surface.
+- The scheduler does not distinguish between a transient network error and a permanent authentication/authorization failure (e.g. expired session vs. CDN block) for the signed-in daily-refresh path. A "session needs re-login" hint is a separate, deferred feature.
+- The ownerless-sites sweep (instances not yet associated with any account) is subject to the same persisted back-off and give-up rules as the signed-out-awaiting sweep.
+- The persisted back-off and give-up apply to the **site-info sweeps only** (signed-out-awaiting and ownerless). The signed-in daily-refresh path uses in-memory back-off that clears on cold launch; a unified persisted back-off path for all scheduler work is deferred.
