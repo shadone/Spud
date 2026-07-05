@@ -1077,7 +1077,6 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
     @objc
     private func upvoteButtonTapped() {
-        Haptics.tap()
         // Pre-paint the selected state so the fill capsule is visible when
         // animateCommit springs it in. The later async `configure` write is a
         // no-op if the optimistic value matches; it will correct the state on
@@ -1092,7 +1091,6 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
     @objc
     private func downvoteButtonTapped() {
-        Haptics.tap()
         // Symmetrical to upvoteButtonTapped — pre-paint, then animate on
         // selection only. Downvoting clears any active upvote.
         let willBeSelected = !downvoteBarButton.isSelected
