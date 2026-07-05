@@ -46,10 +46,13 @@ a successful fetch lands — either from the scheduler, or from a user opening t
 - **Transient failures never count toward give-up.** 5xx responses and network timeouts
   do not increment the permanent-failure count. They apply a short back-off (approximately
   5 minutes) but the instance is never abandoned for transient reasons.
-- **Persisted exponential back-off.** Each scheduler failure (permanent or transient)
-  records a `siteInfoNextAttemptAt` deadline in the database (base 5 min, doubling, ≈2 h
-  cap). A cold relaunch no longer resets this state, so a persistently-failing instance is
-  not re-probed within seconds of every launch.
+- **Persisted back-off.** Each scheduler failure records a `siteInfoNextAttemptAt`
+  deadline in the database. Transient failures (5xx / timeout / offline) apply a flat
+  5-minute retry interval (`siteInfoTransientRetryInterval`). Permanent failures (4xx)
+  apply an exponential back-off that doubles with each consecutive failure up to
+  approximately 2 hours (`SchedulerBackoff.backoffDelay`). A cold relaunch no longer
+  resets this state, so a persistently-failing instance is not re-probed within seconds of
+  every launch.
 - **Give-up is self-healing.** The on-demand fetch (user navigating to the instance) still
   fires regardless of give-up state. A successful `getSite` — from any path — resets the
   permanent-failure count, clears `siteInfoNextAttemptAt`, and allows background refresh to

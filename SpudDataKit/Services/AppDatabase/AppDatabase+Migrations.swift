@@ -795,7 +795,7 @@ extension AppDatabase {
             // for the two site-info sweeps).
             try db.alter(table: "site") { t in
                 t.add(column: "siteInfoConsecutivePermanentFailures", .integer).notNull().defaults(to: 0)
-                t.add(column: "siteInfoNextAttemptAt", .double)
+                t.add(column: "siteInfoNextAttemptAt", .datetime)
             }
             // Backfill: existing non-default, non-service, signed-out accounts are
             // browse accounts (the only path that creates them is

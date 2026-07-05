@@ -194,9 +194,19 @@ public class SchedulerService: SchedulerServiceType {
             // nothing to do here.
             break
         case .transientFailure:
-            try? appDatabase.recordSiteInfoTransientFailure(siteId: siteId, now: now())
+            do {
+                try appDatabase.recordSiteInfoTransientFailure(siteId: siteId, now: now())
+            } catch {
+                logger.error("Failed to record site-info transient failure: \(String(describing: error), privacy: .public)")
+            }
         case .permanentFailure:
-            let count = (try? appDatabase.recordSiteInfoPermanentFailure(siteId: siteId, now: now())) ?? 0
+            let count: Int
+            do {
+                count = try appDatabase.recordSiteInfoPermanentFailure(siteId: siteId, now: now())
+            } catch {
+                logger.error("Failed to record site-info permanent failure: \(String(describing: error), privacy: .public)")
+                count = 0
+            }
             if count == AppDatabase.siteInfoGiveUpThreshold {
                 await diagnostics.record(
                     category: .site,

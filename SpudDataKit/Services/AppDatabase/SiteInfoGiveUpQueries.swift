@@ -45,6 +45,10 @@ public extension AppDatabase {
 
     /// Clear all give-up state for a site (called on any successful site-info
     /// import, so a user visit self-heals an abandoned site).
+    ///
+    /// - Note: This is a test-only seam. The production reset is performed inline
+    ///   inside `SiteImporter.apply` on a successful site-info import. Do not call
+    ///   this from production code paths; use the importer's inline reset instead.
     func resetSiteInfoGiveUpSync(siteId: Int64, db: Database) throws {
         guard var site = try SiteRecord.fetchOne(db, key: siteId) else { return }
         guard site.siteInfoConsecutivePermanentFailures != 0 || site.siteInfoNextAttemptAt != nil else { return }
