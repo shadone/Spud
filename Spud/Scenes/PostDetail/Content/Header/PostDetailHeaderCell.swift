@@ -1077,17 +1077,28 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
     @objc
     private func upvoteButtonTapped() {
-        // Animate the fill on a user tap only — not on reuse or `configure`.
-        // `configure` drives `isSelected` without going through here, so the
-        // animation is naturally guarded behind actual user intent.
-        VoteFillStyle.animateCommit(upvoteBarButton)
+        Haptics.tap()
+        // Pre-paint the selected state so the fill capsule is visible when
+        // animateCommit springs it in. The later async `configure` write is a
+        // no-op if the optimistic value matches; it will correct the state on
+        // rollback. Upvoting clears any active downvote. Animate only on
+        // selection — un-voting has nothing to fill.
+        let willBeSelected = !upvoteBarButton.isSelected
+        upvoteBarButton.isSelected = willBeSelected
+        downvoteBarButton.isSelected = false
+        if willBeSelected { VoteFillStyle.animateCommit(upvoteBarButton) }
         upvoteTapped?()
     }
 
     @objc
     private func downvoteButtonTapped() {
-        // Same tap-only animation guard as `upvoteButtonTapped`.
-        VoteFillStyle.animateCommit(downvoteBarButton)
+        Haptics.tap()
+        // Symmetrical to upvoteButtonTapped — pre-paint, then animate on
+        // selection only. Downvoting clears any active upvote.
+        let willBeSelected = !downvoteBarButton.isSelected
+        downvoteBarButton.isSelected = willBeSelected
+        upvoteBarButton.isSelected = false
+        if willBeSelected { VoteFillStyle.animateCommit(downvoteBarButton) }
         downvoteTapped?()
     }
 
