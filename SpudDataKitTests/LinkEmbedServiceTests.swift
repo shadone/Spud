@@ -75,4 +75,15 @@ struct LinkEmbedServiceTests {
         let n = await count.n
         #expect(n == 1)
     }
+
+    @Test
+    func piped_returnsTitleAndThumbnailFromStreamsApi() async throws {
+        let json = #"{"title":"Some Video","thumbnailUrl":"https://api.piped.video/thumb.jpg"}"#.data(using: .utf8)!
+        let service = LinkEmbedService { _ in json }
+        let result = try await service.embed(for: #require(URL(string: "https://piped.video/watch?v=dQw4w9WgXcQ")))
+        let embed = try #require(result)
+        #expect(embed.kind == .video)
+        #expect(embed.title == "Some Video")
+        #expect(embed.thumbnailURL?.absoluteString == "https://api.piped.video/thumb.jpg")
+    }
 }
