@@ -73,14 +73,17 @@ class AppCoordinator {
         switch url.spud {
         case let .post(postId, instance):
             let accountKeychainId = dependencies.accountService.accountKeychainId(forInstance: instance)
+            dependencies.accountService.refreshSiteInfoOnDemandIfNeeded(forAccountKeychainId: accountKeychainId)
             window.display(serverPostId: postId, accountKeychainId: accountKeychainId)
 
         case let .community(name, instance):
             let accountKeychainId = dependencies.accountService.accountKeychainId(forInstance: instance)
+            dependencies.accountService.refreshSiteInfoOnDemandIfNeeded(forAccountKeychainId: accountKeychainId)
             window.display(communityName: name, instance: instance, accountKeychainId: accountKeychainId)
 
         case let .person(personId, instance):
             let accountKeychainId = dependencies.accountService.accountKeychainId(forInstance: instance)
+            dependencies.accountService.refreshSiteInfoOnDemandIfNeeded(forAccountKeychainId: accountKeychainId)
             window.display(personId: personId, instance: instance, accountKeychainId: accountKeychainId)
 
         case let .objectAtURL(canonicalURL):
@@ -173,6 +176,7 @@ class AppCoordinator {
 
         case let .community(name, instance):
             let accountKeychainId = dependencies.accountService.accountKeychainId(forInstance: instance)
+            dependencies.accountService.refreshSiteInfoOnDemandIfNeeded(forAccountKeychainId: accountKeychainId)
             window.display(communityName: name, instance: instance, accountKeychainId: accountKeychainId)
 
         case let .savedFeed(sort):

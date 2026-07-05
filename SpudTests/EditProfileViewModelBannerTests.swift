@@ -358,6 +358,8 @@ private final class FakeAccountService: AccountServiceType {
         nil
     }
 
+    func refreshSiteInfoOnDemandIfNeeded(forAccountKeychainId _: String) { }
+
     func createFeed(type _: FeedType, forAccountKeychainId _: String) async throws -> FeedHandle {
         fatalError()
     }
