@@ -9,6 +9,7 @@ import LemmyKit
 import Observation
 import OSLog
 import SpudDataKit
+import SpudUtilKit
 
 private let logger = Logger.app
 
@@ -187,8 +188,8 @@ final class PersonViewModel {
         isBotAccount = row.isBotAccount
         isAdmin = row.isAdmin
         matrixUserId = row.matrixUserId
-        numberOfPosts = CommentsFormatter.string(from: row.numberOfPosts)
-        numberOfComments = CommentsFormatter.string(from: row.numberOfComments)
+        numberOfPosts = CountFormatter.string(row.numberOfPosts)
+        numberOfComments = CountFormatter.string(row.numberOfComments)
         if let createdDate = row.personCreatedDate {
             cakeDay = PersonFormatter.cakeDayString(personCreatedDate: createdDate)
         } else {

@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUtilKit
 import SwiftUI
 
 /// The Discover (Community Explorer) landing. Shows activity-driven rails —
@@ -478,13 +479,13 @@ struct DiscoverCommunityRow: View {
 
     private var handle: String {
         let lead = showsQualifiedHandle ? "c/\(row.name)@\(row.instanceHost)" : row.name
-        return "\(lead) · \(Self.compact(row.numberOfSubscribers)) · \(Self.compact(row.usersActiveWeek))/wk"
+        return "\(lead) · \(CountFormatter.string(row.numberOfSubscribers)) · \(CountFormatter.string(row.usersActiveWeek))/wk"
     }
 
     private var accessibilityLabel: String {
         var parts = [row.displayName, "c/\(row.name)@\(row.instanceHost)"]
         if row.isNsfw { parts.append("NSFW") }
-        parts.append("\(Self.compact(row.numberOfSubscribers)) subscribers")
+        parts.append("\(CountFormatter.string(row.numberOfSubscribers)) subscribers")
         if subscriptionState == .subscribed { parts.append("Subscribed") }
         if row.alsoOnServerCount > 0 { parts.append("also on \(row.alsoOnServerCount) other servers") }
         return parts.joined(separator: ", ")
@@ -495,7 +496,7 @@ struct DiscoverCommunityRow: View {
         let badge = HStack(spacing: 5) {
             Image(systemName: "globe")
                 .font(.system(size: 9, weight: .semibold))
-            Text("also on \(row.alsoOnServerCount) other servers · \(Self.compact(row.groupTotalSubscribers))")
+            Text("also on \(row.alsoOnServerCount) other servers · \(CountFormatter.string(row.groupTotalSubscribers))")
                 .font(.caption2.weight(.semibold))
             if onCompare != nil {
                 Image(systemName: "chevron.right")
@@ -514,18 +515,6 @@ struct DiscoverCommunityRow: View {
                 .onTapGesture { onCompare() }
         } else {
             badge
-        }
-    }
-
-    static func compact(_ value: Int64) -> String {
-        let n = Double(value)
-        switch value {
-        case 1_000_000...:
-            return String(format: "%.1fM", n / 1_000_000)
-        case 1000...:
-            return String(format: "%.0fK", n / 1000)
-        default:
-            return "\(value)"
         }
     }
 }
@@ -573,7 +562,7 @@ struct DiscoverTrendCard: View {
                 .foregroundStyle(Color(.tertiaryLabel))
                 .lineLimit(1)
                 .padding(.top, 2)
-            Text("\(DiscoverCommunityRow.compact(row.numberOfSubscribers)) · \(DiscoverCommunityRow.compact(row.usersActiveWeek))/wk")
+            Text("\(CountFormatter.string(row.numberOfSubscribers)) · \(CountFormatter.string(row.usersActiveWeek))/wk")
                 .font(.caption2)
                 .foregroundStyle(Color(.secondaryLabel))
                 .padding(.top, 7)
@@ -604,7 +593,7 @@ struct DiscoverTrendCard: View {
         var parts = [
             row.displayName,
             "c/\(row.name)@\(row.instanceHost)",
-            "\(DiscoverCommunityRow.compact(row.usersActiveWeek)) active this week",
+            "\(CountFormatter.string(row.usersActiveWeek)) active this week",
         ]
         if subscriptionState == .subscribed { parts.append("Subscribed") }
         return parts.joined(separator: ", ")
@@ -639,7 +628,7 @@ struct InstanceCard: View {
                 .font(.caption2)
                 .foregroundStyle(Color(.tertiaryLabel))
                 .padding(.top, 2)
-            Text("\(DiscoverCommunityRow.compact(instance.totalSubscribers)) members · \(DiscoverCommunityRow.compact(instance.totalActiveWeek))/wk")
+            Text("\(CountFormatter.string(instance.totalSubscribers)) members · \(CountFormatter.string(instance.totalActiveWeek))/wk")
                 .font(.caption2)
                 .foregroundStyle(Color(.secondaryLabel))
                 .padding(.top, 7)
@@ -760,7 +749,7 @@ struct PackCard: View {
                     .lineLimit(2)
                     .frame(height: 30, alignment: .top)
                     .padding(.top, 3)
-                Text("\(pack.communityCount) communities · \(DiscoverCommunityRow.compact(pack.totalSubscribers))")
+                Text("\(pack.communityCount) communities · \(CountFormatter.string(pack.totalSubscribers))")
                     .font(.caption2)
                     .foregroundStyle(Color(.tertiaryLabel))
                     .padding(.top, 8)

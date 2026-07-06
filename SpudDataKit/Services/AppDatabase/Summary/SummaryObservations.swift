@@ -7,6 +7,7 @@
 import Foundation
 import GRDB
 import OSLog
+import SpudUtilKit
 
 private let logger = Logger.appDatabase
 
@@ -120,21 +121,21 @@ public extension AppDatabase {
                     SummaryStat(
                         key: "posts",
                         label: "Posts",
-                        value: CommentsFormatter.string(from: numberOfPosts),
+                        value: CountFormatter.string(numberOfPosts),
                         icon: "doc.text",
                         source: .server
                     ),
                     SummaryStat(
                         key: "comments",
                         label: "Comments",
-                        value: CommentsFormatter.string(from: numberOfComments),
+                        value: CountFormatter.string(numberOfComments),
                         icon: "bubble.left",
                         source: .server
                     ),
                     SummaryStat(
                         key: "saved",
                         label: "Saved",
-                        value: CommentsFormatter.string(from: Int64(savedCount + savedCommentCount)),
+                        value: CountFormatter.string(Int64(savedCount + savedCommentCount)),
                         icon: "bookmark",
                         source: .local
                     ),
@@ -142,7 +143,7 @@ public extension AppDatabase {
                         key: "votes",
                         label: "Votes cast",
                         // Forward-only tally: displays count even when 0.
-                        value: CommentsFormatter.string(from: Int64(voteCount)),
+                        value: CountFormatter.string(Int64(voteCount)),
                         icon: "arrow.up.arrow.down",
                         source: .forward,
                         note: "new"
@@ -150,14 +151,14 @@ public extension AppDatabase {
                     SummaryStat(
                         key: "communities",
                         label: "Communities",
-                        value: CommentsFormatter.string(from: Int64(communityCount)),
+                        value: CountFormatter.string(Int64(communityCount)),
                         icon: "person.3",
                         source: .server
                     ),
                     SummaryStat(
                         key: "read",
                         label: "Posts read",
-                        value: CommentsFormatter.string(from: Int64(readCount)),
+                        value: CountFormatter.string(Int64(readCount)),
                         icon: "eye",
                         source: .local
                     ),

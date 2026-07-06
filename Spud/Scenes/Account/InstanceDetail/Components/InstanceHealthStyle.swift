@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUtilKit
 import UIKit
 
 /// Pure mapping of Explorer health/quality levels to colours, SF Symbols, and
@@ -49,6 +50,6 @@ enum InstanceHealthStyle {
     /// Compact count (e.g. "1.2K", "32K"). Returns "—" for nil/zero.
     static func formatCount(_ value: Int64?) -> String {
         guard let value, value > 0 else { return "—" }
-        return CompactCount.string(value)
+        return CountFormatter.string(value)
     }
 }

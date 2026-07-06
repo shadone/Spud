@@ -347,7 +347,7 @@ struct PostDetailCommentViewModel {
                 text.append(NSAttributedString(string: " ", attributes: pillAttributes))
             }
             text.append(NSAttributedString(
-                string: UpvotesFormatter.string(from: row.score),
+                string: CountFormatter.string(row.score),
                 attributes: pillAttributes
             ))
             scorePillText = text

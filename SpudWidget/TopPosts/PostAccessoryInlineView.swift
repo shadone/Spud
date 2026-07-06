@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import SpudUtilKit
 import SwiftUI
 
 /// Renders a Post as AccessoryInline widget family.
@@ -14,7 +15,7 @@ struct PostAccessoryInlineView: View {
     @State var images: [URL: UIImage]
 
     var text: String {
-        let score = UpvotesFormatter.string(from: post.score)
+        let score = CountFormatter.string(post.score)
         return "\(post.title) ↑\(score)"
     }
 

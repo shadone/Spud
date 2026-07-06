@@ -7,6 +7,7 @@
 import Foundation
 import Observation
 import SpudDataKit
+import SpudUtilKit
 import UIKit
 
 @MainActor
@@ -91,8 +92,8 @@ final class SiteListSiteViewModel {
         return parts.joined(separator: " · ")
     }
 
-    /// Compact, locale-aware K/M abbreviation (e.g. 12300 -> "12.3K").
+    /// Compact K/M abbreviation (e.g. 12300 -> "12.3K").
     private static func abbreviatedCount(_ value: Int64) -> String {
-        value.formatted(.number.notation(.compactName))
+        CountFormatter.string(value)
     }
 }

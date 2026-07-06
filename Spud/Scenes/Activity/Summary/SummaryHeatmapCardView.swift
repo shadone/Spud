@@ -6,6 +6,7 @@
 
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 /// The full "Activity over time" card: title + total count, metric segmented
@@ -121,7 +122,7 @@ final class SummaryHeatmapCardView: UIView {
         let total = series.total
         totalLabel.text = String(
             format: NSLocalizedString("%@ total", comment: "Heatmap total count label"),
-            formatCount(total)
+            CountFormatter.string(Int64(total))
         )
 
         // Heatmap grid
@@ -144,18 +145,5 @@ final class SummaryHeatmapCardView: UIView {
         let index = metricControl.selectedSegmentIndex
         guard index >= 0, index < metrics.count else { return }
         onMetricChanged?(metrics[index])
-    }
-
-    // MARK: Private
-
-    private func formatCount(_ count: Int) -> String {
-        if count >= 1_000_000 {
-            let v = Double(count) / 1_000_000
-            return String(format: "%.1fM", v)
-        } else if count >= 1000 {
-            let v = Double(count) / 1000
-            return String(format: "%.1fK", v)
-        }
-        return "\(count)"
     }
 }
