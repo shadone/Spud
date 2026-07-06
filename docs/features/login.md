@@ -14,6 +14,7 @@ shortcuts to register a new account or to keep browsing anonymously.
 ## Behavior and rules
 
 - **Instance is chosen first.** Login is pushed from the instance picker, so the screen already knows which instance it's signing in to and shows that instance's name and icon. See [instance-picker.md](instance-picker.md).
+- **Non-Lemmy instances are blocked before the network call.** Before the login request is sent, Spud probes the instance's NodeInfo. If the instance runs non-Lemmy software (PieFed, Mbin, Mastodon, etc.), an action sheet blocks the attempt and offers "Open in Safari". The probe fails open — if it cannot complete, login proceeds as before. See [instance-software-detection.md](instance-software-detection.md).
 - **Username or email + password.** One field accepts either a username or an email, plus a password field. The Log in button is enabled only when both fields are non-empty.
 - **Success stores and activates the account.** A successful login stores the returned credential in the shared-group Keychain under a new `accountKeychainId`, marks the account default, and immediately kicks off the initial site / own-profile fetch so the Account screen resolves without waiting for the next periodic refresh. The login screen then dismisses.
 - **Invalid credentials surface an error.** A rejected login ("incorrect login") is reported as an invalid-login error alert; the screen stays open to retry. Other API failures surface a generic error alert.
