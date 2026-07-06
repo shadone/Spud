@@ -59,14 +59,18 @@ final class CommunityViewModel {
     @ObservationIgnored
     private let appDatabase: AppDatabase
     @ObservationIgnored
+    private let accountKeychainId: String
+    @ObservationIgnored
     private var observationTask: Task<Void, Never>?
 
     init(
         accountRowId: Int64,
         serverCommunityId: Components.Schemas.CommunityID,
+        accountKeychainId: String,
         appDatabase: AppDatabase
     ) {
         self.serverCommunityId = serverCommunityId
+        self.accountKeychainId = accountKeychainId
         self.appDatabase = appDatabase
 
         observationTask = Task { [weak self] in
@@ -132,5 +136,73 @@ final class CommunityViewModel {
             return "!\(name)"
         }
         return "!\(name)@\(host)"
+    }
+
+    // MARK: - Data accessors (view controller + its action seams)
+
+    /// Whether this community is currently muted for the backing account
+    /// (client-local, keyed by its federation actor id). `false` before
+    /// `actorId` has resolved — mirrors the view controller's prior
+    /// "no actor id yet" guard, which skipped the read entirely.
+    func isMuted() -> Bool {
+        guard let actorId else { return false }
+        return appDatabase.isCommunityMutedSync(
+            forKeychainId: accountKeychainId,
+            communityActorId: actorId
+        )
+    }
+
+    /// Mutes this community for the backing account until `until` (nil =
+    /// forever). Muting is a client-local, timed view concern (not sign-in
+    /// gated); a no-op before `actorId` has resolved. Synchronous DB write.
+    func mute(until: Date?) {
+        guard let actorId else { return }
+        appDatabase.muteCommunitySync(
+            forKeychainId: accountKeychainId,
+            communityActorId: actorId,
+            until: until
+        )
+    }
+
+    /// Unmutes this community for the backing account. A no-op before
+    /// `actorId` has resolved. Synchronous DB write.
+    func unmute() {
+        guard let actorId else { return }
+        appDatabase.unmuteCommunitySync(
+            forKeychainId: accountKeychainId,
+            communityActorId: actorId
+        )
+    }
+
+    /// Whether this community is currently favorited for the backing account
+    /// (client-local). `false` before `actorId` has resolved.
+    func isFavorited() -> Bool {
+        guard let actorId else { return false }
+        return appDatabase.isCommunityFavoritedSync(
+            forKeychainId: accountKeychainId,
+            communityActorId: actorId
+        )
+    }
+
+    /// Toggles this community's favorited state for the backing account: a
+    /// synchronous read followed by the matching write, exactly as the view
+    /// controller did before the move. A no-op before `actorId` has resolved.
+    func toggleFavorite() {
+        guard let actorId else { return }
+        let favorited = appDatabase.isCommunityFavoritedSync(
+            forKeychainId: accountKeychainId,
+            communityActorId: actorId
+        )
+        if favorited {
+            appDatabase.unfavoriteCommunitySync(
+                forKeychainId: accountKeychainId,
+                communityActorId: actorId
+            )
+        } else {
+            appDatabase.favoriteCommunitySync(
+                forKeychainId: accountKeychainId,
+                communityActorId: actorId
+            )
+        }
     }
 }
