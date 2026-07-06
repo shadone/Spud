@@ -145,6 +145,18 @@ class PostListViewController: UIViewController {
     /// first-snapshot capture exactly once (subsequent hide-read toggles re-pin
     /// explicitly). Reset on every `feedChanged`.
     private var hasSeededPinnedReadIds = false
+    /// The view model's `rowsRevision` captured at the most recent `feedChanged`,
+    /// alongside the `hasSeededPinnedReadIds` reset. The rows reaction is a
+    /// persistent loop (it is NOT recreated on a feed switch), so a revision
+    /// delivery enqueued from the PRE-restart observation can arrive AFTER
+    /// `feedChanged` resets the seeding latch; applying it would seed
+    /// `pinnedReadIds` from the just-reset-empty `firstSnapshotReadIds` and latch,
+    /// so the new feed's real first emit never seeds — hide-read pinning stays
+    /// broken for the whole feed session. The reaction skips any delivery whose
+    /// revision is `<= ` this, so only the NEW observation's emits (revision
+    /// strictly greater — `rowsRevision` is monotonic and never reset) seed and
+    /// render. Restores the base's stale-emits-never-apply semantics.
+    private var rowsRevisionAtRestart = 0
     /// Reacts to the view model's `rowsRevision` DB-emit signal, running the
     /// per-emit render pipeline (see `startRowsReaction`).
     private var rowsObservationTask: Task<Void, Never>?
@@ -738,6 +750,15 @@ class PostListViewController: UIViewController {
                 if Task.isCancelled { break }
                 guard revision != lastHandledRevision else { continue }
                 lastHandledRevision = revision
+                // Skip any delivery carrying a revision from before the last
+                // `feedChanged` restart. This loop persists across feed switches,
+                // so a pre-restart emit can still be enqueued when `feedChanged`
+                // resets the seeding latch; applying it would seed the pin from
+                // the reset-empty `firstSnapshotReadIds` and latch, so the new
+                // feed's real first emit never seeds. `rowsRevision` is monotonic
+                // and never reset, so the new observation's emits are strictly
+                // greater and pass. Restores base's stale-emits-never-apply.
+                guard revision > rowsRevisionAtRestart else { continue }
 
                 if !hasSeededPinnedReadIds {
                     hasSeededPinnedReadIds = true
@@ -1102,6 +1123,11 @@ class PostListViewController: UIViewController {
         pinnedReadIds.removeAll()
         markedReadIds.removeAll()
         hasSeededPinnedReadIds = false
+        // Capture the current revision alongside the latch reset: the rows
+        // reaction skips any delivery at or below this, so a pre-restart emit
+        // enqueued before this reset can't seed the (now-reset-empty) pin. The
+        // new observation's first emit bumps `rowsRevision` strictly past this.
+        rowsRevisionAtRestart = viewModel.rowsRevision
         if !keepingContent {
             showLoadingSkeleton()
         }

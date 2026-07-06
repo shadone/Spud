@@ -573,4 +573,87 @@ struct PostListViewModelObservationTests {
 
         vm.stopObservations()
     }
+
+    // MARK: - Stale-revision guard invariant (final-review fix)
+
+    /// The invariant the view controller's stale-revision guard depends on:
+    /// `rowsRevision` is monotonic and is NEVER reset by a restart. The view
+    /// controller captures `rowsRevision` at each `feedChanged` and skips any
+    /// row-reaction delivery whose revision is `<= ` that capture — that is how it
+    /// tells a stale PRE-restart emit (still enqueued when the pinned-read latch
+    /// resets) apart from the new observation's first emit. If a restart ever
+    /// reset the counter, the guard would misclassify the new feed's emits as
+    /// stale (or fail to skip stale ones), so this test locks the counter's
+    /// survive-the-restart-then-strictly-advance behavior at the VM level.
+    @Test
+    func rowsRevisionIsMonotonicAcrossRestartSoNextEmitIsStrictlyGreater() async throws {
+        let seed = try await makeSeed()
+        try await seedFeedWithPosts(seed, feedKey: "feed-1", posts: [
+            (serverPostId: 1001, title: "first", isRead: false),
+            (serverPostId: 1002, title: "second", isRead: false),
+        ])
+        let vm = makeViewModel(seed)
+
+        vm.startObservations()
+        await poll { vm.orderedRows.count == 2 }
+        let revisionBeforeRestart = vm.rowsRevision
+        #expect(revisionBeforeRestart >= 1)
+
+        // A restart must NOT reset the monotonic counter. Asserted synchronously
+        // right after the call, before any new emit can land — this is exactly the
+        // value the view controller captures into `rowsRevisionAtRestart`.
+        vm.restartObservations(keepingContent: false)
+        #expect(
+            vm.rowsRevision == revisionBeforeRestart,
+            "restart must not reset rowsRevision (the VC stale-revision guard depends on it)"
+        )
+
+        // The new observation's first emit must carry a STRICTLY GREATER revision,
+        // so it clears the guard while any enqueued pre-restart delivery (revision
+        // <= the captured value) is skipped.
+        await poll { vm.rowsRevision > revisionBeforeRestart }
+        #expect(vm.orderedRows.count == 2)
+        #expect(
+            vm.rowsRevision > revisionBeforeRestart,
+            "the new observation's first emit must bump past the pre-restart revision"
+        )
+
+        vm.stopObservations()
+    }
+
+    /// The end-to-end property the view controller's stale-revision guard
+    /// protects: after a restart, the pinned-read seed the view controller
+    /// consumes (`firstSnapshotReadIds`) must be re-captured from the NEW
+    /// observation's first emit — not left as the restart-reset-empty set that a
+    /// stale pre-restart delivery would otherwise latch. Seed a read post,
+    /// observe, restart, and assert the pin resets then re-seeds on the new first
+    /// emit.
+    @Test
+    func firstSnapshotReadIdsReseedsOnFirstEmitAfterRestart() async throws {
+        let seed = try await makeSeed()
+        try await seedFeedWithPosts(seed, feedKey: "feed-1", posts: [
+            (serverPostId: 1001, title: "read-a", isRead: true),
+            (serverPostId: 1002, title: "unread", isRead: false),
+        ])
+        let vm = makeViewModel(seed)
+
+        vm.startObservations()
+        await poll { vm.orderedRows.count == 2 }
+        #expect(vm.firstSnapshotReadIds == [1001])
+
+        // Restart resets the pin synchronously (a fresh feed session). The view
+        // controller must NOT seed from this empty set — it waits for the new
+        // observation's first emit, which re-captures it.
+        let revisionBeforeRestart = vm.rowsRevision
+        vm.restartObservations(keepingContent: false)
+        #expect(vm.firstSnapshotReadIds.isEmpty, "restart must reset the first-snapshot pin")
+
+        await poll { vm.rowsRevision > revisionBeforeRestart }
+        #expect(
+            vm.firstSnapshotReadIds == [1001],
+            "the new observation's first emit must re-capture firstSnapshotReadIds"
+        )
+
+        vm.stopObservations()
+    }
 }
