@@ -135,6 +135,24 @@ final class PostDetailViewModel {
     private(set) var newCommentState: NewCommentState.Result =
         .init(newElementIds: [], firstNewElementId: nil)
 
+    /// A test-injected override for the action-dispatch seam, or nil in
+    /// production (where ``lemmy`` builds the live adapter on demand).
+    @ObservationIgnored
+    private let injectedLemmy: (any PostDetailLemmyServicing)?
+
+    /// The seam through which every non-comment-fetch PostDetail action reaches
+    /// the account's `LemmyService`. In production it wraps `accountScope`'s live
+    /// `LemmyService`, resolved *at call time* — matching both the pre-refactor
+    /// call sites (which read `accountScope.lemmyService` per call) and
+    /// `AccountScope`'s "resolve live on each read" contract, and so a
+    /// fetch-only test fixture never forces the account lookup. SpudTests inject
+    /// a recording double via `init(lemmy:)`. Comment fetching keeps its own
+    /// `fetchCommentsOperation` closure seam — the two are deliberately separate
+    /// (see `PostDetailLemmyServicing`).
+    private var lemmy: any PostDetailLemmyServicing {
+        injectedLemmy ?? PostDetailLemmyServiceAdapter(lemmyService: accountScope.lemmyService)
+    }
+
     @ObservationIgnored
     private let fetchCommentsOperation: @MainActor (Components.Schemas.CommentSortType) async throws -> Void
 
@@ -185,12 +203,14 @@ final class PostDetailViewModel {
         accountScope: AccountScope,
         appDatabase: AppDatabase,
         dependencies: Dependencies,
+        lemmy: (any PostDetailLemmyServicing)? = nil,
         fetchCommentsOperation: (@MainActor (Components.Schemas.CommentSortType) async throws -> Void)? = nil
     ) {
         self.dependencies = dependencies
         self.appDatabase = appDatabase
         self.serverPostId = serverPostId
         self.accountScope = accountScope
+        injectedLemmy = lemmy
         commentSortType = dependencies.preferencesService.defaultCommentSortType
         self.fetchCommentsOperation = fetchCommentsOperation ?? { sortType in
             try await accountScope.lemmyService
@@ -529,6 +549,27 @@ final class PostDetailViewModel {
             forKeychainId: accountKeychainId,
             communityActorId: communityActorId,
             until: until
+        )
+    }
+
+    // MARK: - Action dispatch (report)
+
+    /// Reports this post to the moderators with the given `reason`. A thin
+    /// forward to the account's `LemmyService` (via the ``lemmy`` seam); the
+    /// view controller owns the sign-in gate, reason prompt, haptics, and the
+    /// success/error surfaces. Rethrows the service error unchanged.
+    func reportPost(reason: String) async throws {
+        try await lemmy.reportPost(serverPostId: serverPostId, reason: reason)
+    }
+
+    /// Reports the comment `serverCommentId` to the moderators with the given
+    /// `reason`. Converts the local `Int64` id to the API `CommentID` here so
+    /// the view controller stays free of that conversion. Rethrows the service
+    /// error unchanged.
+    func reportComment(serverCommentId: Int64, reason: String) async throws {
+        try await lemmy.reportComment(
+            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            reason: reason
         )
     }
 }

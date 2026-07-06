@@ -34,8 +34,7 @@ extension PostDetailViewController {
     private func submitPostReport(reason: String) async {
         Haptics.tap()
         do {
-            try await viewModel.accountScope.lemmyService
-                .reportPost(serverPostId: viewModel.serverPostId, reason: reason)
+            try await viewModel.reportPost(reason: reason)
             Haptics.success()
             presentReportSubmittedConfirmation()
         } catch {
@@ -56,8 +55,7 @@ extension PostDetailViewController {
     private func submitCommentReport(serverCommentId: Int64, reason: String) async {
         Haptics.tap()
         do {
-            try await viewModel.accountScope.lemmyService
-                .reportComment(serverCommentId: Components.Schemas.CommentID(serverCommentId), reason: reason)
+            try await viewModel.reportComment(serverCommentId: serverCommentId, reason: reason)
             Haptics.success()
             presentReportSubmittedConfirmation()
         } catch {
