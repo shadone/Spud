@@ -6,6 +6,7 @@
 
 import Foundation
 import SpudDataKit
+import SpudUtilKit
 import SwiftUI
 
 struct PostViewSmall: View {
@@ -27,11 +28,11 @@ struct PostViewSmall: View {
                         .fontWeight(.semibold)
                         .lineLimit(1)
                         .layoutPriority(1)
-                    Text("\(Image(systemName: "arrow.up"))\(UpvotesFormatter.string(from: post.score))")
+                    Text("\(Image(systemName: "arrow.up"))\(CountFormatter.string(post.score))")
                         .foregroundColor(.secondary)
                         .font(.system(size: 8))
                         .lineLimit(1)
-                    Text("\(Image(systemName: "text.bubble"))\(CommentsFormatter.string(from: post.numberOfComments))")
+                    Text("\(Image(systemName: "text.bubble"))\(CountFormatter.string(post.numberOfComments))")
                         .foregroundColor(.secondary)
                         .font(.system(size: 8))
                         .lineLimit(1)
