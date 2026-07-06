@@ -96,11 +96,12 @@ section 1 scope: PostDetail Phase 3 (lemmyService mutations) only.
 
 **Landed (2026-07-06): Phase 3** (plan:
 docs/superpowers/plans/2026-07-06-postdetail-phase3.md). `PostDetailViewModel`
-now owns every `lemmyService` call the PostDetail content scene makes: the VC
-layer's 16 inline call sites (main file + five sibling extensions — report,
-delete/restore, the six moderation actions, pending-comment retry/discard,
-block-author, markAsRead, the moderation-capability probe, pull-to-refresh
-comments + post info, and comment-level vote/save) became thin async VM
+now owns every `lemmyService` call the PostDetail content scene makes: 22
+swapped call expressions across the VC layer (main file + five sibling
+extensions — report, delete/restore, the six moderation actions,
+pending-comment retry/discard, block-author, markAsRead, the
+moderation-capability probe, pull-to-refresh comments + post info, and
+comment-level vote/save) became thin async VM
 dispatch methods behind a new scene-owned seam, `PostDetailLemmyServicing`
 (protocol + live adapter, resolved from `accountScope.lemmyService` at call
 time — eager init-time resolution would fatalError on the unregistered fixture
@@ -112,9 +113,9 @@ fetch state machine and its tests stayed untouched; `grep lemmyService
 PostDetailViewController*.swift` now matches only the `InternalLinkRouting`
 conformance property (documented exception). All UI decoration (sign-in gates,
 haptics, offline toasts, alert tags, Task shells, the deliberate empty catch
-on the post-info refresh) stayed byte-identical VC-side. Sole out-of-scene
-change: an additive synthesized `VoteStatus.Action: Equatable` so the double's
-invocation enum stays Equatable. **Section 1 is fully closed.**
+on the post-info refresh) stayed byte-identical VC-side. The branch touches
+nothing outside the PostDetail scene, SpudTests, and docs. **Section 1 is
+fully closed.**
 
 ## 2. Signed-in UITest seam
 
