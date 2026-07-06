@@ -7,9 +7,9 @@
 import Foundation
 import GRDB
 import LemmyKit
-import SpudDataKit
 import Testing
 @testable import Spud
+@testable import SpudDataKit
 
 /// DB-backed harness for `PostDetailViewModel`'s data observations. Seeds a real
 /// in-memory database with the minimal rows the header + comments observations
@@ -46,6 +46,11 @@ struct PostDetailViewModelObservationTests {
         /// The seeded creator person's local row id, reused as the `creatorId`
         /// for comments written by ``seedComments(_:sortType:specs:)``.
         let creatorRowId: Int64
+        /// The seeded creator person's server-side person id. When the seed
+        /// links the account to this person (``makeSeed(linkAccountToOwnPerson:)``)
+        /// it is the account's OWN person id, so `isOwnContent(creatorPersonId:)`
+        /// is true for it and false for any other id.
+        let creatorServerPersonId: Int64
         let title: String
         let body: String?
     }
@@ -68,9 +73,11 @@ struct PostDetailViewModelObservationTests {
         serverPostId: Int64 = 42,
         title: String = "Seeded post title",
         body: String? = "Seeded post body",
-        preOpenedAt: Date? = nil
+        preOpenedAt: Date? = nil,
+        linkAccountToOwnPerson: Bool = false
     ) async throws -> Seed {
         let appDatabase = try AppDatabase.inMemory()
+        let creatorServerPersonId: Int64 = 99
 
         let (accountId, postRowId, creatorRowId) = try await appDatabase.writer.write { db -> (Int64, Int64, Int64) in
             var instance = InstanceRecord(actorId: "https://example.com")
@@ -95,11 +102,20 @@ struct PostDetailViewModelObservationTests {
 
             var creator = PersonRecord(
                 siteId: site.id!,
-                personId: 99,
+                personId: creatorServerPersonId,
                 name: "seededcreator",
                 actorId: "https://example.com/u/seededcreator"
             )
             try creator.insert(db)
+
+            // Optionally make the account's OWN person the seeded creator, so
+            // `accountOwnPersonIdsSync` resolves and `isOwnContent` is true for
+            // `creatorServerPersonId`. Left unset (nil) the account has no own
+            // person — the signed-out / unresolved case.
+            if linkAccountToOwnPerson {
+                account.personId = creator.id
+                try account.update(db)
+            }
 
             var post = PostRecord(
                 accountId: account.id!,
@@ -141,9 +157,56 @@ struct PostDetailViewModelObservationTests {
             postRowId: postRowId,
             accountId: accountId,
             creatorRowId: creatorRowId,
+            creatorServerPersonId: creatorServerPersonId,
             title: title,
             body: body
         )
+    }
+
+    /// Inserts one outbound (pending/failed/draft) comment row for the seeded
+    /// post + account, so the outbound observation the view model owns picks it
+    /// up. Returns the created row id. Can run before or after
+    /// ``PostDetailViewModel/startObservations()`` — a live write re-fires the
+    /// observation.
+    @discardableResult
+    private func seedOutbound(
+        _ seed: Seed,
+        status: OutboundStatus,
+        body: String,
+        clientToken: String
+    ) async throws -> Int64 {
+        try await seed.appDatabase.writer.write { db -> Int64 in
+            let now = Date().timeIntervalSince1970
+            var record = OutboundContentRecord(
+                id: nil,
+                clientToken: clientToken,
+                accountId: seed.accountId,
+                kind: OutboundKind.comment.rawValue,
+                status: status.rawValue,
+                draftKey: OutboundContentRecord.commentDraftKey(
+                    postServerId: seed.serverPostId,
+                    parentCommentServerId: nil
+                ),
+                body: body,
+                postServerId: seed.serverPostId,
+                parentCommentServerId: nil,
+                communityServerId: nil,
+                title: nil,
+                url: nil,
+                nsfw: false,
+                postType: 0,
+                editCommentServerId: nil,
+                editPostServerId: nil,
+                recipientServerPersonId: nil,
+                attempts: 0,
+                lastError: nil,
+                nextAttemptAt: nil,
+                createdAt: now,
+                updatedAt: now
+            )
+            try record.insert(db)
+            return record.id!
+        }
     }
 
     /// Writes each spec as a real `comment` + `commentElement` pair for the
@@ -441,5 +504,101 @@ struct PostDetailViewModelObservationTests {
         #expect(vm.commentsRevision == revisionAfterEmit)
 
         vm.stopObservations()
+    }
+
+    // MARK: - Outbound (pending/failed) observation
+
+    @Test
+    func startObservationsPublishesSeededOutboundRowAndExcludesDrafts() async throws {
+        let seed = try await makeSeed()
+        let vm = makeViewModel(seed)
+
+        // Precondition: nothing observed yet.
+        #expect(vm.pendingOutboundComments.isEmpty)
+
+        // A pending (queued) row must surface; a draft row must NOT (drafts are
+        // unsent compose-bar text, never shown inline).
+        try await seedOutbound(seed, status: .queued, body: "pending reply", clientToken: "tok-queued")
+        try await seedOutbound(seed, status: .draft, body: "draft reply", clientToken: "tok-draft")
+
+        vm.startObservations()
+
+        await poll { vm.pendingOutboundComments.count == 1 }
+
+        let published = vm.pendingOutboundComments
+        #expect(published.count == 1, "only the non-draft row is published")
+        #expect(published.first?.body == "pending reply")
+        #expect(published.first?.status == OutboundStatus.queued.rawValue)
+
+        vm.stopObservations()
+    }
+
+    @Test
+    func outboundRowWrittenMidObservationUpdatesPublishedRows() async throws {
+        let seed = try await makeSeed()
+        let vm = makeViewModel(seed)
+
+        try await seedOutbound(seed, status: .queued, body: "first pending", clientToken: "tok-1")
+
+        vm.startObservations()
+        await poll { vm.pendingOutboundComments.count == 1 }
+        #expect(vm.pendingOutboundComments.first?.body == "first pending")
+
+        // Write a second pending row while the observation is live: it must
+        // re-fire and the published array must grow to include it, in
+        // createdAt order.
+        try await seedOutbound(seed, status: .failed, body: "second pending", clientToken: "tok-2")
+
+        await poll { vm.pendingOutboundComments.count == 2 }
+        #expect(vm.pendingOutboundComments.map(\.body) == ["first pending", "second pending"])
+        #expect(vm.pendingOutboundComments.last?.status == OutboundStatus.failed.rawValue)
+
+        vm.stopObservations()
+    }
+
+    // MARK: - isOwnContent accessor
+
+    @Test
+    func isOwnContentIsTrueForOwnPersonAndFalseForOthers() async throws {
+        // The account's own person IS the seeded creator, so its server person id
+        // is "own"; any other id (or a nil creator) is not.
+        let seed = try await makeSeed(linkAccountToOwnPerson: true)
+        let vm = makeViewModel(seed)
+
+        #expect(vm.isOwnContent(creatorPersonId: seed.creatorServerPersonId))
+        #expect(!vm.isOwnContent(creatorPersonId: seed.creatorServerPersonId + 1))
+        #expect(!vm.isOwnContent(creatorPersonId: nil))
+    }
+
+    @Test
+    func isOwnContentIsFalseWhenAccountHasNoResolvedOwnPerson() async throws {
+        // No account -> person link (the signed-out / unresolved case):
+        // `accountOwnPersonIdsSync` returns nil, so nothing is "own" — not even
+        // the creator's own server person id.
+        let seed = try await makeSeed()
+        let vm = makeViewModel(seed)
+
+        #expect(!vm.isOwnContent(creatorPersonId: seed.creatorServerPersonId))
+    }
+
+    // MARK: - muteCommunity accessor
+
+    @Test
+    func muteCommunityWritesTheMuteRow() async throws {
+        let seed = try await makeSeed()
+        let vm = makeViewModel(seed)
+
+        let communityActorId = "https://example.com/c/seededcommunity"
+        #expect(!seed.appDatabase.isCommunityMutedSync(
+            forKeychainId: seed.keychainId,
+            communityActorId: communityActorId
+        ))
+
+        vm.muteCommunity(communityActorId: communityActorId, until: nil)
+
+        #expect(seed.appDatabase.isCommunityMutedSync(
+            forKeychainId: seed.keychainId,
+            communityActorId: communityActorId
+        ), "muteCommunity must persist a muted-community row")
     }
 }

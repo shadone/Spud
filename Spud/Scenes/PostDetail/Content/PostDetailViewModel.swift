@@ -87,6 +87,17 @@ final class PostDetailViewModel {
     /// toggles never touch it — only a DB emit does.
     private(set) var commentsRevision: Int = 0
 
+    /// The post's pending / failed outbound comment rows (status != draft) for
+    /// the backing account, published from the GRDB outbound observation this
+    /// view model owns (see ``startObservations()``). The view controller reacts
+    /// to changes and re-applies the comment snapshot so a locally-composed
+    /// comment appears inline while sending and flips to a normal comment (its
+    /// outbound row is deleted on success, dropping the overlay node) once the
+    /// server confirms. Draft rows are filtered out here so the view controller
+    /// never sees them. Keyed on ``serverPostId`` in the observation, so — unlike
+    /// the comment observation — it works even before the post is mirrored.
+    private(set) var pendingOutboundComments: [OutboundContentRecord] = []
+
     /// Element ids of comments whose subtrees are currently collapsed. Pure
     /// view-layer state — no API or database involvement.
     @ObservationIgnored
@@ -134,6 +145,14 @@ final class PostDetailViewModel {
     @ObservationIgnored
     private var commentObservationTask: Task<Void, Never>?
 
+    /// The live GRDB outbound-comment observation feeding
+    /// ``pendingOutboundComments``. Owned here (like the header task) so it dies
+    /// with the view model. Keyed on ``serverPostId``, so it is started
+    /// unconditionally (independent of the ``postRowId`` gate the header /
+    /// comment observations sit behind).
+    @ObservationIgnored
+    private var outboundObservationTask: Task<Void, Never>?
+
     private var alertService: AlertServiceType {
         dependencies.alertService
     }
@@ -163,6 +182,7 @@ final class PostDetailViewModel {
     deinit {
         headerObservationTask?.cancel()
         commentObservationTask?.cancel()
+        outboundObservationTask?.cancel()
     }
 
     // MARK: - Observation bring-up
@@ -176,6 +196,11 @@ final class PostDetailViewModel {
     /// observation first so it is safe to call on a view-model reuse / restart.
     func startObservations() {
         stopObservations()
+
+        // The outbound (pending / failed) overlay is keyed on `serverPostId`, so
+        // it works even before the post is mirrored — start it independently of
+        // the `postRowId` gate the header / comment observations sit behind.
+        startOutboundObservation()
 
         let keychainId = accountKeychainId
         let serverPostId = Int64(serverPostId)
@@ -213,6 +238,28 @@ final class PostDetailViewModel {
         headerObservationTask = nil
         commentObservationTask?.cancel()
         commentObservationTask = nil
+        outboundObservationTask?.cancel()
+        outboundObservationTask = nil
+    }
+
+    /// Starts (or restarts) the GRDB outbound-comment observation for this post +
+    /// account. Each emit publishes the non-draft rows into
+    /// ``pendingOutboundComments`` (drafts are unsent compose-bar text and never
+    /// shown inline). Cancels any prior outbound task first.
+    private func startOutboundObservation() {
+        outboundObservationTask?.cancel()
+        let serverPostId = Int64(serverPostId)
+        let keychainId = accountKeychainId
+        outboundObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await rows in appDatabase.observeOutboundComments(
+                postServerId: serverPostId,
+                accountKeychainId: keychainId
+            ) {
+                if Task.isCancelled { break }
+                pendingOutboundComments = rows.filter { $0.status != OutboundStatus.draft.rawValue }
+            }
+        }
     }
 
     /// Starts (or restarts) the GRDB comment-tree observation for `postRowId` +
@@ -416,5 +463,46 @@ final class PostDetailViewModel {
         }
         fetchTask = task
         await task.value
+    }
+
+    // MARK: - Data accessors (view controller + its action seams)
+
+    /// The backing account's home-instance actor id (its `ap_id` host), or nil
+    /// when signed out / unresolved. Used to build canonical post / comment
+    /// share + Handoff URLs. A synchronous DB read, matching the pre-move call
+    /// shape at the share / user-activity sites.
+    var instanceActorId: String? {
+        appDatabase.accountInstanceActorIdSync(forKeychainId: accountKeychainId)
+    }
+
+    /// True when `creatorPersonId` matches the backing account's own server
+    /// person id. A nil creator — or a signed-out / unresolved account (no own
+    /// person) — is never "own". Drives hiding "Report" / "Block" on the user's
+    /// own posts and comments, and showing "Edit" / "Delete" instead.
+    func isOwnContent(creatorPersonId: Int64?) -> Bool {
+        guard let creatorPersonId else { return false }
+        guard let own = appDatabase.accountOwnPersonIdsSync(
+            forKeychainId: accountKeychainId
+        ) else { return false }
+        return creatorPersonId == own.serverPersonId
+    }
+
+    /// Whether `host` is a known Lemmy instance (present in the explorer
+    /// directory). Backs the "Open in Spud" affordance on tapped body-text
+    /// links: only a URL whose host classifies as Lemmy content offers in-app
+    /// open. A synchronous DB read.
+    func isKnownInstance(host: String) -> Bool {
+        appDatabase.explorerInstanceSync(baseurl: host) != nil
+    }
+
+    /// Mutes `communityActorId` for the backing account until `until` (nil =
+    /// forever). Muting is a client-local, timed view concern (not sign-in
+    /// gated); this writes the muted-community row synchronously.
+    func muteCommunity(communityActorId: String, until: Date?) {
+        appDatabase.muteCommunitySync(
+            forKeychainId: accountKeychainId,
+            communityActorId: communityActorId,
+            until: until
+        )
     }
 }

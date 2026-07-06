@@ -157,11 +157,7 @@ extension PostDetailViewController {
 
     private func muteCommunity(communityActorId: String, duration: MuteDuration) {
         Haptics.tap()
-        appDatabase.muteCommunitySync(
-            forKeychainId: viewModel.accountKeychainId,
-            communityActorId: communityActorId,
-            until: duration.until
-        )
+        viewModel.muteCommunity(communityActorId: communityActorId, until: duration.until)
     }
 
     /// Blocks the post's author, gating on sign-in and confirming first.
