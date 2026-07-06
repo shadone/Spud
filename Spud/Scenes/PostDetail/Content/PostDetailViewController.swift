@@ -1948,8 +1948,10 @@ extension PostDetailViewController {
                     self?.commitLinkPreviewContextMenu(configuration, animator)
                 }
                 cell.onBodyImageLoaded = { [weak tableView] in
-                    // An inline body image loaded; re-measure this row to fit it.
-                    tableView?.performBatchUpdates(nil)
+                    // An inline body image loaded; snap this row to its new height
+                    // without animation (an animated re-measure zooms the image in
+                    // from a corner — see the helper's doc).
+                    tableView?.remeasureRowHeightsWithoutAnimation()
                 }
                 cell.onBodyLinkTapped = { [weak self] url in
                     self?.linkTapped(MarkdownInternalLink.resolve(url) ?? url)

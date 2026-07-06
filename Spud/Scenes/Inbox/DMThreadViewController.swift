@@ -211,9 +211,11 @@ final class DMThreadViewController: UIViewController {
                 self?.routeInternalLink(MarkdownInternalLink.resolve(url) ?? url)
             }
             // Re-measure the row when an inline body image loads and changes the
-            // bubble height (mirrors the comment cell's re-layout).
+            // bubble height (mirrors the comment cell's re-layout). Snap without
+            // animation so the image doesn't zoom in from a corner (see the
+            // helper's doc).
             cell.onContentSizeChange = { [weak tableView] in
-                tableView?.performBatchUpdates(nil)
+                tableView?.remeasureRowHeightsWithoutAnimation()
             }
             // Wire the failed-state tap to the Retry / Discard sheet.
             if item.pendingStatus == .failed, let token = item.clientToken {
