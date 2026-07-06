@@ -109,6 +109,34 @@ public enum CommunitySubscribedState: String, Sendable, Equatable {
     }
 }
 
+extension CommunitySubscribedState {
+    /// Compact `Int64` encoding used as the `subscribe` outbox baseline — the
+    /// PRIOR 3-valued state a rollback must be able to restore.
+    ///
+    /// Unlike vote/save/hide (whose baseline is the same 2-valued shape as their
+    /// desired state), a subscribe op's desired state is only a Bool, so the
+    /// prior Subscribed-vs-Pending distinction would be lost if it round-tripped
+    /// through the desired-state codec. This dedicated codec preserves all three:
+    /// `0 = notSubscribed, 1 = subscribed, 2 = pending`.
+    var outboxBaseline: Int64 {
+        switch self {
+        case .notSubscribed: 0
+        case .subscribed: 1
+        case .pending: 2
+        }
+    }
+
+    /// Decodes an ``outboxBaseline`` integer back to a state. A missing (`nil`)
+    /// or unrecognised value decodes to `.notSubscribed`.
+    init(outboxBaseline raw: Int64?) {
+        switch raw {
+        case 1: self = .subscribed
+        case 2: self = .pending
+        default: self = .notSubscribed
+        }
+    }
+}
+
 public extension CommunityRecord {
     /// Typed view of ``subscribedState``. Defaults to `.notSubscribed` if the
     /// stored text is unrecognised.

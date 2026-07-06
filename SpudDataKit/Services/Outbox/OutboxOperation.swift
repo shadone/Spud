@@ -4,6 +4,8 @@ import LemmyKit
 public enum OutboxEntityType: String, Codable, Sendable {
     case post
     case comment
+    /// A Lemmy community. Only the `subscribe` kind targets this entity type.
+    case community
 }
 
 public enum OutboxKind: String, Codable, Sendable {
@@ -14,6 +16,11 @@ public enum OutboxKind: String, Codable, Sendable {
     /// `isDeleted` state, mirroring `hide`. Idempotent: re-sending the same
     /// `deleted` value is safe.
     case delete
+    /// Subscribe to or unsubscribe from a community. Targets the `community`
+    /// entity. Idempotent: re-sending the same `follow` value is safe. Its
+    /// optimistic projection is 3-valued (see the subscribe baseline codec on
+    /// ``CommunitySubscribedState``) even though the desired state is a Bool.
+    case subscribe
 }
 
 /// The absolute desired state to send to the server. Idempotent: re-sending the
@@ -24,6 +31,10 @@ public enum OutboxDesiredState: Sendable, Equatable {
     case hide(Bool)
     /// Desired `deleted` state of the user's own comment (true = deleted).
     case delete(Bool)
+    /// Desired subscription state of a community (true = subscribe). The stored
+    /// `desiredState` is a Bool; the PRIOR 3-valued state a rollback must restore
+    /// lives in the `baseline` column via ``CommunitySubscribedState/outboxBaseline``.
+    case subscribe(Bool)
 
     public var kind: OutboxKind {
         switch self {
@@ -31,6 +42,7 @@ public enum OutboxDesiredState: Sendable, Equatable {
         case .save: .save
         case .hide: .hide
         case .delete: .delete
+        case .subscribe: .subscribe
         }
     }
 
@@ -39,7 +51,7 @@ public enum OutboxDesiredState: Sendable, Equatable {
     public var encoded: Int64 {
         switch self {
         case let .vote(status): Int64(status.rawValue)
-        case let .save(value), let .hide(value), let .delete(value): value ? 1 : 0
+        case let .save(value), let .hide(value), let .delete(value), let .subscribe(value): value ? 1 : 0
         }
     }
 
@@ -49,6 +61,7 @@ public enum OutboxDesiredState: Sendable, Equatable {
         case .save: .save(raw != 0)
         case .hide: .hide(raw != 0)
         case .delete: .delete(raw != 0)
+        case .subscribe: .subscribe(raw != 0)
         }
     }
 }

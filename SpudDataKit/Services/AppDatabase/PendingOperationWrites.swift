@@ -25,13 +25,13 @@ public extension AppDatabase {
             // Toggle-to-baseline: desired state matches the last-confirmed state —
             // revert the optimistic projection and remove the pending row.
             if Self.desiredEqualsBaseline(op.desiredState, baseline: baseline) {
-                let baselineState = Self.decodeBaseline(baseline, kind: op.kind)
-                try Self.applyAbsolute(
+                try Self.restoreBaseline(
                     db,
                     accountId: accountId,
                     entityType: op.entityType,
                     entityServerId: op.entityServerId,
-                    desired: baselineState
+                    kind: op.kind,
+                    baseline: baseline
                 )
                 if let id = existing?.id {
                     try Self.deletePending(db, id: id)
@@ -121,13 +121,13 @@ public extension AppDatabase {
             guard let entityType = OutboxEntityType(rawValue: record.entityType),
                   let kind = OutboxKind(rawValue: record.kind)
             else { return }
-            let baselineState = Self.decodeBaseline(record.baseline, kind: kind)
-            try Self.applyAbsolute(
+            try Self.restoreBaseline(
                 db,
                 accountId: record.accountId,
                 entityType: entityType,
                 entityServerId: record.entityServerId,
-                desired: baselineState
+                kind: kind,
+                baseline: record.baseline
             )
             if let id = record.id {
                 try Self.deletePending(db, id: id)
@@ -218,6 +218,18 @@ private extension AppDatabase {
                     isDeleted: value
                 )
             }
+
+        case let .subscribe(value):
+            // Forward optimistic apply: subscribing projects the honest "Pending"
+            // state (the server may answer Subscribed or Pending; the performer's
+            // authoritative mirror upgrades it), unsubscribing projects
+            // NotSubscribed. `entityServerId` is the SERVER community id.
+            try OptimisticWrites.setCommunitySubscribed(
+                db,
+                accountId: accountId,
+                serverCommunityId: entityServerId,
+                state: value ? .pending : .notSubscribed
+            )
         }
     }
 
@@ -282,6 +294,17 @@ private extension AppDatabase {
                 ) ?? false
             }
             return deleted ? 1 : 0
+        case .subscribe:
+            // Capture the PRIOR 3-valued CommunitySubscribedState so a rollback
+            // can restore Pending (not just on/off). Encoded via
+            // CommunitySubscribedState.outboxBaseline: 0/1/2.
+            let raw = try String.fetchOne(
+                db,
+                sql: "SELECT subscribedState FROM community WHERE communityId = ? AND accountId = ?",
+                arguments: [op.entityServerId, accountId]
+            )
+            let state = raw.flatMap(CommunitySubscribedState.init(rawValue:)) ?? .notSubscribed
+            return state.outboxBaseline
         }
     }
 
@@ -313,14 +336,58 @@ private extension AppDatabase {
     }
 
     /// Returns true when the desired state matches the baseline (toggle-to-original).
+    ///
+    /// For subscribe this compares the desired Bool (1/0) against the 3-valued
+    /// baseline: it matches only when the baseline is `notSubscribed` (0) or
+    /// `subscribed` (1) — a `pending` (2) baseline never equals either desired
+    /// value, so a tap from Pending always creates a fresh op rather than
+    /// coalescing away (correct: the user is changing a not-yet-confirmed request).
     static func desiredEqualsBaseline(_ desired: OutboxDesiredState, baseline: Int64?) -> Bool {
         switch desired {
         case let .vote(status): OutboxProjection.dbVoteStatus(for: status) == baseline
-        case let .save(value), let .hide(value), let .delete(value): (value ? 1 : 0) == baseline
+        case let .save(value), let .hide(value), let .delete(value), let .subscribe(value): (value ? 1 : 0) == baseline
+        }
+    }
+
+    /// Restores the local projection to the stored `baseline` for the given kind.
+    ///
+    /// Most kinds decode the baseline into an ``OutboxDesiredState`` and re-apply
+    /// it via ``applyAbsolute``. Subscribe is special: its baseline is a 3-valued
+    /// ``CommunitySubscribedState`` (0/1/2), which a 2-valued `.subscribe(Bool)`
+    /// cannot represent, so it is restored directly — preserving a prior
+    /// Subscribed vs Pending state that the forward apply would otherwise collapse.
+    static func restoreBaseline(
+        _ db: Database,
+        accountId: Int64,
+        entityType: OutboxEntityType,
+        entityServerId: Int64,
+        kind: OutboxKind,
+        baseline: Int64?
+    ) throws {
+        if kind == .subscribe {
+            try OptimisticWrites.setCommunitySubscribed(
+                db,
+                accountId: accountId,
+                serverCommunityId: entityServerId,
+                state: CommunitySubscribedState(outboxBaseline: baseline)
+            )
+        } else {
+            let baselineState = decodeBaseline(baseline, kind: kind)
+            try applyAbsolute(
+                db,
+                accountId: accountId,
+                entityType: entityType,
+                entityServerId: entityServerId,
+                desired: baselineState
+            )
         }
     }
 
     /// Decode a stored baseline integer back to an OutboxDesiredState for the given kind.
+    ///
+    /// Not called for `.subscribe` — its 3-valued baseline is restored directly
+    /// by ``restoreBaseline`` (a Bool `.subscribe` case would lose Pending). The
+    /// case below exists only to keep the switch exhaustive.
     static func decodeBaseline(_ baseline: Int64?, kind: OutboxKind) -> OutboxDesiredState {
         switch kind {
         case .vote:
@@ -337,6 +404,8 @@ private extension AppDatabase {
             return .hide(baseline == 1)
         case .delete:
             return .delete(baseline == 1)
+        case .subscribe:
+            return .subscribe(baseline == 1)
         }
     }
 

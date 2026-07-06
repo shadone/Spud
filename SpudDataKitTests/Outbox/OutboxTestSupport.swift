@@ -136,7 +136,63 @@ func seedComment(
     }
 }
 
+/// Seeds a community owned by `accountId` with the given server id and initial
+/// subscribed state (default `.notSubscribed`). When the initial state counts as
+/// followed (`.subscribed` / `.pending`), the `accountFollowedCommunity` junction
+/// row is created too, so the fixture matches the invariant the importer keeps.
+/// Returns the server community id.
+@discardableResult
+func seedCommunity(
+    _ appDatabase: AppDatabase,
+    accountId: Int64,
+    serverCommunityId: Int64 = 1,
+    subscribed: CommunitySubscribedState = .notSubscribed
+) async throws -> Int64 {
+    try await appDatabase.writer.write { db in
+        var record = CommunityRecord(
+            accountId: accountId,
+            communityId: serverCommunityId,
+            name: "world",
+            title: "World",
+            subscribedState: subscribed.rawValue
+        )
+        try record.insert(db)
+        if subscribed.isSubscribed {
+            let junction = AccountFollowedCommunityRecord(
+                accountId: accountId,
+                communityId: record.id!
+            )
+            try junction.insert(db)
+        }
+    }
+    return serverCommunityId
+}
+
 // MARK: - Read helpers
+
+/// Reads a community's persisted `subscribedState` text plus whether its
+/// `accountFollowedCommunity` junction row is present (the two projections a
+/// subscribe optimistic write / rollback must keep consistent).
+func readCommunitySubscribed(
+    _ appDatabase: AppDatabase,
+    accountId: Int64,
+    serverCommunityId: Int64
+) async throws -> (state: String?, followed: Bool) {
+    try await appDatabase.writer.read { db -> (String?, Bool) in
+        guard let row = try CommunityRecord
+            .filter(Column("accountId") == accountId)
+            .filter(Column("communityId") == serverCommunityId)
+            .fetchOne(db),
+            let rowId = row.id
+        else { return (nil, false) }
+        let followed = try Bool.fetchOne(
+            db,
+            sql: "SELECT EXISTS(SELECT 1 FROM accountFollowedCommunity WHERE accountId = ? AND communityId = ?)",
+            arguments: [accountId, rowId]
+        ) ?? false
+        return (row.subscribedState, followed)
+    }
+}
 
 func readPostVote(
     _ appDatabase: AppDatabase,
