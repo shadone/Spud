@@ -31,6 +31,9 @@ packages:
   LemmyKit:
     url: https://github.com/shadone/LemmyKit
     exactVersion: 0.5.1
+  DiasporaNodeInfo:
+    url: https://github.com/shadone/DiasporaNodeInfo
+    exactVersion: 1.4.0
   Nuke:
     url: https://github.com/kean/Nuke
     from: 13.0.0
@@ -174,6 +177,7 @@ targets:
       - package: GRDB
       - package: KeychainAccess
       - package: SemVer
+      - package: DiasporaNodeInfo
       - package: Nuke
         product: Nuke
 
