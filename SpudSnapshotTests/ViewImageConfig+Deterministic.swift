@@ -34,6 +34,18 @@ extension ViewImageConfig {
     /// blur, SwiftUI `.task`-driven content), use ``FixedSafeAreaWindow`` with
     /// `drawHierarchyInKeyWindow: true` instead — it pins the key window's safe
     /// area to the same `.zero` on the on-screen path.
+    ///
+    /// NOTE: this does NOT also pin `preferredContentSizeCategory` the way
+    /// `SnapshotDeterminism.contentSizeTrait` does for the `.image(size:traits:)`
+    /// family — `.iPhone13Pro`'s base trait collection already bakes
+    /// `preferredContentSizeCategory: .medium` (see swift-snapshot-testing's
+    /// `UITraitCollection.iPhone13`), which every existing ref in this family was
+    /// recorded under. Probed 2026-07-06: merging `.large` in here measurably
+    /// changes rendered text size and breaks existing refs (e.g.
+    /// `LoginScreenSnapshotTests`), so this family is intentionally left as-is;
+    /// it is not exposed to the sim-level Dynamic Type pollution
+    /// `contentSizeTrait` guards against because its base config already fully
+    /// specifies the trait, sim state or not.
     static var deterministicPhone: ViewImageConfig {
         var config = ViewImageConfig.iPhone13Pro
         config.safeArea = .zero
@@ -50,6 +62,11 @@ extension ViewImageConfig {
     /// `.zero` forces the deterministic fully-off-screen path while keeping the wide
     /// iPad canvas, so the iPad-adaptive-layout assertions (grid rails, capped
     /// directory column) still render at their real regular-size-class width.
+    ///
+    /// Same NOTE as ``deterministicPhone`` re `preferredContentSizeCategory`:
+    /// left unpinned here for the same reason (the base `.iPadPro11` trait
+    /// already fully specifies it, and forcing `.large` measurably changes
+    /// existing refs).
     static var deterministicIPadLandscape: ViewImageConfig {
         var config = ViewImageConfig.iPadPro11(.landscape)
         config.safeArea = .zero

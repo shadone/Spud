@@ -86,6 +86,29 @@ enum SnapshotDeterminism {
         ThemeManager.shared.setAccent(.lemmy)
     }
 
+    /// A `UITraitCollection` pinning `preferredContentSizeCategory` to
+    /// `.large` — iOS's out-of-the-box Dynamic Type default — for a snapshot's
+    /// own explicit `traits:` argument (the `.image(size:traits:)` family; see
+    /// ``ViewImageConfig/deterministicPhone`` for the `.image(on:)` family's
+    /// equivalent pin).
+    ///
+    /// On 2026-07-06 the shared reference simulator's Dynamic Type setting was
+    /// found knocked to `.medium` (one notch below `.large`), surviving Mac
+    /// reboots. A snapshot's own `traits:` argument that never sets
+    /// `preferredContentSizeCategory` (every pre-existing per-file `traits(_
+    /// style:)` helper in this target did not) leaves that trait unspecified,
+    /// so UIKit's `setOverrideTraitCollection(_:forChild:)` lets it fall
+    /// through to the render's ambient trait environment — which, for an
+    /// offscreen-rendered `Window` in this test process, reflects the *actual
+    /// simulator's* live Dynamic Type setting rather than anything the test
+    /// declared. With the sim at `.medium`, every text-bearing ref shrank
+    /// ~4%, which read as unexplained host-level rendering drift rather than
+    /// the real cause (sim state). Mixing this trait into a snapshot's
+    /// `traits:` argument (`UITraitCollection(traitsFrom: [..., contentSizeTrait])`)
+    /// makes that render immune to the sim's persisted setting regardless of
+    /// what it drifts to next.
+    static let contentSizeTrait = UITraitCollection(preferredContentSizeCategory: .large)
+
     /// Disables `UIView` animations and returns a closure that restores the
     /// previous state. Snapshot tests must render the settled *final* state, not
     /// a transient animation frame; disabling animations makes state changes
