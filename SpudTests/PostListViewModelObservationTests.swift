@@ -450,6 +450,83 @@ struct PostListViewModelObservationTests {
         vm.stopObservations()
     }
 
+    // MARK: - paginationState stream reactivity
+
+    /// Regression test for 2138d960: `PostListViewController` used to bridge
+    /// `paginationState` through a local `ObservationStream` shim whose
+    /// scheduler was deallocated as soon as the build closure returned (no
+    /// owner retained it past that point), leaving the stream one-shot — the
+    /// footer reaction never fired again after the initial `.idle`, so the
+    /// footer stayed frozen no matter how `paginationState` changed. The fix
+    /// replaced it with the shared `ObservationStream.values(of:)` (see
+    /// `ObservationStreamTests.values_reemitsAfterObservedChange`, whose
+    /// scheduler stays alive via `onTermination`), which is exactly what the
+    /// view controller subscribes at `PostListViewController.swift:699`.
+    ///
+    /// This locks the fix at the VM-observation level rather than the view
+    /// controller's UIKit footer, so a future re-fork of the observation
+    /// plumbing can't silently reintroduce the one-shot shim: subscribe the
+    /// same way the view controller does, then drive `paginationState`
+    /// through its REAL transition path (`loadMore()` -> `performPagination()`)
+    /// rather than a test-only setter, and assert the stream re-emits both
+    /// the `.loading` and the settled `.idle` that follow the initial value.
+    @Test
+    func paginationStateStreamReemitsAcrossLoadMoreTransition() async throws {
+        let seed = try await makeSeed()
+        try await seedFeedWithPosts(seed, feedKey: "feed-1", posts: [
+            (serverPostId: 1001, title: "first", isRead: false),
+        ])
+        // Feed-exhausted fetch: loadMore()'s performPagination() resolves
+        // paginationState back to .idle (not .failed) after this returns nil.
+        let vm = makeViewModel(seed, fetchFeedOperation: { _, _ in nil })
+
+        vm.startObservations()
+        await poll { vm.orderedRows.count == 1 }
+        // loadMore()'s precondition; resolveInitialSnapshot flips this to
+        // .loaded on the same emit that landed the row above.
+        #expect(vm.loadState == .loaded)
+        #expect(vm.paginationState == .idle)
+
+        let stream = ObservationStream.values(of: { vm.paginationState })
+        let collected = Task { @MainActor () -> [PaginationState] in
+            var values: [PaginationState] = []
+            for await value in stream {
+                values.append(value)
+                if values.count == 3 { break }
+            }
+            return values
+        }
+
+        // Let the stream yield its initial value and register the observation
+        // before driving the real change (mirrors ObservationStreamTests).
+        try? await Task.sleep(for: .milliseconds(50))
+
+        // The real transition path: loadMore() sets .loading synchronously,
+        // then performPagination() awaits the injected fetch and settles back
+        // to .idle once it returns nil (feed exhausted).
+        await vm.loadMore()
+
+        // Fail fast instead of hanging if the stream never re-emits (the
+        // pre-2138d960 regression this test locks in).
+        let timeout = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            collected.cancel()
+        }
+        let values = await collected.value
+        timeout.cancel()
+
+        #expect(
+            values == [.idle, .loading, .idle],
+            Comment(
+                rawValue: "Expected .idle -> .loading -> .idle across loadMore(); got \(values). "
+                    + "Fewer than 3 values means the stream stopped re-emitting after the "
+                    + "initial value — the one-shot ObservationStream regression fixed by 2138d960."
+            )
+        )
+
+        vm.stopObservations()
+    }
+
     // MARK: - Restart flavors
 
     @Test
