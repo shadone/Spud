@@ -3,13 +3,52 @@
 }
 
 body {
-    width: 100px;
-    padding: 10px;
+    margin: 0;
+    min-width: 220px;
+    font-family: system-ui, -apple-system, sans-serif;
+}
 
-    font-family: system-ui;
+#spud-popup {
+    padding: 14px 16px;
     text-align: center;
 }
 
+/* Hidden until the probe resolves, so neither state flashes on open. */
+#spud-popup.loading {
+    visibility: hidden;
+}
+
+#open-button {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    border: 0;
+    border-radius: 10px;
+    padding: 11px 16px;
+    background: #30b0c7;
+    color: #fff;
+    font: 600 16px system-ui, -apple-system, sans-serif;
+    cursor: pointer;
+}
+
+#open-button:active {
+    opacity: 0.75;
+}
+
+#unknown-message {
+    margin: 6px 0;
+    color: #666;
+    font: 400 14px system-ui, -apple-system, sans-serif;
+}
+
+#error-message {
+    margin: 10px 0 0;
+    color: #d33;
+    font: 400 13px system-ui, -apple-system, sans-serif;
+}
+
 @media (prefers-color-scheme: dark) {
-    /* Dark Mode styles go here. */
+    #unknown-message {
+        color: #aaa;
+    }
 }

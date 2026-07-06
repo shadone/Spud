@@ -3,9 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <link rel="stylesheet" href="popup.css">
-    <script type="module" src="popup.js"></script>
+    <script src="popup.js"></script>
 </head>
 <body>
-    <strong>Hello World!</strong>
+    <div id="spud-popup" class="loading">
+        <div id="known-state" hidden>
+            <button id="open-button" type="button">Open in Spud</button>
+        </div>
+        <div id="unknown-state" hidden>
+            <p id="unknown-message">Not a Lemmy instance</p>
+        </div>
+        <p id="error-message" hidden></p>
+    </div>
 </body>
 </html>

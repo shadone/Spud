@@ -1,6 +1,3 @@
-browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log("Received request: ", request);
-
-    if (request.greeting === "hello")
-        sendResponse({ farewell: "goodbye" });
-});
+// The "Open in Spud" flow is popup <-> content-script direct messaging; no
+// background coordination or native messaging is used. This service worker is
+// intentionally empty (Manifest V3 still requires the declared file to exist).
