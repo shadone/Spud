@@ -12,8 +12,8 @@ import UIKit
 
 /// The nav-bar "•••" overflow menu, hosted on `PostDetailViewController`.
 ///
-/// `makePostOverflowMenu` is rebuilt from the current `headerRow` whenever the
-/// row changes (see the header observation in the main file), so the
+/// `makePostOverflowMenu` is rebuilt from the current `viewModel.headerRow`
+/// whenever the row changes (see the header reaction loop in the main file), so the
 /// Save/Unsave label, the Mute target, and the own-post-gated Report / Block /
 /// Edit / Delete items always reflect the latest state. The comment / save /
 /// share / edit / delete actions delegate back to the main file and sibling
@@ -21,13 +21,13 @@ import UIKit
 extension PostDetailViewController {
     // MARK: - Overflow menu
 
-    /// Builds the nav-bar "•••" overflow menu from the current `headerRow`.
-    /// Rebuilt whenever the row changes (see the header observation), so the
+    /// Builds the nav-bar "•••" overflow menu from the current `viewModel.headerRow`.
+    /// Rebuilt whenever the row changes (see the header reaction loop), so the
     /// Save/Unsave label, the Mute target, and the own-post-gated Report /
     /// Block items always reflect the latest state. Grouped with inline
     /// submenus so each section renders with a divider, matching the design.
     func makePostOverflowMenu() -> UIMenu {
-        let isSaved = headerRow?.isSaved ?? false
+        let isSaved = viewModel.headerRow?.isSaved ?? false
 
         let addCommentAction = UIAction(
             title: NSLocalizedString("Add comment", comment: "Overflow-menu action to comment on a post"),
@@ -69,8 +69,8 @@ extension PostDetailViewController {
         }
         var utilityChildren: [UIMenuElement] = [openInBrowserAction]
         if
-            let communityActorId = headerRow?.communityActorId,
-            let communityName = headerRow?.communityName, !communityName.isEmpty
+            let communityActorId = viewModel.headerRow?.communityActorId,
+            let communityName = viewModel.headerRow?.communityName, !communityName.isEmpty
         {
             utilityChildren.append(makeMuteCommunityMenu(
                 communityActorId: communityActorId,
@@ -82,7 +82,7 @@ extension PostDetailViewController {
         var children: [UIMenuElement] = [primaryGroup, utilityGroup]
 
         // Report / Block only make sense on someone else's post.
-        if !isOwnContent(creatorPersonId: headerRow?.creatorPersonId), let row = headerRow {
+        if !isOwnContent(creatorPersonId: viewModel.headerRow?.creatorPersonId), let row = viewModel.headerRow {
             let reportAction = UIAction(
                 title: NSLocalizedString("Report", comment: "Overflow-menu action to report a post"),
                 image: UIImage(systemName: "flag"),
@@ -104,8 +104,8 @@ extension PostDetailViewController {
         }
 
         // Edit / Delete / Restore only make sense on the user's own post.
-        if isOwnContent(creatorPersonId: headerRow?.creatorPersonId) {
-            let currentlyDeleted = headerRow?.isDeleted ?? false
+        if isOwnContent(creatorPersonId: viewModel.headerRow?.creatorPersonId) {
+            let currentlyDeleted = viewModel.headerRow?.isDeleted ?? false
             var ownActions: [UIMenuElement] = []
             // Editing a deleted post isn't offered (restore it first).
             if !currentlyDeleted {
@@ -157,11 +157,7 @@ extension PostDetailViewController {
 
     private func muteCommunity(communityActorId: String, duration: MuteDuration) {
         Haptics.tap()
-        appDatabase.muteCommunitySync(
-            forKeychainId: viewModel.accountKeychainId,
-            communityActorId: communityActorId,
-            until: duration.until
-        )
+        viewModel.muteCommunity(communityActorId: communityActorId, until: duration.until)
     }
 
     /// Blocks the post's author, gating on sign-in and confirming first.
@@ -172,7 +168,7 @@ extension PostDetailViewController {
             )
             return
         }
-        guard let row = headerRow else { return }
+        guard let row = viewModel.headerRow else { return }
         presentDestructiveConfirmation(
             title: String(format: NSLocalizedString("Block %@?", comment: "Block user confirmation title"), row.creatorName),
             message: NSLocalizedString(
@@ -197,7 +193,7 @@ extension PostDetailViewController {
 
     /// Presents the post's title and body as selectable, copyable text.
     private func presentTextSelection() {
-        guard let row = headerRow else {
+        guard let row = viewModel.headerRow else {
             Haptics.warning()
             return
         }

@@ -60,13 +60,9 @@ extension PostDetailViewController {
 
     /// True when `creatorPersonId` matches the backing account's own person id.
     /// Reporting your own content is meaningless, so the "Report" action is
-    /// hidden for it.
+    /// hidden for it. Delegates to the view model, which owns the DB read.
     func isOwnContent(creatorPersonId: Int64?) -> Bool {
-        guard let creatorPersonId else { return false }
-        guard let own = appDatabase.accountOwnPersonIdsSync(
-            forKeychainId: viewModel.accountKeychainId
-        ) else { return false }
-        return creatorPersonId == own.serverPersonId
+        viewModel.isOwnContent(creatorPersonId: creatorPersonId)
     }
 
     /// Whether the backing account can report content. Signed-out accounts get
@@ -103,7 +99,7 @@ extension PostDetailViewController: PostSaveDispatching {
     /// PostDetail shows exactly one post, so its saved state is the header row's
     /// (the `serverPostId` argument is always this post's id).
     func currentSavedState(serverPostId _: Int64) -> Bool {
-        headerRow?.isSaved ?? false
+        viewModel.headerRow?.isSaved ?? false
     }
 
     /// Post-haptic, pre-send offline reassurance toast — the exact toast the

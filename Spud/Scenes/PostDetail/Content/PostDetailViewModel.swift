@@ -29,6 +29,9 @@ final class PostDetailViewModel {
     private let dependencies: OwnDependencies
 
     @ObservationIgnored
+    private let appDatabase: AppDatabase
+
+    @ObservationIgnored
     let serverPostId: Components.Schemas.PostID
 
     @ObservationIgnored
@@ -37,6 +40,13 @@ final class PostDetailViewModel {
     var accountKeychainId: String {
         accountScope.accountKeychainId
     }
+
+    /// The post-detail header row, published from the GRDB header observation
+    /// this view model owns (see ``startObservations()``). The view controller
+    /// reacts to changes to re-render the header, rebuild the overflow menu,
+    /// re-evaluate unavailability, and refresh the on-screen privacy state. nil
+    /// until the first emit (and when the post row is absent from the database).
+    private(set) var headerRow: PostDetailHeaderRow?
 
     private(set) var commentSortType: Components.Schemas.CommentSortType
 
@@ -56,8 +66,52 @@ final class PostDetailViewModel {
 
     /// The full, ordered comment tree as last emitted by the GRDB observation.
     /// Collapse is computed against this; it is never mutated by collapse.
+    ///
+    /// Deliberately `@ObservationIgnored`: the view controller recomputes the
+    /// visible tree from this on every collapse toggle, and if reads of it
+    /// invalidated observers, each collapse would spuriously re-run the whole
+    /// snapshot/prewarm pipeline. Because it is invisible to observation, a
+    /// separate published ``commentsRevision`` counter is the explicit signal
+    /// that a fresh DB tree landed.
     @ObservationIgnored
     private(set) var orderedComments: [PostDetailCommentRow] = []
+
+    /// Element-id -> comment row lookup for the current tree, rebuilt in the same
+    /// synchronous turn as ``orderedComments`` inside ``updateOrderedComments(_:)``.
+    /// The view controller resolves a tapped/collapsed/permalink element id
+    /// through this instead of scanning ``orderedComments``. Kept on the view
+    /// model (not the view controller) so it and ``orderedComments`` can never
+    /// drift: an interleaved snapshot apply during a reaction suspension always
+    /// sees a lookup consistent with the tree it renders.
+    ///
+    /// Deliberately `@ObservationIgnored` for the same reason as
+    /// ``orderedComments``: it is a derived view of the tree, and reads of it must
+    /// not invalidate observers on every collapse toggle. The published
+    /// ``commentsRevision`` counter is the DB-emit signal.
+    @ObservationIgnored
+    private(set) var commentRowsByElementId: [Int64: PostDetailCommentRow] = [:]
+
+    /// Monotonic per-emit signal for the comments observation. Bumped exactly
+    /// once each time the GRDB comment tree is delivered — after
+    /// ``updateOrderedComments(_:)`` has stored the new tree. The view
+    /// controller keys its comment reaction pipeline (lookup rebuild, body
+    /// prewarm, snapshot apply, permalink scroll, one-shot fetch kick) on this,
+    /// since ``orderedComments`` is `@ObservationIgnored` and cannot serve as an
+    /// observation trigger. Starts at 0 (nothing emitted yet); the reaction loop
+    /// ignores that initial value and acts only on the increments. Collapse
+    /// toggles never touch it — only a DB emit does.
+    private(set) var commentsRevision: Int = 0
+
+    /// The post's pending / failed outbound comment rows (status != draft) for
+    /// the backing account, published from the GRDB outbound observation this
+    /// view model owns (see ``startObservations()``). The view controller reacts
+    /// to changes and re-applies the comment snapshot so a locally-composed
+    /// comment appears inline while sending and flips to a normal comment (its
+    /// outbound row is deleted on success, dropping the overlay node) once the
+    /// server confirms. Draft rows are filtered out here so the view controller
+    /// never sees them. Keyed on ``serverPostId`` in the observation, so — unlike
+    /// the comment observation — it works even before the post is mirrored.
+    private(set) var pendingOutboundComments: [OutboundContentRecord] = []
 
     /// Element ids of comments whose subtrees are currently collapsed. Pure
     /// view-layer state — no API or database involvement.
@@ -65,8 +119,9 @@ final class PostDetailViewModel {
     private(set) var collapsedElementIds: Set<Int64> = []
 
     /// The `lastOpenedAt` from before this visit, used to flag comments
-    /// published since. nil on a first-ever visit (nothing is "new"). Set once
-    /// by the view controller during observation bring-up.
+    /// published since. nil on a first-ever visit (nothing is "new"). Set by
+    /// ``recordVisit(keychainId:serverPostId:postRowId:)`` during observation
+    /// bring-up.
     @ObservationIgnored
     var previousVisitAt: Date?
 
@@ -86,6 +141,37 @@ final class PostDetailViewModel {
     @ObservationIgnored
     private var fetchTask: Task<Void, Never>?
 
+    /// The resolved local `post` row id for the backing account, set during
+    /// ``startObservations()`` bring-up. nil until resolved (and when the post
+    /// is not yet mirrored). Read by the view controller to start the comment
+    /// observation against the same row.
+    @ObservationIgnored
+    private(set) var postRowId: Int64?
+
+    /// The live GRDB header observation feeding ``headerRow``. Owned here so it
+    /// stops on an explicit ``stopObservations()`` / task cancel. (Each
+    /// observation task binds a strong `self` for the whole `for await` loop, so
+    /// the view model cannot deinit while one is still running — a
+    /// deinit-while-observing can't happen; the `deinit` cancel is belt-and-braces
+    /// cleanup for the already-stopped case.)
+    @ObservationIgnored
+    private var headerObservationTask: Task<Void, Never>?
+
+    /// The live GRDB comment-tree observation feeding ``orderedComments`` +
+    /// ``commentsRevision``. Owned here (like the header task) so it stops on an
+    /// explicit stop / cancel; restarted on a sort change (see
+    /// ``restartComments(sortType:)``).
+    @ObservationIgnored
+    private var commentObservationTask: Task<Void, Never>?
+
+    /// The live GRDB outbound-comment observation feeding
+    /// ``pendingOutboundComments``. Owned here (like the header task) so it stops
+    /// on an explicit stop / cancel. Keyed on ``serverPostId``, so it is started
+    /// unconditionally (independent of the ``postRowId`` gate the header /
+    /// comment observations sit behind).
+    @ObservationIgnored
+    private var outboundObservationTask: Task<Void, Never>?
+
     private var alertService: AlertServiceType {
         dependencies.alertService
     }
@@ -97,16 +183,162 @@ final class PostDetailViewModel {
     init(
         serverPostId: Components.Schemas.PostID,
         accountScope: AccountScope,
+        appDatabase: AppDatabase,
         dependencies: Dependencies,
         fetchCommentsOperation: (@MainActor (Components.Schemas.CommentSortType) async throws -> Void)? = nil
     ) {
         self.dependencies = dependencies
+        self.appDatabase = appDatabase
         self.serverPostId = serverPostId
         self.accountScope = accountScope
         commentSortType = dependencies.preferencesService.defaultCommentSortType
         self.fetchCommentsOperation = fetchCommentsOperation ?? { sortType in
             try await accountScope.lemmyService
                 .fetchComments(serverPostId: serverPostId, sortType: sortType)
+        }
+    }
+
+    deinit {
+        headerObservationTask?.cancel()
+        commentObservationTask?.cancel()
+        outboundObservationTask?.cancel()
+    }
+
+    // MARK: - Observation bring-up
+
+    /// Starts the view model's data observations: resolves the post's local row
+    /// id, records this visit (seeding the new-comment delta inputs), and starts
+    /// the live GRDB header observation that publishes ``headerRow``. When the
+    /// post is not yet mirrored the row id is unresolved, so this triggers an
+    /// initial comment fetch (which dual-writes the post) and leaves ``postRowId``
+    /// nil; the caller re-starts observations after the fetch. Cancels any prior
+    /// observation first so it is safe to call on a view-model reuse / restart.
+    func startObservations() {
+        stopObservations()
+
+        // The outbound (pending / failed) overlay is keyed on `serverPostId`, so
+        // it works even before the post is mirrored — start it independently of
+        // the `postRowId` gate the header / comment observations sit behind.
+        startOutboundObservation()
+
+        let keychainId = accountKeychainId
+        let serverPostId = Int64(serverPostId)
+
+        guard let postRowId = appDatabase.postRowIdSync(
+            forKeychainId: keychainId,
+            serverPostId: serverPostId
+        ) else {
+            // Post not yet mirrored; trigger a comment fetch which will
+            // dual-write everything we need, then the observation can bring rows
+            // in on the next start.
+            postRowId = nil
+            didPrepareObservation(numberOfFetchedComments: 0)
+            return
+        }
+
+        self.postRowId = postRowId
+        recordVisit(keychainId: keychainId, serverPostId: serverPostId, postRowId: postRowId)
+
+        headerObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await row in appDatabase.observePostDetailHeader(postRowId: postRowId) {
+                if Task.isCancelled { break }
+                headerRow = row
+            }
+        }
+
+        startCommentObservation(postRowId: postRowId, sortType: commentSortType.rawValue)
+    }
+
+    /// Cancels the view model's data observations. Called on reuse / restart and
+    /// from `deinit`.
+    func stopObservations() {
+        headerObservationTask?.cancel()
+        headerObservationTask = nil
+        commentObservationTask?.cancel()
+        commentObservationTask = nil
+        outboundObservationTask?.cancel()
+        outboundObservationTask = nil
+    }
+
+    /// Starts (or restarts) the GRDB outbound-comment observation for this post +
+    /// account. Each emit publishes the non-draft rows into
+    /// ``pendingOutboundComments`` (drafts are unsent compose-bar text and never
+    /// shown inline). Cancels any prior outbound task first.
+    private func startOutboundObservation() {
+        outboundObservationTask?.cancel()
+        let serverPostId = Int64(serverPostId)
+        let keychainId = accountKeychainId
+        outboundObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await rows in appDatabase.observeOutboundComments(
+                postServerId: serverPostId,
+                accountKeychainId: keychainId
+            ) {
+                if Task.isCancelled { break }
+                pendingOutboundComments = rows.filter { $0.status != OutboundStatus.draft.rawValue }
+            }
+        }
+    }
+
+    /// Starts (or restarts) the GRDB comment-tree observation for `postRowId` +
+    /// `sortType`. Each emit stores the new tree via ``updateOrderedComments(_:)``
+    /// then bumps ``commentsRevision`` so the view controller reacts. Cancels any
+    /// prior comment task first.
+    private func startCommentObservation(postRowId: Int64, sortType: String) {
+        commentObservationTask?.cancel()
+        commentObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await rows in appDatabase.observePostDetailComments(
+                postRowId: postRowId,
+                sortType: sortType
+            ) {
+                if Task.isCancelled { break }
+                updateOrderedComments(rows)
+                commentsRevision += 1
+            }
+        }
+    }
+
+    /// Applies a new comment sort and restarts the comment observation with the
+    /// new ordering. Mirrors the view controller's former restart: the post may
+    /// have become mirrored since open, so the local row id is re-resolved here
+    /// (rather than reusing ``postRowId``) and the observation only restarts once
+    /// it resolves. The caller separately kicks a fetch (cancel-and-replace) to
+    /// pull the newly-sorted tree from the server.
+    func restartComments(sortType: Components.Schemas.CommentSortType) {
+        setCommentSortType(sortType)
+        guard let postRowId = appDatabase.postRowIdSync(
+            forKeychainId: accountKeychainId,
+            serverPostId: Int64(serverPostId)
+        ) else { return }
+        self.postRowId = postRowId
+        startCommentObservation(postRowId: postRowId, sortType: sortType.rawValue)
+    }
+
+    /// Records this post-detail visit in the local interaction log and seeds
+    /// the new-comment delta inputs. The prior `lastOpenedAt` is read
+    /// synchronously *before* the async write overwrites it, so the first
+    /// comment snapshot already reflects the correct "new since last visit" set.
+    /// Recording is independent of `markPostsRead` (that preference only gates
+    /// the server `markAsRead` round-trip).
+    private func recordVisit(keychainId: String, serverPostId: Int64, postRowId: Int64) {
+        previousVisitAt = appDatabase.lastOpenedAtSync(
+            forKeychainId: keychainId,
+            serverPostId: serverPostId
+        )
+        currentAccountPersonId = appDatabase.accountPersonServerIdSync(
+            forKeychainId: keychainId
+        )
+
+        let snapshotAndCount = appDatabase.postInteractionSnapshotSync(postRowId: postRowId)
+        Task { @MainActor [appDatabase] in
+            try? await appDatabase.recordPostOpened(
+                accountKeychainId: keychainId,
+                serverPostId: serverPostId,
+                commentCount: snapshotAndCount?.commentCount,
+                snapshot: snapshotAndCount?.snapshot
+            )
         }
     }
 
@@ -118,8 +350,15 @@ final class PostDetailViewModel {
 
     /// Stores the latest ordered comment tree. Drops any collapsed ids that no
     /// longer exist in the new tree so stale state can't accumulate.
+    ///
+    /// Rebuilds ``commentRowsByElementId`` in the same synchronous turn, so the
+    /// element-id lookup and ``orderedComments`` are always mutually consistent
+    /// (never observable in a state where one reflects a newer tree than the
+    /// other). Does NOT bump ``commentsRevision`` — the observation loop bumps it
+    /// once, immediately after this returns.
     func updateOrderedComments(_ rows: [PostDetailCommentRow]) {
         orderedComments = rows
+        commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
         let existingIds = Set(rows.map(\.id))
         collapsedElementIds.formIntersection(existingIds)
         newCommentState = NewCommentState.compute(
@@ -250,5 +489,46 @@ final class PostDetailViewModel {
         }
         fetchTask = task
         await task.value
+    }
+
+    // MARK: - Data accessors (view controller + its action seams)
+
+    /// The backing account's home-instance actor id (its `ap_id` host), or nil
+    /// when signed out / unresolved. Used to build canonical post / comment
+    /// share + Handoff URLs. A synchronous DB read, matching the pre-move call
+    /// shape at the share / user-activity sites.
+    var instanceActorId: String? {
+        appDatabase.accountInstanceActorIdSync(forKeychainId: accountKeychainId)
+    }
+
+    /// True when `creatorPersonId` matches the backing account's own server
+    /// person id. A nil creator — or a signed-out / unresolved account (no own
+    /// person) — is never "own". Drives hiding "Report" / "Block" on the user's
+    /// own posts and comments, and showing "Edit" / "Delete" instead.
+    func isOwnContent(creatorPersonId: Int64?) -> Bool {
+        guard let creatorPersonId else { return false }
+        guard let own = appDatabase.accountOwnPersonIdsSync(
+            forKeychainId: accountKeychainId
+        ) else { return false }
+        return creatorPersonId == own.serverPersonId
+    }
+
+    /// Whether `host` is a known Lemmy instance (present in the explorer
+    /// directory). Backs the "Open in Spud" affordance on tapped body-text
+    /// links: only a URL whose host classifies as Lemmy content offers in-app
+    /// open. A synchronous DB read.
+    func isKnownInstance(host: String) -> Bool {
+        appDatabase.explorerInstanceSync(baseurl: host) != nil
+    }
+
+    /// Mutes `communityActorId` for the backing account until `until` (nil =
+    /// forever). Muting is a client-local, timed view concern (not sign-in
+    /// gated); this writes the muted-community row synchronously.
+    func muteCommunity(communityActorId: String, until: Date?) {
+        appDatabase.muteCommunitySync(
+            forKeychainId: accountKeychainId,
+            communityActorId: communityActorId,
+            until: until
+        )
     }
 }

@@ -90,8 +90,12 @@ class PostDetailViewController: UIViewController {
         permalinkHighlightElementIds.removeAll(keepingCapacity: true)
         observationTask?.cancel()
         commentObservationTask?.cancel()
-        outboundObservationTask?.cancel()
+        outboundReactionTask?.cancel()
         loadingObservationTask?.cancel()
+        // Deterministically tear down the outgoing view model's data
+        // observations (header, comments, and outbound) before it is replaced
+        // (the new view model starts fresh).
+        viewModel.stopObservations()
 
         // Drop the previous post's reveal state so the blur is always shown for
         // the newly-loaded post until the user explicitly taps to reveal.
@@ -100,8 +104,10 @@ class PostDetailViewController: UIViewController {
 
         // Drop the previous post's pending overlay so a stale outbound comment
         // can't splice into the new post's tree before the new outbound
-        // observation's first emit (iPad detail-column reuse path).
-        pendingOutboundComments = []
+        // observation's first emit (iPad detail-column reuse path). The pending
+        // rows themselves now live on the view model, so they reset with the new
+        // view model constructed below; only these VC-derived lookup dictionaries
+        // still need clearing here.
         pendingStateByElementId.removeAll(keepingCapacity: true)
         pendingTokenByElementId.removeAll(keepingCapacity: true)
         editOverlayByElementId.removeAll(keepingCapacity: true)
@@ -109,6 +115,7 @@ class PostDetailViewController: UIViewController {
         viewModel = PostDetailViewModel(
             serverPostId: serverPostId,
             accountScope: dependencies.own.accountService.scope(forAccountKeychainId: accountKeychainId),
+            appDatabase: dependencies.own.appDatabase,
             dependencies: dependencies.own
         )
 
@@ -168,18 +175,11 @@ class PostDetailViewController: UIViewController {
 
     // internal: shared with PostDetailViewController+Content / +Report / +DeleteRestore / +Moderation / +PendingComments / +OverflowMenu
     var viewModel: PostDetailViewModel
-    // internal: shared with PostDetailViewController+Moderation / +OverflowMenu / +Content
-    var headerRow: PostDetailHeaderRow?
     /// The body string last pre-warmed into `MarkdownBlockCache` off the main
     /// thread. The header observation re-emits on every vote/save with the same
     /// body, so this skips the redundant background hop on those updates while
     /// still warming the cache once when the body first arrives (or changes).
     private var prewarmedHeaderBody: String?
-    private var commentRowsByElementId: [Int64: PostDetailCommentRow] = [:]
-    /// The post's pending/failed outbound comment rows (status != draft),
-    /// kept live by `outboundObservationTask` and spliced into the comment
-    /// tree by `applySnapshot()`.
-    private var pendingOutboundComments: [OutboundContentRecord] = []
     /// Synthetic-element-id -> cell state, rebuilt each `applySnapshot()`. A
     /// synthetic id is a large negative number (see `pendingElementId(for:)`)
     /// so it never collides with a real `commentElement.id`. The cell provider
@@ -234,7 +234,10 @@ class PostDetailViewController: UIViewController {
     private var revealedBlockedElementIds: Set<Int64> = []
     private var observationTask: Task<Void, Never>?
     private var commentObservationTask: Task<Void, Never>?
-    private var outboundObservationTask: Task<Void, Never>?
+    /// Reacts to the view model's published `pendingOutboundComments` (kept live
+    /// by the outbound GRDB observation the view model owns) and re-applies the
+    /// comment snapshot on each change. See `startOutboundReaction()`.
+    private var outboundReactionTask: Task<Void, Never>?
     private var swipeActionsObservationTask: Task<Void, Never>?
     private var configBarButtonItem: UIBarButtonItem!
     private let forcePopoverDelegate = ForcePopoverDelegate()
@@ -285,6 +288,7 @@ class PostDetailViewController: UIViewController {
         viewModel = PostDetailViewModel(
             serverPostId: serverPostId,
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
+            appDatabase: dependencies.appDatabase,
             dependencies: dependencies
         )
 
@@ -302,15 +306,24 @@ class PostDetailViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    deinit {
+    /// `isolated deinit` so the body runs on the main actor: `stopObservations()`
+    /// is main-actor isolated, and a live observation task can outlive the
+    /// controller (it strong-holds the view model), so this must be able to reach
+    /// the view model to cancel it.
+    isolated deinit {
         observationTask?.cancel()
         commentObservationTask?.cancel()
-        outboundObservationTask?.cancel()
+        outboundReactionTask?.cancel()
         swipeActionsObservationTask?.cancel()
         commentDensityObservationTask?.cancel()
         blurNsfwObservationTask?.cancel()
         loadingObservationTask?.cancel()
         reachabilityObservationTask?.cancel()
+        // Symmetry with `setPost`: proactively tear down the view model's own
+        // data observations so they don't outlive the controller. (The view
+        // model's `deinit` also cancels them, but that only runs once no live
+        // observation task is still strong-holding it.)
+        viewModel.stopObservations()
     }
 
     private func setup() {
@@ -429,13 +442,11 @@ class PostDetailViewController: UIViewController {
     /// fetch. Per-post only — the global default is untouched.
     private func changeCommentSort(to sortType: Components.Schemas.CommentSortType) {
         guard sortType != viewModel.commentSortType else { return }
-        viewModel.setCommentSortType(sortType)
-        if let postRowId = appDatabase.postRowIdSync(
-            forKeychainId: viewModel.accountKeychainId,
-            serverPostId: Int64(viewModel.serverPostId)
-        ) {
-            startCommentObservation(postRowId: postRowId)
-        }
+        // The view model applies the sort and restarts its comment observation
+        // (re-resolving the row id, in case the post was mirrored since open).
+        // The VC's revision reaction keeps observing across the restart, so the
+        // new ordering's first emit flows through the same pipeline.
+        viewModel.restartComments(sortType: sortType)
         Task { await viewModel.fetchComments() }
     }
 
@@ -552,25 +563,23 @@ class PostDetailViewController: UIViewController {
     /// A revealed NSFW header image counts as sensitive content on screen. Call on
     /// every change to the inputs (visibility, reveal, the loaded post).
     private func updateHeaderPrivacy() {
-        sensitiveContentToken.set(isViewVisible && headerNsfwRevealed && (headerRow?.isNsfw ?? false))
+        sensitiveContentToken.set(isViewVisible && headerNsfwRevealed && (viewModel.headerRow?.isNsfw ?? false))
     }
 
     /// Vends a Handoff/Spotlight/Prediction activity for this post, keyed by its
     /// canonical `ap_id` so it resolves under any account on any device.
     private func updateUserActivity() {
-        let instanceActorId = appDatabase.accountInstanceActorIdSync(
-            forKeychainId: viewModel.accountKeychainId
-        )
+        let instanceActorId = viewModel.instanceActorId
         guard let canonical = LinkURL.forPost(
             instance: .originalInstance,
-            originalPostUrl: headerRow?.originalPostUrl,
+            originalPostUrl: viewModel.headerRow?.originalPostUrl,
             serverPostId: Int64(viewModel.serverPostId),
             instanceActorId: instanceActorId
         ) else { return }
         let routingURL = URL.SpudInternalLink.objectAtURL(url: canonical).url
         let activity = SpudUserActivity.viewPost(
             routingURL: routingURL,
-            title: headerRow?.title ?? "Post"
+            title: viewModel.headerRow?.title ?? "Post"
         )
         userActivity = activity
         activity.becomeCurrent()
@@ -614,32 +623,34 @@ class PostDetailViewController: UIViewController {
 
         refreshModerationCapability()
 
-        // The outbound (pending/failed) overlay is keyed on serverPostId, so it
-        // works even before the post is mirrored — start it independently of the
-        // comment observation's postRowId gate below.
-        startOutboundObservation()
+        // The outbound (pending/failed) overlay is keyed on serverPostId in the
+        // view model, so it works even before the post is mirrored — start the
+        // reaction here, before the postRowId gate below (the view model starts
+        // the matching observation in `startObservations()`).
+        startOutboundReaction()
 
-        let keychainId = viewModel.accountKeychainId
-        let serverPostId = Int64(viewModel.serverPostId)
+        // The view model owns the header GRDB observation + visit recording: it
+        // resolves the post's local row id, records the visit, and starts
+        // publishing `headerRow`. When the post is not yet mirrored it fires the
+        // initial comment fetch itself and leaves `postRowId` nil.
+        viewModel.startObservations()
 
-        guard let postRowId = appDatabase.postRowIdSync(
-            forKeychainId: keychainId,
-            serverPostId: serverPostId
-        ) else {
-            // Post not yet mirrored; trigger a comment fetch which will
-            // dual-write everything we need, then the observation can
-            // bring rows in on the next start.
-            viewModel.didPrepareObservation(numberOfFetchedComments: 0)
+        guard viewModel.postRowId != nil else {
+            // Post not yet mirrored; the view model already kicked a comment
+            // fetch that dual-writes everything the observations need.
             return
         }
 
-        recordVisit(keychainId: keychainId, serverPostId: serverPostId, postRowId: postRowId)
-
+        // React to the view model's published header row, reproducing the
+        // per-emit view pipeline (unavailability, header privacy, overflow-menu
+        // rebuild, body prewarm, snapshot) in the same order as before — now
+        // driven by the observation stream instead of the GRDB loop directly.
         observationTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for await row in appDatabase.observePostDetailHeader(postRowId: postRowId) {
+            for await headerRow in ObservationStream.values(of: { [weak self] in
+                self?.viewModel.headerRow
+            }) {
                 if Task.isCancelled { break }
-                headerRow = row
                 reevaluateUnavailability()
                 if didFirePlaceholder { break }
                 updateHeaderPrivacy()
@@ -659,39 +670,57 @@ class PostDetailViewController: UIViewController {
             }
         }
 
-        startCommentObservation(postRowId: postRowId)
+        startCommentReaction()
     }
 
-    /// Records this post-detail visit in the local interaction log and seeds
-    /// the view model's new-comment delta inputs. The prior `lastOpenedAt` is
-    /// read synchronously *before* the async write overwrites it, so the first
-    /// comment snapshot already reflects the correct "new since last visit"
-    /// set. Recording is independent of `markPostsRead` (that preference only
-    /// gates the server `markAsRead` round-trip).
-    private func recordVisit(keychainId: String, serverPostId: Int64, postRowId: Int64) {
-        viewModel.previousVisitAt = appDatabase.lastOpenedAtSync(
-            forKeychainId: keychainId,
-            serverPostId: serverPostId
-        )
-        viewModel.currentAccountPersonId = appDatabase.accountPersonServerIdSync(
-            forKeychainId: keychainId
-        )
+    /// Reacts to the view model's published `commentsRevision`, reproducing the
+    /// per-emit comment pipeline the GRDB loop used to run inline — in the same
+    /// order: prewarm the comment bodies off the main thread, apply the snapshot,
+    /// attempt the permalink scroll, then fire the one-shot `didPrepareObservation`.
+    /// The view model owns the GRDB observation now: on each emit it stores the
+    /// tree into `orderedComments` (`@ObservationIgnored`) — rebuilding its
+    /// `commentRowsByElementId` element-id lookup atomically in the same turn — and
+    /// bumps `commentsRevision`, so that counter — not the tree — is the reaction
+    /// key. Because the lookup lives on the view model alongside the tree, an
+    /// `applySnapshot()` that interleaves during this reaction's `await` always
+    /// sees a lookup consistent with the tree it renders.
+    private func startCommentReaction() {
+        commentObservationTask?.cancel()
+        commentObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            // The stream yields synchronously on subscribe (revision 0, before
+            // any DB emit). Skip that seed value: only the increments a real DB
+            // emit produces count as a comment snapshot.
+            var lastHandledRevision = 0
+            for await revision in ObservationStream.values(of: { [weak self] in
+                self?.viewModel.commentsRevision ?? 0
+            }) {
+                if Task.isCancelled { break }
+                guard revision != lastHandledRevision else { continue }
+                lastHandledRevision = revision
 
-        let snapshotAndCount = appDatabase.postInteractionSnapshotSync(postRowId: postRowId)
-        Task { @MainActor [appDatabase] in
-            try? await appDatabase.recordPostOpened(
-                accountKeychainId: keychainId,
-                serverPostId: serverPostId,
-                commentCount: snapshotAndCount?.commentCount,
-                snapshot: snapshotAndCount?.snapshot
-            )
+                let rows = viewModel.orderedComments
+
+                await Self.prewarmCommentBodies(
+                    rows,
+                    textSizeAdjustment: appearanceService.postDetail.textSizeAdjustment
+                )
+                if Task.isCancelled { break }
+
+                applySnapshot()
+                attemptPermalinkScroll()
+                if !hasReceivedFirstCommentSnapshot {
+                    hasReceivedFirstCommentSnapshot = true
+                    viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
+                }
+            }
         }
     }
 
     /// Fires the unavailable placeholder for the current header row if the
     /// gating rule now warrants it. Fires at most once.
     private func reevaluateUnavailability() {
-        guard !didFirePlaceholder, let headerRow, let reason = unavailableReason(for: headerRow) else {
+        guard !didFirePlaceholder, let headerRow = viewModel.headerRow, let reason = unavailableReason(for: headerRow) else {
             return
         }
         didFirePlaceholder = true
@@ -715,36 +744,6 @@ class PostDetailViewController: UIViewController {
         )
     }
 
-    private func startCommentObservation(postRowId: Int64) {
-        commentObservationTask?.cancel()
-
-        let sortTypeRaw = viewModel.commentSortType.rawValue
-        commentObservationTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            for await rows in appDatabase.observePostDetailComments(
-                postRowId: postRowId,
-                sortType: sortTypeRaw
-            ) {
-                if Task.isCancelled { break }
-                commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
-                viewModel.updateOrderedComments(rows)
-
-                await Self.prewarmCommentBodies(
-                    rows,
-                    textSizeAdjustment: appearanceService.postDetail.textSizeAdjustment
-                )
-                if Task.isCancelled { break }
-
-                applySnapshot()
-                attemptPermalinkScroll()
-                if !hasReceivedFirstCommentSnapshot {
-                    hasReceivedFirstCommentSnapshot = true
-                    viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
-                }
-            }
-        }
-    }
-
     /// If the screen was opened on a `/comment/<id>` permalink, try to resolve the
     /// target server comment id to a loaded element id and scroll to it. Called
     /// after every comment-snapshot apply: the target may not be in the local DB on
@@ -754,7 +753,7 @@ class PostDetailViewController: UIViewController {
     private func attemptPermalinkScroll() {
         guard
             let target = pendingPermalinkServerCommentId,
-            let elementId = commentRowsByElementId.values
+            let elementId = viewModel.commentRowsByElementId.values
             .first(where: { $0.serverCommentId == target })?.id
         else { return }
         pendingPermalinkServerCommentId = nil
@@ -770,25 +769,34 @@ class PostDetailViewController: UIViewController {
         }
     }
 
-    /// Observes the post's outbound (pending/failed) comment rows for the backing
-    /// account and re-applies the snapshot when they change, so locally-composed
-    /// comments appear inline while sending and flip to a normal comment (the row
-    /// is deleted on success, which removes the overlay node) once the server
-    /// confirms. Draft rows never show in the tree. Keyed on `serverPostId`
-    /// directly, so unlike the comment observation it does not need the post to be
-    /// mirrored yet.
-    private func startOutboundObservation() {
-        outboundObservationTask?.cancel()
-        let serverPostId = Int64(viewModel.serverPostId)
-        let keychainId = viewModel.accountKeychainId
-        outboundObservationTask = Task { @MainActor [weak self] in
+    /// Reacts to the view model's published outbound (pending/failed) comment
+    /// rows — which it keeps live via the GRDB outbound observation it owns — and
+    /// re-applies the snapshot when they change, so locally-composed comments
+    /// appear inline while sending and flip to a normal comment (the row is
+    /// deleted on success, which removes the overlay node) once the server
+    /// confirms. Draft rows never reach here (the view model filters them out).
+    /// Keyed on `serverPostId` in the view model, so unlike the comment
+    /// observation it does not need the post to be mirrored yet.
+    private func startOutboundReaction() {
+        outboundReactionTask?.cancel()
+        outboundReactionTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for await rows in appDatabase.observeOutboundComments(
-                postServerId: serverPostId,
-                accountKeychainId: keychainId
-            ) {
+            // `ObservationStream` yields the current value synchronously on
+            // subscribe (before the view model's outbound observation has
+            // delivered anything). Skip that seed: only an actual change to the
+            // published rows — i.e. a real DB emit through the view model — is a
+            // pending-overlay update, matching the old inline observation that
+            // ran `applySnapshot` once per DB emit (and no extra time on
+            // bring-up).
+            var isSeed = true
+            for await _ in ObservationStream.values(of: { [weak self] in
+                self?.viewModel.pendingOutboundComments ?? []
+            }) {
                 if Task.isCancelled { break }
-                pendingOutboundComments = rows.filter { $0.status != OutboundStatus.draft.rawValue }
+                if isSeed {
+                    isSeed = false
+                    continue
+                }
                 applySnapshot(animated: true)
             }
         }
@@ -936,7 +944,7 @@ class PostDetailViewController: UIViewController {
         editOverlayByElementId.removeAll(keepingCapacity: true)
 
         // No pending rows: the common case stays a plain map (no extra work).
-        guard !pendingOutboundComments.isEmpty else {
+        guard !viewModel.pendingOutboundComments.isEmpty else {
             return visibleRows.map { Item.comment(elementId: $0.id) }
         }
 
@@ -945,7 +953,7 @@ class PostDetailViewController: UIViewController {
         // `editCommentServerId`; everything else is a create/reply.
         var editByServerCommentId: [Int64: OutboundContentRecord] = [:]
         var createRecords: [OutboundContentRecord] = []
-        for record in pendingOutboundComments {
+        for record in viewModel.pendingOutboundComments {
             if let editId = record.editCommentServerId {
                 // If two edit rows somehow target the same comment, the newest
                 // wins (last write reflects the user's latest intent).
@@ -958,8 +966,8 @@ class PostDetailViewController: UIViewController {
         // Overlay each pending edit onto its existing visible comment row: record
         // the locally-edited body + sending/failed status keyed by the real
         // element id. The cell provider applies the override at config time (it
-        // does NOT mutate `commentRowsByElementId`, which stays pristine server
-        // data so a later outbound-only snapshot can't compound the override). The
+        // does NOT mutate `viewModel.commentRowsByElementId`, which stays pristine
+        // server data so a later outbound-only snapshot can't compound the override). The
         // row keeps its real element id, so its votes/score/badges/children all
         // stay put; on success the outbound row is deleted and the overlay clears.
         for row in visibleRows {
@@ -1108,7 +1116,7 @@ class PostDetailViewController: UIViewController {
         let items = snapshot.itemIdentifiers(inSection: .comments)
         for (offset, item) in items.enumerated() {
             guard case let .comment(elementId) = item else { continue }
-            guard commentRowsByElementId[elementId]?.depth == 1 else { continue }
+            guard viewModel.commentRowsByElementId[elementId]?.depth == 1 else { continue }
 
             let indexPath = IndexPath(row: offset, section: Section.comments.rawValue)
             let rect = tableView.rectForRow(at: indexPath)
@@ -1323,7 +1331,7 @@ class PostDetailViewController: UIViewController {
     func openInBrowser() {
         appService.openInBrowser(
             serverPostId: viewModel.serverPostId,
-            originalPostUrl: headerRow?.originalPostUrl,
+            originalPostUrl: viewModel.headerRow?.originalPostUrl,
             accountKeychainId: viewModel.accountKeychainId,
             on: self
         )
@@ -1333,12 +1341,10 @@ class PostDetailViewController: UIViewController {
     /// permalink; falls back to constructing it from the account instance.
     // internal: shared with PostDetailViewController+OverflowMenu
     func sharePost() {
-        let instanceActorId = appDatabase.accountInstanceActorIdSync(
-            forKeychainId: viewModel.accountKeychainId
-        )
+        let instanceActorId = viewModel.instanceActorId
         guard let url = LinkURL.forPost(
             instance: preferencesService.shareLinkInstance,
-            originalPostUrl: headerRow?.originalPostUrl,
+            originalPostUrl: viewModel.headerRow?.originalPostUrl,
             serverPostId: Int64(viewModel.serverPostId),
             instanceActorId: instanceActorId
         ) else {
@@ -1351,11 +1357,9 @@ class PostDetailViewController: UIViewController {
     /// Shares the comment identified by `serverCommentId`. Prefers the
     /// comment's `ap_id` permalink; falls back to `<instance>/comment/<id>`.
     private func shareComment(serverCommentId: Int64) {
-        let row = commentRowsByElementId.values
+        let row = viewModel.commentRowsByElementId.values
             .first { $0.serverCommentId == serverCommentId }
-        let instanceActorId = appDatabase.accountInstanceActorIdSync(
-            forKeychainId: viewModel.accountKeychainId
-        )
+        let instanceActorId = viewModel.instanceActorId
         guard let url = LinkURL.forComment(
             instance: preferencesService.shareLinkInstance,
             originalCommentUrl: row?.originalCommentUrl,
@@ -1453,8 +1457,8 @@ class PostDetailViewController: UIViewController {
         } else {
             // A web URL (external, or a Lemmy web link). Offer in-app open when it
             // classifies as Lemmy content, plus the browser / copy / share hatch.
-            let isKnown: (String) -> Bool = { [appDatabase] host in
-                appDatabase.explorerInstanceSync(baseurl: host) != nil
+            let isKnown: (String) -> Bool = { [viewModel] host in
+                viewModel.isKnownInstance(host: host)
             }
             if let internalLink = LemmyURLParser.classify(url: url, isKnownInstance: isKnown) {
                 sheet.addAction(UIAlertAction(title: NSLocalizedString("Open in Spud", comment: ""), style: .default) { [weak self] _ in
@@ -1516,8 +1520,8 @@ class PostDetailViewController: UIViewController {
                 guard let self else { return nil }
                 var children: [UIMenuElement] = []
 
-                let isKnown: (String) -> Bool = { [appDatabase] host in
-                    appDatabase.explorerInstanceSync(baseurl: host) != nil
+                let isKnown: (String) -> Bool = { [viewModel] host in
+                    viewModel.isKnownInstance(host: host)
                 }
                 if let internalLink = LemmyURLParser.classify(url: url, isKnownInstance: isKnown) {
                     children.append(UIAction(title: openInSpud, image: UIImage(systemName: "arrow.up.forward.app")) { _ in
@@ -1575,7 +1579,7 @@ class PostDetailViewController: UIViewController {
             altText: altText,
             // All media opened from this post (header, body, or comment images)
             // inherits the post's NSFW state for the privacy screen.
-            isNsfw: headerRow?.isNsfw ?? false,
+            isNsfw: viewModel.headerRow?.isNsfw ?? false,
             dependencies: dependencies.own
         )
     }
@@ -1649,7 +1653,7 @@ class PostDetailViewController: UIViewController {
 
     private func toggleSavedOnComment(serverCommentId: Int64) {
         guard canSaveOrPresentSignInAlert() else { return }
-        let row = commentRowsByElementId.values
+        let row = viewModel.commentRowsByElementId.values
             .first { $0.serverCommentId == serverCommentId }
         let currentlySaved = (row?.isSaved ?? false) == true
         Task { await setSavedOnComment(serverCommentId: serverCommentId, saved: !currentlySaved) }
@@ -1714,7 +1718,7 @@ class PostDetailViewController: UIViewController {
     /// its GRDB observation once the sheet dismisses.
     // internal: shared with PostDetailViewController+OverflowMenu
     func presentEditPost() {
-        guard let row = headerRow else { return }
+        guard let row = viewModel.headerRow else { return }
         let keychainId = viewModel.accountKeychainId
         guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
@@ -1780,7 +1784,7 @@ extension PostDetailViewController {
                 cell.appService = appService
 
                 cell.isBeingConfigured = true
-                if let row = self?.headerRow, let self {
+                if let row = self?.viewModel.headerRow, let self {
                     let viewModel = PostDetailHeaderViewModel(
                         row: row,
                         appearance: appearance,
@@ -1807,7 +1811,7 @@ extension PostDetailViewController {
                         imageUrl: imageUrl,
                         thumbnailUrl: thumbnailUrl,
                         preloadedImage: currentImage,
-                        altText: self?.headerRow?.altText
+                        altText: self?.viewModel.headerRow?.altText
                     )
                 }
                 cell.videoTapped = { [weak self] videoUrl in
@@ -1911,7 +1915,7 @@ extension PostDetailViewController {
                     return cell
                 }
 
-                guard var row = self?.commentRowsByElementId[elementId] else {
+                guard var row = self?.viewModel.commentRowsByElementId[elementId] else {
                     logger.assertionFailure("Missing PostDetailCommentRow for element \(elementId)")
                     return cell
                 }
@@ -1931,7 +1935,7 @@ extension PostDetailViewController {
                 let viewModel = PostDetailCommentViewModel(
                     row: row,
                     appearance: appearance,
-                    postCreatorPersonId: self?.headerRow?.creatorPersonId,
+                    postCreatorPersonId: self?.viewModel.headerRow?.creatorPersonId,
                     isCollapsed: isCollapsed,
                     collapsedDescendantCount: collapsedCount,
                     collapsedNewDescendantCount: collapsedNewCount,
@@ -2069,7 +2073,7 @@ extension PostDetailViewController: UITableViewDelegate {
         guard
             indexPath.section == 1,
             case let .comment(elementId) = dataSource.itemIdentifier(for: indexPath),
-            let commentRow = commentRowsByElementId[elementId],
+            let commentRow = viewModel.commentRowsByElementId[elementId],
             let serverCommentId = commentRow.serverCommentId
         else { return nil }
 
@@ -2174,7 +2178,7 @@ extension PostDetailViewController: UITableViewDelegate {
     /// Context menu for the post header row: Share, plus Report (hidden for the
     /// account's own post). Mirrors the comment menu's structure.
     private func postContextMenuConfiguration(at indexPath: IndexPath) -> UIContextMenuConfiguration {
-        let isOwnPost = isOwnContent(creatorPersonId: headerRow?.creatorPersonId)
+        let isOwnPost = isOwnContent(creatorPersonId: viewModel.headerRow?.creatorPersonId)
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
             previewProvider: nil,
@@ -2197,7 +2201,7 @@ extension PostDetailViewController: UITableViewDelegate {
                     children.append(reportAction)
                 }
                 if isOwnPost {
-                    let currentlyDeleted = self?.headerRow?.isDeleted ?? false
+                    let currentlyDeleted = self?.viewModel.headerRow?.isDeleted ?? false
                     // Editing a deleted post isn't offered (restore it first).
                     if !currentlyDeleted {
                         let editAction = UIAction(

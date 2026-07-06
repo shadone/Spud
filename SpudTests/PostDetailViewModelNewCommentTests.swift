@@ -13,6 +13,7 @@ import Testing
 private struct TestDependencies:
     HasAccountService, HasAlertService, HasPreferencesService, HasReachabilityMonitor
 {
+    let appDatabase: AppDatabase
     let accountService: AccountServiceType
     let alertService: AlertServiceType
     let preferencesService: PreferencesServiceType
@@ -20,6 +21,7 @@ private struct TestDependencies:
 
     init() {
         let appDatabase = try! AppDatabase.inMemory()
+        self.appDatabase = appDatabase
         accountService = AccountService(appDatabase: appDatabase)
         alertService = AlertService()
         preferencesService = PreferencesService()
@@ -51,6 +53,7 @@ struct PostDetailViewModelNewCommentTests {
         return PostDetailViewModel(
             serverPostId: 1,
             accountScope: dependencies.accountService.scope(forAccountKeychainId: "kc-1"),
+            appDatabase: dependencies.appDatabase,
             dependencies: dependencies
         )
     }
