@@ -463,6 +463,13 @@ class RegisterViewController: UIViewController {
                 self?.presentOutcome(message)
             }
         })
+
+        observationTasks.append(Task { @MainActor [weak self, viewModel] in
+            for await blocked in ObservationStream.values(of: { viewModel.blockedPlatform }) {
+                guard let self, let blocked else { continue }
+                presentPlatformBlockedSheet(blocked)
+            }
+        })
     }
 
     /// Pushes the Pending-review screen for a successful-but-pending outcome. The

@@ -66,6 +66,9 @@ final class RegisterViewModel {
     /// rejection or a generic failure message.
     var outcomeMessage: String?
 
+    /// Set when the target instance runs non-Lemmy software; drives the block sheet.
+    var blockedPlatform: PlatformUnsupportedError?
+
     /// The successful-but-pending states routed to `PendingReviewViewController`.
     enum PendingOutcome: Equatable {
         /// The account is awaiting admin approval (instance requires an
@@ -135,6 +138,8 @@ final class RegisterViewModel {
             case .pending:
                 pendingOutcome = .pending
             }
+        } catch let error as PlatformUnsupportedError {
+            blockedPlatform = error
         } catch let error as AccountServiceRegisterError {
             outcomeMessage = Self.message(for: error)
         } catch {
