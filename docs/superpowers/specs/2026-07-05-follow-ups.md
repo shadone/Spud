@@ -299,3 +299,18 @@ rendered strings change, so the snapshot churn is expected and bounded.
 mechanical find-replace — decide per call site whether the locale-aware
 `.compactName` output is intentionally wanted before collapsing it into
 CompactCount.
+
+**Second addendum to section 5 (2026-07-06, found during PostDetail Phase 2 final
+verify): app-level accent leak fails 47 snapshot assertions (25 tests) on a
+clean sim.** `StaticImageService` yields the bundled `tv-pattern` template image,
+tinted by the window accent that `ThemeManager` reads from `UserDefaults.standard`
+— outside the ephemeral-store isolation, which covers only `PreferencesService`
+fixtures. The affected refs (PostDetailHeader image variants, Toast, MediaUI,
+MediaViewerCentering, MediaComponents, PostUnavailable, PendingPost, LinkPreview,
+HeaderInlineImage, PostDetailComment image tests, and app-level screens) were
+recorded under a non-default accent; a clean-install run renders the default and
+mismatches. Proven pre-existing: plain main and the Phase 2 branch fail the
+IDENTICAL 25-test set on the same sim state. Fix when doing this initiative:
+pin the accent/tint in snapshot fixtures (the `PostListPostCellSnapshotTests`
+lemmyTeal pin is the precedent) or isolate ThemeManager's store, then re-record
+the affected refs once under pinned state.
