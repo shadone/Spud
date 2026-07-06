@@ -655,4 +655,32 @@ final class PostDetailViewModel {
             reason: reason
         )
     }
+
+    // MARK: - Action dispatch (pending comments / block)
+
+    /// Retries a previously failed comment composition (send or edit)
+    /// identified by `clientToken`. Non-throwing, mirroring the service — a
+    /// retry that fails again surfaces later through the composer's own
+    /// failure state, not through this call.
+    func retryComposition(clientToken: String) async {
+        await lemmy.retryComposition(clientToken: clientToken)
+    }
+
+    /// Permanently discards the composition identified by `clientToken`.
+    /// Non-throwing, mirroring the service.
+    func discardComposition(clientToken: String) async {
+        await lemmy.discardComposition(clientToken: clientToken)
+    }
+
+    /// Blocks `serverPersonId` for the backing account. Bakes `blocked: true`
+    /// — the view controller's block action never unblocks from this screen
+    /// — and converts the local `Int64` id to the API `PersonID` here so the
+    /// view controller stays free of that conversion. Rethrows the service
+    /// error unchanged.
+    func blockAuthor(serverPersonId: Int64) async throws {
+        try await lemmy.setBlocked(
+            serverPersonId: Components.Schemas.PersonID(serverPersonId),
+            blocked: true
+        )
+    }
 }

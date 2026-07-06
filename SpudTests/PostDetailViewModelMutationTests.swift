@@ -361,4 +361,49 @@ struct PostDetailViewModelMutationTests {
         }
         #expect(recording.invocations.isEmpty)
     }
+
+    // MARK: - Pending comments (retry / discard) + block
+
+    @Test
+    func retryCompositionForwardsClientToken() async {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        await vm.retryComposition(clientToken: "token-1")
+
+        #expect(recording.invocations == [.retryComposition(clientToken: "token-1")])
+    }
+
+    @Test
+    func discardCompositionForwardsClientToken() async {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        await vm.discardComposition(clientToken: "token-1")
+
+        #expect(recording.invocations == [.discardComposition(clientToken: "token-1")])
+    }
+
+    @Test
+    func blockAuthorForwardsPersonIdAndBakesBlockedTrue() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.blockAuthor(serverPersonId: 42)
+
+        #expect(recording.invocations == [.setBlocked(serverPersonId: 42, blocked: true)])
+    }
+
+    @Test
+    func blockAuthorRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.blockAuthor(serverPersonId: 42)
+        }
+        #expect(recording.invocations.isEmpty)
+    }
 }

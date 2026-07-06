@@ -39,6 +39,9 @@ final class RecordingPostDetailLemmyService: PostDetailLemmyServicing {
             removeData: Bool,
             reason: String?
         )
+        case retryComposition(clientToken: String)
+        case discardComposition(clientToken: String)
+        case setBlocked(serverPersonId: Components.Schemas.PersonID, blocked: Bool)
     }
 
     private(set) var invocations: [Invocation] = []
@@ -107,5 +110,21 @@ final class RecordingPostDetailLemmyService: PostDetailLemmyServicing {
             removeData: removeData,
             reason: reason
         ))
+    }
+
+    /// `retryComposition`/`discardComposition` are non-throwing in the protocol
+    /// (mirroring `LemmyServiceType`), so unlike the throwing methods above they
+    /// record unconditionally — there is no `errorToThrow` path to exercise.
+    func retryComposition(clientToken: String) async {
+        invocations.append(.retryComposition(clientToken: clientToken))
+    }
+
+    func discardComposition(clientToken: String) async {
+        invocations.append(.discardComposition(clientToken: clientToken))
+    }
+
+    func setBlocked(serverPersonId: Components.Schemas.PersonID, blocked: Bool) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.setBlocked(serverPersonId: serverPersonId, blocked: blocked))
     }
 }

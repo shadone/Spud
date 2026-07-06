@@ -31,6 +31,9 @@ protocol PostDetailLemmyServicing: Sendable {
         removeData: Bool,
         reason: String?
     ) async throws
+    func retryComposition(clientToken: String) async
+    func discardComposition(clientToken: String) async
+    func setBlocked(serverPersonId: Components.Schemas.PersonID, blocked: Bool) async throws
 }
 
 /// Production conformance: forwards to the account's `LemmyServiceType` actor.
@@ -91,5 +94,17 @@ struct PostDetailLemmyServiceAdapter: PostDetailLemmyServicing {
             removeData: removeData,
             reason: reason
         )
+    }
+
+    func retryComposition(clientToken: String) async {
+        await lemmyService.retryComposition(clientToken: clientToken)
+    }
+
+    func discardComposition(clientToken: String) async {
+        await lemmyService.discardComposition(clientToken: clientToken)
+    }
+
+    func setBlocked(serverPersonId: Components.Schemas.PersonID, blocked: Bool) async throws {
+        try await lemmyService.setBlocked(serverPersonId: serverPersonId, blocked: blocked)
     }
 }
