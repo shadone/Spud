@@ -29,6 +29,9 @@ final class PostDetailViewModel {
     private let dependencies: OwnDependencies
 
     @ObservationIgnored
+    private let appDatabase: AppDatabase
+
+    @ObservationIgnored
     let serverPostId: Components.Schemas.PostID
 
     @ObservationIgnored
@@ -37,6 +40,13 @@ final class PostDetailViewModel {
     var accountKeychainId: String {
         accountScope.accountKeychainId
     }
+
+    /// The post-detail header row, published from the GRDB header observation
+    /// this view model owns (see ``startObservations()``). The view controller
+    /// reacts to changes to re-render the header, rebuild the overflow menu,
+    /// re-evaluate unavailability, and refresh the on-screen privacy state. nil
+    /// until the first emit (and when the post row is absent from the database).
+    var headerRow: PostDetailHeaderRow?
 
     private(set) var commentSortType: Components.Schemas.CommentSortType
 
@@ -65,8 +75,9 @@ final class PostDetailViewModel {
     private(set) var collapsedElementIds: Set<Int64> = []
 
     /// The `lastOpenedAt` from before this visit, used to flag comments
-    /// published since. nil on a first-ever visit (nothing is "new"). Set once
-    /// by the view controller during observation bring-up.
+    /// published since. nil on a first-ever visit (nothing is "new"). Set by
+    /// ``recordVisit(keychainId:serverPostId:postRowId:)`` during observation
+    /// bring-up.
     @ObservationIgnored
     var previousVisitAt: Date?
 
@@ -86,6 +97,18 @@ final class PostDetailViewModel {
     @ObservationIgnored
     private var fetchTask: Task<Void, Never>?
 
+    /// The resolved local `post` row id for the backing account, set during
+    /// ``startObservations()`` bring-up. nil until resolved (and when the post
+    /// is not yet mirrored). Read by the view controller to start the comment
+    /// observation against the same row.
+    @ObservationIgnored
+    private(set) var postRowId: Int64?
+
+    /// The live GRDB header observation feeding ``headerRow``. Owned here so it
+    /// dies with the view model (see ``stopObservations()`` / `deinit`).
+    @ObservationIgnored
+    private var headerObservationTask: Task<Void, Never>?
+
     private var alertService: AlertServiceType {
         dependencies.alertService
     }
@@ -97,16 +120,94 @@ final class PostDetailViewModel {
     init(
         serverPostId: Components.Schemas.PostID,
         accountScope: AccountScope,
+        appDatabase: AppDatabase,
         dependencies: Dependencies,
         fetchCommentsOperation: (@MainActor (Components.Schemas.CommentSortType) async throws -> Void)? = nil
     ) {
         self.dependencies = dependencies
+        self.appDatabase = appDatabase
         self.serverPostId = serverPostId
         self.accountScope = accountScope
         commentSortType = dependencies.preferencesService.defaultCommentSortType
         self.fetchCommentsOperation = fetchCommentsOperation ?? { sortType in
             try await accountScope.lemmyService
                 .fetchComments(serverPostId: serverPostId, sortType: sortType)
+        }
+    }
+
+    deinit {
+        headerObservationTask?.cancel()
+    }
+
+    // MARK: - Observation bring-up
+
+    /// Starts the view model's data observations: resolves the post's local row
+    /// id, records this visit (seeding the new-comment delta inputs), and starts
+    /// the live GRDB header observation that publishes ``headerRow``. When the
+    /// post is not yet mirrored the row id is unresolved, so this triggers an
+    /// initial comment fetch (which dual-writes the post) and leaves ``postRowId``
+    /// nil; the caller re-starts observations after the fetch. Cancels any prior
+    /// observation first so it is safe to call on a view-model reuse / restart.
+    func startObservations() {
+        stopObservations()
+
+        let keychainId = accountKeychainId
+        let serverPostId = Int64(serverPostId)
+
+        guard let postRowId = appDatabase.postRowIdSync(
+            forKeychainId: keychainId,
+            serverPostId: serverPostId
+        ) else {
+            // Post not yet mirrored; trigger a comment fetch which will
+            // dual-write everything we need, then the observation can bring rows
+            // in on the next start.
+            postRowId = nil
+            didPrepareObservation(numberOfFetchedComments: 0)
+            return
+        }
+
+        self.postRowId = postRowId
+        recordVisit(keychainId: keychainId, serverPostId: serverPostId, postRowId: postRowId)
+
+        headerObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await row in appDatabase.observePostDetailHeader(postRowId: postRowId) {
+                if Task.isCancelled { break }
+                headerRow = row
+            }
+        }
+    }
+
+    /// Cancels the view model's data observations. Called on reuse / restart and
+    /// from `deinit`.
+    func stopObservations() {
+        headerObservationTask?.cancel()
+        headerObservationTask = nil
+    }
+
+    /// Records this post-detail visit in the local interaction log and seeds
+    /// the new-comment delta inputs. The prior `lastOpenedAt` is read
+    /// synchronously *before* the async write overwrites it, so the first
+    /// comment snapshot already reflects the correct "new since last visit" set.
+    /// Recording is independent of `markPostsRead` (that preference only gates
+    /// the server `markAsRead` round-trip).
+    private func recordVisit(keychainId: String, serverPostId: Int64, postRowId: Int64) {
+        previousVisitAt = appDatabase.lastOpenedAtSync(
+            forKeychainId: keychainId,
+            serverPostId: serverPostId
+        )
+        currentAccountPersonId = appDatabase.accountPersonServerIdSync(
+            forKeychainId: keychainId
+        )
+
+        let snapshotAndCount = appDatabase.postInteractionSnapshotSync(postRowId: postRowId)
+        Task { @MainActor [appDatabase] in
+            try? await appDatabase.recordPostOpened(
+                accountKeychainId: keychainId,
+                serverPostId: serverPostId,
+                commentCount: snapshotAndCount?.commentCount,
+                snapshot: snapshotAndCount?.snapshot
+            )
         }
     }
 

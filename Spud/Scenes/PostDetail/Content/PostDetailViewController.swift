@@ -92,6 +92,9 @@ class PostDetailViewController: UIViewController {
         commentObservationTask?.cancel()
         outboundObservationTask?.cancel()
         loadingObservationTask?.cancel()
+        // Deterministically tear down the outgoing view model's header
+        // observation before it is replaced (the new view model starts fresh).
+        viewModel.stopObservations()
 
         // Drop the previous post's reveal state so the blur is always shown for
         // the newly-loaded post until the user explicitly taps to reveal.
@@ -109,6 +112,7 @@ class PostDetailViewController: UIViewController {
         viewModel = PostDetailViewModel(
             serverPostId: serverPostId,
             accountScope: dependencies.own.accountService.scope(forAccountKeychainId: accountKeychainId),
+            appDatabase: dependencies.own.appDatabase,
             dependencies: dependencies.own
         )
 
@@ -168,8 +172,6 @@ class PostDetailViewController: UIViewController {
 
     // internal: shared with PostDetailViewController+Content / +Report / +DeleteRestore / +Moderation / +PendingComments / +OverflowMenu
     var viewModel: PostDetailViewModel
-    // internal: shared with PostDetailViewController+Moderation / +OverflowMenu / +Content
-    var headerRow: PostDetailHeaderRow?
     /// The body string last pre-warmed into `MarkdownBlockCache` off the main
     /// thread. The header observation re-emits on every vote/save with the same
     /// body, so this skips the redundant background hop on those updates while
@@ -285,6 +287,7 @@ class PostDetailViewController: UIViewController {
         viewModel = PostDetailViewModel(
             serverPostId: serverPostId,
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
+            appDatabase: dependencies.appDatabase,
             dependencies: dependencies
         )
 
@@ -552,7 +555,7 @@ class PostDetailViewController: UIViewController {
     /// A revealed NSFW header image counts as sensitive content on screen. Call on
     /// every change to the inputs (visibility, reveal, the loaded post).
     private func updateHeaderPrivacy() {
-        sensitiveContentToken.set(isViewVisible && headerNsfwRevealed && (headerRow?.isNsfw ?? false))
+        sensitiveContentToken.set(isViewVisible && headerNsfwRevealed && (viewModel.headerRow?.isNsfw ?? false))
     }
 
     /// Vends a Handoff/Spotlight/Prediction activity for this post, keyed by its
@@ -563,14 +566,14 @@ class PostDetailViewController: UIViewController {
         )
         guard let canonical = LinkURL.forPost(
             instance: .originalInstance,
-            originalPostUrl: headerRow?.originalPostUrl,
+            originalPostUrl: viewModel.headerRow?.originalPostUrl,
             serverPostId: Int64(viewModel.serverPostId),
             instanceActorId: instanceActorId
         ) else { return }
         let routingURL = URL.SpudInternalLink.objectAtURL(url: canonical).url
         let activity = SpudUserActivity.viewPost(
             routingURL: routingURL,
-            title: headerRow?.title ?? "Post"
+            title: viewModel.headerRow?.title ?? "Post"
         )
         userActivity = activity
         activity.becomeCurrent()
@@ -619,27 +622,28 @@ class PostDetailViewController: UIViewController {
         // comment observation's postRowId gate below.
         startOutboundObservation()
 
-        let keychainId = viewModel.accountKeychainId
-        let serverPostId = Int64(viewModel.serverPostId)
+        // The view model owns the header GRDB observation + visit recording: it
+        // resolves the post's local row id, records the visit, and starts
+        // publishing `headerRow`. When the post is not yet mirrored it fires the
+        // initial comment fetch itself and leaves `postRowId` nil.
+        viewModel.startObservations()
 
-        guard let postRowId = appDatabase.postRowIdSync(
-            forKeychainId: keychainId,
-            serverPostId: serverPostId
-        ) else {
-            // Post not yet mirrored; trigger a comment fetch which will
-            // dual-write everything we need, then the observation can
-            // bring rows in on the next start.
-            viewModel.didPrepareObservation(numberOfFetchedComments: 0)
+        guard let postRowId = viewModel.postRowId else {
+            // Post not yet mirrored; the view model already kicked a comment
+            // fetch that dual-writes everything the observations need.
             return
         }
 
-        recordVisit(keychainId: keychainId, serverPostId: serverPostId, postRowId: postRowId)
-
+        // React to the view model's published header row, reproducing the
+        // per-emit view pipeline (unavailability, header privacy, overflow-menu
+        // rebuild, body prewarm, snapshot) in the same order as before — now
+        // driven by the observation stream instead of the GRDB loop directly.
         observationTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for await row in appDatabase.observePostDetailHeader(postRowId: postRowId) {
+            for await headerRow in ObservationStream.values(of: { [weak self] in
+                self?.viewModel.headerRow
+            }) {
                 if Task.isCancelled { break }
-                headerRow = row
                 reevaluateUnavailability()
                 if didFirePlaceholder { break }
                 updateHeaderPrivacy()
@@ -662,36 +666,10 @@ class PostDetailViewController: UIViewController {
         startCommentObservation(postRowId: postRowId)
     }
 
-    /// Records this post-detail visit in the local interaction log and seeds
-    /// the view model's new-comment delta inputs. The prior `lastOpenedAt` is
-    /// read synchronously *before* the async write overwrites it, so the first
-    /// comment snapshot already reflects the correct "new since last visit"
-    /// set. Recording is independent of `markPostsRead` (that preference only
-    /// gates the server `markAsRead` round-trip).
-    private func recordVisit(keychainId: String, serverPostId: Int64, postRowId: Int64) {
-        viewModel.previousVisitAt = appDatabase.lastOpenedAtSync(
-            forKeychainId: keychainId,
-            serverPostId: serverPostId
-        )
-        viewModel.currentAccountPersonId = appDatabase.accountPersonServerIdSync(
-            forKeychainId: keychainId
-        )
-
-        let snapshotAndCount = appDatabase.postInteractionSnapshotSync(postRowId: postRowId)
-        Task { @MainActor [appDatabase] in
-            try? await appDatabase.recordPostOpened(
-                accountKeychainId: keychainId,
-                serverPostId: serverPostId,
-                commentCount: snapshotAndCount?.commentCount,
-                snapshot: snapshotAndCount?.snapshot
-            )
-        }
-    }
-
     /// Fires the unavailable placeholder for the current header row if the
     /// gating rule now warrants it. Fires at most once.
     private func reevaluateUnavailability() {
-        guard !didFirePlaceholder, let headerRow, let reason = unavailableReason(for: headerRow) else {
+        guard !didFirePlaceholder, let headerRow = viewModel.headerRow, let reason = unavailableReason(for: headerRow) else {
             return
         }
         didFirePlaceholder = true
@@ -1323,7 +1301,7 @@ class PostDetailViewController: UIViewController {
     func openInBrowser() {
         appService.openInBrowser(
             serverPostId: viewModel.serverPostId,
-            originalPostUrl: headerRow?.originalPostUrl,
+            originalPostUrl: viewModel.headerRow?.originalPostUrl,
             accountKeychainId: viewModel.accountKeychainId,
             on: self
         )
@@ -1338,7 +1316,7 @@ class PostDetailViewController: UIViewController {
         )
         guard let url = LinkURL.forPost(
             instance: preferencesService.shareLinkInstance,
-            originalPostUrl: headerRow?.originalPostUrl,
+            originalPostUrl: viewModel.headerRow?.originalPostUrl,
             serverPostId: Int64(viewModel.serverPostId),
             instanceActorId: instanceActorId
         ) else {
@@ -1575,7 +1553,7 @@ class PostDetailViewController: UIViewController {
             altText: altText,
             // All media opened from this post (header, body, or comment images)
             // inherits the post's NSFW state for the privacy screen.
-            isNsfw: headerRow?.isNsfw ?? false,
+            isNsfw: viewModel.headerRow?.isNsfw ?? false,
             dependencies: dependencies.own
         )
     }
@@ -1714,7 +1692,7 @@ class PostDetailViewController: UIViewController {
     /// its GRDB observation once the sheet dismisses.
     // internal: shared with PostDetailViewController+OverflowMenu
     func presentEditPost() {
-        guard let row = headerRow else { return }
+        guard let row = viewModel.headerRow else { return }
         let keychainId = viewModel.accountKeychainId
         guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
@@ -1780,7 +1758,7 @@ extension PostDetailViewController {
                 cell.appService = appService
 
                 cell.isBeingConfigured = true
-                if let row = self?.headerRow, let self {
+                if let row = self?.viewModel.headerRow, let self {
                     let viewModel = PostDetailHeaderViewModel(
                         row: row,
                         appearance: appearance,
@@ -1807,7 +1785,7 @@ extension PostDetailViewController {
                         imageUrl: imageUrl,
                         thumbnailUrl: thumbnailUrl,
                         preloadedImage: currentImage,
-                        altText: self?.headerRow?.altText
+                        altText: self?.viewModel.headerRow?.altText
                     )
                 }
                 cell.videoTapped = { [weak self] videoUrl in
@@ -1931,7 +1909,7 @@ extension PostDetailViewController {
                 let viewModel = PostDetailCommentViewModel(
                     row: row,
                     appearance: appearance,
-                    postCreatorPersonId: self?.headerRow?.creatorPersonId,
+                    postCreatorPersonId: self?.viewModel.headerRow?.creatorPersonId,
                     isCollapsed: isCollapsed,
                     collapsedDescendantCount: collapsedCount,
                     collapsedNewDescendantCount: collapsedNewCount,
@@ -2174,7 +2152,7 @@ extension PostDetailViewController: UITableViewDelegate {
     /// Context menu for the post header row: Share, plus Report (hidden for the
     /// account's own post). Mirrors the comment menu's structure.
     private func postContextMenuConfiguration(at indexPath: IndexPath) -> UIContextMenuConfiguration {
-        let isOwnPost = isOwnContent(creatorPersonId: headerRow?.creatorPersonId)
+        let isOwnPost = isOwnContent(creatorPersonId: viewModel.headerRow?.creatorPersonId)
         return UIContextMenuConfiguration(
             identifier: indexPath as NSCopying,
             previewProvider: nil,
@@ -2197,7 +2175,7 @@ extension PostDetailViewController: UITableViewDelegate {
                     children.append(reportAction)
                 }
                 if isOwnPost {
-                    let currentlyDeleted = self?.headerRow?.isDeleted ?? false
+                    let currentlyDeleted = self?.viewModel.headerRow?.isDeleted ?? false
                     // Editing a deleted post isn't offered (restore it first).
                     if !currentlyDeleted {
                         let editAction = UIAction(

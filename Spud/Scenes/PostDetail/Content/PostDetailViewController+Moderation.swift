@@ -25,7 +25,7 @@ extension PostDetailViewController {
     /// moderate the post's community. Offers Remove/Restore, Lock/Unlock,
     /// Feature (pin) to community, and (admins only) Feature to instance.
     func postModerationMenu() -> UIMenu? {
-        guard let headerRow else { return nil }
+        guard let headerRow = viewModel.headerRow else { return nil }
         let communityId = Components.Schemas.CommunityID(headerRow.serverCommunityId)
         guard moderationCapability.canModerate(communityId: communityId) else { return nil }
 
@@ -97,7 +97,7 @@ extension PostDetailViewController {
         serverCommentId: Int64,
         commentRow: PostDetailCommentRow
     ) -> UIMenu? {
-        guard let headerRow else { return nil }
+        guard let headerRow = viewModel.headerRow else { return nil }
         let communityId = Components.Schemas.CommunityID(headerRow.serverCommunityId)
         guard moderationCapability.canModerate(communityId: communityId) else { return nil }
 
@@ -256,7 +256,7 @@ extension PostDetailViewController {
     }
 
     private func promptBanFromCommunity(serverPersonId: Int64, userName: String?) {
-        guard let headerRow else { return }
+        guard let headerRow = viewModel.headerRow else { return }
         let communityId = Components.Schemas.CommunityID(headerRow.serverCommunityId)
         presentBanFromCommunityConfirmation(
             userName: userName ?? NSLocalizedString("this user", comment: "Fallback user name in ban confirmation"),

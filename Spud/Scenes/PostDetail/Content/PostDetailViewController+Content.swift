@@ -103,7 +103,7 @@ extension PostDetailViewController: PostSaveDispatching {
     /// PostDetail shows exactly one post, so its saved state is the header row's
     /// (the `serverPostId` argument is always this post's id).
     func currentSavedState(serverPostId _: Int64) -> Bool {
-        headerRow?.isSaved ?? false
+        viewModel.headerRow?.isSaved ?? false
     }
 
     /// Post-haptic, pre-send offline reassurance toast — the exact toast the
