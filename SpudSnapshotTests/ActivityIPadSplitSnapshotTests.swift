@@ -78,6 +78,13 @@ import XCTest
 /// byte-identical whatever ran before it.
 @MainActor
 final class ActivityIPadSplitSnapshotTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // Pin the process-wide accent so renders don't depend on the sim's
+        // persisted accent preference. See `SnapshotDeterminism.pinAccent()`.
+        SnapshotDeterminism.pinAccent()
+    }
+
     // MARK: - Dependency bag
 
     /// A flat dependency bag satisfying the full

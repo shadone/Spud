@@ -21,6 +21,13 @@ import XCTest
 /// before the VC is constructed so the synchronous cache-first render captures them.
 @MainActor
 final class InstanceExploreSnapshotTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // Pin the process-wide accent so renders don't depend on the sim's
+        // persisted accent preference. See `SnapshotDeterminism.pinAccent()`.
+        SnapshotDeterminism.pinAccent()
+    }
+
     /// Stub that always returns `.unknown` so the badge stays hidden and
     /// no existing snapshot ref needs re-recording.
     private struct StubNodeInfoService: NodeInfoServiceType {

@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import SpudUIKit
 import UIKit
 @testable import Spud
 
@@ -61,6 +62,30 @@ final class FixedSafeAreaWindow: UIWindow {
 /// state regardless of timing.
 @MainActor
 enum SnapshotDeterminism {
+    /// Pins the process-wide accent to the default (`.lemmy`) so a render can
+    /// never depend on the sim's persisted accent preference.
+    ///
+    /// The accent leaks in through the snapshot HOST app, *outside* the
+    /// ephemeral-`PreferencesService` isolation that ``SnapshotPreferences``
+    /// gives each fixture: at launch the host's `MainWindow.applyAccent` reads
+    /// the sim's persisted accent from `UserDefaults.standard` and calls
+    /// `ThemeManager.shared.setAccent(...)`, which is a single process-global
+    /// holder. Renders read that accent two ways — `ThemeManager.currentAccentColor`
+    /// (the vote tints in `GeneralAppearance`, and any element that resolves the
+    /// accent directly) and the window/root `tintColor` cascade (template
+    /// placeholder images). A ref recorded while the sim carried a non-default
+    /// accent (e.g. indigo) therefore mismatches on a clean sim, whose accent is
+    /// the `.lemmy` default.
+    ///
+    /// Call from every snapshot class's `setUp` (runs after the host launch,
+    /// before each test's render) so the accent is the default regardless of
+    /// what the sim persisted. On-screen (`FixedSafeAreaWindow`) captures that
+    /// exercise the `tintColor` cascade additionally pin `window.tintColor` to
+    /// the brand teal where they build the window.
+    static func pinAccent() {
+        ThemeManager.shared.setAccent(.lemmy)
+    }
+
     /// Disables `UIView` animations and returns a closure that restores the
     /// previous state. Snapshot tests must render the settled *final* state, not
     /// a transient animation frame; disabling animations makes state changes

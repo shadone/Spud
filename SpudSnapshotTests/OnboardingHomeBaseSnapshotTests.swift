@@ -24,6 +24,13 @@ import XCTest
 /// runtime window `tintColor`.
 @MainActor
 final class OnboardingHomeBaseSnapshotTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // Pin the process-wide accent so renders don't depend on the sim's
+        // persisted accent preference. See `SnapshotDeterminism.pinAccent()`.
+        SnapshotDeterminism.pinAccent()
+    }
+
     private let lemmyTeal = UIColor(red: 0, green: 0x96 / 255, blue: 0x87 / 255, alpha: 1)
 
     /// Stub that always returns `.unknown` so the badge stays hidden and
