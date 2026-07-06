@@ -46,7 +46,7 @@ final class PostDetailViewModel {
     /// reacts to changes to re-render the header, rebuild the overflow menu,
     /// re-evaluate unavailability, and refresh the on-screen privacy state. nil
     /// until the first emit (and when the post row is absent from the database).
-    var headerRow: PostDetailHeaderRow?
+    private(set) var headerRow: PostDetailHeaderRow?
 
     private(set) var commentSortType: Components.Schemas.CommentSortType
 
@@ -75,6 +75,21 @@ final class PostDetailViewModel {
     /// that a fresh DB tree landed.
     @ObservationIgnored
     private(set) var orderedComments: [PostDetailCommentRow] = []
+
+    /// Element-id -> comment row lookup for the current tree, rebuilt in the same
+    /// synchronous turn as ``orderedComments`` inside ``updateOrderedComments(_:)``.
+    /// The view controller resolves a tapped/collapsed/permalink element id
+    /// through this instead of scanning ``orderedComments``. Kept on the view
+    /// model (not the view controller) so it and ``orderedComments`` can never
+    /// drift: an interleaved snapshot apply during a reaction suspension always
+    /// sees a lookup consistent with the tree it renders.
+    ///
+    /// Deliberately `@ObservationIgnored` for the same reason as
+    /// ``orderedComments``: it is a derived view of the tree, and reads of it must
+    /// not invalidate observers on every collapse toggle. The published
+    /// ``commentsRevision`` counter is the DB-emit signal.
+    @ObservationIgnored
+    private(set) var commentRowsByElementId: [Int64: PostDetailCommentRow] = [:]
 
     /// Monotonic per-emit signal for the comments observation. Bumped exactly
     /// once each time the GRDB comment tree is delivered — after
@@ -134,20 +149,24 @@ final class PostDetailViewModel {
     private(set) var postRowId: Int64?
 
     /// The live GRDB header observation feeding ``headerRow``. Owned here so it
-    /// dies with the view model (see ``stopObservations()`` / `deinit`).
+    /// stops on an explicit ``stopObservations()`` / task cancel. (Each
+    /// observation task binds a strong `self` for the whole `for await` loop, so
+    /// the view model cannot deinit while one is still running — a
+    /// deinit-while-observing can't happen; the `deinit` cancel is belt-and-braces
+    /// cleanup for the already-stopped case.)
     @ObservationIgnored
     private var headerObservationTask: Task<Void, Never>?
 
     /// The live GRDB comment-tree observation feeding ``orderedComments`` +
-    /// ``commentsRevision``. Owned here (like the header task) so it dies with
-    /// the view model; restarted on a sort change (see
+    /// ``commentsRevision``. Owned here (like the header task) so it stops on an
+    /// explicit stop / cancel; restarted on a sort change (see
     /// ``restartComments(sortType:)``).
     @ObservationIgnored
     private var commentObservationTask: Task<Void, Never>?
 
     /// The live GRDB outbound-comment observation feeding
-    /// ``pendingOutboundComments``. Owned here (like the header task) so it dies
-    /// with the view model. Keyed on ``serverPostId``, so it is started
+    /// ``pendingOutboundComments``. Owned here (like the header task) so it stops
+    /// on an explicit stop / cancel. Keyed on ``serverPostId``, so it is started
     /// unconditionally (independent of the ``postRowId`` gate the header /
     /// comment observations sit behind).
     @ObservationIgnored
@@ -331,8 +350,15 @@ final class PostDetailViewModel {
 
     /// Stores the latest ordered comment tree. Drops any collapsed ids that no
     /// longer exist in the new tree so stale state can't accumulate.
+    ///
+    /// Rebuilds ``commentRowsByElementId`` in the same synchronous turn, so the
+    /// element-id lookup and ``orderedComments`` are always mutually consistent
+    /// (never observable in a state where one reflects a newer tree than the
+    /// other). Does NOT bump ``commentsRevision`` — the observation loop bumps it
+    /// once, immediately after this returns.
     func updateOrderedComments(_ rows: [PostDetailCommentRow]) {
         orderedComments = rows
+        commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
         let existingIds = Set(rows.map(\.id))
         collapsedElementIds.formIntersection(existingIds)
         newCommentState = NewCommentState.compute(

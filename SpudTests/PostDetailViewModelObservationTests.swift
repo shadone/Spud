@@ -469,6 +469,53 @@ struct PostDetailViewModelObservationTests {
     }
 
     @Test
+    func commentRowLookupIsBuiltInTheSameTurnAsOrderedComments() async throws {
+        // The element-id lookup lives on the view model and is rebuilt inside
+        // `updateOrderedComments` in the same synchronous turn that stores the
+        // tree, so the two can never drift (the reason the lookup was moved off
+        // the view controller). Assert both together right after each emit lands.
+        let seed = try await makeSeed()
+        let vm = makeViewModel(seed)
+        let sortType = vm.commentSortType.rawValue
+
+        // Precondition: no tree, no lookup before any emit.
+        #expect(vm.orderedComments.isEmpty)
+        #expect(vm.commentRowsByElementId.isEmpty)
+
+        let elementIds = try await seedComments(seed, sortType: sortType, specs: [
+            CommentSpec(localId: 101, position: 0, depth: 1, body: "first"),
+            CommentSpec(localId: 102, position: 1, depth: 1, body: "second"),
+        ])
+
+        vm.startObservations()
+        await poll { vm.orderedComments.count == 2 }
+
+        // Everything below is synchronous (no `await`), so no queued observation
+        // can interleave between the tree and lookup assertions. The lookup must
+        // hold exactly the emitted rows, keyed by element id.
+        #expect(vm.orderedComments.count == 2)
+        #expect(vm.commentRowsByElementId.count == 2)
+        #expect(Set(vm.commentRowsByElementId.keys) == Set(elementIds))
+        for row in vm.orderedComments {
+            #expect(vm.commentRowsByElementId[row.id]?.serverCommentId == row.serverCommentId)
+            #expect(vm.commentRowsByElementId[row.id]?.body == row.body)
+        }
+
+        // A second, live DB write must advance BOTH together.
+        let moreIds = try await seedComments(seed, sortType: sortType, specs: [
+            CommentSpec(localId: 103, position: 2, depth: 1, body: "third-live"),
+        ])
+        await poll { vm.orderedComments.count == 3 }
+
+        #expect(vm.commentRowsByElementId.count == 3)
+        #expect(Set(vm.commentRowsByElementId.keys) == Set(elementIds + moreIds))
+        let liveElementId = try #require(moreIds.first)
+        #expect(vm.commentRowsByElementId[liveElementId]?.body == "third-live")
+
+        vm.stopObservations()
+    }
+
+    @Test
     func collapseToggleDoesNotBumpRevision() async throws {
         let seed = try await makeSeed()
         let vm = makeViewModel(seed)

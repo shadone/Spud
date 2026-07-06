@@ -180,7 +180,6 @@ class PostDetailViewController: UIViewController {
     /// body, so this skips the redundant background hop on those updates while
     /// still warming the cache once when the body first arrives (or changes).
     private var prewarmedHeaderBody: String?
-    private var commentRowsByElementId: [Int64: PostDetailCommentRow] = [:]
     /// Synthetic-element-id -> cell state, rebuilt each `applySnapshot()`. A
     /// synthetic id is a large negative number (see `pendingElementId(for:)`)
     /// so it never collides with a real `commentElement.id`. The cell provider
@@ -307,7 +306,11 @@ class PostDetailViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    deinit {
+    /// `isolated deinit` so the body runs on the main actor: `stopObservations()`
+    /// is main-actor isolated, and a live observation task can outlive the
+    /// controller (it strong-holds the view model), so this must be able to reach
+    /// the view model to cancel it.
+    isolated deinit {
         observationTask?.cancel()
         commentObservationTask?.cancel()
         outboundReactionTask?.cancel()
@@ -316,6 +319,11 @@ class PostDetailViewController: UIViewController {
         blurNsfwObservationTask?.cancel()
         loadingObservationTask?.cancel()
         reachabilityObservationTask?.cancel()
+        // Symmetry with `setPost`: proactively tear down the view model's own
+        // data observations so they don't outlive the controller. (The view
+        // model's `deinit` also cancels them, but that only runs once no live
+        // observation task is still strong-holding it.)
+        viewModel.stopObservations()
     }
 
     private func setup() {
@@ -627,7 +635,7 @@ class PostDetailViewController: UIViewController {
         // initial comment fetch itself and leaves `postRowId` nil.
         viewModel.startObservations()
 
-        guard let postRowId = viewModel.postRowId else {
+        guard viewModel.postRowId != nil else {
             // Post not yet mirrored; the view model already kicked a comment
             // fetch that dual-writes everything the observations need.
             return
@@ -667,12 +675,15 @@ class PostDetailViewController: UIViewController {
 
     /// Reacts to the view model's published `commentsRevision`, reproducing the
     /// per-emit comment pipeline the GRDB loop used to run inline — in the same
-    /// order: rebuild the element-id lookup from the freshly-stored tree, prewarm
-    /// the comment bodies off the main thread, apply the snapshot, attempt the
-    /// permalink scroll, then fire the one-shot `didPrepareObservation`. The view
-    /// model owns the GRDB observation now: on each emit it stores the tree into
-    /// `orderedComments` (`@ObservationIgnored`) and bumps `commentsRevision`, so
-    /// that counter — not the tree — is the reaction key.
+    /// order: prewarm the comment bodies off the main thread, apply the snapshot,
+    /// attempt the permalink scroll, then fire the one-shot `didPrepareObservation`.
+    /// The view model owns the GRDB observation now: on each emit it stores the
+    /// tree into `orderedComments` (`@ObservationIgnored`) — rebuilding its
+    /// `commentRowsByElementId` element-id lookup atomically in the same turn — and
+    /// bumps `commentsRevision`, so that counter — not the tree — is the reaction
+    /// key. Because the lookup lives on the view model alongside the tree, an
+    /// `applySnapshot()` that interleaves during this reaction's `await` always
+    /// sees a lookup consistent with the tree it renders.
     private func startCommentReaction() {
         commentObservationTask?.cancel()
         commentObservationTask = Task { @MainActor [weak self] in
@@ -689,7 +700,6 @@ class PostDetailViewController: UIViewController {
                 lastHandledRevision = revision
 
                 let rows = viewModel.orderedComments
-                commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
 
                 await Self.prewarmCommentBodies(
                     rows,
@@ -743,7 +753,7 @@ class PostDetailViewController: UIViewController {
     private func attemptPermalinkScroll() {
         guard
             let target = pendingPermalinkServerCommentId,
-            let elementId = commentRowsByElementId.values
+            let elementId = viewModel.commentRowsByElementId.values
             .first(where: { $0.serverCommentId == target })?.id
         else { return }
         pendingPermalinkServerCommentId = nil
@@ -956,8 +966,8 @@ class PostDetailViewController: UIViewController {
         // Overlay each pending edit onto its existing visible comment row: record
         // the locally-edited body + sending/failed status keyed by the real
         // element id. The cell provider applies the override at config time (it
-        // does NOT mutate `commentRowsByElementId`, which stays pristine server
-        // data so a later outbound-only snapshot can't compound the override). The
+        // does NOT mutate `viewModel.commentRowsByElementId`, which stays pristine
+        // server data so a later outbound-only snapshot can't compound the override). The
         // row keeps its real element id, so its votes/score/badges/children all
         // stay put; on success the outbound row is deleted and the overlay clears.
         for row in visibleRows {
@@ -1106,7 +1116,7 @@ class PostDetailViewController: UIViewController {
         let items = snapshot.itemIdentifiers(inSection: .comments)
         for (offset, item) in items.enumerated() {
             guard case let .comment(elementId) = item else { continue }
-            guard commentRowsByElementId[elementId]?.depth == 1 else { continue }
+            guard viewModel.commentRowsByElementId[elementId]?.depth == 1 else { continue }
 
             let indexPath = IndexPath(row: offset, section: Section.comments.rawValue)
             let rect = tableView.rectForRow(at: indexPath)
@@ -1347,7 +1357,7 @@ class PostDetailViewController: UIViewController {
     /// Shares the comment identified by `serverCommentId`. Prefers the
     /// comment's `ap_id` permalink; falls back to `<instance>/comment/<id>`.
     private func shareComment(serverCommentId: Int64) {
-        let row = commentRowsByElementId.values
+        let row = viewModel.commentRowsByElementId.values
             .first { $0.serverCommentId == serverCommentId }
         let instanceActorId = viewModel.instanceActorId
         guard let url = LinkURL.forComment(
@@ -1643,7 +1653,7 @@ class PostDetailViewController: UIViewController {
 
     private func toggleSavedOnComment(serverCommentId: Int64) {
         guard canSaveOrPresentSignInAlert() else { return }
-        let row = commentRowsByElementId.values
+        let row = viewModel.commentRowsByElementId.values
             .first { $0.serverCommentId == serverCommentId }
         let currentlySaved = (row?.isSaved ?? false) == true
         Task { await setSavedOnComment(serverCommentId: serverCommentId, saved: !currentlySaved) }
@@ -1905,7 +1915,7 @@ extension PostDetailViewController {
                     return cell
                 }
 
-                guard var row = self?.commentRowsByElementId[elementId] else {
+                guard var row = self?.viewModel.commentRowsByElementId[elementId] else {
                     logger.assertionFailure("Missing PostDetailCommentRow for element \(elementId)")
                     return cell
                 }
@@ -2063,7 +2073,7 @@ extension PostDetailViewController: UITableViewDelegate {
         guard
             indexPath.section == 1,
             case let .comment(elementId) = dataSource.itemIdentifier(for: indexPath),
-            let commentRow = commentRowsByElementId[elementId],
+            let commentRow = viewModel.commentRowsByElementId[elementId],
             let serverCommentId = commentRow.serverCommentId
         else { return nil }
 
