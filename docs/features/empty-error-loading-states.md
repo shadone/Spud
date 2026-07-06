@@ -11,6 +11,7 @@ Across its scenes Spud shows designed states for the moments before, instead of,
 ## Behavior and rules
 
 - **System content-unavailable presentation.** Empty and inline-error states are built on the system `UIContentUnavailableConfiguration` (a SwiftUI `ContentUnavailableView` on the one SwiftUI screen, the blocked-users list). Each state supplies a symbol, a title, and a secondary message; styling — typography, secondary-label color, centered layout — comes from the system, so the states match across scenes without a bespoke component.
+- **Two ways the state is placed on screen.** Where nothing else needs to stay visible — Search, Inbox, a direct-message thread — the state is presented as a view-wide overlay, centered across the whole screen. Where other content must stay on screen alongside it — a feed with a scrolling header above it, such as the Community screen — the state instead renders into the list's own background behind the rows, inset to start below that header, so the placeholder never covers it (see [Feed loading and pagination](feed-loading.md) and [Community screen](community-screen.md)). The [Person profile](person-profile.md) uses this same background placement but without a header inset — see that doc for the one limitation this leaves with a very tall header.
 - **Empty states are scene-specific in copy.** The feed shows "No posts" (or "No saved posts yet" on the saved feed); Search shows a "Search posts, communities, and people" prompt before you type and a no-results state quoting your query; Inbox shows a per-scope empty for replies, mentions, and messages; a direct-message thread and a profile each have their own empty copy. The mechanism is shared; the words are not.
 - **Empty states do not flash during loading.** An empty placeholder is shown only once a first result has arrived and the scene is genuinely empty with nothing in flight, so it never appears briefly before content loads. (For the feed, see [Feed loading and pagination](feed-loading.md).)
 - **Loading indicators.** While a list pages, a footer row with an activity indicator appears beneath the content and is removed when the page arrives (the feed footer spinner, documented in [Feed loading and pagination](feed-loading.md)). Scenes that route to a screen while its content loads — post detail, a person profile, a community — show a full-screen activity indicator until the content is ready, then swap in the loaded screen. Individual scenes (composer, account, registration) show inline spinners for in-flight work.
@@ -47,6 +48,14 @@ Across its scenes Spud shows designed states for the moments before, instead of,
 - **Then** the list shows an inline Offline / Unreachable / Malformed state with a symbol, title, and message
 - **And** action buttons offer to retry, work offline, or copy diagnostics
 - **And** if the failure was offline, the feed retries automatically once connectivity returns
+
+### A header-bearing screen keeps its header while empty or failed
+
+- **Surfaces:** `iphone`, `ipad`
+- **Given** a screen with a scrolling header above a list, such as the Community screen
+- **When** the list is empty or its first load fails
+- **Then** the empty or error placeholder renders below the header instead of across the whole screen
+- **And** the header stays fully visible above it
 
 ### Search and Inbox show an inline error state
 
