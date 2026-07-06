@@ -435,10 +435,12 @@ class PostListViewController: UIViewController {
         header.frame.size.height = height
         // Reassigning is what makes the table adopt the new header height.
         tableView.tableHeaderView = header
-        // Keep the loading skeleton clear of the (now-resized) header. The header
-        // height often resolves after the skeleton is already showing (community
-        // info loads asynchronously).
+        // Keep the loading skeleton AND the empty/error state surface clear of the
+        // (now-resized) header. Both share the table's `backgroundView` slot and
+        // are inset below the header; the header height often resolves after one is
+        // already showing (community info loads asynchronously), so re-sync both.
         syncSkeletonHeaderInset()
+        syncStateSurfaceHeaderInset()
     }
 
     /// Installs the trailing nav-bar buttons. The sort menu is always present; on
@@ -1086,6 +1088,48 @@ class PostListViewController: UIViewController {
         tableView.backgroundView = nil
     }
 
+    private lazy var stateSurfaceView = FeedStateSurfaceView()
+
+    /// Presents the full empty / error state by hosting it in the table's
+    /// `backgroundView` (the slot the loading skeleton also uses), rather than the
+    /// view-controller-level `contentUnavailableConfiguration`. That overlay is a
+    /// TRANSPARENT view drawn across the WHOLE controller view, including a
+    /// scrolling header hosted as the table's `tableHeaderView` (the community
+    /// header), so the error copy rendered see-through ON TOP of the header — the
+    /// shipped bug this fixes. The `backgroundView` sits BELOW the header in
+    /// z-order; the header-height top inset (see `syncStateSurfaceHeaderInset`)
+    /// then centers the surface within the below-header region. Mirrors
+    /// `PersonViewController.updateContentUnavailable` (commit b7ecc4ce). The
+    /// button actions ride the same `UIContentUnavailableConfiguration` rendered
+    /// by the same `UIContentUnavailableView` the VC-level overlay used, so
+    /// `makeErrorConfiguration(for:)` is reused unchanged.
+    ///
+    /// Symmetric with the skeleton's `===`-guarded set/clear so the two never
+    /// clobber each other in the shared slot: this only installs itself
+    /// (replacing whatever is there) and `hideStateSurface` only clears when it
+    /// owns the slot. `contentUnavailableConfiguration` stays permanently nil.
+    private func showStateSurface(_ config: UIContentUnavailableConfiguration) {
+        syncStateSurfaceHeaderInset()
+        stateSurfaceView.setContentView(config.makeContentView())
+        if tableView.backgroundView !== stateSurfaceView {
+            tableView.backgroundView = stateSurfaceView
+        }
+    }
+
+    /// Insets the state surface below the scrolling header (if any), mirroring
+    /// `syncSkeletonHeaderInset()` — the surface is the table's `backgroundView`,
+    /// which sits behind the `tableHeaderView`, so this keeps it centered in the
+    /// visible below-header region instead of behind an opaque, possibly tall,
+    /// header. Zero for a header-less feed.
+    private func syncStateSurfaceHeaderInset() {
+        stateSurfaceView.topInset = scrollingHeaderView?.frame.height ?? 0
+    }
+
+    private func hideStateSurface() {
+        guard tableView.backgroundView === stateSurfaceView else { return }
+        tableView.backgroundView = nil
+    }
+
     @objc
     private func refreshTriggered() {
         // Pull-to-refresh re-pulls the feed from the top via a fresh feed key,
@@ -1181,7 +1225,12 @@ class PostListViewController: UIViewController {
     /// loading, the designed empty state when settled-and-empty, and the
     /// presenter-driven error surface when the initial load failed. The skeleton
     /// and the content-unavailable surface are mutually exclusive.
-    private func applyLoadState(_ state: FeedLoadState) {
+    ///
+    /// `internal` (not `private`) ONLY so `PostListStateSurfaceTests` can drive a
+    /// state directly and assert where the surface renders — the live update path
+    /// (the async `loadStateObservationTask`) is not synchronously drivable. Not
+    /// public API; treat as private to this file plus that one test seam.
+    func applyLoadState(_ state: FeedLoadState) {
         switch state {
         case let .loading(slow):
             // During a pull-to-refresh the control is the only progress
@@ -1190,11 +1239,11 @@ class PostListViewController: UIViewController {
                 showLoadingSkeleton()
                 loadingSkeletonView.setShowsSlowHint(slow)
             }
-            contentUnavailableConfiguration = nil
+            hideStateSurface()
         case .loaded:
             refreshControl.endRefreshing()
             hideLoadingSkeleton()
-            contentUnavailableConfiguration = nil
+            hideStateSurface()
         case .empty:
             refreshControl.endRefreshing()
             hideLoadingSkeleton()
@@ -1203,7 +1252,7 @@ class PostListViewController: UIViewController {
             config.image = UIImage(systemName: empty.symbolName)
             config.text = empty.title
             config.secondaryText = empty.message
-            contentUnavailableConfiguration = config
+            showStateSurface(config)
         case let .failed(failure):
             // Never replace on-screen posts with the full error surface: it's a
             // transparent `UIContentUnavailableConfiguration`, so overlaying it on
@@ -1222,7 +1271,7 @@ class PostListViewController: UIViewController {
                 showRefreshFailureToast(for: failure)
             case .fullErrorSurface:
                 hideLoadingSkeleton()
-                contentUnavailableConfiguration = makeErrorConfiguration(for: failure)
+                showStateSurface(makeErrorConfiguration(for: failure))
             }
         }
     }

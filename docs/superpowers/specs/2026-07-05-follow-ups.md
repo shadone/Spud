@@ -273,6 +273,35 @@ it remains appropriate only for a suite that deliberately exercises
 both addenda's leak; the rest of this section's scope — trimming the
 runtime-pinned snapshot population itself — is unchanged and still open.
 
+**Addendum (2026-07-06, found during the community-error-overlay branch's
+Task 2 snapshot work): a suite-wide failure on the reference device+runtime
+itself was sim Dynamic Type, not host/OS drift.** Going into that branch's
+snapshot task, the environment read as RED — carried in its dispatch context
+as "host drift, spec §5" — from a prior run failing broadly even on what
+should have been the reference **iPhone 17 Pro / iOS 26.3.x** config, a
+failure shape this section's problem statement had so far only attributed to
+cross-runtime font-hinting differences (the "~129/185 fail on iOS 26.0" case).
+The actual root cause was narrower and fully fixable: the shared sim's Dynamic
+Type content size had drifted to `medium` (one notch below iOS's `large`
+default) — sim state, surviving Mac reboots — shrinking every text-bearing ref
+~4% while geometry-only refs stayed green. Diagnosed via failure-diff metrics
+plus `xcrun simctl ui <sim-id> content_size` (underscore syntax; `defaults
+read -g` does not surface this setting); fixed with `xcrun simctl ui <sim-id>
+content_size large`. The full suite re-verified **258/258** (261/261
+including the branch's new `FeedStateSurfaceSnapshotTests`) on 2026-07-06 late
+evening, and **snapshot verification is UNBLOCKED**. A durable defense landed
+alongside: `SnapshotDeterminism.contentSizeTrait` pins
+`preferredContentSizeCategory: .large` into new `.image(size:traits:)` call
+sites so this can't silently recur there (see `SpudSnapshotTests/CLAUDE.md`
+for the full gotcha and diagnostic recipe). Open follow-up from this
+resolution: route the ~24 existing `.image(size:traits:)` snapshot files'
+private `traits()` helpers through `SnapshotDeterminism.contentSizeTrait`
+(device-config captures need nothing — the library unconditionally bakes
+`.medium` into those traits, making them sim-immune). This section's own
+scope — trimming the runtime-pinned population itself — is unchanged and
+still open; this addendum only narrows what counts as unavoidable drift
+within it.
+
 ## 6. git-annex special remote + push cadence
 
 **Problem.** 100% of the snapshot reference PNG content exists ONLY on this
