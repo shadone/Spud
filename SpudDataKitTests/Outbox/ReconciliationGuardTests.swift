@@ -171,6 +171,142 @@ struct ReconciliationGuardTests {
         #expect(title == "Hello world") // Post.fake's title
         #expect(body == "Hello example world") // Post.fake's body
     }
+
+    // MARK: - Community subscribe (mutation outbox) reconcile guard
+
+    /// A background `CommunityView` import (feed / getPost / getCommunity) must
+    /// not clobber an un-synced optimistic subscribe: while the `.subscribe` op is
+    /// pending, the server's stale `subscribed`/junction is skipped so the header
+    /// keeps showing Pending and the Subscriptions sidebar keeps the row.
+    @Test
+    func communityImportDoesNotClobberPendingSubscribe() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .notSubscribed)
+
+        // Tapping Subscribe projects the optimistic Pending state + junction row.
+        try await appDatabase.enqueueOutboxOperation(
+            OutboxOperation(entityType: .community, entityServerId: cid, desiredState: .subscribe(true)),
+            accountId: accountId,
+            now: 100
+        )
+
+        // A concurrent server import still reports the pre-follow state.
+        let staleView = Components.Schemas.CommunityView.fake(community: .fake, subscribed: .NotSubscribed)
+        try await appDatabase.upsertCommunity(from: staleView, accountId: accountId)
+
+        // The optimistic Pending + junction survive the reconcile.
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "Pending")
+        #expect(followed == true)
+    }
+
+    /// `setFollowedCommunities` (every getSite) must PRESERVE an optimistic
+    /// subscribe that the server hasn't processed yet: the community is ABSENT
+    /// from `my_user.follows`, but its optimistic junction row + Pending state
+    /// must survive the wholesale junction rewrite.
+    @Test
+    func setFollowedCommunitiesAbsentKeepsPendingSubscribe() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .notSubscribed)
+
+        try await appDatabase.enqueueOutboxOperation(
+            OutboxOperation(entityType: .community, entityServerId: cid, desiredState: .subscribe(true)),
+            accountId: accountId,
+            now: 100
+        )
+
+        // getSite returns an empty follow list (the server hasn't caught up).
+        try await appDatabase.setFollowedCommunities(accountId: accountId, follows: [])
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "Pending")
+        #expect(followed == true)
+    }
+
+    /// `setFollowedCommunities` must NOT resurrect an optimistic unsubscribe: the
+    /// community is still PRESENT in `my_user.follows` (the server hasn't processed
+    /// the unfollow), but neither its junction row nor its NotSubscribed state may
+    /// be brought back by the wholesale rewrite.
+    @Test
+    func setFollowedCommunitiesPresentDoesNotResurrectPendingUnsubscribe() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .subscribed)
+
+        // Tapping Unsubscribe projects NotSubscribed + junction removal.
+        try await appDatabase.enqueueOutboxOperation(
+            OutboxOperation(entityType: .community, entityServerId: cid, desiredState: .subscribe(false)),
+            accountId: accountId,
+            now: 100
+        )
+
+        // getSite still lists the community as followed.
+        let follow = Components.Schemas.CommunityFollowerView(community: .fake, follower: .fake)
+        try await appDatabase.setFollowedCommunities(accountId: accountId, follows: [follow])
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "NotSubscribed")
+        #expect(followed == false)
+    }
+
+    /// The outbox performer's authoritative post-send mirror bypasses the guard by
+    /// passing `respectsPendingOutbox: false`, so the server's confirmed subscribed
+    /// state (Subscribed) replaces the optimistic Pending.
+    @Test
+    func outboxReconcileWritesServerSubscribedState() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .notSubscribed)
+
+        try await appDatabase.enqueueOutboxOperation(
+            OutboxOperation(entityType: .community, entityServerId: cid, desiredState: .subscribe(true)),
+            accountId: accountId,
+            now: 100
+        )
+
+        // The performer confirms server truth and bypasses the guard.
+        let confirmedView = Components.Schemas.CommunityView.fake(community: .fake, subscribed: .Subscribed)
+        try await appDatabase.upsertCommunity(from: confirmedView, accountId: accountId, respectsPendingOutbox: false)
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "Subscribed")
+        #expect(followed == true)
+    }
+
+    /// With no pending `.subscribe` op the guard must not over-block: a server
+    /// `CommunityView` import writes the authoritative subscribed state + junction
+    /// normally.
+    @Test
+    func communityImportWithoutPendingSubscribeImportsNormally() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .notSubscribed)
+
+        let view = Components.Schemas.CommunityView.fake(community: .fake, subscribed: .Subscribed)
+        try await appDatabase.upsertCommunity(from: view, accountId: accountId)
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "Subscribed")
+        #expect(followed == true)
+    }
+
+    /// With no pending `.subscribe` op `setFollowedCommunities` rewrites the
+    /// junction from the server snapshot as before (a community present in
+    /// `follows` becomes followed).
+    @Test
+    func setFollowedCommunitiesWithoutPendingRewritesJunctionNormally() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .notSubscribed)
+
+        let follow = Components.Schemas.CommunityFollowerView(community: .fake, follower: .fake)
+        try await appDatabase.setFollowedCommunities(accountId: accountId, follows: [follow])
+
+        let (_, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(followed == true)
+    }
 }
 
 private func readPostContent(

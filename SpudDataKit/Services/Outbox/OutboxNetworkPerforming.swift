@@ -81,9 +81,14 @@ public struct LemmyOutboxPerformer: OutboxNetworkPerforming {
                     communityID: Components.Schemas.CommunityID(op.entityServerId),
                     follow: value
                 )
-                // Task 2 threads respectsPendingOutbox: false here so this
-                // authoritative post-send mirror overrides the still-pending guard.
-                try await appDatabase.upsertCommunity(from: r.community_view, accountId: accountId)
+                // Authoritative post-send mirror: bypass the pending-outbox guard
+                // so the server's confirmed subscribed state overrides the still-
+                // pending optimistic projection.
+                try await appDatabase.upsertCommunity(
+                    from: r.community_view,
+                    accountId: accountId,
+                    respectsPendingOutbox: false
+                )
             case .post, .comment:
                 break // subscribe only targets a community; nothing to send.
             }

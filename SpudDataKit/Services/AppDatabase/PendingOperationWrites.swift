@@ -445,6 +445,52 @@ extension AppDatabase {
         return Set(raws.compactMap(OutboxKind.init(rawValue:)))
     }
 
+    /// Returns the community ROW ids (for `accountId`) that have an in-flight
+    /// `.subscribe` op. Joins `pendingOperation.entityServerId` (the SERVER
+    /// community id the outbox stores) to `community.communityId`, scoped to the
+    /// account. Used by `setFollowedCommunities` to exempt these communities from
+    /// the server's junction rewrite so an optimistic subscribe/unsubscribe stands
+    /// until the outbox confirms it.
+    static func pendingSubscribeCommunityRowIds(
+        _ db: Database,
+        accountId: Int64
+    ) throws -> Set<Int64> {
+        let ids = try Int64.fetchAll(
+            db,
+            sql: """
+                SELECT c.id FROM community c
+                JOIN pendingOperation p
+                  ON p.entityServerId = c.communityId AND p.accountId = c.accountId
+                WHERE c.accountId = ?
+                  AND p.entityType = ?
+                  AND p.kind = ?
+                """,
+            arguments: [accountId, OutboxEntityType.community.rawValue, OutboxKind.subscribe.rawValue]
+        )
+        return Set(ids)
+    }
+
+    /// Of the given community ROW ids, returns the subset that currently have an
+    /// `accountFollowedCommunity` junction row for `accountId`. Snapshots the
+    /// pre-rewrite optimistic membership so `setFollowedCommunities` can restore it.
+    static func followedCommunityRowIds(
+        _ db: Database,
+        accountId: Int64,
+        among communityRowIds: Set<Int64>
+    ) throws -> Set<Int64> {
+        guard !communityRowIds.isEmpty else { return [] }
+        let placeholders = databaseQuestionMarks(count: communityRowIds.count)
+        let ids = try Int64.fetchAll(
+            db,
+            sql: """
+                SELECT communityId FROM accountFollowedCommunity
+                WHERE accountId = ? AND communityId IN (\(placeholders))
+                """,
+            arguments: StatementArguments([accountId] + communityRowIds.map { $0 })
+        )
+        return Set(ids)
+    }
+
     /// True when a content-outbox row is editing this post and has not yet synced
     /// (its status is `sending` or `failed`). Used by `upsertPost`'s reconcile
     /// guard to preserve the locally-applied title/body/url/nsfw against a
