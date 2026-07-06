@@ -94,8 +94,8 @@ final class CommunityViewModel {
         descriptionMarkdown = record.descriptionText
         iconUrl = record.iconUrl.flatMap { URL(string: $0) }
         bannerUrl = record.bannerUrl.flatMap { URL(string: $0) }
-        subscribersText = CommentsFormatter.string(from: record.numberOfSubscribers)
-        postsText = CommentsFormatter.string(from: record.numberOfPosts)
+        subscribersText = CountFormatter.string(record.numberOfSubscribers)
+        postsText = CountFormatter.string(record.numberOfPosts)
         subscribed = record.subscribed
         isNsfw = record.isNsfw
         loadVitalityIfNeeded()
@@ -107,8 +107,8 @@ final class CommunityViewModel {
     private func loadVitalityIfNeeded() {
         guard vitalityText == nil, let actorId else { return }
         guard let explorer = appDatabase.explorerCommunitySync(url: actorId) else { return }
-        let week = CommentsFormatter.string(from: explorer.usersActiveWeek)
-        let month = CommentsFormatter.string(from: explorer.usersActiveMonth)
+        let week = CountFormatter.string(explorer.usersActiveWeek)
+        let month = CountFormatter.string(explorer.usersActiveMonth)
         let weekText = String(
             format: NSLocalizedString("%@ active this week", comment: "Community vitality: weekly active users"),
             week

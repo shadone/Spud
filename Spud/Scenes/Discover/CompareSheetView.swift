@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUtilKit
 import SwiftUI
 
 /// The same-name compare target: a community name carried by more than one
@@ -114,7 +115,7 @@ struct VariantRow: View {
                             .background(accent.opacity(0.12), in: Capsule())
                     }
                 }
-                Text("\(DiscoverCommunityRow.compact(row.numberOfSubscribers)) members · \(DiscoverCommunityRow.compact(row.usersActiveWeek))/wk")
+                Text("\(CountFormatter.string(row.numberOfSubscribers)) members · \(CountFormatter.string(row.usersActiveWeek))/wk")
                     .font(.caption)
                     .foregroundStyle(Color(.secondaryLabel))
             }
@@ -145,7 +146,7 @@ struct VariantRow: View {
     private var accessibilityLabel: String {
         var parts = [row.instanceHost]
         if rank == 0 { parts.append("most active") }
-        parts.append("\(DiscoverCommunityRow.compact(row.numberOfSubscribers)) members")
+        parts.append("\(CountFormatter.string(row.numberOfSubscribers)) members")
         if subscriptionState == .subscribed { parts.append("Subscribed") }
         return parts.joined(separator: ", ")
     }
