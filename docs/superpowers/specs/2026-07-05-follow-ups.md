@@ -293,9 +293,14 @@ evening, and **snapshot verification is UNBLOCKED**. A durable defense landed
 alongside: `SnapshotDeterminism.contentSizeTrait` pins
 `preferredContentSizeCategory: .large` into new `.image(size:traits:)` call
 sites so this can't silently recur there (see `SpudSnapshotTests/CLAUDE.md`
-for the full gotcha and diagnostic recipe). This section's own scope —
-trimming the runtime-pinned population itself — is unchanged and still open;
-this addendum only narrows what counts as unavoidable drift within it.
+for the full gotcha and diagnostic recipe). Open follow-up from this
+resolution: route the ~24 existing `.image(size:traits:)` snapshot files'
+private `traits()` helpers through `SnapshotDeterminism.contentSizeTrait`
+(device-config captures need nothing — the library unconditionally bakes
+`.medium` into those traits, making them sim-immune). This section's own
+scope — trimming the runtime-pinned population itself — is unchanged and
+still open; this addendum only narrows what counts as unavoidable drift
+within it.
 
 ## 6. git-annex special remote + push cadence
 
