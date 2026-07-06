@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUtilKit
 import SwiftUI
 
 /// Detail for a starter pack: a header with its mosaic, blurb and a one-tap
@@ -54,7 +55,7 @@ struct PackDetailView: View {
                     Text(pack.title)
                         .font(.title2.weight(.bold))
                         .foregroundStyle(Color(.label))
-                    Text("\(pack.communityCount) communities · \(DiscoverCommunityRow.compact(pack.totalSubscribers)) members")
+                    Text("\(pack.communityCount) communities · \(CountFormatter.string(pack.totalSubscribers)) members")
                         .font(.caption)
                         .foregroundStyle(Color(.secondaryLabel))
                 }

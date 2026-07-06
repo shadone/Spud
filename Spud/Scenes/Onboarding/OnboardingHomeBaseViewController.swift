@@ -7,6 +7,7 @@
 import Foundation
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 /// "Pick your home base" — the onboarding instance picker shown after Welcome's
@@ -376,7 +377,7 @@ final class OnboardingHomeBaseViewController: UIViewController {
         guard let members = row.usersTotal, members > 0 else {
             return signup
         }
-        let formatted = CompactCount.string(members)
+        let formatted = CountFormatter.string(members)
         let membersText = String(
             format: NSLocalizedString("%@ members", comment: "Instance member count"),
             formatted

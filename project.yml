@@ -118,6 +118,7 @@ targets:
     dependencies:
       - target: SpudDataKit
       - target: SpudUIKit
+      - target: SpudUtilKit
 
   OpenInAppExtension:
     type: app-extension

@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUtilKit
 import SwiftUI
 
 /// The "Browse by instance" drill-in: every curated-safe community hosted on a
@@ -223,9 +224,9 @@ struct InstanceCommunitiesView: View {
     /// "X members · Y communities" when the instance's member count is known,
     /// otherwise just the community count shown below.
     private var statsLine: String {
-        let communityText = "\(DiscoverCommunityRow.compact(Int64(communities.count))) communities"
+        let communityText = "\(CountFormatter.string(Int64(communities.count))) communities"
         if let members = instanceInfo?.usersTotal, members > 0 {
-            return "\(DiscoverCommunityRow.compact(members)) members · \(communityText)"
+            return "\(CountFormatter.string(members)) members · \(communityText)"
         }
         return communityText
     }

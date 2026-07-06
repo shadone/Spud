@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUtilKit
 import SwiftUI
 
 /// The full ranked instance list for the "Browse by instance" rail, reached from
@@ -71,8 +72,8 @@ struct InstanceRow: View {
 
     private var summary: String {
         let communities = "\(instance.communityCount) communities"
-        let members = "\(DiscoverCommunityRow.compact(instance.totalSubscribers)) members"
-        let active = "\(DiscoverCommunityRow.compact(instance.totalActiveWeek))/wk"
+        let members = "\(CountFormatter.string(instance.totalSubscribers)) members"
+        let active = "\(CountFormatter.string(instance.totalActiveWeek))/wk"
         return "\(communities) · \(members) · \(active)"
     }
 }

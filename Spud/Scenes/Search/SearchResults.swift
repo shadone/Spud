@@ -223,7 +223,7 @@ struct SearchInstanceResult: Hashable, Identifiable {
 
     /// A short "N members" summary for the cell's secondary line.
     var membersText: String {
-        let count = usersTotal.formatted(.number.notation(.compactName))
+        let count = CountFormatter.string(usersTotal)
         return String(
             format: NSLocalizedString(
                 "%@ members",

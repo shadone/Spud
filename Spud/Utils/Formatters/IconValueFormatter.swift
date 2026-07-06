@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUtilKit
 import UIKit
 
 enum IconValueFormatter {
@@ -48,7 +49,7 @@ enum IconValueFormatter {
 
         return Self.attributedString(
             icon,
-            UpvotesFormatter.string(from: value),
+            CountFormatter.string(value),
             attributes: attributes
         )
     }
@@ -59,7 +60,7 @@ enum IconValueFormatter {
     ) -> NSAttributedString {
         attributedString(
             UIImage(systemName: "text.bubble")!,
-            CommentsFormatter.string(from: numberOfComments),
+            CountFormatter.string(numberOfComments),
             attributes: attributes
         )
     }
