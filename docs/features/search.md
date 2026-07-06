@@ -17,7 +17,7 @@ Search the connected instance for posts, communities, users, or comments — or 
 - **Empty query resets.** Clearing the field (or entering only whitespace) returns the screen to its initial prompt and discards any results.
 - **Single page of results.** A search returns one page (up to roughly 30 results) sorted by top-of-all-time across the All listing. There is no pagination or infinite scroll on search results.
 - **Designed states.** The screen shows an initial prompt before any query, a spinner while a query is in flight, a no-results state that quotes the term that returned nothing, and an error state if the request fails.
-- **Inline subscribe from community results.** A community result row carries a Subscribe / Subscribed button. Tapping it subscribes or unsubscribes in place, instantly and durably, without leaving search (see Scenarios and [Subscribe / unsubscribe](subscribe-unsubscribe.md)).
+- **Inline subscribe from community results.** A community result row carries a Subscribe / Subscribed button. Tapping it always flips the row in place immediately and durably queues the change without leaving search. If the community is already cached locally (seen before in a feed or another screen), that tap also lands the shared database-backed flip instantly, same as everywhere else; if it was found only through this search, the durable send still fires in the background, but the database catches up once it lands rather than at tap time (see Scenarios and [Subscribe / unsubscribe](subscribe-unsubscribe.md)).
 - **Tapping a result navigates.** A post or comment result opens the post in Post detail; a community result opens the [Community screen](community-screen.md); a user result opens the [Person profile](person-profile.md).
 - **Paste a Lemmy URL to open it in Spud.** When the search field contains a Lemmy link — a post, comment, community, user, or a bare instance — an "Open in Spud" row appears above the results that opens it in-app on tap (resolving the object federally when needed) instead of a web browser. Both canonical URLs (`/post/<id>`, `/c/<name>`, `/u/<name>`, `/comment/<id>`) and the frontend post form some instances use (`/c/<community>/p/<id>/<slug>`) are recognized, including links to instances not in the local directory.
 - **Keyboard dismisses on scroll.** Dragging the results list dismisses the keyboard.
@@ -56,8 +56,9 @@ Search the connected instance for posts, communities, users, or comments — or 
 
 - **Given** a community result row showing Subscribe while I am signed in
 - **When** I tap Subscribe on that row
-- **Then** the button immediately reads Subscribed (or Pending) — the change is written locally before the request is sent, and is durably queued and retried in the background
-- **And** if the server permanently rejects it, the row reverts and the shared "Couldn't update subscription" toast appears, same as everywhere else
+- **Then** the row's own button always flips immediately to Subscribed (or Pending), and the change is always durably queued and retried in the background
+- **And** if the community is already cached locally (already seen elsewhere, e.g. in a feed), the database-backed state also updates instantly, keeping every other open surface for it in sync; if it was found only through this search, the database instead catches up once the durable send lands
+- **And** if the server permanently rejects it, the shared "Couldn't update subscription" toast appears; a cached community's row reverts with the database state, while an uncached one reflects reality the next time the search is re-run or refreshed
 
 ### Signed-out subscribe is gated
 

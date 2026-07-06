@@ -17,7 +17,7 @@ Subscribe to a community to follow it, or unsubscribe to stop. The same toggle i
 - **Sign-in gate.** Subscribing is gated on being signed in. A signed-out attempt fires a warning haptic and shows a "Sign in to subscribe" alert before anything is written; the service also rejects a signed-out subscribe.
 - **Toggle against current state.** The action resolves against the current subscribed state — tapping the control subscribes when not subscribed and unsubscribes when subscribed. There is no separate unsubscribe control; it is the same toggle. Toggling back to the original state before the queued change has sent cancels it outright — no network call is made.
 - **Tap haptic on submit.** Submitting a subscribe / unsubscribe fires a tap haptic.
-- **The Community screen, Search, and Communities tab are instant from the first tap.** These surfaces already know the community's server id, so the durable optimistic write above applies the moment you tap, with no extra step.
+- **The Community screen and Communities tab are instant from the first tap; Search is instant only for a community already cached locally.** The Community screen (which fetches community info before showing the button) and the Communities tab (which only ever lists already-subscribed communities) always operate on a community that already has a local database row, so the durable optimistic write above — including the instant database-backed flip — applies the moment you tap, with no extra step. A [Search](search.md) result row may or may not have a local row yet: a community already cached (seen before in a feed or another screen) gets the same instant database flip; a community found only through this search still gets the row's own immediate flip and a durably queued send, but the database — and every other open surface for that community — only catches up once the send lands.
 - **Discover and instance-browsing resolve the community first, then apply instantly.** These two list directory rows that may not yet be a known server community, so subscribing first resolves the row to a server community id (a brief network lookup — Discover shows a spinner on the row while it resolves; instance-browsing's Join button flips its own row immediately regardless, matching the rest of the app). Once resolved, the same instant, durable write applies as everywhere else. Both surfaces additionally keep their own pre-existing cell-local optimistic touch, redundant with (but no worse than) the database-driven flip above; a permanent failure on either surface rolls back through the same shared outbox mechanism and toast, not a bespoke per-row alert.
 
 ## Scenarios
@@ -44,9 +44,10 @@ Subscribe to a community to follow it, or unsubscribe to stop. The same toggle i
 ### An offline subscribe still applies immediately
 
 - **Given** I am offline
-- **When** I subscribe to (or unsubscribe from) a community whose server id is already known (header, search, or the Communities tab)
+- **When** I subscribe to (or unsubscribe from) a community that already has a local database row (the header, the Communities tab, or a search result for a community I've already seen elsewhere)
 - **Then** the local state changes right away
 - **And** the change is queued durably and sends automatically once I'm back online, surviving an app relaunch in the meantime
+- **And** for a search result discovered only through this search (no cached local row yet), the row's own button still flips right away and the change is durably queued the same way — the database state simply catches up once the send goes through, rather than at tap time
 
 ### A permanent subscribe failure rolls back
 
