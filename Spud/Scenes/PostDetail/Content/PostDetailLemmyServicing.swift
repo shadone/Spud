@@ -17,6 +17,8 @@ import SpudDataKit
 protocol PostDetailLemmyServicing: Sendable {
     func reportPost(serverPostId: Components.Schemas.PostID, reason: String) async throws
     func reportComment(serverCommentId: Components.Schemas.CommentID, reason: String) async throws
+    func deleteComment(serverCommentId: Components.Schemas.CommentID, deleted: Bool) async throws
+    func deletePost(serverPostId: Components.Schemas.PostID, deleted: Bool) async throws
 }
 
 /// Production conformance: forwards to the account's `LemmyServiceType` actor.
@@ -33,5 +35,13 @@ struct PostDetailLemmyServiceAdapter: PostDetailLemmyServicing {
 
     func reportComment(serverCommentId: Components.Schemas.CommentID, reason: String) async throws {
         try await lemmyService.reportComment(serverCommentId: serverCommentId, reason: reason)
+    }
+
+    func deleteComment(serverCommentId: Components.Schemas.CommentID, deleted: Bool) async throws {
+        try await lemmyService.deleteComment(serverCommentId: serverCommentId, deleted: deleted)
+    }
+
+    func deletePost(serverPostId: Components.Schemas.PostID, deleted: Bool) async throws {
+        try await lemmyService.deletePost(serverPostId: serverPostId, deleted: deleted)
     }
 }

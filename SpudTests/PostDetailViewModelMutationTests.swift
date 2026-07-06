@@ -102,4 +102,62 @@ struct PostDetailViewModelMutationTests {
         }
         #expect(recording.invocations.isEmpty)
     }
+
+    // MARK: - Delete / Restore
+
+    @Test
+    func deleteCommentForwardsCommentIdAndDeletedFlag() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.deleteComment(serverCommentId: 42, deleted: true)
+
+        #expect(recording.invocations == [.deleteComment(serverCommentId: 42, deleted: true)])
+    }
+
+    @Test
+    func deleteCommentRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.deleteComment(serverCommentId: 42, deleted: true)
+        }
+        #expect(recording.invocations.isEmpty)
+    }
+
+    @Test
+    func deletePostForwardsPostIdAndDeletedFlag() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.deletePost(serverPostId: 1, deleted: true)
+
+        #expect(recording.invocations == [.deletePost(serverPostId: 1, deleted: true)])
+    }
+
+    @Test
+    func deletePostForwardsRestoreFlavor() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.deletePost(serverPostId: 1, deleted: false)
+
+        #expect(recording.invocations == [.deletePost(serverPostId: 1, deleted: false)])
+    }
+
+    @Test
+    func deletePostRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.deletePost(serverPostId: 1, deleted: true)
+        }
+        #expect(recording.invocations.isEmpty)
+    }
 }

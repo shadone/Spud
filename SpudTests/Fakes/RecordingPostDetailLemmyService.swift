@@ -25,6 +25,8 @@ final class RecordingPostDetailLemmyService: PostDetailLemmyServicing {
     enum Invocation: Equatable {
         case reportPost(serverPostId: Components.Schemas.PostID, reason: String)
         case reportComment(serverCommentId: Components.Schemas.CommentID, reason: String)
+        case deleteComment(serverCommentId: Components.Schemas.CommentID, deleted: Bool)
+        case deletePost(serverPostId: Components.Schemas.PostID, deleted: Bool)
     }
 
     private(set) var invocations: [Invocation] = []
@@ -41,5 +43,15 @@ final class RecordingPostDetailLemmyService: PostDetailLemmyServicing {
     func reportComment(serverCommentId: Components.Schemas.CommentID, reason: String) async throws {
         if let errorToThrow { throw errorToThrow }
         invocations.append(.reportComment(serverCommentId: serverCommentId, reason: reason))
+    }
+
+    func deleteComment(serverCommentId: Components.Schemas.CommentID, deleted: Bool) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.deleteComment(serverCommentId: serverCommentId, deleted: deleted))
+    }
+
+    func deletePost(serverPostId: Components.Schemas.PostID, deleted: Bool) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.deletePost(serverPostId: serverPostId, deleted: deleted))
     }
 }

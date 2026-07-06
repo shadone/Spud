@@ -572,4 +572,22 @@ final class PostDetailViewModel {
             reason: reason
         )
     }
+
+    // MARK: - Action dispatch (delete / restore)
+
+    /// Deletes or restores the user's OWN comment `serverCommentId`. Converts
+    /// the local `Int64` id to the API `CommentID` here so the view controller
+    /// stays free of that conversion. Rethrows the service error unchanged.
+    func deleteComment(serverCommentId: Int64, deleted: Bool) async throws {
+        try await lemmy.deleteComment(
+            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            deleted: deleted
+        )
+    }
+
+    /// Deletes or restores the user's OWN post `serverPostId`. Rethrows the
+    /// service error unchanged.
+    func deletePost(serverPostId: Components.Schemas.PostID, deleted: Bool) async throws {
+        try await lemmy.deletePost(serverPostId: serverPostId, deleted: deleted)
+    }
 }
