@@ -36,6 +36,7 @@ class AccountViewController: UIViewController {
         HasExplorerService &
         HasImageService &
         HasLinkEmbedService &
+        HasNodeInfoService &
         HasPostContentDetectorService &
         HasPreferencesService &
         HasReachabilityMonitor &

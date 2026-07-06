@@ -41,6 +41,7 @@ class PersonViewController: UIViewController {
         HasDiagnosticLog &
         HasImageService &
         HasLinkEmbedService &
+        HasNodeInfoService &
         HasPostContentDetectorService &
         HasPreferencesService &
         HasReachabilityMonitor &

@@ -35,6 +35,7 @@ final class InboxViewController: UIViewController {
         HasDiagnosticLog &
         HasImageService &
         HasLinkEmbedService &
+        HasNodeInfoService &
         HasPostContentDetectorService &
         HasPreferencesService &
         HasReachabilityMonitor &
