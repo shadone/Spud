@@ -56,10 +56,17 @@ struct PostDetailLemmyServiceAdapter: PostDetailLemmyServicing {
 `PostDetailViewModel` additions (grows per task; final state):
 
 ```swift
+// (Amended after Task 1 review — the original eager `let` sketch resolved
+// `accountScope.lemmyService` at init, which fatalErrors on the unregistered
+// fixture accounts the existing fetch tests use, contradicting this plan's own
+// "existing suites remain green" constraint. Call-time resolution also matches
+// the pre-refactor per-call-site reads exactly. Review-verified.)
 @ObservationIgnored
-private let lemmy: any PostDetailLemmyServicing
-// init gains: lemmy: (any PostDetailLemmyServicing)? = nil
-//   self.lemmy = lemmy ?? PostDetailLemmyServiceAdapter(lemmyService: accountScope.lemmyService)
+private let injectedLemmy: (any PostDetailLemmyServicing)?
+private var lemmy: any PostDetailLemmyServicing {
+    injectedLemmy ?? PostDetailLemmyServiceAdapter(lemmyService: accountScope.lemmyService)
+}
+// init gains: lemmy: (any PostDetailLemmyServicing)? = nil  →  self.injectedLemmy = lemmy
 
 // Thin dispatch methods (no UI, no new state). Where the target is always this
 // post, the VM supplies its own serverPostId; Int64 comment/person ids convert
