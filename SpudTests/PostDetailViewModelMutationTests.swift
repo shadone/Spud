@@ -116,6 +116,16 @@ struct PostDetailViewModelMutationTests {
     }
 
     @Test
+    func deleteCommentForwardsRestoreFlavor() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.deleteComment(serverCommentId: 42, deleted: false)
+
+        #expect(recording.invocations == [.deleteComment(serverCommentId: 42, deleted: false)])
+    }
+
+    @Test
     func deleteCommentRethrowsServiceError() async {
         struct Boom: Error { }
         let recording = RecordingPostDetailLemmyService()

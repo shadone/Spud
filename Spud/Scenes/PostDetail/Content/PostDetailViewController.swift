@@ -2237,6 +2237,12 @@ extension PostDetailViewController: InternalLinkRouting {
         appDatabase
     }
 
+    /// Documented exception: this is the sole intended `lemmyService` reference
+    /// left at the PostDetail VC layer (`grep lemmyService PostDetailViewController*.swift`
+    /// matches only here) — the shared `InternalLinkRouting` machinery is written
+    /// against the raw `LemmyServiceType`, not the scene-owned `PostDetailLemmyServicing`
+    /// seam, so it needs the account's actual service handed through as-is. Every
+    /// other PostDetail mutation dispatches through `PostDetailViewModel` instead.
     var linkRouterLemmyService: LemmyServiceType {
         viewModel.accountScope.lemmyService
     }

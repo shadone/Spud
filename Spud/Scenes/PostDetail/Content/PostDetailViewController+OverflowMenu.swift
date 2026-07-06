@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import LemmyKit
 import SpudDataKit
 import SpudUIKit
 import SpudUtilKit
