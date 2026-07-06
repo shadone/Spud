@@ -90,7 +90,11 @@ struct NonAnimatedRemeasureTests {
         tableView.estimatedRowHeight = 40
         tableView.dataSource = dataSource
         window.addSubview(tableView)
-        window.makeKeyAndVisible()
+        // Show the window without claiming key status: the animation-keys probe
+        // only needs the view attached to a window and laid out, and leaving key
+        // status alone avoids stealing it from whatever window the test runner
+        // itself is using.
+        window.isHidden = false
         // Settle the initial self-sizing pass so the row is at ~40pt before we
         // grow it (two passes: estimate -> real self-sized height).
         tableView.layoutIfNeeded()
@@ -126,6 +130,7 @@ struct NonAnimatedRemeasureTests {
     @Test
     func bareBatchUpdates_animatesRowHeight() {
         let harness = makeHarness()
+        defer { harness.window.isHidden = true }
         let (keys, _) = growAndRemeasure(harness) { $0.performBatchUpdates(nil) }
         #expect(
             !keys.isEmpty,
@@ -136,6 +141,7 @@ struct NonAnimatedRemeasureTests {
     @Test
     func helperRemeasure_doesNotAnimate_andGrowsRow() {
         let harness = makeHarness()
+        defer { harness.window.isHidden = true }
         let (keys, finalHeight) = growAndRemeasure(harness) { $0.remeasureRowHeightsWithoutAnimation() }
         #expect(
             keys.isEmpty,

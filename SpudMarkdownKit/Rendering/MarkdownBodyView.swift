@@ -27,8 +27,10 @@ public final class MarkdownBodyView: UIView {
     }
 
     /// Called after `invalidateIntrinsicContentSize()` when an inline image load
-    /// changes the body height, giving the enclosing table cell a hook to trigger
-    /// `beginUpdates/endUpdates` and re-measure the row.
+    /// changes the body height, giving the enclosing table cell a hook to
+    /// re-measure the row WITHOUT animation. The image view has never been laid
+    /// out at this point, so an animated re-measure would interpolate its frame
+    /// from `.zero` — visible as the image zooming in from a corner.
     public var onContentSizeChange: (() -> Void)?
 
     public init(context: MarkdownContext) {

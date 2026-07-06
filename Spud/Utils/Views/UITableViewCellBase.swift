@@ -15,12 +15,12 @@ class UITableViewCellBase: UITableViewCell {
     /// Returns true when we are inside `func tableView(_:, cellForRowAt:)`
     ///
     /// While being configured layout changes are picked up automatically; otherwise
-    /// we need to explicitly tell the UITableView that the row height has changed e.g.
-    /// by calling the following:
-    /// ```swift
-    ///   tableView.beginUpdates()
-    ///   tableView.endUpdates()
-    /// ```
+    /// we need to explicitly tell the UITableView that the row height has changed, via
+    /// `tableView.remeasureRowHeightsWithoutAnimation()`. Re-measuring with a plain
+    /// animated `beginUpdates()/endUpdates()` (or `performBatchUpdates(nil)`) interpolates
+    /// any newly installed, never-laid-out subview's frame from `.zero` to its final
+    /// frame — visible as content zooming in from a corner (e.g. a late-loading inline
+    /// body image).
     var isBeingConfigured: Bool = false
 
     override func prepareForReuse() {
