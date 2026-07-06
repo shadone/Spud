@@ -58,11 +58,23 @@ audits). Both open review notes resolved: the protocol is now split into
 `PostVoteDispatching` / `PostSaveDispatching` (Activity dropped its stub) and the
 `presentSignInGate` requirement is gone; a `postActionWillDispatch` hook carries
 PostDetail's offline-action toast, and PostDetail's post-level vote/save now fold
-into `PostSaveDispatching` (behavior byte-identical, review-proven). Still open
-(Phase 2): the GRDB observation-loop move into `PostDetailViewModel` (needs an
-observable comments-revision signal — `orderedComments` is deliberately
-`@ObservationIgnored` — plus DB-backed VM tests), the lemmyService mutations'
-move, and a PostDetail header-vote e2e mirroring `SignedInVoteUITests`.
+into `PostSaveDispatching` (behavior byte-identical, review-proven).
+
+**Landed (2026-07-06): Phase 2** (plan:
+docs/superpowers/plans/2026-07-06-postdetail-phase2.md). `PostDetailViewModel`
+now owns the data layer: all three GRDB observation loops (header, comments —
+via a published `commentsRevision` signal since `orderedComments` stays
+`@ObservationIgnored` — and outbound), `recordVisit`, and the sync-read
+accessors (`instanceActorId`, `isOwnContent`, `isKnownInstance`,
+`muteCommunity`); the VC is a renderer reacting through `ObservationStream`
+loops (`grep "appDatabase\." PostDetailViewController*.swift` is zero beyond
+the DI declaration and the `InternalLinkRouting` conformance). 13 DB-backed VM
+tests (in-memory GRDB harness) + a PostDetail header-vote e2e. The VC is 2,264
+lines (reaction-loop scaffolding keeps it above the ~2,000 estimate); the VM is
+508. Still open (Phase 3, optional): moving the lemmyService mutations
+(report/delete/moderation) into VM methods, and applying the same
+VM-owns-observations shape to `PostListViewController` and
+`CommunityViewController`.
 
 ## 2. Signed-in UITest seam
 
