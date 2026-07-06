@@ -108,11 +108,11 @@ public struct MarkdownContext {
     }
 
     public var lineHeightMultiple: CGFloat {
-        post ? 1.55 : 1.48
+        post ? 1.44 : 1.48
     }
 
     public var interBlockGap: CGFloat {
-        post ? 15 : 9
+        post ? 13 : 9
     }
 
     public var listIndent: CGFloat {
