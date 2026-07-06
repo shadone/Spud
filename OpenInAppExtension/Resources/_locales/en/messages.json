@@ -18,5 +18,17 @@
     "banner_dismiss": {
         "message": "Dismiss",
         "description": "Accessibility label of the banner's dismiss button."
+    },
+    "popup_open": {
+        "message": "Open in Spud",
+        "description": "Label of the toolbar popup button that opens the current page in the Spud app."
+    },
+    "popup_not_lemmy": {
+        "message": "Not a Lemmy instance",
+        "description": "Toolbar popup message shown when the current page is not a known Lemmy instance."
+    },
+    "popup_error": {
+        "message": "Couldn't open - try again",
+        "description": "Toolbar popup message shown when handing the page to the app failed."
     }
 }

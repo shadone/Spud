@@ -52,7 +52,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | `iphone` | iPhone, compact width — the primary single-column experience |
 | `ipad` | iPad, regular width — two-column split views on the Posts tab and (when reading a community) the Communities tab; adaptive layouts for sheets and content-width screens |
 | `widget` | Home Screen widget (`SpudWidgetExtension`) — top posts at a glance |
-| `share-extension` | "Open in Spud" Safari Web Extension (`OpenInAppExtension`) — rewrites a Lemmy post page to a deep link that opens the post in the app |
+| `share-extension` | "Open in Spud" Safari Web Extension (`OpenInAppExtension`) — in-page banner + toolbar popup on known instances, plus the share/action extension — hands a Lemmy page to a deep link that opens it in the app |
 
 ## Capabilities
 
@@ -114,7 +114,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Accessibility](accessibility.md) | `iphone`, `ipad` | shipped |
 | [Home Screen widget (top posts)](widget.md) | `widget` | shipped |
 | [App Shortcuts, Siri & Spotlight](app-shortcuts-and-siri.md) | `iphone`, `ipad` | shipped — 7 App Intents (incl. Open Saved, Switch Account); Spotlight indexes communities + saved/history posts |
-| [Open in Spud (Safari extension)](share-extension.md) | `share-extension`, `iphone`, `ipad` | partial |
+| [Open in Spud (Safari extension)](share-extension.md) | `share-extension`, `iphone`, `ipad` | shipped |
 
 <!-- Add new capability docs here as they are written. -->
 
@@ -209,4 +209,4 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Accessibility (Dynamic Type, VoiceOver, Reduce Motion)
 - [x] Home Screen widget (top posts)
 - [x] App Shortcuts, Siri & Spotlight — 7 App Intents (Open Feed / Search / New Post / Inbox / Open Community / Open Saved / Switch Account); Spotlight indexes communities + saved/history posts
-- [~] "Open in Spud" — Safari banner (Web Extension) + an "Open in Spud" share/action extension (handles post / comment / community / user URLs); the Web Extension's browser-action popup is a stub
+- [x] "Open in Spud" — Safari banner (Web Extension) + a toolbar popup (both known-instance) + an "Open in Spud" share/action extension (handles post / comment / community / user URLs)

@@ -26,4 +26,26 @@ assert.strictEqual(
     "info.ddenis.spud://internal/resolve?url=" + encodeURIComponent("https://beehaw.org/comment/9")
 );
 
+// Popup message handling: probe reports "known", open navigates to the deep link.
+const { handlePopupMessage } = require("../content.js");
+
+assert.deepStrictEqual(
+    handlePopupMessage({ type: "spud-probe" }, { getHref: () => "https://lemmy.world/", navigate: () => {} }),
+    { known: true }
+);
+
+let navigatedTo = null;
+const openResponse = handlePopupMessage(
+    { type: "spud-open" },
+    { getHref: () => "https://lemmy.world/post/123", navigate: (url) => { navigatedTo = url; } }
+);
+assert.deepStrictEqual(openResponse, { ok: true });
+assert.strictEqual(
+    navigatedTo,
+    "info.ddenis.spud://internal/resolve?url=" + encodeURIComponent("https://lemmy.world/post/123")
+);
+
+assert.strictEqual(handlePopupMessage({ type: "other" }, { getHref: () => "", navigate: () => {} }), undefined);
+assert.strictEqual(handlePopupMessage(null, { getHref: () => "", navigate: () => {} }), undefined);
+
 console.log("content.js helper tests passed");
