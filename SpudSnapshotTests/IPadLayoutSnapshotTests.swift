@@ -119,6 +119,12 @@ final class IPadLayoutSnapshotTests: XCTestCase {
 
     // MARK: - Community reading split snapshot
 
+    private struct StubNodeInfoService: NodeInfoServiceType {
+        func detect(host _: String, maxAge _: TimeInterval) async -> NodeInfoDetection {
+            .unknown
+        }
+    }
+
     /// A flat dependency bag satisfying the full `CommunityReadingSplitViewController.Dependencies`
     /// protocol composition. All nested `Has*` protocols ultimately expand to the union below;
     /// spelling it out avoids a recursive typealias cycle (PostList → PostDetail → Community →
@@ -127,7 +133,8 @@ final class IPadLayoutSnapshotTests: XCTestCase {
     private struct CommunitySplitDependencies:
         HasAccountService, HasAlertService, HasAppDatabase, HasAppService,
         HasAppearanceService, HasDiagnosticLog, HasImageService, HasLinkEmbedService,
-        HasPostContentDetectorService, HasPreferencesService, HasReachabilityMonitor, HasVoid
+        HasNodeInfoService, HasPostContentDetectorService, HasPreferencesService,
+        HasReachabilityMonitor, HasVoid
     {
         let accountService: AccountServiceType
         let alertService: AlertServiceType
@@ -137,6 +144,7 @@ final class IPadLayoutSnapshotTests: XCTestCase {
         let diagnosticLog: DiagnosticLogging
         let imageService: ImageServiceType
         let linkEmbedService: LinkEmbedServiceType
+        let nodeInfoService: NodeInfoServiceType
         let postContentDetectorService: PostContentDetectorServiceType
         let preferencesService: PreferencesServiceType
         let reachabilityMonitor: ReachabilityMonitoring
@@ -192,6 +200,7 @@ final class IPadLayoutSnapshotTests: XCTestCase {
             diagnosticLog: DiagnosticLog(appDatabase: appDatabase),
             imageService: StaticImageService(),
             linkEmbedService: LinkEmbedService(),
+            nodeInfoService: StubNodeInfoService(),
             postContentDetectorService: PostContentDetectorService(),
             preferencesService: preferencesService,
             reachabilityMonitor: reachabilityMonitor

@@ -32,6 +32,12 @@ private final class NullImageService: ImageServiceType, @unchecked Sendable {
 /// file-private) so sibling suites — e.g.
 /// `ActivitySummaryReadingSplitViewControllerTests` — reuse the same superset
 /// harness.
+private struct StubNodeInfoService: NodeInfoServiceType {
+    func detect(host _: String, maxAge _: TimeInterval) async -> NodeInfoDetection {
+        .unknown
+    }
+}
+
 @MainActor
 struct FakeDependencies:
     HasVoid,
@@ -49,7 +55,8 @@ struct FakeDependencies:
     HasUnreadCountService,
     HasExplorerService,
     HasReachabilityMonitor,
-    HasDiagnosticLog
+    HasDiagnosticLog,
+    HasNodeInfoService
 {
     let appDatabase: AppDatabase
     let siteService: SiteServiceType
@@ -66,6 +73,7 @@ struct FakeDependencies:
     let explorerService: ExplorerServiceType
     let reachabilityMonitor: ReachabilityMonitoring
     let diagnosticLog: DiagnosticLogging
+    let nodeInfoService: NodeInfoServiceType
 
     init() {
         let appDatabase = try! AppDatabase.inMemory()
@@ -101,6 +109,7 @@ struct FakeDependencies:
         )
         unreadCountService = UnreadCountService(accountService: accountService, diagnostics: diagnosticLog)
         explorerService = ExplorerService(appDatabase: appDatabase)
+        nodeInfoService = StubNodeInfoService()
     }
 }
 
