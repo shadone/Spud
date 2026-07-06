@@ -29,4 +29,11 @@ enum AppLaunchArgument: String {
     /// the top of `AppDelegate.init` (before the DI graph opens `AppDatabase`).
     /// DEBUG-only seam; never set by the shipping app.
     case wipeAppDatabase = "SPUDWipeAppDatabase"
+
+    /// Test-only: present the login screen for a non-Lemmy host directly,
+    /// with the NodeInfo cache pre-seeded so the platform-check fires on
+    /// "Log in" tap without any network round-trip. The host is read from
+    /// the `SPUDNonLemmyLoginHost` environment variable (default
+    /// `"piefed.social"`). DEBUG-only seam; never set by the shipping app.
+    case seedNonLemmyLoginForUITests = "SPUDSeedNonLemmyLoginForUITests"
 }

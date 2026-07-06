@@ -356,6 +356,10 @@ class LoginViewController: UIViewController {
             anonymousButton.heightAnchor.constraint(equalToConstant: 50),
         ])
 
+        usernameField.textField.accessibilityIdentifier = "login-username"
+        passwordField.textField.accessibilityIdentifier = "login-password"
+        loginButton.accessibilityIdentifier = "login-submit"
+
         usernameField.textField.addTarget(self, action: #selector(usernameChanged), for: .editingChanged)
         passwordField.textField.addTarget(self, action: #selector(passwordChanged), for: .editingChanged)
 
