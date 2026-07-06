@@ -810,6 +810,15 @@ extension AppDatabase {
                 """)
         }
 
+        migrator.registerMigration("v30_nodeInfoCache") { db in
+            try db.create(table: "nodeInfoCache") { t in
+                t.primaryKey("host", .text)
+                t.column("softwareName", .text).notNull()
+                t.column("softwareVersion", .text)
+                t.column("fetchedAt", .datetime).notNull()
+            }
+        }
+
         return migrator
     }
 }

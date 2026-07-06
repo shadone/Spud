@@ -88,10 +88,17 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
     /// same union `IPadLayoutSnapshotTests.CommunitySplitDependencies` spells out;
     /// enumerating it here avoids a recursive typealias cycle and keeps the test
     /// self-contained.
+    private struct StubNodeInfoService: NodeInfoServiceType {
+        func detect(host _: String, maxAge _: TimeInterval) async -> NodeInfoDetection {
+            .unknown
+        }
+    }
+
     private struct SplitDependencies:
         HasAccountService, HasAlertService, HasAppDatabase, HasAppService,
         HasAppearanceService, HasDiagnosticLog, HasImageService, HasLinkEmbedService,
-        HasPostContentDetectorService, HasPreferencesService, HasReachabilityMonitor, HasVoid
+        HasNodeInfoService, HasPostContentDetectorService, HasPreferencesService,
+        HasReachabilityMonitor, HasVoid
     {
         let accountService: AccountServiceType
         let alertService: AlertServiceType
@@ -101,6 +108,7 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
         let diagnosticLog: DiagnosticLogging
         let imageService: ImageServiceType
         let linkEmbedService: LinkEmbedServiceType
+        let nodeInfoService: NodeInfoServiceType
         let postContentDetectorService: PostContentDetectorServiceType
         let preferencesService: PreferencesServiceType
         let reachabilityMonitor: ReachabilityMonitoring
@@ -195,6 +203,7 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
             diagnosticLog: DiagnosticLog(appDatabase: appDatabase),
             imageService: StaticImageService(),
             linkEmbedService: LinkEmbedService(),
+            nodeInfoService: StubNodeInfoService(),
             postContentDetectorService: PostContentDetectorService(),
             preferencesService: preferencesService,
             reachabilityMonitor: reachabilityMonitor

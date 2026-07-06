@@ -22,13 +22,22 @@ import XCTest
 /// cache-first render captures them at snapshot time.
 @MainActor
 final class InstanceDetailSnapshotTests: XCTestCase {
+    /// Stub that always returns `.unknown` so the badge stays hidden and
+    /// no existing snapshot ref needs re-recording.
+    private struct StubNodeInfoService: NodeInfoServiceType {
+        func detect(host _: String, maxAge _: TimeInterval) async -> NodeInfoDetection {
+            .unknown
+        }
+    }
+
     /// A minimal dependency container.
     @MainActor
-    struct SnapshotDependencies: HasVoid, HasImageService, HasAccountService, HasAlertService, HasAppDatabase {
+    struct SnapshotDependencies: HasVoid, HasImageService, HasAccountService, HasAlertService, HasAppDatabase, HasNodeInfoService {
         let imageService: ImageServiceType
         let accountService: AccountServiceType
         let alertService: AlertServiceType
         let appDatabase: AppDatabase
+        let nodeInfoService: NodeInfoServiceType
     }
 
     private func makeDependencies() throws -> SnapshotDependencies {
@@ -37,7 +46,8 @@ final class InstanceDetailSnapshotTests: XCTestCase {
             imageService: StaticImageService(),
             accountService: AccountService(appDatabase: appDatabase),
             alertService: AlertService(),
-            appDatabase: appDatabase
+            appDatabase: appDatabase,
+            nodeInfoService: StubNodeInfoService()
         )
     }
 

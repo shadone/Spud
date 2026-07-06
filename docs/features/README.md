@@ -86,6 +86,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Login](login.md) | `iphone`, `ipad` | shipped — incl. two-factor (TOTP) sign-in |
 | [Instance picker](instance-picker.md) | `iphone`, `ipad` | shipped |
 | [Registration](registration.md) | `iphone`, `ipad` | shipped |
+| [Instance software detection](instance-software-detection.md) | `iphone`, `ipad` | partial — bare-instance link signpost deferred |
 | [Sign-in gate on write actions](sign-in-gate.md) | `iphone`, `ipad` | shipped |
 | [Inbox](inbox.md) | `iphone`, `ipad` | shipped |
 | [Marking inbox items read](inbox-mark-read.md) | `iphone`, `ipad` | shipped |
@@ -172,6 +173,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Login — incl. two-factor (TOTP) sign-in (code collected and sent; a 2FA-required login auto-prompts for the code)
 - [x] Instance picker (site list)
 - [x] Registration / signup — shipped (captcha was removed from Lemmy server-side; no in-app captcha solver)
+- [~] Instance software detection — NodeInfo pre-flight on login/register blocks non-Lemmy hosts with an action sheet (names the software, offers Open in Safari); instance-detail badge shows detected software name; fails open when the probe is undetermined; bare-instance link signpost deferred (instance-software-detection.md)
 - [x] Sign-in gate on write actions
 
 **Inbox & messaging**

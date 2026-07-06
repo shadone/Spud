@@ -465,6 +465,13 @@ class LoginViewController: UIViewController {
         })
 
         observationTasks.append(Task { @MainActor [weak self, viewModel] in
+            for await blocked in ObservationStream.values(of: { viewModel.blockedPlatform }) {
+                guard let self, let blocked else { continue }
+                presentPlatformBlockedSheet(blocked)
+            }
+        })
+
+        observationTasks.append(Task { @MainActor [weak self, viewModel] in
             for await loggedIn in ObservationStream.values(of: { viewModel.loggedIn }) {
                 guard loggedIn else { continue }
                 self?.dismissAfterLogin()

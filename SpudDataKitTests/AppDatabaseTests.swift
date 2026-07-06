@@ -44,6 +44,7 @@ struct AppDatabaseTests {
                 "instance",
                 "mutedCommunity",
                 "nodeInfo",
+                "nodeInfoCache",
                 "offlineWebArchive",
                 "outboundContent",
                 "page",
