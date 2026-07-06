@@ -2,11 +2,13 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Draft persistence](draft-persistence.md), [Replying](replying.md), [New post](new-post.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Draft persistence](draft-persistence.md), [Replying](replying.md), [New post](new-post.md), [Voting](voting.md), [Saving](saving.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
 A single recovery screen lists every pending or failed outbound content item — unsent drafts, in-flight sends, and permanently-failed items — for the signed-in account. It is the one place to retry failed sends, review what is queued, and discard items that should not be sent. Reachable from Preferences and from the "Couldn't post / Couldn't send comment — View" failure toast.
+
+This screen covers the **content** outbox only (new/edited comments, posts, and direct messages — anything with text a user might want to review, retry, or discard). A separate, idempotent **mutation** outbox durably applies and retries simple state toggles — vote, save, hide, comment/post delete-restore, and community subscribe/unsubscribe — with its own instant optimistic write and its own rollback-plus-toast on permanent failure (e.g. "Couldn't update subscription"). It has no draft/sending/failed list here because there is nothing to draft: a toggle is either applied (optimistically, right away) or, on permanent failure, rolled back with a toast — never left as a recoverable item a user re-triggers from this screen. See [Voting](voting.md), [Saving](saving.md), and [Subscribe / unsubscribe](subscribe-unsubscribe.md) for that outbox's own behavior.
 
 ## Behavior and rules
 

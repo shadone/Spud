@@ -14,7 +14,7 @@ The **Communities** tab is the subscriptions / community-management home — a f
 - **Feed shortcuts.** The list offers Local (your home instance) and All (all federated instances) always, and Subscribed (your subscriptions) when signed in. Tapping one pushes that feed's post list within the Communities tab at your default sort (it pages like any feed — see [Feeds and sorting](feeds-and-sorting.md)).
 - **Saved shortcut, signed in only.** A Saved entry (your saved posts) is shown only for a signed-in account; saved posts require authentication. See [Saving](saving.md).
 - **Discover entry.** A "Discover communities" entry at the top pushes the [Discover](discover.md) screen for browsing/finding new communities.
-- **Subscribed communities section.** When you're subscribed to any communities, a "Subscribed communities" section lists them as icon-plus-name rows, driven live from the local followed-communities observation, so subscribing / unsubscribing elsewhere updates it without a manual refresh. Tapping a community opens the full [Community screen](community-screen.md) (header + feed), not a bare post list.
+- **Subscribed communities section.** When you're subscribed to any communities, a "Subscribed communities" section lists them as icon-plus-name rows, driven live from the local followed-communities observation. Subscribing / unsubscribing elsewhere updates it instantly — the optimistic write lands in the same database transaction the tap makes, before any network round trip, so there's no manual refresh and no wait for the server. Tapping a community opens the full [Community screen](community-screen.md) (header + feed), not a bare post list.
 - **Favorites pinned to the top.** Communities you've favorited (from the Community screen's overflow menu) are pinned above the rest with a filled star, driven live from the favorited-communities observation. A favorite you aren't subscribed to isn't shown here — the list only pins among the communities it already shows.
 - **Filter your communities.** A "Search your communities" field filters the subscribed list as you type (local, case-insensitive); it does not search the network (that's [Discover](discover.md) / [Search](search.md)).
 - **Sort the list.** A sort control orders the communities **Alphabetically** or **By instance**; favorites stay pinned within the chosen order.
@@ -56,7 +56,7 @@ The **Communities** tab is the subscriptions / community-management home — a f
 
 - **Given** the "Subscribed communities" section visible
 - **When** I subscribe to a new community from the Community screen, Discover, or search
-- **Then** that community appears in the section without a manual refresh
+- **Then** that community appears in the section instantly — the same tap that subscribes writes the local state this section observes, with no manual refresh and no wait on the network
 
 ## Not supported / out of scope
 
