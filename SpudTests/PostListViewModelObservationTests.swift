@@ -392,6 +392,9 @@ struct PostListViewModelObservationTests {
         await poll { vm.orderedRows.count == 2 }
         let revisionAfterInitial = vm.rowsRevision
         #expect(revisionAfterInitial >= 1)
+        // Nothing was read at the first emit; the pin captured that.
+        let pinAfterFirstEmit = vm.firstSnapshotReadIds
+        #expect(pinAfterFirstEmit.isEmpty)
 
         // Mark a post read while the observation is live: the row's isRead
         // change must re-fire the observation and bump the revision again.
@@ -404,6 +407,13 @@ struct PostListViewModelObservationTests {
 
         await poll { vm.row(forServerPostId: 1001)?.isRead == true }
         #expect(vm.rowsRevision > revisionAfterInitial, "a live row change must bump the revision again")
+        // The pin is a FIRST-snapshot capture: a later emit must never
+        // re-capture it (posts read mid-session stay visible under `onRefresh`
+        // hide-read until the next refresh). Guards the `isFirstSnapshot` gate.
+        #expect(
+            vm.firstSnapshotReadIds == pinAfterFirstEmit,
+            "a later emit must not re-capture firstSnapshotReadIds"
+        )
 
         vm.stopObservations()
     }

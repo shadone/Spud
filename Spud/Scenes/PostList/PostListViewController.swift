@@ -334,7 +334,11 @@ class PostListViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    deinit {
+    /// `isolated deinit` so the body runs on the main actor: `stopObservations()`
+    /// is main-actor isolated, and a live observation task can outlive the
+    /// controller (it strong-holds the view model), so this must be able to reach
+    /// the view model to cancel it.
+    isolated deinit {
         rowsObservationTask?.cancel()
         titleObservationTask?.cancel()
         loadStateObservationTask?.cancel()
@@ -345,6 +349,12 @@ class PostListViewController: UIViewController {
         for task in displayPrefsObservationTasks {
             task.cancel()
         }
+        // Proactively tear down the view model's row observation so it doesn't
+        // outlive the controller. (The view model's `deinit` also cancels it,
+        // but that only runs once no live observation task is still
+        // strong-holding the view model — which the row observation's
+        // `guard let self` + unending `for await` otherwise would, forever.)
+        viewModel.stopObservations()
     }
 
     private func setup() {
