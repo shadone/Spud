@@ -587,8 +587,7 @@ class PostDetailViewController: UIViewController {
 
     private func markAsRead() async {
         do {
-            try await viewModel.accountScope.lemmyService
-                .markAsRead(serverPostId: viewModel.serverPostId)
+            try await viewModel.markAsRead()
         } catch {
             alertService.handle(error, for: .markAsRead)
         }
@@ -601,8 +600,7 @@ class PostDetailViewController: UIViewController {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let capability = await (
-                try? viewModel.accountScope.lemmyService
-                    .fetchModerationCapability()
+                try? viewModel.fetchModerationCapability()
             ) ?? .none
             guard !Task.isCancelled else { return }
             moderationCapability = capability
@@ -1303,11 +1301,7 @@ class PostDetailViewController: UIViewController {
         // best-effort so it can't mask a comment-load failure.
         async let postInfoRefresh: Void = refreshPostInfo()
         do {
-            try await viewModel.accountScope.lemmyService
-                .fetchComments(
-                    serverPostId: viewModel.serverPostId,
-                    sortType: viewModel.commentSortType
-                )
+            try await viewModel.refreshComments()
         } catch {
             alertService.handle(error, for: .fetchComments)
         }
@@ -1319,8 +1313,7 @@ class PostDetailViewController: UIViewController {
     /// Failures are swallowed so they don't mask the comment-load error surface.
     private func refreshPostInfo() async {
         do {
-            try await viewModel.accountScope.lemmyService
-                .fetchPostInfo(serverPostId: viewModel.serverPostId)
+            try await viewModel.refreshPostInfo()
         } catch {
             // Comments are the primary content of a post-detail refresh; a
             // header-counter refresh failure should not raise its own alert.
@@ -1641,8 +1634,7 @@ class PostDetailViewController: UIViewController {
         // user it will be sent once they're back online.
         showOfflineActionToastIfNeeded(message: Self.offlineVoteToast)
         do {
-            try await viewModel.accountScope.lemmyService
-                .vote(serverCommentId: Components.Schemas.CommentID(serverCommentId), vote: action)
+            try await viewModel.voteOnComment(serverCommentId: serverCommentId, action: action)
         } catch {
             // The optimistic write already applied synchronously inside enqueue;
             // network failures are retried by the outbox and surfaced via toast.
@@ -1665,8 +1657,7 @@ class PostDetailViewController: UIViewController {
         // the user it will be sent once they're back online.
         showOfflineActionToastIfNeeded(message: Self.offlineSaveToast)
         do {
-            try await viewModel.accountScope.lemmyService
-                .setSaved(serverCommentId: Components.Schemas.CommentID(serverCommentId), saved: saved)
+            try await viewModel.setSavedOnComment(serverCommentId: serverCommentId, saved: saved)
         } catch {
             alertService.handle(error, for: .save)
         }

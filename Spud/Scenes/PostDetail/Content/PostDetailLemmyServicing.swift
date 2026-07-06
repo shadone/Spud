@@ -34,6 +34,11 @@ protocol PostDetailLemmyServicing: Sendable {
     func retryComposition(clientToken: String) async
     func discardComposition(clientToken: String) async
     func setBlocked(serverPersonId: Components.Schemas.PersonID, blocked: Bool) async throws
+    func markAsRead(serverPostId: Components.Schemas.PostID) async throws
+    func fetchPostInfo(serverPostId: Components.Schemas.PostID) async throws
+    func fetchModerationCapability() async throws -> ModerationCapability
+    func vote(serverCommentId: Components.Schemas.CommentID, vote action: VoteStatus.Action) async throws
+    func setSaved(serverCommentId: Components.Schemas.CommentID, saved: Bool) async throws
 }
 
 /// Production conformance: forwards to the account's `LemmyServiceType` actor.
@@ -106,5 +111,25 @@ struct PostDetailLemmyServiceAdapter: PostDetailLemmyServicing {
 
     func setBlocked(serverPersonId: Components.Schemas.PersonID, blocked: Bool) async throws {
         try await lemmyService.setBlocked(serverPersonId: serverPersonId, blocked: blocked)
+    }
+
+    func markAsRead(serverPostId: Components.Schemas.PostID) async throws {
+        try await lemmyService.markAsRead(serverPostId: serverPostId)
+    }
+
+    func fetchPostInfo(serverPostId: Components.Schemas.PostID) async throws {
+        try await lemmyService.fetchPostInfo(serverPostId: serverPostId)
+    }
+
+    func fetchModerationCapability() async throws -> ModerationCapability {
+        try await lemmyService.fetchModerationCapability()
+    }
+
+    func vote(serverCommentId: Components.Schemas.CommentID, vote action: VoteStatus.Action) async throws {
+        try await lemmyService.vote(serverCommentId: serverCommentId, vote: action)
+    }
+
+    func setSaved(serverCommentId: Components.Schemas.CommentID, saved: Bool) async throws {
+        try await lemmyService.setSaved(serverCommentId: serverCommentId, saved: saved)
     }
 }

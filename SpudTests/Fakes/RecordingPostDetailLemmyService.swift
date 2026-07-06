@@ -5,6 +5,7 @@
 //
 
 import LemmyKit
+import SpudDataKit
 @testable import Spud
 
 /// Recording double for `PostDetailLemmyServicing`, used by
@@ -42,6 +43,11 @@ final class RecordingPostDetailLemmyService: PostDetailLemmyServicing {
         case retryComposition(clientToken: String)
         case discardComposition(clientToken: String)
         case setBlocked(serverPersonId: Components.Schemas.PersonID, blocked: Bool)
+        case markAsRead(serverPostId: Components.Schemas.PostID)
+        case fetchPostInfo(serverPostId: Components.Schemas.PostID)
+        case fetchModerationCapability
+        case vote(serverCommentId: Components.Schemas.CommentID, action: VoteStatus.Action)
+        case setSaved(serverCommentId: Components.Schemas.CommentID, saved: Bool)
     }
 
     private(set) var invocations: [Invocation] = []
@@ -49,6 +55,11 @@ final class RecordingPostDetailLemmyService: PostDetailLemmyServicing {
     /// When non-nil, every throwing method throws this instead of recording,
     /// exercising the view model's rethrow paths.
     var errorToThrow: (any Error)?
+
+    /// The capability `fetchModerationCapability()` returns when it does not
+    /// throw. Defaults to `.none`; a forwarding test sets it to assert the view
+    /// model returns the service's value unchanged.
+    var moderationCapabilityToReturn: ModerationCapability = .none
 
     func reportPost(serverPostId: Components.Schemas.PostID, reason: String) async throws {
         if let errorToThrow { throw errorToThrow }
@@ -126,5 +137,31 @@ final class RecordingPostDetailLemmyService: PostDetailLemmyServicing {
     func setBlocked(serverPersonId: Components.Schemas.PersonID, blocked: Bool) async throws {
         if let errorToThrow { throw errorToThrow }
         invocations.append(.setBlocked(serverPersonId: serverPersonId, blocked: blocked))
+    }
+
+    func markAsRead(serverPostId: Components.Schemas.PostID) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.markAsRead(serverPostId: serverPostId))
+    }
+
+    func fetchPostInfo(serverPostId: Components.Schemas.PostID) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.fetchPostInfo(serverPostId: serverPostId))
+    }
+
+    func fetchModerationCapability() async throws -> ModerationCapability {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.fetchModerationCapability)
+        return moderationCapabilityToReturn
+    }
+
+    func vote(serverCommentId: Components.Schemas.CommentID, vote action: VoteStatus.Action) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.vote(serverCommentId: serverCommentId, action: action))
+    }
+
+    func setSaved(serverCommentId: Components.Schemas.CommentID, saved: Bool) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.setSaved(serverCommentId: serverCommentId, saved: saved))
     }
 }

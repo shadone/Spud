@@ -406,4 +406,197 @@ struct PostDetailViewModelMutationTests {
         }
         #expect(recording.invocations.isEmpty)
     }
+
+    // MARK: - Read-path wrappers (mark-as-read / post info / mod capability)
+
+    @Test
+    func markAsReadForwardsOwnPostId() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.markAsRead()
+
+        #expect(recording.invocations == [.markAsRead(serverPostId: 1)])
+    }
+
+    @Test
+    func markAsReadRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.markAsRead()
+        }
+        #expect(recording.invocations.isEmpty)
+    }
+
+    @Test
+    func refreshPostInfoForwardsOwnPostId() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.refreshPostInfo()
+
+        #expect(recording.invocations == [.fetchPostInfo(serverPostId: 1)])
+    }
+
+    @Test
+    func refreshPostInfoRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.refreshPostInfo()
+        }
+        #expect(recording.invocations.isEmpty)
+    }
+
+    @Test
+    func fetchModerationCapabilityForwardsAndReturnsCapability() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let expected = ModerationCapability(moderatedCommunityIds: [7], isAdmin: true)
+        recording.moderationCapabilityToReturn = expected
+        let vm = makeViewModel(lemmy: recording)
+
+        let capability = try await vm.fetchModerationCapability()
+
+        #expect(capability == expected)
+        #expect(recording.invocations == [.fetchModerationCapability])
+    }
+
+    @Test
+    func fetchModerationCapabilityRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            _ = try await vm.fetchModerationCapability()
+        }
+        #expect(recording.invocations.isEmpty)
+    }
+
+    // MARK: - Refresh comments (reuses the fetch closure seam, not the protocol)
+
+    @Test
+    func refreshCommentsCallsFetchClosureWithCurrentSortType() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let spy = CommentSortTypeSpy()
+        let vm = makeViewModel(
+            lemmy: recording,
+            fetchCommentsOperation: { sortType in spy.record(sortType) }
+        )
+        vm.setCommentSortType(.New)
+
+        try await vm.refreshComments()
+
+        // Routes through the existing `fetchCommentsOperation` closure with the
+        // view model's current sort type — never through the protocol seam.
+        #expect(spy.received == [.New])
+        #expect(recording.invocations.isEmpty)
+        // The bare closure call must not enter the `fetchComments()`
+        // cancel-and-replace state machine.
+        #expect(vm.isLoadingComments == false)
+        #expect(vm.commentFetchError == nil)
+    }
+
+    @Test
+    func refreshCommentsRethrowsFetchError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(
+            lemmy: recording,
+            fetchCommentsOperation: { _ in throw Boom() }
+        )
+
+        await #expect(throws: Boom.self) {
+            try await vm.refreshComments()
+        }
+    }
+
+    // MARK: - Comment vote / save
+
+    @Test
+    func voteOnCommentForwardsCommentIdAndAction() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.voteOnComment(serverCommentId: 42, action: .upvote)
+
+        #expect(recording.invocations == [.vote(serverCommentId: 42, action: .upvote)])
+    }
+
+    @Test
+    func voteOnCommentForwardsDownvoteAction() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.voteOnComment(serverCommentId: 42, action: .downvote)
+
+        #expect(recording.invocations == [.vote(serverCommentId: 42, action: .downvote)])
+    }
+
+    @Test
+    func voteOnCommentRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.voteOnComment(serverCommentId: 42, action: .upvote)
+        }
+        #expect(recording.invocations.isEmpty)
+    }
+
+    @Test
+    func setSavedOnCommentForwardsCommentIdAndSavedFlag() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.setSavedOnComment(serverCommentId: 42, saved: true)
+
+        #expect(recording.invocations == [.setSaved(serverCommentId: 42, saved: true)])
+    }
+
+    @Test
+    func setSavedOnCommentForwardsUnsaveFlavor() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.setSavedOnComment(serverCommentId: 42, saved: false)
+
+        #expect(recording.invocations == [.setSaved(serverCommentId: 42, saved: false)])
+    }
+
+    @Test
+    func setSavedOnCommentRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.setSavedOnComment(serverCommentId: 42, saved: true)
+        }
+        #expect(recording.invocations.isEmpty)
+    }
+}
+
+/// Captures the sort types the injected `fetchCommentsOperation` closure
+/// receives, so `refreshCommentsCallsFetchClosureWithCurrentSortType` can assert
+/// the refresh routes the view model's current `commentSortType` through the
+/// existing closure seam. `@MainActor` to match the closure's isolation.
+@MainActor
+private final class CommentSortTypeSpy {
+    private(set) var received: [Components.Schemas.CommentSortType] = []
+
+    func record(_ sortType: Components.Schemas.CommentSortType) {
+        received.append(sortType)
+    }
 }

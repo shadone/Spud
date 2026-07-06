@@ -683,4 +683,65 @@ final class PostDetailViewModel {
             blocked: true
         )
     }
+
+    // MARK: - Action dispatch (read-path wrappers + comment vote / save)
+
+    /// Marks this post read on the server for the backing account. A thin
+    /// forward for its own ``serverPostId``; the view controller owns the
+    /// `markPostsRead`-preference gating and the error surface. Rethrows the
+    /// service error unchanged.
+    func markAsRead() async throws {
+        try await lemmy.markAsRead(serverPostId: serverPostId)
+    }
+
+    /// Refreshes this post's record (the header counters that only a fresh
+    /// `PostView` updates) from the server, for its own ``serverPostId``. Used by
+    /// pull-to-refresh alongside a comment reload. Rethrows the service error
+    /// unchanged; the view controller deliberately swallows it so a header-counter
+    /// refresh failure never masks the comment-load error surface.
+    func refreshPostInfo() async throws {
+        try await lemmy.fetchPostInfo(serverPostId: serverPostId)
+    }
+
+    /// Resolves the backing account's moderation capability from the server and
+    /// returns it. A thin forward; the view controller owns the best-effort `try?`
+    /// / `.none` fallback and applies the result. Rethrows the service error
+    /// unchanged.
+    func fetchModerationCapability() async throws -> ModerationCapability {
+        try await lemmy.fetchModerationCapability()
+    }
+
+    /// Reloads this post's comments from the server at the current
+    /// ``commentSortType``, for pull-to-refresh. Deliberately reuses the existing
+    /// ``fetchCommentsOperation`` closure seam (NOT the ``lemmy`` protocol seam)
+    /// and, matching the pre-refactor direct service call from the view
+    /// controller's `reloadAsync`, does NOT enter the ``fetchComments()``
+    /// cancel-and-replace state machine (``isLoadingComments`` /
+    /// ``commentFetchError`` / ``fetchTask``). Rethrows the fetch error unchanged
+    /// so the view controller can surface it with the `.fetchComments` alert tag.
+    func refreshComments() async throws {
+        try await fetchCommentsOperation(commentSortType)
+    }
+
+    /// Casts (or clears) a vote on the comment `serverCommentId` for the backing
+    /// account. Converts the local `Int64` id to the API `CommentID` here so the
+    /// view controller stays free of that conversion. Rethrows the service error
+    /// unchanged.
+    func voteOnComment(serverCommentId: Int64, action: VoteStatus.Action) async throws {
+        try await lemmy.vote(
+            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            vote: action
+        )
+    }
+
+    /// Saves or unsaves the comment `serverCommentId` for the backing account.
+    /// Converts the local `Int64` id to the API `CommentID` here so the view
+    /// controller stays free of that conversion. Rethrows the service error
+    /// unchanged.
+    func setSavedOnComment(serverCommentId: Int64, saved: Bool) async throws {
+        try await lemmy.setSaved(
+            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            saved: saved
+        )
+    }
 }

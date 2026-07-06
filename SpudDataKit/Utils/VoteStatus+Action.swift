@@ -8,7 +8,7 @@ import Foundation
 import LemmyKit
 
 public extension VoteStatus {
-    enum Action: CustomStringConvertible, Sendable {
+    enum Action: CustomStringConvertible, Equatable, Sendable {
         case upvote
         case downvote
 
