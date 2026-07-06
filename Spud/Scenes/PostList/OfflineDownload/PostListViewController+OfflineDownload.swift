@@ -57,7 +57,7 @@ extension PostListViewController {
 
         // The feed hasn't been imported yet (no account/site row). Nothing to
         // download against; bail quietly before showing the chooser.
-        guard appDatabase.accountAndSiteRowIdSync(forKeychainId: currentAccountKeychainId) != nil else {
+        guard currentAccountAndSiteRowIds != nil else {
             Haptics.warning()
             return
         }
@@ -98,7 +98,7 @@ extension PostListViewController {
         guard offlineDownloadTask == nil else { return }
 
         let keychainId = currentAccountKeychainId
-        guard let ids = appDatabase.accountAndSiteRowIdSync(forKeychainId: keychainId) else {
+        guard let ids = currentAccountAndSiteRowIds else {
             Haptics.warning()
             return
         }

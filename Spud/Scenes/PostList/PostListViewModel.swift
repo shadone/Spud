@@ -40,6 +40,9 @@ final class PostListViewModel {
     private let dependencies: OwnDependencies
 
     @ObservationIgnored
+    private let appDatabase: AppDatabase
+
+    @ObservationIgnored
     let accountScope: AccountScope
 
     var feed: FeedHandle
@@ -87,12 +90,14 @@ final class PostListViewModel {
     init(
         feed: FeedHandle,
         accountScope: AccountScope,
+        appDatabase: AppDatabase,
         dependencies: Dependencies,
         fetchFeedOperation: (@MainActor (FeedHandle, String?) async throws -> String?)? = nil,
         slowThreshold: Duration = .seconds(8),
         hardCapTimeout: Duration = .seconds(25)
     ) {
         self.dependencies = dependencies
+        self.appDatabase = appDatabase
         self.accountScope = accountScope
         self.feed = feed
         self.slowThreshold = slowThreshold
@@ -300,5 +305,47 @@ final class PostListViewModel {
         case .saved:
             return NSLocalizedString("Saved", comment: "Navigation title for the saved-posts feed")
         }
+    }
+
+    // MARK: - Data accessors (view controller + its action seams)
+
+    /// The backing account's home-instance actor id (its `ap_id` host), or nil
+    /// when signed out / unresolved. Used to build a post's canonical share URL
+    /// when the row carries no `ap_id` permalink of its own. A synchronous DB
+    /// read, matching the pre-move call shape at the share site.
+    var instanceActorId: String? {
+        appDatabase.accountInstanceActorIdSync(forKeychainId: accountKeychainId)
+    }
+
+    /// The backing account's `(accountId, siteId)` local row ids, or nil when
+    /// the account hasn't been imported yet. Backs the offline-download launch
+    /// path's "is this feed importable" guard and run seeding. A synchronous DB
+    /// read.
+    func accountAndSiteRowIds() -> (accountId: Int64, siteId: Int64)? {
+        appDatabase.accountAndSiteRowIdSync(forKeychainId: accountKeychainId)
+    }
+
+    /// Mutes `communityActorId` for the backing account until `until` (nil =
+    /// forever). Muting is a client-local, timed view concern (not sign-in
+    /// gated); this writes the muted-community row synchronously.
+    func muteCommunity(communityActorId: String, until: Date?) {
+        appDatabase.muteCommunitySync(
+            forKeychainId: accountKeychainId,
+            communityActorId: communityActorId,
+            until: until
+        )
+    }
+
+    /// Persists a "seen" interaction for `serverPostId` on the backing account
+    /// from the given render snapshot. Fire-and-forget by convention: the caller
+    /// wraps it in a detached task and ignores the result. Failures are
+    /// non-fatal (the `try?` mirrors the pre-move write); the view controller
+    /// keeps the dwell tracker / timer and only the write moved here.
+    func recordSeen(serverPostId: Int64, snapshot: PostInteractionSnapshot) async {
+        try? await appDatabase.recordPostSeen(
+            accountKeychainId: accountKeychainId,
+            serverPostId: serverPostId,
+            snapshot: snapshot
+        )
     }
 }

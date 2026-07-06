@@ -286,6 +286,13 @@ class PostListViewController: UIViewController {
         viewModel.accountKeychainId
     }
 
+    /// The backing account's `(accountId, siteId)` local row ids, for the
+    /// offline-download launch path (the view model is `private`). nil until the
+    /// account is imported.
+    var currentAccountAndSiteRowIds: (accountId: Int64, siteId: Int64)? {
+        viewModel.accountAndSiteRowIds()
+    }
+
     // MARK: Functions
 
     init(
@@ -300,6 +307,7 @@ class PostListViewController: UIViewController {
         viewModel = PostListViewModel(
             feed: feed,
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
+            appDatabase: dependencies.appDatabase,
             dependencies: dependencies
         )
 
@@ -1616,19 +1624,13 @@ class PostListViewController: UIViewController {
             return
         }
         Haptics.tap()
-        appDatabase.muteCommunitySync(
-            forKeychainId: viewModel.accountKeychainId,
-            communityActorId: actorId,
-            until: duration.until
-        )
+        viewModel.muteCommunity(communityActorId: actorId, until: duration.until)
     }
 
     /// Shares the post's canonical URL. Prefers the post's `ap_id` permalink;
     /// falls back to constructing it from the account instance.
     private func sharePost(serverPostId: Int64) {
-        let instanceActorId = appDatabase.accountInstanceActorIdSync(
-            forKeychainId: viewModel.accountKeychainId
-        )
+        let instanceActorId = viewModel.instanceActorId
         guard let url = LinkURL.forPost(
             instance: preferencesService.shareLinkInstance,
             originalPostUrl: rowsByServerPostId[serverPostId]?.originalPostUrl,
@@ -1686,19 +1688,14 @@ class PostListViewController: UIViewController {
     /// Persists "seen" for the given server post ids, building each snapshot from
     /// the currently-loaded feed row. Fire-and-forget; failures are non-fatal.
     private func recordSeen(_ serverPostIds: [Int64]) {
-        let keychainId = viewModel.accountKeychainId
         let snapshots: [(Int64, PostInteractionSnapshot)] = serverPostIds.compactMap { id in
             guard let row = rowsByServerPostId[id] else { return nil }
             return (id, PostInteractionSnapshot(postListRow: row))
         }
         guard !snapshots.isEmpty else { return }
-        Task { [appDatabase] in
+        Task { [viewModel] in
             for (id, snapshot) in snapshots {
-                try? await appDatabase.recordPostSeen(
-                    accountKeychainId: keychainId,
-                    serverPostId: id,
-                    snapshot: snapshot
-                )
+                await viewModel.recordSeen(serverPostId: id, snapshot: snapshot)
             }
         }
     }
