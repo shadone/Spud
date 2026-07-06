@@ -20,6 +20,13 @@ import XCTest
 /// XCTFails if content does not appear within the deadline.
 @MainActor
 final class OutboundContentListSnapshotTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // Pin the process-wide accent so renders don't depend on the sim's
+        // persisted accent preference. See `SnapshotDeterminism.pinAccent()`.
+        SnapshotDeterminism.pinAccent()
+    }
+
     struct SnapshotDependencies: HasImageService, HasAccountService, HasAppDatabase {
         let imageService: ImageServiceType
         let accountService: AccountServiceType

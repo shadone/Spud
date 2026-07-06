@@ -16,6 +16,13 @@ import XCTest
 /// delivers the row before the snapshot is taken.
 @MainActor
 final class PendingPostSnapshotTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // Pin the process-wide accent so renders don't depend on the sim's
+        // persisted accent preference. See `SnapshotDeterminism.pinAccent()`.
+        SnapshotDeterminism.pinAccent()
+    }
+
     struct SnapshotDependencies: HasImageService, HasAccountService, HasAppDatabase {
         let imageService: ImageServiceType
         let accountService: AccountServiceType
