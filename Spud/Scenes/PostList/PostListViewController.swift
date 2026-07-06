@@ -130,21 +130,24 @@ class PostListViewController: UIViewController {
     /// `ScrollToTopUndo`; wired in the `UITableViewDelegate` extension below.
     private var scrollUndo = ScrollToTopUndo()
 
-    private var rowsByServerPostId: [Int64: PostListRow] = [:]
-    /// The full ordered feed snapshot from GRDB (before hide-read filtering).
-    private var orderedRows: [PostListRow] = []
     /// The rows actually rendered, after the hide-read filter. Drives the empty
-    /// state so an all-read feed shows the designed empty state when hiding.
+    /// state so an all-read feed shows the designed empty state when hiding. The
+    /// full ordered snapshot + the `serverPostId` lookup live on the view model
+    /// (`orderedRows` / `row(forServerPostId:)`); this is the VC-side hide-read
+    /// view transform of them.
     private var displayedRows: [PostListRow] = []
     /// The backing account's moderation capability, refreshed when the feed
     /// loads. Drives whether the post context menu shows mod actions. `.none`
     /// until the first fetch (and for signed-out accounts).
     private var moderationCapability: ModerationCapability = .none
-    /// Set once the GRDB observation has produced its first snapshot for the
-    /// current feed, so the designed empty state only shows after the initial
-    /// load settles (not as a flash during first fetch).
-    private var hasReceivedFirstSnapshot = false
-    private var observationTask: Task<Void, Never>?
+    /// Set once this controller has processed its first row reaction for the
+    /// current feed, so the pinned-read set is seeded from the view model's
+    /// first-snapshot capture exactly once (subsequent hide-read toggles re-pin
+    /// explicitly). Reset on every `feedChanged`.
+    private var hasSeededPinnedReadIds = false
+    /// Reacts to the view model's `rowsRevision` DB-emit signal, running the
+    /// per-emit render pipeline (see `startRowsReaction`).
+    private var rowsObservationTask: Task<Void, Never>?
     private var titleObservationTask: Task<Void, Never>?
     private var loadStateObservationTask: Task<Void, Never>?
     private var paginationStateObservationTask: Task<Void, Never>?
@@ -332,7 +335,7 @@ class PostListViewController: UIViewController {
     }
 
     deinit {
-        observationTask?.cancel()
+        rowsObservationTask?.cancel()
         titleObservationTask?.cancel()
         loadStateObservationTask?.cancel()
         paginationStateObservationTask?.cancel()
@@ -634,7 +637,7 @@ class PostListViewController: UIViewController {
 
     /// True when the post is NSFW and the user has revealed its thumbnail this session.
     private func isRevealedNsfw(_ serverPostId: Int64) -> Bool {
-        (rowsByServerPostId[serverPostId]?.isNsfw ?? false) && revealedNsfwPostIds.contains(serverPostId)
+        (viewModel.row(forServerPostId: serverPostId)?.isNsfw ?? false) && revealedNsfwPostIds.contains(serverPostId)
     }
 
     /// Registers feed sensitivity while a revealed NSFW thumbnail is on screen.
@@ -643,6 +646,7 @@ class PostListViewController: UIViewController {
     }
 
     private func startObservations() {
+        rowsObservationTask?.cancel()
         titleObservationTask?.cancel()
         loadStateObservationTask?.cancel()
         paginationStateObservationTask?.cancel()
@@ -652,6 +656,8 @@ class PostListViewController: UIViewController {
             task.cancel()
         }
         displayPrefsObservationTasks.removeAll()
+
+        startRowsReaction()
 
         swipeActionsObservationTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -693,6 +699,52 @@ class PostListViewController: UIViewController {
                 if case let .failed(failure) = viewModel.loadState, failure.kind == .offline {
                     feedChanged()
                 }
+            }
+        }
+    }
+
+    /// Reacts to the view model's published `rowsRevision`, reproducing the
+    /// per-emit render pipeline the GRDB loop used to run inline — in the same
+    /// order: seed the hide-read pin from the first snapshot, then filter +
+    /// snapshot-apply + applyLoadState (via `apply(rows:)`). The view model owns
+    /// the GRDB observation now: on each emit it stores the rows into
+    /// `orderedRows` (`@ObservationIgnored`) — rebuilding its `serverPostId`
+    /// lookup atomically in the same turn — resolves the load state on EVERY emit
+    /// BEFORE this reaction applies, and bumps `rowsRevision`, so that counter —
+    /// not the rows — is the reaction key. Because the lookup lives on the view
+    /// model alongside the rows, any interleaving `apply(rows:)` always sees a
+    /// lookup consistent with the rows it renders.
+    private func startRowsReaction() {
+        rowsObservationTask?.cancel()
+        rowsObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            // The stream yields synchronously on subscribe (revision 0, before
+            // any DB emit). Skip that seed value: only the increments a real DB
+            // emit produces count as a feed snapshot.
+            var lastHandledRevision = 0
+            for await revision in ObservationStream.values(of: { [weak self] in
+                self?.viewModel.rowsRevision ?? 0
+            }) {
+                if Task.isCancelled { break }
+                guard revision != lastHandledRevision else { continue }
+                lastHandledRevision = revision
+
+                if !hasSeededPinnedReadIds {
+                    hasSeededPinnedReadIds = true
+                    // Seed the pin from the view model's first-snapshot capture
+                    // (computed on its exact first emit), so `onRefresh`
+                    // hide-read only sweeps posts read before this feed view
+                    // began. Must run before `apply(rows:)` uses `pinnedReadIds`.
+                    pinnedReadIds = viewModel.firstSnapshotReadIds
+                }
+                // Live feed emissions never animate structurally. The first
+                // snapshot would otherwise scale every cell in from the top-left
+                // during the table's initial layout; a paginated insert would
+                // animate the appended rows' height from zero as they scroll into
+                // view. Cells whose data changed are reconfigured in place either
+                // way. The deliberate hide-read toggle still animates its removals
+                // (it calls `apply(rows:)` with the default `animatingDifferences`).
+                apply(rows: viewModel.orderedRows, animatingDifferences: false)
             }
         }
     }
@@ -774,8 +826,8 @@ class PostListViewController: UIViewController {
                 hideReadPosts = value
                 // Re-pin the read set so toggling on doesn't instantly sweep
                 // posts read earlier this session under onRefresh.
-                pinnedReadIds = HideReadPostsFilter.readIds(in: orderedRows)
-                apply(rows: orderedRows)
+                pinnedReadIds = HideReadPostsFilter.readIds(in: viewModel.orderedRows)
+                apply(rows: viewModel.orderedRows)
             }
         })
 
@@ -785,7 +837,7 @@ class PostListViewController: UIViewController {
                 if Task.isCancelled { break }
                 guard value != hideReadPostsMode else { continue }
                 hideReadPostsMode = value
-                apply(rows: orderedRows)
+                apply(rows: viewModel.orderedRows)
             }
         })
 
@@ -1038,95 +1090,43 @@ class PostListViewController: UIViewController {
         }
 
         viewModel.prepareForReload()
-        observationTask?.cancel()
         // A pull-to-refresh keeps the existing posts on screen — the refresh
         // control is the only progress indicator — until the new feed's first
-        // snapshot swaps them in. Read-id pins belong to the prior feed session,
-        // so they reset either way; the new first snapshot re-pins.
+        // snapshot swaps them in. On a non-keeping change the view model clears
+        // its rows + `serverPostId` lookup; this clears the diffable snapshot in
+        // lockstep (a cell re-dequeued with an empty lookup renders "Missing
+        // PostListRow" — see `clearPostItems`). The snapshot is cleared before
+        // the view model resets its lookup (both synchronous, no await between),
+        // so the dangerous lookup-empty-but-snapshot-populated window never opens.
         if !keepingContent {
-            rowsByServerPostId.removeAll()
-            orderedRows.removeAll()
             displayedRows.removeAll()
             clearPostItems()
         }
+        viewModel.restartObservations(keepingContent: keepingContent)
+        // Read-id pins belong to the prior feed session, so they reset either
+        // way; the new first snapshot re-seeds `pinnedReadIds` from the view
+        // model's `firstSnapshotReadIds` on the first row reaction.
         pinnedReadIds.removeAll()
         markedReadIds.removeAll()
-        hasReceivedFirstSnapshot = false
+        hasSeededPinnedReadIds = false
         if !keepingContent {
             showLoadingSkeleton()
         }
         refreshModerationCapability()
-
-        let feedKey = viewModel.feed.feedKey
-        observationTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-
-            // Feeds are created lazily by the importer on the first fetch.
-            // If the row doesn't exist yet, await the tracked first page so the
-            // importer creates it before we set up the observation.
-            if appDatabase.feedRowIdSync(forFeedKey: feedKey) == nil {
-                await viewModel.loadFirstPage()
-                if Task.isCancelled { return }
-            }
-
-            guard let feedRowId = appDatabase.feedRowIdSync(forFeedKey: feedKey) else {
-                if case .failed = viewModel.loadState {
-                    // loadFirstPage already surfaced the failure; the loadState
-                    // observation ends the refresh control and renders the error
-                    // surface.
-                } else {
-                    // Defensive: the row is missing but loadFirstPage did not
-                    // report a failure. Never leave a pull-to-refresh spinner or
-                    // the skeleton orphaned - reach a terminal state.
-                    refreshControl.endRefreshing()
-                    hideLoadingSkeleton()
-                    viewModel.failInitialLoad()
-                }
-                return
-            }
-
-            for await rows in appDatabase.observePostListRows(feedId: feedRowId) {
-                if Task.isCancelled { break }
-                let isFirstSnapshot = !hasReceivedFirstSnapshot
-                hasReceivedFirstSnapshot = true
-                if isFirstSnapshot {
-                    // Pin the rows already read when this feed view began, so
-                    // `onRefresh` hide-read only hides those (posts read while
-                    // scrolling stay until the next refresh).
-                    pinnedReadIds = HideReadPostsFilter.readIds(in: rows)
-                }
-                // Resolve the top-level load state on EVERY snapshot, and BEFORE
-                // apply(). Gating resolution to the first snapshot leaves loadState
-                // stuck at `.loading` forever when a feed's first snapshot is empty
-                // and its posts arrive in a later one - the skeleton and the
-                // pull-to-refresh spinner then never clear. resolveInitialSnapshot
-                // self-guards once settled; resolving before apply() lets apply()'s
-                // own applyLoadState() hide the skeleton without waiting on the
-                // loadState observation to deliver the change.
-                viewModel.resolveInitialSnapshot(rowCount: rows.count)
-
-                // Live feed emissions never animate structurally. The first
-                // snapshot would otherwise scale every cell in from the top-left
-                // during the table's initial layout; a paginated insert would
-                // animate the appended rows' height from zero as they scroll into
-                // view. Cells whose data changed are reconfigured in place either
-                // way. The deliberate hide-read toggle still animates its removals.
-                apply(rows: rows, animatingDifferences: false)
-
-                if isFirstSnapshot, case .loading = viewModel.loadState, rows.isEmpty {
-                    // Cached-but-empty feed: kick the tracked initial fetch.
-                    await viewModel.loadFirstPage()
-                }
-            }
-        }
     }
 
+    /// Renders a feed snapshot: filters `rows` for the hide-read preference into
+    /// `displayedRows`, applies the diffable snapshot (reconfiguring surviving
+    /// cells in place), and re-evaluates the top-level load state. The view model
+    /// owns the ordered snapshot + the `serverPostId` lookup (already stored when
+    /// this runs); this only reads them via the passed `rows`. Called from the
+    /// row reaction (a DB emit, `animatingDifferences: false`) and the
+    /// display-preference reactions (a hide-read toggle re-filtering the same
+    /// `viewModel.orderedRows`, keeping the default animation for its removals).
     private func apply(rows: [PostListRow], animatingDifferences: Bool = true) {
-        orderedRows = rows
-
-        // Filter for display per the hide-read preference. `rowsByServerPostId`
-        // still maps every row so cells resolve, but the snapshot only carries
-        // the rows that should be visible.
+        // Filter for display per the hide-read preference. The view model's
+        // `serverPostId` lookup still maps every row so cells resolve, but the
+        // snapshot only carries the rows that should be visible.
         let displayed = HideReadPostsFilter.filter(
             rows: rows,
             enabled: hideReadPosts,
@@ -1134,7 +1134,6 @@ class PostListViewController: UIViewController {
             pinnedReadIds: pinnedReadIds
         )
         displayedRows = displayed
-        rowsByServerPostId = Dictionary(uniqueKeysWithValues: rows.map { ($0.serverPostId, $0) })
 
         var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
         snapshot.appendSections([.posts])
@@ -1263,10 +1262,11 @@ class PostListViewController: UIViewController {
     }
 
     /// Clears the displayed posts from the diffable snapshot, keeping the
-    /// snapshot and `rowsByServerPostId` in lockstep. Without this, switching
-    /// feeds leaves the prior feed's `.post` items in the snapshot while
-    /// `rowsByServerPostId` has been emptied, so any cell re-dequeued before
-    /// the new feed's first snapshot resolves to no row ("Missing PostListRow").
+    /// snapshot and the view model's `serverPostId` lookup in lockstep. Without
+    /// this, switching feeds leaves the prior feed's `.post` items in the
+    /// snapshot while the view model has emptied its lookup, so any cell
+    /// re-dequeued before the new feed's first snapshot resolves to no row
+    /// ("Missing PostListRow").
     /// The `.loading` section (pagination footer) is owned by applyPaginationState
     /// and left untouched.
     private func clearPostItems() {
@@ -1314,7 +1314,7 @@ class PostListViewController: UIViewController {
                     for: indexPath
                 ) as! PostListPostCell
 
-                guard let row = self?.rowsByServerPostId[serverPostId] else {
+                guard let row = self?.viewModel.row(forServerPostId: serverPostId) else {
                     logger.assertionFailure("Missing PostListRow for serverPostId \(serverPostId)")
                     return cell
                 }
@@ -1476,7 +1476,7 @@ class PostListViewController: UIViewController {
     /// this is not gated.
     private func visitCommunity(serverPostId: Int64) {
         guard
-            let row = rowsByServerPostId[serverPostId],
+            let row = viewModel.row(forServerPostId: serverPostId),
             let actorId = row.communityActorId,
             let instance = InstanceActorId(from: actorId)
         else {
@@ -1497,7 +1497,7 @@ class PostListViewController: UIViewController {
     /// signed-out, so this is not gated.
     private func viewAuthor(serverPostId: Int64) {
         guard
-            let row = rowsByServerPostId[serverPostId],
+            let row = viewModel.row(forServerPostId: serverPostId),
             let actorId = row.creatorActorId,
             let instance = InstanceActorId(from: actorId)
         else {
@@ -1553,7 +1553,7 @@ class PostListViewController: UIViewController {
             )
             return
         }
-        guard let row = rowsByServerPostId[serverPostId] else { return }
+        guard let row = viewModel.row(forServerPostId: serverPostId) else { return }
         let handle = row.creatorName ?? NSLocalizedString("this user", comment: "Fallback author handle when the name is unknown")
         presentDestructiveConfirmation(
             title: String(format: NSLocalizedString("Block %@?", comment: "Block user confirmation title"), handle),
@@ -1617,7 +1617,7 @@ class PostListViewController: UIViewController {
 
     private func muteCommunity(serverPostId: Int64, duration: MuteDuration) {
         guard
-            let row = rowsByServerPostId[serverPostId],
+            let row = viewModel.row(forServerPostId: serverPostId),
             let actorId = row.communityActorId
         else {
             Haptics.warning()
@@ -1633,7 +1633,7 @@ class PostListViewController: UIViewController {
         let instanceActorId = viewModel.instanceActorId
         guard let url = LinkURL.forPost(
             instance: preferencesService.shareLinkInstance,
-            originalPostUrl: rowsByServerPostId[serverPostId]?.originalPostUrl,
+            originalPostUrl: viewModel.row(forServerPostId: serverPostId)?.originalPostUrl,
             serverPostId: serverPostId,
             instanceActorId: instanceActorId
         ) else {
@@ -1689,7 +1689,7 @@ class PostListViewController: UIViewController {
     /// the currently-loaded feed row. Fire-and-forget; failures are non-fatal.
     private func recordSeen(_ serverPostIds: [Int64]) {
         let snapshots: [(Int64, PostInteractionSnapshot)] = serverPostIds.compactMap { id in
-            guard let row = rowsByServerPostId[id] else { return nil }
+            guard let row = viewModel.row(forServerPostId: id) else { return nil }
             return (id, PostInteractionSnapshot(postListRow: row))
         }
         guard !snapshots.isEmpty else { return }
@@ -1713,7 +1713,7 @@ extension PostListViewController: PostSaveDispatching {
     }
 
     func currentSavedState(serverPostId: Int64) -> Bool {
-        rowsByServerPostId[serverPostId]?.isSaved ?? false
+        viewModel.row(forServerPostId: serverPostId)?.isSaved ?? false
     }
 }
 
@@ -1879,7 +1879,7 @@ extension PostListViewController: UITableViewDelegate {
     private func markReadInBackground(serverPostId: Int64) {
         // Skip rows already read or already enqueued this session.
         guard !markedReadIds.contains(serverPostId) else { return }
-        if rowsByServerPostId[serverPostId]?.isRead == true {
+        if viewModel.row(forServerPostId: serverPostId)?.isRead == true {
             markedReadIds.insert(serverPostId)
             return
         }
@@ -1933,7 +1933,7 @@ extension PostListViewController: UITableViewDelegate {
     private func postPreviewViewController(at indexPath: IndexPath) -> UIViewController? {
         guard
             case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath),
-            let row = rowsByServerPostId[serverPostId]
+            let row = viewModel.row(forServerPostId: serverPostId)
         else { return nil }
 
         return PostPreviewViewController(
@@ -1972,7 +1972,7 @@ extension PostListViewController: UITableViewDelegate {
                     Task { await self?.vote(serverPostId: serverPostId, action: .downvote) }
                 }
 
-                let isSaved = self?.rowsByServerPostId[serverPostId]?.isSaved ?? false
+                let isSaved = self?.viewModel.row(forServerPostId: serverPostId)?.isSaved ?? false
                 let saveAction = UIAction(
                     title: isSaved
                         ? NSLocalizedString("Unsave", comment: "Context-menu action to unsave a post")
@@ -1996,7 +1996,7 @@ extension PostListViewController: UITableViewDelegate {
                     self?.sharePost(serverPostId: serverPostId)
                 }
 
-                let row = self?.rowsByServerPostId[serverPostId]
+                let row = self?.viewModel.row(forServerPostId: serverPostId)
 
                 let visitCommunityAction = UIAction(
                     title: String(
@@ -2076,7 +2076,7 @@ extension PostListViewController: UITableViewDelegate {
     /// account cannot moderate its community. Offers Remove/Restore,
     /// Lock/Unlock, Pin to community, and (admins) Pin to instance.
     private func postModerationMenu(serverPostId: Int64) -> UIMenu? {
-        guard let row = rowsByServerPostId[serverPostId] else { return nil }
+        guard let row = viewModel.row(forServerPostId: serverPostId) else { return nil }
         let communityId = Components.Schemas.CommunityID(row.serverCommunityId)
         guard moderationCapability.canModerate(communityId: communityId) else { return nil }
 
@@ -2211,7 +2211,7 @@ extension PostListViewController: UITableViewDataSourcePrefetching {
         let postContentDetector = dependencies.own.postContentDetectorService
         return indexPaths.compactMap { indexPath in
             guard case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath),
-                  let row = rowsByServerPostId[serverPostId]
+                  let row = viewModel.row(forServerPostId: serverPostId)
             else { return nil }
             return PostListPostViewModel.prefetchThumbnailUrl(for: row, postContentDetector: postContentDetector)
         }

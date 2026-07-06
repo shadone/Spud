@@ -79,6 +79,71 @@ final class PostListViewModel {
     @ObservationIgnored
     private var slowHintTask: Task<Void, Never>?
 
+    // MARK: - Row observation state
+
+    /// The full ordered feed snapshot as last emitted by the GRDB row
+    /// observation this view model owns (see ``startObservations()``). The view
+    /// controller filters this down to the visible rows (hide-read) and renders.
+    ///
+    /// Deliberately `@ObservationIgnored`: the display-preference reactions read
+    /// it on every hide-read toggle, and if reads of it invalidated observers
+    /// each toggle would spuriously re-run the whole apply pipeline. Because it
+    /// is invisible to observation, the published ``rowsRevision`` counter is the
+    /// explicit signal that a fresh DB snapshot landed.
+    @ObservationIgnored
+    private(set) var orderedRows: [PostListRow] = []
+
+    /// `serverPostId` -> row lookup for the current snapshot, rebuilt in the same
+    /// synchronous turn as ``orderedRows`` inside ``updateRows(_:)``. The view
+    /// controller resolves a tapped / shared / moderated post through
+    /// ``row(forServerPostId:)`` instead of scanning ``orderedRows``. Kept on the
+    /// view model (not the view controller) so it and ``orderedRows`` can never
+    /// drift: an interleaved snapshot apply during a reaction suspension always
+    /// sees a lookup consistent with the rows it renders.
+    ///
+    /// Deliberately `@ObservationIgnored` for the same reason as ``orderedRows``.
+    @ObservationIgnored
+    private var rowsByServerPostId: [Int64: PostListRow] = [:]
+
+    /// Monotonic per-emit signal for the row observation. Bumped exactly once
+    /// each time the GRDB feed snapshot is delivered — after ``updateRows(_:)``
+    /// has stored the new rows. The view controller keys its row reaction
+    /// pipeline (pinned-read seed, hide-read filter, snapshot apply,
+    /// applyLoadState) on this, since ``orderedRows`` is `@ObservationIgnored`
+    /// and cannot serve as an observation trigger. Starts at 0 (nothing emitted
+    /// yet); the reaction loop ignores that initial value and acts only on the
+    /// increments. Monotonic across feed switches (never reset), like
+    /// PostDetail's `commentsRevision`.
+    private(set) var rowsRevision: Int = 0
+
+    /// The set of already-read server post ids captured from the FIRST snapshot
+    /// of the current observation. The view controller seeds its `pinnedReadIds`
+    /// hide-read session pin from this on its first reaction, so `onRefresh`
+    /// hide-read only sweeps posts read BEFORE this feed view began (posts read
+    /// while scrolling stay until the next refresh — the semantics of the former
+    /// inline first-snapshot pin). Computed on the VM's exact first emit here —
+    /// not re-derived from ``orderedRows`` in the coalescing view-controller
+    /// reaction — so the pin always reflects the FIRST snapshot even when a later
+    /// emit is the first the reaction observes. Reset on every restart.
+    @ObservationIgnored
+    private(set) var firstSnapshotReadIds: Set<Int64> = []
+
+    /// The live GRDB row observation feeding ``orderedRows`` + ``rowsRevision``
+    /// (PostDetail template). Owned here so it stops on an explicit
+    /// ``stopObservations()`` / task cancel; restarted on a feed switch / reload
+    /// (see ``restartObservations(keepingContent:)``). Each observation task
+    /// binds a strong `self` for the whole `for await` loop, so the view model
+    /// cannot deinit while one is still running; the `deinit` cancel is
+    /// belt-and-braces cleanup for the already-stopped case.
+    @ObservationIgnored
+    private var observationTask: Task<Void, Never>?
+
+    /// The VM's first-emit latch for the current observation. Drives the
+    /// first-snapshot ``firstSnapshotReadIds`` capture, ``resolveInitialSnapshot``,
+    /// and the cached-empty ``loadFirstPage`` kick. Reset on every restart.
+    @ObservationIgnored
+    private var hasReceivedFirstSnapshot = false
+
     private var accountService: AccountServiceType {
         dependencies.accountService
     }
@@ -117,6 +182,10 @@ final class PostListViewModel {
                 showNsfw: showNsfw
             )
         }
+    }
+
+    deinit {
+        observationTask?.cancel()
     }
 
     // MARK: - Feed switching (reset state)
@@ -221,6 +290,125 @@ final class PostListViewModel {
     private func cancelSlowHint() {
         slowHintTask?.cancel()
         slowHintTask = nil
+    }
+
+    // MARK: - Row observation
+
+    /// Starts the row observation as one bring-up task: resolve the feed's local
+    /// row id, lazily fetching the first page when the feed hasn't materialized
+    /// yet (the importer creates the feed row on the first fetch), then observe
+    /// the ordered feed rows. Per emit, IN ORDER (matching the pre-move inline
+    /// loop verbatim): latch the first snapshot, capture its
+    /// ``firstSnapshotReadIds`` pin, resolve the top-level load state on EVERY
+    /// emit BEFORE the view controller applies (the Saved-feed stuck-skeleton
+    /// guard), store the rows + rebuild the lookup atomically, bump
+    /// ``rowsRevision`` so the view controller reacts, then kick the tracked
+    /// fetch when the first snapshot is a cached-but-empty feed. Cancels any
+    /// prior observation first, so it is safe to call on a feed switch / reload.
+    func startObservations() {
+        stopObservations()
+        hasReceivedFirstSnapshot = false
+        firstSnapshotReadIds = []
+
+        let feedKey = feed.feedKey
+        observationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            // Feeds are created lazily by the importer on the first fetch. If the
+            // row doesn't exist yet, await the tracked first page so the importer
+            // creates it before we set up the observation.
+            if appDatabase.feedRowIdSync(forFeedKey: feedKey) == nil {
+                await loadFirstPage()
+                if Task.isCancelled { return }
+            }
+
+            guard let feedRowId = appDatabase.feedRowIdSync(forFeedKey: feedKey) else {
+                if case .failed = loadState {
+                    // loadFirstPage already surfaced the failure; the loadState
+                    // observation ends the refresh control and renders the error
+                    // surface.
+                } else {
+                    // Defensive: the row is missing but loadFirstPage did not
+                    // report a failure. Never leave a pull-to-refresh spinner or
+                    // the skeleton orphaned — reach a terminal state. Setting
+                    // `.failed` drives the view controller's loadState reaction,
+                    // which ends the refresh control and hides the skeleton (the
+                    // UI teardown the pre-move inline path did explicitly).
+                    failInitialLoad()
+                }
+                return
+            }
+
+            for await rows in appDatabase.observePostListRows(feedId: feedRowId) {
+                if Task.isCancelled { break }
+                let isFirstSnapshot = !hasReceivedFirstSnapshot
+                hasReceivedFirstSnapshot = true
+                if isFirstSnapshot {
+                    // Pin the rows already read when this feed view began, so
+                    // `onRefresh` hide-read only hides those (posts read while
+                    // scrolling stay until the next refresh). Captured on the
+                    // exact first emit here — not re-derived from `orderedRows`
+                    // in the coalescing view-controller reaction — so the pin
+                    // always reflects the FIRST snapshot.
+                    firstSnapshotReadIds = HideReadPostsFilter.readIds(in: rows)
+                }
+                // Resolve the top-level load state on EVERY snapshot, and BEFORE
+                // the view controller applies. Gating resolution to the first
+                // snapshot leaves loadState stuck at `.loading` forever when a
+                // feed's first snapshot is empty and its posts arrive in a later
+                // one — the skeleton and the pull-to-refresh spinner then never
+                // clear. resolveInitialSnapshot self-guards once settled.
+                resolveInitialSnapshot(rowCount: rows.count)
+
+                updateRows(rows)
+                rowsRevision += 1
+
+                if isFirstSnapshot, case .loading = loadState, rows.isEmpty {
+                    // Cached-but-empty feed: kick the tracked initial fetch.
+                    await loadFirstPage()
+                }
+            }
+        }
+    }
+
+    /// Cancels the row observation. Called on restart and from `deinit`.
+    func stopObservations() {
+        observationTask?.cancel()
+        observationTask = nil
+    }
+
+    /// Restarts the row observation for the current feed. A pull-to-refresh (and
+    /// an in-place feed switch that keeps content) leaves the existing rows +
+    /// lookup in place until the new observation's first emit swaps them in — the
+    /// refresh control is the only progress indicator. A non-keeping restart
+    /// (feed switch, reload) clears them so nothing stale renders; the view
+    /// controller clears its diffable snapshot in lockstep (the two must reset
+    /// together, or a cell re-dequeued before the new first snapshot resolves to
+    /// no row — "Missing PostListRow"). Either way ``startObservations()`` resets
+    /// the first-snapshot latch + pin so the next emit re-seeds them.
+    func restartObservations(keepingContent: Bool) {
+        if !keepingContent {
+            orderedRows = []
+            rowsByServerPostId = [:]
+        }
+        startObservations()
+    }
+
+    /// The loaded feed row for `serverPostId`, or nil when it isn't in the
+    /// current snapshot. Backs every view-controller action that needs a row
+    /// (share, moderate, visit community / author, mute, seen, save-state).
+    func row(forServerPostId serverPostId: Int64) -> PostListRow? {
+        rowsByServerPostId[serverPostId]
+    }
+
+    /// Stores the latest ordered feed snapshot, rebuilding ``rowsByServerPostId``
+    /// in the same synchronous turn so the lookup and ``orderedRows`` are always
+    /// mutually consistent (never observable in a state where one reflects a
+    /// newer snapshot than the other). Does NOT bump ``rowsRevision`` — the
+    /// observation loop bumps it once, immediately after this returns.
+    private func updateRows(_ rows: [PostListRow]) {
+        orderedRows = rows
+        rowsByServerPostId = Dictionary(uniqueKeysWithValues: rows.map { ($0.serverPostId, $0) })
     }
 
     // MARK: - Pagination
