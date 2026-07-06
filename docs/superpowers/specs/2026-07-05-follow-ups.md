@@ -305,12 +305,22 @@ verify): app-level accent leak fails 47 snapshot assertions (25 tests) on a
 clean sim.** `StaticImageService` yields the bundled `tv-pattern` template image,
 tinted by the window accent that `ThemeManager` reads from `UserDefaults.standard`
 — outside the ephemeral-store isolation, which covers only `PreferencesService`
-fixtures. The affected refs (PostDetailHeader image variants, Toast, MediaUI,
-MediaViewerCentering, MediaComponents, PostUnavailable, PendingPost, LinkPreview,
-HeaderInlineImage, PostDetailComment image tests, and app-level screens) were
-recorded under a non-default accent; a clean-install run renders the default and
-mismatches. Proven pre-existing: plain main and the Phase 2 branch fail the
-IDENTICAL 25-test set on the same sim state. Fix when doing this initiative:
-pin the accent/tint in snapshot fixtures (the `PostListPostCellSnapshotTests`
-lemmyTeal pin is the precedent) or isolate ThemeManager's store, then re-record
-the affected refs once under pinned state.
+fixtures. Refs recorded under a non-default accent mismatch a clean-install run.
+Proven pre-existing: plain main and the Phase 2 branch fail the IDENTICAL
+25-test set on the same sim state. (An earlier draft of this note over-listed
+affected classes from a degraded-run failure census — Toast/Media*/
+PostUnavailable/LinkPreview/HeaderInlineImage/PostDetailComment reference
+neither leak mechanism and were collateral in crashed runs, not accent
+victims.)
+
+**FIXED (2026-07-06,** plan:
+docs/superpowers/plans/2026-07-06-accent-determinism.md**):**
+`SnapshotDeterminism.pinAccent()` (`ThemeManager.shared.setAccent(.lemmy)`)
+wired into the setUp of the empirically-verified 9 affected classes
+(ActivityIPadSplit, InstanceDetail, InstanceExplore, IPadLayout,
+OnboardingHomeBase, OutboundContentList, PendingPost, PostDetailHeader,
+Summary); the 25 dirty-accent tests' 47 refs re-recorded under the pinned
+default; suite 258/258 twice, byte-stable, on a clean sim. New snapshot
+classes must call `pinAccent()` (or pin a tint explicitly). Deeper fix
+(injectable ThemeManager store) remains optional future scope of this
+section.
