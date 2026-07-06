@@ -160,4 +160,205 @@ struct PostDetailViewModelMutationTests {
         }
         #expect(recording.invocations.isEmpty)
     }
+
+    // MARK: - Moderation
+
+    @Test
+    func removePostForwardsPostIdRemovedFlagAndReason() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.removePost(serverPostId: 1, removed: true, reason: "spam")
+
+        #expect(recording.invocations == [.removePost(serverPostId: 1, removed: true, reason: "spam")])
+    }
+
+    @Test
+    func removePostForwardsNilReason() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.removePost(serverPostId: 1, removed: false, reason: nil)
+
+        #expect(recording.invocations == [.removePost(serverPostId: 1, removed: false, reason: nil)])
+    }
+
+    @Test
+    func removePostRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.removePost(serverPostId: 1, removed: true, reason: nil)
+        }
+        #expect(recording.invocations.isEmpty)
+    }
+
+    @Test
+    func lockPostForwardsPostIdAndLockedFlag() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.lockPost(serverPostId: 1, locked: true)
+
+        #expect(recording.invocations == [.lockPost(serverPostId: 1, locked: true)])
+    }
+
+    @Test
+    func lockPostRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.lockPost(serverPostId: 1, locked: true)
+        }
+        #expect(recording.invocations.isEmpty)
+    }
+
+    @Test
+    func featurePostForwardsPostIdFeaturedAndLocalFlags() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.featurePost(serverPostId: 1, featured: true, local: false)
+
+        #expect(recording.invocations == [.featurePost(serverPostId: 1, featured: true, local: false)])
+    }
+
+    @Test
+    func featurePostRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.featurePost(serverPostId: 1, featured: true, local: true)
+        }
+        #expect(recording.invocations.isEmpty)
+    }
+
+    @Test
+    func removeCommentForwardsCommentIdRemovedFlagAndReason() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.removeComment(serverCommentId: 42, removed: true, reason: "abuse")
+
+        #expect(recording.invocations == [.removeComment(serverCommentId: 42, removed: true, reason: "abuse")])
+    }
+
+    @Test
+    func removeCommentForwardsNilReason() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.removeComment(serverCommentId: 42, removed: false, reason: nil)
+
+        #expect(recording.invocations == [.removeComment(serverCommentId: 42, removed: false, reason: nil)])
+    }
+
+    @Test
+    func removeCommentRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.removeComment(serverCommentId: 42, removed: true, reason: nil)
+        }
+        #expect(recording.invocations.isEmpty)
+    }
+
+    @Test
+    func distinguishCommentForwardsCommentIdAndDistinguishedFlag() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.distinguishComment(serverCommentId: 42, distinguished: true)
+
+        #expect(recording.invocations == [.distinguishComment(serverCommentId: 42, distinguished: true)])
+    }
+
+    @Test
+    func distinguishCommentRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.distinguishComment(serverCommentId: 42, distinguished: true)
+        }
+        #expect(recording.invocations.isEmpty)
+    }
+
+    @Test
+    func banFromCommunityForwardsIdsAndBakesBanTrue() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.banFromCommunity(
+            communityId: 7,
+            serverPersonId: 42,
+            removeData: true,
+            reason: "spam"
+        )
+
+        #expect(recording.invocations == [
+            .banFromCommunity(
+                serverCommunityId: 7,
+                serverPersonId: 42,
+                ban: true,
+                removeData: true,
+                reason: "spam"
+            ),
+        ])
+    }
+
+    @Test
+    func banFromCommunityForwardsNilReason() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let vm = makeViewModel(lemmy: recording)
+
+        try await vm.banFromCommunity(
+            communityId: 7,
+            serverPersonId: 42,
+            removeData: false,
+            reason: nil
+        )
+
+        #expect(recording.invocations == [
+            .banFromCommunity(
+                serverCommunityId: 7,
+                serverPersonId: 42,
+                ban: true,
+                removeData: false,
+                reason: nil
+            ),
+        ])
+    }
+
+    @Test
+    func banFromCommunityRethrowsServiceError() async {
+        struct Boom: Error { }
+        let recording = RecordingPostDetailLemmyService()
+        recording.errorToThrow = Boom()
+        let vm = makeViewModel(lemmy: recording)
+
+        await #expect(throws: Boom.self) {
+            try await vm.banFromCommunity(
+                communityId: 7,
+                serverPersonId: 42,
+                removeData: true,
+                reason: nil
+            )
+        }
+        #expect(recording.invocations.isEmpty)
+    }
 }

@@ -27,6 +27,18 @@ final class RecordingPostDetailLemmyService: PostDetailLemmyServicing {
         case reportComment(serverCommentId: Components.Schemas.CommentID, reason: String)
         case deleteComment(serverCommentId: Components.Schemas.CommentID, deleted: Bool)
         case deletePost(serverPostId: Components.Schemas.PostID, deleted: Bool)
+        case removePost(serverPostId: Components.Schemas.PostID, removed: Bool, reason: String?)
+        case lockPost(serverPostId: Components.Schemas.PostID, locked: Bool)
+        case featurePost(serverPostId: Components.Schemas.PostID, featured: Bool, local: Bool)
+        case removeComment(serverCommentId: Components.Schemas.CommentID, removed: Bool, reason: String?)
+        case distinguishComment(serverCommentId: Components.Schemas.CommentID, distinguished: Bool)
+        case banFromCommunity(
+            serverCommunityId: Components.Schemas.CommunityID,
+            serverPersonId: Components.Schemas.PersonID,
+            ban: Bool,
+            removeData: Bool,
+            reason: String?
+        )
     }
 
     private(set) var invocations: [Invocation] = []
@@ -53,5 +65,47 @@ final class RecordingPostDetailLemmyService: PostDetailLemmyServicing {
     func deletePost(serverPostId: Components.Schemas.PostID, deleted: Bool) async throws {
         if let errorToThrow { throw errorToThrow }
         invocations.append(.deletePost(serverPostId: serverPostId, deleted: deleted))
+    }
+
+    func removePost(serverPostId: Components.Schemas.PostID, removed: Bool, reason: String?) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.removePost(serverPostId: serverPostId, removed: removed, reason: reason))
+    }
+
+    func lockPost(serverPostId: Components.Schemas.PostID, locked: Bool) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.lockPost(serverPostId: serverPostId, locked: locked))
+    }
+
+    func featurePost(serverPostId: Components.Schemas.PostID, featured: Bool, local: Bool) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.featurePost(serverPostId: serverPostId, featured: featured, local: local))
+    }
+
+    func removeComment(serverCommentId: Components.Schemas.CommentID, removed: Bool, reason: String?) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.removeComment(serverCommentId: serverCommentId, removed: removed, reason: reason))
+    }
+
+    func distinguishComment(serverCommentId: Components.Schemas.CommentID, distinguished: Bool) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.distinguishComment(serverCommentId: serverCommentId, distinguished: distinguished))
+    }
+
+    func banFromCommunity(
+        serverCommunityId: Components.Schemas.CommunityID,
+        serverPersonId: Components.Schemas.PersonID,
+        ban: Bool,
+        removeData: Bool,
+        reason: String?
+    ) async throws {
+        if let errorToThrow { throw errorToThrow }
+        invocations.append(.banFromCommunity(
+            serverCommunityId: serverCommunityId,
+            serverPersonId: serverPersonId,
+            ban: ban,
+            removeData: removeData,
+            reason: reason
+        ))
     }
 }

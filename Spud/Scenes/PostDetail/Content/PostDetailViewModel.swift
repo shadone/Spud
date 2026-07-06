@@ -590,4 +590,69 @@ final class PostDetailViewModel {
     func deletePost(serverPostId: Components.Schemas.PostID, deleted: Bool) async throws {
         try await lemmy.deletePost(serverPostId: serverPostId, deleted: deleted)
     }
+
+    // MARK: - Action dispatch (moderation)
+
+    /// Removes (or restores) `serverPostId` as a moderator/admin, optionally
+    /// with a `reason` shown to the author. Rethrows the service error
+    /// unchanged.
+    func removePost(serverPostId: Components.Schemas.PostID, removed: Bool, reason: String?) async throws {
+        try await lemmy.removePost(serverPostId: serverPostId, removed: removed, reason: reason)
+    }
+
+    /// Locks (or unlocks) `serverPostId` as a moderator/admin. Rethrows the
+    /// service error unchanged.
+    func lockPost(serverPostId: Components.Schemas.PostID, locked: Bool) async throws {
+        try await lemmy.lockPost(serverPostId: serverPostId, locked: locked)
+    }
+
+    /// Features (pins) or unfeatures `serverPostId`. `local` pins to the
+    /// instance front page (admin-only); otherwise pins to the community.
+    /// Rethrows the service error unchanged.
+    func featurePost(serverPostId: Components.Schemas.PostID, featured: Bool, local: Bool) async throws {
+        try await lemmy.featurePost(serverPostId: serverPostId, featured: featured, local: local)
+    }
+
+    /// Removes (or restores) `serverCommentId` as a moderator/admin, optionally
+    /// with a `reason` shown to the author. Converts the local `Int64` id to
+    /// the API `CommentID` here so the view controller stays free of that
+    /// conversion. Rethrows the service error unchanged.
+    func removeComment(serverCommentId: Int64, removed: Bool, reason: String?) async throws {
+        try await lemmy.removeComment(
+            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            removed: removed,
+            reason: reason
+        )
+    }
+
+    /// Distinguishes (or undistinguishes) `serverCommentId` as a moderator.
+    /// Converts the local `Int64` id to the API `CommentID` here so the view
+    /// controller stays free of that conversion. Rethrows the service error
+    /// unchanged.
+    func distinguishComment(serverCommentId: Int64, distinguished: Bool) async throws {
+        try await lemmy.distinguishComment(
+            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            distinguished: distinguished
+        )
+    }
+
+    /// Bans `serverPersonId` from `communityId` as a moderator/admin. Bakes
+    /// `ban: true` — the view controller's ban action only ever bans (there is
+    /// no unban entry point in this screen), so it does not need to pass the
+    /// flag through. When `removeData` is true, the person's existing content
+    /// in the community is also removed. Rethrows the service error unchanged.
+    func banFromCommunity(
+        communityId: Components.Schemas.CommunityID,
+        serverPersonId: Components.Schemas.PersonID,
+        removeData: Bool,
+        reason: String?
+    ) async throws {
+        try await lemmy.banFromCommunity(
+            serverCommunityId: communityId,
+            serverPersonId: serverPersonId,
+            ban: true,
+            removeData: removeData,
+            reason: reason
+        )
+    }
 }

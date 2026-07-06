@@ -172,7 +172,7 @@ extension PostDetailViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await viewModel.accountScope.lemmyService
+                try await viewModel
                     .removePost(serverPostId: serverPostId, removed: removed, reason: reason)
                 Haptics.success()
             } catch {
@@ -186,7 +186,7 @@ extension PostDetailViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await viewModel.accountScope.lemmyService
+                try await viewModel
                     .lockPost(serverPostId: serverPostId, locked: locked)
                 Haptics.success()
             } catch {
@@ -204,7 +204,7 @@ extension PostDetailViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await viewModel.accountScope.lemmyService
+                try await viewModel
                     .featurePost(serverPostId: serverPostId, featured: featured, local: local)
                 Haptics.success()
             } catch {
@@ -232,8 +232,8 @@ extension PostDetailViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await viewModel.accountScope.lemmyService
-                    .removeComment(serverCommentId: Components.Schemas.CommentID(serverCommentId), removed: removed, reason: reason)
+                try await viewModel
+                    .removeComment(serverCommentId: serverCommentId, removed: removed, reason: reason)
                 Haptics.success()
             } catch {
                 alertService.handle(error, for: .removeComment)
@@ -246,8 +246,8 @@ extension PostDetailViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await viewModel.accountScope.lemmyService
-                    .distinguishComment(serverCommentId: Components.Schemas.CommentID(serverCommentId), distinguished: distinguished)
+                try await viewModel
+                    .distinguishComment(serverCommentId: serverCommentId, distinguished: distinguished)
                 Haptics.success()
             } catch {
                 alertService.handle(error, for: .distinguishComment)
@@ -281,11 +281,10 @@ extension PostDetailViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await viewModel.accountScope.lemmyService
+                try await viewModel
                     .banFromCommunity(
-                        serverCommunityId: communityId,
+                        communityId: communityId,
                         serverPersonId: serverPersonId,
-                        ban: true,
                         removeData: removeData,
                         reason: reason
                     )

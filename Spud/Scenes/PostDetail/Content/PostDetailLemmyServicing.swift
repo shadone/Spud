@@ -19,6 +19,18 @@ protocol PostDetailLemmyServicing: Sendable {
     func reportComment(serverCommentId: Components.Schemas.CommentID, reason: String) async throws
     func deleteComment(serverCommentId: Components.Schemas.CommentID, deleted: Bool) async throws
     func deletePost(serverPostId: Components.Schemas.PostID, deleted: Bool) async throws
+    func removePost(serverPostId: Components.Schemas.PostID, removed: Bool, reason: String?) async throws
+    func lockPost(serverPostId: Components.Schemas.PostID, locked: Bool) async throws
+    func featurePost(serverPostId: Components.Schemas.PostID, featured: Bool, local: Bool) async throws
+    func removeComment(serverCommentId: Components.Schemas.CommentID, removed: Bool, reason: String?) async throws
+    func distinguishComment(serverCommentId: Components.Schemas.CommentID, distinguished: Bool) async throws
+    func banFromCommunity(
+        serverCommunityId: Components.Schemas.CommunityID,
+        serverPersonId: Components.Schemas.PersonID,
+        ban: Bool,
+        removeData: Bool,
+        reason: String?
+    ) async throws
 }
 
 /// Production conformance: forwards to the account's `LemmyServiceType` actor.
@@ -43,5 +55,41 @@ struct PostDetailLemmyServiceAdapter: PostDetailLemmyServicing {
 
     func deletePost(serverPostId: Components.Schemas.PostID, deleted: Bool) async throws {
         try await lemmyService.deletePost(serverPostId: serverPostId, deleted: deleted)
+    }
+
+    func removePost(serverPostId: Components.Schemas.PostID, removed: Bool, reason: String?) async throws {
+        try await lemmyService.removePost(serverPostId: serverPostId, removed: removed, reason: reason)
+    }
+
+    func lockPost(serverPostId: Components.Schemas.PostID, locked: Bool) async throws {
+        try await lemmyService.lockPost(serverPostId: serverPostId, locked: locked)
+    }
+
+    func featurePost(serverPostId: Components.Schemas.PostID, featured: Bool, local: Bool) async throws {
+        try await lemmyService.featurePost(serverPostId: serverPostId, featured: featured, local: local)
+    }
+
+    func removeComment(serverCommentId: Components.Schemas.CommentID, removed: Bool, reason: String?) async throws {
+        try await lemmyService.removeComment(serverCommentId: serverCommentId, removed: removed, reason: reason)
+    }
+
+    func distinguishComment(serverCommentId: Components.Schemas.CommentID, distinguished: Bool) async throws {
+        try await lemmyService.distinguishComment(serverCommentId: serverCommentId, distinguished: distinguished)
+    }
+
+    func banFromCommunity(
+        serverCommunityId: Components.Schemas.CommunityID,
+        serverPersonId: Components.Schemas.PersonID,
+        ban: Bool,
+        removeData: Bool,
+        reason: String?
+    ) async throws {
+        try await lemmyService.banFromCommunity(
+            serverCommunityId: serverCommunityId,
+            serverPersonId: serverPersonId,
+            ban: ban,
+            removeData: removeData,
+            reason: reason
+        )
     }
 }
