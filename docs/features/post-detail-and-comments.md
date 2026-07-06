@@ -23,7 +23,7 @@ account has them.
 - **Threaded comments with depth rails.** A nested comment draws one colored rail per ancestor level on its leading edge, oldest ancestor first. Rail colors cycle through the active comment-ribbon theme so the same depth always reads as the same color; top-level comments draw no rail.
 - **Header image: cached thumbnail first, then full resolution.** For an image post, the header paints the feed cell's already-cached thumbnail immediately while the full-resolution image loads behind it (the same instant-first-frame idea as the media viewer), so opening a post from the feed never shows an empty gray box first. The full image replaces the thumbnail in place when it arrives.
 - **"Low-res preview" pill when the full image can't load.** If the full-resolution image *fails* to load but a thumbnail is already on screen (e.g. offline, after browsing it in the feed), the header keeps the thumbnail and shows a small tappable **"Low-res preview"** pill over it instead of a hard failure plate — so you still see *something* and know it's degraded. Tapping the pill retries the full image; long-pressing it offers **Open in browser**. The hard failure plate ("Image couldn't load", with **Retry** and **Open in browser**) only appears when nothing is on screen at all (no thumbnail to fall back to). (VoiceOver: the pill is a button labelled "Low-res preview" with a hint that the full image is unavailable.)
-- **Inline body images.** Markdown images (`![alt](url)`) in the post body and in comment bodies render inline as part of the text flow, sized to the content width at the image's aspect ratio (capped in height so a tall image doesn't dominate). They load asynchronously and the row re-measures once the image arrives; a failed load shows a small broken-image tile. Tapping an inline image opens it in the fullscreen media viewer.
+- **Inline body images.** Markdown images (`![alt](url)`) in the post body and in comment bodies render inline as part of the text flow, sized to the content width at the image's aspect ratio (capped in height so a tall image doesn't dominate). They load asynchronously, and once the image arrives the row snaps to its new height instantly, with no animation — an animated re-measure would zoom the never-before-laid-out image in from a corner, so growth is never eased or sprung. A failed load shows a small broken-image tile. Tapping an inline image opens it in the fullscreen media viewer.
 - **Tap to collapse.** Tapping a comment's body area collapses it (and expands it again); a light haptic fires. Tapping a link or inline image inside the author or body text follows the link (or opens the image) instead of collapsing. A collapsed comment hides its own body and all of its descendants, and shows a **"+N" badge** counting the hidden replies underneath it.
 - **Collapse is a view-layer filter.** The full ordered comment tree is produced once from the database; collapse only hides rows from the visible list and is never written to the server or the database. Collapse state is dropped when a comment leaves the tree, and is not persisted across reopening the post.
 - **Collapse via swipe too.** Collapse is also one of the assignable comment swipe slots, so gesture-first users can fold a thread without tapping. See [swipe-actions.md](swipe-actions.md) for the configurable swipe set.
@@ -71,6 +71,13 @@ account has them.
 - **When** I tap the pill
 - **Then** the full image is retried
 - **And** long-pressing the pill offers **Open in browser**
+
+### An inline body image loads without animating the row
+
+- **Given** a post or comment whose body contains a markdown image that hasn't finished loading yet
+- **When** the image finishes loading
+- **Then** the row snaps instantly to its new height, with no animation
+- **And** the image never appears to zoom in from a corner
 
 ### Collapse a comment by tapping it
 

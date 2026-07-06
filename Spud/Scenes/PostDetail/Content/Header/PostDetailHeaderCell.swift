@@ -1053,17 +1053,12 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
     private func adjustHeightForChange() {
         guard !isBeingConfigured else { return }
-        // Re-measure the row height in place, but WITHOUT the default
-        // begin/endUpdates animation. An async image (or its thumbnail) arriving
-        // while the detail is being pushed would otherwise animate the header
-        // growing from its placeholder height — reading as the whole header
-        // zooming in mid-push (and twice over, as the thumbnail then the full
-        // image land). Snapping matches the deliberately non-animated
-        // applySnapshot() in PostDetailViewController, made for the same reason.
-        UIView.performWithoutAnimation {
-            tableView?.beginUpdates()
-            tableView?.endUpdates()
-        }
+        // Re-measure the row height in place WITHOUT animation: an async image
+        // (or its thumbnail) arriving while the detail is being pushed would
+        // otherwise animate the header growing from its placeholder height —
+        // reading as the whole header zooming in mid-push (and twice over, as
+        // the thumbnail then the full image land). See the helper's doc.
+        tableView?.remeasureRowHeightsWithoutAnimation()
     }
 
     @objc
