@@ -13,6 +13,7 @@ struct DependencyContainer:
     HasAppDatabase,
     HasSiteService,
     HasAccountService,
+    HasNodeInfoService,
     HasImageService,
     HasLinkEmbedService,
     HasSchedulerService,
@@ -29,6 +30,7 @@ struct DependencyContainer:
     let appDatabase: AppDatabase
     let siteService: SiteServiceType
     let accountService: AccountServiceType
+    let nodeInfoService: NodeInfoServiceType
     let imageService: ImageServiceType
     let linkEmbedService: LinkEmbedServiceType
     let schedulerService: SchedulerServiceType
@@ -70,7 +72,12 @@ struct DependencyContainer:
         diagnosticLog = DiagnosticLog(appDatabase: appDatabase)
         reachabilityMonitor = ReachabilityMonitor()
         siteService = SiteService(appDatabase: appDatabase)
-        accountService = AccountService(appDatabase: appDatabase, reachabilityMonitor: reachabilityMonitor)
+        nodeInfoService = NodeInfoService(fetcher: LiveNodeInfoFetcher(), appDatabase: appDatabase)
+        accountService = AccountService(
+            appDatabase: appDatabase,
+            reachabilityMonitor: reachabilityMonitor,
+            nodeInfoService: nodeInfoService
+        )
         schedulerService = SchedulerService(
             appDatabase: appDatabase,
             accountService: accountService,
