@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
 import Foundation
 import GRDB
 
@@ -14,5 +20,6 @@ struct NodeInfoCacheRecord: Codable, Equatable, FetchableRecord, PersistableReco
     var softwareName: String
     /// Raw NodeInfo `software.version`, if advertised.
     var softwareVersion: String?
+    /// Timestamp of the last successful probe; drives the cache TTL.
     var fetchedAt: Date
 }

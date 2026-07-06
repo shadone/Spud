@@ -1,4 +1,8 @@
-import Foundation
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
 
 /// The federated-social software a host runs, as reported by its NodeInfo
 /// `software.name`. Recognition is a strong hint, not gospel: forks report

@@ -1,4 +1,8 @@
-import Foundation
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
 
 /// What Spud can do with an instance running a given `InstanceSoftware`.
 /// Pure lookup, no I/O. In v1 only Lemmy speaks the API Spud uses.

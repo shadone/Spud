@@ -36,7 +36,7 @@ extension UIViewController {
                 style: .default
             ) { _ in UIApplication.shared.open(url) })
         }
-        alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: ""), style: .cancel))
+        alert.addAction(UIAlertAction(title: NSLocalizedString("Cancel", comment: "Block sheet: cancel button, dismisses the sheet"), style: .cancel))
         if let popover = alert.popoverPresentationController {
             popover.sourceView = view
             popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)

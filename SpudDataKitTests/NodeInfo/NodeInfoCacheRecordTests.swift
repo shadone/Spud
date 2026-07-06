@@ -1,4 +1,9 @@
-// SpudDataKitTests/NodeInfo/NodeInfoCacheRecordTests.swift
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
 import Foundation
 import GRDB
 import Testing
