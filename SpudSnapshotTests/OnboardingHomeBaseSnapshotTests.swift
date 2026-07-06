@@ -26,6 +26,14 @@ import XCTest
 final class OnboardingHomeBaseSnapshotTests: XCTestCase {
     private let lemmyTeal = UIColor(red: 0, green: 0x96 / 255, blue: 0x87 / 255, alpha: 1)
 
+    /// Stub that always returns `.unknown` so the badge stays hidden and
+    /// no existing snapshot ref needs re-recording.
+    private struct StubNodeInfoService: NodeInfoServiceType {
+        func detect(host _: String, maxAge _: TimeInterval) async -> NodeInfoDetection {
+            .unknown
+        }
+    }
+
     @MainActor
     private struct SnapshotDependencies:
         HasVoid,
@@ -33,13 +41,15 @@ final class OnboardingHomeBaseSnapshotTests: XCTestCase {
         HasImageService,
         HasAccountService,
         HasAlertService,
-        HasExplorerService
+        HasExplorerService,
+        HasNodeInfoService
     {
         let appDatabase: AppDatabase
         let imageService: ImageServiceType
         let accountService: AccountServiceType
         let alertService: AlertServiceType
         let explorerService: ExplorerServiceType
+        let nodeInfoService: NodeInfoServiceType
     }
 
     /// Builds an in-memory database seeded with the recommended-instance fixtures,
@@ -58,7 +68,8 @@ final class OnboardingHomeBaseSnapshotTests: XCTestCase {
             imageService: StaticImageService(),
             accountService: AccountService(appDatabase: appDatabase),
             alertService: AlertService(),
-            explorerService: ExplorerService(appDatabase: appDatabase)
+            explorerService: ExplorerService(appDatabase: appDatabase),
+            nodeInfoService: StubNodeInfoService()
         )
     }
 

@@ -52,7 +52,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | `iphone` | iPhone, compact width — the primary single-column experience |
 | `ipad` | iPad, regular width — two-column split views on the Posts tab and (when reading a community) the Communities tab; adaptive layouts for sheets and content-width screens |
 | `widget` | Home Screen widget (`SpudWidgetExtension`) — top posts at a glance |
-| `share-extension` | "Open in Spud" Safari Web Extension (`OpenInAppExtension`) — rewrites a Lemmy post page to a deep link that opens the post in the app |
+| `share-extension` | "Open in Spud" Safari Web Extension (`OpenInAppExtension`) — in-page banner + toolbar popup on known instances, plus the share/action extension — hands a Lemmy page to a deep link that opens it in the app |
 
 ## Capabilities
 
@@ -86,6 +86,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Login](login.md) | `iphone`, `ipad` | shipped — incl. two-factor (TOTP) sign-in |
 | [Instance picker](instance-picker.md) | `iphone`, `ipad` | shipped |
 | [Registration](registration.md) | `iphone`, `ipad` | shipped |
+| [Instance software detection](instance-software-detection.md) | `iphone`, `ipad` | partial — bare-instance link signpost deferred |
 | [Sign-in gate on write actions](sign-in-gate.md) | `iphone`, `ipad` | shipped |
 | [Inbox](inbox.md) | `iphone`, `ipad` | shipped |
 | [Marking inbox items read](inbox-mark-read.md) | `iphone`, `ipad` | shipped |
@@ -114,7 +115,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Accessibility](accessibility.md) | `iphone`, `ipad` | shipped |
 | [Home Screen widget (top posts)](widget.md) | `widget` | shipped |
 | [App Shortcuts, Siri & Spotlight](app-shortcuts-and-siri.md) | `iphone`, `ipad` | shipped — 7 App Intents (incl. Open Saved, Switch Account); Spotlight indexes communities + saved/history posts |
-| [Open in Spud (Safari extension)](share-extension.md) | `share-extension`, `iphone`, `ipad` | partial |
+| [Open in Spud (Safari extension)](share-extension.md) | `share-extension`, `iphone`, `ipad` | shipped |
 
 <!-- Add new capability docs here as they are written. -->
 
@@ -172,6 +173,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Login — incl. two-factor (TOTP) sign-in (code collected and sent; a 2FA-required login auto-prompts for the code)
 - [x] Instance picker (site list)
 - [x] Registration / signup — shipped (captcha was removed from Lemmy server-side; no in-app captcha solver)
+- [~] Instance software detection — NodeInfo pre-flight on login/register blocks non-Lemmy hosts with an action sheet (names the software, offers Open in Safari); instance-detail badge shows detected software name; fails open when the probe is undetermined; bare-instance link signpost deferred (instance-software-detection.md)
 - [x] Sign-in gate on write actions
 
 **Inbox & messaging**
@@ -209,4 +211,4 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Accessibility (Dynamic Type, VoiceOver, Reduce Motion)
 - [x] Home Screen widget (top posts)
 - [x] App Shortcuts, Siri & Spotlight — 7 App Intents (Open Feed / Search / New Post / Inbox / Open Community / Open Saved / Switch Account); Spotlight indexes communities + saved/history posts
-- [~] "Open in Spud" — Safari banner (Web Extension) + an "Open in Spud" share/action extension (handles post / comment / community / user URLs); the Web Extension's browser-action popup is a stub
+- [x] "Open in Spud" — Safari banner (Web Extension) + a toolbar popup (both known-instance) + an "Open in Spud" share/action extension (handles post / comment / community / user URLs)

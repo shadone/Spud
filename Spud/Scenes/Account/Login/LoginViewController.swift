@@ -356,6 +356,10 @@ class LoginViewController: UIViewController {
             anonymousButton.heightAnchor.constraint(equalToConstant: 50),
         ])
 
+        usernameField.textField.accessibilityIdentifier = "login-username"
+        passwordField.textField.accessibilityIdentifier = "login-password"
+        loginButton.accessibilityIdentifier = "login-submit"
+
         usernameField.textField.addTarget(self, action: #selector(usernameChanged), for: .editingChanged)
         passwordField.textField.addTarget(self, action: #selector(passwordChanged), for: .editingChanged)
 
@@ -461,6 +465,13 @@ class LoginViewController: UIViewController {
         observationTasks.append(Task { @MainActor [weak self, viewModel] in
             for await error in ObservationStream.values(of: { viewModel.loginError }) {
                 self?.passwordField.errorText = error
+            }
+        })
+
+        observationTasks.append(Task { @MainActor [weak self, viewModel] in
+            for await blocked in ObservationStream.values(of: { viewModel.blockedPlatform }) {
+                guard let self, let blocked else { continue }
+                presentPlatformBlockedSheet(blocked)
             }
         })
 

@@ -238,15 +238,24 @@ public class AccountService: AccountServiceType {
     /// many `AccountService(appDatabase:)` call sites (tests, widget) keep working.
     private let reachabilityMonitor: ReachabilityMonitoring
 
+    /// Optional router that blocks non-Lemmy home connections. Absent in the
+    /// widget and in tests that don't inject a `NodeInfoServiceType`.
+    private let platformRouter: PlatformRouter?
+
     private var lemmyServices: [String: LemmyService] = [:]
 
     // MARK: Functions
 
     public convenience init(
         appDatabase: AppDatabase,
-        reachabilityMonitor: ReachabilityMonitoring = StaticReachabilityMonitor(isOnline: true)
+        reachabilityMonitor: ReachabilityMonitoring = StaticReachabilityMonitor(isOnline: true),
+        nodeInfoService: NodeInfoServiceType? = nil
     ) {
-        self.init(appDatabase: appDatabase, reachabilityMonitor: reachabilityMonitor) { instanceUrl, credential in
+        self.init(
+            appDatabase: appDatabase,
+            reachabilityMonitor: reachabilityMonitor,
+            nodeInfoService: nodeInfoService
+        ) { instanceUrl, credential in
             LemmyApi(instanceUrl: instanceUrl, credential: credential, userAgent: AppUserAgent.value)
         }
     }
@@ -255,11 +264,13 @@ public class AccountService: AccountServiceType {
         appDatabase: AppDatabase,
         credentialStore: CredentialStore = KeychainCredentialStore(),
         reachabilityMonitor: ReachabilityMonitoring = StaticReachabilityMonitor(isOnline: true),
+        nodeInfoService: NodeInfoServiceType? = nil,
         makeApi: @escaping @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?) -> LemmyApi
     ) {
         self.appDatabase = appDatabase
         self.credentialStore = credentialStore
         self.reachabilityMonitor = reachabilityMonitor
+        platformRouter = nodeInfoService.map { PlatformRouter(nodeInfoService: $0) }
         self.makeApi = makeApi
     }
 
@@ -502,6 +513,15 @@ public class AccountService: AccountServiceType {
         return service
     }
 
+    /// Blocks a home connection to non-Lemmy software; fail-open when the router
+    /// is absent (widget/tests) or the software could not be determined.
+    func preflightHomeConnection(host: String) async throws {
+        guard let platformRouter else { return }
+        if case let .block(software, displayName, version) = await platformRouter.evaluateHomeConnection(host: host) {
+            throw PlatformUnsupportedError(software: software, displayName: displayName, version: version, host: host)
+        }
+    }
+
     public func login(
         atInstance instance: InstanceActorId,
         username: String,
@@ -511,6 +531,8 @@ public class AccountService: AccountServiceType {
         guard let url = instance.url else {
             fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
         }
+
+        try await preflightHomeConnection(host: instance.host)
 
         // Temporary unauthenticated api for the login request.
         let api = makeApi(url, nil)
@@ -563,6 +585,8 @@ public class AccountService: AccountServiceType {
         guard let url = instance.url else {
             fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
         }
+
+        try await preflightHomeConnection(host: instance.host)
 
         // Temporary unauthenticated api for the registration request.
         let api = makeApi(url, nil)

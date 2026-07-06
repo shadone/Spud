@@ -23,6 +23,29 @@ function lemmyDeepLink(href) {
     return "info.ddenis.spud://internal/resolve?url=" + encodeURIComponent(href);
 }
 
+// Maps a message from the toolbar popup to a response, performing the
+// navigation for an "open" request. Pure except for the injected `deps`:
+//   deps.getHref()      -> the current page URL
+//   deps.navigate(url)  -> perform the navigation (page -> deep link)
+// Returns the object to send back to the popup, or undefined for a message
+// this listener does not handle. Reuses lemmyDeepLink so the popup and the
+// in-page banner share one deep-link form.
+function handlePopupMessage(message, deps) {
+    if (!message || typeof message.type !== "string") {
+        return undefined;
+    }
+    if (message.type === "spud-probe") {
+        // The content script only runs on allowlisted Lemmy hosts, so a reply
+        // at all is the "known instance" signal the popup is looking for.
+        return { known: true };
+    }
+    if (message.type === "spud-open") {
+        deps.navigate(lemmyDeepLink(deps.getHref()));
+        return { ok: true };
+    }
+    return undefined;
+}
+
 // Localized string with an English fallback when i18n is unavailable.
 function localized(key, fallback) {
     try {
@@ -126,8 +149,19 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
             document.addEventListener("DOMContentLoaded", showBanner);
         }
     }
+    if (typeof browser !== "undefined" && browser.runtime && browser.runtime.onMessage) {
+        browser.runtime.onMessage.addListener(function (message) {
+            const response = handlePopupMessage(message, {
+                getHref: function () { return window.location.href; },
+                navigate: function (url) { window.location.href = url; },
+            });
+            // Returning a Promise sends the response; false means "not handled"
+            // so other listeners (and the sender's catch) behave correctly.
+            return response === undefined ? false : Promise.resolve(response);
+        });
+    }
 }
 
 if (typeof module !== "undefined" && module.exports) {
-    module.exports = { isLemmyContentPath, lemmyDeepLink };
+    module.exports = { isLemmyContentPath, lemmyDeepLink, handlePopupMessage };
 }

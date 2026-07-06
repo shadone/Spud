@@ -68,6 +68,9 @@ final class LoginViewModel {
     /// this is an additive view-layer affordance. `nil` means no error.
     var loginError: String?
 
+    /// Set when the target instance runs non-Lemmy software; drives the block sheet.
+    var blockedPlatform: PlatformUnsupportedError?
+
     var loginButtonEnabled: Bool {
         !username.isEmpty && !password.isEmpty
     }
@@ -119,6 +122,8 @@ final class LoginViewModel {
                 totp2faToken: totp2faToken
             )
             loggedIn = true
+        } catch let error as PlatformUnsupportedError {
+            blockedPlatform = error
         } catch AccountServiceLoginError.totp2faRequired {
             // The account has two-factor enabled and no valid code was supplied
             // yet. Surface an inline hint and ask the view layer to prompt for the

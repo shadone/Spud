@@ -20,7 +20,8 @@ final class InstanceDetailViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
         HasAppDatabase &
-        HasImageService
+        HasImageService &
+        HasNodeInfoService
     typealias NestedDependencies =
         LoginViewController.Dependencies &
         RegisterViewController.Dependencies
@@ -39,6 +40,10 @@ final class InstanceDetailViewController: UIViewController {
         dependencies.own.appDatabase
     }
 
+    private var nodeInfoService: NodeInfoServiceType {
+        dependencies.own.nodeInfoService
+    }
+
     private let record: ExplorerInstanceRecord
     private let row: SiteListRow?
     private let showsActions: Bool
@@ -47,6 +52,8 @@ final class InstanceDetailViewController: UIViewController {
     private let bannerImageView = UIImageView()
     private let iconImageView = UIImageView()
     private let iconLetterLabel = UILabel()
+    /// Detected software name (e.g. "PieFed"), populated by a NodeInfo probe on appear.
+    private let softwareBadgeLabel = UILabel()
     private var imageTasks: [Task<Void, Never>] = []
     private var observationTasks: [Task<Void, Never>] = []
 
@@ -101,6 +108,14 @@ final class InstanceDetailViewController: UIViewController {
         registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (vc: InstanceDetailViewController, _: UITraitCollection) in
             vc.refreshDynamicBorders()
         }
+        observationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
+            if case let .known(software, version) = await nodeInfoService.detect(host: record.baseurl) {
+                let profile = PlatformProfile.profile(for: software, version: version)
+                softwareBadgeLabel.text = profile.displayName
+                softwareBadgeLabel.isHidden = false
+            }
+        })
     }
 
     private func refreshDynamicBorders() {
@@ -207,7 +222,11 @@ final class InstanceDetailViewController: UIViewController {
         hostLabel.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         hostLabel.textColor = .secondaryLabel
 
-        let identity = UIStackView(arrangedSubviews: [nameLabel, hostLabel])
+        softwareBadgeLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        softwareBadgeLabel.textColor = .secondaryLabel
+        softwareBadgeLabel.isHidden = true
+
+        let identity = UIStackView(arrangedSubviews: [nameLabel, hostLabel, softwareBadgeLabel])
         identity.axis = .vertical
         identity.spacing = 3
         identity.translatesAutoresizingMaskIntoConstraints = false
