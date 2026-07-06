@@ -684,19 +684,19 @@ class PostListViewController: UIViewController {
 
         let viewModel = viewModel
         titleObservationTask = Task { @MainActor [weak self] in
-            for await _ in Self.values(of: { viewModel.navigationTitle }) {
+            for await _ in ObservationStream.values(of: { viewModel.navigationTitle }) {
                 if Task.isCancelled { break }
                 self?.applyNavigationTitle()
             }
         }
         loadStateObservationTask = Task { @MainActor [weak self] in
-            for await state in Self.values(of: { viewModel.loadState }) {
+            for await state in ObservationStream.values(of: { viewModel.loadState }) {
                 if Task.isCancelled { break }
                 self?.applyLoadState(state)
             }
         }
         paginationStateObservationTask = Task { @MainActor [weak self] in
-            for await state in Self.values(of: { viewModel.paginationState }) {
+            for await state in ObservationStream.values(of: { viewModel.paginationState }) {
                 if Task.isCancelled { break }
                 self?.applyPaginationState(state)
             }
@@ -927,23 +927,6 @@ class PostListViewController: UIViewController {
         guard !items.isEmpty else { return }
         snapshot.reconfigureItems(items)
         dataSource.apply(snapshot, animatingDifferences: false)
-    }
-
-    /// Tiny shim that turns an Observable property into an AsyncStream of
-    /// values via the standard `withObservationTracking` loop. Uses
-    /// `ObservationScheduler` to break the @Sendable onChange / @MainActor
-    /// observe-recursion loop into an instance method capture.
-    @MainActor
-    private static func values<Value: Sendable>(
-        of access: @escaping @MainActor () -> Value
-    ) -> AsyncStream<Value> {
-        AsyncStream { continuation in
-            let scheduler = ObservationScheduler<Value>(
-                continuation: continuation,
-                access: access
-            )
-            scheduler.observe()
-        }
     }
 
     private func setupSortTypeMenu() {
@@ -2241,33 +2224,5 @@ extension PostListViewController: UITableViewDataSourcePrefetching {
         let urls = prefetchThumbnailUrls(for: indexPaths)
         guard !urls.isEmpty else { return }
         imageService.stopPrefetching(urls, downsampleTo: Self.thumbnailPrefetchSize)
-    }
-}
-
-/// Re-tracks an Observable property after each onChange tick and yields
-/// the latest value into the supplied AsyncStream.Continuation. Decoupling
-/// `observe()` into an instance method dodges the "non-Sendable local
-/// function captured in @Sendable closure" warning that arises when
-/// `withObservationTracking`'s onChange recurses into a @MainActor func.
-@MainActor
-private final class ObservationScheduler<Value: Sendable>: Sendable {
-    private let continuation: AsyncStream<Value>.Continuation
-    private let access: @MainActor () -> Value
-
-    init(
-        continuation: AsyncStream<Value>.Continuation,
-        access: @escaping @MainActor () -> Value
-    ) {
-        self.continuation = continuation
-        self.access = access
-    }
-
-    func observe() {
-        let value = withObservationTracking {
-            access()
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.observe() }
-        }
-        continuation.yield(value)
     }
 }
