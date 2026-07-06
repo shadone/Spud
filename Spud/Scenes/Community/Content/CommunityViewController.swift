@@ -96,6 +96,7 @@ class CommunityViewController: UIViewController {
         viewModel = CommunityViewModel(
             accountRowId: accountRowId,
             serverCommunityId: serverCommunityId,
+            accountKeychainId: accountKeychainId,
             appDatabase: dependencies.appDatabase
         )
 
@@ -342,11 +343,8 @@ class CommunityViewController: UIViewController {
     /// so it isn't sign-in gated. When unmuted, offers a timed-duration submenu;
     /// when muted, a single Unmute action.
     private func muteMenuActions() -> [UIMenuElement] {
-        guard let actorId = viewModel.actorId else { return [] }
-        let muted = appDatabase.isCommunityMutedSync(
-            forKeychainId: accountKeychainId,
-            communityActorId: actorId
-        )
+        guard viewModel.actorId != nil else { return [] }
+        let muted = viewModel.isMuted()
         if muted {
             return [UIAction(
                 title: NSLocalizedString("Unmute community", comment: "Overflow action to unmute a community"),
@@ -368,22 +366,15 @@ class CommunityViewController: UIViewController {
     }
 
     private func muteCommunity(duration: MuteDuration) {
-        guard let actorId = viewModel.actorId else { return }
+        guard viewModel.actorId != nil else { return }
         Haptics.tap()
-        appDatabase.muteCommunitySync(
-            forKeychainId: accountKeychainId,
-            communityActorId: actorId,
-            until: duration.until
-        )
+        viewModel.mute(until: duration.until)
     }
 
     private func unmuteCommunity() {
-        guard let actorId = viewModel.actorId else { return }
+        guard viewModel.actorId != nil else { return }
         Haptics.tap()
-        appDatabase.unmuteCommunitySync(
-            forKeychainId: accountKeychainId,
-            communityActorId: actorId
-        )
+        viewModel.unmute()
     }
 
     /// Builds the Subscribe / Unsubscribe action for the overflow menu,
@@ -405,11 +396,8 @@ class CommunityViewController: UIViewController {
     /// overflow menu, reflecting the current favorite state. Favorites are a
     /// local concern (like muting), so this isn't sign-in gated.
     private func favoriteMenuActions() -> [UIMenuElement] {
-        guard let actorId = viewModel.actorId else { return [] }
-        let favorited = appDatabase.isCommunityFavoritedSync(
-            forKeychainId: accountKeychainId,
-            communityActorId: actorId
-        )
+        guard viewModel.actorId != nil else { return [] }
+        let favorited = viewModel.isFavorited()
         return [UIAction(
             title: favorited
                 ? NSLocalizedString("Remove from Favorites", comment: "Overflow action to unfavorite a community")
@@ -421,23 +409,9 @@ class CommunityViewController: UIViewController {
     }
 
     private func toggleFavorite() {
-        guard let actorId = viewModel.actorId else { return }
+        guard viewModel.actorId != nil else { return }
         Haptics.tap()
-        let favorited = appDatabase.isCommunityFavoritedSync(
-            forKeychainId: accountKeychainId,
-            communityActorId: actorId
-        )
-        if favorited {
-            appDatabase.unfavoriteCommunitySync(
-                forKeychainId: accountKeychainId,
-                communityActorId: actorId
-            )
-        } else {
-            appDatabase.favoriteCommunitySync(
-                forKeychainId: accountKeychainId,
-                communityActorId: actorId
-            )
-        }
+        viewModel.toggleFavorite()
     }
 
     /// Builds the sharing actions (Copy Link, Share, Open in Browser) for the

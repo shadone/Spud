@@ -76,6 +76,24 @@ lines (reaction-loop scaffolding keeps it above the ~2,000 estimate); the VM is
 VM-owns-observations shape to `PostListViewController` and
 `CommunityViewController`.
 
+**Landed (2026-07-06): PostList/Community replication** (plan:
+docs/superpowers/plans/2026-07-06-postlist-vm.md). `PostListViewModel` owns the
+row observation, the lazy-feed gate (awaits the feed-creating first fetch
+inline), the atomic `rowsByServerPostId` lookup + published `rowsRevision`, a
+VM-published `firstSnapshotReadIds` (coalescing-proof pinned-read seeding), a
+`keepingContent` restart flavor for pull-to-refresh, and the sync accessors;
+the VC reacts via the shared `ObservationStream` with an `isolated deinit`
+teardown (a review-caught leak fix — the teardown IS part of the template).
+`CommunityViewModel` absorbed the six favorite/mute accessors. 12 new DB-backed
+VM tests + a pagination-reactivity lock test. **Bonus latent-bug fix:** the
+VC's local `values(of:)` shim (a pre-fix fork of `ObservationStream`) never
+retained its scheduler — streams were one-shot, and the pagination footer had
+been DEAD on shipped main (title/loadState were masked by alternate drivers);
+replacing it with the shared, regression-tested `ObservationStream` revives the
+pagination spinner/retry footer and the non-rows-coincident loadState surfaces
+(initial-load failure surface, refresh-failure toast, slow-hint). Remaining
+section 1 scope: PostDetail Phase 3 (lemmyService mutations) only.
+
 ## 2. Signed-in UITest seam
 
 **Problem.** The only account seam today is `seedSignedOutDefaultAccount`

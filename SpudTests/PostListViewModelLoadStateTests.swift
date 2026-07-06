@@ -13,12 +13,15 @@ import Testing
 @MainActor
 struct PostListViewModelLoadStateTests {
     private struct TestDependencies: HasAccountService, HasPreferencesService, HasReachabilityMonitor {
+        let appDatabase: AppDatabase
         let accountService: AccountServiceType
         let preferencesService: PreferencesServiceType
         let reachabilityMonitor: ReachabilityMonitoring
 
         init(reachabilityMonitor: ReachabilityMonitoring) {
-            accountService = AccountService(appDatabase: try! AppDatabase.inMemory())
+            let appDatabase = try! AppDatabase.inMemory()
+            self.appDatabase = appDatabase
+            accountService = AccountService(appDatabase: appDatabase)
             preferencesService = PreferencesService()
             self.reachabilityMonitor = reachabilityMonitor
         }
@@ -39,6 +42,7 @@ struct PostListViewModelLoadStateTests {
         return PostListViewModel(
             feed: feed,
             accountScope: dependencies.accountService.scope(forAccountKeychainId: "kc-1"),
+            appDatabase: dependencies.appDatabase,
             dependencies: dependencies,
             fetchFeedOperation: fetchFeedOperation,
             slowThreshold: slowThreshold,
