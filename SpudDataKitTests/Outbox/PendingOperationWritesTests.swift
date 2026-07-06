@@ -88,6 +88,148 @@ struct PendingOperationWritesTests {
         #expect(try await appDatabase.allOutboxOperations(accountId: accountId).isEmpty)
     }
 
+    // MARK: Community subscribe
+
+    @Test
+    func enqueueSubscribeAppliesPendingAndCapturesNotSubscribedBaseline() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .notSubscribed)
+
+        try await appDatabase.enqueueOutboxOperation(
+            .init(entityType: .community, entityServerId: cid, desiredState: .subscribe(true)),
+            accountId: accountId, now: 100
+        )
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "Pending") // honest optimistic state
+        #expect(followed == true)
+        let rows = try await appDatabase.allOutboxOperations(accountId: accountId)
+        #expect(rows.count == 1)
+        #expect(rows[0].entityType == OutboxEntityType.community.rawValue)
+        #expect(rows[0].kind == OutboxKind.subscribe.rawValue)
+        #expect(rows[0].baseline == 0) // notSubscribed
+        #expect(rows[0].desiredState == 1) // subscribe(true)
+    }
+
+    @Test
+    func enqueueUnsubscribeCapturesSubscribedBaseline() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .subscribed)
+
+        try await appDatabase.enqueueOutboxOperation(
+            .init(entityType: .community, entityServerId: cid, desiredState: .subscribe(false)),
+            accountId: accountId, now: 100
+        )
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "NotSubscribed")
+        #expect(followed == false)
+        let rows = try await appDatabase.allOutboxOperations(accountId: accountId)
+        #expect(rows[0].baseline == 1) // subscribed
+    }
+
+    @Test
+    func enqueueUnsubscribeCapturesPendingBaseline() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .pending)
+
+        try await appDatabase.enqueueOutboxOperation(
+            .init(entityType: .community, entityServerId: cid, desiredState: .subscribe(false)),
+            accountId: accountId, now: 100
+        )
+
+        let rows = try await appDatabase.allOutboxOperations(accountId: accountId)
+        #expect(rows[0].baseline == 2) // pending
+    }
+
+    @Test
+    func subscribeToggleBackToNotSubscribedBaselineDeletesRowAndReverts() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .notSubscribed)
+
+        try await appDatabase.enqueueOutboxOperation(
+            .init(entityType: .community, entityServerId: cid, desiredState: .subscribe(true)),
+            accountId: accountId, now: 100
+        )
+        try await appDatabase.enqueueOutboxOperation(
+            .init(entityType: .community, entityServerId: cid, desiredState: .subscribe(false)),
+            accountId: accountId, now: 200
+        )
+
+        #expect(try await appDatabase.allOutboxOperations(accountId: accountId).isEmpty)
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "NotSubscribed")
+        #expect(followed == false)
+    }
+
+    /// Toggling back to a *subscribed* baseline must restore the exact 3-valued
+    /// prior state (Subscribed), NOT the 2-valued Pending the forward apply uses.
+    @Test
+    func subscribeToggleBackToSubscribedBaselineRestoresSubscribed() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .subscribed)
+
+        try await appDatabase.enqueueOutboxOperation(
+            .init(entityType: .community, entityServerId: cid, desiredState: .subscribe(false)),
+            accountId: accountId, now: 100
+        )
+        try await appDatabase.enqueueOutboxOperation(
+            .init(entityType: .community, entityServerId: cid, desiredState: .subscribe(true)),
+            accountId: accountId, now: 200
+        )
+
+        #expect(try await appDatabase.allOutboxOperations(accountId: accountId).isEmpty)
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "Subscribed")
+        #expect(followed == true)
+    }
+
+    @Test
+    func subscribeRollbackRestoresSubscribedBaselineAndJunction() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .subscribed)
+
+        try await appDatabase.enqueueOutboxOperation(
+            .init(entityType: .community, entityServerId: cid, desiredState: .subscribe(false)),
+            accountId: accountId, now: 100
+        )
+        // Optimistic: unsubscribed + junction removed.
+        let mid = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(mid.followed == false)
+
+        let row = try #require(try await appDatabase.allOutboxOperations(accountId: accountId).first)
+        try await appDatabase.rollbackOutboxOperation(row)
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "Subscribed")
+        #expect(followed == true)
+        #expect(try await appDatabase.allOutboxOperations(accountId: accountId).isEmpty)
+    }
+
+    @Test
+    func subscribeRollbackRestoresPendingBaselineAndJunction() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .pending)
+
+        try await appDatabase.enqueueOutboxOperation(
+            .init(entityType: .community, entityServerId: cid, desiredState: .subscribe(false)),
+            accountId: accountId, now: 100
+        )
+        let row = try #require(try await appDatabase.allOutboxOperations(accountId: accountId).first)
+        try await appDatabase.rollbackOutboxOperation(row)
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "Pending")
+        #expect(followed == true)
+    }
+
     @Test
     func dueFiltersByNextAttempt() async throws {
         let appDatabase = try AppDatabase.inMemory()

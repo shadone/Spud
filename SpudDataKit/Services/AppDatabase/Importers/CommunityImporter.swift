@@ -28,9 +28,18 @@ extension AppDatabase {
     /// list. Communities are upserted first; the junction table is then
     /// rewritten in a single transaction so observers see one consistent
     /// snapshot.
+    ///
+    /// When `respectsPendingOutbox` is `true` (the default), communities with an
+    /// in-flight optimistic `.subscribe` op are exempted from the rewrite: they
+    /// keep their CURRENT junction membership so an un-synced subscribe/unsubscribe
+    /// survives this server reconcile in BOTH directions — an optimistic subscribe
+    /// absent from `follows` keeps its junction row, and an optimistic unsubscribe
+    /// still present in `follows` is not resurrected. The outbox performer confirms
+    /// the authoritative state separately via `upsertCommunity`.
     public func setFollowedCommunities(
         accountId: Int64,
-        follows: [Components.Schemas.CommunityFollowerView]
+        follows: [Components.Schemas.CommunityFollowerView],
+        respectsPendingOutbox: Bool = true
     ) async throws {
         try await writer.write { db in
             var communityRowIds: [Int64] = []
@@ -43,11 +52,36 @@ extension AppDatabase {
                 communityRowIds.append(id)
             }
 
+            // Communities with an in-flight optimistic subscribe/unsubscribe are
+            // governed by the outbox, not this server snapshot. Their CURRENT
+            // junction membership is preserved across the wholesale rewrite. This
+            // stays a bulk delete + bulk insert (no per-row server diffing); in the
+            // common case (no pending subscribes) the lookup returns empty and the
+            // behaviour is identical to before.
+            let pendingRowIds = respectsPendingOutbox
+                ? try Self.pendingSubscribeCommunityRowIds(db, accountId: accountId)
+                : []
+            let preservedRowIds = pendingRowIds.isEmpty
+                ? []
+                : try Self.followedCommunityRowIds(db, accountId: accountId, among: pendingRowIds)
+
             try AccountFollowedCommunityRecord
                 .filter(Column("accountId") == accountId)
                 .deleteAll(db)
 
-            for communityRowId in communityRowIds {
+            // Re-insert the server follows (minus the pending ones), then restore
+            // the preserved optimistic membership. A set tracks what's inserted so
+            // the same community isn't inserted twice.
+            var inserted: Set<Int64> = []
+            for communityRowId in communityRowIds where !pendingRowIds.contains(communityRowId) {
+                guard inserted.insert(communityRowId).inserted else { continue }
+                let junction = AccountFollowedCommunityRecord(
+                    accountId: accountId,
+                    communityId: communityRowId
+                )
+                try junction.insert(db)
+            }
+            for communityRowId in preservedRowIds where !inserted.contains(communityRowId) {
                 let junction = AccountFollowedCommunityRecord(
                     accountId: accountId,
                     communityId: communityRowId
@@ -62,13 +96,26 @@ extension AppDatabase {
     /// `accountFollowedCommunity` junction table in sync with the subscribed
     /// state so the Subscriptions sidebar (which observes the junction) updates
     /// live. Returns the resolved community row id.
+    ///
+    /// When `respectsPendingOutbox` is `true` (the default), a community with an
+    /// in-flight optimistic `.subscribe` op keeps its optimistic `subscribedState`
+    /// and junction membership — the server's (stale) `subscribed` value and the
+    /// junction sync are skipped, while every other column still imports. The
+    /// outbox performer's authoritative post-send mirror passes `false` to write
+    /// the confirmed server state through.
     @discardableResult
     public func upsertCommunity(
         from view: Components.Schemas.CommunityView,
-        accountId: Int64
+        accountId: Int64,
+        respectsPendingOutbox: Bool = true
     ) async throws -> Int64 {
         try await writer.write { db in
-            try Self.upsertCommunity(from: view, accountId: accountId, in: db)
+            try Self.upsertCommunity(
+                from: view,
+                accountId: accountId,
+                respectsPendingOutbox: respectsPendingOutbox,
+                in: db
+            )
         }
     }
 
@@ -103,24 +150,41 @@ extension AppDatabase {
     static func upsertCommunity(
         from view: Components.Schemas.CommunityView,
         accountId: Int64,
+        respectsPendingOutbox: Bool = true,
         in db: Database
     ) throws -> Int64 {
         let now = Date()
+        let serverCommunityId = Int64(view.community.id)
+
+        // When a subscribe/unsubscribe is in flight the local `subscribedState`
+        // and junction reflect the optimistic projection, not the server; skip
+        // overwriting them so the reconcile can't clobber the un-synced tap.
+        let hasPendingSubscribe = try respectsPendingOutbox
+            && (AppDatabase.pendingOutboxKinds(
+                db,
+                accountId: accountId,
+                entityType: "community",
+                entityServerId: serverCommunityId
+            )).contains(.subscribe)
 
         let communityRowId: Int64
         if var existing = try CommunityRecord
             .filter(Column("accountId") == accountId)
-            .filter(Column("communityId") == Int64(view.community.id))
+            .filter(Column("communityId") == serverCommunityId)
             .fetchOne(db)
         {
+            let preservedSubscribedState = existing.subscribedState
             Self.apply(model: view.community, to: &existing, now: now)
             Self.apply(view: view, to: &existing)
+            if hasPendingSubscribe {
+                existing.subscribedState = preservedSubscribedState
+            }
             try existing.update(db)
             communityRowId = existing.id!
         } else {
             var record = CommunityRecord(
                 accountId: accountId,
-                communityId: Int64(view.community.id),
+                communityId: serverCommunityId,
                 createdAt: now,
                 updatedAt: now
             )
@@ -130,12 +194,16 @@ extension AppDatabase {
             communityRowId = record.id!
         }
 
-        try Self.syncFollowedCommunityJunction(
-            accountId: accountId,
-            communityRowId: communityRowId,
-            subscribed: view.subscribed,
-            in: db
-        )
+        // Preserve the optimistic junction membership while a subscribe is
+        // pending; otherwise sync it to the server's subscribed state.
+        if !hasPendingSubscribe {
+            try Self.syncFollowedCommunityJunction(
+                accountId: accountId,
+                communityRowId: communityRowId,
+                subscribed: view.subscribed,
+                in: db
+            )
+        }
 
         return communityRowId
     }

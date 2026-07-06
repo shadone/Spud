@@ -115,4 +115,60 @@ struct OptimisticWritesTests {
         let hidden = try await readPostHidden(appDatabase, accountId: ids.accountId, serverPostId: serverPostId)
         #expect(hidden == true)
     }
+
+    // MARK: Community subscribe
+
+    @Test
+    func setCommunitySubscribedToPendingWritesStateAndInsertsJunction() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let ids = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: ids.accountId, subscribed: .notSubscribed)
+
+        try await appDatabase.writer.write { db in
+            try OptimisticWrites.setCommunitySubscribed(
+                db, accountId: ids.accountId, serverCommunityId: cid, state: .pending
+            )
+        }
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: ids.accountId, serverCommunityId: cid)
+        #expect(state == "Pending")
+        #expect(followed == true) // Pending counts as followed
+    }
+
+    @Test
+    func setCommunitySubscribedToSubscribedInsertsJunction() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let ids = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: ids.accountId, subscribed: .notSubscribed)
+
+        try await appDatabase.writer.write { db in
+            try OptimisticWrites.setCommunitySubscribed(
+                db, accountId: ids.accountId, serverCommunityId: cid, state: .subscribed
+            )
+        }
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: ids.accountId, serverCommunityId: cid)
+        #expect(state == "Subscribed")
+        #expect(followed == true)
+    }
+
+    @Test
+    func setCommunityNotSubscribedClearsStateAndDeletesJunction() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let ids = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: ids.accountId, subscribed: .subscribed)
+
+        let pre = try await readCommunitySubscribed(appDatabase, accountId: ids.accountId, serverCommunityId: cid)
+        #expect(pre.followed == true) // precondition
+
+        try await appDatabase.writer.write { db in
+            try OptimisticWrites.setCommunitySubscribed(
+                db, accountId: ids.accountId, serverCommunityId: cid, state: .notSubscribed
+            )
+        }
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: ids.accountId, serverCommunityId: cid)
+        #expect(state == "NotSubscribed")
+        #expect(followed == false)
+    }
 }

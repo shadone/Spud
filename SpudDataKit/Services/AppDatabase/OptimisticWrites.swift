@@ -154,4 +154,50 @@ public enum OptimisticWrites {
             arguments: [isDeleted, serverCommentId, accountId]
         )
     }
+
+    // MARK: Community
+
+    /// Applies an absolute subscribed `state` to BOTH the local `community` row
+    /// (`subscribedState`) AND the `accountFollowedCommunity` junction in a single
+    /// write, so every surface reflects the optimistic change at once: the
+    /// community header observes `subscribedState`; the Subscriptions sidebar,
+    /// Communities tab, and Discover observe the junction.
+    ///
+    /// Junction membership follows the same rule the importer's
+    /// `syncFollowedCommunityJunction` uses — followed == `state.isSubscribed`,
+    /// so Pending counts as followed. The junction stores the community ROW id
+    /// (not the server id), so it is resolved from `(serverCommunityId, accountId)`
+    /// first; a community row that isn't present locally is a safe no-op.
+    public static func setCommunitySubscribed(
+        _ db: Database,
+        accountId: Int64,
+        serverCommunityId: Int64,
+        state: CommunitySubscribedState
+    ) throws {
+        guard let communityRowId = try Int64.fetchOne(
+            db,
+            sql: "SELECT id FROM community WHERE communityId = ? AND accountId = ?",
+            arguments: [serverCommunityId, accountId]
+        ) else { return }
+
+        try db.execute(
+            sql: "UPDATE community SET subscribedState = ? WHERE id = ?",
+            arguments: [state.rawValue, communityRowId]
+        )
+
+        if state.isSubscribed {
+            try db.execute(
+                sql: """
+                    INSERT OR IGNORE INTO accountFollowedCommunity (accountId, communityId)
+                    VALUES (?, ?)
+                    """,
+                arguments: [accountId, communityRowId]
+            )
+        } else {
+            try db.execute(
+                sql: "DELETE FROM accountFollowedCommunity WHERE accountId = ? AND communityId = ?",
+                arguments: [accountId, communityRowId]
+            )
+        }
+    }
 }

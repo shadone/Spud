@@ -41,6 +41,8 @@ public struct LemmyOutboxPerformer: OutboxNetworkPerforming {
             case .comment:
                 let r = try await api.likeComment(commentID: Components.Schemas.CommentID(op.entityServerId), status: status)
                 try await appDatabase.upsertComment(from: r.comment_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
+            case .community:
+                break // vote never targets a community; nothing to send.
             }
         case let .save(value):
             switch op.entityType {
@@ -50,6 +52,8 @@ public struct LemmyOutboxPerformer: OutboxNetworkPerforming {
             case .comment:
                 let r = try await api.saveComment(commentID: Components.Schemas.CommentID(op.entityServerId), save: value)
                 try await appDatabase.upsertComment(from: r.comment_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
+            case .community:
+                break // save never targets a community; nothing to send.
             }
         case let .hide(value):
             // No entity returned; optimistic write stands.
@@ -63,6 +67,30 @@ public struct LemmyOutboxPerformer: OutboxNetworkPerforming {
             case .comment:
                 let r = try await api.deleteComment(commentID: Components.Schemas.CommentID(op.entityServerId), deleted: value)
                 try await appDatabase.upsertComment(from: r.comment_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
+            case .community:
+                break // delete never targets a community; nothing to send.
+            }
+        case let .subscribe(value):
+            // Subscribe/unsubscribe a community. `followCommunity` returns the
+            // authoritative CommunityView (Subscribed or Pending); mirror it so
+            // the optimistic Pending is upgraded to the server's answer (and the
+            // followed-communities junction is synced by the importer).
+            switch op.entityType {
+            case .community:
+                let r = try await api.followCommunity(
+                    communityID: Components.Schemas.CommunityID(op.entityServerId),
+                    follow: value
+                )
+                // Authoritative post-send mirror: bypass the pending-outbox guard
+                // so the server's confirmed subscribed state overrides the still-
+                // pending optimistic projection.
+                try await appDatabase.upsertCommunity(
+                    from: r.community_view,
+                    accountId: accountId,
+                    respectsPendingOutbox: false
+                )
+            case .post, .comment:
+                break // subscribe only targets a community; nothing to send.
             }
         }
     }

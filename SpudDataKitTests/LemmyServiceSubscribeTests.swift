@@ -5,7 +5,6 @@
 //
 
 import Foundation
-import GRDB
 import HTTPTypes
 import LemmyKit
 import OpenAPIRuntime
@@ -57,6 +56,40 @@ private final class StubFollowCommunityTransport: ClientTransport, @unchecked Se
     }
 }
 
+/// Stub transport whose `followCommunity` always fails with a network error,
+/// so the outbox drain classifies it as transient and the optimistic write
+/// stands rather than being reconciled away by an authoritative response. This
+/// lets tests assert the *optimistic* projection produced by delegating
+/// `LemmyService.setSubscribed` into the outbox — mirrors
+/// `LemmyServiceOutboxDelegationTests.FailingLikeTransport`.
+private final class FailingFollowCommunityTransport: ClientTransport, @unchecked Sendable {
+    private(set) var didSendFollowCommunity = false
+
+    func send(
+        _: HTTPRequest,
+        body _: HTTPBody?,
+        baseURL _: URL,
+        operationID: String
+    ) async throws -> (HTTPResponse, HTTPBody?) {
+        switch operationID {
+        case "followCommunity":
+            didSendFollowCommunity = true
+            throw URLError(.timedOut)
+        default:
+            throw URLError(.unsupportedURL)
+        }
+    }
+}
+
+/// `LemmyService.setSubscribed` delegates into the durable mutation outbox
+/// (see `OutboxService` / `spud-optimistic-mutation-outbox`), exactly like
+/// vote/save/hide/delete. The community's `subscribedState` + the
+/// `accountFollowedCommunity` junction flip **synchronously** inside
+/// `enqueue`, before any network round trip completes, and the outbox's own
+/// authoritative post-send mirror later reconciles them to the server's
+/// actual answer. These tests pin that contract; they would FAIL against the
+/// old confirm-then-mirror implementation (verified RED before Task 3's
+/// `LemmyService` change landed).
 @MainActor
 struct LemmyServiceSubscribeTests {
     private let keychainId = "keychain-1"
@@ -90,16 +123,61 @@ struct LemmyServiceSubscribeTests {
         }
     }
 
-    // MARK: Subscribe
+    // MARK: Subscribe — optimistic guarantee
 
+    /// (a) A subscribe delegates into the outbox: the Pending state + the
+    /// followed-communities junction row apply synchronously inside
+    /// `enqueue`, even though the network call fails (a timeout is
+    /// transient, so the drain leaves the optimistic write in place for
+    /// later retry rather than rolling it back).
     @Test
-    func setSubscribedMirrorsSubscribedStateIntoDatabase() async throws {
+    func setSubscribedAppliesOptimisticPendingSynchronouslyEvenWhenNetworkFails() async throws {
         let accountId = try await seedAccountAndSite()
+        try await seedCommunity(
+            appDatabase,
+            accountId: accountId,
+            serverCommunityId: Int64(serverCommunityId),
+            subscribed: .notSubscribed
+        )
 
-        // The confirmed view returned by the server carries subscribed = .Subscribed.
+        let transport = FailingFollowCommunityTransport()
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
+
+        try await service.setSubscribed(serverCommunityId: serverCommunityId, subscribed: true)
+
+        // Delegation reached the network performer...
+        #expect(transport.didSendFollowCommunity, "setSubscribed should call the followCommunity api")
+
+        // ...and the optimistic write is visible in the DB despite the failure.
+        let (state, followed) = try await readCommunitySubscribed(
+            appDatabase,
+            accountId: accountId,
+            serverCommunityId: Int64(serverCommunityId)
+        )
+        #expect(state == "Pending")
+        #expect(followed == true)
+    }
+
+    /// (b) After a successful drain, the server's authoritative response
+    /// replaces the optimistic Pending with its actual confirmed state (here
+    /// Subscribed), keeping the junction consistent with it.
+    @Test
+    func setSubscribedReplacesPendingWithAuthoritativeStateAfterSuccessfulDrain() async throws {
+        let accountId = try await seedAccountAndSite()
+        try await seedCommunity(
+            appDatabase,
+            accountId: accountId,
+            serverCommunityId: Int64(serverCommunityId),
+            subscribed: .notSubscribed
+        )
+
         let subscribedView = CommunityView.fake(community: .fake, subscribed: .Subscribed)
         let response = CommunityResponse(community_view: subscribedView, discussion_languages: [])
-
         let transport = try StubFollowCommunityTransport(communityResponse: response)
         let service = LemmyServiceHarness.make(
             accountKeychainId: keychainId,
@@ -112,24 +190,29 @@ struct LemmyServiceSubscribeTests {
 
         #expect(transport.didSendFollowCommunity, "setSubscribed should call the followCommunity api")
 
-        let serverCommunityId = serverCommunityId
-        let storedState = try await appDatabase.writer.read { db -> String? in
-            try CommunityRecord
-                .filter(Column("accountId") == accountId)
-                .filter(Column("communityId") == Int64(serverCommunityId))
-                .fetchOne(db)?
-                .subscribedState
-        }
-        #expect(storedState == "Subscribed")
+        let (state, followed) = try await readCommunitySubscribed(
+            appDatabase,
+            accountId: accountId,
+            serverCommunityId: Int64(serverCommunityId)
+        )
+        #expect(state == "Subscribed")
+        #expect(followed == true)
     }
 
+    /// (c) An unsubscribe applies its optimistic projection synchronously too
+    /// — the junction row is removed and the state flips to NotSubscribed —
+    /// even when the network call fails.
     @Test
-    func subscribingAddsRowToFollowedCommunitiesJunction() async throws {
+    func setSubscribedFalseRemovesJunctionAndSetsNotSubscribedOptimistically() async throws {
         let accountId = try await seedAccountAndSite()
+        try await seedCommunity(
+            appDatabase,
+            accountId: accountId,
+            serverCommunityId: Int64(serverCommunityId),
+            subscribed: .subscribed
+        )
 
-        let subscribedView = CommunityView.fake(community: .fake, subscribed: .Subscribed)
-        let response = CommunityResponse(community_view: subscribedView, discussion_languages: [])
-        let transport = try StubFollowCommunityTransport(communityResponse: response)
+        let transport = FailingFollowCommunityTransport()
         let service = LemmyServiceHarness.make(
             accountKeychainId: keychainId,
             appDatabase: appDatabase,
@@ -137,57 +220,32 @@ struct LemmyServiceSubscribeTests {
             transport: transport
         )
 
-        try await service.setSubscribed(serverCommunityId: serverCommunityId, subscribed: true)
+        try await service.setSubscribed(serverCommunityId: serverCommunityId, subscribed: false)
 
-        let followedCount = try await appDatabase.writer.read { db -> Int in
-            try AccountFollowedCommunityRecord
-                .filter(Column("accountId") == accountId)
-                .fetchCount(db)
-        }
-        #expect(followedCount == 1, "subscribing should add the community to the followed-communities junction")
+        #expect(transport.didSendFollowCommunity, "setSubscribed should call the followCommunity api")
+
+        let (state, followed) = try await readCommunitySubscribed(
+            appDatabase,
+            accountId: accountId,
+            serverCommunityId: Int64(serverCommunityId)
+        )
+        #expect(state == "NotSubscribed")
+        #expect(followed == false)
     }
 
-    @Test
-    func unsubscribingRemovesRowFromFollowedCommunitiesJunction() async throws {
-        let accountId = try await seedAccountAndSite()
+    // MARK: Signed out
 
-        // First subscribe so the junction has the row.
-        let subscribedView = CommunityView.fake(community: .fake, subscribed: .Subscribed)
-        let subscribeTransport = try StubFollowCommunityTransport(
-            communityResponse: CommunityResponse(community_view: subscribedView, discussion_languages: [])
-        )
-        try await LemmyServiceHarness.make(
-            accountKeychainId: keychainId,
-            appDatabase: appDatabase,
-            accountIsSignedOut: false,
-            transport: subscribeTransport
-        )
-        .setSubscribed(serverCommunityId: serverCommunityId, subscribed: true)
-
-        // Then unsubscribe; the confirmed view carries .NotSubscribed.
-        let unsubscribedView = CommunityView.fake(community: .fake, subscribed: .NotSubscribed)
-        let unsubscribeTransport = try StubFollowCommunityTransport(
-            communityResponse: CommunityResponse(community_view: unsubscribedView, discussion_languages: [])
-        )
-        try await LemmyServiceHarness.make(
-            accountKeychainId: keychainId,
-            appDatabase: appDatabase,
-            accountIsSignedOut: false,
-            transport: unsubscribeTransport
-        )
-        .setSubscribed(serverCommunityId: serverCommunityId, subscribed: false)
-
-        let followedCount = try await appDatabase.writer.read { db -> Int in
-            try AccountFollowedCommunityRecord
-                .filter(Column("accountId") == accountId)
-                .fetchCount(db)
-        }
-        #expect(followedCount == 0, "unsubscribing should remove the community from the followed-communities junction")
-    }
-
+    /// (d) A signed-out account still throws before reaching the api, and
+    /// writes nothing to the database — the auth guard runs before enqueue.
     @Test
     func setSubscribedOnSignedOutAccountThrowsAndSkipsApi() async throws {
-        try await seedAccountAndSite()
+        let accountId = try await seedAccountAndSite()
+        try await seedCommunity(
+            appDatabase,
+            accountId: accountId,
+            serverCommunityId: Int64(serverCommunityId),
+            subscribed: .notSubscribed
+        )
 
         let transport = try StubFollowCommunityTransport(communityResponse: nil)
         let service = LemmyServiceHarness.make(
@@ -208,5 +266,13 @@ struct LemmyServiceSubscribeTests {
             !(transport.didSendFollowCommunity),
             "setSubscribed must not hit the api when the account is signed out"
         )
+
+        let (state, followed) = try await readCommunitySubscribed(
+            appDatabase,
+            accountId: accountId,
+            serverCommunityId: Int64(serverCommunityId)
+        )
+        #expect(state == "NotSubscribed", "signed-out setSubscribed must not write to the database")
+        #expect(followed == false)
     }
 }

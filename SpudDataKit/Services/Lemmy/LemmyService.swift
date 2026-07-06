@@ -173,8 +173,15 @@ public protocol LemmyServiceType: Actor {
     ) async throws -> [Components.Schemas.CommunityView]
 
     /// Subscribe to or unsubscribe from `serverCommunityId` for the backing
-    /// account. Throws `LemmyServiceError.requiresAuthentication` if this
-    /// service is backed by a signed-out account.
+    /// account. Flips the community's `subscribedState` (to `.pending` /
+    /// `.notSubscribed`) and the `accountFollowedCommunity` junction
+    /// optimistically, then enqueues the change to the idempotent mutation
+    /// outbox for durable, retried delivery — the UI reflects the new state
+    /// instantly, and the outbox's authoritative post-send mirror later
+    /// reconciles it to the server's actual answer (e.g. `.subscribed` rather
+    /// than `.pending`, for communities that require approval). Throws
+    /// `LemmyServiceError.requiresAuthentication` if this service is backed by
+    /// a signed-out account.
     func setSubscribed(
         serverCommunityId: Components.Schemas.CommunityID,
         subscribed: Bool
@@ -1442,18 +1449,14 @@ public actor LemmyService: LemmyServiceType {
             communityId=\(serverCommunityId, privacy: .public)
             """)
 
-        let response: Components.Schemas.CommunityResponse
-        do {
-            response = try await api.followCommunity(communityID: serverCommunityId, follow: subscribed)
-        } catch {
-            logger.error("""
-                Set subscribed failed. communityId=\(serverCommunityId, privacy: .public). \
-                \(String(describing: error), privacy: .public)
-                """)
-            throw LemmyServiceError(from: error)
+        guard let outbox = await outboxService() else {
+            throw LemmyServiceError.internalInconsistency(description: "outbox unavailable")
         }
-
-        await mirrorCommunityInfoToAppDatabase(view: response.community_view)
+        await outbox.enqueue(OutboxOperation(
+            entityType: .community,
+            entityServerId: Int64(serverCommunityId),
+            desiredState: .subscribe(subscribed)
+        ))
     }
 
     // internal: shared with LemmyService+Safety

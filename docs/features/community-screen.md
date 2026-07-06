@@ -17,7 +17,7 @@ The community screen pins a header above the community's post feed. The header s
 - **NSFW badge and blurred banner.** When a community is marked NSFW, its header shows an "NSFW" badge. If "Blur NSFW" is also on, the community banner is covered by a frosted-glass overlay. See [NSFW content visibility and blur](nsfw-content.md).
 - **Resolve-then-show.** Opening a community first resolves its server id (fetching by qualified name when not cached) behind a spinner, then swaps in the header-plus-feed content. A remote community is resolved fully-qualified so any instance can find it.
 - **Two-column reading layout on iPad.** On a regular-width iPad, opening a community presents a two-column reading split — the header-plus-feed in the primary column and the tapped post in the secondary column — so reading a community mirrors the Posts tab's side-by-side layout. Tapping a post lands it in that secondary column with the feed still visible (see [iPad split-view handoff](ipad-split-view.md)). At compact width the community opens as a single pushed screen and a tapped post pushes full-screen.
-- **Subscribe / unsubscribe from the header.** The header button toggles subscription, gated on sign-in, via the shared confirm-then-mirror path (see [Subscribe / unsubscribe](subscribe-unsubscribe.md)). The button reflects Subscribe, Subscribed, or Pending from the mirrored state.
+- **Subscribe / unsubscribe from the header.** The header button toggles subscription, gated on sign-in. Tapping it flips the button to Pending / Subscribe instantly through the durable optimistic outbox (see [Subscribe / unsubscribe](subscribe-unsubscribe.md)), then updates again once the background send's authoritative result lands (Subscribed, or Pending if the community requires approval).
 - **Header context menu.** Long-pressing the header offers Subscribe / Unsubscribe and Block / Unblock community.
 - **New post.** A compose button in the navigation bar opens the new-post composer pre-filled with this community; it is gated on sign-in.
 - **Sort the feed.** A sort menu in the navigation bar changes the community feed's post sort order — the same grouped Hot / Active / New / Top… pull-down as the main feed. Picking a sort reloads the feed at the new ordering while the header stays in place. See [Feeds and sorting](feeds-and-sorting.md).
@@ -46,7 +46,8 @@ The community screen pins a header above the community's post feed. The header s
 
 - **Given** a community I do not subscribe to, while signed in
 - **When** I tap Subscribe in the header
-- **Then** the subscribe is sent and the button reflects Subscribed once the server's result is mirrored back
+- **Then** the button reads Pending immediately, before any network call
+- **And** it updates again to Subscribed (or stays Pending if the community requires approval) once the background send confirms
 
 ### Block a community reloads the feed
 
