@@ -134,6 +134,10 @@ class MainWindow: UIWindow {
             showOnboarding()
         }
 
+        #if DEBUG
+        seedNonLemmyLoginForUITestsIfRequested()
+        #endif
+
         // Apply the persisted theme + accent synchronously before the window
         // is shown so there's no flash of the wrong appearance, then keep them
         // live via the preference streams.
@@ -189,6 +193,45 @@ class MainWindow: UIWindow {
             let instance = InstanceActorId(from: "https://discuss.tchncs.de")
         else { return }
         accountService.seedSignedInDefaultAccount(atInstance: instance)
+    }
+
+    /// UI-test seam: presents the login form for a non-Lemmy host directly,
+    /// with the NodeInfo cache pre-seeded so the platform-block fires on
+    /// "Log in" tap without any network call. The host is read from the
+    /// `SPUDNonLemmyLoginHost` environment variable (default `"piefed.social"`).
+    /// Replaces whatever root was set by the onboarding branch in `init`
+    /// (this method runs after `showOnboarding()`). Never compiled into
+    /// release builds.
+    private func seedNonLemmyLoginForUITestsIfRequested() {
+        guard
+            ProcessInfo.processInfo.arguments
+            .contains(AppLaunchArgument.seedNonLemmyLoginForUITests.rawValue)
+        else { return }
+
+        let host = ProcessInfo.processInfo.environment["SPUDNonLemmyLoginHost"] ?? "piefed.social"
+
+        // Pre-seed the NodeInfo cache so detect(host:) short-circuits with
+        // PlatformUnsupportedError instead of hitting the network.
+        try? appDatabase.seedNodeInfoCacheForUITests(
+            host: host,
+            softwareName: "piefed",
+            softwareVersion: nil
+        )
+
+        guard let instance = InstanceActorId(from: "https://\(host)") else { return }
+
+        let row = SiteListRow(
+            id: 0,
+            instance: instance,
+            hostname: host,
+            name: nil,
+            descriptionText: nil,
+            iconUrl: nil
+        )
+        let loginViewController = LoginViewController(row: row, dependencies: dependencies.nested)
+        let navigationController = UINavigationController(rootViewController: loginViewController)
+        onboardingNavigationController = navigationController
+        rootViewController = navigationController
     }
     #endif
 
