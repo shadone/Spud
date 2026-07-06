@@ -66,8 +66,26 @@ final class PostDetailViewModel {
 
     /// The full, ordered comment tree as last emitted by the GRDB observation.
     /// Collapse is computed against this; it is never mutated by collapse.
+    ///
+    /// Deliberately `@ObservationIgnored`: the view controller recomputes the
+    /// visible tree from this on every collapse toggle, and if reads of it
+    /// invalidated observers, each collapse would spuriously re-run the whole
+    /// snapshot/prewarm pipeline. Because it is invisible to observation, a
+    /// separate published ``commentsRevision`` counter is the explicit signal
+    /// that a fresh DB tree landed.
     @ObservationIgnored
     private(set) var orderedComments: [PostDetailCommentRow] = []
+
+    /// Monotonic per-emit signal for the comments observation. Bumped exactly
+    /// once each time the GRDB comment tree is delivered — after
+    /// ``updateOrderedComments(_:)`` has stored the new tree. The view
+    /// controller keys its comment reaction pipeline (lookup rebuild, body
+    /// prewarm, snapshot apply, permalink scroll, one-shot fetch kick) on this,
+    /// since ``orderedComments`` is `@ObservationIgnored` and cannot serve as an
+    /// observation trigger. Starts at 0 (nothing emitted yet); the reaction loop
+    /// ignores that initial value and acts only on the increments. Collapse
+    /// toggles never touch it — only a DB emit does.
+    private(set) var commentsRevision: Int = 0
 
     /// Element ids of comments whose subtrees are currently collapsed. Pure
     /// view-layer state — no API or database involvement.
@@ -109,6 +127,13 @@ final class PostDetailViewModel {
     @ObservationIgnored
     private var headerObservationTask: Task<Void, Never>?
 
+    /// The live GRDB comment-tree observation feeding ``orderedComments`` +
+    /// ``commentsRevision``. Owned here (like the header task) so it dies with
+    /// the view model; restarted on a sort change (see
+    /// ``restartComments(sortType:)``).
+    @ObservationIgnored
+    private var commentObservationTask: Task<Void, Never>?
+
     private var alertService: AlertServiceType {
         dependencies.alertService
     }
@@ -137,6 +162,7 @@ final class PostDetailViewModel {
 
     deinit {
         headerObservationTask?.cancel()
+        commentObservationTask?.cancel()
     }
 
     // MARK: - Observation bring-up
@@ -176,6 +202,8 @@ final class PostDetailViewModel {
                 headerRow = row
             }
         }
+
+        startCommentObservation(postRowId: postRowId, sortType: commentSortType.rawValue)
     }
 
     /// Cancels the view model's data observations. Called on reuse / restart and
@@ -183,6 +211,43 @@ final class PostDetailViewModel {
     func stopObservations() {
         headerObservationTask?.cancel()
         headerObservationTask = nil
+        commentObservationTask?.cancel()
+        commentObservationTask = nil
+    }
+
+    /// Starts (or restarts) the GRDB comment-tree observation for `postRowId` +
+    /// `sortType`. Each emit stores the new tree via ``updateOrderedComments(_:)``
+    /// then bumps ``commentsRevision`` so the view controller reacts. Cancels any
+    /// prior comment task first.
+    private func startCommentObservation(postRowId: Int64, sortType: String) {
+        commentObservationTask?.cancel()
+        commentObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await rows in appDatabase.observePostDetailComments(
+                postRowId: postRowId,
+                sortType: sortType
+            ) {
+                if Task.isCancelled { break }
+                updateOrderedComments(rows)
+                commentsRevision += 1
+            }
+        }
+    }
+
+    /// Applies a new comment sort and restarts the comment observation with the
+    /// new ordering. Mirrors the view controller's former restart: the post may
+    /// have become mirrored since open, so the local row id is re-resolved here
+    /// (rather than reusing ``postRowId``) and the observation only restarts once
+    /// it resolves. The caller separately kicks a fetch (cancel-and-replace) to
+    /// pull the newly-sorted tree from the server.
+    func restartComments(sortType: Components.Schemas.CommentSortType) {
+        setCommentSortType(sortType)
+        guard let postRowId = appDatabase.postRowIdSync(
+            forKeychainId: accountKeychainId,
+            serverPostId: Int64(serverPostId)
+        ) else { return }
+        self.postRowId = postRowId
+        startCommentObservation(postRowId: postRowId, sortType: sortType.rawValue)
     }
 
     /// Records this post-detail visit in the local interaction log and seeds

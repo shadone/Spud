@@ -12,9 +12,11 @@ import Testing
 @testable import Spud
 
 /// DB-backed harness for `PostDetailViewModel`'s data observations. Seeds a real
-/// in-memory database with the minimal rows the header observation + visit
-/// recording need (instance / site / account / community / creator / post), then
-/// asserts the view model publishes `headerRow` and records the visit through the
+/// in-memory database with the minimal rows the header + comments observations
+/// and visit recording need (instance / site / account / community / creator /
+/// post / comment tree), then asserts the view model publishes `headerRow`,
+/// drives the comment tree into `orderedComments` while bumping the
+/// `commentsRevision` signal once per DB emit, and records the visit through the
 /// same synchronous read accessors the production path uses.
 ///
 /// The GRDB observation delivers off a global queue and hops back to the main
@@ -41,8 +43,19 @@ struct PostDetailViewModelObservationTests {
         let serverPostId: Int64
         let postRowId: Int64
         let accountId: Int64
+        /// The seeded creator person's local row id, reused as the `creatorId`
+        /// for comments written by ``seedComments(_:sortType:specs:)``.
+        let creatorRowId: Int64
         let title: String
         let body: String?
+    }
+
+    /// One comment to seed (a real `comment` + `commentElement` pair).
+    private struct CommentSpec {
+        let localId: Int64
+        let position: Int64
+        let depth: Int64
+        let body: String
     }
 
     // MARK: - Seeding
@@ -59,7 +72,7 @@ struct PostDetailViewModelObservationTests {
     ) async throws -> Seed {
         let appDatabase = try AppDatabase.inMemory()
 
-        let (accountId, postRowId) = try await appDatabase.writer.write { db -> (Int64, Int64) in
+        let (accountId, postRowId, creatorRowId) = try await appDatabase.writer.write { db -> (Int64, Int64, Int64) in
             var instance = InstanceRecord(actorId: "https://example.com")
             try instance.insert(db)
 
@@ -110,7 +123,7 @@ struct PostDetailViewModelObservationTests {
                 try interaction.insert(db)
             }
 
-            return (account.id!, post.id!)
+            return (account.id!, post.id!, creator.id!)
         }
 
         let dependencies = TestDependencies(
@@ -127,9 +140,47 @@ struct PostDetailViewModelObservationTests {
             serverPostId: serverPostId,
             postRowId: postRowId,
             accountId: accountId,
+            creatorRowId: creatorRowId,
             title: title,
             body: body
         )
+    }
+
+    /// Writes each spec as a real `comment` + `commentElement` pair for the
+    /// seeded post, under `sortType` so the comments observation picks them up.
+    /// Can run before or after ``PostDetailViewModel/startObservations()`` — a
+    /// live write re-fires the observation. Returns the created element ids in
+    /// the order given.
+    @discardableResult
+    private func seedComments(
+        _ seed: Seed,
+        sortType: String,
+        specs: [CommentSpec]
+    ) async throws -> [Int64] {
+        try await seed.appDatabase.writer.write { db -> [Int64] in
+            var elementIds: [Int64] = []
+            for spec in specs {
+                var comment = CommentRecord(
+                    postId: seed.postRowId,
+                    creatorId: seed.creatorRowId,
+                    localCommentId: spec.localId,
+                    body: spec.body,
+                    published: Date(timeIntervalSince1970: 2_000_000 + Double(spec.position))
+                )
+                try comment.insert(db)
+
+                var element = CommentElementRecord(
+                    postId: seed.postRowId,
+                    commentId: comment.id!,
+                    position: spec.position,
+                    depth: spec.depth,
+                    sortType: sortType
+                )
+                try element.insert(db)
+                elementIds.append(element.id!)
+            }
+            return elementIds
+        }
     }
 
     private func makeViewModel(_ seed: Seed) -> PostDetailViewModel {
@@ -285,6 +336,109 @@ struct PostDetailViewModelObservationTests {
             forKeychainId: seed.keychainId,
             serverPostId: seed.serverPostId
         ) != nil)
+
+        vm.stopObservations()
+    }
+
+    // MARK: - Comments observation + revision signal
+
+    @Test
+    func startObservationsPublishesSeededCommentTreeInOrderAndBumpsRevision() async throws {
+        let seed = try await makeSeed()
+        let vm = makeViewModel(seed)
+        let sortType = vm.commentSortType.rawValue
+
+        // Precondition: nothing emitted yet — the revision starts at 0 and the
+        // ordered tree is empty.
+        #expect(vm.commentsRevision == 0)
+        #expect(vm.orderedComments.isEmpty)
+
+        try await seedComments(seed, sortType: sortType, specs: [
+            CommentSpec(localId: 101, position: 0, depth: 1, body: "first"),
+            CommentSpec(localId: 102, position: 1, depth: 1, body: "second"),
+            CommentSpec(localId: 103, position: 2, depth: 1, body: "third"),
+        ])
+
+        vm.startObservations()
+
+        await poll { vm.orderedComments.count == 3 }
+
+        // A DB emit runs `updateOrderedComments` then bumps the published signal.
+        #expect(vm.commentsRevision >= 1, "a comment emit must bump the revision signal")
+        // Ordered by `commentElement.position ASC`.
+        #expect(vm.orderedComments.map(\.serverCommentId) == [101, 102, 103])
+        #expect(vm.orderedComments.map(\.position) == [0, 1, 2])
+        #expect(vm.orderedComments.map(\.body) == ["first", "second", "third"])
+
+        vm.stopObservations()
+    }
+
+    @Test
+    func newCommentWrittenMidObservationBumpsRevisionAgainAndAppears() async throws {
+        let seed = try await makeSeed()
+        let vm = makeViewModel(seed)
+        let sortType = vm.commentSortType.rawValue
+
+        try await seedComments(seed, sortType: sortType, specs: [
+            CommentSpec(localId: 101, position: 0, depth: 1, body: "first"),
+            CommentSpec(localId: 102, position: 1, depth: 1, body: "second"),
+        ])
+
+        vm.startObservations()
+        await poll { vm.orderedComments.count == 2 }
+
+        let revisionAfterInitial = vm.commentsRevision
+        #expect(revisionAfterInitial >= 1)
+
+        // Write a new comment while the observation is live: it must re-fire,
+        // bump the revision past the initial value, and appear in order.
+        try await seedComments(seed, sortType: sortType, specs: [
+            CommentSpec(localId: 103, position: 2, depth: 1, body: "third-live"),
+        ])
+
+        await poll { vm.orderedComments.count == 3 }
+
+        #expect(vm.commentsRevision > revisionAfterInitial, "a live insert must bump the revision again")
+        #expect(vm.orderedComments.map(\.serverCommentId) == [101, 102, 103])
+        #expect(vm.orderedComments.last?.body == "third-live")
+
+        vm.stopObservations()
+    }
+
+    @Test
+    func collapseToggleDoesNotBumpRevision() async throws {
+        let seed = try await makeSeed()
+        let vm = makeViewModel(seed)
+        let sortType = vm.commentSortType.rawValue
+
+        try await seedComments(seed, sortType: sortType, specs: [
+            CommentSpec(localId: 101, position: 0, depth: 1, body: "parent"),
+            CommentSpec(localId: 102, position: 1, depth: 2, body: "child"),
+        ])
+
+        vm.startObservations()
+        await poll { vm.orderedComments.count == 2 }
+
+        // Snapshot the revision immediately after the emit. Everything below is
+        // synchronous (no `await`), so no queued observation can interleave and
+        // move the counter between capture and the assertions.
+        let revisionAfterEmit = vm.commentsRevision
+        #expect(revisionAfterEmit >= 1)
+
+        let parentElementId = try #require(vm.orderedComments.first?.id)
+
+        // Collapse is pure @ObservationIgnored view-layer state — it must NOT
+        // bump the DB-emit revision (that is the whole reason the revision
+        // exists as a separate signal from `orderedComments`).
+        let collapsed = vm.toggleCollapse(elementId: parentElementId)
+        #expect(collapsed)
+        #expect(vm.isCollapsed(elementId: parentElementId))
+        #expect(vm.commentsRevision == revisionAfterEmit, "collapse must not bump the comments revision")
+
+        // Expanding again must also leave the revision untouched.
+        vm.toggleCollapse(elementId: parentElementId)
+        #expect(!vm.isCollapsed(elementId: parentElementId))
+        #expect(vm.commentsRevision == revisionAfterEmit)
 
         vm.stopObservations()
     }

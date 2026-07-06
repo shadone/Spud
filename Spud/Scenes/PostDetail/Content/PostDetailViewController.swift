@@ -432,13 +432,11 @@ class PostDetailViewController: UIViewController {
     /// fetch. Per-post only — the global default is untouched.
     private func changeCommentSort(to sortType: Components.Schemas.CommentSortType) {
         guard sortType != viewModel.commentSortType else { return }
-        viewModel.setCommentSortType(sortType)
-        if let postRowId = appDatabase.postRowIdSync(
-            forKeychainId: viewModel.accountKeychainId,
-            serverPostId: Int64(viewModel.serverPostId)
-        ) {
-            startCommentObservation(postRowId: postRowId)
-        }
+        // The view model applies the sort and restarts its comment observation
+        // (re-resolving the row id, in case the post was mirrored since open).
+        // The VC's revision reaction keeps observing across the restart, so the
+        // new ordering's first emit flows through the same pipeline.
+        viewModel.restartComments(sortType: sortType)
         Task { await viewModel.fetchComments() }
     }
 
@@ -663,7 +661,49 @@ class PostDetailViewController: UIViewController {
             }
         }
 
-        startCommentObservation(postRowId: postRowId)
+        startCommentReaction()
+    }
+
+    /// Reacts to the view model's published `commentsRevision`, reproducing the
+    /// per-emit comment pipeline the GRDB loop used to run inline — in the same
+    /// order: rebuild the element-id lookup from the freshly-stored tree, prewarm
+    /// the comment bodies off the main thread, apply the snapshot, attempt the
+    /// permalink scroll, then fire the one-shot `didPrepareObservation`. The view
+    /// model owns the GRDB observation now: on each emit it stores the tree into
+    /// `orderedComments` (`@ObservationIgnored`) and bumps `commentsRevision`, so
+    /// that counter — not the tree — is the reaction key.
+    private func startCommentReaction() {
+        commentObservationTask?.cancel()
+        commentObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            // The stream yields synchronously on subscribe (revision 0, before
+            // any DB emit). Skip that seed value: only the increments a real DB
+            // emit produces count as a comment snapshot.
+            var lastHandledRevision = 0
+            for await revision in ObservationStream.values(of: { [weak self] in
+                self?.viewModel.commentsRevision ?? 0
+            }) {
+                if Task.isCancelled { break }
+                guard revision != lastHandledRevision else { continue }
+                lastHandledRevision = revision
+
+                let rows = viewModel.orderedComments
+                commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
+
+                await Self.prewarmCommentBodies(
+                    rows,
+                    textSizeAdjustment: appearanceService.postDetail.textSizeAdjustment
+                )
+                if Task.isCancelled { break }
+
+                applySnapshot()
+                attemptPermalinkScroll()
+                if !hasReceivedFirstCommentSnapshot {
+                    hasReceivedFirstCommentSnapshot = true
+                    viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
+                }
+            }
+        }
     }
 
     /// Fires the unavailable placeholder for the current header row if the
@@ -691,36 +731,6 @@ class PostDetailViewController: UIViewController {
             isOwnPost: isOwnPost,
             moderationCapabilityResolved: moderationCapabilityResolved
         )
-    }
-
-    private func startCommentObservation(postRowId: Int64) {
-        commentObservationTask?.cancel()
-
-        let sortTypeRaw = viewModel.commentSortType.rawValue
-        commentObservationTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            for await rows in appDatabase.observePostDetailComments(
-                postRowId: postRowId,
-                sortType: sortTypeRaw
-            ) {
-                if Task.isCancelled { break }
-                commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
-                viewModel.updateOrderedComments(rows)
-
-                await Self.prewarmCommentBodies(
-                    rows,
-                    textSizeAdjustment: appearanceService.postDetail.textSizeAdjustment
-                )
-                if Task.isCancelled { break }
-
-                applySnapshot()
-                attemptPermalinkScroll()
-                if !hasReceivedFirstCommentSnapshot {
-                    hasReceivedFirstCommentSnapshot = true
-                    viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
-                }
-            }
-        }
     }
 
     /// If the screen was opened on a `/comment/<id>` permalink, try to resolve the
