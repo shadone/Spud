@@ -205,14 +205,15 @@ class MainWindow: UIWindow {
     private func seedNonLemmyLoginForUITestsIfRequested() {
         guard
             ProcessInfo.processInfo.arguments
-            .contains(AppLaunchArgument.seedNonLemmyLoginForUITests.rawValue)
+            .contains(AppLaunchArgument.seedNonLemmyLoginForUITests.rawValue),
+            accountService.currentDefaultAccountKeychainId() == nil
         else { return }
 
         let host = ProcessInfo.processInfo.environment["SPUDNonLemmyLoginHost"] ?? "piefed.social"
 
         // Pre-seed the NodeInfo cache so detect(host:) short-circuits with
         // PlatformUnsupportedError instead of hitting the network.
-        try? appDatabase.seedNodeInfoCacheForUITests(
+        try! appDatabase.seedNodeInfoCacheForUITests(
             host: host,
             softwareName: "piefed",
             softwareVersion: nil
@@ -230,7 +231,6 @@ class MainWindow: UIWindow {
         )
         let loginViewController = LoginViewController(row: row, dependencies: dependencies.nested)
         let navigationController = UINavigationController(rootViewController: loginViewController)
-        onboardingNavigationController = navigationController
         rootViewController = navigationController
     }
     #endif
