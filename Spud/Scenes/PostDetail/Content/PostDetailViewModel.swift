@@ -135,6 +135,24 @@ final class PostDetailViewModel {
     private(set) var newCommentState: NewCommentState.Result =
         .init(newElementIds: [], firstNewElementId: nil)
 
+    /// A test-injected override for the action-dispatch seam, or nil in
+    /// production (where ``lemmy`` builds the live adapter on demand).
+    @ObservationIgnored
+    private let injectedLemmy: (any PostDetailLemmyServicing)?
+
+    /// The seam through which every non-comment-fetch PostDetail action reaches
+    /// the account's `LemmyService`. In production it wraps `accountScope`'s live
+    /// `LemmyService`, resolved *at call time* — matching both the pre-refactor
+    /// call sites (which read `accountScope.lemmyService` per call) and
+    /// `AccountScope`'s "resolve live on each read" contract, and so a
+    /// fetch-only test fixture never forces the account lookup. SpudTests inject
+    /// a recording double via `init(lemmy:)`. Comment fetching keeps its own
+    /// `fetchCommentsOperation` closure seam — the two are deliberately separate
+    /// (see `PostDetailLemmyServicing`).
+    private var lemmy: any PostDetailLemmyServicing {
+        injectedLemmy ?? PostDetailLemmyServiceAdapter(lemmyService: accountScope.lemmyService)
+    }
+
     @ObservationIgnored
     private let fetchCommentsOperation: @MainActor (Components.Schemas.CommentSortType) async throws -> Void
 
@@ -185,12 +203,14 @@ final class PostDetailViewModel {
         accountScope: AccountScope,
         appDatabase: AppDatabase,
         dependencies: Dependencies,
+        lemmy: (any PostDetailLemmyServicing)? = nil,
         fetchCommentsOperation: (@MainActor (Components.Schemas.CommentSortType) async throws -> Void)? = nil
     ) {
         self.dependencies = dependencies
         self.appDatabase = appDatabase
         self.serverPostId = serverPostId
         self.accountScope = accountScope
+        injectedLemmy = lemmy
         commentSortType = dependencies.preferencesService.defaultCommentSortType
         self.fetchCommentsOperation = fetchCommentsOperation ?? { sortType in
             try await accountScope.lemmyService
@@ -529,6 +549,199 @@ final class PostDetailViewModel {
             forKeychainId: accountKeychainId,
             communityActorId: communityActorId,
             until: until
+        )
+    }
+
+    // MARK: - Action dispatch (report)
+
+    /// Reports this post to the moderators with the given `reason`. A thin
+    /// forward to the account's `LemmyService` (via the ``lemmy`` seam); the
+    /// view controller owns the sign-in gate, reason prompt, haptics, and the
+    /// success/error surfaces. Rethrows the service error unchanged.
+    func reportPost(reason: String) async throws {
+        try await lemmy.reportPost(serverPostId: serverPostId, reason: reason)
+    }
+
+    /// Reports the comment `serverCommentId` to the moderators with the given
+    /// `reason`. Converts the local `Int64` id to the API `CommentID` here so
+    /// the view controller stays free of that conversion. Rethrows the service
+    /// error unchanged.
+    func reportComment(serverCommentId: Int64, reason: String) async throws {
+        try await lemmy.reportComment(
+            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            reason: reason
+        )
+    }
+
+    // MARK: - Action dispatch (delete / restore)
+
+    /// Deletes or restores the user's OWN comment `serverCommentId`. Converts
+    /// the local `Int64` id to the API `CommentID` here so the view controller
+    /// stays free of that conversion. Rethrows the service error unchanged.
+    func deleteComment(serverCommentId: Int64, deleted: Bool) async throws {
+        try await lemmy.deleteComment(
+            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            deleted: deleted
+        )
+    }
+
+    /// Deletes or restores the user's OWN post `serverPostId`. Rethrows the
+    /// service error unchanged.
+    func deletePost(serverPostId: Components.Schemas.PostID, deleted: Bool) async throws {
+        try await lemmy.deletePost(serverPostId: serverPostId, deleted: deleted)
+    }
+
+    // MARK: - Action dispatch (moderation)
+
+    /// Removes (or restores) `serverPostId` as a moderator/admin, optionally
+    /// with a `reason` shown to the author. Rethrows the service error
+    /// unchanged.
+    func removePost(serverPostId: Components.Schemas.PostID, removed: Bool, reason: String?) async throws {
+        try await lemmy.removePost(serverPostId: serverPostId, removed: removed, reason: reason)
+    }
+
+    /// Locks (or unlocks) `serverPostId` as a moderator/admin. Rethrows the
+    /// service error unchanged.
+    func lockPost(serverPostId: Components.Schemas.PostID, locked: Bool) async throws {
+        try await lemmy.lockPost(serverPostId: serverPostId, locked: locked)
+    }
+
+    /// Features (pins) or unfeatures `serverPostId`. `local` pins to the
+    /// instance front page (admin-only); otherwise pins to the community.
+    /// Rethrows the service error unchanged.
+    func featurePost(serverPostId: Components.Schemas.PostID, featured: Bool, local: Bool) async throws {
+        try await lemmy.featurePost(serverPostId: serverPostId, featured: featured, local: local)
+    }
+
+    /// Removes (or restores) `serverCommentId` as a moderator/admin, optionally
+    /// with a `reason` shown to the author. Converts the local `Int64` id to
+    /// the API `CommentID` here so the view controller stays free of that
+    /// conversion. Rethrows the service error unchanged.
+    func removeComment(serverCommentId: Int64, removed: Bool, reason: String?) async throws {
+        try await lemmy.removeComment(
+            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            removed: removed,
+            reason: reason
+        )
+    }
+
+    /// Distinguishes (or undistinguishes) `serverCommentId` as a moderator.
+    /// Converts the local `Int64` id to the API `CommentID` here so the view
+    /// controller stays free of that conversion. Rethrows the service error
+    /// unchanged.
+    func distinguishComment(serverCommentId: Int64, distinguished: Bool) async throws {
+        try await lemmy.distinguishComment(
+            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            distinguished: distinguished
+        )
+    }
+
+    /// Bans `serverPersonId` from `communityId` as a moderator/admin. Bakes
+    /// `ban: true` — the view controller's ban action only ever bans (there is
+    /// no unban entry point in this screen), so it does not need to pass the
+    /// flag through. When `removeData` is true, the person's existing content
+    /// in the community is also removed. Rethrows the service error unchanged.
+    func banFromCommunity(
+        communityId: Components.Schemas.CommunityID,
+        serverPersonId: Components.Schemas.PersonID,
+        removeData: Bool,
+        reason: String?
+    ) async throws {
+        try await lemmy.banFromCommunity(
+            serverCommunityId: communityId,
+            serverPersonId: serverPersonId,
+            ban: true,
+            removeData: removeData,
+            reason: reason
+        )
+    }
+
+    // MARK: - Action dispatch (pending comments / block)
+
+    /// Retries a previously failed comment composition (send or edit)
+    /// identified by `clientToken`. Non-throwing, mirroring the service — a
+    /// retry that fails again surfaces later through the composer's own
+    /// failure state, not through this call.
+    func retryComposition(clientToken: String) async {
+        await lemmy.retryComposition(clientToken: clientToken)
+    }
+
+    /// Permanently discards the composition identified by `clientToken`.
+    /// Non-throwing, mirroring the service.
+    func discardComposition(clientToken: String) async {
+        await lemmy.discardComposition(clientToken: clientToken)
+    }
+
+    /// Blocks `serverPersonId` for the backing account. Bakes `blocked: true`
+    /// — the view controller's block action never unblocks from this screen
+    /// — and converts the local `Int64` id to the API `PersonID` here so the
+    /// view controller stays free of that conversion. Rethrows the service
+    /// error unchanged.
+    func blockAuthor(serverPersonId: Int64) async throws {
+        try await lemmy.setBlocked(
+            serverPersonId: Components.Schemas.PersonID(serverPersonId),
+            blocked: true
+        )
+    }
+
+    // MARK: - Action dispatch (read-path wrappers + comment vote / save)
+
+    /// Marks this post read on the server for the backing account. A thin
+    /// forward for its own ``serverPostId``; the view controller owns the
+    /// `markPostsRead`-preference gating and the error surface. Rethrows the
+    /// service error unchanged.
+    func markAsRead() async throws {
+        try await lemmy.markAsRead(serverPostId: serverPostId)
+    }
+
+    /// Refreshes this post's record (the header counters that only a fresh
+    /// `PostView` updates) from the server, for its own ``serverPostId``. Used by
+    /// pull-to-refresh alongside a comment reload. Rethrows the service error
+    /// unchanged; the view controller deliberately swallows it so a header-counter
+    /// refresh failure never masks the comment-load error surface.
+    func refreshPostInfo() async throws {
+        try await lemmy.fetchPostInfo(serverPostId: serverPostId)
+    }
+
+    /// Resolves the backing account's moderation capability from the server and
+    /// returns it. A thin forward; the view controller owns the best-effort `try?`
+    /// / `.none` fallback and applies the result. Rethrows the service error
+    /// unchanged.
+    func fetchModerationCapability() async throws -> ModerationCapability {
+        try await lemmy.fetchModerationCapability()
+    }
+
+    /// Reloads this post's comments from the server at the current
+    /// ``commentSortType``, for pull-to-refresh. Deliberately reuses the existing
+    /// ``fetchCommentsOperation`` closure seam (NOT the ``lemmy`` protocol seam)
+    /// and, matching the pre-refactor direct service call from the view
+    /// controller's `reloadAsync`, does NOT enter the ``fetchComments()``
+    /// cancel-and-replace state machine (``isLoadingComments`` /
+    /// ``commentFetchError`` / ``fetchTask``). Rethrows the fetch error unchanged
+    /// so the view controller can surface it with the `.fetchComments` alert tag.
+    func refreshComments() async throws {
+        try await fetchCommentsOperation(commentSortType)
+    }
+
+    /// Casts (or clears) a vote on the comment `serverCommentId` for the backing
+    /// account. Converts the local `Int64` id to the API `CommentID` here so the
+    /// view controller stays free of that conversion. Rethrows the service error
+    /// unchanged.
+    func voteOnComment(serverCommentId: Int64, action: VoteStatus.Action) async throws {
+        try await lemmy.vote(
+            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            vote: action
+        )
+    }
+
+    /// Saves or unsaves the comment `serverCommentId` for the backing account.
+    /// Converts the local `Int64` id to the API `CommentID` here so the view
+    /// controller stays free of that conversion. Rethrows the service error
+    /// unchanged.
+    func setSavedOnComment(serverCommentId: Int64, saved: Bool) async throws {
+        try await lemmy.setSaved(
+            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            saved: saved
         )
     }
 }

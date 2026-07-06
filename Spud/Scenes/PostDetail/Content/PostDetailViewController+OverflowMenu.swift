@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
-import LemmyKit
 import SpudDataKit
 import SpudUIKit
 import SpudUtilKit
@@ -184,8 +183,7 @@ extension PostDetailViewController {
 
     private func submitBlockAuthor(serverPersonId: Int64) async {
         do {
-            try await viewModel.accountScope.lemmyService
-                .setBlocked(serverPersonId: Components.Schemas.PersonID(serverPersonId), blocked: true)
+            try await viewModel.blockAuthor(serverPersonId: serverPersonId)
         } catch {
             alertService.handle(error, for: .setBlockedPerson)
         }

@@ -43,7 +43,7 @@ extension PostDetailViewController {
             title: NSLocalizedString("Retry", comment: "Retry a failed comment send"),
             style: .default
         ) { [weak self] _ in
-            Task { await self?.viewModel.accountScope.lemmyService.retryComposition(clientToken: token) }
+            Task { await self?.viewModel.retryComposition(clientToken: token) }
         })
         sheet.addAction(UIAlertAction(
             title: NSLocalizedString("Edit", comment: "Edit a failed comment before retrying"),
@@ -59,7 +59,7 @@ extension PostDetailViewController {
             title: NSLocalizedString("Discard", comment: "Discard a failed comment"),
             style: .destructive
         ) { [weak self] _ in
-            Task { await self?.viewModel.accountScope.lemmyService.discardComposition(clientToken: token) }
+            Task { await self?.viewModel.discardComposition(clientToken: token) }
         })
         sheet.addAction(UIAlertAction(
             title: NSLocalizedString("Cancel", comment: "Cancel the failed comment action sheet"),
@@ -102,13 +102,13 @@ extension PostDetailViewController {
             title: NSLocalizedString("Retry", comment: "Retry a failed comment edit"),
             style: .default
         ) { [weak self] _ in
-            Task { await self?.viewModel.accountScope.lemmyService.retryComposition(clientToken: token) }
+            Task { await self?.viewModel.retryComposition(clientToken: token) }
         })
         sheet.addAction(UIAlertAction(
             title: NSLocalizedString("Discard Edit", comment: "Discard a failed comment edit, reverting to the server body"),
             style: .destructive
         ) { [weak self] _ in
-            Task { await self?.viewModel.accountScope.lemmyService.discardComposition(clientToken: token) }
+            Task { await self?.viewModel.discardComposition(clientToken: token) }
         })
         sheet.addAction(UIAlertAction(
             title: NSLocalizedString("Cancel", comment: "Cancel the failed comment edit action sheet"),
@@ -137,7 +137,7 @@ extension PostDetailViewController {
     private func editFailedComment(token: String, body: String, parentCommentServerId: Int64?) {
         Task { @MainActor [weak self] in
             guard let self else { return }
-            await viewModel.accountScope.lemmyService.discardComposition(clientToken: token)
+            await viewModel.discardComposition(clientToken: token)
             if let parentCommentServerId {
                 presentComposer(
                     target: .commentReply(

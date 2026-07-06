@@ -64,8 +64,7 @@ extension PostDetailViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await viewModel.accountScope.lemmyService
-                    .deleteComment(serverCommentId: Components.Schemas.CommentID(serverCommentId), deleted: deleted)
+                try await viewModel.deleteComment(serverCommentId: serverCommentId, deleted: deleted)
             } catch {
                 // The optimistic write already applied synchronously inside
                 // enqueue; network failures are retried by the outbox and a
@@ -110,8 +109,7 @@ extension PostDetailViewController {
             guard let self else { return }
             Haptics.tap()
             do {
-                try await viewModel.accountScope.lemmyService
-                    .deletePost(serverPostId: serverPostId, deleted: deleted)
+                try await viewModel.deletePost(serverPostId: serverPostId, deleted: deleted)
             } catch {
                 // The optimistic write already applied synchronously inside
                 // enqueue; network failures are retried by the outbox and a
