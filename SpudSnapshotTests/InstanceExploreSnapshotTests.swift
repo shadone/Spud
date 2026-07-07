@@ -26,6 +26,10 @@ final class InstanceExploreSnapshotTests: XCTestCase {
         // Pin the process-wide accent so renders don't depend on the sim's
         // persisted accent preference. See `SnapshotDeterminism.pinAccent()`.
         SnapshotDeterminism.pinAccent()
+        // Pin the host scene's status bar hidden so nav-hosted / key-window
+        // captures are immune to an active Simulator GUI session. See
+        // `SnapshotDeterminism.pinStatusBarHidden()`.
+        SnapshotDeterminism.pinStatusBarHidden()
     }
 
     /// Stub that always returns `.unknown` so the badge stays hidden and

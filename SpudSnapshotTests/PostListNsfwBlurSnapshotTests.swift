@@ -15,6 +15,14 @@ import XCTest
 /// blurred (overlay visible) and revealed (overlay hidden after tap).
 @MainActor
 final class PostListNsfwBlurSnapshotTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // Pin the host scene's status bar hidden so this on-screen
+        // (`drawHierarchyInKeyWindow`) capture is immune to an active Simulator
+        // GUI session. See `SnapshotDeterminism.pinStatusBarHidden()`.
+        SnapshotDeterminism.pinStatusBarHidden()
+    }
+
     private let lemmyTeal = UIColor(red: 0, green: 0x96 / 255, blue: 0x87 / 255, alpha: 1)
     private let width: CGFloat = 390
 
