@@ -33,7 +33,7 @@ packages:
     exactVersion: 0.5.1
   DiasporaNodeInfo:
     url: https://github.com/shadone/DiasporaNodeInfo
-    exactVersion: 1.4.0
+    exactVersion: 2.0.0
   Nuke:
     url: https://github.com/kean/Nuke
     from: 13.0.0
