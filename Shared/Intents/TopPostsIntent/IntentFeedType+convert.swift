@@ -36,7 +36,7 @@ extension IntentFeedType {
     }
 }
 
-extension Components.Schemas.ListingType {
+extension Lemmy.ListingType {
     init?(from intentFeedType: IntentFeedType) {
         switch intentFeedType {
         case .unknown:

@@ -126,9 +126,9 @@ struct EditProfileView: View {
                 NSLocalizedString("Default feed", comment: "Edit Profile default feed picker"),
                 selection: $viewModel.defaultListingType
             ) {
-                Text(NSLocalizedString("All", comment: "Default feed option")).tag(Components.Schemas.ListingType.All)
-                Text(NSLocalizedString("Local", comment: "Default feed option")).tag(Components.Schemas.ListingType.Local)
-                Text(NSLocalizedString("Subscribed", comment: "Default feed option")).tag(Components.Schemas.ListingType.Subscribed)
+                Text(NSLocalizedString("All", comment: "Default feed option")).tag(Lemmy.ListingType.All)
+                Text(NSLocalizedString("Local", comment: "Default feed option")).tag(Lemmy.ListingType.Local)
+                Text(NSLocalizedString("Subscribed", comment: "Default feed option")).tag(Lemmy.ListingType.Subscribed)
             }
         } header: {
             Text(NSLocalizedString("Preferences", comment: "Edit Profile section header"))

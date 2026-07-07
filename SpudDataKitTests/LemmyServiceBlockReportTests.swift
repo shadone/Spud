@@ -12,16 +12,16 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias Comment = Components.Schemas.Comment
-private typealias PersonView = Components.Schemas.PersonView
-private typealias CommunityView = Components.Schemas.CommunityView
-private typealias BlockPersonResponse = Components.Schemas.BlockPersonResponse
-private typealias BlockCommunityResponse = Components.Schemas.BlockCommunityResponse
-private typealias PostReportResponse = Components.Schemas.PostReportResponse
-private typealias CommentReportResponse = Components.Schemas.CommentReportResponse
+private typealias Person = Lemmy.Person
+private typealias Community = Lemmy.Community
+private typealias Post = Lemmy.Post
+private typealias Comment = Lemmy.Comment
+private typealias PersonView = Lemmy.PersonView
+private typealias CommunityView = Lemmy.CommunityView
+private typealias BlockPersonResponse = Lemmy.BlockPersonResponse
+private typealias BlockCommunityResponse = Lemmy.BlockCommunityResponse
+private typealias PostReportResponse = Lemmy.PostReportResponse
+private typealias CommentReportResponse = Lemmy.CommentReportResponse
 
 /// Stub `ClientTransport` returning canned JSON for the block / report
 /// operations, recording which operation was invoked.

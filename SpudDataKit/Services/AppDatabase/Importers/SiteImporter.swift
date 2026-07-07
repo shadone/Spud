@@ -67,7 +67,7 @@ public extension AppDatabase {
     /// response. Returns the resolved (instanceId, siteId).
     @discardableResult
     func upsertSite(
-        from response: Components.Schemas.GetSiteResponse
+        from response: Lemmy.GetSiteResponse
     ) async throws -> (instanceId: Int64, siteId: Int64) {
         let actorIdValue = response.site_view.site.actor_id
         guard let actorId = InstanceActorId(from: actorIdValue) else {
@@ -123,7 +123,7 @@ public extension AppDatabase {
     /// `ordinal`. `ON DELETE CASCADE` on the FK is not relied on here; we delete
     /// the prior set explicitly so a shrinking admin list converges.
     private static func applyAdmins(
-        _ admins: [Components.Schemas.PersonView],
+        _ admins: [Lemmy.PersonView],
         siteId: Int64,
         db: Database
     ) throws {
@@ -144,7 +144,7 @@ public extension AppDatabase {
     }
 
     private static func apply(
-        response: Components.Schemas.GetSiteResponse,
+        response: Lemmy.GetSiteResponse,
         to record: inout SiteRecord,
         now: Date
     ) {

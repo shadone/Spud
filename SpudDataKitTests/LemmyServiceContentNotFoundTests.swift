@@ -45,7 +45,7 @@ struct LemmyServiceContentNotFoundHarness {
     /// The GRDB row id of the seeded account.
     let accountId: Int64
     /// The server post id (matches `Post.fake.id` == 1).
-    let serverPostId: Components.Schemas.PostID
+    let serverPostId: Lemmy.PostID
 
     private static let keychainId = "keychain-content-not-found-test"
 
@@ -70,8 +70,8 @@ struct LemmyServiceContentNotFoundHarness {
         }
 
         // Seed a post row so `isUnavailable` has something to update.
-        let post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
-        let view = Components.Schemas.PostView.fake(post: post, creator: .fake, community: .fake)
+        let post = Lemmy.Post.fake(creator: .fake, community: .fake)
+        let view = Lemmy.PostView.fake(post: post, creator: .fake, community: .fake)
         try await appDatabase.upsertPost(from: view, accountId: accountId, siteId: siteId)
         let serverPostId = post.id
 

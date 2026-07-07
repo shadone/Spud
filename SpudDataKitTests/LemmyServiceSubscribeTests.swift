@@ -11,9 +11,9 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Community = Components.Schemas.Community
-private typealias CommunityView = Components.Schemas.CommunityView
-private typealias CommunityResponse = Components.Schemas.CommunityResponse
+private typealias Community = Lemmy.Community
+private typealias CommunityView = Lemmy.CommunityView
+private typealias CommunityResponse = Lemmy.CommunityResponse
 
 /// Stub `ClientTransport` that returns canned JSON for the `followCommunity`
 /// operation and records whether it was invoked.
@@ -93,7 +93,7 @@ private final class FailingFollowCommunityTransport: ClientTransport, @unchecked
 @MainActor
 struct LemmyServiceSubscribeTests {
     private let keychainId = "keychain-1"
-    private let serverCommunityId: Components.Schemas.CommunityID = 1
+    private let serverCommunityId: Lemmy.CommunityID = 1
 
     private let appDatabase: AppDatabase
 

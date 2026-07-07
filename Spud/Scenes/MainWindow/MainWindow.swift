@@ -285,7 +285,7 @@ class MainWindow: UIWindow {
     private func applyDefaultAccount(
         keychainId: String,
         isSignedIn: Bool,
-        defaultPostSortType: Components.Schemas.SortType
+        defaultPostSortType: Lemmy.SortType
     ) {
         currentDefaultAccountKeychainId = keychainId
 
@@ -605,9 +605,9 @@ class MainWindow: UIWindow {
     }
 
     func display(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         accountKeychainId: String,
-        scrollToCommentId: Components.Schemas.CommentID? = nil
+        scrollToCommentId: Lemmy.CommentID? = nil
     ) {
         let postDetailVC = PostDetailOrEmptyViewController(
             serverPostId: serverPostId,
@@ -689,7 +689,7 @@ class MainWindow: UIWindow {
         pushIntoCurrentContext(vc)
     }
 
-    func display(personId: Components.Schemas.PersonID, instance: InstanceActorId, accountKeychainId: String) {
+    func display(personId: Lemmy.PersonID, instance: InstanceActorId, accountKeychainId: String) {
         let vc = PersonOrLoadingViewController(
             personId: personId,
             instance: instance,
@@ -747,7 +747,7 @@ class MainWindow: UIWindow {
 extension MainWindow: AppNavigating {
     // Tab order: Posts 0 | Communities 1 | Search 2 | Inbox 3 | Account 4.
 
-    func selectFeed(listing: Components.Schemas.ListingType, sort: Components.Schemas.SortType?) {
+    func selectFeed(listing: Lemmy.ListingType, sort: Lemmy.SortType?) {
         tabBarController.selectedIndex = 0
         let postListVC = splitViewController?.postListViewController
         postListVC?.showFeed(.frontpage(
@@ -756,7 +756,7 @@ extension MainWindow: AppNavigating {
         ))
     }
 
-    func selectSavedFeed(sort: Components.Schemas.SortType?) {
+    func selectSavedFeed(sort: Lemmy.SortType?) {
         tabBarController.selectedIndex = 0
         let postListVC = splitViewController?.postListViewController
         postListVC?.showFeed(.saved(sortType: sort ?? .Hot))
@@ -789,8 +789,8 @@ extension MainWindow: AppNavigating {
     /// Subscribed / Moderator feeds are meaningless when signed out; fall back to
     /// All, mirroring the widget's signed-out behavior.
     private func adjustedListing(
-        _ listing: Components.Schemas.ListingType
-    ) -> Components.Schemas.ListingType {
+        _ listing: Lemmy.ListingType
+    ) -> Lemmy.ListingType {
         let signedOut = accountService.currentDefaultAccountKeychainId()
             .map { accountService.isSignedOut(forAccountKeychainId: $0) } ?? true
         if signedOut, listing == .Subscribed || listing == .ModeratorView {

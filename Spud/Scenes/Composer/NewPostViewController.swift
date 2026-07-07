@@ -36,7 +36,7 @@ final class NewPostViewController: UIViewController {
 
     /// Invoked on successful submit with the new post's id, so the presenter
     /// can navigate to PostDetail. Used by the non-optimistic path.
-    var onPosted: ((Components.Schemas.PostID) -> Void)?
+    var onPosted: ((Lemmy.PostID) -> Void)?
 
     /// Invoked once the post has been durably enqueued, carrying the client token
     /// so the presenter can push the optimistic pending-post screen.
@@ -184,7 +184,7 @@ final class NewPostViewController: UIViewController {
     // MARK: Functions
 
     init(
-        serverCommunityId: Components.Schemas.CommunityID?,
+        serverCommunityId: Lemmy.CommunityID?,
         initialCommunityName: String?,
         accountKeychainId: String,
         dependencies: Dependencies,
@@ -574,7 +574,7 @@ extension NewPostViewController {
     /// Wraps the new-post composer in a navigation controller configured as a
     /// large detent sheet, ready to `present(...)`.
     static func makeSheet(
-        serverCommunityId: Components.Schemas.CommunityID?,
+        serverCommunityId: Lemmy.CommunityID?,
         initialCommunityName: String?,
         accountKeychainId: String,
         dependencies: Dependencies,
@@ -607,7 +607,7 @@ extension NewPostViewController {
     /// optional post-dismiss hook for any future presenter that needs one.
     static func makeEditSheet(
         serverPostId: Int64,
-        serverCommunityId: Components.Schemas.CommunityID,
+        serverCommunityId: Lemmy.CommunityID,
         communityName: String,
         title: String,
         body: String?,

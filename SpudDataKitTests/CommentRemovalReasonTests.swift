@@ -10,12 +10,12 @@ import LemmyKit
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias Comment = Components.Schemas.Comment
-private typealias CommentView = Components.Schemas.CommentView
-private typealias ModRemoveCommentView = Components.Schemas.ModRemoveCommentView
+private typealias Person = Lemmy.Person
+private typealias Community = Lemmy.Community
+private typealias Post = Lemmy.Post
+private typealias Comment = Lemmy.Comment
+private typealias CommentView = Lemmy.CommentView
+private typealias ModRemoveCommentView = Lemmy.ModRemoveCommentView
 
 /// Covers the modlog removal-reason service path: correlating modlog entries
 /// into a `commentId -> reason` map, and mirroring those reasons onto comments.
@@ -24,7 +24,7 @@ struct CommentRemovalReasonTests {
 
     /// Builds a modlog comment-removal entry. Only `mod_remove_comment` matters
     /// to the correlation; the rest is filler so the view type is satisfied.
-    private func entry(commentId: Components.Schemas.CommentID, reason: String?, removed: Bool) -> ModRemoveCommentView {
+    private func entry(commentId: Lemmy.CommentID, reason: String?, removed: Bool) -> ModRemoveCommentView {
         let person = Person.fake
         let community = Community.fake
         let post = Post.fake(creator: person, community: community)
@@ -80,7 +80,7 @@ struct CommentRemovalReasonTests {
     func mirrorCommentRemovalReasonsUpdatesMatchingComment() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let serverPostId: Int64 = 1
-        let serverCommentId: Components.Schemas.CommentID = 42
+        let serverCommentId: Lemmy.CommentID = 42
 
         // Seed account + site + post so a comment can attach.
         let (accountId, siteId) = try await appDatabase.writer.write { db -> (Int64, Int64) in

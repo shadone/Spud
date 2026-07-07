@@ -11,7 +11,7 @@ import SwiftUI
 struct PreferencesGeneralView: View {
     let viewModel: PreferencesViewModel
 
-    private var defaultPostSortType: Binding<Components.Schemas.SortType> {
+    private var defaultPostSortType: Binding<Lemmy.SortType> {
         .init {
             viewModel.defaultPostSortType
         } set: { newValue in
@@ -19,7 +19,7 @@ struct PreferencesGeneralView: View {
         }
     }
 
-    private var defaultCommentSortType: Binding<Components.Schemas.CommentSortType> {
+    private var defaultCommentSortType: Binding<Lemmy.CommentSortType> {
         .init {
             viewModel.defaultCommentSortType
         } set: { newValue in

@@ -12,13 +12,13 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias PersonView = Components.Schemas.PersonView
-private typealias PersonAggregates = Components.Schemas.PersonAggregates
-private typealias PostView = Components.Schemas.PostView
-private typealias CommentView = Components.Schemas.CommentView
-private typealias Community = Components.Schemas.Community
-private typealias GetPersonDetailsResponse = Components.Schemas.GetPersonDetailsResponse
+private typealias Person = Lemmy.Person
+private typealias PersonView = Lemmy.PersonView
+private typealias PersonAggregates = Lemmy.PersonAggregates
+private typealias PostView = Lemmy.PostView
+private typealias CommentView = Lemmy.CommentView
+private typealias Community = Lemmy.Community
+private typealias GetPersonDetailsResponse = Lemmy.GetPersonDetailsResponse
 
 /// Stub `ClientTransport` returning a canned `GetPersonDetailsResponse` for the
 /// `getPersonDetails` operation, recording whether it was invoked.
@@ -86,7 +86,7 @@ struct LemmyServiceFetchPersonContentTests {
         }
     }
 
-    private func personView(id: Components.Schemas.PersonID, name: String, posts: Int64, comments: Int64) -> PersonView {
+    private func personView(id: Lemmy.PersonID, name: String, posts: Int64, comments: Int64) -> PersonView {
         var person = Person.fake
         person.id = id
         person.name = name
@@ -104,9 +104,9 @@ struct LemmyServiceFetchPersonContentTests {
 
         let person = Person.fake
         let community = Community.fake
-        let post = Components.Schemas.Post.fake(creator: person, community: community)
+        let post = Lemmy.Post.fake(creator: person, community: community)
         let postView = PostView.fake(post: post, creator: person, community: community)
-        let comment = Components.Schemas.Comment.fake(id: 11, post: post, creator: person, parent: .root)
+        let comment = Lemmy.Comment.fake(id: 11, post: post, creator: person, parent: .root)
         let commentView = CommentView.fake(
             comment: comment,
             creator: person,

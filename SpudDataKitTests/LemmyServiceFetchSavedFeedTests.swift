@@ -12,7 +12,7 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias GetPostsResponse = Components.Schemas.GetPostsResponse
+private typealias GetPostsResponse = Lemmy.GetPostsResponse
 
 /// Stub `ClientTransport` that answers the `getPosts` operation with an empty
 /// page and records the query string it was asked to send, so the test can

@@ -7,11 +7,11 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.PersonView {
+extension Lemmy.PersonView {
     static func fake(
-        person: Components.Schemas.Person = .fake,
+        person: Lemmy.Person = .fake,
         isAdmin: Bool = false
-    ) -> Components.Schemas.PersonView {
+    ) -> Lemmy.PersonView {
         .init(
             person: person,
             counts: .init(

@@ -21,7 +21,7 @@ public extension ExplorerInstanceRecord {
     /// This is a pure transform: it has no `id` (never persisted to the curated
     /// `explorerInstance` table) and performs no I/O.
     static func synthesized(
-        from response: Components.Schemas.GetSiteResponse,
+        from response: Lemmy.GetSiteResponse,
         host: String
     ) -> ExplorerInstanceRecord {
         let view = response.site_view

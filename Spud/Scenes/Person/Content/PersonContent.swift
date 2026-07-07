@@ -22,7 +22,7 @@ struct PersonContent {
 
     init() { }
 
-    init(response: Components.Schemas.GetPersonDetailsResponse) {
+    init(response: Lemmy.GetPersonDetailsResponse) {
         comments = response.comments.map(SearchCommentResult.init)
     }
 }

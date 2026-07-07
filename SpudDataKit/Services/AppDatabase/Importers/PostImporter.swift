@@ -61,7 +61,7 @@ public extension AppDatabase {
     /// optimistic fields from being overwritten by server data.
     @discardableResult
     func upsertPost(
-        from view: Components.Schemas.PostView,
+        from view: Lemmy.PostView,
         accountId: Int64,
         siteId: Int64,
         respectsPendingOutbox: Bool = true
@@ -75,7 +75,7 @@ public extension AppDatabase {
     /// transaction per post. Atomic: if any upsert throws the whole batch rolls
     /// back. No-ops on an empty input.
     func upsertPosts(
-        from views: [Components.Schemas.PostView],
+        from views: [Lemmy.PostView],
         accountId: Int64,
         siteId: Int64,
         respectsPendingOutbox: Bool = true
@@ -95,7 +95,7 @@ public extension AppDatabase {
     }
 
     internal static func upsertPost(
-        from view: Components.Schemas.PostView,
+        from view: Lemmy.PostView,
         accountId: Int64,
         siteId: Int64,
         respectsPendingOutbox: Bool = true,
@@ -171,7 +171,7 @@ public extension AppDatabase {
     }
 
     private static func apply(
-        view: Components.Schemas.PostView,
+        view: Lemmy.PostView,
         to record: inout PostRecord,
         now: Date
     ) {

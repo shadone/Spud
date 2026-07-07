@@ -7,7 +7,7 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.GetSiteResponse {
+extension Lemmy.GetSiteResponse {
     /// A `getSite` response whose `my_user` reflects the given moderated
     /// communities and admin flag. Everything else is minimal boilerplate so
     /// the response decodes; the moderation-capability resolution only reads
@@ -16,14 +16,14 @@ extension Components.Schemas.GetSiteResponse {
     /// Pass `myUser: false` to model a response with no `my_user` (e.g. a
     /// signed-out fetch), which resolves to `.none`.
     static func fake(
-        moderates: [Components.Schemas.Community] = [],
+        moderates: [Lemmy.Community] = [],
         isAdmin: Bool = false,
         myUser: Bool = true
-    ) -> Components.Schemas.GetSiteResponse {
-        let person = Components.Schemas.Person.fake
+    ) -> Lemmy.GetSiteResponse {
+        let person = Lemmy.Person.fake
         let date = Date(timeIntervalSince1970: 1_685_577_784)
 
-        let site = Components.Schemas.Site(
+        let site = Lemmy.Site(
             id: 1,
             name: "Example",
             published: date,
@@ -33,7 +33,7 @@ extension Components.Schemas.GetSiteResponse {
             public_key: "fake-public-key",
             instance_id: 1
         )
-        let localSite = Components.Schemas.LocalSite(
+        let localSite = Lemmy.LocalSite(
             id: 1,
             site_id: 1,
             site_setup: true,
@@ -57,7 +57,7 @@ extension Components.Schemas.GetSiteResponse {
             default_post_listing_mode: .List,
             default_sort_type: .Active
         )
-        let rateLimit = Components.Schemas.LocalSiteRateLimit(
+        let rateLimit = Lemmy.LocalSiteRateLimit(
             local_site_id: 1,
             message: 999,
             message_per_second: 60,
@@ -75,7 +75,7 @@ extension Components.Schemas.GetSiteResponse {
             import_user_settings: 999,
             import_user_settings_per_second: 3600
         )
-        let siteAggregates = Components.Schemas.SiteAggregates(
+        let siteAggregates = Lemmy.SiteAggregates(
             site_id: 1,
             users: 0,
             posts: 0,
@@ -86,14 +86,14 @@ extension Components.Schemas.GetSiteResponse {
             users_active_month: 0,
             users_active_half_year: 0
         )
-        let siteView = Components.Schemas.SiteView(
+        let siteView = Lemmy.SiteView(
             site: site,
             local_site: localSite,
             local_site_rate_limit: rateLimit,
             counts: siteAggregates
         )
 
-        let myUserInfo: Components.Schemas.MyUserInfo? = myUser
+        let myUserInfo: Lemmy.MyUserInfo? = myUser
             ? .init(
                 local_user_view: .init(
                     local_user: localUser(personId: person.id, isAdmin: isAdmin),
@@ -130,9 +130,9 @@ extension Components.Schemas.GetSiteResponse {
     }
 
     private static func localUser(
-        personId: Components.Schemas.PersonID,
+        personId: Lemmy.PersonID,
         isAdmin: Bool
-    ) -> Components.Schemas.LocalUser {
+    ) -> Lemmy.LocalUser {
         .init(
             id: 1,
             person_id: personId,

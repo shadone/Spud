@@ -12,25 +12,25 @@ import SpudUtilKit
 /// ids valid for the account the resolve ran under.
 public enum ResolvedLemmyObject: Sendable {
     /// A resolved post, by local id under the resolving account's instance.
-    case post(postId: Components.Schemas.PostID, instance: InstanceActorId)
+    case post(postId: Lemmy.PostID, instance: InstanceActorId)
     /// A resolved community, by name + its home instance (federation-aware
     /// loaders re-fetch by qualified name, so this stays name-based).
     case community(name: String, instance: InstanceActorId)
     /// A resolved person, by local id under the resolving account's instance.
-    case person(personId: Components.Schemas.PersonID, instance: InstanceActorId)
+    case person(personId: Lemmy.PersonID, instance: InstanceActorId)
     /// A resolved comment, by its parent post id + comment id, both local under
     /// the resolving account's instance. Callers open the post and scroll to the
     /// comment.
     case comment(
-        postId: Components.Schemas.PostID,
-        commentId: Components.Schemas.CommentID,
+        postId: Lemmy.PostID,
+        commentId: Lemmy.CommentID,
         instance: InstanceActorId
     )
     /// Nothing resolved (not federated, unknown, or empty response).
     case unresolved
 
     public init(
-        response: Components.Schemas.ResolveObjectResponse,
+        response: Lemmy.ResolveObjectResponse,
         homeInstance: InstanceActorId
     ) {
         if let post = response.post {

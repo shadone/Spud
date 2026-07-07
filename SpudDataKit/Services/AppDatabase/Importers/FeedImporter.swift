@@ -87,7 +87,7 @@ extension AppDatabase {
         feedType: FeedType,
         accountId: Int64,
         siteId: Int64,
-        posts: [Components.Schemas.PostView]
+        posts: [Lemmy.PostView]
     ) async throws -> Int64 {
         try await writer.write { db in
             let feedId = try Self.upsertFeed(

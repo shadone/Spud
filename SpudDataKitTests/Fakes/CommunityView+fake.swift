@@ -7,12 +7,12 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.CommunityView {
+extension Lemmy.CommunityView {
     static func fake(
-        community: Components.Schemas.Community = .fake,
-        subscribed: Components.Schemas.SubscribedType = .NotSubscribed,
-        counts: Components.Schemas.CommunityAggregates? = nil
-    ) -> Components.Schemas.CommunityView {
+        community: Lemmy.Community = .fake,
+        subscribed: Lemmy.SubscribedType = .NotSubscribed,
+        counts: Lemmy.CommunityAggregates? = nil
+    ) -> Lemmy.CommunityView {
         .init(
             community: community,
             subscribed: subscribed,

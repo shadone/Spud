@@ -23,7 +23,7 @@ final class FeedSwitcherViewController: UIViewController {
     var onBrowseAllCommunities: (() -> Void)?
 
     private enum FeedKind {
-        case frontpage(Components.Schemas.ListingType)
+        case frontpage(Lemmy.ListingType)
         case saved
         case browseCommunities
     }
@@ -40,7 +40,7 @@ final class FeedSwitcherViewController: UIViewController {
 
     /// Resolves the default sort applied to a freshly chosen feed. Evaluated at
     /// selection time so a changed preference is honoured.
-    private let defaultSortType: @MainActor () -> Components.Schemas.SortType
+    private let defaultSortType: @MainActor () -> Lemmy.SortType
 
     private let sections: [[Row]]
 
@@ -56,7 +56,7 @@ final class FeedSwitcherViewController: UIViewController {
 
     init(
         currentFeedType: @escaping @MainActor () -> FeedType?,
-        defaultSortType: @escaping @MainActor () -> Components.Schemas.SortType
+        defaultSortType: @escaping @MainActor () -> Lemmy.SortType
     ) {
         self.currentFeedType = currentFeedType
         self.defaultSortType = defaultSortType

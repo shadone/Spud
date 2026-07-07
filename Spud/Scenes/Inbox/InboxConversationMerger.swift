@@ -118,7 +118,7 @@ enum InboxConversationMerger {
         }
 
         return InboxConversation(
-            correspondentId: Components.Schemas.PersonID(row.correspondentServerPersonId),
+            correspondentId: Lemmy.PersonID(row.correspondentServerPersonId),
             correspondentName: row.correspondentName ?? unknownCorrespondentName,
             correspondentAvatarUrl: row.correspondentAvatarUrl.flatMap { URL(string: $0) },
             latestContent: latestContent,
@@ -138,7 +138,7 @@ enum InboxConversationMerger {
         let newest = newestOutbound(records)
         let createdAt = newest.map { Date(timeIntervalSince1970: $0.createdAt) } ?? .distantPast
         return InboxConversation(
-            correspondentId: Components.Schemas.PersonID(recipient),
+            correspondentId: Lemmy.PersonID(recipient),
             correspondentName: info.name ?? unknownCorrespondentName,
             correspondentAvatarUrl: info.avatarUrl,
             latestContent: newest?.body ?? "",

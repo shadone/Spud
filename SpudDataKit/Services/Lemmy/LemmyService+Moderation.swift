@@ -30,7 +30,7 @@ public extension LemmyService {
             account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
             """)
 
-        let response: Components.Schemas.GetSiteResponse
+        let response: Lemmy.GetSiteResponse
         do {
             response = try await api.getSite()
         } catch {
@@ -54,7 +54,7 @@ public extension LemmyService {
     }
 
     func removePost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         removed: Bool,
         reason: String?
     ) async throws {
@@ -66,7 +66,7 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Components.Schemas.PostResponse
+        let response: Lemmy.PostResponse
         do {
             response = try await api.removePost(postID: serverPostId, removed: removed, reason: reason)
         } catch {
@@ -81,7 +81,7 @@ public extension LemmyService {
     }
 
     func lockPost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         locked: Bool
     ) async throws {
         try requireSignedIn(action: "Lock post", postId: serverPostId)
@@ -92,7 +92,7 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Components.Schemas.PostResponse
+        let response: Lemmy.PostResponse
         do {
             response = try await api.lockPost(postID: serverPostId, locked: locked)
         } catch {
@@ -107,20 +107,20 @@ public extension LemmyService {
     }
 
     func featurePost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         featured: Bool,
         local: Bool
     ) async throws {
         try requireSignedIn(action: "Feature post", postId: serverPostId)
 
-        let featureType: Components.Schemas.PostFeatureType = local ? .Local : .Community
+        let featureType: Lemmy.PostFeatureType = local ? .Local : .Community
         logger.debug("""
             Set post featured=\(featured, privacy: .public) type=\(featureType.rawValue, privacy: .public) \
             for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Components.Schemas.PostResponse
+        let response: Lemmy.PostResponse
         do {
             response = try await api.featurePost(
                 postID: serverPostId,
@@ -139,7 +139,7 @@ public extension LemmyService {
     }
 
     func removeComment(
-        serverCommentId: Components.Schemas.CommentID,
+        serverCommentId: Lemmy.CommentID,
         removed: Bool,
         reason: String?
     ) async throws {
@@ -151,7 +151,7 @@ public extension LemmyService {
             commentId=\(serverCommentId, privacy: .public)
             """)
 
-        let response: Components.Schemas.CommentResponse
+        let response: Lemmy.CommentResponse
         do {
             response = try await api.removeComment(commentID: serverCommentId, removed: removed, reason: reason)
         } catch {
@@ -166,7 +166,7 @@ public extension LemmyService {
     }
 
     func distinguishComment(
-        serverCommentId: Components.Schemas.CommentID,
+        serverCommentId: Lemmy.CommentID,
         distinguished: Bool
     ) async throws {
         try requireSignedIn(action: "Distinguish comment", commentId: serverCommentId)
@@ -177,7 +177,7 @@ public extension LemmyService {
             commentId=\(serverCommentId, privacy: .public)
             """)
 
-        let response: Components.Schemas.CommentResponse
+        let response: Lemmy.CommentResponse
         do {
             response = try await api.distinguishComment(commentID: serverCommentId, distinguished: distinguished)
         } catch {
@@ -192,8 +192,8 @@ public extension LemmyService {
     }
 
     func banFromCommunity(
-        serverCommunityId: Components.Schemas.CommunityID,
-        serverPersonId: Components.Schemas.PersonID,
+        serverCommunityId: Lemmy.CommunityID,
+        serverPersonId: Lemmy.PersonID,
         ban: Bool,
         removeData: Bool,
         reason: String?
@@ -215,7 +215,7 @@ public extension LemmyService {
             personId=\(serverPersonId, privacy: .public)
             """)
 
-        let response: Components.Schemas.BanFromCommunityResponse
+        let response: Lemmy.BanFromCommunityResponse
         do {
             if ban {
                 response = try await api.banFromCommunity(
@@ -249,7 +249,7 @@ public extension LemmyService {
 
     private func requireSignedIn(
         action: String,
-        postId: Components.Schemas.PostID
+        postId: Lemmy.PostID
     ) throws {
         guard !accountIsSignedOut else {
             logger.debug("""
@@ -263,7 +263,7 @@ public extension LemmyService {
 
     private func requireSignedIn(
         action: String,
-        commentId: Components.Schemas.CommentID
+        commentId: Lemmy.CommentID
     ) throws {
         guard !accountIsSignedOut else {
             logger.debug("""

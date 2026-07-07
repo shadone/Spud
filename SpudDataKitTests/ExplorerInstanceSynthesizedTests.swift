@@ -29,16 +29,16 @@ struct ExplorerInstanceSynthesizedTests {
         posts: Int64 = 9876,
         comments: Int64 = 54321,
         version: String = "0.19.5",
-        registrationMode: Components.Schemas.RegistrationMode = .Open,
+        registrationMode: Lemmy.RegistrationMode = .Open,
         enableNsfw: Bool = true,
         enableDownvotes: Bool = false,
         privateInstance: Bool = false,
         federationEnabled: Bool = true
-    ) -> Components.Schemas.GetSiteResponse {
-        let base = Components.Schemas.GetSiteResponse.fake(myUser: false)
+    ) -> Lemmy.GetSiteResponse {
+        let base = Lemmy.GetSiteResponse.fake(myUser: false)
         let date = Date(timeIntervalSince1970: 1_685_577_784)
 
-        let site = Components.Schemas.Site(
+        let site = Lemmy.Site(
             id: 1,
             name: name,
             sidebar: "Sidebar text",
@@ -53,7 +53,7 @@ struct ExplorerInstanceSynthesizedTests {
             instance_id: 1
         )
 
-        let localSite = Components.Schemas.LocalSite(
+        let localSite = Lemmy.LocalSite(
             id: 1,
             site_id: 1,
             site_setup: true,
@@ -78,7 +78,7 @@ struct ExplorerInstanceSynthesizedTests {
             default_sort_type: .Active
         )
 
-        let counts = Components.Schemas.SiteAggregates(
+        let counts = Lemmy.SiteAggregates(
             site_id: 1,
             users: users,
             posts: posts,
@@ -90,14 +90,14 @@ struct ExplorerInstanceSynthesizedTests {
             users_active_half_year: usersActiveHalfYear
         )
 
-        let view = Components.Schemas.SiteView(
+        let view = Lemmy.SiteView(
             site: site,
             local_site: localSite,
             local_site_rate_limit: base.site_view.local_site_rate_limit,
             counts: counts
         )
 
-        return Components.Schemas.GetSiteResponse(
+        return Lemmy.GetSiteResponse(
             site_view: view,
             admins: base.admins,
             version: version,
@@ -161,12 +161,12 @@ struct ExplorerInstanceSynthesizedTests {
     }
 
     @Test(arguments: [
-        (Components.Schemas.RegistrationMode.Closed, ExplorerRegistrationMode.closed, false),
+        (Lemmy.RegistrationMode.Closed, ExplorerRegistrationMode.closed, false),
         (.RequireApplication, .requireApplication, false),
         (.Open, .open, true),
     ])
     func mapsRegistrationMode(
-        apiMode: Components.Schemas.RegistrationMode,
+        apiMode: Lemmy.RegistrationMode,
         expected: ExplorerRegistrationMode,
         expectedOpen: Bool
     ) {

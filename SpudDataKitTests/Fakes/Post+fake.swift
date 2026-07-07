@@ -7,12 +7,12 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.Post {
+extension Lemmy.Post {
     static func fake(
-        creator: Components.Schemas.Person,
-        community: Components.Schemas.Community,
+        creator: Lemmy.Person,
+        community: Lemmy.Community,
         nsfw: Bool = false
-    ) -> Components.Schemas.Post {
+    ) -> Lemmy.Post {
         .init(
             id: 1,
             name: "Hello world",

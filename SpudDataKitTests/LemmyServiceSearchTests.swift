@@ -12,11 +12,11 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias PersonView = Components.Schemas.PersonView
-private typealias PersonAggregates = Components.Schemas.PersonAggregates
-private typealias CommunityView = Components.Schemas.CommunityView
-private typealias SearchResponse = Components.Schemas.SearchResponse
+private typealias Person = Lemmy.Person
+private typealias PersonView = Lemmy.PersonView
+private typealias PersonAggregates = Lemmy.PersonAggregates
+private typealias CommunityView = Lemmy.CommunityView
+private typealias SearchResponse = Lemmy.SearchResponse
 
 /// Stub `ClientTransport` that returns a canned `SearchResponse` for the
 /// `search` operation and records whether it was invoked.
@@ -89,7 +89,7 @@ struct LemmyServiceSearchTests {
         }
     }
 
-    private func personView(id: Components.Schemas.PersonID, name: String) -> PersonView {
+    private func personView(id: Lemmy.PersonID, name: String) -> PersonView {
         var person = Person.fake
         person.id = id
         person.name = name

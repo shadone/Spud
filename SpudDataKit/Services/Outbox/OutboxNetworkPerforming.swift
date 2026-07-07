@@ -36,10 +36,10 @@ public struct LemmyOutboxPerformer: OutboxNetworkPerforming {
         case let .vote(status):
             switch op.entityType {
             case .post:
-                let r = try await api.likePost(postID: Components.Schemas.PostID(op.entityServerId), status: status)
+                let r = try await api.likePost(postID: Lemmy.PostID(op.entityServerId), status: status)
                 try await appDatabase.upsertPost(from: r.post_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             case .comment:
-                let r = try await api.likeComment(commentID: Components.Schemas.CommentID(op.entityServerId), status: status)
+                let r = try await api.likeComment(commentID: Lemmy.CommentID(op.entityServerId), status: status)
                 try await appDatabase.upsertComment(from: r.comment_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             case .community:
                 break // vote never targets a community; nothing to send.
@@ -47,25 +47,25 @@ public struct LemmyOutboxPerformer: OutboxNetworkPerforming {
         case let .save(value):
             switch op.entityType {
             case .post:
-                let r = try await api.savePost(postID: Components.Schemas.PostID(op.entityServerId), save: value)
+                let r = try await api.savePost(postID: Lemmy.PostID(op.entityServerId), save: value)
                 try await appDatabase.upsertPost(from: r.post_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             case .comment:
-                let r = try await api.saveComment(commentID: Components.Schemas.CommentID(op.entityServerId), save: value)
+                let r = try await api.saveComment(commentID: Lemmy.CommentID(op.entityServerId), save: value)
                 try await appDatabase.upsertComment(from: r.comment_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             case .community:
                 break // save never targets a community; nothing to send.
             }
         case let .hide(value):
             // No entity returned; optimistic write stands.
-            _ = try await api.hidePost(postIDs: [Components.Schemas.PostID(op.entityServerId)], hide: value)
+            _ = try await api.hidePost(postIDs: [Lemmy.PostID(op.entityServerId)], hide: value)
         case let .delete(value):
             // Delete/restore of the user's own post or comment.
             switch op.entityType {
             case .post:
-                let r = try await api.deletePost(postID: Components.Schemas.PostID(op.entityServerId), deleted: value)
+                let r = try await api.deletePost(postID: Lemmy.PostID(op.entityServerId), deleted: value)
                 try await appDatabase.upsertPost(from: r.post_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             case .comment:
-                let r = try await api.deleteComment(commentID: Components.Schemas.CommentID(op.entityServerId), deleted: value)
+                let r = try await api.deleteComment(commentID: Lemmy.CommentID(op.entityServerId), deleted: value)
                 try await appDatabase.upsertComment(from: r.comment_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             case .community:
                 break // delete never targets a community; nothing to send.
@@ -78,7 +78,7 @@ public struct LemmyOutboxPerformer: OutboxNetworkPerforming {
             switch op.entityType {
             case .community:
                 let r = try await api.followCommunity(
-                    communityID: Components.Schemas.CommunityID(op.entityServerId),
+                    communityID: Lemmy.CommunityID(op.entityServerId),
                     follow: value
                 )
                 // Authoritative post-send mirror: bypass the pending-outbox guard

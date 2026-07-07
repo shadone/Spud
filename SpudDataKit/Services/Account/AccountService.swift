@@ -123,17 +123,17 @@ public protocol AccountServiceType: AnyObject {
 
     /// The account's preferred listing type. Falls back to the site's
     /// `defaultPostListingType`, then to `.All` if neither is set.
-    func defaultListingType(forAccountKeychainId keychainId: String) -> Components.Schemas.ListingType
+    func defaultListingType(forAccountKeychainId keychainId: String) -> Lemmy.ListingType
 
     /// The account's preferred sort type. Falls back to `.Hot` if not set.
-    func defaultSortType(forAccountKeychainId keychainId: String) -> Components.Schemas.SortType
+    func defaultSortType(forAccountKeychainId keychainId: String) -> Lemmy.SortType
 
     /// Persists the account's preferred POST sort type to its stored record so
     /// the choice survives relaunch. The value is read back by
     /// `defaultSortType(forAccountKeychainId:)`. No-op if the account isn't
     /// registered.
     func setDefaultSortType(
-        _ sortType: Components.Schemas.SortType,
+        _ sortType: Lemmy.SortType,
         forAccountKeychainId keychainId: String
     )
 
@@ -192,7 +192,7 @@ public extension AccountServiceType {
     func createFeed(
         duplicateOf existing: FeedHandle,
         forAccountKeychainId _: String,
-        sortType: Components.Schemas.SortType? = nil
+        sortType: Lemmy.SortType? = nil
     ) -> FeedHandle {
         let newFeedType: FeedType = {
             switch existing.feedType {
@@ -317,7 +317,7 @@ public class AccountService: AccountServiceType {
         )
     }
 
-    public func defaultListingType(forAccountKeychainId keychainId: String) -> Components.Schemas.ListingType {
+    public func defaultListingType(forAccountKeychainId keychainId: String) -> Lemmy.ListingType {
         do {
             return try appDatabase.writer.read { db in
                 guard
@@ -327,14 +327,14 @@ public class AccountService: AccountServiceType {
                 else { return .All }
                 if
                     let raw = account.defaultListingType,
-                    let value = Components.Schemas.ListingType(rawValue: raw)
+                    let value = Lemmy.ListingType(rawValue: raw)
                 {
                     return value
                 }
                 if
                     let site = try SiteRecord.filter(Column("id") == account.siteId).fetchOne(db),
                     let raw = site.defaultPostListingType,
-                    let value = Components.Schemas.ListingType(rawValue: raw)
+                    let value = Lemmy.ListingType(rawValue: raw)
                 {
                     return value
                 }
@@ -346,7 +346,7 @@ public class AccountService: AccountServiceType {
         }
     }
 
-    public func defaultSortType(forAccountKeychainId keychainId: String) -> Components.Schemas.SortType {
+    public func defaultSortType(forAccountKeychainId keychainId: String) -> Lemmy.SortType {
         do {
             return try appDatabase.writer.read { db in
                 guard
@@ -363,7 +363,7 @@ public class AccountService: AccountServiceType {
     }
 
     public func setDefaultSortType(
-        _ sortType: Components.Schemas.SortType,
+        _ sortType: Lemmy.SortType,
         forAccountKeychainId keychainId: String
     ) {
         do {
@@ -550,7 +550,7 @@ public class AccountService: AccountServiceType {
         // Temporary unauthenticated api for the login request.
         let api = makeApi(url, nil)
 
-        let response: Components.Schemas.LoginResponse
+        let response: Lemmy.LoginResponse
         do {
             response = try await api.login(
                 usernameOrEmail: username,
@@ -604,7 +604,7 @@ public class AccountService: AccountServiceType {
         // Temporary unauthenticated api for the registration request.
         let api = makeApi(url, nil)
 
-        let response: Components.Schemas.LoginResponse
+        let response: Lemmy.LoginResponse
         do {
             response = try await api.register(
                 username: username,

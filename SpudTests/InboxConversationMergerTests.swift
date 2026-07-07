@@ -100,7 +100,7 @@ struct InboxConversationMergerTests {
             resolveCorrespondent: Self.resolver
         )
 
-        #expect(merged.map(\.correspondentId) == [Components.Schemas.PersonID(PID.alice), Components.Schemas.PersonID(PID.bob)])
+        #expect(merged.map(\.correspondentId) == [Lemmy.PersonID(PID.alice), Lemmy.PersonID(PID.bob)])
         #expect(merged.allSatisfy { $0.pendingStatus == nil })
     }
 
@@ -173,7 +173,7 @@ struct InboxConversationMergerTests {
 
         #expect(merged.count == 1)
         let carol = try #require(merged.first)
-        #expect(carol.correspondentId == Components.Schemas.PersonID(PID.carol))
+        #expect(carol.correspondentId == Lemmy.PersonID(PID.carol))
         #expect(carol.correspondentName == "Carol")
         #expect(carol.latestContent == "first message")
         #expect(carol.pendingStatus == .sending)
@@ -227,7 +227,7 @@ struct InboxConversationMergerTests {
 
         #expect(merged.count == 1)
         let alice = try #require(merged.first)
-        #expect(alice.correspondentId == Components.Schemas.PersonID(PID.alice))
+        #expect(alice.correspondentId == Lemmy.PersonID(PID.alice))
         #expect(alice.pendingStatus == .sending)
     }
 
@@ -246,8 +246,8 @@ struct InboxConversationMergerTests {
         )
 
         #expect(merged.map(\.correspondentId) == [
-            Components.Schemas.PersonID(PID.carol),
-            Components.Schemas.PersonID(PID.bob),
+            Lemmy.PersonID(PID.carol),
+            Lemmy.PersonID(PID.bob),
         ])
     }
 
@@ -267,8 +267,8 @@ struct InboxConversationMergerTests {
         )
 
         #expect(merged.map(\.correspondentId) == [
-            Components.Schemas.PersonID(PID.bob),
-            Components.Schemas.PersonID(PID.alice),
+            Lemmy.PersonID(PID.bob),
+            Lemmy.PersonID(PID.alice),
         ])
     }
 }

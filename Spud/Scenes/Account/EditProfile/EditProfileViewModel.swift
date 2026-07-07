@@ -37,7 +37,7 @@ final class EditProfileViewModel {
     var showBotAccounts: Bool
     var showReadPosts: Bool
     var showAvatars: Bool
-    var defaultListingType: Components.Schemas.ListingType
+    var defaultListingType: Lemmy.ListingType
 
     // MARK: Status
 

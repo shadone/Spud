@@ -26,10 +26,10 @@ struct PostNsfwImportTests {
             return (account.id!, site.id!)
         }
 
-        let person = Components.Schemas.Person.fake
-        let community = Components.Schemas.Community.fake
-        let post = Components.Schemas.Post.fake(creator: person, community: community, nsfw: true)
-        let view = Components.Schemas.PostView.fake(post: post, creator: person, community: community)
+        let person = Lemmy.Person.fake
+        let community = Lemmy.Community.fake
+        let post = Lemmy.Post.fake(creator: person, community: community, nsfw: true)
+        let view = Lemmy.PostView.fake(post: post, creator: person, community: community)
 
         let rowId = try await appDatabase.writer.write { db in
             try AppDatabase.upsertPost(from: view, accountId: accountId, siteId: siteId, in: db)

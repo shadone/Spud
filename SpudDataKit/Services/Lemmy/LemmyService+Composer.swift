@@ -121,7 +121,7 @@ public extension LemmyService {
     }
 
     func applyOptimisticPostEdit(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         title: String,
         body: String?,
         url: String?,
@@ -156,7 +156,7 @@ public extension LemmyService {
     }
 
     func markAsRead(
-        serverPostId: Components.Schemas.PostID
+        serverPostId: Lemmy.PostID
     ) async throws {
         guard await instanceCapabilities().can(.markPostsRead) else {
             // Read tracking is locally owned by postInteraction (lastOpenedAt);
@@ -170,7 +170,7 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Components.Schemas.SuccessResponse
+        let response: Lemmy.SuccessResponse
         do {
             response = try await api.markPostAsRead(postIDs: [serverPostId], read: true)
         } catch {

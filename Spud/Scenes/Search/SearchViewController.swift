@@ -438,7 +438,7 @@ final class SearchViewController: UIViewController {
         navigationController?.pushViewController(vc, animated: true)
     }
 
-    private func pushPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId) {
+    private func pushPerson(personId: Lemmy.PersonID, instance: InstanceActorId) {
         let vc = PersonOrLoadingViewController(
             personId: personId,
             instance: instance,

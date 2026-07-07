@@ -64,7 +64,7 @@ extension PostVoteDispatching {
         postActionWillDispatch(.vote)
         do {
             try await postActionsAccountScope.lemmyService
-                .vote(serverPostId: Components.Schemas.PostID(serverPostId), vote: action)
+                .vote(serverPostId: Lemmy.PostID(serverPostId), vote: action)
         } catch {
             // The optimistic write already applied synchronously inside enqueue;
             // network failures are retried by the outbox and surfaced via toast.
@@ -107,7 +107,7 @@ extension PostSaveDispatching {
         postActionWillDispatch(.save)
         do {
             try await postActionsAccountScope.lemmyService
-                .setSaved(serverPostId: Components.Schemas.PostID(serverPostId), saved: saved)
+                .setSaved(serverPostId: Lemmy.PostID(serverPostId), saved: saved)
         } catch {
             postActionsAlertService.handle(error, for: .save)
         }

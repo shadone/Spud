@@ -54,9 +54,9 @@ struct PrivateMessageStoreTests {
         return (accountId, siteId)
     }
 
-    private static func person(id: Int64, name: String, displayName: String?, avatar: String?) -> Components.Schemas.Person {
-        var p = Components.Schemas.Person.fake
-        p.id = Components.Schemas.PersonID(id)
+    private static func person(id: Int64, name: String, displayName: String?, avatar: String?) -> Lemmy.Person {
+        var p = Lemmy.Person.fake
+        p.id = Lemmy.PersonID(id)
         p.name = name
         p.display_name = displayName
         p.avatar = avatar
@@ -66,15 +66,15 @@ struct PrivateMessageStoreTests {
 
     private static func view(
         messageId: Int64,
-        creator: Components.Schemas.Person,
-        recipient: Components.Schemas.Person,
+        creator: Lemmy.Person,
+        recipient: Lemmy.Person,
         content: String,
         published: Date,
         read: Bool,
         deleted: Bool = false
-    ) -> Components.Schemas.PrivateMessageView {
-        let pm = Components.Schemas.PrivateMessage(
-            id: Components.Schemas.PrivateMessageID(messageId),
+    ) -> Lemmy.PrivateMessageView {
+        let pm = Lemmy.PrivateMessage(
+            id: Lemmy.PrivateMessageID(messageId),
             creator_id: creator.id,
             recipient_id: recipient.id,
             content: content,

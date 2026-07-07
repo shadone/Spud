@@ -7,7 +7,7 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.SortType {
+extension Lemmy.SortType {
     /// Deserializes a sort type from a string stored in the database. Lower-
     /// case spellings are accepted for backwards compatibility with older
     /// rows that predated the OpenAPI casing change.
@@ -68,7 +68,7 @@ extension Components.Schemas.SortType {
             self = .Scaled
 
         default:
-            guard let value = Components.Schemas.SortType(rawValue: rawValue) else {
+            guard let value = Lemmy.SortType(rawValue: rawValue) else {
                 return nil
             }
             self = value

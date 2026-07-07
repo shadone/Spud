@@ -8,7 +8,7 @@ import Foundation
 import LemmyKit
 
 @available(iOS 16.0, *)
-extension Components.Schemas.SortType {
+extension Lemmy.SortType {
     init(from value: IntentSortTypeAppEnum) {
         switch value {
         case .active:

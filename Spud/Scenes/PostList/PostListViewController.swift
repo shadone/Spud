@@ -208,7 +208,7 @@ class PostListViewController: UIViewController {
     private var markedReadIds: Set<Int64> = []
 
     var sortTypeBarButtonItem: UIBarButtonItem!
-    var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
+    var sortTypeMenuActionsBySortType: [Lemmy.SortType: UIAction] = [:]
 
     /// The sort-order pull-down menu bar button. Exposed so a host that owns the
     /// navigation bar (e.g. CommunityViewController, which embeds this controller)
@@ -953,7 +953,7 @@ class PostListViewController: UIViewController {
     }
 
     private func setupSortTypeMenu() {
-        func makeAction(for sortType: Components.Schemas.SortType) -> UIAction {
+        func makeAction(for sortType: Lemmy.SortType) -> UIAction {
             let menuItem = sortType.itemForMenu
             let action = UIAction(
                 title: menuItem.title,
@@ -979,7 +979,7 @@ class PostListViewController: UIViewController {
         rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
     }
 
-    private func rebuildSortTypeMenu(activeSortType: Components.Schemas.SortType) {
+    private func rebuildSortTypeMenu(activeSortType: Lemmy.SortType) {
         for (sortType, action) in sortTypeMenuActionsBySortType {
             action.state = (sortType == activeSortType) ? .on : .off
         }
@@ -997,7 +997,7 @@ class PostListViewController: UIViewController {
         sortTypeBarButtonItem.menu = sortTypeMenu
     }
 
-    private func sortTypeChanged(to sortType: Components.Schemas.SortType) {
+    private func sortTypeChanged(to sortType: Lemmy.SortType) {
         viewModel.didChangeSortType(sortType)
         feedChanged()
         rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
@@ -1533,7 +1533,7 @@ class PostListViewController: UIViewController {
         }
         Haptics.tap()
         let composer = ComposerViewController.makeSheet(
-            target: .postReply(serverPostId: Components.Schemas.PostID(serverPostId)),
+            target: .postReply(serverPostId: Lemmy.PostID(serverPostId)),
             accountKeychainId: keychainId,
             dependencies: dependencies.own
         )
@@ -1574,7 +1574,7 @@ class PostListViewController: UIViewController {
         }
         Haptics.tap()
         let vc = PersonOrLoadingViewController(
-            personId: Components.Schemas.PersonID(row.creatorPersonId),
+            personId: Lemmy.PersonID(row.creatorPersonId),
             instance: instance,
             accountKeychainId: viewModel.accountKeychainId,
             dependencies: dependencies.nested
@@ -1603,7 +1603,7 @@ class PostListViewController: UIViewController {
         Haptics.tap()
         do {
             try await viewModel.accountScope.lemmyService
-                .reportPost(serverPostId: Components.Schemas.PostID(serverPostId), reason: reason)
+                .reportPost(serverPostId: Lemmy.PostID(serverPostId), reason: reason)
             Haptics.success()
             presentReportSubmittedConfirmation()
         } catch {
@@ -1639,7 +1639,7 @@ class PostListViewController: UIViewController {
     private func submitBlockAuthor(serverPersonId: Int64) async {
         do {
             try await viewModel.accountScope.lemmyService
-                .setBlocked(serverPersonId: Components.Schemas.PersonID(serverPersonId), blocked: true)
+                .setBlocked(serverPersonId: Lemmy.PersonID(serverPersonId), blocked: true)
         } catch {
             alertService.handle(error, for: .setBlockedPerson)
         }
@@ -1673,7 +1673,7 @@ class PostListViewController: UIViewController {
         Haptics.tap()
         do {
             try await viewModel.accountScope.lemmyService
-                .hidePost(serverPostId: Components.Schemas.PostID(serverPostId), hidden: true)
+                .hidePost(serverPostId: Lemmy.PostID(serverPostId), hidden: true)
         } catch {
             alertService.handle(error, for: .hidePost)
         }
@@ -1725,7 +1725,7 @@ class PostListViewController: UIViewController {
     private func postSelected(serverPostId: Int64) {
         guard let window = view.window as? MainWindow else { fatalError() }
         window.display(
-            serverPostId: Components.Schemas.PostID(serverPostId),
+            serverPostId: Lemmy.PostID(serverPostId),
             accountKeychainId: viewModel.accountKeychainId
         )
     }
@@ -1968,7 +1968,7 @@ extension PostListViewController: UITableViewDelegate {
             guard let self else { return }
             do {
                 try await viewModel.accountScope.lemmyService
-                    .markAsRead(serverPostId: Components.Schemas.PostID(serverPostId))
+                    .markAsRead(serverPostId: Lemmy.PostID(serverPostId))
             } catch {
                 // Best-effort: a failed mark-read should not interrupt
                 // browsing. Allow a later retry by un-enqueuing.
@@ -2156,10 +2156,10 @@ extension PostListViewController: UITableViewDelegate {
     /// Lock/Unlock, Pin to community, and (admins) Pin to instance.
     private func postModerationMenu(serverPostId: Int64) -> UIMenu? {
         guard let row = viewModel.row(forServerPostId: serverPostId) else { return nil }
-        let communityId = Components.Schemas.CommunityID(row.serverCommunityId)
+        let communityId = Lemmy.CommunityID(row.serverCommunityId)
         guard moderationCapability.canModerate(communityId: communityId) else { return nil }
 
-        let postId = Components.Schemas.PostID(serverPostId)
+        let postId = Lemmy.PostID(serverPostId)
         var children: [UIMenuElement] = []
 
         if row.isRemoved {
@@ -2218,7 +2218,7 @@ extension PostListViewController: UITableViewDelegate {
         )
     }
 
-    private func promptRemovePost(serverPostId: Components.Schemas.PostID) {
+    private func promptRemovePost(serverPostId: Lemmy.PostID) {
         presentModerationReasonAlert(
             title: NSLocalizedString("Remove post", comment: "Remove post dialog title"),
             message: NSLocalizedString("Optionally tell the author why the post was removed.", comment: "Remove post dialog message"),
@@ -2229,7 +2229,7 @@ extension PostListViewController: UITableViewDelegate {
     }
 
     private func performRemovePost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         removed: Bool,
         reason: String? = nil
     ) {
@@ -2246,7 +2246,7 @@ extension PostListViewController: UITableViewDelegate {
         }
     }
 
-    private func performLockPost(serverPostId: Components.Schemas.PostID, locked: Bool) {
+    private func performLockPost(serverPostId: Lemmy.PostID, locked: Bool) {
         Task { @MainActor [weak self] in
             guard let self else { return }
             Haptics.tap()
@@ -2261,7 +2261,7 @@ extension PostListViewController: UITableViewDelegate {
     }
 
     private func performFeaturePost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         featured: Bool,
         local: Bool
     ) {

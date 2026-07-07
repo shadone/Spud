@@ -89,13 +89,13 @@ final class DMThreadViewController: UIViewController {
 
     init(
         accountKeychainId: String,
-        correspondentId: Components.Schemas.PersonID,
+        correspondentId: Lemmy.PersonID,
         correspondentName: String,
         dependencies: Dependencies
     ) {
         let myPersonId = dependencies.appDatabase
             .accountOwnPersonIdsSync(forKeychainId: accountKeychainId)
-            .map { Components.Schemas.PersonID($0.serverPersonId) }
+            .map { Lemmy.PersonID($0.serverPersonId) }
 
         self.dependencies = (own: dependencies, nested: dependencies)
         self.accountKeychainId = accountKeychainId
@@ -351,7 +351,7 @@ extension DMThreadViewController: InternalLinkRouting {
         viewModel.accountScope.lemmyService
     }
 
-    func routeToPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId) {
+    func routeToPerson(personId: Lemmy.PersonID, instance: InstanceActorId) {
         let vc = PersonOrLoadingViewController(
             personId: personId,
             instance: instance,
@@ -371,7 +371,7 @@ extension DMThreadViewController: InternalLinkRouting {
         navigationController?.pushViewController(vc, animated: true)
     }
 
-    func routeToPost(postId: Components.Schemas.PostID, instance _: InstanceActorId) {
+    func routeToPost(postId: Lemmy.PostID, instance _: InstanceActorId) {
         guard let window = view.window as? MainWindow else {
             logger.error("No MainWindow available to display post")
             return

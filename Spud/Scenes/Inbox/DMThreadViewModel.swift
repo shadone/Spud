@@ -38,7 +38,7 @@ final class DMThreadViewModel {
     private(set) var bubbles: [DMBubbleItem] = []
     private(set) var phase: InboxPhase = .loading
 
-    let correspondentId: Components.Schemas.PersonID
+    let correspondentId: Lemmy.PersonID
     let correspondentName: String
 
     // MARK: Private
@@ -87,9 +87,9 @@ final class DMThreadViewModel {
     init(
         accountScope: AccountScope,
         appDatabase: AppDatabase,
-        correspondentId: Components.Schemas.PersonID,
+        correspondentId: Lemmy.PersonID,
         correspondentName: String,
-        myPersonId: Components.Schemas.PersonID?,
+        myPersonId: Lemmy.PersonID?,
         alertService: AlertServiceType,
         unreadCountService: UnreadCountServiceType
     ) {
@@ -220,7 +220,7 @@ final class DMThreadViewModel {
         for message in unread {
             do {
                 try await service.markPrivateMessageAsRead(
-                    privateMessageId: Components.Schemas.PrivateMessageID(message.serverMessageId),
+                    privateMessageId: Lemmy.PrivateMessageID(message.serverMessageId),
                     read: true
                 )
                 // Reflect the read state in the persisted store so the

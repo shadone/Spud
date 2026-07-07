@@ -34,7 +34,7 @@ class PreferencesViewController: UIViewController {
     private var draftsOutboxTask: Task<Void, Never>?
 
     init(
-        defaultPostSortType: Components.Schemas.SortType,
+        defaultPostSortType: Lemmy.SortType,
         accountKeychainId: String,
         dependencies: Dependencies
     ) {

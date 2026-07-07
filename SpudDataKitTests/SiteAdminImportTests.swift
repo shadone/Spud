@@ -60,9 +60,9 @@ extension SiteAdminImportTests {
         name: String,
         display: String?,
         actorId: String
-    ) -> Components.Schemas.PersonView {
+    ) -> Lemmy.PersonView {
         let date = Date(timeIntervalSince1970: 1_685_577_784)
-        let person = Components.Schemas.Person(
+        let person = Lemmy.Person(
             id: 1,
             name: name,
             display_name: display,
@@ -80,7 +80,7 @@ extension SiteAdminImportTests {
             ban_expires: nil,
             instance_id: 1
         )
-        return Components.Schemas.PersonView(
+        return Lemmy.PersonView(
             person: person,
             counts: .init(
                 person_id: person.id,
@@ -93,13 +93,13 @@ extension SiteAdminImportTests {
 
     static func makeGetSiteResponse(
         actorId: String,
-        admins: [Components.Schemas.PersonView]
-    ) -> Components.Schemas.GetSiteResponse {
-        let response = Components.Schemas.GetSiteResponse.fake(myUser: false)
+        admins: [Lemmy.PersonView]
+    ) -> Lemmy.GetSiteResponse {
+        let response = Lemmy.GetSiteResponse.fake(myUser: false)
         // Patch the actor_id on the site to match the requested instance.
         let view = response.site_view
         let date = Date(timeIntervalSince1970: 1_685_577_784)
-        let site = Components.Schemas.Site(
+        let site = Lemmy.Site(
             id: view.site.id,
             name: view.site.name,
             published: view.site.published,
@@ -109,13 +109,13 @@ extension SiteAdminImportTests {
             public_key: view.site.public_key,
             instance_id: view.site.instance_id
         )
-        let patchedView = Components.Schemas.SiteView(
+        let patchedView = Lemmy.SiteView(
             site: site,
             local_site: view.local_site,
             local_site_rate_limit: view.local_site_rate_limit,
             counts: view.counts
         )
-        return Components.Schemas.GetSiteResponse(
+        return Lemmy.GetSiteResponse(
             site_view: patchedView,
             admins: admins,
             version: response.version,

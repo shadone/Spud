@@ -54,7 +54,7 @@ public extension AppDatabase {
         keychainId: String,
         isSignedOut: Bool,
         siteId: Int64,
-        myUser: Components.Schemas.MyUserInfo?
+        myUser: Lemmy.MyUserInfo?
     ) async throws -> Int64 {
         try await writer.write { db in
             let now = Date()
@@ -269,7 +269,7 @@ public extension AppDatabase {
         showBotAccounts: Bool,
         showReadPosts: Bool,
         showAvatars: Bool,
-        defaultListingType: Components.Schemas.ListingType
+        defaultListingType: Lemmy.ListingType
     ) async throws {
         try await writer.write { db in
             guard var account = try AccountRecord
@@ -315,7 +315,7 @@ public extension AppDatabase {
     /// a settings-picker tap and avoids hopping off to await. No-op if the row
     /// hasn't been imported yet.
     func setAccountDefaultSortType(
-        _ sortType: Components.Schemas.SortType,
+        _ sortType: Lemmy.SortType,
         forKeychainId keychainId: String
     ) throws {
         try writer.write { db in
@@ -419,7 +419,7 @@ public extension AppDatabase {
                 }
 
                 let listingType = account.defaultListingType
-                    .flatMap { Components.Schemas.ListingType(rawValue: $0) }
+                    .flatMap { Lemmy.ListingType(rawValue: $0) }
                     ?? .All
 
                 return AccountEditableProfile(
@@ -654,7 +654,7 @@ public extension AppDatabase {
     }
 
     private static func apply(
-        myUser: Components.Schemas.MyUserInfo?,
+        myUser: Lemmy.MyUserInfo?,
         to record: inout AccountRecord,
         now: Date
     ) {

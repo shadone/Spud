@@ -71,8 +71,8 @@ func seedPost(
     isHidden: Bool = false,
     isDeleted: Bool = false
 ) async throws -> Int64 {
-    let post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
-    let view = Components.Schemas.PostView.fake(post: post, creator: .fake, community: .fake)
+    let post = Lemmy.Post.fake(creator: .fake, community: .fake)
+    let view = Lemmy.PostView.fake(post: post, creator: .fake, community: .fake)
     try await appDatabase.upsertPost(from: view, accountId: accountId, siteId: siteId)
 
     // Patch the initial values the importer doesn't carry from the fake view.
@@ -106,14 +106,14 @@ func seedComment(
     isDeleted: Bool = false
 ) async throws {
     // Recreate the same fake post the importer needs to resolve the postId FK.
-    let post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
-    let comment = Components.Schemas.Comment.fake(
-        id: Components.Schemas.CommentID(commentServerId),
+    let post = Lemmy.Post.fake(creator: .fake, community: .fake)
+    let comment = Lemmy.Comment.fake(
+        id: Lemmy.CommentID(commentServerId),
         post: post,
         creator: .fake,
         parent: .root
     )
-    let view = Components.Schemas.CommentView.fake(
+    let view = Lemmy.CommentView.fake(
         comment: comment,
         creator: .fake,
         post: post,
@@ -300,11 +300,11 @@ func makePostView(
     postId: Int64,
     myVote: Int32?,
     score: Int64
-) -> Components.Schemas.PostView {
-    let post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
-    var counts = Components.Schemas.PostAggregates.fake(post: post)
+) -> Lemmy.PostView {
+    let post = Lemmy.Post.fake(creator: .fake, community: .fake)
+    var counts = Lemmy.PostAggregates.fake(post: post)
     counts.score = score
-    var view = Components.Schemas.PostView.fake(post: post, creator: .fake, community: .fake)
+    var view = Lemmy.PostView.fake(post: post, creator: .fake, community: .fake)
     view.counts = counts
     view.my_vote = myVote
     return view

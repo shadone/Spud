@@ -35,9 +35,9 @@ protocol InternalLinkRouting: AnyObject {
     /// The account-scoped service used to resolve a federated `.objectAtURL`.
     var linkRouterLemmyService: LemmyServiceType { get }
 
-    func routeToPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId)
+    func routeToPerson(personId: Lemmy.PersonID, instance: InstanceActorId)
     func routeToCommunity(name: String, instance: InstanceActorId)
-    func routeToPost(postId: Components.Schemas.PostID, instance: InstanceActorId)
+    func routeToPost(postId: Lemmy.PostID, instance: InstanceActorId)
     func routeToInstance(_ instance: InstanceActorId)
     func routeToExternal(_ url: URL)
 }

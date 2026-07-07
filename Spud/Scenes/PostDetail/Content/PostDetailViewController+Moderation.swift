@@ -26,7 +26,7 @@ extension PostDetailViewController {
     /// Feature (pin) to community, and (admins only) Feature to instance.
     func postModerationMenu() -> UIMenu? {
         guard let headerRow = viewModel.headerRow else { return nil }
-        let communityId = Components.Schemas.CommunityID(headerRow.serverCommunityId)
+        let communityId = Lemmy.CommunityID(headerRow.serverCommunityId)
         guard moderationCapability.canModerate(communityId: communityId) else { return nil }
 
         let serverPostId = viewModel.serverPostId
@@ -98,7 +98,7 @@ extension PostDetailViewController {
         commentRow: PostDetailCommentRow
     ) -> UIMenu? {
         guard let headerRow = viewModel.headerRow else { return nil }
-        let communityId = Components.Schemas.CommunityID(headerRow.serverCommunityId)
+        let communityId = Lemmy.CommunityID(headerRow.serverCommunityId)
         guard moderationCapability.canModerate(communityId: communityId) else { return nil }
 
         var children: [UIMenuElement] = []
@@ -153,7 +153,7 @@ extension PostDetailViewController {
         )
     }
 
-    private func promptRemovePost(serverPostId: Components.Schemas.PostID) {
+    private func promptRemovePost(serverPostId: Lemmy.PostID) {
         presentModerationReasonAlert(
             title: NSLocalizedString("Remove post", comment: "Remove post dialog title"),
             message: NSLocalizedString("Optionally tell the author why the post was removed.", comment: "Remove post dialog message"),
@@ -164,7 +164,7 @@ extension PostDetailViewController {
     }
 
     private func performRemovePost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         removed: Bool,
         reason: String? = nil
     ) {
@@ -181,7 +181,7 @@ extension PostDetailViewController {
         }
     }
 
-    private func performLockPost(serverPostId: Components.Schemas.PostID, locked: Bool) {
+    private func performLockPost(serverPostId: Lemmy.PostID, locked: Bool) {
         Task { @MainActor [weak self] in
             guard let self else { return }
             Haptics.tap()
@@ -196,7 +196,7 @@ extension PostDetailViewController {
     }
 
     private func performFeaturePost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         featured: Bool,
         local: Bool
     ) {
@@ -257,14 +257,14 @@ extension PostDetailViewController {
 
     private func promptBanFromCommunity(serverPersonId: Int64, userName: String?) {
         guard let headerRow = viewModel.headerRow else { return }
-        let communityId = Components.Schemas.CommunityID(headerRow.serverCommunityId)
+        let communityId = Lemmy.CommunityID(headerRow.serverCommunityId)
         presentBanFromCommunityConfirmation(
             userName: userName ?? NSLocalizedString("this user", comment: "Fallback user name in ban confirmation"),
             communityName: headerRow.communityName
         ) { [weak self] removeData, reason in
             self?.performBanFromCommunity(
                 communityId: communityId,
-                serverPersonId: Components.Schemas.PersonID(serverPersonId),
+                serverPersonId: Lemmy.PersonID(serverPersonId),
                 removeData: removeData,
                 reason: reason
             )
@@ -272,8 +272,8 @@ extension PostDetailViewController {
     }
 
     private func performBanFromCommunity(
-        communityId: Components.Schemas.CommunityID,
-        serverPersonId: Components.Schemas.PersonID,
+        communityId: Lemmy.CommunityID,
+        serverPersonId: Lemmy.PersonID,
         removeData: Bool,
         reason: String?
     ) {

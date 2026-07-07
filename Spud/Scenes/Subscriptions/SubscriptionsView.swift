@@ -10,7 +10,7 @@ import SpudDataKit
 import SwiftUI
 import UIKit
 
-private extension Components.Schemas.ListingType {
+private extension Lemmy.ListingType {
     struct ItemForSubscriptions {
         let iconName: String
         let iconTint: Color
@@ -53,7 +53,7 @@ private extension Components.Schemas.ListingType {
 }
 
 struct SubscriptionsListingView: View {
-    @State var listingType: Components.Schemas.ListingType
+    @State var listingType: Lemmy.ListingType
 
     var body: some View {
         HStack(spacing: 16) {

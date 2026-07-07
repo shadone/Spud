@@ -15,7 +15,7 @@ import UIKit
 protocol AppServiceType: AnyObject {
     /// Opens the post itself in a browser.
     func openInBrowser(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         originalPostUrl: String?,
         accountKeychainId: String,
         on viewController: UIViewController
@@ -65,7 +65,7 @@ class AppService: AppServiceType {
     }
 
     func openInBrowser(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         originalPostUrl: String?,
         accountKeychainId: String,
         on viewController: UIViewController

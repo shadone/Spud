@@ -35,7 +35,7 @@ private final class GetSiteStubTransport: ClientTransport, @unchecked Sendable {
         case .success:
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
-            let json = try encoder.encode(Components.Schemas.GetSiteResponse.fake())
+            let json = try encoder.encode(Lemmy.GetSiteResponse.fake())
             var response = HTTPResponse(status: .ok)
             response.headerFields[.contentType] = "application/json"
             return (response, HTTPBody(json))

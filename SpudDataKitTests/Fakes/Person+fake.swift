@@ -7,8 +7,8 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.Person {
-    static let fake: Components.Schemas.Person = .init(
+extension Lemmy.Person {
+    static let fake: Lemmy.Person = .init(
         id: 1,
         name: "one",
         display_name: "One",

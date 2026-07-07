@@ -15,7 +15,7 @@ import Testing
 struct CommunityListRowCommunityViewMappingTests {
     @Test
     func mapsCoreFieldsFromCommunityView() {
-        let community = Components.Schemas.Community(
+        let community = Lemmy.Community(
             id: 42,
             name: "technology",
             title: "Technology",
@@ -34,13 +34,13 @@ struct CommunityListRowCommunityViewMappingTests {
             instance_id: 1,
             visibility: .Public
         )
-        let counts = Components.Schemas.CommunityAggregates.fake(
+        let counts = Lemmy.CommunityAggregates.fake(
             communityId: 42,
             subscribers: 12345,
             posts: 678,
             comments: 9012
         )
-        let view = Components.Schemas.CommunityView.fake(community: community, counts: counts)
+        let view = Lemmy.CommunityView.fake(community: community, counts: counts)
 
         let row = CommunityListRow(communityView: view)
 
@@ -59,7 +59,7 @@ struct CommunityListRowCommunityViewMappingTests {
 
     @Test
     func derivesHostFromActorIdForRemoteCommunity() {
-        let community = Components.Schemas.Community(
+        let community = Lemmy.Community(
             id: 7,
             name: "asklemmy",
             title: "Ask Lemmy",
@@ -78,7 +78,7 @@ struct CommunityListRowCommunityViewMappingTests {
             instance_id: 2,
             visibility: .Public
         )
-        let view = Components.Schemas.CommunityView.fake(community: community)
+        let view = Lemmy.CommunityView.fake(community: community)
 
         let row = CommunityListRow(communityView: view)
 
@@ -92,13 +92,13 @@ struct CommunityListRowCommunityViewMappingTests {
 
     @Test
     func reflectsZeroCountsWithoutCrashing() {
-        let counts = Components.Schemas.CommunityAggregates.fake(
+        let counts = Lemmy.CommunityAggregates.fake(
             communityId: 1,
             subscribers: 0,
             posts: 0,
             comments: 0
         )
-        let view = Components.Schemas.CommunityView.fake(counts: counts)
+        let view = Lemmy.CommunityView.fake(counts: counts)
 
         let row = CommunityListRow(communityView: view)
 

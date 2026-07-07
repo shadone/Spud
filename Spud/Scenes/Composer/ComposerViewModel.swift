@@ -16,21 +16,21 @@ private let logger = Logger.app
 /// post/edit/DM composition by adding cases here.
 enum ComposerTarget {
     /// Reply to a comment on the given post.
-    case commentReply(serverPostId: Components.Schemas.PostID, parentCommentId: Components.Schemas.CommentID)
+    case commentReply(serverPostId: Lemmy.PostID, parentCommentId: Lemmy.CommentID)
     /// Reply to the post itself (a top-level comment).
-    case postReply(serverPostId: Components.Schemas.PostID)
+    case postReply(serverPostId: Lemmy.PostID)
     /// Start (or continue) a private message conversation with `recipientId`.
-    case privateMessage(recipientId: Components.Schemas.PersonID)
+    case privateMessage(recipientId: Lemmy.PersonID)
     /// Compose a brand-new post. `serverCommunityId` may be pre-filled when the
     /// flow is entered from a community screen. The title/url/image/nsfw surface
     /// for this case lives in `NewPostViewController`, not the comment composer.
-    case newPost(serverCommunityId: Components.Schemas.CommunityID?, initialCommunityName: String?)
+    case newPost(serverCommunityId: Lemmy.CommunityID?, initialCommunityName: String?)
     /// Edit the user's own existing comment. The editor is seeded with the
     /// comment's current body and the saved edit is enqueued to the content
     /// outbox (the performer calls `editComment`).
-    case editComment(serverPostId: Components.Schemas.PostID, serverCommentId: Components.Schemas.CommentID)
+    case editComment(serverPostId: Lemmy.PostID, serverCommentId: Lemmy.CommentID)
 
-    var serverPostId: Components.Schemas.PostID? {
+    var serverPostId: Lemmy.PostID? {
         switch self {
         case let .commentReply(serverPostId, _): serverPostId
         case let .postReply(serverPostId): serverPostId
@@ -39,7 +39,7 @@ enum ComposerTarget {
         }
     }
 
-    var parentCommentId: Components.Schemas.CommentID? {
+    var parentCommentId: Lemmy.CommentID? {
         switch self {
         case let .commentReply(_, parentCommentId): parentCommentId
         case .postReply, .privateMessage, .newPost, .editComment: nil
@@ -47,14 +47,14 @@ enum ComposerTarget {
     }
 
     /// The server id of the comment being edited, or nil for create flows.
-    var editCommentServerId: Components.Schemas.CommentID? {
+    var editCommentServerId: Lemmy.CommentID? {
         switch self {
         case let .editComment(_, serverCommentId): serverCommentId
         case .commentReply, .postReply, .privateMessage, .newPost: nil
         }
     }
 
-    var privateMessageRecipientId: Components.Schemas.PersonID? {
+    var privateMessageRecipientId: Lemmy.PersonID? {
         switch self {
         case let .privateMessage(recipientId): recipientId
         case .commentReply, .postReply, .newPost, .editComment: nil

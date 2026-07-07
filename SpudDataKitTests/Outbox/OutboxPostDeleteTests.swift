@@ -130,8 +130,8 @@ struct OutboxPostDeleteTests {
         )
 
         // Re-import the same post with the stale server state (deleted=false).
-        let post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
-        let staleView = Components.Schemas.PostView.fake(post: post, creator: .fake, community: .fake)
+        let post = Lemmy.Post.fake(creator: .fake, community: .fake)
+        let staleView = Lemmy.PostView.fake(post: post, creator: .fake, community: .fake)
         try await appDatabase.upsertPost(from: staleView, accountId: accountId, siteId: siteId)
 
         let deleted = try await readPostDeleted(appDatabase, accountId: accountId, serverPostId: serverPostId)

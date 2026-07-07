@@ -56,7 +56,7 @@ final class InboxViewModel {
     @ObservationIgnored
     private let unreadCountService: UnreadCountServiceType
     @ObservationIgnored
-    private let myPersonId: Components.Schemas.PersonID?
+    private let myPersonId: Lemmy.PersonID?
     /// Resolved once at init from `accountKeychainId`; nil when signed out / the
     /// account row isn't present. The conversation-list observations need it.
     @ObservationIgnored
@@ -99,7 +99,7 @@ final class InboxViewModel {
         accountScope: AccountScope,
         appDatabase: AppDatabase,
         isSignedIn: Bool,
-        myPersonId: Components.Schemas.PersonID?,
+        myPersonId: Lemmy.PersonID?,
         alertService: AlertServiceType,
         unreadCountService: UnreadCountServiceType
     ) {

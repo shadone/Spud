@@ -20,8 +20,8 @@ protocol EntryServiceType: AnyObject, Sendable {
     func topPostsSnapshot() -> TopPostsEntry
 
     func topPosts(
-        listingType: Components.Schemas.ListingType,
-        sortType: Components.Schemas.SortType
+        listingType: Lemmy.ListingType,
+        sortType: Lemmy.SortType
     ) async -> TopPostsEntry
 }
 
@@ -56,8 +56,8 @@ class EntryService: EntryServiceType {
     }
 
     func topPosts(
-        listingType: Components.Schemas.ListingType,
-        sortType: Components.Schemas.SortType
+        listingType: Lemmy.ListingType,
+        sortType: Lemmy.SortType
     ) async -> TopPostsEntry {
         let feed = await fetchFeed(listingType: listingType, sortType: sortType)
 
@@ -98,8 +98,8 @@ class EntryService: EntryServiceType {
     }
 
     private func fetchFeed(
-        listingType: Components.Schemas.ListingType,
-        sortType: Components.Schemas.SortType
+        listingType: Lemmy.ListingType,
+        sortType: Lemmy.SortType
     ) async -> FeedHandle {
         guard let keychainId = accountService.currentDefaultAccountKeychainId() else {
             // No account on first launch (onboarding not yet complete); return a
@@ -108,7 +108,7 @@ class EntryService: EntryServiceType {
         }
         let isSignedOut = accountService.isSignedOut(forAccountKeychainId: keychainId)
 
-        let listingType: Components.Schemas.ListingType = {
+        let listingType: Lemmy.ListingType = {
             switch listingType {
             case .Subscribed:
                 return isSignedOut ? .All : .Subscribed

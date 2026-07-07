@@ -12,7 +12,7 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias GetPostsResponse = Components.Schemas.GetPostsResponse
+private typealias GetPostsResponse = Lemmy.GetPostsResponse
 
 /// Stub `ClientTransport` that answers the `getPosts` operation with an empty
 /// page so the test can exercise persistence failure paths without hitting the

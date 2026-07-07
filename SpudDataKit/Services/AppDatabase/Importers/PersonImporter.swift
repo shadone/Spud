@@ -13,7 +13,7 @@ public extension AppDatabase {
     /// from a fresh `PersonView`. Skipped silently if the site is not yet in
     /// AppDatabase.
     func upsertPerson(
-        from view: Components.Schemas.PersonView,
+        from view: Lemmy.PersonView,
         siteId: Int64
     ) async throws {
         try await writer.write { db in
@@ -27,7 +27,7 @@ extension AppDatabase {
     /// `model.id`. Returns the resolved row id. Caller must already be inside
     /// a write transaction.
     static func upsertPerson(
-        from model: Components.Schemas.Person,
+        from model: Lemmy.Person,
         siteId: Int64,
         in db: Database
     ) throws -> Int64 {
@@ -57,7 +57,7 @@ extension AppDatabase {
     /// Upserts the person row using the richer `PersonView`, which carries
     /// `is_admin` and aggregates that the bare `Person` does not.
     static func upsertPerson(
-        from model: Components.Schemas.PersonView,
+        from model: Lemmy.PersonView,
         siteId: Int64,
         in db: Database
     ) throws -> Int64 {
@@ -72,7 +72,7 @@ extension AppDatabase {
     }
 
     private static func apply(
-        model: Components.Schemas.Person,
+        model: Lemmy.Person,
         to record: inout PersonRecord,
         now: Date
     ) {

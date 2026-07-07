@@ -12,10 +12,10 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias PrivateMessage = Components.Schemas.PrivateMessage
-private typealias PrivateMessageView = Components.Schemas.PrivateMessageView
-private typealias PrivateMessageResponse = Components.Schemas.PrivateMessageResponse
+private typealias Person = Lemmy.Person
+private typealias PrivateMessage = Lemmy.PrivateMessage
+private typealias PrivateMessageView = Lemmy.PrivateMessageView
+private typealias PrivateMessageResponse = Lemmy.PrivateMessageResponse
 
 /// Decoded shape of the `createPrivateMessage` request body, so a test can
 /// assert the performer sent the right content + recipient.
@@ -140,7 +140,7 @@ struct OutboundDirectMessagePerformerTests {
 
     private static func person(id: Int64, name: String) -> Person {
         var p = Person.fake
-        p.id = Components.Schemas.PersonID(id)
+        p.id = Lemmy.PersonID(id)
         p.name = name
         p.display_name = name.capitalized
         p.actor_id = "https://\(name).test/u/\(name)"
@@ -154,7 +154,7 @@ struct OutboundDirectMessagePerformerTests {
         content: String
     ) -> PrivateMessageResponse {
         let pm = PrivateMessage(
-            id: Components.Schemas.PrivateMessageID(messageId),
+            id: Lemmy.PrivateMessageID(messageId),
             creator_id: creator.id,
             recipient_id: recipient.id,
             content: content,

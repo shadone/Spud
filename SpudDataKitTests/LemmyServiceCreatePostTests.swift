@@ -12,11 +12,11 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias PostView = Components.Schemas.PostView
-private typealias PostResponse = Components.Schemas.PostResponse
+private typealias Person = Lemmy.Person
+private typealias Community = Lemmy.Community
+private typealias Post = Lemmy.Post
+private typealias PostView = Lemmy.PostView
+private typealias PostResponse = Lemmy.PostResponse
 
 /// Stub `ClientTransport` that returns a canned JSON response for the
 /// `createPost` operation and records whether it was ever invoked.
@@ -60,8 +60,8 @@ private final class StubCreatePostTransport: ClientTransport, @unchecked Sendabl
 @MainActor
 struct LemmyServiceCreatePostTests {
     private let keychainId = "keychain-1"
-    private let serverCommunityId: Components.Schemas.CommunityID = 1
-    private let newServerPostId: Components.Schemas.PostID = 99
+    private let serverCommunityId: Lemmy.CommunityID = 1
+    private let newServerPostId: Lemmy.PostID = 99
 
     private let appDatabase: AppDatabase
 

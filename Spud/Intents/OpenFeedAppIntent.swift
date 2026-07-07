@@ -26,8 +26,8 @@ struct OpenFeedAppIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        let listing = Components.Schemas.ListingType(from: feedType)
-        let sort = sortType.map { Components.Schemas.SortType(from: $0) }
+        let listing = Lemmy.ListingType(from: feedType)
+        let sort = sortType.map { Lemmy.SortType(from: $0) }
         AppCoordinator.shared.navigate(.feed(listing: listing, sort: sort))
         return .result()
     }

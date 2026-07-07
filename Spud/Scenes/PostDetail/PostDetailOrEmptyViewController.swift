@@ -37,7 +37,7 @@ class PostDetailOrEmptyViewController: UIViewController {
         return false
     }
 
-    func display(serverPostId: Components.Schemas.PostID) {
+    func display(serverPostId: Lemmy.PostID) {
         state = resolveState(forServerPostId: serverPostId)
     }
 
@@ -49,8 +49,8 @@ class PostDetailOrEmptyViewController: UIViewController {
 
     private enum State {
         case empty
-        case post(serverPostId: Components.Schemas.PostID)
-        case load(serverPostId: Components.Schemas.PostID)
+        case post(serverPostId: Lemmy.PostID)
+        case load(serverPostId: Lemmy.PostID)
         case unavailable(reason: PostUnavailableReason)
     }
 
@@ -65,14 +65,14 @@ class PostDetailOrEmptyViewController: UIViewController {
     /// A `/comment/<id>` permalink target to scroll to once the post detail is
     /// shown. Consumed (set to nil) the first time a content controller is built,
     /// so an iPad detail-column reuse with a different post doesn't reuse it.
-    private var scrollToCommentId: Components.Schemas.CommentID?
+    private var scrollToCommentId: Lemmy.CommentID?
 
     // MARK: - Functions
 
     init(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         accountKeychainId: String,
-        scrollToCommentId: Components.Schemas.CommentID? = nil,
+        scrollToCommentId: Lemmy.CommentID? = nil,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
@@ -107,7 +107,7 @@ class PostDetailOrEmptyViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
 
-    private func resolveState(forServerPostId serverPostId: Components.Schemas.PostID) -> State {
+    private func resolveState(forServerPostId serverPostId: Lemmy.PostID) -> State {
         Self.resolveState(
             forServerPostId: serverPostId,
             accountKeychainId: accountKeychainId,
@@ -116,7 +116,7 @@ class PostDetailOrEmptyViewController: UIViewController {
     }
 
     private static func resolveState(
-        forServerPostId serverPostId: Components.Schemas.PostID,
+        forServerPostId serverPostId: Lemmy.PostID,
         accountKeychainId: String,
         appDatabase: AppDatabase
     ) -> State {

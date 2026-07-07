@@ -274,7 +274,7 @@ class ActivityViewController: UIViewController {
                 ? serverPersonId.map {
                     LemmyAuthoredActivitySource(
                         lemmyService: scope.lemmyService,
-                        serverPersonId: Components.Schemas.PersonID($0)
+                        serverPersonId: Lemmy.PersonID($0)
                     )
                 }
                 : nil
@@ -818,15 +818,15 @@ class ActivityViewController: UIViewController {
         switch item.object {
         case let .post(post):
             (view.window as? MainWindow)?.display(
-                serverPostId: Components.Schemas.PostID(post.serverPostId),
+                serverPostId: Lemmy.PostID(post.serverPostId),
                 accountKeychainId: accountKeychainId
             )
         case let .comment(comment):
             guard let serverPostId = comment.serverPostId else { return }
             (view.window as? MainWindow)?.display(
-                serverPostId: Components.Schemas.PostID(serverPostId),
+                serverPostId: Lemmy.PostID(serverPostId),
                 accountKeychainId: accountKeychainId,
-                scrollToCommentId: Components.Schemas.CommentID(comment.serverCommentId)
+                scrollToCommentId: Lemmy.CommentID(comment.serverCommentId)
             )
         }
     }

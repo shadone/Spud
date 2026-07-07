@@ -7,13 +7,13 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.Comment {
+extension Lemmy.Comment {
     static func fake(
-        id: Components.Schemas.CommentID,
-        post: Components.Schemas.Post,
-        creator: Components.Schemas.Person,
+        id: Lemmy.CommentID,
+        post: Lemmy.Post,
+        creator: Lemmy.Person,
         parent: CommentPath
-    ) -> Components.Schemas.Comment {
+    ) -> Lemmy.Comment {
         .init(
             id: id,
             creator_id: creator.id,

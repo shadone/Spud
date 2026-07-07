@@ -77,14 +77,14 @@ class PostDetailViewController: UIViewController {
 
     // MARK: - Public
 
-    var serverPostId: Components.Schemas.PostID {
+    var serverPostId: Lemmy.PostID {
         viewModel.serverPostId
     }
 
     func setPost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         accountKeychainId: String,
-        scrollToCommentId: Components.Schemas.CommentID? = nil
+        scrollToCommentId: Lemmy.CommentID? = nil
     ) {
         pendingPermalinkServerCommentId = scrollToCommentId.map(Int64.init)
         permalinkHighlightElementIds.removeAll(keepingCapacity: true)
@@ -278,9 +278,9 @@ class PostDetailViewController: UIViewController {
     // MARK: Functions
 
     init(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         accountKeychainId: String,
-        scrollToCommentId: Components.Schemas.CommentID? = nil,
+        scrollToCommentId: Lemmy.CommentID? = nil,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
@@ -440,7 +440,7 @@ class PostDetailViewController: UIViewController {
     /// Applies a new comment sort: updates the view model, restarts the comment
     /// observation with the new ordering, and triggers a cancel-and-replace
     /// fetch. Per-post only — the global default is untouched.
-    private func changeCommentSort(to sortType: Components.Schemas.CommentSortType) {
+    private func changeCommentSort(to sortType: Lemmy.CommentSortType) {
         guard sortType != viewModel.commentSortType else { return }
         // The view model applies the sort and restarts its comment observation
         // (re-resolving the row id, in case the post was mirrored since open).
@@ -729,7 +729,7 @@ class PostDetailViewController: UIViewController {
     /// content. Mods keep removed posts; authors keep their own deleted posts.
     private func unavailableReason(for row: PostDetailHeaderRow) -> PostUnavailableReason? {
         let canModerate = moderationCapability.canModerate(
-            communityId: Components.Schemas.CommunityID(row.serverCommunityId)
+            communityId: Lemmy.CommunityID(row.serverCommunityId)
         )
         let isOwnPost = row.creatorPersonId == viewModel.currentAccountPersonId
         return PostUnavailableReason.forHeader(
@@ -1372,7 +1372,7 @@ class PostDetailViewController: UIViewController {
         routeInternalLink(url)
     }
 
-    private func pushPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId) {
+    private func pushPerson(personId: Lemmy.PersonID, instance: InstanceActorId) {
         let vc = PersonOrLoadingViewController(
             personId: personId,
             instance: instance,
@@ -1394,7 +1394,7 @@ class PostDetailViewController: UIViewController {
 
     /// Opens a post by its id valid for the current account, via the window's
     /// display entry (consistent with `AppCoordinator.open`).
-    private func openPost(postId: Components.Schemas.PostID, instance _: InstanceActorId) {
+    private func openPost(postId: Lemmy.PostID, instance _: InstanceActorId) {
         guard let window = view.window as? MainWindow else {
             logger.error("No MainWindow available to display post")
             return
@@ -1675,7 +1675,7 @@ class PostDetailViewController: UIViewController {
     private func replyToComment(serverCommentId: Int64) {
         presentComposer(target: .commentReply(
             serverPostId: viewModel.serverPostId,
-            parentCommentId: Components.Schemas.CommentID(serverCommentId)
+            parentCommentId: Lemmy.CommentID(serverCommentId)
         ))
     }
 
@@ -1720,7 +1720,7 @@ class PostDetailViewController: UIViewController {
 
         let composer = NewPostViewController.makeEditSheet(
             serverPostId: row.serverPostId,
-            serverCommunityId: Components.Schemas.CommunityID(row.serverCommunityId),
+            serverCommunityId: Lemmy.CommunityID(row.serverCommunityId),
             communityName: row.communityName,
             title: row.title,
             body: row.body,
@@ -2249,7 +2249,7 @@ extension PostDetailViewController: InternalLinkRouting {
         viewModel.accountScope.lemmyService
     }
 
-    func routeToPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId) {
+    func routeToPerson(personId: Lemmy.PersonID, instance: InstanceActorId) {
         pushPerson(personId: personId, instance: instance)
     }
 
@@ -2257,7 +2257,7 @@ extension PostDetailViewController: InternalLinkRouting {
         pushCommunity(name: name, instance: instance)
     }
 
-    func routeToPost(postId: Components.Schemas.PostID, instance: InstanceActorId) {
+    func routeToPost(postId: Lemmy.PostID, instance: InstanceActorId) {
         openPost(postId: postId, instance: instance)
     }
 

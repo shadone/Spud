@@ -42,7 +42,7 @@ struct PostDetailViewModelMutationTests {
     /// refresh-path tests later groups add (unused by the report group).
     private func makeViewModel(
         lemmy: any PostDetailLemmyServicing,
-        fetchCommentsOperation: (@MainActor (Components.Schemas.CommentSortType) async throws -> Void)? = nil
+        fetchCommentsOperation: (@MainActor (Lemmy.CommentSortType) async throws -> Void)? = nil
     ) -> PostDetailViewModel {
         let dependencies = TestDependencies()
         return PostDetailViewModel(
@@ -604,9 +604,9 @@ struct PostDetailViewModelMutationTests {
 /// existing closure seam. `@MainActor` to match the closure's isolation.
 @MainActor
 private final class CommentSortTypeSpy {
-    private(set) var received: [Components.Schemas.CommentSortType] = []
+    private(set) var received: [Lemmy.CommentSortType] = []
 
-    func record(_ sortType: Components.Schemas.CommentSortType) {
+    func record(_ sortType: Lemmy.CommentSortType) {
         received.append(sortType)
     }
 }

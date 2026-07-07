@@ -45,7 +45,7 @@ struct PostDetailConfigViewModelTests {
 
     @Test
     func selectSortRoutesAndUpdates() {
-        var selected: Components.Schemas.CommentSortType?
+        var selected: Lemmy.CommentSortType?
         let viewModel = PostDetailConfigViewModel(
             preferencesService: PreferencesService.ephemeral(),
             currentSort: .Hot,

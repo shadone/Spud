@@ -114,7 +114,7 @@ class CommunityOrLoadingViewController: UIViewController {
 
     private func loadAndShow() async {
         let lemmyService = accountScope.lemmyService
-        let serverCommunityId: Components.Schemas.CommunityID
+        let serverCommunityId: Lemmy.CommunityID
         do {
             serverCommunityId = try await lemmyService.fetchCommunityInfo(communityName: qualifiedName)
         } catch {

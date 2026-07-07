@@ -19,7 +19,7 @@ import SpudUIKit
 @Observable
 final class QuickSwitchViewModel {
     private let preferencesService: PreferencesServiceType
-    private let onSelectSort: (Components.Schemas.SortType) -> Void
+    private let onSelectSort: (Lemmy.SortType) -> Void
     private let onDownloadForOffline: () -> Void
 
     let allPostDensities: [PostDensity] = PostDensity.allCases
@@ -31,12 +31,12 @@ final class QuickSwitchViewModel {
     var showNsfw: Bool
     var blurNsfw: Bool
     var hasAcknowledgedNsfwAge: Bool
-    var currentSort: Components.Schemas.SortType
+    var currentSort: Lemmy.SortType
 
     init(
         preferencesService: PreferencesServiceType,
-        currentSort: Components.Schemas.SortType,
-        onSelectSort: @escaping (Components.Schemas.SortType) -> Void,
+        currentSort: Lemmy.SortType,
+        onSelectSort: @escaping (Lemmy.SortType) -> Void,
         onDownloadForOffline: @escaping () -> Void = { }
     ) {
         self.preferencesService = preferencesService
@@ -93,7 +93,7 @@ final class QuickSwitchViewModel {
         Haptics.tap()
     }
 
-    func selectSort(_ value: Components.Schemas.SortType) {
+    func selectSort(_ value: Lemmy.SortType) {
         currentSort = value
         onSelectSort(value)
         Haptics.tap()

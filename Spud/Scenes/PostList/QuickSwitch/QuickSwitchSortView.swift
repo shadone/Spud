@@ -24,7 +24,7 @@ struct QuickSwitchSortView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    private func rows(for sortTypes: [Components.Schemas.SortType]) -> some View {
+    private func rows(for sortTypes: [Lemmy.SortType]) -> some View {
         ForEach(sortTypes, id: \.self) { sortType in
             Button {
                 viewModel.selectSort(sortType)

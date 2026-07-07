@@ -16,7 +16,7 @@ extension AppDatabase {
     /// community row id.
     @discardableResult
     public func upsertCommunity(
-        from model: Components.Schemas.Community,
+        from model: Lemmy.Community,
         accountId: Int64
     ) async throws -> Int64 {
         try await writer.write { db in
@@ -38,7 +38,7 @@ extension AppDatabase {
     /// the authoritative state separately via `upsertCommunity`.
     public func setFollowedCommunities(
         accountId: Int64,
-        follows: [Components.Schemas.CommunityFollowerView],
+        follows: [Lemmy.CommunityFollowerView],
         respectsPendingOutbox: Bool = true
     ) async throws {
         try await writer.write { db in
@@ -105,7 +105,7 @@ extension AppDatabase {
     /// the confirmed server state through.
     @discardableResult
     public func upsertCommunity(
-        from view: Components.Schemas.CommunityView,
+        from view: Lemmy.CommunityView,
         accountId: Int64,
         respectsPendingOutbox: Bool = true
     ) async throws -> Int64 {
@@ -120,7 +120,7 @@ extension AppDatabase {
     }
 
     static func upsertCommunity(
-        from model: Components.Schemas.Community,
+        from model: Lemmy.Community,
         accountId: Int64,
         in db: Database
     ) throws -> Int64 {
@@ -148,7 +148,7 @@ extension AppDatabase {
     }
 
     static func upsertCommunity(
-        from view: Components.Schemas.CommunityView,
+        from view: Lemmy.CommunityView,
         accountId: Int64,
         respectsPendingOutbox: Bool = true,
         in db: Database
@@ -214,7 +214,7 @@ extension AppDatabase {
     static func syncFollowedCommunityJunction(
         accountId: Int64,
         communityRowId: Int64,
-        subscribed: Components.Schemas.SubscribedType,
+        subscribed: Lemmy.SubscribedType,
         in db: Database
     ) throws {
         let isFollowed = subscribed != .NotSubscribed
@@ -233,7 +233,7 @@ extension AppDatabase {
     }
 
     static func apply(
-        model: Components.Schemas.Community,
+        model: Lemmy.Community,
         to record: inout CommunityRecord,
         now: Date
     ) {
@@ -256,7 +256,7 @@ extension AppDatabase {
     /// Applies the view-level fields (subscribed state + counts) that a bare
     /// `Community` model doesn't carry.
     static func apply(
-        view: Components.Schemas.CommunityView,
+        view: Lemmy.CommunityView,
         to record: inout CommunityRecord
     ) {
         record.subscribedState = view.subscribed.rawValue

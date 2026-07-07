@@ -12,10 +12,10 @@ import SpudUtilKit
 /// or comments. Carries the server post id so a tap can open PostDetail, and
 /// the comment-reply id so it can be marked read.
 struct InboxReplyItem: Hashable, Identifiable {
-    let commentReplyId: Components.Schemas.CommentReplyID
-    let serverCommentId: Components.Schemas.CommentID
-    let serverPostId: Components.Schemas.PostID
-    let serverPersonId: Components.Schemas.PersonID
+    let commentReplyId: Lemmy.CommentReplyID
+    let serverCommentId: Lemmy.CommentID
+    let serverPostId: Lemmy.PostID
+    let serverPersonId: Lemmy.PersonID
     let creatorName: String
     let content: String
     let postTitle: String
@@ -24,7 +24,7 @@ struct InboxReplyItem: Hashable, Identifiable {
     let published: Date
     var isRead: Bool
 
-    var id: Components.Schemas.CommentReplyID {
+    var id: Lemmy.CommentReplyID {
         commentReplyId
     }
 
@@ -35,7 +35,7 @@ struct InboxReplyItem: Hashable, Identifiable {
         return copy
     }
 
-    init(view: Components.Schemas.CommentReplyView) {
+    init(view: Lemmy.CommentReplyView) {
         commentReplyId = view.comment_reply.id
         serverCommentId = view.comment.id
         serverPostId = view.post.id
@@ -52,10 +52,10 @@ struct InboxReplyItem: Hashable, Identifiable {
 
 /// A single inbox mention: someone @-mentioned the account holder in a comment.
 struct InboxMentionItem: Hashable, Identifiable {
-    let personMentionId: Components.Schemas.PersonMentionID
-    let serverCommentId: Components.Schemas.CommentID
-    let serverPostId: Components.Schemas.PostID
-    let serverPersonId: Components.Schemas.PersonID
+    let personMentionId: Lemmy.PersonMentionID
+    let serverCommentId: Lemmy.CommentID
+    let serverPostId: Lemmy.PostID
+    let serverPersonId: Lemmy.PersonID
     let creatorName: String
     let content: String
     let postTitle: String
@@ -64,7 +64,7 @@ struct InboxMentionItem: Hashable, Identifiable {
     let published: Date
     var isRead: Bool
 
-    var id: Components.Schemas.PersonMentionID {
+    var id: Lemmy.PersonMentionID {
         personMentionId
     }
 
@@ -75,7 +75,7 @@ struct InboxMentionItem: Hashable, Identifiable {
         return copy
     }
 
-    init(view: Components.Schemas.PersonMentionView) {
+    init(view: Lemmy.PersonMentionView) {
         personMentionId = view.person_mention.id
         serverCommentId = view.comment.id
         serverPostId = view.post.id
@@ -115,7 +115,7 @@ enum InboxConversationPendingStatus: Hashable {
 /// id, so a synthetic pending-only row collapses into the real thread once the
 /// server copy lands. See `InboxConversationMerger`.
 struct InboxConversation: Hashable, Identifiable {
-    let correspondentId: Components.Schemas.PersonID
+    let correspondentId: Lemmy.PersonID
     let correspondentName: String
     let correspondentAvatarUrl: URL?
     /// Most-recent message in the thread (confirmed or optimistic), for the
@@ -128,7 +128,7 @@ struct InboxConversation: Hashable, Identifiable {
     /// nothing is in flight.
     let pendingStatus: InboxConversationPendingStatus?
 
-    var id: Components.Schemas.PersonID {
+    var id: Lemmy.PersonID {
         correspondentId
     }
 

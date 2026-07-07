@@ -77,7 +77,7 @@ struct CommunityViewModelTests {
     private func makeViewModel(_ seed: Seed) -> CommunityViewModel {
         CommunityViewModel(
             accountRowId: seed.accountId,
-            serverCommunityId: Components.Schemas.CommunityID(seed.serverCommunityId),
+            serverCommunityId: Lemmy.CommunityID(seed.serverCommunityId),
             accountKeychainId: seed.keychainId,
             appDatabase: seed.appDatabase
         )

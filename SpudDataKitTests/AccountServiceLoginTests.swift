@@ -26,9 +26,9 @@ private final class StubAuthTransport: ClientTransport, @unchecked Sendable {
     private let getSiteSentContinuation: AsyncStream<Void>.Continuation
 
     init(
-        login: Components.Schemas.LoginResponse? = nil,
-        register: Components.Schemas.LoginResponse? = nil,
-        site: Components.Schemas.GetSiteResponse? = nil
+        login: Lemmy.LoginResponse? = nil,
+        register: Lemmy.LoginResponse? = nil,
+        site: Lemmy.GetSiteResponse? = nil
     ) throws {
         let encoder = JSONEncoder()
         // The generated client decodes dates via LemmyDateTranscoder, which

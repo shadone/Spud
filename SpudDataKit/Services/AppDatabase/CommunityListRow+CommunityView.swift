@@ -20,7 +20,7 @@ public extension CommunityListRow {
     /// matching how every other read-side helper extracts a host from an actor
     /// id. The dedup fields (`alsoOnServerCount`, `groupTotalSubscribers`) stay
     /// zero — a live single-instance fetch is not de-duplicated across servers.
-    init(communityView view: Components.Schemas.CommunityView) {
+    init(communityView view: Lemmy.CommunityView) {
         let community = view.community
         let counts = view.counts
         let host = URL(string: community.actor_id)?.host ?? ""

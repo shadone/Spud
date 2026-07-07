@@ -17,7 +17,7 @@ public extension LemmyService {
     func fetchReplies(
         unreadOnly: Bool,
         page: Int64
-    ) async throws -> Components.Schemas.GetRepliesResponse {
+    ) async throws -> Lemmy.GetRepliesResponse {
         try await requireCapability(.inbox)
 
         guard !accountIsSignedOut else {
@@ -48,7 +48,7 @@ public extension LemmyService {
     func fetchMentions(
         unreadOnly: Bool,
         page: Int64
-    ) async throws -> Components.Schemas.GetPersonMentionsResponse {
+    ) async throws -> Lemmy.GetPersonMentionsResponse {
         try await requireCapability(.inbox)
 
         guard !accountIsSignedOut else {
@@ -79,7 +79,7 @@ public extension LemmyService {
     func fetchPrivateMessages(
         unreadOnly: Bool,
         page: Int64
-    ) async throws -> Components.Schemas.PrivateMessagesResponse {
+    ) async throws -> Lemmy.PrivateMessagesResponse {
         try await requireCapability(.privateMessages)
 
         guard !accountIsSignedOut else {
@@ -117,7 +117,7 @@ public extension LemmyService {
             return .zero
         }
 
-        let response: Components.Schemas.GetUnreadCountResponse
+        let response: Lemmy.GetUnreadCountResponse
         do {
             response = try await api.getUnreadCount()
         } catch {
@@ -137,7 +137,7 @@ public extension LemmyService {
     }
 
     func markReplyAsRead(
-        commentReplyId: Components.Schemas.CommentReplyID,
+        commentReplyId: Lemmy.CommentReplyID,
         read: Bool
     ) async throws {
         try await requireCapability(.inbox)
@@ -163,7 +163,7 @@ public extension LemmyService {
     }
 
     func markMentionAsRead(
-        personMentionId: Components.Schemas.PersonMentionID,
+        personMentionId: Lemmy.PersonMentionID,
         read: Bool
     ) async throws {
         try await requireCapability(.inbox)
@@ -189,7 +189,7 @@ public extension LemmyService {
     }
 
     func markPrivateMessageAsRead(
-        privateMessageId: Components.Schemas.PrivateMessageID,
+        privateMessageId: Lemmy.PrivateMessageID,
         read: Bool
     ) async throws {
         try await requireCapability(.inbox)
@@ -259,8 +259,8 @@ public extension LemmyService {
     @discardableResult
     func sendPrivateMessage(
         content: String,
-        recipientId: Components.Schemas.PersonID
-    ) async throws -> Components.Schemas.PrivateMessageView {
+        recipientId: Lemmy.PersonID
+    ) async throws -> Lemmy.PrivateMessageView {
         try await requireCapability(.privateMessages)
 
         guard !accountIsSignedOut else {
@@ -277,7 +277,7 @@ public extension LemmyService {
             recipientId=\(recipientId, privacy: .public)
             """)
 
-        let response: Components.Schemas.PrivateMessageResponse
+        let response: Lemmy.PrivateMessageResponse
         do {
             response = try await api.createPrivateMessage(content: content, recipientID: recipientId)
         } catch {

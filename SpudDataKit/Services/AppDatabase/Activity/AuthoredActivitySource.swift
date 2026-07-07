@@ -69,11 +69,11 @@ public protocol AuthoredActivitySource: Sendable {
 /// profile Comments tab and Search treat their results.
 public struct LemmyAuthoredActivitySource: AuthoredActivitySource {
     private let lemmyService: LemmyServiceType
-    private let serverPersonId: Components.Schemas.PersonID
+    private let serverPersonId: Lemmy.PersonID
 
     public init(
         lemmyService: LemmyServiceType,
-        serverPersonId: Components.Schemas.PersonID
+        serverPersonId: Lemmy.PersonID
     ) {
         self.lemmyService = lemmyService
         self.serverPersonId = serverPersonId
@@ -120,7 +120,7 @@ public extension ActivityItem {
     /// Builds a `.comment` activity item from a transient authored `CommentView`.
     /// The comment is not persisted (the profile Comments tab keeps these in
     /// memory), so `ActivityCommentRow.id` is 0; navigation uses the server ids.
-    init(authoredComment view: Components.Schemas.CommentView) {
+    init(authoredComment view: Lemmy.CommentView) {
         let row = ActivityCommentRow(
             id: 0,
             serverCommentId: Int64(view.comment.id),

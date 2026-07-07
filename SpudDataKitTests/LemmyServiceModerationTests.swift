@@ -12,14 +12,14 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias Comment = Components.Schemas.Comment
-private typealias PostResponse = Components.Schemas.PostResponse
-private typealias CommentResponse = Components.Schemas.CommentResponse
-private typealias BanFromCommunityResponse = Components.Schemas.BanFromCommunityResponse
-private typealias GetSiteResponse = Components.Schemas.GetSiteResponse
+private typealias Person = Lemmy.Person
+private typealias Community = Lemmy.Community
+private typealias Post = Lemmy.Post
+private typealias Comment = Lemmy.Comment
+private typealias PostResponse = Lemmy.PostResponse
+private typealias CommentResponse = Lemmy.CommentResponse
+private typealias BanFromCommunityResponse = Lemmy.BanFromCommunityResponse
+private typealias GetSiteResponse = Lemmy.GetSiteResponse
 
 /// Stub `ClientTransport` returning canned JSON for the moderation operations,
 /// recording which operation was invoked. Mirrors `StubBlockReportTransport`.
@@ -151,7 +151,7 @@ struct LemmyServiceModerationTests {
         creator: Person,
         community: Community
     ) async throws -> Int64 {
-        let view = Components.Schemas.PostView.fake(post: post, creator: creator, community: community)
+        let view = Lemmy.PostView.fake(post: post, creator: creator, community: community)
         try await appDatabase.upsertPost(from: view, accountId: accountId, siteId: siteId)
         return Int64(post.id)
     }
@@ -233,7 +233,7 @@ struct LemmyServiceModerationTests {
         comment.distinguished = false
         let commentId = comment.id
         // Seed the comment row first.
-        let seedView = Components.Schemas.CommentView.fake(
+        let seedView = Lemmy.CommentView.fake(
             comment: comment, creator: person, post: post, community: community, childCount: 0
         )
         try await appDatabase.upsertComment(from: seedView, accountId: ids.accountId, siteId: ids.siteId)

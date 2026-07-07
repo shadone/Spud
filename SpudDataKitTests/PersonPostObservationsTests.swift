@@ -10,10 +10,10 @@ import LemmyKit
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias PostView = Components.Schemas.PostView
+private typealias Person = Lemmy.Person
+private typealias Community = Lemmy.Community
+private typealias Post = Lemmy.Post
+private typealias PostView = Lemmy.PostView
 
 /// Verifies `observePersonPostListRows` builds feed-parity `PostListRow`s from
 /// the posts a person authored (persisted via the real `upsertPosts` importer),
@@ -59,7 +59,7 @@ struct PersonPostObservationsTests {
         community: Community
     ) -> PostView {
         var post = Post.fake(creator: person, community: community)
-        post.id = Components.Schemas.PostID(id)
+        post.id = Lemmy.PostID(id)
         post.name = title
         post.published = published
         post.ap_id = "https://example.com/post/\(id)"
@@ -177,7 +177,7 @@ struct PersonPostObservationsTests {
             appDatabase.personRowIdSync(forKeychainId: "kc-person-1", personId: 7)
         )
 
-        func firstEmission(sort: Components.Schemas.SortType) async -> [PostListRow] {
+        func firstEmission(sort: Lemmy.SortType) async -> [PostListRow] {
             for await emission in appDatabase.observePersonPostListRows(
                 personRowId: personRowId,
                 accountId: accountId,

@@ -124,7 +124,7 @@ final class InboxViewController: UIViewController {
 
         let myPersonId = dependencies.appDatabase
             .accountOwnPersonIdsSync(forKeychainId: accountKeychainId)
-            .map { Components.Schemas.PersonID($0.serverPersonId) }
+            .map { Lemmy.PersonID($0.serverPersonId) }
 
         viewModel = InboxViewModel(
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
@@ -495,7 +495,7 @@ final class InboxViewController: UIViewController {
     /// Pushes a new DM thread onto the inbox nav stack. The picker has already
     /// dismissed itself by the time this runs.
     private func openNewThread(
-        correspondentId: Components.Schemas.PersonID,
+        correspondentId: Lemmy.PersonID,
         correspondentName: String
     ) {
         let threadVC = DMThreadViewController(
@@ -507,7 +507,7 @@ final class InboxViewController: UIViewController {
         navigationController?.pushViewController(threadVC, animated: true)
     }
 
-    private func openComment(serverPostId: Components.Schemas.PostID) {
+    private func openComment(serverPostId: Lemmy.PostID) {
         guard let window = view.window as? MainWindow else { return }
         window.display(serverPostId: serverPostId, accountKeychainId: accountKeychainId)
     }

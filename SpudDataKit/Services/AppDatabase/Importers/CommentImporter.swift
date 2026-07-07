@@ -20,7 +20,7 @@ public extension AppDatabase {
     /// outbox operations for this comment will prevent the corresponding
     /// optimistic fields from being overwritten by server data.
     func upsertComment(
-        from view: Components.Schemas.CommentView,
+        from view: Lemmy.CommentView,
         accountId: Int64,
         siteId: Int64,
         respectsPendingOutbox: Bool = true
@@ -56,8 +56,8 @@ public extension AppDatabase {
         forServerPostId serverPostId: Int64,
         accountId: Int64,
         siteId: Int64,
-        sortType: Components.Schemas.CommentSortType,
-        comments: [Components.Schemas.CommentView]
+        sortType: Lemmy.CommentSortType,
+        comments: [Lemmy.CommentView]
     ) async throws {
         guard !comments.isEmpty else { return }
 
@@ -81,7 +81,7 @@ public extension AppDatabase {
                 .filter(Column("sortType") == sortTypeRaw)
                 .deleteAll(db)
 
-            let commentsWithMissingChildren: Set<Components.Schemas.CommentID> = Set(
+            let commentsWithMissingChildren: Set<Lemmy.CommentID> = Set(
                 LemmyCommentImportHelper
                     .findCommentsWithMissingChildren(comments)
                     .map(\.comment.id)
@@ -159,7 +159,7 @@ public extension AppDatabase {
     }
 
     private static func upsertComment(
-        from view: Components.Schemas.CommentView,
+        from view: Lemmy.CommentView,
         accountId: Int64,
         postRowId: Int64,
         siteId: Int64,
@@ -213,7 +213,7 @@ public extension AppDatabase {
     }
 
     private static func apply(
-        view: Components.Schemas.CommentView,
+        view: Lemmy.CommentView,
         to record: inout CommentRecord,
         now: Date
     ) {

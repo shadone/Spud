@@ -131,7 +131,7 @@ final class CommunityPickerViewController: UITableViewController {
 
     /// Builds `name@instance` from a community's actor id (falling back to the
     /// bare name when the host can't be parsed).
-    private static func qualifiedName(for community: Components.Schemas.Community) -> String {
+    private static func qualifiedName(for community: Lemmy.Community) -> String {
         guard
             let url = URL(string: community.actor_id),
             let host = url.host

@@ -44,13 +44,13 @@ struct PostDetailHeaderCreatorHostTests {
 
         // The post's creator's home instance is beehaw.org — encoded in their
         // federation actor_id, which differs from the observing lemmy.world site.
-        var creator = Components.Schemas.Person.fake
+        var creator = Lemmy.Person.fake
         creator.actor_id = "https://beehaw.org/u/Tony"
         creator.name = "Tony"
 
-        let community = Components.Schemas.Community.fake
-        let post = Components.Schemas.Post.fake(creator: creator, community: community)
-        let view = Components.Schemas.PostView.fake(post: post, creator: creator, community: community)
+        let community = Lemmy.Community.fake
+        let post = Lemmy.Post.fake(creator: creator, community: community)
+        let view = Lemmy.PostView.fake(post: post, creator: creator, community: community)
 
         let rowId = try await appDatabase.writer.write { db in
             try AppDatabase.upsertPost(from: view, accountId: accountId, siteId: siteId, in: db)

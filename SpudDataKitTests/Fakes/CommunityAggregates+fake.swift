@@ -7,13 +7,13 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.CommunityAggregates {
+extension Lemmy.CommunityAggregates {
     static func fake(
-        communityId: Components.Schemas.CommunityID = 1,
+        communityId: Lemmy.CommunityID = 1,
         subscribers: Int64 = 100,
         posts: Int64 = 50,
         comments: Int64 = 200
-    ) -> Components.Schemas.CommunityAggregates {
+    ) -> Lemmy.CommunityAggregates {
         .init(
             community_id: communityId,
             subscribers: subscribers,

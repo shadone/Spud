@@ -12,14 +12,14 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias Comment = Components.Schemas.Comment
-private typealias PostView = Components.Schemas.PostView
-private typealias CommentView = Components.Schemas.CommentView
-private typealias PostResponse = Components.Schemas.PostResponse
-private typealias CommentResponse = Components.Schemas.CommentResponse
+private typealias Person = Lemmy.Person
+private typealias Community = Lemmy.Community
+private typealias Post = Lemmy.Post
+private typealias Comment = Lemmy.Comment
+private typealias PostView = Lemmy.PostView
+private typealias CommentView = Lemmy.CommentView
+private typealias PostResponse = Lemmy.PostResponse
+private typealias CommentResponse = Lemmy.CommentResponse
 
 /// Stub `ClientTransport` that returns canned JSON for the `savePost` /
 /// `saveComment` operations and records whether each was invoked.
@@ -80,7 +80,7 @@ private final class StubSaveTransport: ClientTransport, @unchecked Sendable {
 @MainActor
 struct LemmyServiceSaveTests {
     private let keychainId = "keychain-1"
-    private let serverPostId: Components.Schemas.PostID = 1
+    private let serverPostId: Lemmy.PostID = 1
 
     private let appDatabase: AppDatabase
 
@@ -191,7 +191,7 @@ struct LemmyServiceSaveTests {
     func setSavedCommentMirrorsSavedFlagIntoDatabase() async throws {
         try await seedAccountSiteAndPost()
 
-        let serverCommentId: Components.Schemas.CommentID = 42
+        let serverCommentId: Lemmy.CommentID = 42
         let person = Person.fake
         let community = Community.fake
         let post = Post.fake(creator: person, community: community)

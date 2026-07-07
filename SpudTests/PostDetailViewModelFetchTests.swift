@@ -55,7 +55,7 @@ struct PostDetailViewModelFetchTests {
         alertService: AlertServiceType = AlertService(),
         isOnline: Bool = true,
         reachabilityMonitor: ReachabilityMonitoring? = nil,
-        fetchCommentsOperation: @escaping @MainActor (Components.Schemas.CommentSortType) async throws -> Void
+        fetchCommentsOperation: @escaping @MainActor (Lemmy.CommentSortType) async throws -> Void
     ) -> PostDetailViewModel {
         let dependencies = TestDependencies(
             alertService: alertService,

@@ -14,14 +14,14 @@ import Testing
 
 // MARK: - Type aliases
 
-private typealias Person = Components.Schemas.Person
-private typealias PersonView = Components.Schemas.PersonView
-private typealias Community = Components.Schemas.Community
-private typealias PostView = Components.Schemas.PostView
-private typealias CommentView = Components.Schemas.CommentView
-private typealias GetPostResponse = Components.Schemas.GetPostResponse
-private typealias GetPersonDetailsResponse = Components.Schemas.GetPersonDetailsResponse
-private typealias GetCommentsResponse = Components.Schemas.GetCommentsResponse
+private typealias Person = Lemmy.Person
+private typealias PersonView = Lemmy.PersonView
+private typealias Community = Lemmy.Community
+private typealias PostView = Lemmy.PostView
+private typealias CommentView = Lemmy.CommentView
+private typealias GetPostResponse = Lemmy.GetPostResponse
+private typealias GetPersonDetailsResponse = Lemmy.GetPersonDetailsResponse
+private typealias GetCommentsResponse = Lemmy.GetCommentsResponse
 
 // MARK: - Stub transports
 
@@ -173,7 +173,7 @@ struct LemmyServiceFetchPersistenceTests {
     private func makeGetPostResponse() -> GetPostResponse {
         let person = Person.fake
         let community = Community.fake
-        let post = Components.Schemas.Post.fake(creator: person, community: community)
+        let post = Lemmy.Post.fake(creator: person, community: community)
         let postView = PostView.fake(post: post, creator: person, community: community)
         return GetPostResponse(
             post_view: postView,
@@ -197,8 +197,8 @@ struct LemmyServiceFetchPersistenceTests {
     private func makeGetCommentsResponse() -> GetCommentsResponse {
         let person = Person.fake
         let community = Community.fake
-        let post = Components.Schemas.Post.fake(creator: person, community: community)
-        let comment = Components.Schemas.Comment.fake(
+        let post = Lemmy.Post.fake(creator: person, community: community)
+        let comment = Lemmy.Comment.fake(
             id: 42,
             post: post,
             creator: person,
@@ -344,7 +344,7 @@ struct LemmyServiceFetchPersistenceTests {
     @Test
     func fetchCommentsThrowsWhenNotPersisted() async throws {
         // Do NOT seed account/site.
-        let serverPostId: Components.Schemas.PostID = 1
+        let serverPostId: Lemmy.PostID = 1
         let response = makeGetCommentsResponse()
 
         let transport = try StubGetCommentsTransport(response: response)

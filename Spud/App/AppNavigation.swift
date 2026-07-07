@@ -11,22 +11,22 @@ import SpudUtilKit
 /// Routed by `AppCoordinator.navigate(_:)` into the live `MainWindow`, or stored
 /// as `pendingNavigation` and replayed once a window is ready (cold launch).
 enum AppNavigation: Equatable {
-    case feed(listing: Components.Schemas.ListingType, sort: Components.Schemas.SortType?)
+    case feed(listing: Lemmy.ListingType, sort: Lemmy.SortType?)
     case search(query: String)
     case newPost
     case inbox
     case community(name: String, instance: InstanceActorId)
-    case savedFeed(sort: Components.Schemas.SortType?)
+    case savedFeed(sort: Lemmy.SortType?)
 }
 
 /// The navigation surface the router drives. `MainWindow` conforms; tests use a
 /// spy so routing is verified without a real window.
 @MainActor
 protocol AppNavigating: AnyObject {
-    func selectFeed(listing: Components.Schemas.ListingType, sort: Components.Schemas.SortType?)
+    func selectFeed(listing: Lemmy.ListingType, sort: Lemmy.SortType?)
     func selectSearch(query: String)
     func presentNewPost()
     func selectInbox()
     func display(communityName: String, instance: InstanceActorId, accountKeychainId: String)
-    func selectSavedFeed(sort: Components.Schemas.SortType?)
+    func selectSavedFeed(sort: Lemmy.SortType?)
 }

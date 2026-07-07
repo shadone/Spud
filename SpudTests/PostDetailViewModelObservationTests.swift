@@ -248,7 +248,7 @@ struct PostDetailViewModelObservationTests {
 
     private func makeViewModel(_ seed: Seed) -> PostDetailViewModel {
         PostDetailViewModel(
-            serverPostId: Components.Schemas.PostID(seed.serverPostId),
+            serverPostId: Lemmy.PostID(seed.serverPostId),
             accountScope: seed.dependencies.accountService.scope(forAccountKeychainId: seed.keychainId),
             appDatabase: seed.appDatabase,
             dependencies: seed.dependencies,
@@ -308,7 +308,7 @@ struct PostDetailViewModelObservationTests {
         let seed = try await makeSeed()
         var fetchCount = 0
         let vm = PostDetailViewModel(
-            serverPostId: Components.Schemas.PostID(seed.serverPostId + 1), // unmirrored id
+            serverPostId: Lemmy.PostID(seed.serverPostId + 1), // unmirrored id
             accountScope: seed.dependencies.accountService.scope(forAccountKeychainId: seed.keychainId),
             appDatabase: seed.appDatabase,
             dependencies: seed.dependencies,

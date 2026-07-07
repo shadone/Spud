@@ -142,7 +142,7 @@ extension PostDetailViewController {
                 presentComposer(
                     target: .commentReply(
                         serverPostId: viewModel.serverPostId,
-                        parentCommentId: Components.Schemas.CommentID(parentCommentServerId)
+                        parentCommentId: Lemmy.CommentID(parentCommentServerId)
                     ),
                     initialBody: body
                 )

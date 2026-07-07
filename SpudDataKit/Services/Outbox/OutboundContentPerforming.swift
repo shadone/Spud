@@ -30,20 +30,20 @@ public struct LemmyComposerPerformer: OutboundContentPerforming {
         guard let kind = OutboundKind(rawValue: record.kind) else { return nil }
         switch kind {
         case .comment:
-            let response: Components.Schemas.CommentResponse
+            let response: Lemmy.CommentResponse
             if let editCommentServerId = record.editCommentServerId {
                 // Edit of an existing comment: update the body in place.
                 response = try await api.editComment(
-                    commentID: Components.Schemas.CommentID(editCommentServerId),
+                    commentID: Lemmy.CommentID(editCommentServerId),
                     content: record.body
                 )
             } else {
                 // Create a new comment / reply.
                 guard let postServerId = record.postServerId else { return nil }
                 response = try await api.createComment(
-                    postID: Components.Schemas.PostID(postServerId),
+                    postID: Lemmy.PostID(postServerId),
                     content: record.body,
-                    parentID: record.parentCommentServerId.map { Components.Schemas.CommentID($0) }
+                    parentID: record.parentCommentServerId.map { Lemmy.CommentID($0) }
                 )
             }
             try await appDatabase.upsertComment(
@@ -55,11 +55,11 @@ public struct LemmyComposerPerformer: OutboundContentPerforming {
             return nil
         case .post:
             let trimmedBody = record.body.trimmingCharacters(in: .whitespacesAndNewlines)
-            let response: Components.Schemas.PostResponse
+            let response: Lemmy.PostResponse
             if let editPostServerId = record.editPostServerId {
                 // Edit of an existing post: update title/url/body/nsfw in place.
                 response = try await api.editPost(
-                    postID: Components.Schemas.PostID(editPostServerId),
+                    postID: Lemmy.PostID(editPostServerId),
                     name: record.title,
                     url: record.url,
                     body: trimmedBody.isEmpty ? nil : trimmedBody,
@@ -69,7 +69,7 @@ public struct LemmyComposerPerformer: OutboundContentPerforming {
                 // Create a new post.
                 guard let communityServerId = record.communityServerId else { return nil }
                 response = try await api.createPost(
-                    communityID: Components.Schemas.CommunityID(communityServerId),
+                    communityID: Lemmy.CommunityID(communityServerId),
                     name: record.title ?? "",
                     url: record.url,
                     body: trimmedBody.isEmpty ? nil : trimmedBody,
@@ -104,7 +104,7 @@ public struct LemmyComposerPerformer: OutboundContentPerforming {
             }
             let response = try await api.createPrivateMessage(
                 content: record.body,
-                recipientID: Components.Schemas.PersonID(recipientServerPersonId)
+                recipientID: Lemmy.PersonID(recipientServerPersonId)
             )
             // Import the confirmed message into the persistent store
             // (source of truth). The importer resolves the account's siteId

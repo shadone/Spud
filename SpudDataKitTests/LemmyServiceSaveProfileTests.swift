@@ -24,7 +24,7 @@ private final class StubSaveProfileTransport: ClientTransport, @unchecked Sendab
     /// The decoded JSON object of the most recent `saveUserSettings` request body.
     private(set) var saveUserSettingsBody: [String: Any]?
 
-    init(getSite: Components.Schemas.GetSiteResponse? = nil) throws {
+    init(getSite: Lemmy.GetSiteResponse? = nil) throws {
         let encoder = JSONEncoder()
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")

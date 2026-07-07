@@ -20,7 +20,7 @@ public extension AppDatabase {
     /// personId)`, same as post/comment creators). No-op — and logs — if the
     /// account row isn't in AppDatabase yet.
     func upsertPrivateMessages(
-        views: [Components.Schemas.PrivateMessageView],
+        views: [Lemmy.PrivateMessageView],
         accountId: Int64
     ) async throws {
         guard !views.isEmpty else { return }
@@ -44,7 +44,7 @@ public extension AppDatabase {
     /// kept in a separate outbox table (a later slice) and merged at the read
     /// layer; reconciliation happens there, not by clearing this table.
     static func upsertPrivateMessages(
-        views: [Components.Schemas.PrivateMessageView],
+        views: [Lemmy.PrivateMessageView],
         accountId: Int64,
         db: Database
     ) throws {
@@ -63,7 +63,7 @@ public extension AppDatabase {
     /// a write transaction.
     @discardableResult
     static func upsertPrivateMessage(
-        from view: Components.Schemas.PrivateMessageView,
+        from view: Lemmy.PrivateMessageView,
         accountId: Int64,
         siteId: Int64,
         db: Database

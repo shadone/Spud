@@ -67,7 +67,7 @@ struct LemmyServiceOutboxDelegationTests {
             reachability: StaticReachabilityMonitor(isOnline: true)
         )
 
-        try await service.vote(serverPostId: Components.Schemas.PostID(serverPostId), vote: .upvote)
+        try await service.vote(serverPostId: Lemmy.PostID(serverPostId), vote: .upvote)
 
         // Delegation reached the network performer...
         #expect(transport.didSendLikePost)

@@ -9,11 +9,11 @@ import LemmyKit
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias Comment = Components.Schemas.Comment
-private typealias CommentView = Components.Schemas.CommentView
+private typealias Person = Lemmy.Person
+private typealias Community = Lemmy.Community
+private typealias Post = Lemmy.Post
+private typealias Comment = Lemmy.Comment
+private typealias CommentView = Lemmy.CommentView
 
 struct CommentHelperTests {
     @Test

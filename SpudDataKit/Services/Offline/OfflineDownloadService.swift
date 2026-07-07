@@ -240,7 +240,7 @@ public actor OfflineDownloadService {
         lemmyService: any LemmyServiceType,
         accountId: Int64,
         siteId: Int64,
-        commentSort: Components.Schemas.CommentSortType,
+        commentSort: Lemmy.CommentSortType,
         showNsfw: Bool,
         maxPosts: Int = defaultMaxPosts,
         archiveLinks: Bool = false,
@@ -321,7 +321,7 @@ public actor OfflineDownloadService {
     private func run(
         feed: FeedHandle,
         lemmyService: any LemmyServiceType,
-        commentSort: Components.Schemas.CommentSortType,
+        commentSort: Lemmy.CommentSortType,
         showNsfw: Bool,
         maxPosts: Int,
         archiveLinks: Bool,
@@ -672,7 +672,7 @@ public actor OfflineDownloadService {
     private func downloadContent(
         targets: [OfflineDownloadTarget],
         lemmyService: any LemmyServiceType,
-        commentSort: Components.Schemas.CommentSortType,
+        commentSort: Lemmy.CommentSortType,
         archiveLinks: Bool,
         sanitizeURL: (@Sendable (URL) -> URL)?,
         postsFetched: Int,
@@ -836,7 +836,7 @@ public actor OfflineDownloadService {
     private static func processTarget(
         _ target: OfflineDownloadTarget,
         lemmyService: any LemmyServiceType,
-        commentSort: Components.Schemas.CommentSortType,
+        commentSort: Lemmy.CommentSortType,
         imageService: any ImageServiceType,
         webArchiveCapturer: (any WebArchiveCapturing)?,
         webArchiveStore: OfflineWebArchiveStore?,
@@ -892,7 +892,7 @@ public actor OfflineDownloadService {
             ) {
                 try await pacer.acquire()
                 try await lemmyService.fetchComments(
-                    serverPostId: Components.Schemas.PostID(target.serverPostId),
+                    serverPostId: Lemmy.PostID(target.serverPostId),
                     sortType: commentSort
                 )
             }

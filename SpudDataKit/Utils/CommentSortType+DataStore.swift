@@ -7,7 +7,7 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.CommentSortType {
+extension Lemmy.CommentSortType {
     /// Deserializes a comment sort type from a string stored in the
     /// database. Lowercase spellings are accepted for backwards
     /// compatibility with older rows that predated the OpenAPI casing change.
@@ -29,7 +29,7 @@ extension Components.Schemas.CommentSortType {
             self = .Controversial
 
         default:
-            guard let value = Components.Schemas.CommentSortType(rawValue: rawValue) else {
+            guard let value = Lemmy.CommentSortType(rawValue: rawValue) else {
                 return nil
             }
             self = value

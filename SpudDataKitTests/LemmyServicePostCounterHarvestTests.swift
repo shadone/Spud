@@ -14,10 +14,10 @@ import Testing
 
 // MARK: - Type aliases
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias PostView = Components.Schemas.PostView
-private typealias GetPostResponse = Components.Schemas.GetPostResponse
+private typealias Person = Lemmy.Person
+private typealias Community = Lemmy.Community
+private typealias PostView = Lemmy.PostView
+private typealias GetPostResponse = Lemmy.GetPostResponse
 
 // MARK: - Stub transport
 
@@ -96,7 +96,7 @@ struct LemmyServicePostCounterHarvestTests {
 
     private func storedCommentCount(
         accountId: Int64,
-        serverPostId: Components.Schemas.PostID
+        serverPostId: Lemmy.PostID
     ) async throws -> Int64? {
         try await appDatabase.writer.write { db -> Int64? in
             try PostRecord
@@ -108,12 +108,12 @@ struct LemmyServicePostCounterHarvestTests {
     }
 
     private func makePostView(
-        postId: Components.Schemas.PostID = 1,
+        postId: Lemmy.PostID = 1,
         commentCount: Int64
     ) -> PostView {
         let person = Person.fake
         let community = Community.fake
-        var post = Components.Schemas.Post.fake(creator: person, community: community)
+        var post = Lemmy.Post.fake(creator: person, community: community)
         post.id = postId
         post.ap_id = "https://example.com/post/\(postId)"
         var view = PostView.fake(post: post, creator: person, community: community)

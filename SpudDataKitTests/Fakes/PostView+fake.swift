@@ -7,8 +7,8 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.PostAggregates {
-    static func fake(post: Components.Schemas.Post) -> Components.Schemas.PostAggregates {
+extension Lemmy.PostAggregates {
+    static func fake(post: Lemmy.Post) -> Lemmy.PostAggregates {
         .init(
             post_id: post.id,
             comments: 0,
@@ -21,12 +21,12 @@ extension Components.Schemas.PostAggregates {
     }
 }
 
-extension Components.Schemas.PostView {
+extension Lemmy.PostView {
     static func fake(
-        post: Components.Schemas.Post,
-        creator: Components.Schemas.Person,
-        community: Components.Schemas.Community
-    ) -> Components.Schemas.PostView {
+        post: Lemmy.Post,
+        creator: Lemmy.Person,
+        community: Lemmy.Community
+    ) -> Lemmy.PostView {
         .init(
             post: post,
             creator: creator,

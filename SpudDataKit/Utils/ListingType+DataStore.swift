@@ -7,7 +7,7 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.ListingType {
+extension Lemmy.ListingType {
     /// Deserializes a listing type from a string stored in the database.
     /// Lowercase spellings are accepted for backwards compatibility with
     /// older rows that predated the OpenAPI casing change.
@@ -26,7 +26,7 @@ extension Components.Schemas.ListingType {
             self = .ModeratorView
 
         default:
-            guard let value = Components.Schemas.ListingType(rawValue: rawValue) else {
+            guard let value = Lemmy.ListingType(rawValue: rawValue) else {
                 return nil
             }
             self = value

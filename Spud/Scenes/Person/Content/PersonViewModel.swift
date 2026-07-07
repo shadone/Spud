@@ -85,7 +85,7 @@ final class PersonViewModel {
     // MARK: Private
 
     @ObservationIgnored
-    let serverPersonId: Components.Schemas.PersonID
+    let serverPersonId: Lemmy.PersonID
     @ObservationIgnored
     let accountScope: AccountScope
     @ObservationIgnored
@@ -94,7 +94,7 @@ final class PersonViewModel {
     /// both). Mutable so the navbar sort menu can change it; per-screen only,
     /// it does not change the account's default sort.
     @ObservationIgnored
-    private(set) var sortType: Components.Schemas.SortType
+    private(set) var sortType: Lemmy.SortType
 
     @ObservationIgnored
     private let appDatabase: AppDatabase
@@ -112,7 +112,7 @@ final class PersonViewModel {
 
     init(
         personRowId: Int64?,
-        serverPersonId: Components.Schemas.PersonID,
+        serverPersonId: Lemmy.PersonID,
         accountScope: AccountScope,
         accountService: AccountServiceType,
         appDatabase: AppDatabase,
@@ -272,7 +272,7 @@ final class PersonViewModel {
     /// profile. Per-screen only; does not change the account default. Restarts
     /// the post observation immediately so the already-cached posts reorder
     /// without waiting on the network, then re-fetches for the new sort.
-    func changeSortType(_ newSort: Components.Schemas.SortType) {
+    func changeSortType(_ newSort: Lemmy.SortType) {
         guard newSort != sortType else { return }
         sortType = newSort
         startPostObservation()

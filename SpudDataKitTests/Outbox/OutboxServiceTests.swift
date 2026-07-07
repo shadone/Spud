@@ -119,7 +119,7 @@ struct OutboxServiceTests {
         let postId = try await seedPost(appDatabase, accountId: accountId, siteId: siteId, score: 5, voteStatus: nil)
         let performer = FakeOutboxPerformer()
         let notFound = LemmyApiError.serverError(
-            Components.Schemas.ErrorResponse(error: "couldnt_find_post", message: nil)
+            Lemmy.ErrorResponse(error: "couldnt_find_post", message: nil)
         )
         await performer.setOutcome(.fail(notFound), for: .vote)
         let service = makeService(appDatabase, performer, accountId: accountId)

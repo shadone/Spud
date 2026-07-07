@@ -34,7 +34,7 @@ public enum AccountServiceRegisterResult: Equatable, Sendable {
     /// Maps a Lemmy `LoginResponse` to a result. When a JWT is present this is
     /// `.loggedIn` (the caller stores the credential); otherwise the pending
     /// flags select the user-facing state.
-    init(response: Components.Schemas.LoginResponse) {
+    init(response: Lemmy.LoginResponse) {
         if response.jwt != nil {
             self = .loggedIn
         } else if response.verify_email_sent {

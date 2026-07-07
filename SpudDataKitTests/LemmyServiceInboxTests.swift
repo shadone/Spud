@@ -12,19 +12,19 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias Comment = Components.Schemas.Comment
-private typealias CommentAggregates = Components.Schemas.CommentAggregates
-private typealias CommentReply = Components.Schemas.CommentReply
-private typealias CommentReplyView = Components.Schemas.CommentReplyView
-private typealias GetRepliesResponse = Components.Schemas.GetRepliesResponse
-private typealias GetUnreadCountResponse = Components.Schemas.GetUnreadCountResponse
-private typealias PrivateMessage = Components.Schemas.PrivateMessage
-private typealias PrivateMessageView = Components.Schemas.PrivateMessageView
-private typealias PrivateMessageResponse = Components.Schemas.PrivateMessageResponse
-private typealias CommentReplyResponse = Components.Schemas.CommentReplyResponse
+private typealias Person = Lemmy.Person
+private typealias Community = Lemmy.Community
+private typealias Post = Lemmy.Post
+private typealias Comment = Lemmy.Comment
+private typealias CommentAggregates = Lemmy.CommentAggregates
+private typealias CommentReply = Lemmy.CommentReply
+private typealias CommentReplyView = Lemmy.CommentReplyView
+private typealias GetRepliesResponse = Lemmy.GetRepliesResponse
+private typealias GetUnreadCountResponse = Lemmy.GetUnreadCountResponse
+private typealias PrivateMessage = Lemmy.PrivateMessage
+private typealias PrivateMessageView = Lemmy.PrivateMessageView
+private typealias PrivateMessageResponse = Lemmy.PrivateMessageResponse
+private typealias CommentReplyResponse = Lemmy.CommentReplyResponse
 
 /// Stub transport returning canned JSON keyed by operation id, recording which
 /// operations were hit. Each operation maps to a pre-encoded body.
@@ -94,7 +94,7 @@ struct LemmyServiceInboxTests {
         }
     }
 
-    private func replyView(id: Components.Schemas.CommentReplyID, read: Bool) -> CommentReplyView {
+    private func replyView(id: Lemmy.CommentReplyID, read: Bool) -> CommentReplyView {
         let person = Person.fake
         let community = Community.fake
         let post = Post.fake(creator: person, community: community)
@@ -123,7 +123,7 @@ struct LemmyServiceInboxTests {
         )
     }
 
-    private func messageView(id: Components.Schemas.PrivateMessageID, creator: Person, recipient: Person) -> PrivateMessageView {
+    private func messageView(id: Lemmy.PrivateMessageID, creator: Person, recipient: Person) -> PrivateMessageView {
         PrivateMessageView(
             private_message: PrivateMessage(
                 id: id,

@@ -12,7 +12,7 @@ public extension CommunityListRow {
     /// Discover "search the network" fallback. Returns nil when the actor id has
     /// no parseable host. No trust/ranking data is available for live results, so
     /// `isSuspicious` and `score` are left at their defaults.
-    init?(searchView view: Components.Schemas.CommunityView) {
+    init?(searchView view: Lemmy.CommunityView) {
         let community = view.community
         guard
             let url = URL(string: community.actor_id),

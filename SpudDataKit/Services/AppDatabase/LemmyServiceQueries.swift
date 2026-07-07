@@ -42,7 +42,7 @@ public extension AppDatabase {
     }
 
     private static func decodeFeedType(_ record: FeedRecord) -> FeedType? {
-        guard let sortType = Components.Schemas.SortType(rawValue: record.sortType) else {
+        guard let sortType = Lemmy.SortType(rawValue: record.sortType) else {
             logger.error("Unknown sortType '\(record.sortType, privacy: .public)' on feedKey \(record.feedKey, privacy: .public)")
             return nil
         }
@@ -52,7 +52,7 @@ public extension AppDatabase {
         }
 
         if let listingRaw = record.frontpageListingType {
-            guard let listingType = Components.Schemas.ListingType(rawValue: listingRaw) else {
+            guard let listingType = Lemmy.ListingType(rawValue: listingRaw) else {
                 logger.error("Unknown frontpageListingType '\(listingRaw, privacy: .public)' on feedKey \(record.feedKey, privacy: .public)")
                 return nil
             }
@@ -81,7 +81,7 @@ public extension AppDatabase {
     /// column is `NULL` / unrecognised.
     func postVoteStatus(
         forAccountKeychainId keychainId: String,
-        serverPostId: Components.Schemas.PostID
+        serverPostId: Lemmy.PostID
     ) async throws -> VoteStatus {
         let raw = try await writer.read { db -> Int64? in
             try Int64.fetchOne(db, sql: """
@@ -100,7 +100,7 @@ public extension AppDatabase {
     /// Used by `LemmyService.vote(serverCommentId:vote:)`.
     func commentVoteStatus(
         forAccountKeychainId keychainId: String,
-        serverCommentId: Components.Schemas.CommentID
+        serverCommentId: Lemmy.CommentID
     ) async throws -> VoteStatus {
         let raw = try await writer.read { db -> Int64? in
             try Int64.fetchOne(db, sql: """
@@ -129,7 +129,7 @@ public extension AppDatabase {
     /// in the local cache (best-effort; the caller silently omits snapshot fields).
     func postVoteSnapshot(
         forAccountKeychainId keychainId: String,
-        serverPostId: Components.Schemas.PostID
+        serverPostId: Lemmy.PostID
     ) async throws -> VoteEventSnapshot? {
         try await writer.read { db -> VoteEventSnapshot? in
             let row = try Row.fetchOne(db, sql: """
@@ -162,7 +162,7 @@ public extension AppDatabase {
     /// the local cache (best-effort).
     func commentVoteSnapshot(
         forAccountKeychainId keychainId: String,
-        serverCommentId: Components.Schemas.CommentID
+        serverCommentId: Lemmy.CommentID
     ) async throws -> VoteEventSnapshot? {
         try await writer.read { db -> VoteEventSnapshot? in
             let row = try Row.fetchOne(db, sql: """

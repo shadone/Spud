@@ -192,7 +192,7 @@ struct ReconciliationGuardTests {
         )
 
         // A concurrent server import still reports the pre-follow state.
-        let staleView = Components.Schemas.CommunityView.fake(community: .fake, subscribed: .NotSubscribed)
+        let staleView = Lemmy.CommunityView.fake(community: .fake, subscribed: .NotSubscribed)
         try await appDatabase.upsertCommunity(from: staleView, accountId: accountId)
 
         // The optimistic Pending + junction survive the reconcile.
@@ -243,7 +243,7 @@ struct ReconciliationGuardTests {
         )
 
         // getSite still lists the community as followed.
-        let follow = Components.Schemas.CommunityFollowerView(community: .fake, follower: .fake)
+        let follow = Lemmy.CommunityFollowerView(community: .fake, follower: .fake)
         try await appDatabase.setFollowedCommunities(accountId: accountId, follows: [follow])
 
         let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
@@ -267,7 +267,7 @@ struct ReconciliationGuardTests {
         )
 
         // The performer confirms server truth and bypasses the guard.
-        let confirmedView = Components.Schemas.CommunityView.fake(community: .fake, subscribed: .Subscribed)
+        let confirmedView = Lemmy.CommunityView.fake(community: .fake, subscribed: .Subscribed)
         try await appDatabase.upsertCommunity(from: confirmedView, accountId: accountId, respectsPendingOutbox: false)
 
         let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
@@ -284,7 +284,7 @@ struct ReconciliationGuardTests {
         let (accountId, _) = try await seedAccountAndSite(appDatabase)
         let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .notSubscribed)
 
-        let view = Components.Schemas.CommunityView.fake(community: .fake, subscribed: .Subscribed)
+        let view = Lemmy.CommunityView.fake(community: .fake, subscribed: .Subscribed)
         try await appDatabase.upsertCommunity(from: view, accountId: accountId)
 
         let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
@@ -301,7 +301,7 @@ struct ReconciliationGuardTests {
         let (accountId, _) = try await seedAccountAndSite(appDatabase)
         let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .notSubscribed)
 
-        let follow = Components.Schemas.CommunityFollowerView(community: .fake, follower: .fake)
+        let follow = Lemmy.CommunityFollowerView(community: .fake, follower: .fake)
         try await appDatabase.setFollowedCommunities(accountId: accountId, follows: [follow])
 
         let (_, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)

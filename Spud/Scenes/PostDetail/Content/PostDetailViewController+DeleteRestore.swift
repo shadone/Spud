@@ -53,7 +53,7 @@ extension PostDetailViewController {
         presentComposer(
             target: .editComment(
                 serverPostId: viewModel.serverPostId,
-                serverCommentId: Components.Schemas.CommentID(serverCommentId)
+                serverCommentId: Lemmy.CommentID(serverCommentId)
             ),
             initialBody: currentBody
         )
@@ -78,7 +78,7 @@ extension PostDetailViewController {
 
     /// Confirm deleting the user's own post, then enqueue the optimistic delete
     /// through the outbox. Restoring needs no confirmation.
-    func promptDeletePost(serverPostId: Components.Schemas.PostID) {
+    func promptDeletePost(serverPostId: Lemmy.PostID) {
         let alert = UIAlertController(
             title: NSLocalizedString("Delete post?", comment: "Confirmation title for deleting the user's own post"),
             message: NSLocalizedString(
@@ -104,7 +104,7 @@ extension PostDetailViewController {
         present(alert, animated: true)
     }
 
-    func setDeletedOnPost(serverPostId: Components.Schemas.PostID, deleted: Bool) {
+    func setDeletedOnPost(serverPostId: Lemmy.PostID, deleted: Bool) {
         Task { @MainActor [weak self] in
             guard let self else { return }
             Haptics.tap()
