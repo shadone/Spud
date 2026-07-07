@@ -14,6 +14,10 @@ class SpudUITests: XCTestCase {
         // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
 
+        // Device orientation is simulator-hardware state that survives
+        // ResetFilesystem and can leak from an earlier suite run.
+        XCUIDevice.shared.orientation = .portrait
+
         app = SBTUITunneledApplication()
         let launchOptions = [
             SBTUITunneledApplicationLaunchOptionResetFilesystem,
