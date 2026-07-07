@@ -97,6 +97,10 @@ public extension LemmyService {
         body: String,
         recipientServerPersonId: Int64
     ) async throws -> String {
+        // Gate BEFORE any enqueue — a rejected send must never park content in
+        // the composer outbox (see `LemmyServiceError.unsupportedByInstance`).
+        try await requireCapability(.privateMessages)
+
         guard let ids = try await accountSiteIds() else {
             throw LemmyServiceError.internalInconsistency(description: "account row unavailable")
         }

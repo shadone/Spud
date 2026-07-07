@@ -72,6 +72,13 @@ public struct LoadFailure: Error, Equatable {
                 // the "Spud bug" malformed-response kind. In practice this is an
                 // outbox-only error and shouldn't reach a read-path LoadFailure.
                 return LoadFailure(kind: .malformedResponse, diagnostics: diagnostics)
+            case .unsupportedByInstance:
+                // Capability-gated screens (person profile, inbox, composer) show
+                // their own dedicated "not supported on this instance" UI (see
+                // `LemmyServiceError.unsupportedByInstance`); this generic
+                // three-kind classifier has no matching bucket, so fall back to
+                // the closest one — retrying can't help, same as `.unreachable`.
+                return LoadFailure(kind: .unreachable, diagnostics: diagnostics)
             }
 
         case is TimeoutError:
