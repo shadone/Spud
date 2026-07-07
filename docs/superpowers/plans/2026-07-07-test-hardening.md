@@ -41,7 +41,19 @@
 
 - [ ] Steps: diagnose (report the mechanism with file:line) → RED-ish evidence if the mechanism permits (e.g. demonstrate the starvation with a tightened deadline) → fix → 3× full-target gate + `make build` → swiftformat → commit `test: harden header-image suites against parallel-load starvation` (+ the SplitTabResolver ephemeral change in the same commit or a separate `test:` commit, implementer's call).
 
-### Task 3: Gates + review + merge
+### Task 3: SpudUITests environment hardening (added 2026-07-07 after the PersonProfile investigation)
+
+**Background:** the three `test_PersonProfile_*` failures were environmental, NOT a main regression (they pass 3/3 at HEAD and at 11f948cb on clean runs). Two hardening items fell out of the investigation:
+
+**Files:**
+- Modify: `SpudUITests/SpudUITests.swift` — add `XCUIDevice.shared.orientation = .portrait` to the suite's `setUpWithError` (mirror `NodeInfoBlockUITests.swift:32`'s line + comment: device orientation is simulator-hardware state that survives across runs; the suite currently restores portrait only in `tearDown` (:106), so the FIRST test of a run inherits whatever orientation the sim was left in — reproduced: landscape makes the attribution link sit under the floating tab bar, `creatorLink.tap()` at :344 fails "not hittable").
+- Modify: `SpudUITests/user-31989.json` — the 2023-era fixture cannot decode as `GetPersonDetailsResponse` under LemmyKit 0.5.1 (verified against generated Types.swift): `person_view` lacks required `is_admin`; each of `posts[]` lacks `banned_from_community`/`creator_is_moderator`/`creator_is_admin`/`hidden`; each of `comments[]` lacks `banned_from_community`/`creator_is_moderator`/`creator_is_admin`. Masked today only because the feed import pre-seeds person 31989 so the DB path bypasses the fetch; any future test hitting the loading path hangs at "Loading..." forever. Patch the missing required fields (values consistent with the fixture's existing data; follow the repo gotcha about cross-checking required fields).
+
+**Gate:** the three `test_PersonProfile_*` tests + `test_PostDetail_TapOnPostCreator` green; plus one deliberate landscape-start run (rotate the sim landscape via `xcrun simctl` or a pre-step, then run the Person tests — first test must now pass thanks to the setUp pin; restore portrait after).
+
+- [ ] Steps: fixture patch + setUp pin → focused UITest gate incl. the landscape-start run → swiftformat (no-op for JSON) → commit `test: pin portrait in SpudUITests setUp; repair stale person fixture` (explicit paths).
+
+### Task 4: Gates + review + merge
 
 - [ ] Docs: none expected (test-only branch; no user-facing behavior). Verify no docs/features claims reference the flaky suites.
 - [ ] Final gates: `make test-only ONLY=SpudTests` + `ONLY=SpudDataKitTests` green; full `make snapshot` 261/261 (again, post-Task-2, zero ref changes); `mint run swiftformat --lint .` clean.
