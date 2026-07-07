@@ -721,7 +721,7 @@ public actor LemmyService: LemmyServiceType {
     /// Records the shared `capability.blocked` diagnostic event — used both by
     /// `requireCapability`'s throwing gate and by the soft-degrade setters
     /// (`setShowNsfw`/`setBlurNsfw`/`setDefaultSortType`) that skip the server
-    /// push silently instead of throwing.
+    /// push without throwing (this event is their only trace of the skip).
     func recordCapabilityBlocked(_ capability: InstanceCapability) async {
         // Info level (not error): this is an expected, UI-gated condition on
         // older instances, not a failure — the durable log just makes it

@@ -174,6 +174,29 @@ let gatedOperations: [GatedOperation] = [
     },
 ]
 
+/// The soft-degrade operations (Task 5) — background mirrors / scheduler polls
+/// with a local source of truth that skip the server push on a gated instance
+/// instead of throwing. On a pre-1.0 instance they must all still reach the
+/// network — the fail-open constraint applies to them exactly as it does to
+/// the throwing `gatedOperations`. All five route through `ClientTransport`.
+let softDegradedOperations: [GatedOperation] = [
+    GatedOperation(testDescription: "unreadCount") { service in
+        _ = try await service.unreadCount()
+    },
+    GatedOperation(testDescription: "setShowNsfw") { service in
+        try await service.setShowNsfw(true)
+    },
+    GatedOperation(testDescription: "setBlurNsfw") { service in
+        try await service.setBlurNsfw(true)
+    },
+    GatedOperation(testDescription: "setDefaultSortType") { service in
+        try await service.setDefaultSortType(.New)
+    },
+    GatedOperation(testDescription: "markAsRead") { service in
+        try await service.markAsRead(serverPostId: 1)
+    },
+]
+
 // MARK: - Tests
 
 @MainActor
@@ -284,13 +307,14 @@ struct LemmyServiceCapabilityGatingTests {
         #expect(fixture.transport.requestCount == 0)
     }
 
-    @Test
-    func unreadCountProceedsOn019() async throws {
+    /// All soft-degrade operations must proceed to the network on a pre-1.0
+    /// (fully supported) instance — the skip must not over-block, mirroring
+    /// `gatedOperationProceedsOn019` for the throwing set.
+    @Test(arguments: softDegradedOperations)
+    func softDegradedOperationProceedsOn019(_ operation: GatedOperation) async throws {
         let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "0.19.11")
-
-        _ = try? await fixture.service.unreadCount()
-
-        #expect(fixture.transport.requestCount > 0)
+        _ = try? await operation.run(fixture.service)
+        #expect(fixture.transport.requestCount > 0, "\(operation.testDescription) must reach the network on 0.19")
     }
 
     @Test
@@ -302,15 +326,6 @@ struct LemmyServiceCapabilityGatingTests {
         #expect(fixture.transport.requestCount == 0)
         let account = try await fixture.fetchAccountRecord()
         #expect(account?.showNsfw == true)
-    }
-
-    @Test
-    func setShowNsfwProceedsOn019() async throws {
-        let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "0.19.11")
-
-        _ = try? await fixture.service.setShowNsfw(true)
-
-        #expect(fixture.transport.requestCount > 0)
     }
 
     @Test
