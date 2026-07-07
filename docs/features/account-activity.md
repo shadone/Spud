@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Accounts and switching](accounts-and-switching.md), [Saving](saving.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [Voting](voting.md)
+- **Related:** [Accounts and switching](accounts-and-switching.md), [Saving](saving.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [Voting](voting.md), [Instance capability gating](instance-capability-gating.md)
 
 ## What it does
 
@@ -107,6 +107,13 @@ the Account "Saved" row both route there.
   the on-device database. The authored stream (Posts, Comments) requires a network
   connection; when offline, authored items from the current session's cache may still appear
   if already fetched, but new pages will not load.
+
+- **Instance capability gate.** When the account's home instance runs a newer Lemmy version
+  Spud doesn't fully support yet, the authored stream is not available yet regardless of
+  connectivity (the person-content fetch it relies on is one of the gated endpoints —
+  support is coming), so the timeline shows the local stream's rows only; the local stream,
+  Summary, and footprint rail are unaffected. See
+  [Instance capability gating](instance-capability-gating.md).
 
 - **Day-based grouping.** Items are bucketed by the `occurredAt` timestamp into sections:
   "Today", "Yesterday", the day-of-week name for items within the past 7 days, or a medium
