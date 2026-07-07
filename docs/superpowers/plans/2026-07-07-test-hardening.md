@@ -53,7 +53,21 @@
 
 - [ ] Steps: fixture patch + setUp pin → focused UITest gate incl. the landscape-start run → swiftformat (no-op for JSON) → commit `test: pin portrait in SpudUITests setUp; repair stale person fixture` (explicit paths).
 
-### Task 4: Gates + review + merge
+### Task 4: Pin the host status bar for on-screen captures (added 2026-07-07 after the 44pt investigation)
+
+**Root cause (proven by A/B + end-to-end experiment):** nav-hosted and `drawHierarchyInKeyWindow` captures inherit the HOST SCENE's status-bar height — `UINavigationController` lays out from the global scene `statusBarManager` (54pt visible / 0 hidden on the reference device), NOT the capture window's (force-zeroed) `safeAreaInsets`; net leak ~44pt. The existing refs encode the status-bar-HIDDEN layout (recorded under headless runs); an active Simulator GUI session flips `statusBarManager` to visible and shifts every such capture down 44pt (the 2026-07-07 68-ref regression, and the unexplained half of the spec §5 2026-07-06 escalation). The state persists in host processes until a Mac reboot — so the durable fix is code-side.
+
+**The proven fix:** pin the host scene's status bar hidden during capture — swap the host key window's `rootViewController` to a `prefersStatusBarHidden == true` VC before capturing (verified: the failing `AnonymousBrowseConfirm.test_confirm` passes byte-identically against its EXISTING ref with the pin; no re-records).
+
+**Files:**
+- Modify: `SpudSnapshotTests/SnapshotDeterminism.swift` — add `pinStatusBarHidden()` (doc comment carries the mechanism above + the restore contract; follow `pinAccent()`'s idiom for a returned-restore or idempotent-pin shape as fits the existing style).
+- Modify: the affected suites' `setUp` — every nav-hosted / `drawHierarchyInKeyWindow` capture class (the 14 suites from the Task 1 report's env-blocked list, plus any other class using those capture styles — sweep `drawHierarchyInKeyWindow` + nav-controller-hosted fixtures and account for each in the report).
+
+**Gate (the payoff):** full `make snapshot` = **261/261 GREEN with the Simulator GUI session active** (the currently-red state) and zero `__Snapshots__` changes — proving suite-wide immunity. This also discharges Task 1's deferred verifications (PDH blur pin, drawKW-suite pins).
+
+- [ ] Steps: helper + setUp wiring → full `make snapshot` 261/261 + zero ref changes → `make build` → swiftformat → commit `test: pin host status bar hidden for on-screen snapshot captures` (explicit paths).
+
+### Task 5: Gates + review + merge
 
 - [ ] Docs: none expected (test-only branch; no user-facing behavior). Verify no docs/features claims reference the flaky suites.
 - [ ] Final gates: `make test-only ONLY=SpudTests` + `ONLY=SpudDataKitTests` green; full `make snapshot` 261/261 (again, post-Task-2, zero ref changes); `mint run swiftformat --lint .` clean.
