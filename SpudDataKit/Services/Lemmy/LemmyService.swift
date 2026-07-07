@@ -29,6 +29,14 @@ public enum LemmyServiceError: Error {
     /// is no network round-trip that could ever make invalid content valid.
     case invalidContent(description: String)
 
+    /// The account's home instance does not support this operation (e.g. it
+    /// runs Lemmy 1.0, whose v3 compat shim lacks the endpoint — see
+    /// `InstanceCapabilities`). Thrown BEFORE any network call as the
+    /// service-level backstop behind the UI capability gates; classified
+    /// permanent by `OutboxFailureClass` (retrying cannot help until Spud
+    /// itself speaks the instance's newer API).
+    case unsupportedByInstance(InstanceCapability)
+
     init(from error: Error) {
         if let error = error as? LemmyApiError {
             self = .apiError(error)
@@ -687,6 +695,47 @@ public actor LemmyService: LemmyServiceType {
         return rawActorId.flatMap { InstanceActorId(from: $0) }?.hostWithPort
     }
 
+    /// The home instance's capability set, derived per call from the persisted
+    /// site version (fail-open on nil — see `InstanceCapabilities`).
+    // internal: shared with LemmyService+Inbox, LemmyService+Composer, LemmyService+Safety
+    func instanceCapabilities() async -> InstanceCapabilities {
+        let version = await appDatabase.accountSiteVersion(forKeychainId: accountIdentifierForLogging)
+        return InstanceCapabilities.capabilities(
+            software: .lemmy,
+            version: version.flatMap(LemmyVersion.init(parsing:))
+        )
+    }
+
+    /// Backstop gate: throws `LemmyServiceError.unsupportedByInstance` (and
+    /// records a diagnostic event) when the home instance can't serve
+    /// `capability`. Call at the top of every gated operation, before any
+    /// network or outbox work.
+    // internal: shared with LemmyService+Inbox, LemmyService+Composer, LemmyService+Safety
+    func requireCapability(_ capability: InstanceCapability) async throws {
+        guard await instanceCapabilities().can(capability) else {
+            await recordCapabilityBlocked(capability)
+            throw LemmyServiceError.unsupportedByInstance(capability)
+        }
+    }
+
+    /// Records the shared `capability.blocked` diagnostic event — used both by
+    /// `requireCapability`'s throwing gate and by the soft-degrade setters
+    /// (`setShowNsfw`/`setBlurNsfw`/`setDefaultSortType`) that skip the server
+    /// push without throwing (this event is their only trace of the skip).
+    func recordCapabilityBlocked(_ capability: InstanceCapability) async {
+        // Info level (not error): this is an expected, UI-gated condition on
+        // older instances, not a failure — the durable log just makes it
+        // observable in About → Logs.
+        await diagnostics.record(
+            category: .site,
+            level: .info,
+            event: "capability.blocked",
+            message: "Instance does not support \(capability.rawValue)",
+            instance: api.instanceHostname,
+            metadata: ["capability": capability.rawValue]
+        )
+    }
+
     /// Lazily builds (and `start()`s) the per-account `OutboxService`, returning
     /// `nil` only when the account row can't be resolved (no ids -> no outbox).
     /// Memoized via `outboxTask` so every call shares one service instance.
@@ -1022,18 +1071,25 @@ public actor LemmyService: LemmyServiceType {
             return
         }
 
-        logger.debug("""
-            Set show_nsfw=\(showNsfw, privacy: .public) \
-            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
-            """)
-
-        do {
-            _ = try await api.saveUserSettings(showNSFW: showNsfw)
-        } catch {
-            logger.error("""
-                Set show_nsfw failed. \(String(describing: error), privacy: .public)
+        if await instanceCapabilities().can(.serverUserSettings) {
+            logger.debug("""
+                Set show_nsfw=\(showNsfw, privacy: .public) \
+                for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
                 """)
-            throw LemmyServiceError(from: error)
+
+            do {
+                _ = try await api.saveUserSettings(showNSFW: showNsfw)
+            } catch {
+                logger.error("""
+                    Set show_nsfw failed. \(String(describing: error), privacy: .public)
+                    """)
+                throw LemmyServiceError(from: error)
+            }
+        } else {
+            // Skip the server push - the local pref still governs feed
+            // filtering via the request param; the push resumes once Spud
+            // speaks this instance's API.
+            await recordCapabilityBlocked(.serverUserSettings)
         }
 
         // Mirror the new value onto the local account row so the cached
@@ -1059,18 +1115,25 @@ public actor LemmyService: LemmyServiceType {
             return
         }
 
-        logger.debug("""
-            Set blur_nsfw=\(blurNsfw, privacy: .public) \
-            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
-            """)
-
-        do {
-            _ = try await api.saveUserSettings(blurNSFW: blurNsfw)
-        } catch {
-            logger.error("""
-                Set blur_nsfw failed. \(String(describing: error), privacy: .public)
+        if await instanceCapabilities().can(.serverUserSettings) {
+            logger.debug("""
+                Set blur_nsfw=\(blurNsfw, privacy: .public) \
+                for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
                 """)
-            throw LemmyServiceError(from: error)
+
+            do {
+                _ = try await api.saveUserSettings(blurNSFW: blurNsfw)
+            } catch {
+                logger.error("""
+                    Set blur_nsfw failed. \(String(describing: error), privacy: .public)
+                    """)
+                throw LemmyServiceError(from: error)
+            }
+        } else {
+            // Skip the server push - blur is a pure client-side render concern
+            // and the local pref still applies; the push resumes once Spud
+            // speaks this instance's API.
+            await recordCapabilityBlocked(.serverUserSettings)
         }
 
         // Mirror the new value onto the local account row so the cached
@@ -1096,6 +1159,14 @@ public actor LemmyService: LemmyServiceType {
                 Set default_sort_type skipped - account is signed out. \
                 account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
                 """)
+            return
+        }
+
+        guard await instanceCapabilities().can(.serverUserSettings) else {
+            // AccountServiceType already persisted the local default sort
+            // synchronously (the local source of truth); skip the server
+            // push until Spud speaks this instance's API.
+            await recordCapabilityBlocked(.serverUserSettings)
             return
         }
 
@@ -1125,6 +1196,8 @@ public actor LemmyService: LemmyServiceType {
         showAvatars: Bool,
         defaultListingType: Components.Schemas.ListingType
     ) async throws {
+        try await requireCapability(.serverUserSettings)
+
         guard !accountIsSignedOut else {
             // Editing a profile only makes sense for a real account: there is no
             // server-side profile for the anonymous placeholder, so this is an
@@ -1199,6 +1272,8 @@ public actor LemmyService: LemmyServiceType {
     public func fetchPersonInfo(
         serverPersonId: Components.Schemas.PersonID
     ) async throws {
+        try await requireCapability(.personProfiles)
+
         logger.debug("""
             Fetch person info. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             personId=\(serverPersonId, privacy: .public)
@@ -1238,6 +1313,8 @@ public actor LemmyService: LemmyServiceType {
         sort: Components.Schemas.SortType,
         page: Int64
     ) async throws -> Components.Schemas.GetPersonDetailsResponse {
+        try await requireCapability(.personProfiles)
+
         logger.debug("""
             Fetch person content. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             personId=\(serverPersonId, privacy: .public) sort=\(sort.rawValue, privacy: .public) \
@@ -1720,6 +1797,8 @@ public actor LemmyService: LemmyServiceType {
         fileName: String,
         mimeType: String
     ) async throws -> URL {
+        try await requireCapability(.imageUpload)
+
         guard !accountIsSignedOut else {
             logger.debug("""
                 Image upload rejected - account is signed out. \

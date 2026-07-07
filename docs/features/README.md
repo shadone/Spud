@@ -87,6 +87,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Instance picker](instance-picker.md) | `iphone`, `ipad` | shipped |
 | [Registration](registration.md) | `iphone`, `ipad` | shipped |
 | [Instance software detection](instance-software-detection.md) | `iphone`, `ipad` | partial — bare-instance link signpost deferred |
+| [Instance capability gating](instance-capability-gating.md) | `iphone`, `ipad` | shipped — gates person profiles, inbox, private messages, image upload, hide post, and profile/settings save on Lemmy 1.0 home instances (explain, don't hide); NSFW/default-sort/unread-badge/read-state sync soft-degrade silently; full Lemmy v4 API support is separate future work |
 | [Sign-in gate on write actions](sign-in-gate.md) | `iphone`, `ipad` | shipped |
 | [Inbox](inbox.md) | `iphone`, `ipad` | shipped |
 | [Marking inbox items read](inbox-mark-read.md) | `iphone`, `ipad` | shipped |
@@ -174,6 +175,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Instance picker (site list)
 - [x] Registration / signup — shipped (captcha was removed from Lemmy server-side; no in-app captcha solver)
 - [~] Instance software detection — NodeInfo pre-flight on login/register blocks non-Lemmy hosts with an action sheet (names the software, offers Open in Safari); instance-detail badge shows detected software name; fails open when the probe is undetermined; bare-instance link signpost deferred (instance-software-detection.md)
+- [x] Instance capability gating — a home instance running Lemmy 1.0 gates six features whose endpoints are missing from its transitional v3 shim (person profiles, inbox, private messages, image upload, hide post, profile/settings save) with explain-don't-hide UI, plus one silent soft-degrade (server read-state sync); the Lemmy version is read live from NodeInfo pre-login and every `getSite` import, so an instance upgrading mid-session self-corrects on its next site refresh; fails open on an unknown/unparseable version or Lemmy < 1.0; backed by a `LemmyServiceError.unsupportedByInstance` service-layer gate (classified as a permanent, non-retried outbox failure) and a `capability.blocked` diagnostic-log event (instance-capability-gating.md)
 - [x] Sign-in gate on write actions
 
 **Inbox & messaging**

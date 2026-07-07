@@ -76,6 +76,10 @@ private final class BlockingAccountService: AccountServiceType {
         nil
     }
 
+    func instanceCapabilities(forAccountKeychainId _: String) -> InstanceCapabilities {
+        .allAvailable
+    }
+
     func refreshSiteInfoOnDemandIfNeeded(forAccountKeychainId _: String) { }
     func lemmyService(forAccountKeychainId _: String) -> LemmyServiceType {
         fatalError()

@@ -154,6 +154,18 @@ final class DMThreadViewController: UIViewController {
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
 
+        // Read live at open time (no caching in the VC) - see AccountScope's
+        // doc comment. When gated (the account's home instance doesn't
+        // support private messages), skip the fetch/observation entirely -
+        // `LemmyService`'s own calls would just reject anyway - and show the
+        // explanatory state instead. `send(_:)` carries its own backstop for
+        // a thread that was already open when the capability flipped (see its
+        // doc comment), since this check only runs once, here, at open time.
+        guard viewModel.accountScope.capabilities.can(.privateMessages) else {
+            showGatedState()
+            return
+        }
+
         startObservation()
         viewModel.start()
         restoreDraft()
@@ -295,6 +307,26 @@ final class DMThreadViewController: UIViewController {
             comment: "DM thread empty state message"
         )
         return config
+    }
+
+    /// Renders the terminal capability-gate state explaining that the
+    /// account's home instance doesn't support private messages yet, and
+    /// disables the input bar. Explain-don't-hide, matching the Inbox /
+    /// Person-profile gated-state precedents: the thread stays reachable and
+    /// this replaces `emptyConfiguration()` as the terminal state rather than
+    /// stacking with it, since nothing is ever fetched to populate `bubbles`.
+    private func showGatedState() {
+        let host = viewModel.accountScope.instanceActorId?.hostWithPort
+        let copy = CapabilityGateCopy.copy(for: .privateMessages, host: host)
+        var config = UIContentUnavailableConfiguration.empty()
+        // `clock.badge.questionmark` matches every other capability-gate state
+        // (Inbox, Person profile) - see those for the SF Symbol rationale.
+        config.image = UIImage(systemName: "clock.badge.questionmark")
+        config.text = copy.title
+        config.secondaryText = copy.message
+        contentUnavailableConfiguration = config
+
+        inputBar.setComposeEnabled(false)
     }
 
     private func scrollToBottom(animated: Bool) {

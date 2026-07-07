@@ -79,4 +79,13 @@ struct OutboxFailureClassTests {
         let error = LemmyApiError.unknownServerError(httpStatusCode: 408, error: nil)
         #expect(OutboxFailureClass.classify(error, isOnline: true) == .transient)
     }
+
+    @Test
+    func unsupportedByInstanceIsPermanent() {
+        let failureClass = OutboxFailureClass.classify(
+            LemmyServiceError.unsupportedByInstance(.hidePosts),
+            isOnline: true
+        )
+        #expect(failureClass == .permanent)
+    }
 }

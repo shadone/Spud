@@ -70,3 +70,5 @@ Spud.xcodeproj/
 
 # Session-handoff buffer (per-machine, never committed)
 .remember/
+.claude/worktrees/
+.claire/
