@@ -23,7 +23,7 @@ struct LemmyVersionTests {
         #expect(version?.patch == patch)
     }
 
-    @Test(arguments: ["", "unknown", "v1.0.0", "one.two", "-alpha", "."])
+    @Test(arguments: ["", "unknown", "v1.0.0", "one.two", "-alpha", ".", "-", "-1.0.0"])
     func rejectsUnparseableStrings(input: String) {
         #expect(LemmyVersion(parsing: input) == nil)
     }

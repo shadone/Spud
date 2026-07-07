@@ -17,7 +17,11 @@ public struct LemmyVersion: Sendable, Equatable {
 
     public init?(parsing string: String) {
         // Strip a prerelease/build suffix: "1.0.0-alpha.18" -> "1.0.0".
-        let core = string.split(separator: "-", maxSplits: 1)[0]
+        // omittingEmptySubsequences: false is load-bearing twice over: it
+        // guarantees a non-empty array (so [0] can't trap on ""), and it keeps
+        // a leading "-" ("-1.0.0") as an empty core that fails the major-int
+        // guard below instead of silently parsing the suffix as a version.
+        let core = string.split(separator: "-", maxSplits: 1, omittingEmptySubsequences: false)[0]
         let parts = core.split(separator: ".")
         guard let first = parts.first, let major = Int(first) else { return nil }
         self.major = major
