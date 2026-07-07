@@ -46,6 +46,10 @@ private final class StubAccountService: AccountServiceType {
         InstanceActorId(from: "https://lemmy.test")
     }
 
+    func instanceCapabilities(forAccountKeychainId _: String) -> InstanceCapabilities {
+        .allAvailable
+    }
+
     // MARK: - Unused protocol requirements
 
     func accountForSignedOut(forInstance _: InstanceActorId, isServiceAccount _: Bool) -> String {

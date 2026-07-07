@@ -305,6 +305,8 @@ public extension LemmyService {
         serverPostId: Components.Schemas.PostID,
         hidden: Bool
     ) async throws {
+        try await requireCapability(.hidePosts)
+
         guard !accountIsSignedOut else {
             logger.debug("""
                 Hide post rejected - account is signed out. \

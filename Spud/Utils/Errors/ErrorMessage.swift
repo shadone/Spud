@@ -39,6 +39,13 @@ enum ErrorMessage {
             )
         case let .internalInconsistency(description):
             return description
+        case .unsupportedByInstance:
+            // A generic fallback; dedicated per-capability messaging/UI is added
+            // by the capability-gating UI tasks that consume this error case.
+            return NSLocalizedString(
+                "This isn't supported by your account's instance yet.",
+                comment: "Error shown when a capability-gated operation is blocked by the account's home instance version"
+            )
         }
     }
 

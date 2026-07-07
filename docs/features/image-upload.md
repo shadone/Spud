@@ -18,6 +18,7 @@ Attach an image to a new post by picking it from the photo library and uploading
 - **Progress.** While an upload is in flight a spinner is shown next to the attach button and the attach button is disabled; the rest of the form stays editable.
 - **Error handling.** A failed upload surfaces an error alert and leaves the composer in editing state with the draft intact; nothing is inserted. A signed-out account cannot upload (the upload requires a signed-in account's token).
 - **Transient result.** The upload result (URL plus pict-rs delete token) is returned for use in the post; it is not mirrored into the local database.
+- **Instance capability gate.** When the account's home instance is on Lemmy 1.0, tapping "Attach image" shows an explanatory action sheet instead of opening the picker; the button stays visible and enabled — see [Instance capability gating](instance-capability-gating.md).
 
 ## Scenarios
 

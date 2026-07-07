@@ -18,6 +18,8 @@ public extension LemmyService {
         unreadOnly: Bool,
         page: Int64
     ) async throws -> Components.Schemas.GetRepliesResponse {
+        try await requireCapability(.inbox)
+
         guard !accountIsSignedOut else {
             throw LemmyServiceError.requiresAuthentication
         }
@@ -47,6 +49,8 @@ public extension LemmyService {
         unreadOnly: Bool,
         page: Int64
     ) async throws -> Components.Schemas.GetPersonMentionsResponse {
+        try await requireCapability(.inbox)
+
         guard !accountIsSignedOut else {
             throw LemmyServiceError.requiresAuthentication
         }
@@ -76,6 +80,8 @@ public extension LemmyService {
         unreadOnly: Bool,
         page: Int64
     ) async throws -> Components.Schemas.PrivateMessagesResponse {
+        try await requireCapability(.privateMessages)
+
         guard !accountIsSignedOut else {
             throw LemmyServiceError.requiresAuthentication
         }
@@ -105,6 +111,12 @@ public extension LemmyService {
             throw LemmyServiceError.requiresAuthentication
         }
 
+        guard await instanceCapabilities().can(.inbox) else {
+            // Scheduler-polled: the badge simply reads zero until Spud speaks
+            // this instance's API - throwing here would spam retries/logs.
+            return .zero
+        }
+
         let response: Components.Schemas.GetUnreadCountResponse
         do {
             response = try await api.getUnreadCount()
@@ -128,6 +140,8 @@ public extension LemmyService {
         commentReplyId: Components.Schemas.CommentReplyID,
         read: Bool
     ) async throws {
+        try await requireCapability(.inbox)
+
         guard !accountIsSignedOut else {
             throw LemmyServiceError.requiresAuthentication
         }
@@ -152,6 +166,8 @@ public extension LemmyService {
         personMentionId: Components.Schemas.PersonMentionID,
         read: Bool
     ) async throws {
+        try await requireCapability(.inbox)
+
         guard !accountIsSignedOut else {
             throw LemmyServiceError.requiresAuthentication
         }
@@ -176,6 +192,8 @@ public extension LemmyService {
         privateMessageId: Components.Schemas.PrivateMessageID,
         read: Bool
     ) async throws {
+        try await requireCapability(.inbox)
+
         guard !accountIsSignedOut else {
             throw LemmyServiceError.requiresAuthentication
         }
@@ -197,6 +215,8 @@ public extension LemmyService {
     }
 
     func markAllInboxAsRead() async throws {
+        try await requireCapability(.inbox)
+
         guard !accountIsSignedOut else {
             throw LemmyServiceError.requiresAuthentication
         }
@@ -241,6 +261,8 @@ public extension LemmyService {
         content: String,
         recipientId: Components.Schemas.PersonID
     ) async throws -> Components.Schemas.PrivateMessageView {
+        try await requireCapability(.privateMessages)
+
         guard !accountIsSignedOut else {
             logger.debug("""
                 Send private message rejected - account is signed out. \

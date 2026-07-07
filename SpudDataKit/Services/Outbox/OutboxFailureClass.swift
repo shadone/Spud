@@ -41,6 +41,11 @@ public enum OutboxFailureClass: Sendable, Equatable {
                 return .permanent
             case .internalInconsistency:
                 return .transient
+            case .unsupportedByInstance:
+                // The instance can't serve this endpoint at all (e.g. Lemmy
+                // 1.0's partial v3 shim); no retry can succeed until Spud
+                // speaks the newer API, so roll back rather than spin.
+                return .permanent
             }
         case is URLError:
             return .transient

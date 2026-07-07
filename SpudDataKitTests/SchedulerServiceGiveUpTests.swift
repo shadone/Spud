@@ -303,6 +303,10 @@ private final class GiveUpAccountService: AccountServiceType {
         InstanceActorId(from: "https://giveup-test.example.com")
     }
 
+    func instanceCapabilities(forAccountKeychainId _: String) -> InstanceCapabilities {
+        .allAvailable
+    }
+
     func accountForSignedOut(forInstance _: InstanceActorId, isServiceAccount _: Bool) -> String {
         ""
     }

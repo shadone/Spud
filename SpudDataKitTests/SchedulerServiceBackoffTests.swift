@@ -295,6 +295,10 @@ private final class BackoffAccountService: AccountServiceType {
         InstanceActorId(from: "https://backoff-test.example.com")
     }
 
+    func instanceCapabilities(forAccountKeychainId _: String) -> InstanceCapabilities {
+        .allAvailable
+    }
+
     func accountForSignedOut(forInstance _: InstanceActorId, isServiceAccount _: Bool) -> String {
         ""
     }

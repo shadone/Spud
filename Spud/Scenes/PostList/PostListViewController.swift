@@ -1645,13 +1645,24 @@ class PostListViewController: UIViewController {
         }
     }
 
-    /// Hides the post, gating on sign-in. The hidden flag is server-backed; on
-    /// success the GRDB observation re-emits without the row, so it drops out of
-    /// the feed.
+    /// Hides the post, gating on sign-in then on the `.hidePosts` capability
+    /// (Lemmy 1.0's v3 compat shim doesn't have `/post/hide`). The hidden flag
+    /// is server-backed; on success the GRDB observation re-emits without the
+    /// row, so it drops out of the feed.
     private func hidePost(serverPostId: Int64) {
         guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to hide posts", comment: "Sign-in gate title when a signed-out user tries to hide a post")
+            )
+            return
+        }
+        // Read live at action time (no caching in the VC) - see AccountScope's
+        // doc comment.
+        guard viewModel.accountScope.capabilities.can(.hidePosts) else {
+            presentCapabilityGate(
+                for: .hidePosts,
+                host: viewModel.accountScope.instanceActorId?.hostWithPort,
+                sourceView: nil
             )
             return
         }

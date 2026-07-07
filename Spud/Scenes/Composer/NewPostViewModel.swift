@@ -84,6 +84,20 @@ final class NewPostViewModel {
         accountScope.accountKeychainId
     }
 
+    /// What this account's home instance supports (fail-open when unknown).
+    /// Read live on each access - a live per-account DB read, mirroring
+    /// `InboxViewModel.capabilities` - so the view controller's capability
+    /// gate always reflects the current instance version rather than a
+    /// snapshot taken when the composer opened.
+    var capabilities: InstanceCapabilities {
+        accountScope.capabilities
+    }
+
+    /// The account's home instance host, for the capability-gate sheet's copy.
+    var instanceHost: String? {
+        accountScope.instanceActorId?.hostWithPort
+    }
+
     // MARK: Draft state (draft-safe: never cleared on error or dismiss)
 
     var titleText: String = ""

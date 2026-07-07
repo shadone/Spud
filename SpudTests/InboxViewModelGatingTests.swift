@@ -9,57 +9,43 @@ import LemmyKit
 import SpudDataKit
 import SpudUtilKit
 import Testing
-import UIKit
 @testable import Spud
 
 // MARK: - Test doubles
 
-/// Records the arguments passed to `saveProfile`. All other methods trap.
-private actor SpySaveProfileService: LemmyServiceType {
-    struct SaveProfileCall {
-        let displayName: String?
-        let bio: String?
-        let avatar: String?
-        let banner: String?
-        let showScores: Bool
-        let showBotAccounts: Bool
-        let showReadPosts: Bool
-        let showAvatars: Bool
-        let defaultListingType: Components.Schemas.ListingType
+/// Records calls to the three inbox fetch methods `InboxViewModel.loadAll()`
+/// drives. All other `LemmyServiceType` requirements trap - none of them
+/// should ever be reached from a gating test. Mirrors the shape of
+/// `SpySaveProfileService` in `EditProfileViewModelBannerTests.swift`.
+private actor RecordingInboxLemmyService: LemmyServiceType {
+    private(set) var fetchRepliesCallCount = 0
+    private(set) var fetchMentionsCallCount = 0
+    private(set) var fetchPrivateMessagesCallCount = 0
+
+    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.GetRepliesResponse {
+        fetchRepliesCallCount += 1
+        return Components.Schemas.GetRepliesResponse(replies: [])
     }
 
-    private(set) var saveProfileCalls: [SaveProfileCall] = []
-    var uploadImageResult: Result<URL, Error> = .success(URL(string: "https://example.com/banner.jpg")!)
-
-    func saveProfile(
-        displayName: String?,
-        bio: String?,
-        avatar: String?,
-        banner: String?,
-        showScores: Bool,
-        showBotAccounts: Bool,
-        showReadPosts: Bool,
-        showAvatars: Bool,
-        defaultListingType: Components.Schemas.ListingType
-    ) async throws {
-        saveProfileCalls.append(SaveProfileCall(
-            displayName: displayName,
-            bio: bio,
-            avatar: avatar,
-            banner: banner,
-            showScores: showScores,
-            showBotAccounts: showBotAccounts,
-            showReadPosts: showReadPosts,
-            showAvatars: showAvatars,
-            defaultListingType: defaultListingType
-        ))
+    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.GetPersonMentionsResponse {
+        fetchMentionsCallCount += 1
+        return Components.Schemas.GetPersonMentionsResponse(mentions: [])
     }
 
-    func uploadImage(imageData _: Data, fileName _: String, mimeType _: String) async throws -> URL {
-        try uploadImageResult.get()
+    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.PrivateMessagesResponse {
+        fetchPrivateMessagesCallCount += 1
+        return Components.Schemas.PrivateMessagesResponse(private_messages: [])
     }
 
     // MARK: Unused protocol stubs
+
+    func fetchFeed(_: FeedHandle, pageCursor _: String?, showNsfw _: Bool) async throws -> String? {
+        trap()
+    }
+
+    func fetchComments(serverPostId _: Components.Schemas.PostID, sortType _: Components.Schemas.CommentSortType) async throws {
+        trap()
+    }
 
     func fetchSiteInfo() async throws {
         trap()
@@ -81,19 +67,25 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
+    func saveProfile(
+        displayName _: String?,
+        bio _: String?,
+        avatar _: String?,
+        banner _: String?,
+        showScores _: Bool,
+        showBotAccounts _: Bool,
+        showReadPosts _: Bool,
+        showAvatars _: Bool,
+        defaultListingType _: Components.Schemas.ListingType
+    ) async throws {
+        trap()
+    }
+
     func fetchPersonInfo(serverPersonId _: Components.Schemas.PersonID) async throws {
         trap()
     }
 
     func fetchPersonContent(serverPersonId _: Components.Schemas.PersonID, sort _: Components.Schemas.SortType, page _: Int64) async throws -> Components.Schemas.GetPersonDetailsResponse {
-        trap()
-    }
-
-    func fetchFeed(_: FeedHandle, pageCursor _: String?, showNsfw _: Bool) async throws -> String? {
-        trap()
-    }
-
-    func fetchComments(serverPostId _: Components.Schemas.PostID, sortType _: Components.Schemas.CommentSortType) async throws {
         trap()
     }
 
@@ -130,6 +122,10 @@ private actor SpySaveProfileService: LemmyServiceType {
     }
 
     func createPost(serverCommunityId _: Components.Schemas.CommunityID, name _: String, url _: String?, body _: String?, nsfw _: Bool) async throws -> Components.Schemas.PostID {
+        trap()
+    }
+
+    func uploadImage(imageData _: Data, fileName _: String, mimeType _: String) async throws -> URL {
         trap()
     }
 
@@ -209,18 +205,6 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.GetRepliesResponse {
-        trap()
-    }
-
-    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.GetPersonMentionsResponse {
-        trap()
-    }
-
-    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.PrivateMessagesResponse {
-        trap()
-    }
-
     func unreadCount() async throws -> UnreadCount {
         trap()
     }
@@ -296,25 +280,50 @@ private actor SpySaveProfileService: LemmyServiceType {
     func resolveObject(query _: String) async throws -> ResolvedLemmyObject {
         trap()
     }
-
-    // MARK: Mutation helper (called from outside the actor)
-
-    func setUploadImageResult(_ result: Result<URL, Error>) {
-        uploadImageResult = result
-    }
 }
 
-/// Minimal `AccountServiceType` stub — returns our spy for every keychain id.
+/// Records `refresh` calls without touching a `LemmyServiceType` at all, so
+/// this fake stays decoupled from `RecordingInboxLemmyService` above - the
+/// gating test only asserts on the inbox-fetch call counts.
 @MainActor
-private final class FakeAccountService: AccountServiceType {
-    let lemmyServiceSpy: SpySaveProfileService
+private final class SpyUnreadCountService: UnreadCountServiceType {
+    private(set) var refreshCallCount = 0
+    var unreadCount: UnreadCount = .zero
 
-    init(lemmyServiceSpy: SpySaveProfileService) {
-        self.lemmyServiceSpy = lemmyServiceSpy
+    func refresh(accountKeychainId _: String) async {
+        refreshCallCount += 1
+    }
+
+    func decrement(replies _: Int, mentions _: Int, privateMessages _: Int) { }
+    func reset() { }
+}
+
+/// Minimal `AccountServiceType` stub whose `instanceCapabilities` and
+/// `instanceActorId` are directly configurable, so the gating test controls
+/// `AccountScope.capabilities` without needing a persisted site version.
+/// Mirrors `FakeAccountService` in `EditProfileViewModelBannerTests.swift`.
+@MainActor
+private final class FakeGatingAccountService: AccountServiceType {
+    let lemmyServiceDouble: RecordingInboxLemmyService
+    let capabilities: InstanceCapabilities
+    let instance: InstanceActorId?
+
+    init(lemmyServiceDouble: RecordingInboxLemmyService, capabilities: InstanceCapabilities, instance: InstanceActorId?) {
+        self.lemmyServiceDouble = lemmyServiceDouble
+        self.capabilities = capabilities
+        self.instance = instance
     }
 
     func lemmyService(forAccountKeychainId _: String) -> LemmyServiceType {
-        lemmyServiceSpy
+        lemmyServiceDouble
+    }
+
+    func instanceCapabilities(forAccountKeychainId _: String) -> InstanceCapabilities {
+        capabilities
+    }
+
+    func instanceActorId(forAccountKeychainId _: String) -> InstanceActorId? {
+        instance
     }
 
     // MARK: Unused stubs
@@ -357,13 +366,6 @@ private final class FakeAccountService: AccountServiceType {
     }
 
     func setDefaultSortType(_: Components.Schemas.SortType, forAccountKeychainId _: String) { }
-    func instanceActorId(forAccountKeychainId _: String) -> InstanceActorId? {
-        nil
-    }
-
-    func instanceCapabilities(forAccountKeychainId _: String) -> InstanceCapabilities {
-        .allAvailable
-    }
 
     func refreshSiteInfoOnDemandIfNeeded(forAccountKeychainId _: String) { }
 
@@ -379,87 +381,104 @@ private final class FakeAccountService: AccountServiceType {
 // MARK: - Tests
 
 @MainActor
-struct EditProfileViewModelBannerTests {
-    private let keychainId = "kc-banner-test"
+struct InboxViewModelGatingTests {
+    private let keychainId = "kc-inbox-gating-test"
 
-    // MARK: Helpers
-
-    /// Builds a VM wired to the given spy, backed by an empty in-memory DB.
-    /// No account row is seeded — `accountEditableProfileSync` returns nil and
-    /// every VM field starts at its default value.
-    private func makeViewModel(spy: SpySaveProfileService) -> EditProfileViewModel {
+    private func makeViewModel(
+        capabilities: InstanceCapabilities,
+        instance: InstanceActorId?,
+        lemmyServiceDouble: RecordingInboxLemmyService,
+        unreadCountService: SpyUnreadCountService
+    ) -> InboxViewModel {
         let appDatabase = try! AppDatabase.inMemory()
-        let accountService = FakeAccountService(lemmyServiceSpy: spy)
+        let accountService = FakeGatingAccountService(
+            lemmyServiceDouble: lemmyServiceDouble,
+            capabilities: capabilities,
+            instance: instance
+        )
         let scope = AccountScope(accountKeychainId: keychainId, accountService: accountService)
-        return EditProfileViewModel(
+        return InboxViewModel(
             accountScope: scope,
             appDatabase: appDatabase,
-            accountService: accountService,
-            onSaved: { }
+            isSignedIn: true,
+            myPersonId: nil,
+            alertService: AlertService(),
+            unreadCountService: unreadCountService
         )
     }
 
-    // MARK: Tests
-
-    /// `removeBanner()` marks the banner as edited, so `save()` must forward
-    /// `banner: ""` (empty string = clear the server-side banner).
+    /// The core gating requirement: on a Lemmy 1.0 (v3-shim) instance, none of
+    /// the three inbox fetches ever reach the service, and the VM exposes the
+    /// gated state (host + flag) the view controller renders instead.
     @Test
-    func removeBanner_thenSave_forwardsBannerEmptyString() async throws {
-        let spy = SpySaveProfileService()
-        let vm = makeViewModel(spy: spy)
+    func loadAll_whenInboxGated_performsNoServiceCallsAndExposesGatedState() async throws {
+        let lemmyServiceDouble = RecordingInboxLemmyService()
+        let unreadCountService = SpyUnreadCountService()
+        let gatedCapabilities = InstanceCapabilities.capabilities(
+            software: .lemmy,
+            version: LemmyVersion(parsing: "1.0.0-alpha.18")
+        )
+        let instance = try #require(InstanceActorId(from: "https://lemmy.example.com"))
+        let vm = makeViewModel(
+            capabilities: gatedCapabilities,
+            instance: instance,
+            lemmyServiceDouble: lemmyServiceDouble,
+            unreadCountService: unreadCountService
+        )
 
-        vm.removeBanner()
-        await vm.save()
+        vm.loadAll()
 
-        let calls = await spy.saveProfileCalls
-        try #require(calls.count == 1)
-        #expect(calls[0].banner == "")
+        // The gated branch returns synchronously - no Task is ever spawned, so
+        // there is nothing to await before asserting.
+        let fetchReplies = await lemmyServiceDouble.fetchRepliesCallCount
+        let fetchMentions = await lemmyServiceDouble.fetchMentionsCallCount
+        let fetchPrivateMessages = await lemmyServiceDouble.fetchPrivateMessagesCallCount
+        #expect(fetchReplies == 0)
+        #expect(fetchMentions == 0)
+        #expect(fetchPrivateMessages == 0)
+        #expect(unreadCountService.refreshCallCount == 0)
+
+        #expect(vm.isInboxGated)
+        #expect(vm.gatedHost == "lemmy.example.com")
+        #expect(vm.repliesPhase == .loaded)
+        #expect(vm.mentionsPhase == .loaded)
+        #expect(vm.messagesPhase == .loaded)
+        #expect(vm.replies.isEmpty)
+        #expect(vm.mentions.isEmpty)
+        #expect(vm.conversations.isEmpty)
     }
 
-    /// `uploadBanner` marks the banner as edited and stores the URL, so
-    /// `save()` must forward the URL string as `banner`.
+    /// Guards against an inverted condition: an ungated instance must still
+    /// fetch all three scopes exactly as before this task.
     @Test
-    func uploadBanner_thenSave_forwardsBannerUrl() async throws {
-        let uploadedUrl = try #require(URL(string: "https://example.com/my-banner.jpg"))
-        let spy = SpySaveProfileService()
-        await spy.setUploadImageResult(.success(uploadedUrl))
+    func loadAll_whenNotGated_fetchesAllThreeScopes() async {
+        let lemmyServiceDouble = RecordingInboxLemmyService()
+        let unreadCountService = SpyUnreadCountService()
+        let vm = makeViewModel(
+            capabilities: .allAvailable,
+            instance: nil,
+            lemmyServiceDouble: lemmyServiceDouble,
+            unreadCountService: unreadCountService
+        )
 
-        let vm = makeViewModel(spy: spy)
-        await vm.uploadBanner(imageData: Self.minimalJpeg)
-        await vm.save()
-
-        let calls = await spy.saveProfileCalls
-        try #require(calls.count == 1)
-        #expect(calls[0].banner == uploadedUrl.absoluteString)
-    }
-
-    /// When the banner is not touched, `save()` must pass `banner: nil` so the
-    /// server value is left unchanged (gating mirrors the avatar logic exactly).
-    @Test
-    func noChangeToBanner_save_forwardsBannerNil() async throws {
-        let spy = SpySaveProfileService()
-        let vm = makeViewModel(spy: spy)
-
-        // Do NOT call removeBanner() or uploadBanner — banner is untouched.
-        await vm.save()
-
-        let calls = await spy.saveProfileCalls
-        try #require(calls.count == 1)
-        #expect(calls[0].banner == nil)
-    }
-
-    // MARK: Fixtures
-
-    /// A 1x1 red JPEG produced at runtime by `UIGraphicsImageRenderer`, which
-    /// guarantees `UIImage(data:)` round-trips successfully inside `uploadBanner`.
-    @MainActor
-    private static var minimalJpeg: Data {
-        let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1))
-        let image = renderer.image { ctx in
-            UIColor.red.setFill()
-            ctx.fill(CGRect(x: 0, y: 0, width: 1, height: 1))
+        vm.loadAll()
+        // `loadReplies()`/`loadMentions()` run their fetch in detached Tasks;
+        // poll briefly for both call counts to land rather than assuming a
+        // fixed delay is enough.
+        let deadline = Date().addingTimeInterval(2)
+        while Date() < deadline {
+            let replies = await lemmyServiceDouble.fetchRepliesCallCount
+            let mentions = await lemmyServiceDouble.fetchMentionsCallCount
+            if replies > 0, mentions > 0 { break }
+            try? await Task.sleep(nanoseconds: 20_000_000)
         }
-        return image.jpegData(compressionQuality: 0.9)!
+
+        let fetchReplies = await lemmyServiceDouble.fetchRepliesCallCount
+        let fetchMentions = await lemmyServiceDouble.fetchMentionsCallCount
+        #expect(fetchReplies == 1)
+        #expect(fetchMentions == 1)
+        #expect(!vm.isInboxGated)
+        #expect(vm.gatedHost == nil)
     }
 }
 
@@ -467,5 +486,5 @@ struct EditProfileViewModelBannerTests {
 
 /// Traps when an unexpected stub method is called in a fake.
 private func trap(_ function: StaticString = #function) -> Never {
-    fatalError("Unexpected call to \(function) in EditProfileViewModelBannerTests")
+    fatalError("Unexpected call to \(function) in InboxViewModelGatingTests")
 }
