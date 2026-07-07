@@ -24,6 +24,7 @@ class DiscoverViewController: UIViewController {
         HasAppDatabase &
         HasExplorerService &
         HasImageService &
+        HasNodeInfoService &
         HasPreferencesService
     typealias NestedDependencies =
         CommunityOrLoadingViewController.Dependencies &
@@ -186,6 +187,12 @@ class DiscoverViewController: UIViewController {
     }
 
     private func openInstance(_ summary: InstanceSummary) {
+        // Engagement-gated live probe: fetch this instance's NodeInfo metadata
+        // exactly once, when the user opens its browse screen (never from the
+        // rail list rendering). The header chips fold in when it resolves.
+        Task { @MainActor [weak self] in
+            await self?.viewModel.loadInstanceMetadata(forHost: summary.host)
+        }
         let accent = Color(ThemeManager.currentAccentColor)
         let view = InstanceCommunitiesView(
             viewModel: viewModel,

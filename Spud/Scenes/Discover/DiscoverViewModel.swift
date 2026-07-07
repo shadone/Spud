@@ -45,6 +45,7 @@ final class DiscoverViewModel {
         HasAccountService &
         HasAlertService &
         HasAppDatabase &
+        HasNodeInfoService &
         HasPreferencesService
     typealias Dependencies = OwnDependencies
 
@@ -92,6 +93,13 @@ final class DiscoverViewModel {
     private(set) var directory: [CommunityListRow] = []
     /// True until the first directory snapshot arrives.
     private(set) var isLoading = true
+
+    /// Live NodeInfo metadata for the browse-instance header chips, keyed by host.
+    /// Populated ONLY by ``loadInstanceMetadata(forHost:)`` when the user opens an
+    /// instance browse screen — never by rail/directory rendering (the privacy
+    /// boundary: probe only on explicit engagement, never while listing rails or
+    /// feeds). Observed, so a chip appears in place when the async probe resolves.
+    private(set) var instanceMetadata: [String: InstanceMetadata] = [:]
 
     /// How many rail items the horizontal carousel shows on the landing; the rest
     /// are reachable via the rail's "See all".
@@ -294,6 +302,27 @@ final class DiscoverViewModel {
             explorerSiteRows = dependencies.appDatabase.explorerSiteListRowsSync()
         }
         return explorerSiteRows?.first { $0.hostname.caseInsensitiveCompare(host) == .orderedSame }
+    }
+
+    /// Live NodeInfo metadata for `host`, or nil when it has not been probed or the
+    /// probe failed. Backs the browse-instance header's software + signups chips;
+    /// a nil result means "unknown", so the chips are simply absent (fail-open, no
+    /// placeholder).
+    func metadata(forHost host: String) -> InstanceMetadata? {
+        instanceMetadata[host]
+    }
+
+    /// Probe live NodeInfo metadata for `host` and publish it for the browse-
+    /// instance header chips. Called once when the user opens an instance browse
+    /// screen (``DiscoverViewController/openInstance(_:)``) — the explicit
+    /// engagement that gates the probe. Never fired from rail/directory rendering,
+    /// preserving the privacy boundary (no probing while listing rails or feeds).
+    /// Fail-open: a nil probe result stores nothing, so the chips stay absent.
+    /// Idempotent per host — a host already resolved is not re-probed.
+    func loadInstanceMetadata(forHost host: String) async {
+        guard instanceMetadata[host] == nil else { return }
+        guard let metadata = await dependencies.nodeInfoService.metadata(host: host) else { return }
+        instanceMetadata[host] = metadata
     }
 
     /// Present the same-name compare sheet for `row`, listing every server that

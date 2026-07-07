@@ -36,10 +36,11 @@ final class IPadLayoutSnapshotTests: XCTestCase {
     private let teal = Color(uiColor: UIColor(red: 0, green: 0x96 / 255, blue: 0x87 / 255, alpha: 1))
 
     @MainActor
-    private struct SnapshotDependencies: HasAccountService, HasAlertService, HasAppDatabase, HasPreferencesService {
+    private struct SnapshotDependencies: HasAccountService, HasAlertService, HasAppDatabase, HasNodeInfoService, HasPreferencesService {
         let accountService: AccountServiceType
         let alertService: AlertServiceType
         let appDatabase: AppDatabase
+        let nodeInfoService: NodeInfoServiceType
         let preferencesService: PreferencesServiceType
     }
 
@@ -51,6 +52,7 @@ final class IPadLayoutSnapshotTests: XCTestCase {
             accountService: AccountService(appDatabase: appDatabase),
             alertService: AlertService(),
             appDatabase: appDatabase,
+            nodeInfoService: StubNodeInfoService(),
             preferencesService: SnapshotPreferences.ephemeral()
         )
         let viewModel = DiscoverViewModel(
