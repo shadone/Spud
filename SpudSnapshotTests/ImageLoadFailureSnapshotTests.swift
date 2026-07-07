@@ -18,6 +18,7 @@ import XCTest
 /// references are device-independent (like the media-thumbnail snapshots).
 /// `tintColor` is pinned to the brand "Lemmy" teal — at runtime the actions
 /// follow the user's accent (the window `tintColor`), which defaults to it.
+@MainActor
 final class ImageLoadFailureSnapshotTests: XCTestCase {
     private let lemmyTeal = UIColor(red: 0, green: 0x96 / 255, blue: 0x87 / 255, alpha: 1)
 
@@ -25,6 +26,7 @@ final class ImageLoadFailureSnapshotTests: XCTestCase {
         UITraitCollection(traitsFrom: [
             UITraitCollection(userInterfaceStyle: style),
             UITraitCollection(displayScale: 2),
+            SnapshotDeterminism.contentSizeTrait,
         ])
     }
 

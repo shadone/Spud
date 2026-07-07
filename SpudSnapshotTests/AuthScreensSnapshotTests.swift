@@ -25,6 +25,13 @@ import XCTest
 final class AuthScreensSnapshotTests: XCTestCase {
     private let lemmyTeal = UIColor(red: 0, green: 0x96 / 255, blue: 0x87 / 255, alpha: 1)
 
+    /// NOTE: deliberately NOT mixing in `SnapshotDeterminism.contentSizeTrait` here.
+    /// This file's captures are `.image(on: .deterministicPhone, traits: traits(style))`
+    /// — the DEVICE-CONFIG family. The library merges `[config.traits, traits]` with the
+    /// later collection winning, so a content-size pin here would OVERRIDE the `.medium`
+    /// the device config bakes in (which these refs were recorded under) and break them.
+    /// See `ViewImageConfig.deterministicPhone`'s doc comment: that family is immune to
+    /// sim Dynamic Type drift precisely because the base config fully specifies the trait.
     private func traits(_ style: UIUserInterfaceStyle) -> UITraitCollection {
         UITraitCollection(traitsFrom: [
             UITraitCollection(userInterfaceStyle: style),

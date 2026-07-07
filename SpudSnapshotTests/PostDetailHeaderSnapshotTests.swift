@@ -360,6 +360,7 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         UITraitCollection(traitsFrom: [
             UITraitCollection(userInterfaceStyle: style),
             UITraitCollection(displayScale: 2),
+            SnapshotDeterminism.contentSizeTrait,
         ])
     }
 
