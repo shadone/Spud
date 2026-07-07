@@ -158,6 +158,13 @@ public extension LemmyService {
     func markAsRead(
         serverPostId: Components.Schemas.PostID
     ) async throws {
+        guard await instanceCapabilities().can(.markPostsRead) else {
+            // Read tracking is locally owned by postInteraction (lastOpenedAt);
+            // skip the server push silently - it resumes once Spud speaks
+            // this instance's API.
+            return
+        }
+
         logger.debug("""
             Marking post as read. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             postId=\(serverPostId, privacy: .public)

@@ -713,19 +713,27 @@ public actor LemmyService: LemmyServiceType {
     // internal: shared with LemmyService+Inbox, LemmyService+Composer, LemmyService+Safety
     func requireCapability(_ capability: InstanceCapability) async throws {
         guard await instanceCapabilities().can(capability) else {
-            // Info level (not error): this is an expected, UI-gated condition on
-            // older instances, not a failure — the durable log just makes it
-            // observable in About → Logs.
-            await diagnostics.record(
-                category: .site,
-                level: .info,
-                event: "capability.blocked",
-                message: "Instance does not support \(capability.rawValue)",
-                instance: api.instanceHostname,
-                metadata: ["capability": capability.rawValue]
-            )
+            await recordCapabilityBlocked(capability)
             throw LemmyServiceError.unsupportedByInstance(capability)
         }
+    }
+
+    /// Records the shared `capability.blocked` diagnostic event — used both by
+    /// `requireCapability`'s throwing gate and by the soft-degrade setters
+    /// (`setShowNsfw`/`setBlurNsfw`/`setDefaultSortType`) that skip the server
+    /// push silently instead of throwing.
+    func recordCapabilityBlocked(_ capability: InstanceCapability) async {
+        // Info level (not error): this is an expected, UI-gated condition on
+        // older instances, not a failure — the durable log just makes it
+        // observable in About → Logs.
+        await diagnostics.record(
+            category: .site,
+            level: .info,
+            event: "capability.blocked",
+            message: "Instance does not support \(capability.rawValue)",
+            instance: api.instanceHostname,
+            metadata: ["capability": capability.rawValue]
+        )
     }
 
     /// Lazily builds (and `start()`s) the per-account `OutboxService`, returning
@@ -1063,18 +1071,25 @@ public actor LemmyService: LemmyServiceType {
             return
         }
 
-        logger.debug("""
-            Set show_nsfw=\(showNsfw, privacy: .public) \
-            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
-            """)
-
-        do {
-            _ = try await api.saveUserSettings(showNSFW: showNsfw)
-        } catch {
-            logger.error("""
-                Set show_nsfw failed. \(String(describing: error), privacy: .public)
+        if await instanceCapabilities().can(.serverUserSettings) {
+            logger.debug("""
+                Set show_nsfw=\(showNsfw, privacy: .public) \
+                for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
                 """)
-            throw LemmyServiceError(from: error)
+
+            do {
+                _ = try await api.saveUserSettings(showNSFW: showNsfw)
+            } catch {
+                logger.error("""
+                    Set show_nsfw failed. \(String(describing: error), privacy: .public)
+                    """)
+                throw LemmyServiceError(from: error)
+            }
+        } else {
+            // Skip the server push - the local pref still governs feed
+            // filtering via the request param; the push resumes once Spud
+            // speaks this instance's API.
+            await recordCapabilityBlocked(.serverUserSettings)
         }
 
         // Mirror the new value onto the local account row so the cached
@@ -1100,18 +1115,25 @@ public actor LemmyService: LemmyServiceType {
             return
         }
 
-        logger.debug("""
-            Set blur_nsfw=\(blurNsfw, privacy: .public) \
-            for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
-            """)
-
-        do {
-            _ = try await api.saveUserSettings(blurNSFW: blurNsfw)
-        } catch {
-            logger.error("""
-                Set blur_nsfw failed. \(String(describing: error), privacy: .public)
+        if await instanceCapabilities().can(.serverUserSettings) {
+            logger.debug("""
+                Set blur_nsfw=\(blurNsfw, privacy: .public) \
+                for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
                 """)
-            throw LemmyServiceError(from: error)
+
+            do {
+                _ = try await api.saveUserSettings(blurNSFW: blurNsfw)
+            } catch {
+                logger.error("""
+                    Set blur_nsfw failed. \(String(describing: error), privacy: .public)
+                    """)
+                throw LemmyServiceError(from: error)
+            }
+        } else {
+            // Skip the server push - blur is a pure client-side render concern
+            // and the local pref still applies; the push resumes once Spud
+            // speaks this instance's API.
+            await recordCapabilityBlocked(.serverUserSettings)
         }
 
         // Mirror the new value onto the local account row so the cached
@@ -1137,6 +1159,14 @@ public actor LemmyService: LemmyServiceType {
                 Set default_sort_type skipped - account is signed out. \
                 account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
                 """)
+            return
+        }
+
+        guard await instanceCapabilities().can(.serverUserSettings) else {
+            // AccountServiceType already persisted the local default sort
+            // synchronously (the local source of truth); skip the server
+            // push until Spud speaks this instance's API.
+            await recordCapabilityBlocked(.serverUserSettings)
             return
         }
 

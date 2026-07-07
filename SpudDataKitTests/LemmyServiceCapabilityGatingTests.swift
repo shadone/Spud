@@ -51,11 +51,13 @@ private struct LemmyServiceCapabilityGatingFixture {
     let service: LemmyService
     let appDatabase: AppDatabase
     let transport: CountingTransport
+    let keychainId: String
 
-    private static let keychainId = "keychain-capability-gating-test"
+    private static let defaultKeychainId = "keychain-capability-gating-test"
 
     @MainActor
     static func make(siteVersion: String?, diagnostics: DiagnosticLogging? = nil) async throws -> LemmyServiceCapabilityGatingFixture {
+        let keychainId = defaultKeychainId
         let appDatabase = try AppDatabase.inMemory()
 
         try await appDatabase.writer.write { db in
@@ -86,7 +88,16 @@ private struct LemmyServiceCapabilityGatingFixture {
             diagnostics: diagnostics
         )
 
-        return LemmyServiceCapabilityGatingFixture(service: service, appDatabase: appDatabase, transport: transport)
+        return LemmyServiceCapabilityGatingFixture(service: service, appDatabase: appDatabase, transport: transport, keychainId: keychainId)
+    }
+
+    /// Reads back the seeded account row, for asserting on a local-mirror
+    /// write (e.g. `showNsfw`/`blurNsfw`) after a soft-degraded setter call.
+    func fetchAccountRecord() async throws -> AccountRecord? {
+        let keychainId = keychainId
+        return try await appDatabase.writer.read { db in
+            try AccountRecord.filter(Column("accountKeychainId") == keychainId).fetchOne(db)
+        }
     }
 }
 
@@ -255,5 +266,79 @@ struct LemmyServiceCapabilityGatingTests {
         #expect(event.level == .info)
         #expect(event.instance == "example.com")
         #expect(event.metadata?["capability"] == InstanceCapability.inbox.rawValue)
+    }
+
+    // MARK: - Soft-degrade paths (Task 5)
+
+    //
+    // These four are background mirrors / scheduler polls with a local source
+    // of truth, so a gated instance must SKIP silently rather than throw.
+
+    @Test
+    func unreadCountReturnsZeroOnLemmy1WithoutNetwork() async throws {
+        let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
+
+        let count = try await fixture.service.unreadCount()
+
+        #expect(count == .zero)
+        #expect(fixture.transport.requestCount == 0)
+    }
+
+    @Test
+    func unreadCountProceedsOn019() async throws {
+        let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "0.19.11")
+
+        _ = try? await fixture.service.unreadCount()
+
+        #expect(fixture.transport.requestCount > 0)
+    }
+
+    @Test
+    func setShowNsfwSkipsServerPushButMirrorsLocallyOnLemmy1() async throws {
+        let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
+
+        try await fixture.service.setShowNsfw(true)
+
+        #expect(fixture.transport.requestCount == 0)
+        let account = try await fixture.fetchAccountRecord()
+        #expect(account?.showNsfw == true)
+    }
+
+    @Test
+    func setShowNsfwProceedsOn019() async throws {
+        let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "0.19.11")
+
+        _ = try? await fixture.service.setShowNsfw(true)
+
+        #expect(fixture.transport.requestCount > 0)
+    }
+
+    @Test
+    func setBlurNsfwSkipsServerPushButMirrorsLocallyOnLemmy1() async throws {
+        let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
+
+        try await fixture.service.setBlurNsfw(true)
+
+        #expect(fixture.transport.requestCount == 0)
+        let account = try await fixture.fetchAccountRecord()
+        #expect(account?.blurNsfw == true)
+    }
+
+    @Test
+    func setDefaultSortTypeSkipsServerPushOnLemmy1() async throws {
+        let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
+
+        try await fixture.service.setDefaultSortType(.New)
+
+        #expect(fixture.transport.requestCount == 0)
+    }
+
+    @Test
+    func markAsReadSkipsServerPushOnLemmy1() async throws {
+        let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
+
+        try await fixture.service.markAsRead(serverPostId: 1)
+
+        #expect(fixture.transport.requestCount == 0)
     }
 }

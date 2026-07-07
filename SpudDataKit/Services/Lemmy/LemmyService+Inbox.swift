@@ -111,6 +111,12 @@ public extension LemmyService {
             throw LemmyServiceError.requiresAuthentication
         }
 
+        guard await instanceCapabilities().can(.inbox) else {
+            // Scheduler-polled: the badge simply reads zero until Spud speaks
+            // this instance's API - throwing here would spam retries/logs.
+            return .zero
+        }
+
         let response: Components.Schemas.GetUnreadCountResponse
         do {
             response = try await api.getUnreadCount()
