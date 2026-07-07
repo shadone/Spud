@@ -28,11 +28,18 @@ final class ActivityFootprintRailSnapshotTests: XCTestCase {
 
     func test_footprintRail_light() {
         let rail = makeRail()
-        assertSnapshot(of: rail, as: .image(traits: .init(userInterfaceStyle: .light)), named: "light")
+        assertSnapshot(of: rail, as: .image(traits: traits(.light)), named: "light")
     }
 
     func test_footprintRail_dark() {
         let rail = makeRail()
-        assertSnapshot(of: rail, as: .image(traits: .init(userInterfaceStyle: .dark)), named: "dark")
+        assertSnapshot(of: rail, as: .image(traits: traits(.dark)), named: "dark")
+    }
+
+    private func traits(_ style: UIUserInterfaceStyle) -> UITraitCollection {
+        UITraitCollection(traitsFrom: [
+            UITraitCollection(userInterfaceStyle: style),
+            SnapshotDeterminism.contentSizeTrait,
+        ])
     }
 }

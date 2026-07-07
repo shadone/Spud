@@ -59,7 +59,10 @@ final class MediaViewerCenteringSnapshotTests: XCTestCase {
 
         assertSnapshot(
             matching: view,
-            as: .image(size: screen, traits: UITraitCollection(displayScale: 2))
+            as: .image(size: screen, traits: UITraitCollection(traitsFrom: [
+                UITraitCollection(displayScale: 2),
+                SnapshotDeterminism.contentSizeTrait,
+            ]))
         )
     }
 
@@ -93,7 +96,10 @@ final class MediaViewerCenteringSnapshotTests: XCTestCase {
 
         assertSnapshot(
             matching: view,
-            as: .image(size: screen, traits: UITraitCollection(displayScale: 2))
+            as: .image(size: screen, traits: UITraitCollection(traitsFrom: [
+                UITraitCollection(displayScale: 2),
+                SnapshotDeterminism.contentSizeTrait,
+            ]))
         )
     }
 
