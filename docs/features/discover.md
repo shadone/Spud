@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped.
-- **Related:** [Search](search.md), [Community screen](community-screen.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md), [Subscriptions sidebar](subscriptions-sidebar.md), [Instance picker](instance-picker.md), [Instance browsing](instance-browsing.md), [Signed-out browsing](signed-out-browsing.md), [Sign-in gate](sign-in-gate.md), [NSFW content visibility and blur](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Search](search.md), [Community screen](community-screen.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md), [Subscriptions sidebar](subscriptions-sidebar.md), [Instance picker](instance-picker.md), [Instance browsing](instance-browsing.md), [Instance software detection](instance-software-detection.md), [Signed-out browsing](signed-out-browsing.md), [Sign-in gate](sign-in-gate.md), [NSFW content visibility and blur](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -18,6 +18,7 @@ Discover is a browsable home for finding new communities across the whole fedive
   - **Rising** — communities below a size ceiling, ordered by engagement intensity (recent active users relative to subscriber base) above an activity floor. Surfaces small, accelerating communities. Carousel + "See all" as above.
   - **Browse by instance** — the liveliest home instances by aggregate weekly activity (carousel of 12; "See all" opens the full ranked instance list). Tapping an instance opens that server's communities, with a tappable instance info card (members, description, trust) that drills into the richer [Instance browsing](instance-browsing.md) detail.
   - **All communities** default sort is "Recommended" (the directory's composite `score`); other sorts are **Most active** (recent active users), **Members**, **Name**, and **Newest**. While browsing, the directory is capped at the first 200 rows for snappiness; a search shows every match. "Most posts" is intentionally not a lead sort — the stored post count is a cumulative total that favors old communities rather than active ones.
+- **Browse by instance shows live software and signups.** Opening an instance from the rail (or its "See all") probes that host's NodeInfo metadata once, on that explicit tap — never while the rail itself renders — and, when it resolves, folds a software+version chip and an open/closed-signups chip into the instance card, above the trust read. The probe is fail-open: metadata failures or unknown software simply leave the chips off, with no placeholder. See [Instance software detection](instance-software-detection.md).
 - **Same-name communities collapse into one entry.** In the default directory, communities that share a name across servers are deduplicated to a single canonical row — the variant with the strongest blend of subscribers, recent activity, and instance trust. The row notes "also on N other servers · total members". Tapping that badge opens a **compare sheet** listing each variant ranked busiest-first, with members and recent activity, each with its own **Subscribe** (and a tap-through to open the community). Dedupe is **off in the live network-search results**, where you may be looking for one specific server's copy.
 - **Starter packs are curated topics with live numbers.** Each pack is a hand-curated, ordered set of communities (a topic title, a short blurb, and a list of community references) whose names, icons, member counts, and activity are rendered live from the directory — so the curation is editorial but the stats never go stale. Tapping a starter pack opens a dedicated Pack detail screen listing the pack's communities, each individually subscribable, with a single **Subscribe to all** action that subscribes to the ones you don't already have.
 - **Search the bundled directory, then the network.** The search field filters the bundled directory instantly. Below the local matches, an optional "Search the network for X" button runs a live Lemmy community search; results not already in the local directory are shown under a "From the network" header (NSFW-gated by the same client preference), each subscribable. The network search re-runs on tap if it fails.
@@ -74,6 +75,13 @@ Discover is a browsable home for finding new communities across the whole fedive
 - **Given** a rail (Trending / Rising / Because you follow / Browse by instance) with more than the 12 shown in its carousel
 - **When** I tap its "See all"
 - **Then** a screen pushes with the full ranked list — communities as directory-style rows (Subscribe / open / long-press actions), instances as a tappable list that opens each server's communities
+
+### Browse an instance shows live software and signups chips
+
+- **Given** I tap an instance from Browse by instance
+- **When** its NodeInfo probe resolves
+- **Then** a software+version chip and an open/closed-signups chip appear on the instance card
+- **And** no rail rendering or listing triggered that probe — it only happened because I opened this instance
 
 ### A signed-out subscribe is gated
 
