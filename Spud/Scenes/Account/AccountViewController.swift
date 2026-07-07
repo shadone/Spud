@@ -289,9 +289,11 @@ class AccountViewController: UIViewController {
     /// (no caching in the VC), since a scope built just for this check is
     /// zero-cost until an accessor is read.
     private func openEditProfile(keychainId: String) {
-        Haptics.tap()
         let scope = accountService.scope(forAccountKeychainId: keychainId)
         guard scope.capabilities.can(.serverUserSettings) else {
+            // No success `Haptics.tap()` here: `presentCapabilityGate` fires its
+            // own warning haptic, and a tap immediately before it reads as a
+            // double buzz.
             presentCapabilityGate(
                 for: .serverUserSettings,
                 host: scope.instanceActorId?.hostWithPort,
@@ -299,6 +301,7 @@ class AccountViewController: UIViewController {
             )
             return
         }
+        Haptics.tap()
         let editor = EditProfileViewController.makeModal(
             accountKeychainId: keychainId,
             dependencies: dependencies.own
