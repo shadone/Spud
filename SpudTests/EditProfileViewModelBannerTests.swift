@@ -361,6 +361,10 @@ private final class FakeAccountService: AccountServiceType {
         nil
     }
 
+    func instanceCapabilities(forAccountKeychainId _: String) -> InstanceCapabilities {
+        .allAvailable
+    }
+
     func refreshSiteInfoOnDemandIfNeeded(forAccountKeychainId _: String) { }
 
     func createFeed(type _: FeedType, forAccountKeychainId _: String) async throws -> FeedHandle {

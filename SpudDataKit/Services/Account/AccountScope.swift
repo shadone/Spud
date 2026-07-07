@@ -55,6 +55,13 @@ public struct AccountScope {
         accountService.instanceActorId(forAccountKeychainId: accountKeychainId)
     }
 
+    /// What this account's home instance supports (fail-open when unknown).
+    /// Read live on every access — after the instance upgrades and a getSite
+    /// import records the new version, existing scopes see the new value.
+    public var capabilities: InstanceCapabilities {
+        accountService.instanceCapabilities(forAccountKeychainId: accountKeychainId)
+    }
+
     /// A stream of permanent outbox failures (e.g. an expired session) for the
     /// account's optimistic vote/save/hide mutations, so a screen can surface the
     /// rollback. Forwards the account `LemmyService`'s outbox failure stream.

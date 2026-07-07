@@ -136,6 +136,44 @@ public extension AppDatabase {
         }
     }
 
+    /// Synchronous lookup of the home-instance Lemmy version string (as last
+    /// mirrored from getSite into `site.version`) for the account matching
+    /// `keychainId`. Nil when the account/site rows haven't been imported yet
+    /// or the site has no version — callers must fail open on nil.
+    func accountSiteVersionSync(forKeychainId keychainId: String) -> String? {
+        do {
+            return try writer.read { db in
+                try Row.fetchOne(db, sql: """
+                        SELECT site.version AS version
+                        FROM account
+                        JOIN site ON site.id = account.siteId
+                        WHERE account.accountKeychainId = ?
+                    """, arguments: [keychainId])?["version"]
+            }
+        } catch {
+            logger.error("Failed to resolve account site version: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Async equivalent of ``accountSiteVersionSync(forKeychainId:)`` for
+    /// actor callers (LemmyService's capability backstop).
+    func accountSiteVersion(forKeychainId keychainId: String) async -> String? {
+        do {
+            return try await writer.read { db in
+                try Row.fetchOne(db, sql: """
+                        SELECT site.version AS version
+                        FROM account
+                        JOIN site ON site.id = account.siteId
+                        WHERE account.accountKeychainId = ?
+                    """, arguments: [keychainId])?["version"]
+            }
+        } catch {
+            logger.error("Failed to resolve account site version: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     /// Returns the row id of the account row matching `keychainId`, or nil
     /// if not yet imported. Synchronous read intended for one-shot UI bring-up
     /// where blocking the caller briefly is preferable to making `init` async.
