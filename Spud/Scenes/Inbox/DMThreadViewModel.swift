@@ -244,9 +244,26 @@ final class DMThreadViewModel {
     /// immediately after a fast DB write (the optimistic bubble arrives via the
     /// outbound observation), so this never blocks and several sends can be in
     /// flight at once. We do NOT await the network — see the type doc.
+    ///
+    /// Guards `.privateMessages` before doing anything else. This is a
+    /// backstop for a thread opened (or left open) before the capability
+    /// flipped underneath it — the view controller already disables the input
+    /// bar for a thread that opens gated, but that check runs once at open
+    /// time, not on every keystroke. Checking again here mirrors
+    /// `LemmyService.sendDirectMessage`'s own `requireCapability` gate (which
+    /// would reject the same send one layer down), but catches it before
+    /// spawning the Task at all, so a stale-but-still-enabled input bar never
+    /// round-trips into the composer outbox for content we already know will
+    /// be rejected. Surfaces through the same `alertService.handle` path an
+    /// ordinary send failure uses — no new failure mechanism.
     func send(_ rawText: String) {
         let content = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !content.isEmpty else { return }
+        guard accountScope.capabilities.can(.privateMessages) else {
+            logger.error("Send DM blocked: private messages unsupported by this instance")
+            alertService.handle(LemmyServiceError.unsupportedByInstance(.privateMessages), for: .sendPrivateMessage)
+            return
+        }
         let recipientServerPersonId = Int64(correspondentId)
         Task { @MainActor [weak self] in
             guard let self else { return }

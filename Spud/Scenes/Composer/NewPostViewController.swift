@@ -467,8 +467,16 @@ final class NewPostViewController: UIViewController {
         present(nav, animated: true)
     }
 
+    /// Capability check first (Lemmy 1.0's v3 compat shim has no image-upload
+    /// endpoint): explain, don't hide — the button stays visible and enabled
+    /// either way, the sheet just explains why picking an image won't work
+    /// yet. Read live at action time (no caching in the VC).
     @objc
     private func attachImageTapped() {
+        guard viewModel.capabilities.can(.imageUpload) else {
+            presentCapabilityGate(for: .imageUpload, host: viewModel.instanceHost, sourceView: attachImageButton)
+            return
+        }
         view.endEditing(true)
         var config = PHPickerConfiguration()
         config.filter = .images
