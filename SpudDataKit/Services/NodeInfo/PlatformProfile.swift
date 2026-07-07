@@ -19,6 +19,15 @@ public struct PlatformProfile: Sendable, Equatable {
         speaksLemmyAPI
     }
 
+    /// What the instance's API supports, derived from software + version.
+    /// See `InstanceCapabilities.capabilities(software:version:)` for the table.
+    public var capabilities: InstanceCapabilities {
+        InstanceCapabilities.capabilities(
+            software: software,
+            version: version.flatMap(LemmyVersion.init(parsing:))
+        )
+    }
+
     public static func profile(for software: InstanceSoftware, version: String? = nil) -> PlatformProfile {
         PlatformProfile(
             software: software,
