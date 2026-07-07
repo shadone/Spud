@@ -23,7 +23,8 @@
       "post_score": 16300,
       "comment_count": 203,
       "comment_score": 2136
-    }
+    },
+    "is_admin": false
   },
   "comments": [
     {
@@ -91,7 +92,8 @@
         "banner": "https://lemmy.world/pictrs/image/4b98b708-9202-422f-a996-38e2fdb78758.png",
         "hidden": false,
         "posting_restricted_to_mods": false,
-        "instance_id": 1192
+        "instance_id": 1192,
+        "visibility": "Public"
       },
       "counts": {
         "id": 2253436,
@@ -106,7 +108,10 @@
       "creator_banned_from_community": false,
       "subscribed": "NotSubscribed",
       "saved": false,
-      "creator_blocked": false
+      "creator_blocked": false,
+      "banned_from_community": false,
+      "creator_is_moderator": false,
+      "creator_is_admin": false
     },
     {
       "comment": {
@@ -174,7 +179,8 @@
         "banner": "https://lemmy.world/pictrs/image/074344b1-3000-43eb-b94b-a42c440bb794.png",
         "hidden": false,
         "posting_restricted_to_mods": false,
-        "instance_id": 1192
+        "instance_id": 1192,
+        "visibility": "Public"
       },
       "counts": {
         "id": 2198315,
@@ -189,7 +195,10 @@
       "creator_banned_from_community": false,
       "subscribed": "NotSubscribed",
       "saved": false,
-      "creator_blocked": false
+      "creator_blocked": false,
+      "banned_from_community": false,
+      "creator_is_moderator": false,
+      "creator_is_admin": false
     }
   ],
   "posts": [
@@ -245,7 +254,8 @@
         "banner": "https://lemmy.world/pictrs/image/074344b1-3000-43eb-b94b-a42c440bb794.png",
         "hidden": false,
         "posting_restricted_to_mods": false,
-        "instance_id": 1192
+        "instance_id": 1192,
+        "visibility": "Public"
       },
       "creator_banned_from_community": false,
       "counts": {
@@ -269,7 +279,11 @@
       "saved": false,
       "read": false,
       "creator_blocked": false,
-      "unread_comments": 48
+      "unread_comments": 48,
+      "banned_from_community": false,
+      "creator_is_moderator": false,
+      "creator_is_admin": false,
+      "hidden": false
     }
   ],
   "moderates": [

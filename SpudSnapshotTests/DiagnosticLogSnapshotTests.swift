@@ -45,6 +45,11 @@ final class DiagnosticLogSnapshotTests: XCTestCase {
     override func setUp() {
         super.setUp()
         referenceNow = Date().timeIntervalSince1970
+        // Pin the host scene's status bar hidden so nav-hosted / key-window
+        // captures are immune to the sim's persisted orientation state (the
+        // 44pt-shift regression). See
+        // `SnapshotDeterminism.pinStatusBarHidden()`.
+        SnapshotDeterminism.pinStatusBarHidden()
     }
 
     /// Inserts a representative mix of events into `appDatabase`.

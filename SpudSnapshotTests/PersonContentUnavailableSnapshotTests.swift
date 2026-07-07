@@ -30,6 +30,7 @@ final class PersonContentUnavailableSnapshotTests: XCTestCase {
         UITraitCollection(traitsFrom: [
             UITraitCollection(userInterfaceStyle: style),
             UITraitCollection(displayScale: 2),
+            SnapshotDeterminism.contentSizeTrait,
         ])
     }
 

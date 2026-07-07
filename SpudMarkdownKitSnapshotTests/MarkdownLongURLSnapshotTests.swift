@@ -47,11 +47,11 @@ final class MarkdownLongURLSnapshotTests: XCTestCase {
 
     @MainActor
     func test_longURLPost() {
-        assertSnapshot(of: render(kind: .post), as: .image(traits: UITraitCollection(userInterfaceStyle: .light)))
+        assertSnapshot(of: render(kind: .post), as: .image(traits: MarkdownSnapshotDeterminism.traits(.light)))
     }
 
     @MainActor
     func test_longURLComment() {
-        assertSnapshot(of: render(kind: .comment), as: .image(traits: UITraitCollection(userInterfaceStyle: .light)))
+        assertSnapshot(of: render(kind: .comment), as: .image(traits: MarkdownSnapshotDeterminism.traits(.light)))
     }
 }

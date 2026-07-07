@@ -28,6 +28,10 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         // Pin the process-wide accent so renders don't depend on the sim's
         // persisted accent preference. See `SnapshotDeterminism.pinAccent()`.
         SnapshotDeterminism.pinAccent()
+        // Pin the host scene's status bar hidden so the on-screen
+        // (`drawHierarchyInKeyWindow`) blur captures are immune to the sim's
+        // persisted orientation state. See `SnapshotDeterminism.pinStatusBarHidden()`.
+        SnapshotDeterminism.pinStatusBarHidden()
     }
 
     private let lemmyTeal = UIColor(red: 0, green: 0x96 / 255, blue: 0x87 / 255, alpha: 1)
@@ -360,6 +364,7 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         UITraitCollection(traitsFrom: [
             UITraitCollection(userInterfaceStyle: style),
             UITraitCollection(displayScale: 2),
+            SnapshotDeterminism.contentSizeTrait,
         ])
     }
 

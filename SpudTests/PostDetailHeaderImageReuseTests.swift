@@ -57,7 +57,9 @@ struct PostDetailHeaderImageReuseTests {
         // image arrives and is painted into the image view.
         cell.configure(with: makeViewModel(voteStatus: nil), imageService: imageService)
         cell.frame = CGRect(x: 0, y: 0, width: width, height: 2000)
-        await drain(cell)
+        await waitUntilRendered(cell, "loaded post image") {
+            cell.postImageView.image != nil
+        }
         #expect(cell.postImageView.image != nil, "Post image never loaded on first configure")
 
         // Simulate an optimistic upvote: the cell is reconfigured in place with
@@ -100,21 +102,8 @@ struct PostDetailHeaderImageReuseTests {
 
     // MARK: - Harness
 
-    /// Polls until the post image's load Task paints the image, or gives up after
-    /// 2s. Condition-based so it returns as soon as the (synchronous) stub image
-    /// arrives instead of always burning the full budget; the caller's
-    /// `#expect` is the failure point if it never renders.
-    private func drain(_ cell: PostDetailHeaderCell) async {
-        let deadline = Date().addingTimeInterval(2)
-        while cell.postImageView.image == nil, Date() < deadline {
-            await Task.yield()
-            try? await Task.sleep(nanoseconds: 10_000_000)
-            cell.layoutIfNeeded()
-        }
-    }
-
     private func makeViewModel(voteStatus: Int64?, body: String = "") -> PostDetailHeaderViewModel {
-        let appearance = AppearanceService(preferencesService: PreferencesService())
+        let appearance = AppearanceService(preferencesService: PreferencesService.ephemeral())
         return PostDetailHeaderViewModel(
             row: row(voteStatus: voteStatus, body: body),
             appearance: appearance,

@@ -62,6 +62,7 @@ final class SearchOpenURLCellSnapshotTests: XCTestCase {
                     traits: UITraitCollection(traitsFrom: [
                         UITraitCollection(userInterfaceStyle: style),
                         UITraitCollection(displayScale: 2),
+                        SnapshotDeterminism.contentSizeTrait,
                     ])
                 ),
                 named: style == .dark ? "dark" : "light",

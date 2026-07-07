@@ -187,6 +187,7 @@ final class InstancesAccountsCellsSnapshotTests: XCTestCase {
         UITraitCollection(traitsFrom: [
             UITraitCollection(userInterfaceStyle: style),
             UITraitCollection(displayScale: 2),
+            SnapshotDeterminism.contentSizeTrait,
         ])
     }
 

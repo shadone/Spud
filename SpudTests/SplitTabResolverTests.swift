@@ -80,7 +80,7 @@ struct FakeDependencies:
         self.appDatabase = appDatabase
         let reachabilityMonitor = StaticReachabilityMonitor(isOnline: true)
         self.reachabilityMonitor = reachabilityMonitor
-        let preferencesService = PreferencesService()
+        let preferencesService = PreferencesService.ephemeral()
         self.preferencesService = preferencesService
         let alertService = AlertService()
         self.alertService = alertService

@@ -50,6 +50,15 @@ final class FixedSafeAreaWindow: UIWindow {
     }
 }
 
+/// A minimal root view controller whose only job is to report its status bar
+/// hidden, so installing it as a scene's key-window root pins that scene's
+/// status bar to zero height. See ``SnapshotDeterminism/pinStatusBarHidden()``.
+private final class StatusBarHiddenHostViewController: UIViewController {
+    override var prefersStatusBarHidden: Bool {
+        true
+    }
+}
+
 /// Determinism helpers shared by the snapshot suites that host a view controller
 /// on a real key window and capture with `drawHierarchyInKeyWindow: true`.
 ///
@@ -84,6 +93,76 @@ enum SnapshotDeterminism {
     /// the brand teal where they build the window.
     static func pinAccent() {
         ThemeManager.shared.setAccent(.lemmy)
+    }
+
+    /// Pins the snapshot host scene's status bar HIDDEN so that nav-hosted and
+    /// `drawHierarchyInKeyWindow` captures lay out identically regardless of
+    /// the sim's persisted device orientation, which drives the scene status
+    /// bar.
+    ///
+    /// **The leak.** A `UINavigationController` positions its bar (and the
+    /// content inset below it) from the *global* scene `statusBarManager` —
+    /// `UIApplication`'s single foreground `UIWindowScene` — NOT from the
+    /// capture window's `safeAreaInsets`. So even a capture that force-zeroes
+    /// its window safe area (`.image(on: .deterministicPhone)`'s off-screen
+    /// `Window`, or an on-screen ``FixedSafeAreaWindow``) still inherits the
+    /// host scene's status-bar height. On the reference device that height is
+    /// 0 when hidden and 54 pt when visible; the visible case shifts every
+    /// nav-hosted / key-window capture down one nav-bar height (~44 pt), the
+    /// 2026-07-07 68-ref regression across 14 suites.
+    ///
+    /// **Why the refs encode HIDDEN.** The scene's status-bar visibility
+    /// tracks the sim's PERSISTED DEVICE ORIENTATION, not whether an
+    /// interactive GUI session is attached: portrait reports a
+    /// 54 pt status bar (visible), landscape auto-hides it (zero height).
+    /// Orientation is per-device persisted state — `simctl` cannot rotate
+    /// it, only an in-process `XCUIDevice.shared.orientation` change does
+    /// (as UITest `setUp`/`tearDown` routinely perform) — and it survives a
+    /// Mac reboot and a sim-data reset. The refs were recorded while the
+    /// shared sim's persisted orientation sat in LANDSCAPE, the historical
+    /// steady-state left behind by rotating UITests on that sim, which is
+    /// why they encode a hidden status bar. Pinning the scene state in code
+    /// (rather than re-recording) makes every covered capture immune to
+    /// whatever orientation the sim happens to be persisting at run time.
+    ///
+    /// **The pin.** Install a `prefersStatusBarHidden` root controller on the
+    /// host scene's key window, which drives `statusBarManager` to zero height.
+    /// The swap is PERMANENT for the test process (no restore) and idempotent:
+    /// the snapshot host app is a bare shell whose own root is never captured
+    /// (every suite builds and hosts its own view controllers / windows), so
+    /// leaving the host root replaced for the process lifetime is harmless and
+    /// simpler than a save/restore dance. The suites' own on-screen
+    /// ``FixedSafeAreaWindow``s are scene-less, so making one of them key does
+    /// not disturb the host scene's pinned status bar. Because the swap is
+    /// never undone, process order is load-bearing for any hypothetical
+    /// future suite that wants a VISIBLE status bar in the same test process —
+    /// it would need to run before the first suite that calls this method,
+    /// since there is no unpin.
+    ///
+    /// Call from every affected suite's `setUp` (nav-hosted `.image(on:)`
+    /// captures and every `drawHierarchyInKeyWindow: true` capture) — like
+    /// ``pinAccent()``, it re-asserts before each test so the suite is
+    /// order-independent regardless of what ran before it (a key-window capture
+    /// resets the host window's root to `nil` on teardown).
+    static func pinStatusBarHidden() {
+        let windowScenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+        guard let scene = windowScenes.first(where: { $0.activationState == .foregroundActive })
+            ?? windowScenes.first
+        else { return }
+
+        // Prefer a window we already pinned; otherwise the scene's current key
+        // window (the host app's own window). Idempotent: skip if already pinned.
+        let window = scene.windows.first { $0.rootViewController is StatusBarHiddenHostViewController }
+            ?? scene.windows.first { $0.isKeyWindow }
+            ?? scene.windows.first
+        guard let window else { return }
+
+        if !(window.rootViewController is StatusBarHiddenHostViewController) {
+            window.rootViewController = StatusBarHiddenHostViewController()
+        }
+        window.makeKeyAndVisible()
+        window.rootViewController?.setNeedsStatusBarAppearanceUpdate()
     }
 
     /// A `UITraitCollection` pinning `preferredContentSizeCategory` to
