@@ -265,13 +265,19 @@ class ActivityViewController: UIViewController {
         let resolvedPersonRowId = serverPersonId.flatMap {
             db.personRowIdSync(forKeychainId: accountKeychainId, personId: $0)
         }
-        let lemmyService = dependencies.accountService.scope(forAccountKeychainId: accountKeychainId).lemmyService
-        let authoredSource: AuthoredActivitySource? = serverPersonId.map {
-            LemmyAuthoredActivitySource(
-                lemmyService: lemmyService,
-                serverPersonId: Components.Schemas.PersonID($0)
-            )
-        }
+        let scope = dependencies.accountService.scope(forAccountKeychainId: accountKeychainId)
+        // Read once per pass (a live per-account DB read; see `AccountScope`'s doc
+        // comment), not per branch below.
+        let capabilities = scope.capabilities
+        let authoredSource: AuthoredActivitySource? =
+            Self.shouldIncludeAuthoredContent(serverPersonId: serverPersonId, capabilities: capabilities)
+                ? serverPersonId.map {
+                    LemmyAuthoredActivitySource(
+                        lemmyService: scope.lemmyService,
+                        serverPersonId: Components.Schemas.PersonID($0)
+                    )
+                }
+                : nil
         let coordinator = ActivityCoordinator(
             appDatabase: db,
             personRowId: resolvedPersonRowId,
@@ -283,6 +289,23 @@ class ActivityViewController: UIViewController {
         viewModel = ActivityViewModel(coordinator: coordinator, accountId: resolvedAccountId, initialFilters: initialFilters)
 
         super.init(nibName: nil, bundle: nil)
+    }
+
+    /// Whether the timeline should page in authored content (posts/comments via
+    /// `getPersonDetails`) for `serverPersonId`. False when there's no resolved
+    /// person id, or when the account's home instance doesn't support person
+    /// profiles (Lemmy 1.0's v3 compat shim - the same `InstanceCapability
+    /// .personProfiles` gate `PersonLoadingViewController` uses for the Person
+    /// screen). When false, `init` passes a `nil` `authoredSource` to
+    /// `ActivityCoordinator`, which degrades the timeline to its local-only
+    /// footprint (`postsEnabled`/`commentsEnabled` are both gated on
+    /// `authoredSource != nil`) rather than attempting a gated network call.
+    ///
+    /// A free function of already-resolved values (not `AccountScope` /
+    /// `LemmyServiceType` directly) so this decision is unit-testable without a
+    /// `LemmyServiceType` actor fake.
+    static func shouldIncludeAuthoredContent(serverPersonId: Int64?, capabilities: InstanceCapabilities) -> Bool {
+        serverPersonId != nil && capabilities.can(.personProfiles)
     }
 
     @available(*, unavailable)

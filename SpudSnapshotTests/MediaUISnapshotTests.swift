@@ -22,12 +22,14 @@ import XCTest
 /// multi-pass label layout that the system drives in production and that a
 /// synthetic harness reproduces only flakily — so it is verified by eye rather
 /// than pinned here.)
+@MainActor
 final class MediaUISnapshotTests: XCTestCase {
     /// Light mode at 2x, pinned so the references don't depend on the running
     /// simulator's appearance or screen scale.
     private let traits = UITraitCollection(traitsFrom: [
         UITraitCollection(userInterfaceStyle: .light),
         UITraitCollection(displayScale: 2),
+        SnapshotDeterminism.contentSizeTrait,
     ])
 
     private func solidImage(_ color: UIColor, size: CGSize = CGSize(width: 200, height: 200)) -> UIImage {

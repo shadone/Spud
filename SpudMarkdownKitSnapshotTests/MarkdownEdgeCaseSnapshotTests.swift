@@ -58,21 +58,21 @@ final class MarkdownEdgeCaseSnapshotTests: XCTestCase {
 
     @MainActor
     func test_edgesPostLight() {
-        assertSnapshot(of: render(kind: .post), as: .image(traits: UITraitCollection(userInterfaceStyle: .light)))
+        assertSnapshot(of: render(kind: .post), as: .image(traits: MarkdownSnapshotDeterminism.traits(.light)))
     }
 
     @MainActor
     func test_edgesPostDark() {
-        assertSnapshot(of: render(kind: .post), as: .image(traits: UITraitCollection(userInterfaceStyle: .dark)))
+        assertSnapshot(of: render(kind: .post), as: .image(traits: MarkdownSnapshotDeterminism.traits(.dark)))
     }
 
     @MainActor
     func test_edgesCommentLight() {
-        assertSnapshot(of: render(kind: .comment), as: .image(traits: UITraitCollection(userInterfaceStyle: .light)))
+        assertSnapshot(of: render(kind: .comment), as: .image(traits: MarkdownSnapshotDeterminism.traits(.light)))
     }
 
     @MainActor
     func test_edgesCommentDark() {
-        assertSnapshot(of: render(kind: .comment), as: .image(traits: UITraitCollection(userInterfaceStyle: .dark)))
+        assertSnapshot(of: render(kind: .comment), as: .image(traits: MarkdownSnapshotDeterminism.traits(.dark)))
     }
 }

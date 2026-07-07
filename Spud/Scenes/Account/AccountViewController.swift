@@ -284,8 +284,23 @@ class AccountViewController: UIViewController {
     }
 
     /// Presents the Edit Profile editor for the signed-in account, reached by
-    /// tapping the profile header.
+    /// tapping the profile header. Gated on `.serverUserSettings` (Lemmy 1.0's
+    /// v3 compat shim has no `save_user_settings`) - read live at action time
+    /// (no caching in the VC), since a scope built just for this check is
+    /// zero-cost until an accessor is read.
     private func openEditProfile(keychainId: String) {
+        let scope = accountService.scope(forAccountKeychainId: keychainId)
+        guard scope.capabilities.can(.serverUserSettings) else {
+            // No success `Haptics.tap()` here: `presentCapabilityGate` fires its
+            // own warning haptic, and a tap immediately before it reads as a
+            // double buzz.
+            presentCapabilityGate(
+                for: .serverUserSettings,
+                host: scope.instanceActorId?.hostWithPort,
+                sourceView: nil
+            )
+            return
+        }
         Haptics.tap()
         let editor = EditProfileViewController.makeModal(
             accountKeychainId: keychainId,

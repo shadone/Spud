@@ -125,3 +125,7 @@ detected software name when one is known.
   attempt to those instances rather than silently failing later.
 - **Signed-out "visit instance" guarding.** The anonymous-browse bootstrap path is not
   pre-flighted in this release.
+- **Version gaps within Lemmy itself.** This feature only distinguishes Lemmy from
+  non-Lemmy software; it does not gate anything based on *which* Lemmy version a home
+  connection runs. A Lemmy 1.0 home instance is let through here and instead has specific
+  features gated by [Instance capability gating](instance-capability-gating.md).

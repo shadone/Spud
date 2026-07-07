@@ -66,7 +66,10 @@ final class AccountScreenSnapshotTests: XCTestCase {
 
             assertSnapshot(
                 matching: host,
-                as: .image(size: size, traits: UITraitCollection(userInterfaceStyle: style)),
+                as: .image(size: size, traits: UITraitCollection(traitsFrom: [
+                    UITraitCollection(userInterfaceStyle: style),
+                    SnapshotDeterminism.contentSizeTrait,
+                ])),
                 named: style == .dark ? "dark" : "light"
             )
         }

@@ -22,6 +22,15 @@ import XCTest
 /// application" CTA deterministically.
 @MainActor
 final class RegisterSnapshotTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // Pin the host scene's status bar hidden so this nav-hosted capture is
+        // immune to the sim's persisted orientation state (the 44pt-shift
+        // regression).
+        // See `SnapshotDeterminism.pinStatusBarHidden()`.
+        SnapshotDeterminism.pinStatusBarHidden()
+    }
+
     private let lemmyTeal = UIColor(red: 0, green: 0x96 / 255, blue: 0x87 / 255, alpha: 1)
 
     @MainActor

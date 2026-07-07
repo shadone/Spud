@@ -404,13 +404,28 @@ final class DMInputBar: UIView {
         textView.text.isEmpty
     }
 
+    /// Whether typing/sending is currently allowed. Set to `false` for a
+    /// capability-gated thread (the account's home instance doesn't support
+    /// private messages) - explain, don't hide: the bar stays visible but
+    /// inert, matching the sheet-presenting capability gates elsewhere.
+    private var isComposeEnabled = true
+
+    /// Disables (or re-enables) the whole compose bar: the text view stops
+    /// accepting edits and the send button is forced off regardless of
+    /// content, on top of its usual empty-text disabling.
+    func setComposeEnabled(_ enabled: Bool) {
+        isComposeEnabled = enabled
+        textView.isEditable = enabled
+        updateState()
+    }
+
     private var trimmedText: String {
         textView.text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private func updateState() {
         placeholderLabel.isHidden = !textView.text.isEmpty
-        sendButton.isEnabled = !trimmedText.isEmpty
+        sendButton.isEnabled = isComposeEnabled && !trimmedText.isEmpty
     }
 
     @objc

@@ -103,6 +103,11 @@ public protocol AccountServiceType: AnyObject {
     /// `AccountRecord.isSignedOutAccountType` synchronously.
     func isSignedOut(forAccountKeychainId keychainId: String) -> Bool
 
+    /// What the account's home instance supports, derived from the persisted
+    /// site version (fail-open when unknown). Re-resolved on every call so a
+    /// version change imported by getSite takes effect without invalidation.
+    func instanceCapabilities(forAccountKeychainId accountKeychainId: String) -> InstanceCapabilities
+
     /// Resolves the account by `keychainId` and marks it default. No-op if
     /// the account isn't registered.
     func setDefaultAccount(forAccountKeychainId keychainId: String)
@@ -302,6 +307,14 @@ public class AccountService: AccountServiceType {
             logger.error("Failed to read isSignedOut: \(error.localizedDescription, privacy: .public)")
             return true
         }
+    }
+
+    public func instanceCapabilities(forAccountKeychainId accountKeychainId: String) -> InstanceCapabilities {
+        let version = appDatabase.accountSiteVersionSync(forKeychainId: accountKeychainId)
+        return InstanceCapabilities.capabilities(
+            software: .lemmy,
+            version: version.flatMap(LemmyVersion.init(parsing:))
+        )
     }
 
     public func defaultListingType(forAccountKeychainId keychainId: String) -> Components.Schemas.ListingType {

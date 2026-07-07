@@ -58,21 +58,21 @@ final class MarkdownProseSnapshotTests: XCTestCase {
 
     @MainActor
     func test_postLight() {
-        assertSnapshot(of: render(kind: .post), as: .image(traits: UITraitCollection(userInterfaceStyle: .light)))
+        assertSnapshot(of: render(kind: .post), as: .image(traits: MarkdownSnapshotDeterminism.traits(.light)))
     }
 
     @MainActor
     func test_postDark() {
-        assertSnapshot(of: render(kind: .post), as: .image(traits: UITraitCollection(userInterfaceStyle: .dark)))
+        assertSnapshot(of: render(kind: .post), as: .image(traits: MarkdownSnapshotDeterminism.traits(.dark)))
     }
 
     @MainActor
     func test_commentLight() {
-        assertSnapshot(of: render(kind: .comment), as: .image(traits: UITraitCollection(userInterfaceStyle: .light)))
+        assertSnapshot(of: render(kind: .comment), as: .image(traits: MarkdownSnapshotDeterminism.traits(.light)))
     }
 
     @MainActor
     func test_commentDark() {
-        assertSnapshot(of: render(kind: .comment), as: .image(traits: UITraitCollection(userInterfaceStyle: .dark)))
+        assertSnapshot(of: render(kind: .comment), as: .image(traits: MarkdownSnapshotDeterminism.traits(.dark)))
     }
 }

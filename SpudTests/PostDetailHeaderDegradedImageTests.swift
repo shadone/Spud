@@ -59,7 +59,9 @@ struct PostDetailHeaderDegradedImageTests {
     @Test
     func fullResFailsWithThumbnail_showsPillNotPlate() async {
         let cell = makeConfiguredCell(.thumbnailThenFailure(thumbnail()))
-        await drainLoad(cell)
+        await waitUntilRendered(cell, "low-res preview pill") {
+            cell.isLowResPreviewPillVisibleForTesting
+        }
 
         #expect(cell.postImageView.image != nil, "the cached thumbnail must stay on screen")
         #expect(cell.isLowResPreviewPillVisibleForTesting, "the degraded pill must be shown")
@@ -72,7 +74,9 @@ struct PostDetailHeaderDegradedImageTests {
     @Test
     func fullResFailsWithoutThumbnail_showsPlateNotPill() async {
         let cell = makeConfiguredCell(.failureNoThumbnail)
-        await drainLoad(cell)
+        await waitUntilRendered(cell, "hard failure plate") {
+            cell.isImageFailureViewVisibleForTesting
+        }
 
         #expect(cell.isImageFailureViewVisibleForTesting, "the hard failure plate must be shown")
         #expect(
@@ -84,7 +88,9 @@ struct PostDetailHeaderDegradedImageTests {
     @Test
     func fullResSucceeds_showsNeitherPlateNorPill() async {
         let cell = makeConfiguredCell(.ready(photo()))
-        await drainLoad(cell)
+        await waitUntilRendered(cell, "loaded full image") {
+            cell.postImageView.image != nil
+        }
 
         #expect(cell.postImageView.image != nil)
         #expect(!cell.isImageFailureViewVisibleForTesting)
@@ -103,27 +109,8 @@ struct PostDetailHeaderDegradedImageTests {
         return cell
     }
 
-    /// Polls until the load Task has resolved one of the terminal states, or
-    /// gives up after 2s; the caller's `#expect` is the failure point.
-    private func drainLoad(_ cell: PostDetailHeaderCell) async {
-        let deadline = Date().addingTimeInterval(2)
-        while
-            !cell.isLowResPreviewPillVisibleForTesting,
-            !cell.isImageFailureViewVisibleForTesting,
-            cell.postImageView.image == nil,
-            Date() < deadline
-        {
-            await Task.yield()
-            try? await Task.sleep(nanoseconds: 10_000_000)
-            cell.layoutIfNeeded()
-        }
-        // One more turn so the terminal state's layout settles.
-        await Task.yield()
-        cell.layoutIfNeeded()
-    }
-
     private func makeViewModel() -> PostDetailHeaderViewModel {
-        let appearance = AppearanceService(preferencesService: PreferencesService())
+        let appearance = AppearanceService(preferencesService: PreferencesService.ephemeral())
         return PostDetailHeaderViewModel(
             row: row(),
             appearance: appearance,

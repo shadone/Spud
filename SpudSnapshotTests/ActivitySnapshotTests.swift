@@ -267,7 +267,13 @@ final class ActivitySnapshotTests: XCTestCase {
         line: UInt = #line
     ) {
         for style in [UIUserInterfaceStyle.light, .dark] {
-            snapshotCell(cell, style: style, testName: testName, line: line, contentSize: .large)
+            snapshotCell(
+                cell,
+                style: style,
+                testName: testName,
+                line: line,
+                contentSize: SnapshotDeterminism.contentSizeTrait.preferredContentSizeCategory
+            )
         }
     }
 
@@ -354,7 +360,7 @@ final class ActivitySnapshotTests: XCTestCase {
 
     private func traits(
         _ style: UIUserInterfaceStyle,
-        contentSize: UIContentSizeCategory = .large
+        contentSize: UIContentSizeCategory = SnapshotDeterminism.contentSizeTrait.preferredContentSizeCategory
     ) -> UITraitCollection {
         UITraitCollection(traitsFrom: [
             UITraitCollection(userInterfaceStyle: style),
