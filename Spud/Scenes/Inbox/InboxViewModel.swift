@@ -33,6 +33,15 @@ final class InboxViewModel {
     private(set) var mentions: [InboxMentionItem] = []
     private(set) var conversations: [InboxConversation] = []
 
+    /// True when the home instance's API doesn't support the inbox endpoints
+    /// (Lemmy 1.0's v3 compat shim - see `InstanceCapability.inbox`). `loadAll()`
+    /// skips every fetch in this state; the view controller shows an explanatory
+    /// `UIContentUnavailableConfiguration` instead of an empty/error state.
+    private(set) var isInboxGated = false
+    /// The gated instance's host, for the capability-gate copy. Nil when
+    /// `isInboxGated` is false, or when the instance host can't be resolved.
+    private(set) var gatedHost: String?
+
     // MARK: Private
 
     @ObservationIgnored
@@ -117,12 +126,39 @@ final class InboxViewModel {
     }
 
     /// Loads (or reloads) every scope. Called on appear and on pull-to-refresh.
+    /// Reads `accountScope.capabilities` once (it is a live per-access DB read;
+    /// see the type's doc comment) and, when the instance doesn't support the
+    /// inbox endpoints, skips all three fetches and exposes `isInboxGated` /
+    /// `gatedHost` for the view controller's explain-don't-hide state instead.
     func loadAll() {
         guard isSignedIn else { return }
+        let capabilities = accountScope.capabilities
+        guard capabilities.can(.inbox) else {
+            isInboxGated = true
+            gatedHost = accountScope.instanceActorId?.hostWithPort
+            // Nothing to fetch; resolve every scope to `.loaded` (empty) so the
+            // view controller's phase switch doesn't get stuck showing the
+            // initial `.loading` spinner - the gated content-unavailable state
+            // takes over instead, checked ahead of the phase switch.
+            repliesPhase = .loaded
+            mentionsPhase = .loaded
+            messagesPhase = .loaded
+            return
+        }
+        isInboxGated = false
+        gatedHost = nil
         loadReplies()
         loadMentions()
         loadMessages()
         Task { await unreadCountService.refresh(accountKeychainId: accountScope.accountKeychainId) }
+    }
+
+    /// The current instance capabilities, for view-controller-driven UI (e.g.
+    /// hiding the compose button when private messages aren't supported).
+    /// Resolves live like every other `accountScope` accessor - callers should
+    /// read it once per render pass, not per cell.
+    var capabilities: InstanceCapabilities {
+        accountScope.capabilities
     }
 
     func loadReplies() {

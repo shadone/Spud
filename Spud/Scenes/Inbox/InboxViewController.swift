@@ -260,6 +260,18 @@ final class InboxViewController: UIViewController {
             return
         }
 
+        // Checked ahead of the phase switch: `loadAll()` resolves every scope
+        // to `.loaded` (empty) when gated, since nothing was fetched - without
+        // this check that would fall through to the ordinary `.empty` state
+        // ("No replies" etc.) instead of explaining why the inbox is gated.
+        guard !viewModel.isInboxGated else {
+            loadingIndicator.stopAnimating()
+            refreshControl.endRefreshing()
+            applySnapshot([])
+            updateContentUnavailable(.gated)
+            return
+        }
+
         switch currentPhase {
         case .loading:
             if !refreshControl.isRefreshing {
@@ -281,17 +293,27 @@ final class InboxViewController: UIViewController {
 
     /// Refreshes the navigation bar's right-hand buttons for the current scope
     /// and auth state. Compose (start a new DM) appears only in the Messages
-    /// scope; both buttons require a signed-in account (DMs and mark-all-read
-    /// are account-tied). Driven from `render()`, which already fires on every
-    /// scope change and on signed-out.
+    /// scope AND when the instance supports private messages; both buttons
+    /// require a signed-in account (DMs and mark-all-read are account-tied),
+    /// and both are hidden entirely when the inbox itself is gated (there is
+    /// nothing to mark read, and a mark-all-read tap would just round-trip to
+    /// a generic capability error). Driven from `render()`, which already
+    /// fires on every scope change and on signed-out.
     private func updateNavigationItems() {
         guard viewModel.isSignedIn else {
             navigationItem.rightBarButtonItems = nil
             return
         }
+        guard !viewModel.isInboxGated else {
+            navigationItem.rightBarButtonItems = nil
+            return
+        }
+        // Read once per render pass (a live per-access DB read) rather than
+        // calling `.can(_:)` on separate accesses.
+        let capabilities = viewModel.capabilities
         // Right-to-left ordering: mark-all-read sits at the trailing edge,
         // compose to its left, matching the existing single-button placement.
-        navigationItem.rightBarButtonItems = viewModel.scope == .messages
+        navigationItem.rightBarButtonItems = viewModel.scope == .messages && capabilities.can(.privateMessages)
             ? [markAllReadButton, composeButton]
             : [markAllReadButton]
     }
@@ -321,6 +343,7 @@ final class InboxViewController: UIViewController {
         case empty
         case error
         case signedOut
+        case gated
     }
 
     private func updateContentUnavailable(_ state: ContentUnavailable) {
@@ -370,6 +393,20 @@ final class InboxViewController: UIViewController {
                 "Replies, mentions, and messages are tied to your account.",
                 comment: "Inbox signed-out message"
             )
+            contentUnavailableConfiguration = config
+        case .gated:
+            // Explain-don't-hide (design D6): the tab stays reachable and this
+            // state explains why, for every scope - it isn't specific to
+            // whichever segment happened to be selected.
+            var config = UIContentUnavailableConfiguration.empty()
+            let copy = CapabilityGateCopy.copy(for: .inbox, host: viewModel.gatedHost)
+            // "tray.slash" doesn't exist as an SF Symbol (verified against this
+            // SDK); `clock.badge.questionmark` reads as "not yet" - matching the
+            // copy's "isn't available yet ... coming in an update" framing -
+            // rather than a plain crossed-out tray.
+            config.image = UIImage(systemName: "clock.badge.questionmark")
+            config.text = copy.title
+            config.secondaryText = copy.message
             contentUnavailableConfiguration = config
         }
     }
