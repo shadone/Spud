@@ -131,20 +131,59 @@ class PersonLoadingViewController: UIViewController {
 
         observationTask?.cancel()
         observationTask = Task { @MainActor [weak self] in
-            await self?.fetchPersonInfo()
-            await self?.waitForRowToAppear()
+            guard let self, await fetchPersonInfo() else { return }
+            await waitForRowToAppear()
         }
     }
 
-    private func fetchPersonInfo() async {
+    /// Fetches the person's details from the account's home instance and imports
+    /// the resulting row into GRDB, unless the instance's API doesn't support
+    /// person profiles (Lemmy 1.0's v3 compat shim - `InstanceCapability
+    /// .personProfiles`), in which case a terminal `UIContentUnavailableConfiguration`
+    /// is shown instead and `false` is returned.
+    ///
+    /// Reads `scope.capabilities` once (a live per-account DB read; see
+    /// `AccountScope`'s doc comment) rather than on separate accesses. Returns
+    /// `true` when the fetch was attempted (regardless of its outcome) so the
+    /// caller knows whether to proceed to `waitForRowToAppear()` - when gated,
+    /// that must NOT run: it would resolve `didFinishLoading` and let
+    /// `PersonOrLoadingViewController` swap this loading screen out for the
+    /// content VC, contradicting the terminal gated state (the loading VC stays
+    /// on the nav stack; see Task 7's `InboxViewController` gated-state
+    /// precedent for the same explain-don't-hide shape).
+    @discardableResult
+    private func fetchPersonInfo() async -> Bool {
+        let scope = accountService.scope(forAccountKeychainId: accountKeychainId)
+        guard scope.capabilities.can(.personProfiles) else {
+            showGatedState(host: scope.instanceActorId?.hostWithPort)
+            return false
+        }
+
         do {
-            try await accountService
-                .scope(forAccountKeychainId: accountKeychainId)
-                .lemmyService
-                .fetchPersonInfo(serverPersonId: serverPersonId)
+            try await scope.lemmyService.fetchPersonInfo(serverPersonId: serverPersonId)
         } catch {
             alertService.handle(error, for: .fetchPersonInfo)
         }
+        return true
+    }
+
+    /// Renders the terminal capability-gate state explaining that the account's
+    /// home instance doesn't support fetching person profiles yet. Hides the
+    /// spinner/label stack - this state is terminal, so nothing else on this
+    /// screen will transition afterward.
+    private func showGatedState(host: String?) {
+        loadingIndicator.stopAnimating()
+        stackView.isHidden = true
+
+        var config = UIContentUnavailableConfiguration.empty()
+        let copy = CapabilityGateCopy.copy(for: .personProfiles, host: host)
+        // "tray.slash" doesn't exist as an SF Symbol (verified against this SDK);
+        // `clock.badge.questionmark` matches the Inbox gated state (Task 7) and
+        // reads as "not yet available", matching the copy's framing.
+        config.image = UIImage(systemName: "clock.badge.questionmark")
+        config.text = copy.title
+        config.secondaryText = copy.message
+        contentUnavailableConfiguration = config
     }
 
     private func waitForRowToAppear() async {
