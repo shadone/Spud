@@ -22,6 +22,7 @@ Marking & Hiding and applies live.
 - **Hiding is a view filter, not a mutation.** The full ordered feed is produced once and never altered; the visible list is filtered down to what should currently show (`HideReadPostsFilter`). Read state, ordering, and pagination are untouched — turning hiding off restores the posts in place. Posts that are gone from the server are not automatically hidden by this filter; they remain in the feed with a neutral badge — see [Removed and unavailable posts](removed-unavailable-content.md).
 - **Everything applies live.** The post list observes the same preference streams, so toggling any of these reflects immediately without a relaunch.
 - **The same settings screen also hosts the "Show NSFW Content" toggle.** That preference is a separate, server-side feed filter documented in [NSFW content visibility](nsfw-content.md); it is grouped here because it is another content-visibility control.
+- **Instance capability gate.** When the signed-in account's home instance is on Lemmy 1.0, marking a post read still applies and displays locally exactly as above, but the server-side read-state sync silently no-ops (no error, no UI change); separately, the post-list "Hide" context-menu action — an explicit per-post server hide, distinct from this feature's auto-hide-on-read filter — shows an explanatory action sheet instead of hiding the post. See [Instance capability gating](instance-capability-gating.md).
 
 ## Scenarios
 

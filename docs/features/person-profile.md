@@ -23,6 +23,7 @@ The person profile shows a header above a segmented Posts / Comments list of tha
 - **Overflow menu.** A navigation-bar `···` menu groups sharing — Copy handle, Copy Link, Share…, and Open in Browser (the link / share / browser actions need the resolved profile URL, so they appear once it loads) — and, when signed in and viewing someone else's profile, Message and Block / Unblock. The sharing group is always available; Message / Block are evaluated each time the menu opens, so Block / Unblock reflects live state. Blocking asks for confirmation, and the block state is resolved from the server's block list on appear.
 - **Copy handle.** Long-pressing the header also offers Copy handle (the `@name@instance` string), plus Block / Unblock when not your own profile — the same actions available in the overflow menu.
 - **Bio links.** Links in the bio open inline: a person link opens another Person profile, a community link opens the [Community screen](community-screen.md), and other links open externally.
+- **Instance capability gate.** When the viewing account's home instance is on Lemmy 1.0, opening a profile shows a terminal "Profiles aren't available yet" state instead of the header and content — see [Instance capability gating](instance-capability-gating.md).
 
 ## Scenarios
 

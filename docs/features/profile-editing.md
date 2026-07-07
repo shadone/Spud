@@ -19,6 +19,7 @@ Edit your own account's profile and a handful of server-synced preferences from 
 - **Banner and avatar share the same upload pipeline.** Both go through pict-rs upload before Save is tapped; removing either sends an empty string to the server, which clears the field. Upload errors surface inline without clearing the field, so you can retry. Removing the banner or avatar offline behaves like any profile save offline — the existing error path applies (no new offline semantics).
 - **Save is to the server, then refreshed.** Tapping Save pushes everything — including any banner change — via `save_user_settings`, mirrors the new values into local storage so the Account tab header and the public person profile update immediately, then re-fetches the account's profile from the server (`getSite`) to reconcile. A Save spinner shows while in flight; a failure surfaces an error and keeps your edits so you can retry. (This is a settings-style save, not the optimistic-outbox path used for posts/comments.)
 - **Signed-out is gated.** Editing requires a signed-in account; a signed-out account has no server profile to write.
+- **Instance capability gate.** When the signed-in account's home instance is on Lemmy 1.0, tapping the profile header shows an explanatory action sheet instead of opening the editor — see [Instance capability gating](instance-capability-gating.md).
 
 ## Scenarios
 

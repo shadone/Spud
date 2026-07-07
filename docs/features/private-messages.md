@@ -32,6 +32,7 @@ Sending requires a signed-in account.
 - **Auto-scroll.** The thread scrolls to the newest message when it appears and again whenever a message is sent or arrives.
 - **Empty thread.** A conversation with no messages shows a "No messages yet — say hello" placeholder; the compose bar is still available.
 - **Sign-in gate on send.** Sending while signed out is rejected (the service throws an authentication error); nothing is enqueued.
+- **Instance capability gate.** When the account's home instance is on Lemmy 1.0, an existing or new thread shows a gated explanatory state with its compose input disabled instead of loading or sending — see [Instance capability gating](instance-capability-gating.md).
 
 ## Scenarios
 

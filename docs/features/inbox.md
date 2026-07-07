@@ -25,6 +25,7 @@ signed-in account; signed out, it shows a sign-in prompt instead of content.
 - **Per-appearance refresh.** Returning to the Inbox tab reloads all scopes so newly-arrived items appear and the badge stays accurate, without a manual pull.
 - **Empty and error states.** A loaded-but-empty scope shows a per-scope empty placeholder (no replies / no mentions / no messages). A failed load shows a "Couldn't load" state prompting a pull to refresh.
 - **Signed-out gate.** Without a signed-in account the Inbox shows a "Sign in to use your inbox" placeholder, the mark-all-read button is hidden, and no scope is fetched.
+- **Instance capability gate.** When the signed-in account's home instance is on Lemmy 1.0, the Inbox tab stays reachable but shows an "Inbox isn't available yet" explanatory state for every scope instead of fetching, with the mark-all-read and compose buttons hidden — see [Instance capability gating](instance-capability-gating.md).
 
 ## Scenarios
 
