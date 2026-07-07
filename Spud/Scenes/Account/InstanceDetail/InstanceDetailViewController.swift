@@ -142,9 +142,14 @@ final class InstanceDetailViewController: UIViewController {
 
         // Prefer the live open-registrations signal over the Explorer directory's
         // `regMode`. `openRegistrations == nil` means "not probed" (never "closed"),
-        // so we fall open to the Explorer value already shown in the row.
+        // so we fall open to the Explorer value already shown in the row. The copy
+        // matches `ExplorerInstanceHealth.registration(_:)`'s long-form wording
+        // verbatim ("Open signups" / "Signups closed") — the row's text must never
+        // change between the synchronous Explorer fallback and the async live
+        // override, only the value (and therefore only the color) may differ when
+        // the live probe disagrees with the directory.
         if let openRegistrations = metadata.openRegistrations {
-            signupsValueLabel?.text = openRegistrations ? "Open" : "Closed"
+            signupsValueLabel?.text = openRegistrations ? "Open signups" : "Signups closed"
             signupsValueLabel?.textColor = InstanceHealthStyle.color(for: openRegistrations ? .good : .bad)
         }
     }

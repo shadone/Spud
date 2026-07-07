@@ -208,8 +208,9 @@ final class InstanceDetailSnapshotTests: XCTestCase {
 
     /// A live NodeInfo probe drives the header badge ("Lemmy 0.19.11" — the live
     /// version, distinct from the directory's 0.19.5 in the Software row) and the
-    /// Signups row ("Open" from the live `openRegistrations`, replacing the
-    /// directory's "Open signups").
+    /// Signups row's color (green, from the live `openRegistrations`) — the text
+    /// stays "Open signups", matching the directory fallback verbatim so the row
+    /// never visibly changes wording, only value/color, across the probe.
     func test_liveMetadata_badgeVersionAndSignups() async throws {
         let metadata = InstanceMetadata(
             software: .lemmy,
@@ -307,8 +308,9 @@ final class InstanceDetailSnapshotTests: XCTestCase {
 
         /// Open, healthy instance on a non-resolvable `.example` host — used for
         /// the live-metadata variant so the incidental site-info fetch can't hit
-        /// the network. Directory version 0.19.5 / "Open signups" are overridden
-        /// by the live probe (0.19.11 / "Open").
+        /// the network. Directory version 0.19.5 is overridden by the live probe's
+        /// 0.19.11 in the badge; the "Open signups" text is identical in both the
+        /// directory fallback and the live override (only the color can change).
         static let liveDemo = ExplorerInstanceRecord(
             baseurl: "lemmy.example", url: "https://lemmy.example", name: "Lemmy Example",
             descriptionText: "A demo instance for snapshotting the live NodeInfo software badge and Signups override.",
