@@ -277,10 +277,10 @@ public struct InstanceCapabilities: Sendable, Equatable {
     /// The derivation table. Lemmy >= 1.0 is reached through its partial v3
     /// compat shim until Spud speaks the v4 API (initiative Phase 5/6); the
     /// shim lacks exactly these endpoints: person details, replies/mentions,
-    /// all private-message operations, image upload, `/post/hide`, and
-    /// `save_user_settings`. Non-Lemmy software fails open — it cannot be a
-    /// home connection at all (`PlatformRouter`), and its version numbers
-    /// must not be read on the Lemmy scale.
+    /// all private-message operations, image upload, `/post/hide`,
+    /// `/post/mark_as_read`, and `save_user_settings`. Non-Lemmy software
+    /// fails open — it cannot be a home connection at all (`PlatformRouter`),
+    /// and its version numbers must not be read on the Lemmy scale.
     public static func capabilities(
         software: InstanceSoftware,
         version: LemmyVersion?
@@ -288,7 +288,17 @@ public struct InstanceCapabilities: Sendable, Equatable {
         guard software == .lemmy, let version, version.major >= 1 else {
             return .allAvailable
         }
-        return InstanceCapabilities(unavailable: Set(InstanceCapability.allCases))
+        // Listed explicitly (not allCases) so adding a capability to the enum
+        // forces a deliberate row here instead of inheriting gating silently.
+        return InstanceCapabilities(unavailable: [
+            .personProfiles,
+            .inbox,
+            .privateMessages,
+            .imageUpload,
+            .serverUserSettings,
+            .hidePosts,
+            .markPostsRead,
+        ])
     }
 }
 ```
