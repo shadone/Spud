@@ -19,14 +19,14 @@ struct InstanceCapabilitiesTests {
         }
     }
 
-    @Test
-    func lemmy1ViaV3ShimLosesEveryGatedCapability() {
+    @Test(arguments: ["1.0.0-alpha.18", "2.0.0"])
+    func lemmy1ViaV3ShimLosesEveryGatedCapability(versionString: String) {
         let caps = InstanceCapabilities.capabilities(
             software: .lemmy,
-            version: LemmyVersion(parsing: "1.0.0-alpha.18")
+            version: LemmyVersion(parsing: versionString)
         )
         for capability in InstanceCapability.allCases {
-            #expect(!caps.can(capability), "expected \(capability) gated on Lemmy 1.0 via the v3 shim")
+            #expect(!caps.can(capability), "expected \(capability) gated on Lemmy \(versionString) via the v3 shim")
         }
     }
 
