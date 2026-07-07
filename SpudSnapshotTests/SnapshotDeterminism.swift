@@ -110,14 +110,19 @@ enum SnapshotDeterminism {
     /// nav-hosted / key-window capture down one nav-bar height (~44 pt), the
     /// 2026-07-07 68-ref regression across 14 suites.
     ///
-    /// **Why the refs encode HIDDEN.** The references were recorded under
-    /// headless `xcodebuild` runs, where no interactive Simulator GUI session
-    /// is attached and the scene reports its status bar hidden. The moment a
-    /// GUI session is active (a human — or a parallel investigation — opens the
-    /// Simulator app), `statusBarManager` flips to visible and the host process
-    /// keeps that state until a Mac reboot. Re-recording is NOT the fix (it
-    /// would poison the refs for the headless CI norm); pinning the scene state
-    /// in code makes the suite immune to the GUI-session flip in either state.
+    /// **Why the refs encode HIDDEN.** The scene's status-bar visibility
+    /// tracks the sim's PERSISTED DEVICE ORIENTATION, not whether an
+    /// interactive Simulator GUI session is attached: portrait reports a
+    /// 54 pt status bar (visible), landscape auto-hides it (zero height).
+    /// Orientation is per-device persisted state — `simctl` cannot rotate
+    /// it, only an in-process `XCUIDevice.shared.orientation` change does
+    /// (as UITest `setUp`/`tearDown` routinely perform) — and it survives a
+    /// Mac reboot and a sim-data reset. The refs were recorded while the
+    /// shared sim's persisted orientation sat in LANDSCAPE, the historical
+    /// steady-state left behind by rotating UITests on that sim, which is
+    /// why they encode a hidden status bar. Pinning the scene state in code
+    /// (rather than re-recording) makes every covered capture immune to
+    /// whatever orientation the sim happens to be persisting at run time.
     ///
     /// **The pin.** Install a `prefersStatusBarHidden` root controller on the
     /// host scene's key window, which drives `statusBarManager` to zero height.

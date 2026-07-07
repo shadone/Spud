@@ -399,7 +399,10 @@ final class SummarySnapshotTests: XCTestCase {
                 matching: card,
                 as: .image(
                     size: card.bounds.size,
-                    traits: UITraitCollection(userInterfaceStyle: style)
+                    traits: UITraitCollection(traitsFrom: [
+                        UITraitCollection(userInterfaceStyle: style),
+                        SnapshotDeterminism.contentSizeTrait,
+                    ])
                 ),
                 named: style == .dark ? "dark" : "light"
             )
