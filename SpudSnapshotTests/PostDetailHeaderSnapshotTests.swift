@@ -29,8 +29,8 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         // persisted accent preference. See `SnapshotDeterminism.pinAccent()`.
         SnapshotDeterminism.pinAccent()
         // Pin the host scene's status bar hidden so the on-screen
-        // (`drawHierarchyInKeyWindow`) blur captures are immune to an active
-        // Simulator GUI session. See `SnapshotDeterminism.pinStatusBarHidden()`.
+        // (`drawHierarchyInKeyWindow`) blur captures are immune to the sim's
+        // persisted orientation state. See `SnapshotDeterminism.pinStatusBarHidden()`.
         SnapshotDeterminism.pinStatusBarHidden()
     }
 

@@ -97,7 +97,8 @@ enum SnapshotDeterminism {
 
     /// Pins the snapshot host scene's status bar HIDDEN so that nav-hosted and
     /// `drawHierarchyInKeyWindow` captures lay out identically regardless of
-    /// whether the sim is running an interactive GUI session.
+    /// the sim's persisted device orientation, which drives the scene status
+    /// bar.
     ///
     /// **The leak.** A `UINavigationController` positions its bar (and the
     /// content inset below it) from the *global* scene `statusBarManager` —
@@ -112,7 +113,7 @@ enum SnapshotDeterminism {
     ///
     /// **Why the refs encode HIDDEN.** The scene's status-bar visibility
     /// tracks the sim's PERSISTED DEVICE ORIENTATION, not whether an
-    /// interactive Simulator GUI session is attached: portrait reports a
+    /// interactive GUI session is attached: portrait reports a
     /// 54 pt status bar (visible), landscape auto-hides it (zero height).
     /// Orientation is per-device persisted state — `simctl` cannot rotate
     /// it, only an in-process `XCUIDevice.shared.orientation` change does
@@ -132,7 +133,11 @@ enum SnapshotDeterminism {
     /// leaving the host root replaced for the process lifetime is harmless and
     /// simpler than a save/restore dance. The suites' own on-screen
     /// ``FixedSafeAreaWindow``s are scene-less, so making one of them key does
-    /// not disturb the host scene's pinned status bar.
+    /// not disturb the host scene's pinned status bar. Because the swap is
+    /// never undone, process order is load-bearing for any hypothetical
+    /// future suite that wants a VISIBLE status bar in the same test process —
+    /// it would need to run before the first suite that calls this method,
+    /// since there is no unpin.
     ///
     /// Call from every affected suite's `setUp` (nav-hosted `.image(on:)`
     /// captures and every `drawHierarchyInKeyWindow: true` capture) — like

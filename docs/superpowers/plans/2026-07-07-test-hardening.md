@@ -67,6 +67,28 @@
 
 - [ ] Steps: helper + setUp wiring → full `make snapshot` 261/261 + zero ref changes → `make build` → swiftformat → commit `test: pin host status bar hidden for on-screen snapshot captures` (explicit paths).
 
+#### Amendment (2026-07-07, post-implementation): root cause reframed, partial landing adjudicated
+
+This plan's Task 4 root-cause paragraph above asserted that "an active Simulator GUI session flips `statusBarManager` to visible" and that "the state persists in host processes until a Mac reboot." Implementation (`.superpowers/sdd/task-4-report.md` section 4) disproved both claims and found the real mechanism, without silently rewriting the paragraph above:
+
+**(a) Orientation reframe.** The scene's status-bar visibility tracks the sim's PERSISTED DEVICE ORIENTATION, not whether an interactive GUI session is attached: portrait reports a 54pt status bar (visible), landscape auto-hides it (zero height). Orientation is per-device persisted state — `simctl` cannot rotate it, only an in-process `XCUIDevice.shared.orientation` change does (as a UITest's `setUp`/`tearDown` routinely performs) — and it survives both a Mac reboot and a sim-data reset. A/B evidence: with the Simulator GUI active in both cases, the scene measured landscape/hidden (benign, all 4 residual suites pass) before a `NodeInfoBlockUITests` run pinned `XCUIDevice.shared.orientation = .portrait`, after which the scene measured portrait/54pt (hostile, the 13 assertions fail deterministically) — GUI-session state never changed between the two measurements. This explains every originally-unexplained trigger: survival across a GUI quit (orientation persists headless), a virgin sim failing (fresh sims boot portrait), the "until Mac reboot" folklore (orientation is per-device persisted state, not process state), and the 2026-07-07 regression window (a same-day UITest run left the sim in portrait).
+
+**(b) Adjudicated partial landing.** `pinStatusBarHidden()` was implemented and wired into all 16 affected suites exactly as specified, fixing 55 of the 68 hostile-environment assertion failures. Full `make snapshot` in the canonical portrait state (the repo's own documented reference config) = **248/261**, with zero `__Snapshots__` ref content changes. The residual 13 assertions, empirically shown to encode LANDSCAPE-scene rendering (contradicting the documented portrait reference state — itself an argument for a deliberate portrait re-record), stay red pending a human re-record decision and are named here by test:
+  - `ActivityIPadSplitSnapshotTests`: `test_activitySplit_ipad_landscape_light`, `test_activitySplit_ipad_landscape_dark` (2 assertions)
+  - `IPadLayoutSnapshotTests`: `test_communitySplit_emptyDetail_ipad_landscape` (2 assertions, light+dark within the one test)
+  - `SummarySnapshotTests`: `test_populated` (2), `test_empty` (2), `test_dynamicTypeXXXL` (1) (5 assertions)
+  - `PostDetailHeaderSnapshotTests`: `test_image_lowResPreview` (2), `test_image_nsfwBlurred` (2) (4 assertions — vote-arrow glyph re-rasterization, not a positional shift)
+
+  The recommended option (plan-adjacent, not executed under this task's scope — forbidden without sign-off): re-record all 13 under a pinned-PORTRAIT sim (the documented default) plus a loud `setUp` guard that fails fast when the scene isn't portrait, making the suite's precondition explicit instead of encoding a landscape accident.
+
+**(c) Pre-existing, unrelated reds.** Two `SpudMarkdownKitSnapshotTests/MarkdownMediaSnapshotTests.swift` assertions — `test_mediaPostLight`, `test_mediaPostDark` — are also red (a teal image-block content diff, not a positional/orientation artifact) and were already failing before this branch. `SpudMarkdownKitSnapshotTests` is never gated by any `make` target, so this predates and is independent of the work above; it stays pending the same human decision process.
+
+**(d) Follow-up tickets named by the final review** (none in scope for this branch):
+  - `SpudMarkdownKitSnapshotTests` needs a `make` target gate — it currently runs under no automated gate, which is how (c) above went unnoticed.
+  - The pre-2024 UITest fixture required-fields gap fixed for `SpudUITests/user-31989.json` (Task 3) likely recurs across other pre-2024 fixtures — an audit is owed.
+  - `IPadSplitUITests` lacks the portrait `setUp` pin that Task 3 added to `SpudUITests.swift` — same orientation-inheritance exposure, unaddressed.
+  - A sweep of the remaining bare-`PreferencesService()` construction sites in `SpudTests` (~10 files) against the `ephemeral()` rule remains open; Task 2 fixed only `SplitTabResolverTests`.
+
 ### Task 5: Gates + review + merge
 
 - [ ] Docs: none expected (test-only branch; no user-facing behavior). Verify no docs/features claims reference the flaky suites.

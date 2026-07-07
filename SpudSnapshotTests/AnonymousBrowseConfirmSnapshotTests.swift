@@ -18,7 +18,8 @@ final class AnonymousBrowseConfirmSnapshotTests: XCTestCase {
     override func setUp() {
         super.setUp()
         // Pin the host scene's status bar hidden so this nav-hosted capture is
-        // immune to an active Simulator GUI session (the 44pt-shift regression).
+        // immune to the sim's persisted orientation state (the 44pt-shift
+        // regression).
         // See `SnapshotDeterminism.pinStatusBarHidden()`.
         SnapshotDeterminism.pinStatusBarHidden()
     }
