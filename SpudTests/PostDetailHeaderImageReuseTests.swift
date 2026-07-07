@@ -57,7 +57,9 @@ struct PostDetailHeaderImageReuseTests {
         // image arrives and is painted into the image view.
         cell.configure(with: makeViewModel(voteStatus: nil), imageService: imageService)
         cell.frame = CGRect(x: 0, y: 0, width: width, height: 2000)
-        await drain(cell)
+        await waitUntilRendered(cell, "loaded post image") {
+            cell.postImageView.image != nil
+        }
         #expect(cell.postImageView.image != nil, "Post image never loaded on first configure")
 
         // Simulate an optimistic upvote: the cell is reconfigured in place with
@@ -100,21 +102,40 @@ struct PostDetailHeaderImageReuseTests {
 
     // MARK: - Harness
 
-    /// Polls until the post image's load Task paints the image, or gives up after
-    /// 2s. Condition-based so it returns as soon as the (synchronous) stub image
-    /// arrives instead of always burning the full budget; the caller's
-    /// `#expect` is the failure point if it never renders.
-    private func drain(_ cell: PostDetailHeaderCell) async {
-        let deadline = Date().addingTimeInterval(2)
-        while cell.postImageView.image == nil, Date() < deadline {
+    /// Polls up to a generous 10s deadline until `isRendered` is true, laying the
+    /// cell out each turn, then fails loudly if the image never painted.
+    ///
+    /// The cell drives its image load on an unstructured `@MainActor` `Task`
+    /// (`configure` -> `loadPostImage`). Under Swift Testing's full-target
+    /// parallel load, that Task competes with every other `@MainActor` async test
+    /// for main-actor time, so a short fixed wall-clock budget can expire before
+    /// it is ever scheduled — the historical flake (the give-up was silent, so
+    /// the caller's `#expect` misreported a timeout as a state bug). The budget
+    /// is therefore generous (the real render work is microseconds; it only needs
+    /// to be scheduled), and a genuine failure to render still surfaces as a loud
+    /// `Issue`. Mirrors `PendingPostSnapshotTests`' "await until rendered or fail
+    /// loudly" precedent.
+    private func waitUntilRendered(
+        _ cell: PostDetailHeaderCell,
+        _ description: String,
+        isRendered: () -> Bool
+    ) async {
+        let deadline = Date().addingTimeInterval(10)
+        while !isRendered(), Date() < deadline {
             await Task.yield()
             try? await Task.sleep(nanoseconds: 10_000_000)
             cell.layoutIfNeeded()
         }
+        // One more turn so the terminal state's layout settles.
+        await Task.yield()
+        cell.layoutIfNeeded()
+        if !isRendered() {
+            Issue.record("Header cell never rendered within 10s: \(description)")
+        }
     }
 
     private func makeViewModel(voteStatus: Int64?, body: String = "") -> PostDetailHeaderViewModel {
-        let appearance = AppearanceService(preferencesService: PreferencesService())
+        let appearance = AppearanceService(preferencesService: PreferencesService.ephemeral())
         return PostDetailHeaderViewModel(
             row: row(voteStatus: voteStatus, body: body),
             appearance: appearance,
