@@ -34,11 +34,20 @@ final class InstanceDetailSnapshotTests: XCTestCase {
         SnapshotDeterminism.pinStatusBarHidden()
     }
 
-    /// Stub that always returns `.unknown` so the badge stays hidden and
-    /// no existing snapshot ref needs re-recording.
+    /// Stub whose probe returns a fixed `InstanceMetadata` (or `nil`). With the
+    /// default `nil` the badge stays hidden and the Signups row keeps its
+    /// Explorer value, so existing refs need no re-recording; passing a value
+    /// drives the badge-version + live-signups variant.
     private struct StubNodeInfoService: NodeInfoServiceType {
+        var metadataResult: InstanceMetadata?
+
         func detect(host _: String, maxAge _: TimeInterval) async -> NodeInfoDetection {
-            .unknown
+            guard let metadataResult else { return .unknown }
+            return .known(metadataResult.software, version: metadataResult.version)
+        }
+
+        func metadata(host _: String, maxAge _: TimeInterval) async -> InstanceMetadata? {
+            metadataResult
         }
     }
 
@@ -52,14 +61,14 @@ final class InstanceDetailSnapshotTests: XCTestCase {
         let nodeInfoService: NodeInfoServiceType
     }
 
-    private func makeDependencies() throws -> SnapshotDependencies {
+    private func makeDependencies(metadata: InstanceMetadata? = nil) throws -> SnapshotDependencies {
         let appDatabase = try AppDatabase.inMemory()
         return SnapshotDependencies(
             imageService: StaticImageService(),
             accountService: AccountService(appDatabase: appDatabase),
             alertService: AlertService(),
             appDatabase: appDatabase,
-            nodeInfoService: StubNodeInfoService()
+            nodeInfoService: StubNodeInfoService(metadataResult: metadata)
         )
     }
 
@@ -107,6 +116,64 @@ final class InstanceDetailSnapshotTests: XCTestCase {
         }
     }
 
+    /// Like `assertScreens`, but seeds a live `InstanceMetadata` into the stub
+    /// and awaits the VC's async metadata probe (badge + Signups override)
+    /// before capturing. Uses a `.example` host so the incidental site-info
+    /// fetch fails fast (non-resolvable) and can never mutate the seeded render.
+    private func assertLiveMetadataScreens(
+        _ record: ExplorerInstanceRecord,
+        metadata: InstanceMetadata,
+        adminCount: Int = 3,
+        communityCount: Int = 3,
+        testName: String = #function,
+        line: UInt = #line
+    ) async throws {
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let dependencies = try makeDependencies(metadata: metadata)
+            try seedInstanceSnapshot(
+                record,
+                into: dependencies.appDatabase,
+                adminCount: adminCount,
+                communityCount: communityCount
+            )
+            let viewController = InstanceDetailViewController(record: record, dependencies: dependencies)
+            let navigationController = UINavigationController(rootViewController: viewController)
+
+            navigationController.loadViewIfNeeded()
+            navigationController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            navigationController.view.layoutIfNeeded()
+
+            // The badge + live Signups are applied by an async probe; poll until
+            // the badge resolves before capturing (fail loudly if it never does).
+            let deadline = Date().addingTimeInterval(2)
+            while viewController.snapshotSoftwareBadgeText == nil {
+                if Date() > deadline {
+                    XCTFail("Live metadata badge never resolved", line: line)
+                    return
+                }
+                try await Task.sleep(nanoseconds: 5_000_000)
+                await Task.yield()
+            }
+            navigationController.view.layoutIfNeeded()
+
+            let contentHeight = viewController.snapshotContentHeight
+            let totalHeight = max(844, contentHeight + 120)
+            let size = CGSize(width: 390, height: totalHeight)
+
+            assertSnapshot(
+                matching: navigationController,
+                as: .image(
+                    on: .deterministicPhone,
+                    size: size,
+                    traits: UITraitCollection(userInterfaceStyle: style)
+                ),
+                named: style == .dark ? "dark" : "light",
+                testName: testName,
+                line: line
+            )
+        }
+    }
+
     // MARK: - States
 
     func test_open() throws {
@@ -137,6 +204,27 @@ final class InstanceDetailSnapshotTests: XCTestCase {
     func test_missing_gracefulDegradation() throws {
         // Missing: 0 admins (unavailable) + 0 communities (unavailable)
         try assertScreens(Fixtures.missing, adminCount: 0, communityCount: 0)
+    }
+
+    /// A live NodeInfo probe drives the header badge ("Lemmy 0.19.11" — the live
+    /// version) and unifies the details-card Software row on the same live
+    /// version ("v0.19.11", replacing the directory's "v0.19.5"), plus the
+    /// Signups row's color (green, from the live `openRegistrations`) — the
+    /// Signups text stays "Open signups", matching the directory fallback
+    /// verbatim so that row never visibly changes wording, only value/color,
+    /// across the probe.
+    func test_liveMetadata_badgeVersionAndSignups() async throws {
+        let metadata = InstanceMetadata(
+            software: .lemmy,
+            version: "0.19.11",
+            openRegistrations: true,
+            usersTotal: nil,
+            usersActiveMonth: nil,
+            usersActiveHalfyear: nil,
+            localPosts: nil,
+            localComments: nil
+        )
+        try await assertLiveMetadataScreens(Fixtures.liveDemo, metadata: metadata)
     }
 
     // MARK: - Fixtures (mirror the Spud Design instance-detail fixtures)
@@ -218,6 +306,25 @@ final class InstanceDetailSnapshotTests: XCTestCase {
             score: 0.58, isSuspicious: false,
             langs: "en", tags: "Hobby",
             blocksIncoming: 0, blocksOutgoing: 2
+        )
+
+        /// Open, healthy instance on a non-resolvable `.example` host — used for
+        /// the live-metadata variant so the incidental site-info fetch can't hit
+        /// the network. Directory version 0.19.5 is overridden by the live probe's
+        /// 0.19.11 in both the header badge and the details-card Software row; the
+        /// "Open signups" text is identical in both the directory fallback and the
+        /// live override (only the color can change).
+        static let liveDemo = ExplorerInstanceRecord(
+            baseurl: "lemmy.example", url: "https://lemmy.example", name: "Lemmy Example",
+            descriptionText: "A demo instance for snapshotting the live NodeInfo software badge and Signups override.",
+            version: "0.19.5",
+            usersTotal: 240_000, usersActiveMonth: 9800, usersActiveHalfYear: 42000,
+            numberOfCommunities: 620, numberOfPosts: 1_100_000,
+            uptimeAllTime: 99.5, latency: 120,
+            regMode: 2, isOpenRegistration: true, isNsfw: false,
+            score: 0.88, isSuspicious: false,
+            langs: "en", tags: "General,Demo",
+            blocksIncoming: 12, blocksOutgoing: 40
         )
 
         static let missing = ExplorerInstanceRecord(

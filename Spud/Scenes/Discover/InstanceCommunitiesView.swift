@@ -135,6 +135,7 @@ struct InstanceCommunitiesView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 5)
                 }
+                metadataChips
                 if instanceInfo != nil {
                     HStack(spacing: 11) {
                         if let trust {
@@ -171,6 +172,65 @@ struct InstanceCommunitiesView: View {
                 .font(.caption2)
                 .foregroundStyle(Color(.secondaryLabel))
         }
+    }
+
+    // MARK: - Live NodeInfo chips
+
+    /// Software + open-signups chips fed by a live NodeInfo probe
+    /// (``DiscoverViewModel/metadata(forHost:)``). Absent until the probe resolves
+    /// and absent entirely when it fails (fail-open — no placeholder). Distinct
+    /// from the Explorer-directory trust read below: these carry the instance's own
+    /// live self-report (what software it runs, whether signups are open now).
+    @ViewBuilder
+    private var metadataChips: some View {
+        if let metadata = viewModel.metadata(forHost: host) {
+            HStack(spacing: 7) {
+                softwareChip(for: metadata)
+                if let openRegistrations = metadata.openRegistrations {
+                    signupsChip(open: openRegistrations)
+                }
+            }
+            .padding(.top, 8)
+        }
+    }
+
+    /// The software identity chip, e.g. "Lemmy 0.19.11" (display name + live
+    /// version) or the bare display name when no version is advertised.
+    private func softwareChip(for metadata: InstanceMetadata) -> some View {
+        let profile = PlatformProfile.profile(for: metadata.software, version: metadata.version)
+        let text: String
+        if let version = metadata.version, !version.isEmpty {
+            text = "\(profile.displayName) \(version)"
+        } else {
+            text = profile.displayName
+        }
+        return chip(icon: "shippingbox.fill", text: text, tint: accent)
+    }
+
+    /// The live open-registrations chip: green "Open signups" when the instance
+    /// accepts new members now, neutral "Signups closed" otherwise.
+    private func signupsChip(open: Bool) -> some View {
+        chip(
+            icon: open ? "person.fill.badge.plus" : "lock.fill",
+            text: open ? "Open signups" : "Signups closed",
+            tint: open ? Color(.systemGreen) : Color(.secondaryLabel)
+        )
+    }
+
+    private func chip(icon: String, text: String, tint: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 10, weight: .semibold))
+            Text(text)
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+        }
+        .foregroundStyle(tint)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(tint.opacity(0.12), in: Capsule())
+        .overlay(Capsule().strokeBorder(tint.opacity(0.22), lineWidth: 0.5))
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: - Section header + inline sort

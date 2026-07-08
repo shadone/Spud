@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Discover (Community Explorer)](discover.md), [Instance picker](instance-picker.md), [Community screen](community-screen.md), [Search](search.md), [Person / user profile](person-profile.md), [External link handling](external-link-handling.md)
+- **Related:** [Discover (Community Explorer)](discover.md), [Instance picker](instance-picker.md), [Community screen](community-screen.md), [Search](search.md), [Person / user profile](person-profile.md), [External link handling](external-link-handling.md), [Instance software detection](instance-software-detection.md)
 
 ## What it does
 
@@ -19,6 +19,7 @@ Tapping an instance name anywhere in the app — the source-instance chip in a c
 - **The curated directory is never modified.** A resolved unknown instance is held in a session-only, in-memory cache, kept entirely separate from the bundled Explorer directory table that Discover and the instance list read. The curated directory's contents and ranking are unchanged; a synthesized instance never leaks into those surfaces. The live-fetched communities are transient render rows, not mirrored into the directory or the persistent feed.
 - **Repeat taps in the same session are instant.** Once an unknown host has been resolved, tapping it again that session reopens its screen from the session cache with no second network round-trip. The cache is not persisted; relaunching the app re-probes on the next tap.
 - **Link classification is unchanged.** Deciding whether a tapped link is a Lemmy reference at all (and prefilling login) still uses the directory's known-instance check; only the act of *opening* an instance screen now probes. A normal link tap never triggers a network probe.
+- **A deeper "before you commit" detail is one tap further.** The in-app instance screen's health/trust card pushes a richer instance-detail screen (uptime, software version, signups, federation) — the same screen used by the [instance picker](instance-picker.md) before you add an account. Its software badge and Signups row prefer live NodeInfo metadata over the directory snapshot when a probe has resolved, fail-open otherwise; see [Instance software detection](instance-software-detection.md) for the detection and copy rules.
 
 ## Scenarios
 
@@ -59,5 +60,5 @@ Tapping an instance name anywhere in the app — the source-instance chip in a c
 
 - **Live community list is a single unpaged page.** When the directory has no communities for a host, Spud fetches one page of the instance's own local communities (top-subscribed first, up to 50) — enough to populate the screen, but not a full, paginated browse of every community on the instance. The live rows carry only the fields `/api/v3/community/list` returns (name, title, description, icon, counts, published date); they are not de-duplicated across servers the way the directory's rows are. If the live fetch fails (non-Lemmy server, timeout, unreachable) the list stays empty; the header, description, sidebar, stats, and admins still render from the site probe.
 - **No persistence of resolved instances.** Resolved unknown instances live only in memory for the session; they are never written to the curated directory and do not survive a relaunch.
-- **The `/api/v3/site` probe is a compatibility check, not a software classifier.** It only checks that the server answers the Lemmy site endpoint. Software classification — including the small badge shown on the instance-detail screen when a software name is known — comes from a separate NodeInfo detection layer; see [instance-software-detection.md](instance-software-detection.md).
+- **The `/api/v3/site` probe is a compatibility check, not a software classifier.** It only checks that the server answers the Lemmy site endpoint. Software classification, the version-bearing badge, and the live Signups override on the instance-detail screen ("before you commit", reached by tapping the health card) all come from a separate, fail-open NodeInfo detection layer; see [instance-software-detection.md](instance-software-detection.md).
 - **Directory ranking and contents are untouched.** This feature does not add, remove, or re-rank anything in the bundled Explorer directory or Discover.

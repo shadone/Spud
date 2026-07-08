@@ -22,4 +22,22 @@ struct NodeInfoCacheRecord: Codable, Equatable, FetchableRecord, PersistableReco
     var softwareVersion: String?
     /// Timestamp of the last successful probe; drives the cache TTL.
     var fetchedAt: Date
+
+    // v31 metadata: the usage counters a NodeInfo document advertises. All
+    // nullable — a legacy (pre-v31) row and a server that omits usage both
+    // read `nil` here. A single probe writes the whole row, so `detect` and
+    // `metadata` serve from the same cached fetch.
+
+    /// Whether the instance allows open self-registration, if advertised.
+    var openRegistrations: Bool? = nil
+    /// Total registered users, if advertised.
+    var usersTotal: Int64? = nil
+    /// Users active in the last ~30 days, if advertised.
+    var usersActiveMonth: Int64? = nil
+    /// Users active in the last ~180 days, if advertised.
+    var usersActiveHalfyear: Int64? = nil
+    /// Local posts authored on this instance, if advertised.
+    var localPosts: Int64? = nil
+    /// Local comments authored on this instance, if advertised.
+    var localComments: Int64? = nil
 }

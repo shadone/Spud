@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** partial — bare-instance link signpost (probing link taps for non-Lemmy hosts) deferred
-- **Related:** [Login](login.md), [Registration](registration.md), [Instance picker](instance-picker.md), [Instance browsing (open an instance in-app)](instance-browsing.md)
+- **Related:** [Login](login.md), [Registration](registration.md), [Instance picker](instance-picker.md), [Instance browsing (open an instance in-app)](instance-browsing.md), [Discover (Community Explorer)](discover.md)
 
 ## What it does
 
@@ -12,8 +12,16 @@ non-Lemmy software — PieFed, Mbin, Mastodon, and others — the attempt is blo
 action sheet that names the software, explains it is not yet supported, and offers an
 "Open in Safari" shortcut. Lemmy instances proceed normally. When the probe fails or is
 blocked (for example, by a WAF), Spud fails open and lets the login or registration flow
-continue exactly as before. The instance-detail screen also shows a small badge with the
-detected software name when one is known.
+continue exactly as before.
+
+The same NodeInfo probe also carries live instance metadata — the software's version and
+whether registrations are currently open — surfaced wherever an instance is browsed, not
+just pre-flighted: the instance-detail screen's badge shows the detected software name
+(and version, when reported), its details card's Signups row can be overridden by the
+live open-registrations signal, and Discover's browse-instance screen shows the same
+signal as two chips. All of it rides the same fail-open probe and TTL cache as detection
+itself — a probe that hasn't run yet, fails, or is inconclusive simply leaves the
+directory-sourced value in place.
 
 ## Behavior and rules
 
@@ -39,8 +47,28 @@ detected software name when one is known.
   engagements on the same host — opening its instance-detail screen multiple times, then
   attempting login — do not repeat the network round-trip.
 - **Instance-detail badge.** When the detected software name is known, the instance-detail
-  screen displays a small badge showing that name. When the result is undetermined, no
-  badge is shown and the screen renders as before.
+  screen displays a small badge showing that name — plus the live version when the probe
+  reports one (e.g. "Lemmy 0.19.11"). When the result is undetermined, no badge is shown
+  and the screen renders as before.
+- **Live Signups row.** The same probe carries an `openRegistrations` signal. When
+  present, it overrides the instance-detail details card's Signups row value and color —
+  but never its wording: the live path uses the identical long-form copy as the
+  Explorer-directory fallback ("Open signups" / "Signups closed"), so the row never
+  visibly changes text as the probe resolves, only its color when the live signal
+  disagrees with the directory. A probe that hasn't run yet, or fails, leaves the
+  Explorer-directory value in place (fail-open).
+- **Discover browse-instance chips.** Opening an instance from Discover's Browse by
+  instance rail probes the same NodeInfo metadata once, on that explicit engagement, and —
+  when it resolves — shows a software+version chip and an open/closed-signups chip on the
+  instance card. Chips are simply absent when metadata is unavailable; no placeholder or
+  loading state. See [Discover](discover.md).
+- **Shared cache row.** Software detection (`detect`) and the live metadata (`metadata`)
+  read and write the same per-host `nodeInfoCache` row and TTL — whichever runs first for
+  a host populates the row for both, so a login/register pre-flight and a later
+  instance-detail or Discover visit (or vice versa) never trigger a second network probe.
+  The `v31` cache row also maps and persists NodeInfo usage counters (users total/active,
+  local posts/comments), which are cached but not yet surfaced in any UI — deliberate
+  groundwork for a future stats surface, not an oversight.
 
 ## Scenarios
 
@@ -96,6 +124,29 @@ detected software name when one is known.
   (network failure, unrecognized response, or blocked endpoint)
 - **When** the screen loads
 - **Then** no software badge is shown; the screen renders as if no detection had occurred
+
+### Instance-detail badge shows a live version
+
+- **Given** I open an instance's detail screen and NodeInfo returns a known software name
+  and version
+- **When** the probe resolves
+- **Then** the badge updates to show both, for example "Lemmy 0.19.11"
+
+### Live Signups overrides the Explorer value without changing its wording
+
+- **Given** I open an instance's detail screen whose Explorer directory says signups are
+  open, and the live NodeInfo probe agrees
+- **When** the probe resolves
+- **Then** the Signups row keeps reading "Open signups", now in the live-confirmed color,
+  with no visible change in wording
+
+### Discover shows software and signups chips on a browsed instance
+
+- **Given** I tap an instance from Discover's Browse by instance rail
+- **When** the NodeInfo probe for that host resolves
+- **Then** a software+version chip and an open/closed-signups chip appear on the instance
+  card
+- **And** when the probe fails or is inconclusive, no chips appear
 
 ### Privacy: probes only on explicit engagement
 

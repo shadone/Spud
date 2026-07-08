@@ -819,6 +819,21 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v31_nodeInfoMetadata") { db in
+            // Additive-only: widen the NodeInfo cache with the usage metadata a
+            // probe now harvests (open registrations + user/post/comment counts).
+            // All nullable, so legacy rows survive untouched with nil metadata
+            // until the TTL triggers a re-probe.
+            try db.alter(table: "nodeInfoCache") { t in
+                t.add(column: "openRegistrations", .boolean)
+                t.add(column: "usersTotal", .integer)
+                t.add(column: "usersActiveMonth", .integer)
+                t.add(column: "usersActiveHalfyear", .integer)
+                t.add(column: "localPosts", .integer)
+                t.add(column: "localComments", .integer)
+            }
+        }
+
         return migrator
     }
 }

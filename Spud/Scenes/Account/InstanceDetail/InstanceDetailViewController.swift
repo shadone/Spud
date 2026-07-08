@@ -52,8 +52,16 @@ final class InstanceDetailViewController: UIViewController {
     private let bannerImageView = UIImageView()
     private let iconImageView = UIImageView()
     private let iconLetterLabel = UILabel()
-    /// Detected software name (e.g. "PieFed"), populated by a NodeInfo probe on appear.
+    /// Detected software identity (e.g. "PieFed" or "Lemmy 0.19.11"), populated
+    /// by a live NodeInfo metadata probe on appear.
     private let softwareBadgeLabel = UILabel()
+    /// The "Signups" details-row value label, captured so a live NodeInfo
+    /// `openRegistrations` probe can override the Explorer-directory value.
+    private weak var signupsValueLabel: UILabel?
+    /// The "Software" details-row value label, captured so a live NodeInfo
+    /// version probe can override the Explorer-directory version — keeping the
+    /// details card in step with the header badge (which already shows live).
+    private weak var softwareValueLabel: UILabel?
     private var imageTasks: [Task<Void, Never>] = []
     private var observationTasks: [Task<Void, Never>] = []
 
@@ -93,6 +101,12 @@ final class InstanceDetailViewController: UIViewController {
         return scrollView.contentSize.height
     }
 
+    /// The software badge's visible text, or `nil` while it is hidden. Snapshot
+    /// tests poll this to await the async live-metadata probe before capturing.
+    var snapshotSoftwareBadgeText: String? {
+        softwareBadgeLabel.isHidden ? nil : softwareBadgeLabel.text
+    }
+
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
@@ -110,12 +124,56 @@ final class InstanceDetailViewController: UIViewController {
         }
         observationTasks.append(Task { @MainActor [weak self] in
             guard let self else { return }
-            if case let .known(software, version) = await nodeInfoService.detect(host: record.baseurl) {
-                let profile = PlatformProfile.profile(for: software, version: version)
-                softwareBadgeLabel.text = profile.displayName
-                softwareBadgeLabel.isHidden = false
-            }
+            guard let metadata = await nodeInfoService.metadata(host: record.baseurl) else { return }
+            applyLiveMetadata(metadata)
         })
+    }
+
+    /// Applies live NodeInfo metadata to the header software badge (name +
+    /// version), the details-card Software row, and the details-card Signups
+    /// row. Fail-open: overrides only the fields the probe actually reported —
+    /// a nil field keeps the current Explorer-directory value, and an
+    /// overall-nil metadata (probe failed / unknown software) leaves the screen
+    /// exactly as first rendered.
+    private func applyLiveMetadata(_ metadata: InstanceMetadata) {
+        let profile = PlatformProfile.profile(for: metadata.software, version: metadata.version)
+        if let version = metadata.version, !version.isEmpty {
+            // e.g. "Lemmy 0.19.11" — the software's display name plus the live version.
+            softwareBadgeLabel.text = "\(profile.displayName) \(version)"
+
+            // Unify the details-card "Software" row on the same live version. The
+            // Explorer directory seeds that row from `record.version`; the live probe
+            // is more current, so leaving the row on the directory value shows two
+            // different numbers for one instance (header badge vs details row) exactly
+            // when the feature works. Reusing `ExplorerInstanceHealth.version` reproduces
+            // the row's existing "v<number>" formatting and freshness color verbatim, so
+            // only the number differs when live and directory disagree — never the style.
+            //
+            // Plan point 4 ("don't mix live/directory numbers in one grid") targets
+            // incomparable COUNT SCALES (per-instance local counts vs directory
+            // aggregates); a version STRING has no scale problem, so unifying it is in
+            // that plan point's spirit rather than against it. Fail-open: a nil/empty
+            // live version leaves the Explorer Software row untouched.
+            let liveVersion = ExplorerInstanceHealth.version(version)
+            softwareValueLabel?.text = liveVersion.short
+            softwareValueLabel?.textColor = InstanceHealthStyle.color(for: liveVersion.level)
+        } else {
+            softwareBadgeLabel.text = profile.displayName
+        }
+        softwareBadgeLabel.isHidden = false
+
+        // Prefer the live open-registrations signal over the Explorer directory's
+        // `regMode`. `openRegistrations == nil` means "not probed" (never "closed"),
+        // so we fall open to the Explorer value already shown in the row. The copy
+        // matches `ExplorerInstanceHealth.registration(_:)`'s long-form wording
+        // verbatim ("Open signups" / "Signups closed") — the row's text must never
+        // change between the synchronous Explorer fallback and the async live
+        // override, only the value (and therefore only the color) may differ when
+        // the live probe disagrees with the directory.
+        if let openRegistrations = metadata.openRegistrations {
+            signupsValueLabel?.text = openRegistrations ? "Open signups" : "Signups closed"
+            signupsValueLabel?.textColor = InstanceHealthStyle.color(for: openRegistrations ? .good : .bad)
+        }
     }
 
     private func refreshDynamicBorders() {
@@ -440,9 +498,21 @@ final class InstanceDetailViewController: UIViewController {
         let languages = record.languageCodes.isEmpty ? "—" : record.languageCodes.map { $0.uppercased() }.joined(separator: ", ")
 
         let rows = [
-            metaRow(symbol: InstanceHealthStyle.registrationSymbol(record.registrationMode), label: "Signups", value: registration.label, valueColor: InstanceHealthStyle.color(for: registration.level)),
+            metaRow(
+                symbol: InstanceHealthStyle.registrationSymbol(record.registrationMode),
+                label: "Signups",
+                value: registration.label,
+                valueColor: InstanceHealthStyle.color(for: registration.level),
+                captureValueLabel: { [weak self] in self?.signupsValueLabel = $0 }
+            ),
             metaRow(symbol: "waveform.path.ecg", label: "Uptime", value: uptimeValue, valueColor: InstanceHealthStyle.color(for: uptime.level)),
-            metaRow(symbol: "tag", label: "Software", value: version.short, valueColor: InstanceHealthStyle.color(for: version.level)),
+            metaRow(
+                symbol: "tag",
+                label: "Software",
+                value: version.short,
+                valueColor: InstanceHealthStyle.color(for: version.level),
+                captureValueLabel: { [weak self] in self?.softwareValueLabel = $0 }
+            ),
             metaRow(symbol: "character.bubble", label: "Languages", value: languages, valueColor: .label),
             metaRow(symbol: "arrow.triangle.branch", label: "Federation", value: federation, valueColor: .label),
         ]
@@ -464,7 +534,9 @@ final class InstanceDetailViewController: UIViewController {
         return card
     }
 
-    private func metaRow(symbol: String, label: String, value: String, valueColor: UIColor) -> UIView {
+    /// - Parameter captureValueLabel: Optional sink handed the row's value
+    ///   `UILabel` so a later async probe (e.g. live Signups) can update it.
+    private func metaRow(symbol: String, label: String, value: String, valueColor: UIColor, captureValueLabel: ((UILabel) -> Void)? = nil) -> UIView {
         let icon = UIImageView(image: UIImage(systemName: symbol))
         icon.tintColor = .secondaryLabel
         icon.contentMode = .scaleAspectFit
@@ -482,6 +554,7 @@ final class InstanceDetailViewController: UIViewController {
         valueLabel.numberOfLines = 1
         valueLabel.adjustsFontSizeToFitWidth = true
         valueLabel.minimumScaleFactor = 0.7
+        captureValueLabel?(valueLabel)
         let stack = UIStackView(arrangedSubviews: [icon, labelView, valueLabel])
         stack.axis = .horizontal
         stack.spacing = 11
