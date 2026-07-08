@@ -58,6 +58,10 @@ final class InstanceDetailViewController: UIViewController {
     /// The "Signups" details-row value label, captured so a live NodeInfo
     /// `openRegistrations` probe can override the Explorer-directory value.
     private weak var signupsValueLabel: UILabel?
+    /// The "Software" details-row value label, captured so a live NodeInfo
+    /// version probe can override the Explorer-directory version — keeping the
+    /// details card in step with the header badge (which already shows live).
+    private weak var softwareValueLabel: UILabel?
     private var imageTasks: [Task<Void, Never>] = []
     private var observationTasks: [Task<Void, Never>] = []
 
@@ -126,15 +130,33 @@ final class InstanceDetailViewController: UIViewController {
     }
 
     /// Applies live NodeInfo metadata to the header software badge (name +
-    /// version) and the details-card Signups row. Fail-open: overrides only the
-    /// fields the probe actually reported — a nil field keeps the current
-    /// Explorer-directory value, and an overall-nil metadata (probe failed /
-    /// unknown software) leaves the screen exactly as first rendered.
+    /// version), the details-card Software row, and the details-card Signups
+    /// row. Fail-open: overrides only the fields the probe actually reported —
+    /// a nil field keeps the current Explorer-directory value, and an
+    /// overall-nil metadata (probe failed / unknown software) leaves the screen
+    /// exactly as first rendered.
     private func applyLiveMetadata(_ metadata: InstanceMetadata) {
         let profile = PlatformProfile.profile(for: metadata.software, version: metadata.version)
         if let version = metadata.version, !version.isEmpty {
             // e.g. "Lemmy 0.19.11" — the software's display name plus the live version.
             softwareBadgeLabel.text = "\(profile.displayName) \(version)"
+
+            // Unify the details-card "Software" row on the same live version. The
+            // Explorer directory seeds that row from `record.version`; the live probe
+            // is more current, so leaving the row on the directory value shows two
+            // different numbers for one instance (header badge vs details row) exactly
+            // when the feature works. Reusing `ExplorerInstanceHealth.version` reproduces
+            // the row's existing "v<number>" formatting and freshness color verbatim, so
+            // only the number differs when live and directory disagree — never the style.
+            //
+            // Plan point 4 ("don't mix live/directory numbers in one grid") targets
+            // incomparable COUNT SCALES (per-instance local counts vs directory
+            // aggregates); a version STRING has no scale problem, so unifying it is in
+            // that plan point's spirit rather than against it. Fail-open: a nil/empty
+            // live version leaves the Explorer Software row untouched.
+            let liveVersion = ExplorerInstanceHealth.version(version)
+            softwareValueLabel?.text = liveVersion.short
+            softwareValueLabel?.textColor = InstanceHealthStyle.color(for: liveVersion.level)
         } else {
             softwareBadgeLabel.text = profile.displayName
         }
@@ -484,7 +506,13 @@ final class InstanceDetailViewController: UIViewController {
                 captureValueLabel: { [weak self] in self?.signupsValueLabel = $0 }
             ),
             metaRow(symbol: "waveform.path.ecg", label: "Uptime", value: uptimeValue, valueColor: InstanceHealthStyle.color(for: uptime.level)),
-            metaRow(symbol: "tag", label: "Software", value: version.short, valueColor: InstanceHealthStyle.color(for: version.level)),
+            metaRow(
+                symbol: "tag",
+                label: "Software",
+                value: version.short,
+                valueColor: InstanceHealthStyle.color(for: version.level),
+                captureValueLabel: { [weak self] in self?.softwareValueLabel = $0 }
+            ),
             metaRow(symbol: "character.bubble", label: "Languages", value: languages, valueColor: .label),
             metaRow(symbol: "arrow.triangle.branch", label: "Federation", value: federation, valueColor: .label),
         ]
