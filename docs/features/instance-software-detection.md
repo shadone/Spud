@@ -66,6 +66,9 @@ directory-sourced value in place.
   read and write the same per-host `nodeInfoCache` row and TTL — whichever runs first for
   a host populates the row for both, so a login/register pre-flight and a later
   instance-detail or Discover visit (or vice versa) never trigger a second network probe.
+  The `v31` cache row also maps and persists NodeInfo usage counters (users total/active,
+  local posts/comments), which are cached but not yet surfaced in any UI — deliberate
+  groundwork for a future stats surface, not an oversight.
 
 ## Scenarios
 
