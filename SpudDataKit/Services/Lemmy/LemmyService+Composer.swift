@@ -170,9 +170,10 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Lemmy.SuccessResponse
         do {
-            response = try await api.markPostAsRead(postIDs: [serverPostId], read: true)
+            // The neutral `markPostAsReadNeutral` returns Void and throws on
+            // failure, so a clean return is success (no `success` flag to inspect).
+            try await api.markPostAsReadNeutral(id: Int64(serverPostId), read: true)
         } catch {
             logger.error("""
                 Mark post as read failed. postId=\(serverPostId, privacy: .public). \
@@ -183,20 +184,18 @@ public extension LemmyService {
 
         logger.debug("""
             Mark post as read complete. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-            postId=\(serverPostId, privacy: .public) success=\(response.success, privacy: .public)
+            postId=\(serverPostId, privacy: .public)
             """)
 
-        if response.success {
-            do {
-                guard let (accountRowId, _) = try await accountSiteIds() else { return }
-                try await appDatabase.setPostIsRead(
-                    accountId: accountRowId,
-                    serverPostId: Int64(serverPostId),
-                    isRead: true
-                )
-            } catch {
-                logger.error("AppDatabase setPostIsRead failed: \(String(describing: error), privacy: .public)")
-            }
+        do {
+            guard let (accountRowId, _) = try await accountSiteIds() else { return }
+            try await appDatabase.setPostIsRead(
+                accountId: accountRowId,
+                serverPostId: Int64(serverPostId),
+                isRead: true
+            )
+        } catch {
+            logger.error("AppDatabase setPostIsRead failed: \(String(describing: error), privacy: .public)")
         }
     }
 }

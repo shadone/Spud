@@ -94,7 +94,7 @@ final class RecipientPickerViewController: UIViewController {
                 listingType: .All,
                 page: 1
             )
-            return response.users.compactMap(SearchUserResult.init)
+            return response.persons.compactMap(SearchUserResult.init)
         })
 
         super.init(nibName: nil, bundle: nil)

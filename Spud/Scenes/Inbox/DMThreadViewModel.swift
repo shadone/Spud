@@ -174,12 +174,12 @@ final class DMThreadViewModel {
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                let response = try await service.fetchPrivateMessages(unreadOnly: false, page: 1)
+                let messages = try await service.fetchPrivateMessages(unreadOnly: false, page: 1)
                 if Task.isCancelled { return }
                 // Import the whole page; the read layer filters to this thread.
                 // upsert-only (a server page is partial), so nothing is deleted.
                 try await appDatabase.upsertPrivateMessages(
-                    views: response.private_messages,
+                    messages,
                     accountId: accountId
                 )
                 if markRead { await markCorrespondentMessagesRead() }

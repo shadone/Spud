@@ -230,7 +230,7 @@ public class AccountService: AccountServiceType {
     /// Injectable so the sign-in path can be unit-tested with a stub
     /// `ClientTransport` instead of a live instance; production wires up the
     /// real `URLSessionTransport`-backed api.
-    private let makeApi: @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?) -> LemmyApi
+    private let makeApi: @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?, _ apiVersion: LemmyKit.ApiVersion) -> LemmyApi
 
     /// Persists per-account credentials. Injectable so tests exercise the
     /// sign-in flow without the shared-group keychain entitlements the test
@@ -260,8 +260,13 @@ public class AccountService: AccountServiceType {
             appDatabase: appDatabase,
             reachabilityMonitor: reachabilityMonitor,
             nodeInfoService: nodeInfoService
-        ) { instanceUrl, credential in
-            LemmyApi(instanceUrl: instanceUrl, credential: credential, userAgent: AppUserAgent.value)
+        ) { instanceUrl, credential, apiVersion in
+            LemmyApi(
+                instanceUrl: instanceUrl,
+                credential: credential,
+                userAgent: AppUserAgent.value,
+                apiVersion: apiVersion
+            )
         }
     }
 
@@ -270,7 +275,7 @@ public class AccountService: AccountServiceType {
         credentialStore: CredentialStore = KeychainCredentialStore(),
         reachabilityMonitor: ReachabilityMonitoring = StaticReachabilityMonitor(isOnline: true),
         nodeInfoService: NodeInfoServiceType? = nil,
-        makeApi: @escaping @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?) -> LemmyApi
+        makeApi: @escaping @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?, _ apiVersion: LemmyKit.ApiVersion) -> LemmyApi
     ) {
         self.appDatabase = appDatabase
         self.credentialStore = credentialStore
@@ -511,7 +516,7 @@ public class AccountService: AccountServiceType {
             fatalError("Failed to create URL from instance actor id '\(snapshot.actorId.actorId)'")
         }
         let credential = snapshot.isSignedOut ? nil : readCredential(forKeychainId: keychainId)
-        let api = makeApi(url, credential)
+        let api = makeApi(url, credential, resolvedApiVersion(forKeychainId: keychainId))
 
         logger.debug("Creating new LemmyService for \(keychainId, privacy: .sensitive(mask: .hash))")
 
@@ -524,6 +529,18 @@ public class AccountService: AccountServiceType {
         )
         lemmyServices[keychainId] = service
         return service
+    }
+
+    /// Derives which LemmyKit API version to dispatch through for the account
+    /// matching `keychainId`, from the site version last mirrored from getSite —
+    /// the same signal Phase 1's capability detection uses. A parsed Lemmy major
+    /// >= 1 is v4; anything older, or an unknown/unparseable version, fails open
+    /// to v3.
+    private func resolvedApiVersion(forKeychainId keychainId: String) -> LemmyKit.ApiVersion {
+        let major = appDatabase
+            .accountSiteVersionSync(forKeychainId: keychainId)
+            .flatMap { LemmyVersion(parsing: $0)?.major } ?? 0
+        return major >= 1 ? .v4 : .v3
     }
 
     /// Blocks a home connection to non-Lemmy software; fail-open when the router
@@ -548,7 +565,10 @@ public class AccountService: AccountServiceType {
         try await preflightHomeConnection(host: instance.host)
 
         // Temporary unauthenticated api for the login request.
-        let api = makeApi(url, nil)
+        // The instance's API version isn't known until getSite has run; login,
+        // register, and password-reset predate that, so dispatch through v3 (the
+        // compat surface). TODO: probe the version once neutral auth is adopted here.
+        let api = makeApi(url, nil, .v3)
 
         let response: Lemmy.LoginResponse
         do {
@@ -602,7 +622,10 @@ public class AccountService: AccountServiceType {
         try await preflightHomeConnection(host: instance.host)
 
         // Temporary unauthenticated api for the registration request.
-        let api = makeApi(url, nil)
+        // The instance's API version isn't known until getSite has run; login,
+        // register, and password-reset predate that, so dispatch through v3 (the
+        // compat surface). TODO: probe the version once neutral auth is adopted here.
+        let api = makeApi(url, nil, .v3)
 
         let response: Lemmy.LoginResponse
         do {
@@ -644,7 +667,10 @@ public class AccountService: AccountServiceType {
 
         // Temporary unauthenticated api for the password-reset request, mirroring
         // `login` / `register`.
-        let api = makeApi(url, nil)
+        // The instance's API version isn't known until getSite has run; login,
+        // register, and password-reset predate that, so dispatch through v3 (the
+        // compat surface). TODO: probe the version once neutral auth is adopted here.
+        let api = makeApi(url, nil, .v3)
 
         do {
             _ = try await api.passwordReset(email: email)

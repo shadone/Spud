@@ -30,20 +30,22 @@ public enum ResolvedLemmyObject: Sendable {
     case unresolved
 
     public init(
-        response: Lemmy.ResolveObjectResponse,
+        response: LemmyKit.ResolvedObject?,
         homeInstance: InstanceActorId
     ) {
-        if let post = response.post {
-            self = .post(postId: post.post.id, instance: homeInstance)
-        } else if let community = response.community {
-            let instance = InstanceActorId(from: community.community.actor_id) ?? homeInstance
+        // Neutral ids are `Int64`; the id-vocabulary types are the narrower
+        // generated `Int32`-backed `PostID`/`CommentID`/`PersonID`, so narrow here.
+        if let post = response?.post {
+            self = .post(postId: Lemmy.PostID(post.post.id), instance: homeInstance)
+        } else if let community = response?.community {
+            let instance = InstanceActorId(from: community.community.apId) ?? homeInstance
             self = .community(name: community.community.name, instance: instance)
-        } else if let person = response.person {
-            self = .person(personId: person.person.id, instance: homeInstance)
-        } else if let comment = response.comment {
+        } else if let person = response?.person {
+            self = .person(personId: Lemmy.PersonID(person.person.id), instance: homeInstance)
+        } else if let comment = response?.comment {
             self = .comment(
-                postId: comment.comment.post_id,
-                commentId: comment.comment.id,
+                postId: Lemmy.PostID(comment.comment.postId),
+                commentId: Lemmy.CommentID(comment.comment.id),
                 instance: homeInstance
             )
         } else {

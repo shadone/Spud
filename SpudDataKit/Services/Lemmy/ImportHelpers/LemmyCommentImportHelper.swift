@@ -37,7 +37,7 @@ enum LemmyCommentImportHelper {
 
                 // previous comment is the last on in the tree that we have.
                 // check if it claims to have more children that we haven't fetched yet.
-                if previous.counts.child_count > 0 {
+                if previous.comment.childCount > 0 {
                     commentsWithMissingChildren.append(previous)
                 }
 
@@ -47,7 +47,7 @@ enum LemmyCommentImportHelper {
 
         let last = commentsByPath.last!
         // at last check the very last comment in case it also lacks children.
-        if last.counts.child_count > 0 {
+        if last.comment.childCount > 0 {
             commentsWithMissingChildren.append(last)
         }
 
@@ -104,7 +104,9 @@ enum LemmyCommentImportHelper {
         var commentViewById: [Lemmy.CommentID: Lemmy.CommentView] = [:]
         let root = CommentNode(id: 0)
         for commentView in comments {
-            let commentId = commentView.comment.id
+            // The neutral `Comment.id` is `Int64`; the id-vocabulary type is the
+            // narrower generated `CommentID` (`Int32`), so narrow here.
+            let commentId = Lemmy.CommentID(commentView.comment.id)
             let node = CommentNode(id: commentId)
 
             commentViewById[commentId] = commentView

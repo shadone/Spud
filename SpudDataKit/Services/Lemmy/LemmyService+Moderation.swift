@@ -30,9 +30,9 @@ public extension LemmyService {
             account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
             """)
 
-        let response: Lemmy.GetSiteResponse
+        let myUser: LemmyKit.MyUser
         do {
-            response = try await api.getSite()
+            myUser = try await api.getMyUserNeutral()
         } catch {
             logger.error("""
                 Fetch moderation capability failed. \(String(describing: error), privacy: .public)
@@ -40,16 +40,12 @@ public extension LemmyService {
             throw LemmyServiceError(from: error)
         }
 
-        guard let myUser = response.my_user else {
-            return .none
-        }
-
-        let moderatedCommunityIds = Set(myUser.moderates.map(\.community.id))
-        let isAdmin = myUser.local_user_view.local_user.admin
+        // The neutral `MyUser.moderates` is a bare list of community server ids.
+        let moderatedCommunityIds = Set(myUser.moderates.map { Lemmy.CommunityID($0) })
 
         return ModerationCapability(
             moderatedCommunityIds: moderatedCommunityIds,
-            isAdmin: isAdmin
+            isAdmin: myUser.isAdmin
         )
     }
 
@@ -66,9 +62,9 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Lemmy.PostResponse
         do {
-            response = try await api.removePost(postID: serverPostId, removed: removed, reason: reason)
+            // No neutral moderation endpoint yet; the v3 wrapper still works on v3.
+            _ = try await api.removePost(postID: serverPostId, removed: removed, reason: reason)
         } catch {
             logger.error("""
                 Remove post failed. postId=\(serverPostId, privacy: .public). \
@@ -77,7 +73,9 @@ public extension LemmyService {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorPostInfoToAppDatabase(view: response.post_view)
+        // Re-fetch through the neutral getPost to refresh the mirror (the v3
+        // response can't feed the neutral importer). Best-effort.
+        try? await fetchPostInfo(serverPostId: serverPostId)
     }
 
     func lockPost(
@@ -92,9 +90,8 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Lemmy.PostResponse
         do {
-            response = try await api.lockPost(postID: serverPostId, locked: locked)
+            _ = try await api.lockPost(postID: serverPostId, locked: locked)
         } catch {
             logger.error("""
                 Lock post failed. postId=\(serverPostId, privacy: .public). \
@@ -103,7 +100,8 @@ public extension LemmyService {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorPostInfoToAppDatabase(view: response.post_view)
+        // Re-fetch through the neutral getPost to refresh the mirror. Best-effort.
+        try? await fetchPostInfo(serverPostId: serverPostId)
     }
 
     func featurePost(
@@ -120,9 +118,8 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Lemmy.PostResponse
         do {
-            response = try await api.featurePost(
+            _ = try await api.featurePost(
                 postID: serverPostId,
                 featured: featured,
                 featureType: featureType
@@ -135,7 +132,8 @@ public extension LemmyService {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorPostInfoToAppDatabase(view: response.post_view)
+        // Re-fetch through the neutral getPost to refresh the mirror. Best-effort.
+        try? await fetchPostInfo(serverPostId: serverPostId)
     }
 
     func removeComment(
@@ -151,9 +149,8 @@ public extension LemmyService {
             commentId=\(serverCommentId, privacy: .public)
             """)
 
-        let response: Lemmy.CommentResponse
         do {
-            response = try await api.removeComment(commentID: serverCommentId, removed: removed, reason: reason)
+            _ = try await api.removeComment(commentID: serverCommentId, removed: removed, reason: reason)
         } catch {
             logger.error("""
                 Remove comment failed. commentId=\(serverCommentId, privacy: .public). \
@@ -162,7 +159,9 @@ public extension LemmyService {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorCommentToAppDatabase(view: response.comment_view)
+        // The neutral surface has no single-comment fetch to refresh the mirror
+        // from (and the v3 response can't feed the neutral importer), so the local
+        // removed flag updates on the next comment-tree load. See Phase 6 follow-ups.
     }
 
     func distinguishComment(
@@ -177,9 +176,8 @@ public extension LemmyService {
             commentId=\(serverCommentId, privacy: .public)
             """)
 
-        let response: Lemmy.CommentResponse
         do {
-            response = try await api.distinguishComment(commentID: serverCommentId, distinguished: distinguished)
+            _ = try await api.distinguishComment(commentID: serverCommentId, distinguished: distinguished)
         } catch {
             logger.error("""
                 Distinguish comment failed. commentId=\(serverCommentId, privacy: .public). \
@@ -188,7 +186,8 @@ public extension LemmyService {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorCommentToAppDatabase(view: response.comment_view)
+        // As with removeComment, the local distinguished flag refreshes on the
+        // next comment-tree load. See Phase 6 follow-ups.
     }
 
     func banFromCommunity(
@@ -215,17 +214,16 @@ public extension LemmyService {
             personId=\(serverPersonId, privacy: .public)
             """)
 
-        let response: Lemmy.BanFromCommunityResponse
         do {
             if ban {
-                response = try await api.banFromCommunity(
+                _ = try await api.banFromCommunity(
                     communityID: serverCommunityId,
                     personID: serverPersonId,
                     removeData: removeData,
                     reason: reason
                 )
             } else {
-                response = try await api.unbanFromCommunity(
+                _ = try await api.unbanFromCommunity(
                     communityID: serverCommunityId,
                     personID: serverPersonId,
                     reason: reason
@@ -240,9 +238,11 @@ public extension LemmyService {
             throw LemmyServiceError(from: error)
         }
 
-        // Mirror the refreshed author info; if remove_data was set the server
-        // has also removed this person's content, which the caller refreshes.
-        await mirrorPersonInfoToAppDatabase(view: response.person_view)
+        // Re-fetch the person through the neutral getPersonDetails to refresh the
+        // mirror (the v3 response can't feed the neutral importer); if remove_data
+        // was set the server has also removed this person's content, which the
+        // caller refreshes. Best-effort.
+        try? await fetchPersonInfo(serverPersonId: serverPersonId)
     }
 
     // MARK: Helpers

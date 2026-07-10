@@ -129,7 +129,7 @@ extension AppDatabase {
 
             var elementPosition: Int64 = 0
             for view in posts {
-                let url = view.post.ap_id
+                let url = view.post.apId
                 guard !existingUrls.contains(url) else { continue }
 
                 let postRowId = try AppDatabase.upsertPost(

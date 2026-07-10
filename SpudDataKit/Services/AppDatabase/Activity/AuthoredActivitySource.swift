@@ -92,8 +92,8 @@ public struct LemmyAuthoredActivitySource: AuthoredActivitySource {
         // server-side ordering quirk.
         return AuthoredActivityPage(
             comments: comments,
-            oldestPostPublished: response.posts.map(\.post.published).min(),
-            oldestCommentPublished: response.comments.map(\.comment.published).min(),
+            oldestPostPublished: response.posts.map(\.post.publishedAt).min(),
+            oldestCommentPublished: response.comments.map(\.comment.publishedAt).min(),
             postsExhausted: response.posts.isEmpty,
             commentsExhausted: response.comments.isEmpty
         )
@@ -125,17 +125,17 @@ public extension ActivityItem {
             id: 0,
             serverCommentId: Int64(view.comment.id),
             body: view.comment.content,
-            score: view.counts.score,
+            score: view.comment.score,
             parentPostTitle: view.post.name,
             communityName: view.community.name,
-            communityActorId: view.community.actor_id,
+            communityActorId: view.community.apId,
             serverPostId: Int64(view.post.id),
-            published: view.comment.published
+            published: view.comment.publishedAt
         )
         self.init(
             id: "comment-comment-\(row.serverCommentId)",
             act: .comment,
-            occurredAt: view.comment.published,
+            occurredAt: view.comment.publishedAt,
             object: .comment(row)
         )
     }

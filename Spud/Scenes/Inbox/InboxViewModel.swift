@@ -246,12 +246,12 @@ final class InboxViewModel {
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                let response = try await service.fetchPrivateMessages(unreadOnly: false, page: 1)
+                let messages = try await service.fetchPrivateMessages(unreadOnly: false, page: 1)
                 if Task.isCancelled { return }
                 // upsert-only (a server page is partial), so nothing is deleted;
                 // the conversation observation re-emits with the imported rows.
                 try await appDatabase.upsertPrivateMessages(
-                    views: response.private_messages,
+                    messages,
                     accountId: accountId
                 )
             } catch {

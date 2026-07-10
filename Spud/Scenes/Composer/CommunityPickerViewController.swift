@@ -116,9 +116,9 @@ final class CommunityPickerViewController: UITableViewController {
                     .filter { showNsfw || !$0.community.nsfw }
                     .map { view in
                         NewPostCommunity(
-                            id: view.community.id,
+                            id: Lemmy.CommunityID(view.community.id),
                             qualifiedName: Self.qualifiedName(for: view.community),
-                            title: view.community.title
+                            title: view.community.title ?? view.community.name
                         )
                     }
                 tableView.reloadData()
@@ -133,7 +133,7 @@ final class CommunityPickerViewController: UITableViewController {
     /// bare name when the host can't be parsed).
     private static func qualifiedName(for community: Lemmy.Community) -> String {
         guard
-            let url = URL(string: community.actor_id),
+            let url = URL(string: community.apId),
             let host = url.host
         else {
             return community.name

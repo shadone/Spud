@@ -64,15 +64,14 @@ public protocol LemmyServiceType: Actor {
 
     func fetchSiteInfo() async throws
 
-    /// Probe `/api/v3/site` and return the decoded response, mirroring it into
-    /// the database exactly like ``fetchSiteInfo()`` does. Unlike that method,
-    /// the raw `GetSiteResponse` is handed back so the caller can read the
-    /// instance's identity / stats directly (used to open the in-app instance
+    /// Fetch the instance's site info via the version-neutral `getSiteNeutral()`
+    /// and return it, mirroring it into the database exactly like ``fetchSiteInfo()``
+    /// does. The neutral ``LemmyKit/SiteInfo`` is handed back so the caller can read
+    /// the instance's identity / stats directly (used to open the in-app instance
     /// screen for an arbitrary host that isn't in the Explorer directory). A
-    /// successful return doubles as the Lemmy-API-compatibility test for the
-    /// host (any server that answers `/api/v3/site`, including PieFed).
+    /// successful return doubles as the Lemmy-API-compatibility test for the host.
     @discardableResult
-    func getSiteInfo() async throws -> Lemmy.GetSiteResponse
+    func getSiteInfo() async throws -> LemmyKit.SiteInfo
 
     /// Push the account's `show_nsfw` preference to the server via
     /// `saveUserSettings`, then mirror the new value onto the local account
@@ -136,7 +135,7 @@ public protocol LemmyServiceType: Actor {
         serverPersonId: Lemmy.PersonID,
         sort: Lemmy.SortType,
         page: Int64
-    ) async throws -> Lemmy.GetPersonDetailsResponse
+    ) async throws -> PersonContentPage
 
     /// Fetch the full community info (header fields, counts, subscribed state)
     /// for `serverCommunityId` and mirror it into the database. Used to
@@ -165,7 +164,7 @@ public protocol LemmyServiceType: Actor {
         sort: Lemmy.SortType,
         listingType: Lemmy.ListingType,
         page: Int64
-    ) async throws -> Lemmy.SearchResponse
+    ) async throws -> LemmyKit.SearchResults
 
     /// List communities on the backing instance via `/api/v3/community/list`
     /// and return the decoded `CommunityView`s. Like `search`, the results are
@@ -388,10 +387,12 @@ public protocol LemmyServiceType: Actor {
     ) async throws -> Lemmy.GetPersonMentionsResponse
 
     /// Fetch one page of private messages. Transient, like `fetchReplies`.
+    /// Sourced from the version-neutral unified notification list (filtered to
+    /// private-message entries), each paired with its read state.
     func fetchPrivateMessages(
         unreadOnly: Bool,
         page: Int64
-    ) async throws -> Lemmy.PrivateMessagesResponse
+    ) async throws -> [IncomingPrivateMessage]
 
     /// Fetch the count of unread replies, mentions, and private messages.
     /// Throws `LemmyServiceError.requiresAuthentication` when signed out.
@@ -536,6 +537,24 @@ public protocol LemmyServiceType: Actor {
     /// canonical URL, under this service's account. Comments resolve to
     /// `.comment` (deferred); unrecognised input resolves to `.unresolved`.
     func resolveObject(query: String) async throws -> ResolvedLemmyObject
+}
+
+/// One page of a person's authored content, split by kind. Replaces the raw
+/// `GetPersonDetailsResponse` the person screens used to read: the neutral
+/// surface serves a person's profile (`personDetailsNeutral`) separately from a
+/// paged, interleaved post/comment feed (`personContentNeutral`), so this carries
+/// just the transient content page (the profile is mirrored into the store). A
+/// small Sendable value type so it can flow from the actor to the main-actor UI.
+public struct PersonContentPage: Sendable, Equatable {
+    /// The posts on this page, newest first.
+    public let posts: [Lemmy.PostView]
+    /// The comments on this page, newest first.
+    public let comments: [Lemmy.CommentView]
+
+    public init(posts: [Lemmy.PostView], comments: [Lemmy.CommentView]) {
+        self.posts = posts
+        self.comments = comments
+    }
 }
 
 /// The current account's moderation capability, decoded from `getSite` →
@@ -791,7 +810,11 @@ public actor LemmyService: LemmyServiceType {
         let feedKey = feed.feedKey
         let feedType = feed.feedType
 
-        let response: Lemmy.GetPostsResponse
+        // The neutral `getPostsNeutral` takes an opaque `Cursor`; Spud persists the
+        // cursor as a bare string, so bridge in both directions.
+        let cursor = pageCursor.map { Cursor(rawValue: $0) }
+
+        let page: Page<Lemmy.PostView>
         do {
             switch feedType {
             case let .frontpage(listingType, sortType):
@@ -803,11 +826,15 @@ public actor LemmyService: LemmyServiceType {
                     showNsfw=\(showNsfw, privacy: .public) \
                     pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
-                response = try await api.getPosts(
-                    type: listingType,
-                    sort: sortType,
-                    showNSFW: showNsfw,
-                    page: pageCursor
+                // NOTE: `getPostsNeutral` has no server-side NSFW filter param, so
+                // `showNsfw` is ignored here; NSFW posts are filtered client-side by
+                // the account's blur/hide settings. See the Phase 6 report follow-ups.
+                let (sort, timeRange) = sortType.neutralPostSort
+                page = try await api.getPostsNeutral(
+                    listingType: listingType,
+                    sort: sort,
+                    timeRange: timeRange,
+                    pageCursor: cursor
                 )
 
             case let .community(communityName, instance, sortType):
@@ -820,11 +847,19 @@ public actor LemmyService: LemmyServiceType {
                     showNsfw=\(showNsfw, privacy: .public) \
                     pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
-                response = try await api.getPosts(
-                    community: .name("\(communityName)@\(instance.hostWithPort)"),
-                    sort: sortType,
-                    showNSFW: showNsfw,
-                    page: pageCursor
+                // `getPostsNeutral` scopes a community by id, not by name, so resolve
+                // (and cache) the community's server id first.
+                let communityId = try await resolveCommunityServerId(
+                    name: communityName,
+                    instance: instance
+                )
+                let (sort, timeRange) = sortType.neutralPostSort
+                page = try await api.getPostsNeutral(
+                    listingType: .All,
+                    sort: sort,
+                    communityId: Int64(communityId),
+                    timeRange: timeRange,
+                    pageCursor: cursor
                 )
 
             case let .saved(sortType):
@@ -838,13 +873,12 @@ public actor LemmyService: LemmyServiceType {
                     showNsfw=\(showNsfw, privacy: .public) \
                     pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
-                response = try await api.getPosts(
-                    type: .All,
-                    sort: sortType,
-                    filter: .saved,
-                    showNSFW: showNsfw,
-                    page: pageCursor
-                )
+                // KNOWN REGRESSION: the neutral `getPostsNeutral` exposes no
+                // `saved`-only filter, so the server-backed Saved feed cannot be
+                // fetched yet. Return an empty page until LemmyKit's neutral surface
+                // grows a saved filter. See the Phase 6 report follow-ups.
+                logger.error("Saved feed fetch is unsupported on the neutral surface; returning empty page")
+                page = Page(items: [], nextPage: nil, prevPage: nil)
             }
         } catch let error as LemmyServiceError {
             throw error
@@ -859,7 +893,7 @@ public actor LemmyService: LemmyServiceType {
         }
 
         logger.debug("""
-            Fetch feed complete with \(response.posts.count, privacy: .public) posts. \
+            Fetch feed complete with \(page.items.count, privacy: .public) posts. \
             account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             feedId=\(feedKey, privacy: .public)
             """)
@@ -867,10 +901,32 @@ public actor LemmyService: LemmyServiceType {
         try await mirrorFeedPageToAppDatabase(
             feedKey: feedKey,
             feedType: feedType,
-            posts: response.posts
+            posts: page.items
         )
 
-        return response.next_page
+        return page.nextPage?.rawValue
+    }
+
+    /// Resolves the server-side id of the community named `name` (`gnome` for a
+    /// local community, or `worldnews@lemmy.world` for a remote one) at `instance`,
+    /// preferring the cached row and falling back to a network fetch+mirror. Needed
+    /// because `getPostsNeutral` scopes a community by id, not by name.
+    private func resolveCommunityServerId(
+        name: String,
+        instance: InstanceActorId
+    ) async throws -> Lemmy.CommunityID {
+        // The community's own federation actor id is `<instance>/c/<local-name>`.
+        let localName = name.split(separator: "@").first.map(String.init) ?? name
+        let actorId = "\(instance.actorId)/c/\(localName)"
+        if let (accountRowId, _) = try? await accountSiteIds(),
+           let cached = appDatabase.communityServerIdSync(forAccountId: accountRowId, actorId: actorId)
+        {
+            return Lemmy.CommunityID(cached)
+        }
+        // Not cached — fetch+mirror by fully-qualified name so a remote community
+        // resolves against ITS home instance, not the account's.
+        let qualifiedName = "\(localName)@\(instance.hostWithPort)"
+        return try await fetchCommunityInfo(communityName: qualifiedName)
     }
 
     private func mirrorFeedPageToAppDatabase(
@@ -902,12 +958,11 @@ public actor LemmyService: LemmyServiceType {
             sortType=\(sortType.rawValue, privacy: .public)
             """)
 
-        let response: Lemmy.GetCommentsResponse
+        let page: Page<Lemmy.CommentView>
         do {
-            response = try await api.getComments(
-                postID: serverPostId,
-                sort: sortType,
-                maxDepth: 8
+            page = try await api.getCommentsNeutral(
+                postId: Int64(serverPostId),
+                sort: sortType.neutralCommentSort
             )
         } catch {
             logger.error("""
@@ -926,18 +981,18 @@ public actor LemmyService: LemmyServiceType {
 
         logger.debug("""
             Fetch comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-            complete with \(response.comments.count, privacy: .public) comments
+            complete with \(page.items.count, privacy: .public) comments
             """)
 
         try await mirrorCommentsToAppDatabase(
             serverPostId: serverPostId,
             sortType: sortType,
-            comments: response.comments
+            comments: page.items
         )
 
         // A removed comment carries no reason in the comment object — fetch it
         // from the public modlog, but only when there's something to explain.
-        if response.comments.contains(where: \.comment.removed) {
+        if page.items.contains(where: \.comment.removed) {
             await mirrorCommentRemovalReasons(serverPostId: serverPostId)
         }
     }
@@ -1008,12 +1063,12 @@ public actor LemmyService: LemmyServiceType {
     }
 
     @discardableResult
-    public func getSiteInfo() async throws -> Lemmy.GetSiteResponse {
+    public func getSiteInfo() async throws -> LemmyKit.SiteInfo {
         logger.debug("Fetch site for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
 
-        let response: Lemmy.GetSiteResponse
+        let siteInfo: LemmyKit.SiteInfo
         do {
-            response = try await api.getSite()
+            siteInfo = try await api.getSiteNeutral()
         } catch {
             logger.error("""
                 Fetch site failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
@@ -1038,25 +1093,37 @@ public actor LemmyService: LemmyServiceType {
 
         logger.debug("Fetch site complete. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
 
+        // v4 split the signed-in account's own info out of getSite into a separate
+        // `getMyUserNeutral()` endpoint. Fetch it only for a signed-in account, and
+        // best-effort — a myUser failure must not prevent the site mirror.
+        var myUser: LemmyKit.MyUser?
+        if !accountIsSignedOut {
+            do {
+                myUser = try await api.getMyUserNeutral()
+            } catch {
+                logger.error("Fetch my_user failed: \(String(describing: error), privacy: .public)")
+            }
+        }
+
         do {
-            let (_, siteId) = try await appDatabase.upsertSite(from: response)
+            let (_, siteId) = try await appDatabase.upsertSite(from: siteInfo)
             let accountId = try await appDatabase.upsertAccount(
                 keychainId: accountIdentifierForLogging,
                 isSignedOut: accountIsSignedOut,
                 siteId: siteId,
-                myUser: response.my_user
+                myUser: myUser
             )
-            if let follows = response.my_user?.follows {
+            if let myUser {
                 try await appDatabase.setFollowedCommunities(
                     accountId: accountId,
-                    follows: follows
+                    follows: myUser.follows
                 )
             }
         } catch {
             logger.error("AppDatabase fetchSiteInfo upsert failed: \(String(describing: error), privacy: .public)")
         }
 
-        return response
+        return siteInfo
     }
 
     public func setShowNsfw(_ showNsfw: Bool) async throws {
@@ -1078,7 +1145,7 @@ public actor LemmyService: LemmyServiceType {
                 """)
 
             do {
-                _ = try await api.saveUserSettings(showNSFW: showNsfw)
+                try await api.saveUserSettingsNeutral(showNSFW: showNsfw)
             } catch {
                 logger.error("""
                     Set show_nsfw failed. \(String(describing: error), privacy: .public)
@@ -1122,7 +1189,7 @@ public actor LemmyService: LemmyServiceType {
                 """)
 
             do {
-                _ = try await api.saveUserSettings(blurNSFW: blurNsfw)
+                try await api.saveUserSettingsNeutral(blurNSFW: blurNsfw)
             } catch {
                 logger.error("""
                     Set blur_nsfw failed. \(String(describing: error), privacy: .public)
@@ -1176,7 +1243,10 @@ public actor LemmyService: LemmyServiceType {
             """)
 
         do {
-            _ = try await api.saveUserSettings(defaultSortType: sortType)
+            // The neutral surface takes a `PostSort`; the time-bucket window fused
+            // into a v3 `Top*` default sort is dropped (matching the neutral
+            // `saveUserSettings` contract, which sends no TimeRange for the default).
+            try await api.saveUserSettingsNeutral(defaultSortType: sortType.neutralPostSort.sort)
         } catch {
             logger.error("""
                 Set default_sort_type failed. \(String(describing: error), privacy: .public)
@@ -1215,16 +1285,19 @@ public actor LemmyService: LemmyServiceType {
             """)
 
         do {
-            _ = try await api.saveUserSettings(
+            // NOTE: v4 removed avatar/banner from saveUserSettings (they moved to
+            // dedicated upload/delete endpoints), so the neutral surface has no
+            // avatar/banner params. The server push of avatar/banner is dropped;
+            // the local optimistic mirror below still applies them. See the Phase 6
+            // report follow-ups.
+            try await api.saveUserSettingsNeutral(
                 defaultListingType: defaultListingType,
-                avatar: avatar,
-                banner: banner,
                 displayName: displayName,
                 bio: bio,
-                showAvatars: showAvatars,
+                showScores: showScores,
                 showBotAccounts: showBotAccounts,
                 showReadPosts: showReadPosts,
-                showScores: showScores
+                showAvatars: showAvatars
             )
         } catch {
             logger.error("""
@@ -1279,9 +1352,9 @@ public actor LemmyService: LemmyServiceType {
             personId=\(serverPersonId, privacy: .public)
             """)
 
-        let response: Lemmy.GetPersonDetailsResponse
+        let details: LemmyKit.PersonDetails
         do {
-            response = try await api.getPersonDetails(personID: serverPersonId)
+            details = try await api.personDetailsNeutral(personId: Int64(serverPersonId))
         } catch {
             logger.error("""
                 Fetch person info failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
@@ -1296,7 +1369,7 @@ public actor LemmyService: LemmyServiceType {
             personId=\(serverPersonId, privacy: .public)
             """)
 
-        await mirrorPersonInfoToAppDatabase(personView: response.person_view)
+        await mirrorPersonInfoToAppDatabase(personView: details.personView)
 
         guard appDatabase.personRowIdSync(
             forKeychainId: accountIdentifierForLogging,
@@ -1312,7 +1385,7 @@ public actor LemmyService: LemmyServiceType {
         serverPersonId: Lemmy.PersonID,
         sort: Lemmy.SortType,
         page: Int64
-    ) async throws -> Lemmy.GetPersonDetailsResponse {
+    ) async throws -> PersonContentPage {
         try await requireCapability(.personProfiles)
 
         logger.debug("""
@@ -1321,12 +1394,19 @@ public actor LemmyService: LemmyServiceType {
             page=\(page, privacy: .public)
             """)
 
-        let response: Lemmy.GetPersonDetailsResponse
+        // v4 split a person's profile (`personDetailsNeutral`) from their paged
+        // post/comment feed (`personContentNeutral`); Spud fetches both. NOTE: the
+        // neutral content feed is cursor-paged and ignores `sort`; the v3 backend
+        // encodes its page number as a bare-integer cursor, so page N > 1 maps to a
+        // cursor of "N". See the Phase 6 report follow-ups (sort + v4 cursor paging).
+        let details: LemmyKit.PersonDetails
+        let contentPage: Page<LemmyKit.PostOrComment>
         do {
-            response = try await api.getPersonDetails(
-                personID: serverPersonId,
-                sort: sort,
-                page: page
+            let cursor = page <= 1 ? nil : Cursor(rawValue: String(page))
+            details = try await api.personDetailsNeutral(personId: Int64(serverPersonId))
+            contentPage = try await api.personContentNeutral(
+                personId: Int64(serverPersonId),
+                pageCursor: cursor
             )
         } catch {
             logger.error("""
@@ -1337,17 +1417,19 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
+        let posts = contentPage.items.compactMap(\.post)
+        let comments = contentPage.items.compactMap(\.comment)
+
         // Persist the posts as real PostRecords first (so the profile's Posts
         // tab renders them with the canonical PostListPostCell and gets live
         // vote/save updates). The post import also upserts each post's bare
-        // creator person, so mirror the richer `person_view` profile AFTER that
-        // — the full profile (display name, bio, banner, counts) must win over
-        // the lean creator embedded on a post. The comments stay transient
-        // (returned to the caller).
-        await mirrorPersonPostsToAppDatabase(posts: response.posts)
-        await mirrorPersonInfoToAppDatabase(personView: response.person_view)
+        // creator person, so mirror the richer profile AFTER that — the full
+        // profile (display name, bio, banner, counts) must win over the lean
+        // creator embedded on a post. The comments stay transient (returned).
+        await mirrorPersonPostsToAppDatabase(posts: posts)
+        await mirrorPersonInfoToAppDatabase(personView: details.personView)
 
-        return response
+        return PersonContentPage(posts: posts, comments: comments)
     }
 
     /// Persists the person's posts so the profile's Posts tab can observe them
@@ -1384,9 +1466,9 @@ public actor LemmyService: LemmyServiceType {
             communityId=\(serverCommunityId, privacy: .public)
             """)
 
-        let response: Lemmy.GetCommunityResponse
+        let view: Lemmy.CommunityView
         do {
-            response = try await api.getCommunity(communityID: serverCommunityId)
+            view = try await api.getCommunityNeutral(id: Int64(serverCommunityId))
         } catch {
             logger.error("""
                 Fetch community info failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
@@ -1396,7 +1478,7 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorCommunityInfoToAppDatabase(view: response.community_view)
+        await mirrorCommunityInfoToAppDatabase(view: view)
     }
 
     @discardableResult
@@ -1408,9 +1490,14 @@ public actor LemmyService: LemmyServiceType {
             communityName=\(communityName, privacy: .public)
             """)
 
-        let response: Lemmy.GetCommunityResponse
+        // The neutral surface has no get-community-by-name endpoint, so resolve the
+        // community by its federation actor url (`resolveObjectNeutral` works on
+        // v3 and v4). `communityName` is either `local` (a community on the home
+        // instance) or `local@host` (a federated one).
+        let object: LemmyKit.ResolvedObject?
         do {
-            response = try await api.getCommunity(name: communityName)
+            let query = try await communityActorUrl(forName: communityName)
+            object = try await api.resolveObjectNeutral(query: query)
         } catch {
             logger.error("""
                 Fetch community info failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
@@ -1420,13 +1507,37 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorCommunityInfoToAppDatabase(view: response.community_view)
+        guard let view = object?.community else {
+            throw LemmyServiceError.internalInconsistency(
+                description: "fetchCommunityInfo: '\(communityName)' did not resolve to a community"
+            )
+        }
 
-        return response.community_view.community.id
+        await mirrorCommunityInfoToAppDatabase(view: view)
+
+        return Lemmy.CommunityID(view.community.id)
+    }
+
+    /// Builds a community's federation actor url from a `local` or `local@host`
+    /// name, using the account's home instance host for a bare local name.
+    private func communityActorUrl(forName name: String) async throws -> String {
+        let parts = name.split(separator: "@", maxSplits: 1).map(String.init)
+        let localName = parts.first ?? name
+        let host: String
+        if parts.count == 2 {
+            host = parts[1]
+        } else if let homeHost = await resolveInstanceHost() {
+            host = homeHost
+        } else {
+            throw LemmyServiceError.internalInconsistency(
+                description: "fetchCommunityInfo: no home instance to resolve local community '\(name)'"
+            )
+        }
+        return "https://\(host)/c/\(localName)"
     }
 
     public func resolveObject(query: String) async throws -> ResolvedLemmyObject {
-        let response = try await api.resolveObject(query: query)
+        let response = try await api.resolveObjectNeutral(query: query)
         // Resolve under the current account, so the returned ids are local to
         // this account's home instance. Use the async read (not the *Sync
         // variant) so we don't block the actor's executor.
@@ -1444,7 +1555,7 @@ public actor LemmyService: LemmyServiceType {
         sort: Lemmy.SortType,
         listingType: Lemmy.ListingType,
         page: Int64
-    ) async throws -> Lemmy.SearchResponse {
+    ) async throws -> LemmyKit.SearchResults {
         logger.debug("""
             Search. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             query=\(query, privacy: .private) type=\(type.rawValue, privacy: .public) \
@@ -1452,14 +1563,19 @@ public actor LemmyService: LemmyServiceType {
             page=\(page, privacy: .public)
             """)
 
-        let response: Lemmy.SearchResponse
+        // NOTE: `searchNeutral` has no listing-type param (search is instance-wide),
+        // so `listingType` is ignored here; `page` becomes an opaque cursor (page N
+        // > 1 encodes as "N" for the v3 backend). See the Phase 6 report follow-ups.
+        let (neutralSort, timeRange) = sort.neutralPostSort
+        let cursor = page <= 1 ? nil : Cursor(rawValue: String(page))
+        let results: LemmyKit.SearchResults
         do {
-            response = try await api.search(
+            results = try await api.searchNeutral(
                 query: query,
-                type: type,
-                sort: sort,
-                listingType: listingType,
-                page: page
+                type: type.neutralSearchType,
+                sort: neutralSort,
+                timeRange: timeRange,
+                pageCursor: cursor
             )
         } catch {
             logger.error("""
@@ -1470,7 +1586,7 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        return response
+        return results
     }
 
     public func listCommunities(
@@ -1485,15 +1601,13 @@ public actor LemmyService: LemmyServiceType {
             limit=\(limit ?? -1, privacy: .public)
             """)
 
-        let response: Lemmy.ListCommunitiesResponse
+        // NOTE: `listCommunitiesNeutral` lists all communities with a single
+        // `sort`; it takes no listing-`type`, NSFW, or `limit` param, so those are
+        // ignored here (the caller trims the returned page). See Phase 6 follow-ups.
+        let neutralSort = (sort ?? .Active).neutralPostSort.sort
+        let page: Page<Lemmy.CommunityView>
         do {
-            response = try await api.listCommunities(
-                type: type,
-                sort: sort,
-                showNSFW: nil,
-                page: nil,
-                limit: limit
-            )
+            page = try await api.listCommunitiesNeutral(sort: neutralSort)
         } catch {
             logger.error("""
                 List communities failed. \
@@ -1504,7 +1618,10 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        return response.communities
+        if let limit {
+            return Array(page.items.prefix(Int(limit)))
+        }
+        return page.items
     }
 
     public func setSubscribed(
@@ -1731,12 +1848,13 @@ public actor LemmyService: LemmyServiceType {
             parentCommentId=\(parentCommentId.map(String.init) ?? "nil", privacy: .public)
             """)
 
-        let response: Lemmy.CommentResponse
+        let view: Lemmy.CommentView
         do {
-            response = try await api.createComment(
-                postID: serverPostId,
+            view = try await api.createCommentNeutral(
                 content: content,
-                parentID: parentCommentId
+                postId: Int64(serverPostId),
+                parentId: parentCommentId.map { Int64($0) },
+                languageId: nil
             )
         } catch {
             logger.error("""
@@ -1746,7 +1864,7 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorCommentToAppDatabase(view: response.comment_view)
+        await mirrorCommentToAppDatabase(view: view)
     }
 
     @discardableResult
@@ -1771,14 +1889,15 @@ public actor LemmyService: LemmyServiceType {
             communityId=\(serverCommunityId, privacy: .public)
             """)
 
-        let response: Lemmy.PostResponse
+        let view: Lemmy.PostView
         do {
-            response = try await api.createPost(
-                communityID: serverCommunityId,
+            view = try await api.createPostNeutral(
                 name: name,
+                communityId: Int64(serverCommunityId),
                 url: url,
                 body: body,
-                nsfw: nsfw
+                nsfw: nsfw,
+                languageId: nil
             )
         } catch {
             logger.error("""
@@ -1788,8 +1907,8 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorPostInfoToAppDatabase(view: response.post_view)
-        return response.post_view.post.id
+        await mirrorPostInfoToAppDatabase(view: view)
+        return Lemmy.PostID(view.post.id)
     }
 
     public func uploadImage(
@@ -1812,12 +1931,13 @@ public actor LemmyService: LemmyServiceType {
             bytes=\(imageData.count, privacy: .public)
             """)
 
-        let uploaded: LemmyApi.UploadedImage
+        // The neutral `uploadImageNeutral` takes no `mimeType` (it is inferred);
+        // `mimeType` is retained on this method's signature but unused.
+        let uploaded: LemmyKit.UploadedImage
         do {
-            uploaded = try await api.uploadImage(
+            uploaded = try await api.uploadImageNeutral(
                 imageData: imageData,
-                fileName: fileName,
-                mimeType: mimeType
+                fileName: fileName
             )
         } catch {
             logger.error("""
@@ -1826,7 +1946,12 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        return uploaded.url
+        guard let url = uploaded.imageURL else {
+            throw LemmyServiceError.internalInconsistency(
+                description: "uploadImage: upload returned no image url"
+            )
+        }
+        return url
     }
 
     public func setSaved(

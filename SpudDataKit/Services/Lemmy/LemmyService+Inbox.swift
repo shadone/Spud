@@ -79,7 +79,7 @@ public extension LemmyService {
     func fetchPrivateMessages(
         unreadOnly: Bool,
         page: Int64
-    ) async throws -> Lemmy.PrivateMessagesResponse {
+    ) async throws -> [IncomingPrivateMessage] {
         try await requireCapability(.privateMessages)
 
         guard !accountIsSignedOut else {
@@ -91,11 +91,22 @@ public extension LemmyService {
             unreadOnly=\(unreadOnly, privacy: .public) page=\(page, privacy: .public)
             """)
 
+        // The neutral surface has no standalone private-message list; DMs arrive
+        // through the unified notification feed. Fetch it and keep only the
+        // private-message entries, pairing each with the notification's read state.
+        // NOTE: `page` maps to an opaque cursor ("N" on a v3 backend); on v3 the
+        // notification list is a single fan-out page, so paging degrades. See the
+        // Phase 6 report follow-ups (full inbox → listNotificationsNeutral).
         do {
-            return try await api.getPrivateMessages(
+            let cursor = page <= 1 ? nil : Cursor(rawValue: String(page))
+            let notifications = try await api.listNotificationsNeutral(
                 unreadOnly: unreadOnly,
-                page: page
+                pageCursor: cursor
             )
+            return notifications.items.compactMap { notification in
+                guard case let .privateMessage(view) = notification.data else { return nil }
+                return IncomingPrivateMessage(view: view, isRead: notification.notification.isRead)
+            }
         } catch {
             logger.error("""
                 Fetch private messages failed. \
@@ -277,9 +288,12 @@ public extension LemmyService {
             recipientId=\(recipientId, privacy: .public)
             """)
 
-        let response: Lemmy.PrivateMessageResponse
+        let view: Lemmy.PrivateMessageView
         do {
-            response = try await api.createPrivateMessage(content: content, recipientID: recipientId)
+            view = try await api.createPrivateMessageNeutral(
+                content: content,
+                recipientId: Int64(recipientId)
+            )
         } catch {
             logger.error("""
                 Send private message failed. recipientId=\(recipientId, privacy: .public). \
@@ -288,6 +302,6 @@ public extension LemmyService {
             throw LemmyServiceError(from: error)
         }
 
-        return response.private_message_view
+        return view
     }
 }

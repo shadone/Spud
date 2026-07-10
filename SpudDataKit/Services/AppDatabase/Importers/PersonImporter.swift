@@ -63,9 +63,13 @@ extension AppDatabase {
     ) throws -> Int64 {
         let id = try upsertPerson(from: model.person, siteId: siteId, in: db)
         if var record = try PersonRecord.fetchOne(db, key: id) {
-            record.isAdmin = model.is_admin
-            record.numberOfPosts = Int64(model.counts.post_count)
-            record.numberOfComments = Int64(model.counts.comment_count)
+            record.isAdmin = model.isAdmin
+            record.isBanned = model.isBanned
+            // The neutral surface flattens post/comment counts onto the bare
+            // `Person` (always present); `PersonView.postCount`/`commentCount` are
+            // v3-only and nil on a v4 backend, so read the person's own counts.
+            record.numberOfPosts = model.person.postCount
+            record.numberOfComments = model.person.commentCount
             try record.update(db)
         }
         return id
@@ -77,21 +81,23 @@ extension AppDatabase {
         now: Date
     ) {
         record.name = model.name
-        record.displayName = model.display_name
-        record.avatarUrl = model.avatar
-        record.bannerUrl = model.banner
+        record.displayName = model.displayName
+        record.avatarUrl = model.avatarUrl
+        record.bannerUrl = model.bannerUrl
         record.bio = model.bio
-        record.actorId = model.actor_id
-        record.matrixUserId = model.matrix_user_id
+        record.actorId = model.apId
+        record.matrixUserId = model.matrixUserId
         // is_admin is only available via PersonView. Default to false here.
         record.isAdmin = false
-        record.isBanned = model.banned
-        record.isBotAccount = model.bot_account
+        // The neutral bare `Person` carries no ban standing (v4 moved `banned`/
+        // `ban_expires_at` onto `PersonView`), so `isBanned`/`banExpires` are left
+        // as-is here: preserved on an update, defaulted on a fresh insert. The
+        // `PersonView` upsert sets `isBanned` authoritatively.
+        record.isBotAccount = model.botAccount
         record.isDeleted = model.deleted
         record.isLocal = model.local
-        record.banExpires = model.ban_expires
-        record.personCreatedDate = model.published
-        record.personUpdatedDate = model.updated
+        record.personCreatedDate = model.publishedAt
+        record.personUpdatedDate = model.updatedAt
         record.updatedAt = now
     }
 }

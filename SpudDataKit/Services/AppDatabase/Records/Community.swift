@@ -6,6 +6,7 @@
 
 import Foundation
 import GRDB
+import LemmyKit
 
 public struct CommunityRecord: Codable, Sendable, Equatable, Identifiable {
     public static let databaseTableName = "community"
@@ -105,6 +106,24 @@ public enum CommunitySubscribedState: String, Sendable, Equatable {
         switch self {
         case .subscribed, .pending: true
         case .notSubscribed: false
+        }
+    }
+}
+
+extension CommunitySubscribedState {
+    /// Folds LemmyKit's version-neutral 4-state ``FollowState`` into the persisted
+    /// 3-state vocabulary. The v4-only `.approvalRequired` collapses to `.pending`
+    /// (a request awaiting a decision) and `.denied` collapses to `.notSubscribed`
+    /// (no active follow — the user may re-request), matching how a v3 backend
+    /// already collapses both into its `Pending`/`NotSubscribed` states. Preserving
+    /// the `.approvalRequired`/`.denied` distinction in persistence would need a new
+    /// column/migration (out of scope here) — see the Phase 6 report's outbox-codec
+    /// follow-up.
+    init(followState: FollowState) {
+        switch followState {
+        case .accepted: self = .subscribed
+        case .pending, .approvalRequired: self = .pending
+        case .notFollowing, .denied: self = .notSubscribed
         }
     }
 }

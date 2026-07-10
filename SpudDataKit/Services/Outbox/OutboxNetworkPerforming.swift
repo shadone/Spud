@@ -32,60 +32,60 @@ public struct LemmyOutboxPerformer: OutboxNetworkPerforming {
     }
 
     public func perform(_ op: OutboxOperation) async throws {
+        // The neutral vote/save/hide/delete/follow endpoints take the entity's
+        // `Int64` server id directly and return the neutral view.
+        let id = op.entityServerId
         switch op.desiredState {
         case let .vote(status):
             switch op.entityType {
             case .post:
-                let r = try await api.likePost(postID: Lemmy.PostID(op.entityServerId), status: status)
-                try await appDatabase.upsertPost(from: r.post_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
+                let view = try await api.votePostNeutral(id: id, direction: VoteDirection(status))
+                try await appDatabase.upsertPost(from: view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             case .comment:
-                let r = try await api.likeComment(commentID: Lemmy.CommentID(op.entityServerId), status: status)
-                try await appDatabase.upsertComment(from: r.comment_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
+                let view = try await api.voteCommentNeutral(id: id, direction: VoteDirection(status))
+                try await appDatabase.upsertComment(from: view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             case .community:
                 break // vote never targets a community; nothing to send.
             }
         case let .save(value):
             switch op.entityType {
             case .post:
-                let r = try await api.savePost(postID: Lemmy.PostID(op.entityServerId), save: value)
-                try await appDatabase.upsertPost(from: r.post_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
+                let view = try await api.savePostNeutral(id: id, saved: value)
+                try await appDatabase.upsertPost(from: view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             case .comment:
-                let r = try await api.saveComment(commentID: Lemmy.CommentID(op.entityServerId), save: value)
-                try await appDatabase.upsertComment(from: r.comment_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
+                let view = try await api.saveCommentNeutral(id: id, saved: value)
+                try await appDatabase.upsertComment(from: view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             case .community:
                 break // save never targets a community; nothing to send.
             }
         case let .hide(value):
             // No entity returned; optimistic write stands.
-            _ = try await api.hidePost(postIDs: [Lemmy.PostID(op.entityServerId)], hide: value)
+            try await api.hidePostNeutral(id: id, hidden: value)
         case let .delete(value):
             // Delete/restore of the user's own post or comment.
             switch op.entityType {
             case .post:
-                let r = try await api.deletePost(postID: Lemmy.PostID(op.entityServerId), deleted: value)
-                try await appDatabase.upsertPost(from: r.post_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
+                let view = try await api.deletePostNeutral(id: id, deleted: value)
+                try await appDatabase.upsertPost(from: view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             case .comment:
-                let r = try await api.deleteComment(commentID: Lemmy.CommentID(op.entityServerId), deleted: value)
-                try await appDatabase.upsertComment(from: r.comment_view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
+                let view = try await api.deleteCommentNeutral(id: id, deleted: value)
+                try await appDatabase.upsertComment(from: view, accountId: accountId, siteId: siteId, respectsPendingOutbox: false)
             case .community:
                 break // delete never targets a community; nothing to send.
             }
         case let .subscribe(value):
-            // Subscribe/unsubscribe a community. `followCommunity` returns the
-            // authoritative CommunityView (Subscribed or Pending); mirror it so
-            // the optimistic Pending is upgraded to the server's answer (and the
+            // Subscribe/unsubscribe a community. `followCommunityNeutral` returns
+            // the authoritative CommunityView (accepted or pending); mirror it so
+            // the optimistic pending is upgraded to the server's answer (and the
             // followed-communities junction is synced by the importer).
             switch op.entityType {
             case .community:
-                let r = try await api.followCommunity(
-                    communityID: Lemmy.CommunityID(op.entityServerId),
-                    follow: value
-                )
+                let view = try await api.followCommunityNeutral(id: id, follow: value)
                 // Authoritative post-send mirror: bypass the pending-outbox guard
                 // so the server's confirmed subscribed state overrides the still-
                 // pending optimistic projection.
                 try await appDatabase.upsertCommunity(
-                    from: r.community_view,
+                    from: view,
                     accountId: accountId,
                     respectsPendingOutbox: false
                 )

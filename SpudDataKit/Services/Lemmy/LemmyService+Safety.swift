@@ -33,9 +33,9 @@ public extension LemmyService {
             personId=\(serverPersonId, privacy: .public)
             """)
 
-        let response: Lemmy.BlockPersonResponse
+        let view: Lemmy.PersonView
         do {
-            response = try await api.blockPerson(personID: serverPersonId, block: blocked)
+            view = try await api.blockPersonNeutral(id: Int64(serverPersonId), block: blocked)
         } catch {
             logger.error("""
                 Block person failed. personId=\(serverPersonId, privacy: .public). \
@@ -46,7 +46,7 @@ public extension LemmyService {
 
         // Mirror the refreshed author info. The server now filters this author's
         // content out of subsequent feed fetches; the caller refreshes the feed.
-        await mirrorPersonInfoToAppDatabase(view: response.person_view)
+        await mirrorPersonInfoToAppDatabase(view: view)
     }
 
     func setBlocked(
@@ -68,9 +68,9 @@ public extension LemmyService {
             communityId=\(serverCommunityId, privacy: .public)
             """)
 
-        let response: Lemmy.BlockCommunityResponse
+        let view: Lemmy.CommunityView
         do {
-            response = try await api.blockCommunity(communityID: serverCommunityId, block: blocked)
+            view = try await api.blockCommunityNeutral(id: Int64(serverCommunityId), block: blocked)
         } catch {
             logger.error("""
                 Block community failed. communityId=\(serverCommunityId, privacy: .public). \
@@ -82,7 +82,7 @@ public extension LemmyService {
         // Mirror the refreshed community info. The server now filters this
         // community's content out of subsequent feed fetches; the caller
         // refreshes the feed.
-        await mirrorCommunityInfoToAppDatabase(view: response.community_view)
+        await mirrorCommunityInfoToAppDatabase(view: view)
     }
 
     internal func mirrorPersonInfoToAppDatabase(
@@ -223,9 +223,9 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Lemmy.GetPostResponse
+        let view: Lemmy.PostView
         do {
-            response = try await api.getPost(id: serverPostId)
+            view = try await api.getPostNeutral(id: Int64(serverPostId))
         } catch {
             logger.error("""
                 Fetch post failed. postId=\(serverPostId, privacy: .public). \
@@ -245,7 +245,7 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        await mirrorPostInfoToAppDatabase(view: response.post_view)
+        await mirrorPostInfoToAppDatabase(view: view)
 
         guard appDatabase.postRowIdSync(
             forKeychainId: accountIdentifierForLogging,
@@ -256,11 +256,9 @@ public extension LemmyService {
             )
         }
 
-        // getPost also returns the cross-posts as full PostViews, so harvest
-        // their counters too — keeps any cross-post we already cache fresh
-        // without a separate fetch. Best-effort: a cross-post is incidental and
-        // must not affect the primary post's persistence contract above.
-        await mirrorPostViewsToAppDatabase(views: response.cross_posts)
+        // NOTE: the neutral `getPostNeutral` returns only the post view, not the
+        // cross-posts v3's `getPost` carried, so the cross-post counter harvest is
+        // dropped. See the Phase 6 report follow-ups.
     }
 
     internal func mirrorPostInfoToAppDatabase(

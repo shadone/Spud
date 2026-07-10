@@ -84,7 +84,7 @@ public extension AppDatabase {
             let commentsWithMissingChildren: Set<Lemmy.CommentID> = Set(
                 LemmyCommentImportHelper
                     .findCommentsWithMissingChildren(comments)
-                    .map(\.comment.id)
+                    .map { Lemmy.CommentID($0.comment.id) }
             )
 
             let ordered = LemmyCommentImportHelper.sort(comments: comments)
@@ -113,14 +113,14 @@ public extension AppDatabase {
                 try element.insert(db)
                 elementPosition += 1
 
-                if commentsWithMissingChildren.contains(view.comment.id) {
+                if commentsWithMissingChildren.contains(Lemmy.CommentID(view.comment.id)) {
                     var placeholder = CommentElementRecord(
                         postId: postRowId,
                         commentId: nil,
                         position: elementPosition,
                         depth: depth + 1,
                         sortType: sortTypeRaw,
-                        moreChildCount: Int64(view.counts.child_count),
+                        moreChildCount: view.comment.childCount,
                         moreParentId: Int64(view.comment.id)
                     )
                     try placeholder.insert(db)
@@ -203,7 +203,7 @@ public extension AppDatabase {
             creatorId: creatorId,
             localCommentId: serverCommentId,
             body: view.comment.content,
-            published: view.comment.published,
+            published: view.comment.publishedAt,
             createdAt: now,
             updatedAt: now
         )
@@ -218,30 +218,29 @@ public extension AppDatabase {
         now: Date
     ) {
         record.body = view.comment.content
-        record.originalCommentUrl = view.comment.ap_id
-        record.published = view.comment.published
+        record.originalCommentUrl = view.comment.apId
+        record.published = view.comment.publishedAt
 
-        record.score = Int64(view.counts.score)
-        record.numberOfUpvotes = Int64(view.counts.upvotes)
-        record.numberOfDownvotes = Int64(view.counts.downvotes)
-        record.isSaved = view.saved
+        record.score = view.comment.score
+        record.numberOfUpvotes = view.comment.upvotes
+        record.numberOfDownvotes = view.comment.downvotes
+        record.isSaved = view.isSaved
 
         record.isRemoved = view.comment.removed
         record.isDistinguished = view.comment.distinguished
         record.isDeleted = view.comment.deleted
 
-        record.isCreatorModerator = view.creator_is_moderator
-        record.isCreatorAdmin = view.creator_is_admin
-        record.isCreatorBannedFromCommunity = view.creator_banned_from_community
-        record.isCreatorBlocked = view.creator_blocked
+        record.isCreatorModerator = view.creatorIsModerator
+        record.isCreatorAdmin = view.creatorIsAdmin
+        record.isCreatorBannedFromCommunity = view.creatorBannedFromCommunity
+        record.isCreatorBlocked = view.isCreatorBlocked
 
-        switch view.my_vote {
-        case 1: record.voteStatus = 1
-        case -1: record.voteStatus = 0
-        case 0, nil: record.voteStatus = nil
-        default:
-            logger.assertionFailure("Unexpected my_vote \(String(describing: view.my_vote)) for comment \(view.comment.id)")
-            record.voteStatus = nil
+        // Map the neutral `VoteDirection` onto the record's stored encoding
+        // (1 = upvote, 0 = downvote, nil = no vote).
+        switch view.myVote {
+        case .up: record.voteStatus = 1
+        case .down: record.voteStatus = 0
+        case .none: record.voteStatus = nil
         }
 
         record.updatedAt = now

@@ -46,13 +46,13 @@ struct SearchPostResult: Hashable, Identifiable {
     }
 
     init(view: Lemmy.PostView) {
-        serverPostId = view.post.id
+        serverPostId = Lemmy.PostID(view.post.id)
         title = view.post.name
         communityName = view.community.name
-        score = view.counts.score
-        numberOfComments = view.counts.comments
-        published = view.post.published
-        thumbnailUrl = view.post.thumbnail_url.flatMap { URL(string: $0) }
+        score = view.post.score
+        numberOfComments = view.post.comments
+        published = view.post.publishedAt
+        thumbnailUrl = view.post.thumbnailUrl.flatMap { URL(string: $0) }
         isNsfw = view.post.nsfw
     }
 }
@@ -67,7 +67,7 @@ struct SearchCommunityResult: Hashable, Identifiable {
     let instance: InstanceActorId
     let subscribersText: String
     let iconUrl: URL?
-    let subscribed: Lemmy.SubscribedType
+    let followState: FollowState
     let isNsfw: Bool
 
     var id: Lemmy.CommunityID {
@@ -75,7 +75,7 @@ struct SearchCommunityResult: Hashable, Identifiable {
     }
 
     var isSubscribed: Bool {
-        subscribed == .Subscribed
+        followState == .accepted
     }
 
     init(
@@ -85,7 +85,7 @@ struct SearchCommunityResult: Hashable, Identifiable {
         instance: InstanceActorId,
         subscribersText: String,
         iconUrl: URL?,
-        subscribed: Lemmy.SubscribedType,
+        followState: FollowState,
         isNsfw: Bool
     ) {
         self.serverCommunityId = serverCommunityId
@@ -94,25 +94,25 @@ struct SearchCommunityResult: Hashable, Identifiable {
         self.instance = instance
         self.subscribersText = subscribersText
         self.iconUrl = iconUrl
-        self.subscribed = subscribed
+        self.followState = followState
         self.isNsfw = isNsfw
     }
 
     init?(view: Lemmy.CommunityView) {
         let community = view.community
         guard
-            let actorUrl = URL(string: community.actor_id),
+            let actorUrl = URL(string: community.apId),
             let instance = InstanceActorId(from: actorUrl)
         else {
             return nil
         }
-        serverCommunityId = community.id
+        serverCommunityId = Lemmy.CommunityID(community.id)
         name = community.name
         qualifiedName = "!\(community.name)@\(instance.hostWithPort)"
         self.instance = instance
-        subscribersText = "\(view.counts.subscribers)"
-        iconUrl = community.icon.flatMap { URL(string: $0) }
-        subscribed = view.subscribed
+        subscribersText = "\(community.subscribers)"
+        iconUrl = community.iconUrl.flatMap { URL(string: $0) }
+        followState = view.followState
         isNsfw = community.nsfw
     }
 }
@@ -147,16 +147,16 @@ struct SearchUserResult: Hashable, Identifiable {
     init?(view: Lemmy.PersonView) {
         let person = view.person
         guard
-            let actorUrl = URL(string: person.actor_id),
+            let actorUrl = URL(string: person.apId),
             let instance = InstanceActorId(from: actorUrl)
         else {
             return nil
         }
-        serverPersonId = person.id
-        name = person.display_name ?? person.name
+        serverPersonId = Lemmy.PersonID(person.id)
+        name = person.displayName ?? person.name
         qualifiedName = "@\(person.name)@\(instance.hostWithPort)"
         self.instance = instance
-        avatarUrl = person.avatar.flatMap { URL(string: $0) }
+        avatarUrl = person.avatarUrl.flatMap { URL(string: $0) }
     }
 }
 
@@ -194,13 +194,13 @@ struct SearchCommentResult: Hashable, Identifiable {
     }
 
     init(view: Lemmy.CommentView) {
-        serverCommentId = view.comment.id
-        serverPostId = view.post.id
+        serverCommentId = Lemmy.CommentID(view.comment.id)
+        serverPostId = Lemmy.PostID(view.post.id)
         content = view.comment.content
         postTitle = view.post.name
-        creatorName = view.creator.display_name ?? view.creator.name
-        score = view.counts.score
-        published = view.comment.published
+        creatorName = view.creator.displayName ?? view.creator.name
+        score = view.comment.score
+        published = view.comment.publishedAt
     }
 }
 
@@ -266,10 +266,10 @@ struct SearchResults {
 
     init() { }
 
-    init(response: Lemmy.SearchResponse) {
+    init(response: LemmyKit.SearchResults) {
         posts = response.posts.map(SearchPostResult.init)
         communities = response.communities.compactMap(SearchCommunityResult.init)
-        users = response.users.compactMap(SearchUserResult.init)
+        users = response.persons.compactMap(SearchUserResult.init)
         comments = response.comments.map(SearchCommentResult.init)
     }
 

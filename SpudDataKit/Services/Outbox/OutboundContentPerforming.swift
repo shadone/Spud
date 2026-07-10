@@ -30,24 +30,25 @@ public struct LemmyComposerPerformer: OutboundContentPerforming {
         guard let kind = OutboundKind(rawValue: record.kind) else { return nil }
         switch kind {
         case .comment:
-            let response: Lemmy.CommentResponse
+            let view: Lemmy.CommentView
             if let editCommentServerId = record.editCommentServerId {
                 // Edit of an existing comment: update the body in place.
-                response = try await api.editComment(
-                    commentID: Lemmy.CommentID(editCommentServerId),
+                view = try await api.editCommentNeutral(
+                    id: editCommentServerId,
                     content: record.body
                 )
             } else {
                 // Create a new comment / reply.
                 guard let postServerId = record.postServerId else { return nil }
-                response = try await api.createComment(
-                    postID: Lemmy.PostID(postServerId),
+                view = try await api.createCommentNeutral(
                     content: record.body,
-                    parentID: record.parentCommentServerId.map { Lemmy.CommentID($0) }
+                    postId: postServerId,
+                    parentId: record.parentCommentServerId,
+                    languageId: nil
                 )
             }
             try await appDatabase.upsertComment(
-                from: response.comment_view,
+                from: view,
                 accountId: accountId,
                 siteId: siteId,
                 respectsPendingOutbox: false
@@ -55,34 +56,36 @@ public struct LemmyComposerPerformer: OutboundContentPerforming {
             return nil
         case .post:
             let trimmedBody = record.body.trimmingCharacters(in: .whitespacesAndNewlines)
-            let response: Lemmy.PostResponse
+            let view: Lemmy.PostView
             if let editPostServerId = record.editPostServerId {
-                // Edit of an existing post: update title/url/body/nsfw in place.
-                response = try await api.editPost(
-                    postID: Lemmy.PostID(editPostServerId),
+                // Edit of an existing post: update title/url/body in place. NOTE:
+                // the neutral `editPostNeutral` has no `nsfw` param (it leaves the
+                // flag unchanged); the nsfw edit is dropped. See Phase 6 follow-ups.
+                view = try await api.editPostNeutral(
+                    id: editPostServerId,
                     name: record.title,
                     url: record.url,
-                    body: trimmedBody.isEmpty ? nil : trimmedBody,
-                    nsfw: record.nsfw
+                    body: trimmedBody.isEmpty ? nil : trimmedBody
                 )
             } else {
                 // Create a new post.
                 guard let communityServerId = record.communityServerId else { return nil }
-                response = try await api.createPost(
-                    communityID: Lemmy.CommunityID(communityServerId),
+                view = try await api.createPostNeutral(
                     name: record.title ?? "",
+                    communityId: communityServerId,
                     url: record.url,
                     body: trimmedBody.isEmpty ? nil : trimmedBody,
-                    nsfw: record.nsfw
+                    nsfw: record.nsfw,
+                    languageId: nil
                 )
             }
             try await appDatabase.upsertPost(
-                from: response.post_view,
+                from: view,
                 accountId: accountId,
                 siteId: siteId,
                 respectsPendingOutbox: false
             )
-            return Int64(response.post_view.post.id)
+            return Int64(view.post.id)
         case .directMessage:
             // Send the private message. Each createPrivateMessage call makes a
             // NEW server message — there is no server-side dedup. Unlike the
@@ -102,17 +105,17 @@ public struct LemmyComposerPerformer: OutboundContentPerforming {
                     description: "Direct-message outbound row \(record.clientToken) has no recipient"
                 )
             }
-            let response = try await api.createPrivateMessage(
+            let view = try await api.createPrivateMessageNeutral(
                 content: record.body,
-                recipientID: Lemmy.PersonID(recipientServerPersonId)
+                recipientId: recipientServerPersonId
             )
             // Import the confirmed message into the persistent store
             // (source of truth). The importer resolves the account's siteId
             // internally and upserts both participants + the message row keyed on
             // (accountId, serverMessageId); the generic success path then deletes
-            // this outbound row.
+            // this outbound row. A just-sent outgoing message is marked read.
             try await appDatabase.upsertPrivateMessages(
-                views: [response.private_message_view],
+                [IncomingPrivateMessage(view: view, isRead: true)],
                 accountId: accountId
             )
             return nil

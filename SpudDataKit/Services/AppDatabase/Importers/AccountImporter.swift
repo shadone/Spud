@@ -48,20 +48,20 @@ public extension AppDatabase {
 
     /// Upserts an account row tied to `siteId`, optionally including the
     /// signed-in user's person row and per-account settings drawn from the
-    /// `MyUserInfo` payload of `GetSiteResponse`.
+    /// version-neutral ``LemmyKit/MyUser`` returned by `getMyUserNeutral()`.
     @discardableResult
     func upsertAccount(
         keychainId: String,
         isSignedOut: Bool,
         siteId: Int64,
-        myUser: Lemmy.MyUserInfo?
+        myUser: LemmyKit.MyUser?
     ) async throws -> Int64 {
         try await writer.write { db in
             let now = Date()
 
             let personId: Int64? = try myUser.flatMap { info in
                 try AppDatabase.upsertPerson(
-                    from: info.local_user_view.person,
+                    from: info.person,
                     siteId: siteId,
                     in: db
                 )
@@ -654,7 +654,7 @@ public extension AppDatabase {
     }
 
     private static func apply(
-        myUser: Lemmy.MyUserInfo?,
+        myUser: LemmyKit.MyUser?,
         to record: inout AccountRecord,
         now: Date
     ) {
@@ -663,19 +663,21 @@ public extension AppDatabase {
             return
         }
 
-        let local = myUser.local_user_view.local_user
-        record.localAccountId = Int64(local.id)
-        record.email = local.email
-        record.emailVerified = local.email_verified
-        record.acceptedApplication = local.accepted_application
-        record.defaultListingType = local.default_listing_type.rawValue
-        record.defaultSortType = local.default_sort_type.rawValue
-        record.showAvatars = local.show_avatars
-        record.showBotAccounts = local.show_bot_accounts
-        record.showNsfw = local.show_nsfw
-        record.blurNsfw = local.blur_nsfw
-        record.showReadPosts = local.show_read_posts
-        record.showScores = local.show_scores
+        record.localAccountId = myUser.localUserId
+        record.email = myUser.email
+        record.emailVerified = myUser.emailVerified
+        record.acceptedApplication = myUser.acceptedApplication
+        record.defaultListingType = myUser.defaultListingType.rawValue
+        // `defaultSortType` is deliberately omitted from the neutral `MyUser`
+        // (un-fusing v3's time-bucket-fused sort into a neutral sort+range pair
+        // is a separate follow-up), so it is left untouched here: preserved on an
+        // update, nil on a fresh insert. See the Phase 6 report follow-ups.
+        record.showAvatars = myUser.showAvatars
+        record.showBotAccounts = myUser.showBotAccounts
+        record.showNsfw = myUser.showNsfw
+        record.blurNsfw = myUser.blurNsfw
+        record.showReadPosts = myUser.showReadPosts
+        record.showScores = myUser.showScores
         record.updatedAt = now
     }
 }
