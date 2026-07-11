@@ -84,7 +84,10 @@ public final class UnreadCountService: UnreadCountServiceType {
                 .lemmyService(forAccountKeychainId: accountKeychainId)
                 .unreadCount()
             unreadCount = count
-            let total = count.replies + count.mentions + count.privateMessages
+            // Read `total` directly — never re-sum the per-kind fields: a v4
+            // backend reports only a combined total (per-kind are zero there), so
+            // summing would log 0 for exactly the instances that report a total.
+            let total = count.total
             await diagnostics.record(
                 category: .unread,
                 level: .info,
@@ -112,10 +115,16 @@ public final class UnreadCountService: UnreadCountServiceType {
     }
 
     public func decrement(replies: Int, mentions: Int, privateMessages: Int) {
+        // Decrement `total` explicitly alongside the per-kind fields: on a v4
+        // backend the per-kind fields are always zero and only `total` carries
+        // the badge count, so recomputing total from the (zero) per-kind fields
+        // would wrongly wipe the badge on the first item marked read.
+        let removed = replies + mentions + privateMessages
         unreadCount = UnreadCount(
             replies: max(0, unreadCount.replies - replies),
             mentions: max(0, unreadCount.mentions - mentions),
-            privateMessages: max(0, unreadCount.privateMessages - privateMessages)
+            privateMessages: max(0, unreadCount.privateMessages - privateMessages),
+            total: max(0, unreadCount.total - removed)
         )
     }
 

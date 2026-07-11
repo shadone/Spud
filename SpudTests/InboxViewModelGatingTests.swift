@@ -22,14 +22,14 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
     private(set) var fetchMentionsCallCount = 0
     private(set) var fetchPrivateMessagesCallCount = 0
 
-    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> Lemmy.GetRepliesResponse {
+    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> [InboxCommentNotification] {
         fetchRepliesCallCount += 1
-        return Lemmy.GetRepliesResponse(replies: [])
+        return []
     }
 
-    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> Lemmy.GetPersonMentionsResponse {
+    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> [InboxCommentNotification] {
         fetchMentionsCallCount += 1
-        return Lemmy.GetPersonMentionsResponse(mentions: [])
+        return []
     }
 
     func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> [IncomingPrivateMessage] {
@@ -209,11 +209,7 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         trap()
     }
 
-    func markReplyAsRead(commentReplyId _: Lemmy.CommentReplyID, read _: Bool) async throws {
-        trap()
-    }
-
-    func markMentionAsRead(personMentionId _: Lemmy.PersonMentionID, read _: Bool) async throws {
+    func markInboxItemAsRead(reference _: InboxItemReadReference, read _: Bool) async throws {
         trap()
     }
 
@@ -407,17 +403,19 @@ struct InboxViewModelGatingTests {
         )
     }
 
-    /// The core gating requirement: on a Lemmy 1.0 (v3-shim) instance, none of
-    /// the three inbox fetches ever reach the service, and the VM exposes the
-    /// gated state (host + flag) the view controller renders instead.
+    /// The core gating requirement: when the inbox capability is unavailable,
+    /// none of the three inbox fetches ever reach the service, and the VM exposes
+    /// the gated state (host + flag) the view controller renders instead.
+    ///
+    /// No live Lemmy version gates the inbox anymore (Spud speaks native v4 — see
+    /// `InstanceCapabilities`), so this constructs an explicitly-gated capability
+    /// set directly to exercise the VM's still-present gated branch, decoupled
+    /// from the now-inert version-derivation table.
     @Test
     func loadAll_whenInboxGated_performsNoServiceCallsAndExposesGatedState() async throws {
         let lemmyServiceDouble = RecordingInboxLemmyService()
         let unreadCountService = SpyUnreadCountService()
-        let gatedCapabilities = InstanceCapabilities.capabilities(
-            software: .lemmy,
-            version: LemmyVersion(parsing: "1.0.0-alpha.18")
-        )
+        let gatedCapabilities = InstanceCapabilities(unavailable: [.inbox])
         let instance = try #require(InstanceActorId(from: "https://lemmy.example.com"))
         let vm = makeViewModel(
             capabilities: gatedCapabilities,

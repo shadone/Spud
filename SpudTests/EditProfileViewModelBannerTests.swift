@@ -209,11 +209,11 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> Lemmy.GetRepliesResponse {
+    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> [InboxCommentNotification] {
         trap()
     }
 
-    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> Lemmy.GetPersonMentionsResponse {
+    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> [InboxCommentNotification] {
         trap()
     }
 
@@ -225,11 +225,7 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func markReplyAsRead(commentReplyId _: Lemmy.CommentReplyID, read _: Bool) async throws {
-        trap()
-    }
-
-    func markMentionAsRead(personMentionId _: Lemmy.PersonMentionID, read _: Bool) async throws {
+    func markInboxItemAsRead(reference _: InboxItemReadReference, read _: Bool) async throws {
         trap()
     }
 

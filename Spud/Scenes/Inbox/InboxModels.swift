@@ -6,13 +6,19 @@
 
 import Foundation
 import LemmyKit
+import SpudDataKit
 import SpudUtilKit
 
 /// A single inbox reply: someone replied to one of the account holder's posts
-/// or comments. Carries the server post id so a tap can open PostDetail, and
-/// the comment-reply id so it can be marked read.
+/// or comments. Carries the server post id so a tap can open PostDetail, and a
+/// backend-neutral read reference so it can be marked read on whichever API
+/// produced it (see `InboxItemReadReference`).
+///
+/// Built from the version-neutral `InboxCommentNotification` the service returns,
+/// so it renders identically whether the reply came from a v3 (`getReplies`) or
+/// v4 (unified notification inbox) backend.
 struct InboxReplyItem: Hashable, Identifiable {
-    let commentReplyId: Lemmy.CommentReplyID
+    let readReference: InboxItemReadReference
     let serverCommentId: Lemmy.CommentID
     let serverPostId: Lemmy.PostID
     let serverPersonId: Lemmy.PersonID
@@ -24,8 +30,8 @@ struct InboxReplyItem: Hashable, Identifiable {
     let published: Date
     var isRead: Bool
 
-    var id: Lemmy.CommentReplyID {
-        commentReplyId
+    var id: InboxItemReadReference {
+        readReference
     }
 
     /// Returns a copy with `isRead` set, for optimistic local updates.
@@ -35,24 +41,27 @@ struct InboxReplyItem: Hashable, Identifiable {
         return copy
     }
 
-    init(view: Lemmy.CommentReplyView) {
-        commentReplyId = view.comment_reply.id
-        serverCommentId = view.comment.id
-        serverPostId = view.post.id
-        serverPersonId = view.creator.id
-        creatorName = view.creator.display_name ?? view.creator.name
-        content = view.comment.content
-        postTitle = view.post.name
-        communityName = view.community.name
-        score = view.counts.score
-        published = view.comment.published
-        isRead = view.comment_reply.read
+    init(_ notification: InboxCommentNotification) {
+        readReference = notification.readReference
+        serverCommentId = notification.serverCommentId
+        serverPostId = notification.serverPostId
+        serverPersonId = notification.serverPersonId
+        creatorName = notification.creatorName
+        content = notification.content
+        postTitle = notification.postTitle
+        communityName = notification.communityName
+        score = notification.score
+        published = notification.published
+        isRead = notification.isRead
     }
 }
 
 /// A single inbox mention: someone @-mentioned the account holder in a comment.
+/// Built from the same version-neutral `InboxCommentNotification` as
+/// `InboxReplyItem`; the two differ only in which fetch (mentions vs replies)
+/// produced them.
 struct InboxMentionItem: Hashable, Identifiable {
-    let personMentionId: Lemmy.PersonMentionID
+    let readReference: InboxItemReadReference
     let serverCommentId: Lemmy.CommentID
     let serverPostId: Lemmy.PostID
     let serverPersonId: Lemmy.PersonID
@@ -64,8 +73,8 @@ struct InboxMentionItem: Hashable, Identifiable {
     let published: Date
     var isRead: Bool
 
-    var id: Lemmy.PersonMentionID {
-        personMentionId
+    var id: InboxItemReadReference {
+        readReference
     }
 
     /// Returns a copy with `isRead` set, for optimistic local updates.
@@ -75,18 +84,18 @@ struct InboxMentionItem: Hashable, Identifiable {
         return copy
     }
 
-    init(view: Lemmy.PersonMentionView) {
-        personMentionId = view.person_mention.id
-        serverCommentId = view.comment.id
-        serverPostId = view.post.id
-        serverPersonId = view.creator.id
-        creatorName = view.creator.display_name ?? view.creator.name
-        content = view.comment.content
-        postTitle = view.post.name
-        communityName = view.community.name
-        score = view.counts.score
-        published = view.comment.published
-        isRead = view.person_mention.read
+    init(_ notification: InboxCommentNotification) {
+        readReference = notification.readReference
+        serverCommentId = notification.serverCommentId
+        serverPostId = notification.serverPostId
+        serverPersonId = notification.serverPersonId
+        creatorName = notification.creatorName
+        content = notification.content
+        postTitle = notification.postTitle
+        communityName = notification.communityName
+        score = notification.score
+        published = notification.published
+        isRead = notification.isRead
     }
 }
 

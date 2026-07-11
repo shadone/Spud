@@ -27,10 +27,10 @@ import Testing
 struct ActivityViewControllerGatingTests {
     @Test
     func gatedInstance_excludesAuthoredContentEvenWithPersonId() {
-        let gatedCapabilities = InstanceCapabilities.capabilities(
-            software: .lemmy,
-            version: LemmyVersion(parsing: "1.0.0-alpha.18")
-        )
+        // No live Lemmy version gates person profiles anymore (Spud speaks native
+        // v4 — see `InstanceCapabilities`), so construct an explicitly-gated set
+        // to exercise the still-present degrade branch.
+        let gatedCapabilities = InstanceCapabilities(unavailable: [.personProfiles])
         #expect(!ActivityViewController.shouldIncludeAuthoredContent(
             serverPersonId: 42,
             capabilities: gatedCapabilities

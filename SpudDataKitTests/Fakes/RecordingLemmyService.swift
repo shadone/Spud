@@ -500,11 +500,11 @@ actor RecordingLemmyService: LemmyServiceType {
         unreachable()
     }
 
-    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> Lemmy.GetRepliesResponse {
+    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> [InboxCommentNotification] {
         unreachable()
     }
 
-    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> Lemmy.GetPersonMentionsResponse {
+    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> [InboxCommentNotification] {
         unreachable()
     }
 
@@ -516,11 +516,7 @@ actor RecordingLemmyService: LemmyServiceType {
         unreachable()
     }
 
-    func markReplyAsRead(commentReplyId _: Lemmy.CommentReplyID, read _: Bool) async throws {
-        unreachable()
-    }
-
-    func markMentionAsRead(personMentionId _: Lemmy.PersonMentionID, read _: Bool) async throws {
+    func markInboxItemAsRead(reference _: InboxItemReadReference, read _: Bool) async throws {
         unreachable()
     }
 

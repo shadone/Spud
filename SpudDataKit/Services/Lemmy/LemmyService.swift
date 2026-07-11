@@ -372,19 +372,21 @@ public protocol LemmyServiceType: Actor {
 
     // MARK: Inbox
 
-    /// Fetch one page of inbox replies. Results are transient (returned to the
+    /// Fetch one page of inbox replies as version-neutral
+    /// ``InboxCommentNotification``s. Results are transient (returned to the
     /// caller, like `search`) rather than mirrored into the persistent store.
     /// Throws `LemmyServiceError.requiresAuthentication` when signed out.
     func fetchReplies(
         unreadOnly: Bool,
         page: Int64
-    ) async throws -> Lemmy.GetRepliesResponse
+    ) async throws -> [InboxCommentNotification]
 
-    /// Fetch one page of inbox mentions. Transient, like `fetchReplies`.
+    /// Fetch one page of inbox mentions as version-neutral
+    /// ``InboxCommentNotification``s. Transient, like `fetchReplies`.
     func fetchMentions(
         unreadOnly: Bool,
         page: Int64
-    ) async throws -> Lemmy.GetPersonMentionsResponse
+    ) async throws -> [InboxCommentNotification]
 
     /// Fetch one page of private messages. Transient, like `fetchReplies`.
     /// Sourced from the version-neutral unified notification list (filtered to
@@ -398,15 +400,11 @@ public protocol LemmyServiceType: Actor {
     /// Throws `LemmyServiceError.requiresAuthentication` when signed out.
     func unreadCount() async throws -> UnreadCount
 
-    /// Mark a single comment reply as read/unread.
-    func markReplyAsRead(
-        commentReplyId: Lemmy.CommentReplyID,
-        read: Bool
-    ) async throws
-
-    /// Mark a single person mention as read/unread.
-    func markMentionAsRead(
-        personMentionId: Lemmy.PersonMentionID,
+    /// Mark a single comment-based inbox item (reply or mention) read/unread. The
+    /// ``InboxItemReadReference`` carries the id from the fetch that produced the
+    /// item and routes to the endpoint matching its originating backend.
+    func markInboxItemAsRead(
+        reference: InboxItemReadReference,
         read: Bool
     ) async throws
 
@@ -638,19 +636,39 @@ public struct UnreadCount: Sendable, Equatable {
     public let replies: Int
     public let mentions: Int
     public let privateMessages: Int
+    /// Total unread across all kinds; drives the tab badge. Stored (not derived)
+    /// because a v4 instance reports only a combined total with no per-kind
+    /// breakdown, so `total` can exceed `replies + mentions + privateMessages`
+    /// (which are all zero there) — read `total`, never re-sum the per-kind
+    /// fields.
+    public let total: Int
 
-    public init(replies: Int, mentions: Int, privateMessages: Int) {
+    /// Full init. `total` is independent of the per-kind fields so a v4-backed
+    /// count (a combined total with no breakdown) is representable.
+    public init(replies: Int, mentions: Int, privateMessages: Int, total: Int) {
         self.replies = replies
         self.mentions = mentions
         self.privateMessages = privateMessages
+        self.total = total
+    }
+
+    /// Per-kind init (the v3 shape): `total` is the sum of the three kinds.
+    public init(replies: Int, mentions: Int, privateMessages: Int) {
+        self.init(
+            replies: replies,
+            mentions: mentions,
+            privateMessages: privateMessages,
+            total: replies + mentions + privateMessages
+        )
+    }
+
+    /// Combined-total init (the v4 shape): the per-kind breakdown is unavailable,
+    /// so the three per-kind fields are zero and only `total` carries the count.
+    public init(total: Int) {
+        self.init(replies: 0, mentions: 0, privateMessages: 0, total: total)
     }
 
     public static let zero = UnreadCount(replies: 0, mentions: 0, privateMessages: 0)
-
-    /// Total across all kinds; drives the tab badge.
-    public var total: Int {
-        replies + mentions + privateMessages
-    }
 }
 
 public actor LemmyService: LemmyServiceType {

@@ -103,7 +103,18 @@ public extension AppDatabase {
             existing.recipientServerPersonId = Int64(message.recipientId)
             existing.content = message.content
             existing.published = message.publishedAt
-            existing.isRead = incoming.isRead
+            // Never downgrade a locally-read message back to unread on re-import.
+            // DM read state is monotonic (there is no "un-read" action), so a
+            // re-import only ever confirms or upgrades it. This also protects the
+            // v4 path: a private message read in a thread is cleared LOCALLY but
+            // not yet pushed to the server per-message (the neutral fetch drops
+            // the notification id needed to mark it — see markPrivateMessageAsRead
+            // and IncomingPrivateMessage), so the server keeps reporting it unread;
+            // without this guard, the very next refresh's import would revert the
+            // local read state and the thread would re-mark + double-decrement the
+            // badge on every re-open. Bulk server sync still happens via
+            // markAllInboxAsRead.
+            existing.isRead = incoming.isRead || existing.isRead
             existing.isDeleted = message.deleted
             existing.updatedAt = now
             try existing.update(db)

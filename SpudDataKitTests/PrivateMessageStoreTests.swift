@@ -181,6 +181,34 @@ struct PrivateMessageStoreTests {
         #expect(stored.first?.content == "hello (edited)")
     }
 
+    @Test
+    func reimportNeverDowngradesReadBackToUnread() async throws {
+        // A message read locally (or already read server-side) must stay read
+        // when a later server page re-imports it as unread. On a v4 instance the
+        // per-message read is cleared only locally (the notification id needed to
+        // mark it server-side isn't carried), so the server keeps reporting it
+        // unread; without this monotonic guard the re-import would revert the read
+        // row and the DM thread would re-mark it and double-decrement the badge.
+        let appDatabase = try AppDatabase.inMemory()
+        let me = Self.person(id: PID.me, name: "me", displayName: "Me", avatar: nil)
+        let alice = Self.person(id: PID.alice, name: "alice", displayName: "Alice", avatar: nil)
+
+        let accountId = try await appDatabase.writer.write { db -> Int64 in
+            try Self.seedAccount(db, keychainId: "kc-1", ownServerPersonId: PID.me).accountId
+        }
+
+        let read = Self.view(messageId: 1, creator: alice, recipient: me, content: "hi", published: Date(timeIntervalSince1970: 1000), read: true)
+        try await appDatabase.upsertPrivateMessages([read], accountId: accountId)
+
+        // Server page still reports it unread (v4 never learned about the read).
+        let staleUnread = Self.view(messageId: 1, creator: alice, recipient: me, content: "hi", published: Date(timeIntervalSince1970: 1000), read: false)
+        try await appDatabase.upsertPrivateMessages([staleUnread], accountId: accountId)
+
+        let stored = appDatabase.privateMessagesSync(accountId: accountId)
+        #expect(stored.count == 1)
+        #expect(stored.first?.isRead == true)
+    }
+
     // MARK: - observeConversations
 
     @Test

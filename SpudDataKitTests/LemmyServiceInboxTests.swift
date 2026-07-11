@@ -196,11 +196,17 @@ struct LemmyServiceInboxTests {
             transport: transport
         )
 
-        let response = try await service.fetchReplies(unreadOnly: false, page: 1)
+        let items = try await service.fetchReplies(unreadOnly: false, page: 1)
 
+        // A v3 backend hits getReplies and maps each CommentReplyView into the
+        // neutral InboxCommentNotification, carrying the per-item CommentReplyID
+        // read reference and the row's read state.
         #expect(transport.sentOperationIds.contains("getReplies"))
-        #expect(response.replies.count == 2)
-        #expect(response.replies.first?.comment_reply.id == 10)
+        #expect(items.count == 2)
+        #expect(items.first?.readReference == .commentReply(10))
+        #expect(items.first?.isRead == false)
+        #expect(items.last?.readReference == .commentReply(11))
+        #expect(items.last?.isRead == true)
     }
 
     @Test
@@ -227,7 +233,7 @@ struct LemmyServiceInboxTests {
     // MARK: mark read
 
     @Test
-    func markReplyAsReadHitsApi() async throws {
+    func markInboxItemRoutesCommentReplyToReplyEndpoint() async throws {
         try await seedAccountAndSite()
 
         let transport = StubInboxTransport()
@@ -242,9 +248,33 @@ struct LemmyServiceInboxTests {
             transport: transport
         )
 
-        try await service.markReplyAsRead(commentReplyId: 10, read: true)
+        // A `.commentReply` reference (the v3 reply shape) routes to the v3
+        // comment-reply mark endpoint.
+        try await service.markInboxItemAsRead(reference: .commentReply(10), read: true)
 
         #expect(transport.sentOperationIds.contains("markCommentReplyAsRead"))
+    }
+
+    @Test
+    func markInboxItemRoutesPersonMentionToMentionEndpoint() async throws {
+        try await seedAccountAndSite()
+
+        // No success fixture registered: the call throws past the send, but the
+        // stub records the operationID before checking for a response body, so
+        // this still proves a `.personMention` reference routes to the v3
+        // person-mention mark endpoint (not the reply one).
+        let transport = StubInboxTransport()
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
+
+        _ = try? await service.markInboxItemAsRead(reference: .personMention(20), read: true)
+
+        #expect(transport.sentOperationIds.contains("markPersonMentionAsRead"))
+        #expect(!transport.sentOperationIds.contains("markCommentReplyAsRead"))
     }
 
     // MARK: send private message

@@ -169,9 +169,9 @@ final class InboxViewModel {
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                let response = try await service.fetchReplies(unreadOnly: false, page: 1)
+                let notifications = try await service.fetchReplies(unreadOnly: false, page: 1)
                 if Task.isCancelled { return }
-                replies = response.replies.map(InboxReplyItem.init)
+                replies = notifications.map(InboxReplyItem.init)
                 repliesPhase = .loaded
             } catch {
                 if Task.isCancelled { return }
@@ -191,9 +191,9 @@ final class InboxViewModel {
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                let response = try await service.fetchMentions(unreadOnly: false, page: 1)
+                let notifications = try await service.fetchMentions(unreadOnly: false, page: 1)
                 if Task.isCancelled { return }
-                mentions = response.mentions.map(InboxMentionItem.init)
+                mentions = notifications.map(InboxMentionItem.init)
                 mentionsPhase = .loaded
             } catch {
                 if Task.isCancelled { return }
@@ -340,14 +340,14 @@ final class InboxViewModel {
     func markReplyRead(_ item: InboxReplyItem) {
         guard isSignedIn, !item.isRead else { return }
         // Optimistic local update.
-        replies = replies.map { $0.commentReplyId == item.commentReplyId ? $0.markedRead() : $0 }
+        replies = replies.map { $0.readReference == item.readReference ? $0.markedRead() : $0 }
         unreadCountService.decrement(replies: 1, mentions: 0, privateMessages: 0)
 
         Task { [weak self] in
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                try await service.markReplyAsRead(commentReplyId: item.commentReplyId, read: true)
+                try await service.markInboxItemAsRead(reference: item.readReference, read: true)
             } catch {
                 logger.error("Mark reply read failed: \(String(describing: error), privacy: .public)")
                 alertService.handle(error, for: .markInboxItemRead)
@@ -357,14 +357,14 @@ final class InboxViewModel {
 
     func markMentionRead(_ item: InboxMentionItem) {
         guard isSignedIn, !item.isRead else { return }
-        mentions = mentions.map { $0.personMentionId == item.personMentionId ? $0.markedRead() : $0 }
+        mentions = mentions.map { $0.readReference == item.readReference ? $0.markedRead() : $0 }
         unreadCountService.decrement(replies: 0, mentions: 1, privateMessages: 0)
 
         Task { [weak self] in
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                try await service.markMentionAsRead(personMentionId: item.personMentionId, read: true)
+                try await service.markInboxItemAsRead(reference: item.readReference, read: true)
             } catch {
                 logger.error("Mark mention read failed: \(String(describing: error), privacy: .public)")
                 alertService.handle(error, for: .markInboxItemRead)

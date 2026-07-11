@@ -189,11 +189,11 @@ private actor RecordingSendLemmyService: LemmyServiceType {
         trap()
     }
 
-    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> Lemmy.GetRepliesResponse {
+    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> [InboxCommentNotification] {
         trap()
     }
 
-    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> Lemmy.GetPersonMentionsResponse {
+    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> [InboxCommentNotification] {
         trap()
     }
 
@@ -205,11 +205,7 @@ private actor RecordingSendLemmyService: LemmyServiceType {
         trap()
     }
 
-    func markReplyAsRead(commentReplyId _: Lemmy.CommentReplyID, read _: Bool) async throws {
-        trap()
-    }
-
-    func markMentionAsRead(personMentionId _: Lemmy.PersonMentionID, read _: Bool) async throws {
+    func markInboxItemAsRead(reference _: InboxItemReadReference, read _: Bool) async throws {
         trap()
     }
 
@@ -432,10 +428,10 @@ struct DMThreadViewModelSendGuardTests {
     func send_whenPrivateMessagesGated_performsNoServiceCallAndSurfacesFailure() async {
         let lemmyServiceDouble = RecordingSendLemmyService()
         let alertService = SpyAlertService()
-        let gatedCapabilities = InstanceCapabilities.capabilities(
-            software: .lemmy,
-            version: LemmyVersion(parsing: "1.0.0-alpha.18")
-        )
+        // No live Lemmy version gates private messages anymore (Spud speaks native
+        // v4 — see `InstanceCapabilities`), so construct an explicitly-gated set to
+        // exercise the DM send guard's still-present degrade branch.
+        let gatedCapabilities = InstanceCapabilities(unavailable: [.privateMessages])
         let vm = makeViewModel(
             capabilities: gatedCapabilities,
             lemmyServiceDouble: lemmyServiceDouble,
