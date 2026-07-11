@@ -56,6 +56,15 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
     /// mean the server returned the post object and told us so; `isUnavailable`
     /// means we only know it is gone, not why. Cleared by a fresh PostView import.
     public var isUnavailable: Bool
+    /// When the offline downloader last saved this post for offline reading, or
+    /// nil if it never has. A DURABLE per-post marker (unlike the ephemeral feed
+    /// pages, which the launch-time GC prunes): it is what the "Downloaded" feed
+    /// reads from. Stored as ISO-8601 text (a `.datetime` column on a Codable
+    /// record), so bind a `Date` in SQL args — never `.timeIntervalSince1970`
+    /// (see the CLAUDE.md Date-storage gotcha). Set only by
+    /// ``AppDatabase/markPostDownloaded(serverPostId:)``; never touched by a
+    /// PostView import, so a later feed/`getPost` refresh preserves it.
+    public var downloadedAt: Date?
     public var published: Date
     public var createdAt: Date
     public var updatedAt: Date
@@ -91,6 +100,7 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         isFeaturedLocal: Bool = false,
         isDeleted: Bool = false,
         isUnavailable: Bool = false,
+        downloadedAt: Date? = nil,
         published: Date,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
@@ -125,6 +135,7 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         self.isFeaturedLocal = isFeaturedLocal
         self.isDeleted = isDeleted
         self.isUnavailable = isUnavailable
+        self.downloadedAt = downloadedAt
         self.published = published
         self.createdAt = createdAt
         self.updatedAt = updatedAt

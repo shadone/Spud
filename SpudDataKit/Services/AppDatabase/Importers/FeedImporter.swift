@@ -49,6 +49,18 @@ extension AppDatabase {
             communityInstanceActorId = nil
             savedOnly = true
             sortType = sort.rawValue
+        case let .downloaded(sort):
+            // Defensive only: the Downloaded feed never persists a feed row —
+            // `LemmyService.fetchFeed` returns nil for `.downloaded`, so
+            // `appendFeedPage` (this function's only caller) is never reached for
+            // it. Encode it like a plain frontpage so a stray row would still
+            // round-trip through `decodeFeedType` (as a frontpage) rather than
+            // decode to nil; in practice this arm is never taken.
+            frontpageListingType = Components.Schemas.ListingType.All.rawValue
+            communityName = nil
+            communityInstanceActorId = nil
+            savedOnly = false
+            sortType = sort.rawValue
         }
 
         if var existing = try FeedRecord

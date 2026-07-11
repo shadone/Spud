@@ -234,11 +234,11 @@ class PostListViewController: UIViewController {
     // MARK: Offline download
 
     // The members in this section (`offlineDownloadService`, `offlineDownloadTask`,
-    // `offlineDownloadProgressViewModel`, `offlineDownloadSheetDelegate`, and the
-    // `currentFeedHandle` / `currentAccountScope` / `currentAccountKeychainId`
-    // accessors over the `private` view model) are `internal` ONLY so the
-    // offline-download extension (`PostListViewController+OfflineDownload.swift`)
-    // can drive the launch + lifecycle. They are an extension seam, not public API.
+    // `offlineDownloadProgressViewModel`, and the `currentFeedHandle` /
+    // `currentAccountScope` / `currentAccountKeychainId` accessors over the
+    // `private` view model) are `internal` ONLY so the offline-download extension
+    // (`PostListViewController+OfflineDownload.swift`) can drive the launch +
+    // lifecycle. They are an extension seam, not public API.
 
     /// The engine that predownloads the current feed for offline browsing.
     /// Instantiated lazily (and held for the controller's lifetime) so a download
@@ -262,27 +262,16 @@ class PostListViewController: UIViewController {
     )
 
     /// The task draining the in-flight download's progress stream, updating the
-    /// progress sheet on each value. Retained so dismissing the sheet (swipe or
-    /// programmatic) can tear it down. Cancelling this task terminates the stream,
-    /// which cancels the download via the stream's `onTermination`.
+    /// status pill's view model on each value. Retained so the controller can tear
+    /// it down (the pill's ✕ or `deinit`). Cancelling this task terminates the
+    /// stream, which cancels the download via the stream's `onTermination`.
     var offlineDownloadTask: Task<Void, Never>?
 
-    /// The presented progress sheet's view model, held so stream values can push
-    /// updates into it. Nil when no download sheet is showing.
+    /// The status pill's view model, held so stream values can push updates into
+    /// it. Non-nil exactly while this controller owns a live download; nil
+    /// otherwise. `deinit` uses this to tell whether it should remove the pill it
+    /// showed (so it never removes a pill another feed's controller owns).
     var offlineDownloadProgressViewModel: OfflineDownloadProgressViewModel?
-
-    /// Presentation-controller delegate for the progress sheet, retained because
-    /// a presentation controller holds its delegate weakly. Its closure cancels a
-    /// live download when the user swipes the sheet away (so a swipe-dismiss
-    /// doesn't leave a runaway background download). Configured in
-    /// `startOfflineDownload`.
-    lazy var offlineDownloadSheetDelegate: OfflineDownloadSheetDismissDelegate = {
-        let delegate = OfflineDownloadSheetDismissDelegate()
-        delegate.onInteractiveDismiss = { [weak self] in
-            self?.handleOfflineSheetSwipedAway()
-        }
-        return delegate
-    }()
 
     /// The feed currently shown, for the offline-download launch path (the
     /// view model is `private`).
@@ -358,6 +347,17 @@ class PostListViewController: UIViewController {
         reachabilityObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
         offlineDownloadTask?.cancel()
+        // Cancelling the drain task above tears down the run; if this controller
+        // still owned a live download, remove the window-anchored pill it showed
+        // so it can't linger without a drain updating it. (Scoped by the non-nil
+        // view model so we never remove a pill another feed's controller owns.)
+        // NOTE (robustness follow-up): because ownership lives on this VC, a
+        // Posts-tab VC dealloc under memory pressure cancels the download too;
+        // moving ownership to an app-lifetime object would let the run + pill
+        // outlive the controller. Deferred.
+        if offlineDownloadProgressViewModel != nil {
+            OfflineDownloadStatusPresenter.shared.dismiss(animated: false)
+        }
         for task in displayPrefsObservationTasks {
             task.cancel()
         }
@@ -413,6 +413,16 @@ class PostListViewController: UIViewController {
         scrollingHeaderView = header
         tableView.tableHeaderView = header
         layoutScrollingHeaderIfNeeded()
+        // `layoutScrollingHeaderIfNeeded` bails before it can sync the insets when
+        // the table has no width yet — the exact community cold-open order, where
+        // this host installs its header AFTER the embedded feed's `viewDidLoad`
+        // already showed the loading skeleton (inset 0, no header then). Sync the
+        // background-surface insets directly too, so a skeleton / state surface
+        // already sitting in the shared `backgroundView` slot re-insets below the
+        // just-installed header immediately, instead of staying pinned at inset 0
+        // behind it (hidden in the below-header region) until a later layout pass.
+        syncSkeletonHeaderInset()
+        syncStateSurfaceHeaderInset()
     }
 
     /// Re-measures the scrolling header against the current table width and
@@ -431,14 +441,24 @@ class PostListViewController: UIViewController {
             verticalFittingPriority: .fittingSizeLevel
         ).height
 
-        guard abs(header.frame.height - height) > 0.5 else { return }
-        header.frame.size.height = height
-        // Reassigning is what makes the table adopt the new header height.
-        tableView.tableHeaderView = header
+        // Commit a changed header height — reassigning `tableHeaderView` is what
+        // makes the table adopt it — but guard the reassignment so an unchanged
+        // height skips the churn (this runs every layout pass).
+        if abs(header.frame.height - height) > 0.5 {
+            header.frame.size.height = height
+            tableView.tableHeaderView = header
+        }
+
         // Keep the loading skeleton AND the empty/error state surface clear of the
-        // (now-resized) header. Both share the table's `backgroundView` slot and
-        // are inset below the header; the header height often resolves after one is
-        // already showing (community info loads asynchronously), so re-sync both.
+        // header on EVERY pass — NOT only when the height changed. Both share the
+        // table's `backgroundView` slot and are inset below the header; a surface
+        // can be installed AFTER the header already settled at its final height
+        // (the skeleton shows on a reload while the community header is measured,
+        // or a host installs a pre-sized header), in which case the change-guard
+        // above never fires and the surface would otherwise stay pinned at inset 0
+        // behind the opaque header — the blank below-header region this guards
+        // against. Reads the freshly committed header frame height. Cheap: each
+        // sync only reassigns a constraint constant when it actually changed.
         syncSkeletonHeaderInset()
         syncStateSurfaceHeaderInset()
     }
@@ -1280,7 +1300,11 @@ class PostListViewController: UIViewController {
     /// `FeedStatePresenter`, wiring each descriptor action to a controller
     /// closure.
     private func makeErrorConfiguration(for failure: LoadFailure) -> UIContentUnavailableConfiguration {
-        let descriptor = FeedStatePresenter.descriptor(for: failure.kind, host: viewModel.instanceHost)
+        let descriptor = FeedStatePresenter.descriptor(
+            for: failure.kind,
+            host: viewModel.instanceHost,
+            hasDownloadedContent: viewModel.hasDownloadedContent
+        )
         var config = UIContentUnavailableConfiguration.empty()
         config.image = UIImage(systemName: descriptor.symbolName)
         config.text = descriptor.title
@@ -1325,6 +1349,14 @@ class PostListViewController: UIViewController {
         case .copyDetails:
             return UIAction { [weak self] _ in
                 UIPasteboard.general.string = self?.viewModel.lastFailureDiagnostics
+            }
+        case .viewDownloaded:
+            return UIAction { [weak self] _ in
+                guard let self else { return }
+                // Route to the local-only Downloaded feed (network-free), reusing
+                // the in-place feed switch the feed switcher uses. Carry the
+                // current sort for parity; the feed always orders by download date.
+                showFeed(.downloaded(sortType: viewModel.feed.feedType.sortType))
             }
         }
     }
@@ -1956,6 +1988,10 @@ extension PostListViewController: UITableViewDelegate {
     /// short-circuited for rows already read; the new read state flows back
     /// through the GRDB observation. Callers gate on the relevant preference.
     private func markReadInBackground(serverPostId: Int64) {
+        // The Downloaded feed is a local, offline library — usually browsed with
+        // no network — so firing a server mark-as-read would only make doomed
+        // requests. Skip it there entirely (keeps the feed genuinely network-free).
+        guard !viewModel.isDownloadedFeed else { return }
         // Skip rows already read or already enqueued this session.
         guard !markedReadIds.contains(serverPostId) else { return }
         if viewModel.row(forServerPostId: serverPostId)?.isRead == true {

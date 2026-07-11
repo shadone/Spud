@@ -206,10 +206,13 @@ public actor OfflineDownloadService {
     ///   - lemmyService: The per-account Lemmy service used to fetch pages and
     ///     comment trees. Passed in (rather than stored) so the service stays
     ///     account-agnostic and a download targets whichever account opened it.
-    ///   - accountId: The local account row id (reserved for future per-account
+    ///   - accountId: The local account row id. Each finished post is stamped
+    ///     with the durable `post.downloadedAt` marker scoped to this account, so
+    ///     the "Downloaded" feed can list them offline (the `post` table is keyed
+    ///     by `(accountId, postId)`, so the mark must not leak across accounts).
+    ///   - siteId: The local site row id (reserved for future per-account
     ///     bookkeeping; the feed fetch already scopes to the account behind
     ///     `lemmyService`).
-    ///   - siteId: The local site row id (reserved, as above).
     ///   - commentSort: The comment sort order to fetch each post's tree with.
     ///   - showNsfw: Forwarded to `fetchFeed` so NSFW filtering stays
     ///     server-side and consistent with the live feed.
@@ -258,6 +261,7 @@ public actor OfflineDownloadService {
                 await self.run(
                     feed: feed,
                     lemmyService: lemmyService,
+                    accountId: accountId,
                     commentSort: commentSort,
                     showNsfw: showNsfw,
                     maxPosts: maxPosts,
@@ -321,6 +325,7 @@ public actor OfflineDownloadService {
     private func run(
         feed: FeedHandle,
         lemmyService: any LemmyServiceType,
+        accountId: Int64,
         commentSort: Components.Schemas.CommentSortType,
         showNsfw: Bool,
         maxPosts: Int,
@@ -438,6 +443,7 @@ public actor OfflineDownloadService {
         let (completed, failed, imageWarmFailures, archiveCaptureFailures) = await downloadContent(
             targets: targets,
             lemmyService: lemmyService,
+            accountId: accountId,
             commentSort: commentSort,
             archiveLinks: archiveLinks,
             sanitizeURL: sanitizeURL,
@@ -672,6 +678,7 @@ public actor OfflineDownloadService {
     private func downloadContent(
         targets: [OfflineDownloadTarget],
         lemmyService: any LemmyServiceType,
+        accountId: Int64,
         commentSort: Components.Schemas.CommentSortType,
         archiveLinks: Bool,
         sanitizeURL: (@Sendable (URL) -> URL)?,
@@ -696,6 +703,10 @@ public actor OfflineDownloadService {
         // record a `download.retry`; captured as a local (like `imageService`)
         // because the `@Sendable` `addTask` closure can't reach `self`.
         let diagnostics = diagnostics
+        // Captured for the same reason: each finished post is stamped with the
+        // durable `downloadedAt` marker (AppDatabase is Sendable). This is what
+        // the "Downloaded" feed reads from after the ephemeral feed pages are GC'd.
+        let appDatabase = appDatabase
         // Only carry the capturer/store into the per-post work when archiving is
         // requested AND the service was built with them — otherwise leave them
         // nil so `processTarget` skips the capture branch entirely.
@@ -733,7 +744,9 @@ public actor OfflineDownloadService {
                         pacer: pacer,
                         pacing: pacing,
                         diagnostics: diagnostics,
-                        instance: instance
+                        instance: instance,
+                        appDatabase: appDatabase,
+                        accountId: accountId
                     )
                     return (outcome: outcome, serverPostId: serverPostId)
                 }
@@ -833,6 +846,10 @@ public actor OfflineDownloadService {
     ///     be captured into this static method's task.
     ///   - instance: The Lemmy instance host for the retry event's `instance`
     ///     field; nil when unknown.
+    ///   - appDatabase: The shared GRDB store, used to stamp the durable
+    ///     `downloadedAt` marker once the post's content is processed. Sendable,
+    ///     so it crosses into this static method's per-post task.
+    ///   - accountId: The local account row id the marker is scoped to.
     private static func processTarget(
         _ target: OfflineDownloadTarget,
         lemmyService: any LemmyServiceType,
@@ -845,7 +862,9 @@ public actor OfflineDownloadService {
         pacer: RequestPacer,
         pacing: DownloadPacingConfig,
         diagnostics: DiagnosticLogging,
-        instance: String?
+        instance: String?,
+        appDatabase: AppDatabase,
+        accountId: Int64
     ) async -> TargetOutcome {
         // An all-clear outcome, returned at each cancellation checkpoint:
         // cancellation is not a content failure, so nothing is counted against it.
@@ -951,6 +970,20 @@ public actor OfflineDownloadService {
                 archiveCaptureFailed = true
                 logger.debug("Offline web-archive capture failed for \(archiveKey.absoluteString, privacy: .public) (serverPostId \(serverPostId, privacy: .public))")
             }
+        }
+
+        // The post's content has been processed (comments + images, plus any
+        // web archive). Stamp the durable `downloadedAt` marker so the
+        // "Downloaded" feed can find this post after the ephemeral feed pages are
+        // GC'd. Reached only when NOT cancelled (every checkpoint above returns
+        // early on cancellation), so a torn-down run never marks a half-processed
+        // post. The marker is a strict add — even a failed comment fetch still
+        // warmed images and left the post row, so the post is offline-readable.
+        // Best-effort: a marker-write failure must not fail the whole post.
+        do {
+            try await appDatabase.markPostDownloaded(serverPostId: serverPostId, accountId: accountId)
+        } catch {
+            logger.error("Failed to mark post \(serverPostId, privacy: .public) downloaded: \(String(describing: error), privacy: .public)")
         }
 
         return TargetOutcome(

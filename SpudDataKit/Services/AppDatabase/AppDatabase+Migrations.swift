@@ -834,6 +834,19 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v32_postDownloadedAt") { db in
+            // Durable per-post marker for the offline downloader. The download
+            // saves feed pages under an EPHEMERAL UUID feedKey that the launch-time
+            // `pruneStaleFeedRows` GCs after a few minutes, but the shared `post`
+            // rows, comment tree, and disk-cached images survive. This marker is
+            // what the "Downloaded" feed reads from — it cannot reopen the pruned
+            // ephemeral feed. Nullable, additive-only, no backfill: existing rows
+            // stay NULL (never downloaded) until a fresh download stamps them.
+            try db.alter(table: "post") { t in
+                t.add(column: "downloadedAt", .datetime)
+            }
+        }
+
         return migrator
     }
 }

@@ -155,4 +155,45 @@ struct PostListStateSurfaceTests {
         #expect(hostedContentUnavailableView(in: surface) != nil)
         #expect(surface.topInset == 0)
     }
+
+    // MARK: - Test 5: loading state with a header installs the skeleton below it
+
+    /// Mirrors the empty / failed cases for the loading skeleton, which shares the
+    /// same `backgroundView` slot: with a scrolling header installed, the initial
+    /// fetch's skeleton is inset below the header (not pinned behind it).
+    @Test
+    func loadingStateWithHeaderInstallsSkeletonBelowHeader() throws {
+        let vc = try makeViewController()
+        vc.setScrollingHeaderView(makeHeader(height: headerHeight))
+
+        // Loading (not pull-to-refresh) installs the skeleton in the shared slot.
+        vc.applyLoadState(.loading(slow: false))
+
+        let skeleton = try #require(vc.tableView.backgroundView as? FeedLoadingSkeletonView)
+        #expect(skeleton.topInset == headerHeight)
+    }
+
+    // MARK: - Test 6: header installed AFTER the skeleton re-insets it
+
+    /// Regression guard for the blank below-header region while loading. The
+    /// community cold-open order installs the skeleton (from the embedded feed's
+    /// `viewDidLoad`) BEFORE the host installs its scrolling header, so installing
+    /// the header must immediately re-inset the already-showing skeleton below it —
+    /// otherwise the skeleton stays hidden behind the opaque header and the
+    /// below-header area reads blank while posts fetch.
+    @Test
+    func loadingSkeletonReinsetsWhenHeaderInstalledAfterwards() throws {
+        let vc = try makeViewController()
+
+        // Skeleton shown first, with no header yet -> inset 0.
+        vc.applyLoadState(.loading(slow: false))
+        let skeleton = try #require(vc.tableView.backgroundView as? FeedLoadingSkeletonView)
+        #expect(skeleton.topInset == 0)
+
+        // Header installed afterwards -> the skeleton re-insets below it, even
+        // though the table has no width yet (so the layout-measure path bails).
+        vc.setScrollingHeaderView(makeHeader(height: headerHeight))
+        #expect(vc.tableView.backgroundView is FeedLoadingSkeletonView)
+        #expect(skeleton.topInset == headerHeight)
+    }
 }

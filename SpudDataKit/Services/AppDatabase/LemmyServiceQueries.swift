@@ -41,6 +41,10 @@ public extension AppDatabase {
         }
     }
 
+    /// Note: never returns `.downloaded`. That feed is local-only and never
+    /// persists a `FeedRecord` (`LemmyService.fetchFeed` returns nil for it, so
+    /// `appendFeedPage` is never reached) — there is no column that would decode
+    /// to it, so no arm is needed here.
     private static func decodeFeedType(_ record: FeedRecord) -> FeedType? {
         guard let sortType = Components.Schemas.SortType(rawValue: record.sortType) else {
             logger.error("Unknown sortType '\(record.sortType, privacy: .public)' on feedKey \(record.feedKey, privacy: .public)")

@@ -196,6 +196,11 @@ final class PostListViewModel {
     }
 
     func didClickReload() {
+        // The Downloaded feed has no network feed to reload; a pull-to-refresh
+        // just re-observes the local rows (the view controller's `feedChanged`
+        // restarts the observation). Minting a fresh feed here would do nothing
+        // useful, so no-op — keeping the reload path network-free.
+        guard !isDownloadedFeed else { return }
         let newFeed = accountService.createFeed(duplicateOf: feed, forAccountKeychainId: accountKeychainId)
         resetForNewFeed(newFeed)
     }
@@ -230,6 +235,10 @@ final class PostListViewModel {
     /// Leaves `loadState` at `.loading` on success — the GRDB first snapshot
     /// resolves `.loaded` / `.empty` via `resolveInitialSnapshot(rowCount:)`.
     func loadFirstPage() async {
+        // The Downloaded feed is local-only: its observation owns the load state
+        // and there is no page to fetch. No-op so no network request is ever
+        // issued (belt-and-braces alongside `fetchFeed` returning nil).
+        guard !isDownloadedFeed else { return }
         loadState = .loading(slow: false)
         startSlowHint()
         defer { cancelSlowHint() }
@@ -294,6 +303,15 @@ final class PostListViewModel {
 
     // MARK: - Row observation
 
+    /// Whether the current feed is the local-only Downloaded feed. It reads
+    /// exclusively from GRDB (`post.downloadedAt`) and must never touch the
+    /// network — the observation, load, and pagination paths all branch on this,
+    /// and the view controller also suppresses its best-effort mark-as-read here.
+    var isDownloadedFeed: Bool {
+        if case .downloaded = feed.feedType { return true }
+        return false
+    }
+
     /// Starts the row observation as one bring-up task: resolve the feed's local
     /// row id, lazily fetching the first page when the feed hasn't materialized
     /// yet (the importer creates the feed row on the first fetch), then observe
@@ -309,6 +327,11 @@ final class PostListViewModel {
         stopObservations()
         hasReceivedFirstSnapshot = false
         firstSnapshotReadIds = []
+
+        if isDownloadedFeed {
+            startDownloadedObservations()
+            return
+        }
 
         let feedKey = feed.feedKey
         observationTask = Task { @MainActor [weak self] in
@@ -371,6 +394,41 @@ final class PostListViewModel {
         }
     }
 
+    /// Observes the Downloaded (offline) feed straight from the durable
+    /// `post.downloadedAt` marker, bypassing the feed-row / network bring-up that
+    /// `startObservations()` uses for every other feed. There is no feed row to
+    /// resolve and NO fetch: the local DB is the complete, authoritative state.
+    ///
+    /// Because there is nothing to fetch, mark the (nonexistent) initial fetch
+    /// complete and the feed exhausted up front — that lets
+    /// `resolveInitialSnapshot` settle an empty snapshot to `.empty` (instead of
+    /// leaving the skeleton spinning forever, since no `loadFirstPage` will ever
+    /// flip `hasCompletedInitialFetch`), and it makes `loadMore` a no-op. Opening
+    /// this feed offline shows the downloaded posts immediately — never a spinner
+    /// or an error surface.
+    private func startDownloadedObservations() {
+        hasCompletedInitialFetch = true
+        feedExhausted = true
+        let keychainId = accountKeychainId
+        observationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await rows in appDatabase.observeDownloadedPostListRows(forAccountKeychainId: keychainId) {
+                if Task.isCancelled { break }
+                let isFirstSnapshot = !hasReceivedFirstSnapshot
+                hasReceivedFirstSnapshot = true
+                if isFirstSnapshot {
+                    firstSnapshotReadIds = HideReadPostsFilter.readIds(in: rows)
+                }
+                // Resolve the load state on EVERY snapshot (mirrors the feed-row
+                // path): a downloaded post hidden/unhidden can flip loaded <->
+                // empty, and the first snapshot may arrive empty then populate.
+                resolveInitialSnapshot(rowCount: rows.count)
+                updateRows(rows)
+                rowsRevision += 1
+            }
+        }
+    }
+
     /// Cancels the row observation. Called on restart and from `deinit`.
     func stopObservations() {
         observationTask?.cancel()
@@ -418,6 +476,9 @@ final class PostListViewModel {
     }
 
     func loadMore() async {
+        // The Downloaded feed never paginates (there is no next page). No-op so
+        // scrolling to the bottom can't spin a pagination request.
+        guard !isDownloadedFeed else { return }
         guard loadState == .loaded, paginationState != .loading, !feedExhausted else { return }
         paginationState = .loading
         await performPagination()
@@ -447,11 +508,18 @@ final class PostListViewModel {
 
     // MARK: - Host / empty / title (unchanged behavior)
 
+    /// Whether the backing account has any posts saved for offline reading.
+    /// Gates the offline error surface's "View downloaded content" action (there
+    /// is no point routing to an empty Downloaded feed). A synchronous DB read.
+    var hasDownloadedContent: Bool {
+        appDatabase.downloadedPostCountSync(forAccountKeychainId: accountKeychainId) > 0
+    }
+
     var instanceHost: String? {
         switch feed.feedType {
         case let .community(_, instance, _):
             return instance.host
-        case .frontpage, .saved:
+        case .frontpage, .saved, .downloaded:
             return accountScope.instanceActorId?.host
         }
     }
@@ -469,6 +537,12 @@ final class PostListViewModel {
                 symbolName: "bookmark",
                 title: NSLocalizedString("No saved posts yet", comment: "Empty-state title for the saved-posts feed"),
                 message: NSLocalizedString("Posts you save will show up here.", comment: "Empty-state message for the saved-posts feed")
+            )
+        case .downloaded:
+            return EmptyState(
+                symbolName: "arrow.down.circle",
+                title: NSLocalizedString("No downloaded posts yet", comment: "Empty-state title for the downloaded-posts feed"),
+                message: NSLocalizedString("Posts you download for offline reading will show up here.", comment: "Empty-state message for the downloaded-posts feed")
             )
         case .frontpage, .community:
             return EmptyState(
@@ -492,6 +566,8 @@ final class PostListViewModel {
             return "\(communityName)@\(instance.hostWithPort)"
         case .saved:
             return NSLocalizedString("Saved", comment: "Navigation title for the saved-posts feed")
+        case .downloaded:
+            return NSLocalizedString("Downloaded", comment: "Navigation title for the downloaded (offline) posts feed")
         }
     }
 

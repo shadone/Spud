@@ -24,7 +24,12 @@ public struct VideoHostRegistry: VideoHostRecognizing, VideoHostResolving {
     /// URL-sanitizer config; it gates Piped-based YouTube resolution (recognition
     /// is preference-free). The detector uses `.default` (it never resolves).
     public init(pipedConfig: URLSanitizerConfig = .default) {
-        self.init(hosts: [StreamableVideoHost(), PeerTubeVideoHost(), PipedVideoHost(config: pipedConfig)])
+        self.init(hosts: [
+            StreamableVideoHost(),
+            PeerTubeVideoHost(),
+            PipedVideoHost(config: pipedConfig),
+            LoopsVideoHost(),
+        ])
     }
 
     public func recognize(_ url: URL) -> VideoHostMatch? {

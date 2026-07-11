@@ -50,6 +50,16 @@ final class FeedLoadingSkeletonView: SkeletonView {
         backgroundColor = .clear
         isUserInteractionEnabled = false
 
+        // The pulsing bars are decorative, so without this VoiceOver users get no
+        // indication the feed is loading (they'd just hear an empty list). Expose
+        // the whole placeholder as a single element announcing "Loading posts",
+        // with `.updatesFrequently` so VoiceOver treats it as live progress rather
+        // than static content. Kept in sync with the visible slow-connection hint
+        // by `setShowsSlowHint(_:)`.
+        isAccessibilityElement = true
+        accessibilityLabel = Self.loadingLabel
+        accessibilityTraits = .updatesFrequently
+
         addSubview(stack)
         addSubview(slowLabel)
         stackTopConstraint = stack.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor)
@@ -74,8 +84,17 @@ final class FeedLoadingSkeletonView: SkeletonView {
         fatalError("init(coder:) has not been implemented")
     }
 
+    /// VoiceOver announcement for the default (not-yet-slow) loading state.
+    private static let loadingLabel = NSLocalizedString(
+        "Loading posts",
+        comment: "Accessibility label for the feed loading placeholder"
+    )
+
     func setShowsSlowHint(_ shows: Bool) {
         slowLabel.isHidden = !shows
+        // The slow hint is a subview, but this view is a single accessibility
+        // element, so mirror the hint into the label VoiceOver actually reads.
+        accessibilityLabel = shows ? slowLabel.text : Self.loadingLabel
     }
 
     override func stopAnimating() {

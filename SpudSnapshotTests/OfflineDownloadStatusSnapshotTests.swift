@@ -11,15 +11,26 @@ import UIKit
 import XCTest
 @testable import Spud
 
-/// Snapshot of the offline-download progress sheet (`OfflineDownloadProgressView`)
-/// at a representative content-phase state ("Saving — 12 of 100"), light + dark.
+/// Snapshot of the non-blocking offline-download status pill
+/// (`OfflineDownloadStatusView`) at a representative content-phase state
+/// ("Saving — 12 of 100"), light + dark. Rendered on a `systemBackground` backdrop
+/// with margins so the pill's capsule shape, border, and shadow are captured.
 ///
 /// The view is pure presentation — it binds to a fixed `OfflineDownloadProgress`
 /// value, with no DB or async observation — so the render is deterministic. As an
 /// `.image(size:traits:)` snapshot it is device- and runtime-sensitive; record on
-/// the reference iPhone 17 Pro, iOS 26.3.
+/// the reference iPhone 17 Pro, iOS 26.3. The progress ring is accent-tinted, so
+/// `pinAccent()` fixes the accent (otherwise the sim's persisted accent leaks in).
 @MainActor
-final class OfflineDownloadProgressSnapshotTests: XCTestCase {
+final class OfflineDownloadStatusSnapshotTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // The ring's arc uses the process-global accent; pin it so the render
+        // doesn't depend on the sim's persisted accent preference. See
+        // `SnapshotDeterminism.pinAccent()`.
+        SnapshotDeterminism.pinAccent()
+    }
+
     func test_downloadingContent() {
         for style in [UIUserInterfaceStyle.light, .dark] {
             let viewModel = OfflineDownloadProgressViewModel(
@@ -31,10 +42,13 @@ final class OfflineDownloadProgressSnapshotTests: XCTestCase {
                 ),
                 onCancel: { }
             )
-            let view = OfflineDownloadProgressView(viewModel: viewModel)
+            let size = CGSize(width: 390, height: 120)
+            let view = OfflineDownloadStatusView(viewModel: viewModel)
+                .padding(20)
+                .frame(width: size.width, height: size.height)
+                .background(Color(uiColor: .systemBackground))
 
             let host = UIHostingController(rootView: view)
-            let size = CGSize(width: 390, height: 260)
             host.view.frame = CGRect(origin: .zero, size: size)
             host.view.layoutIfNeeded()
 

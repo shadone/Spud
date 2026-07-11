@@ -7,11 +7,11 @@
 import Foundation
 import SpudDataKit
 
-/// Drives ``OfflineDownloadProgressView``: holds the latest
-/// ``OfflineDownloadProgress`` snapshot and exposes the strings the view binds
-/// to. The hosting `PostListViewController` updates ``progress`` on the main
-/// actor as it drains the download's `AsyncStream`, and invokes ``onCancel``
-/// when the user taps Cancel.
+/// Drives ``OfflineDownloadStatusView`` (the non-blocking status pill): holds the
+/// latest ``OfflineDownloadProgress`` snapshot and exposes the strings the view
+/// binds to. The hosting `PostListViewController` updates ``progress`` on the main
+/// actor as it drains the download's `AsyncStream`, and invokes ``onCancel`` when
+/// the user taps the pill's ✕.
 ///
 /// Pure presentation: it does no I/O and holds no service reference, so it is
 /// trivially testable and snapshot-friendly (seed a `progress` value and the
@@ -20,13 +20,13 @@ import SpudDataKit
 @Observable
 final class OfflineDownloadProgressViewModel {
     /// The latest progress snapshot. Defaults to a fresh `.fetchingPosts` so the
-    /// sheet shows a sensible state the instant it appears, before the first
-    /// stream value lands.
+    /// pill shows a sensible state the instant it appears, before the first stream
+    /// value lands.
     var progress: OfflineDownloadProgress
 
-    /// Invoked when the user taps Cancel. The controller cancels the in-flight
-    /// download (it keeps draining until the terminal `.cancelled` lands, then
-    /// dismisses the sheet).
+    /// Invoked when the user taps the pill's ✕. The controller cancels the
+    /// in-flight download (it keeps draining until the terminal `.cancelled`
+    /// lands, then dismisses the pill).
     let onCancel: () -> Void
 
     init(
