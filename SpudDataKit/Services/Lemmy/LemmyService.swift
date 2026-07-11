@@ -1096,8 +1096,25 @@ public actor LemmyService: LemmyServiceType {
         logger.debug("Fetch site for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
 
         let siteInfo: LemmyKit.SiteInfo
+        let myUser: LemmyKit.MyUser?
         do {
-            siteInfo = try await api.getSiteNeutral()
+            if accountIsSignedOut {
+                // A signed-out account has no `my_user`, so a single `getSite` is all
+                // that's needed. (On v4 the separate `getMyUser` endpoint throws for a
+                // signed-out viewer, so the combined fetch must not be used here.)
+                siteInfo = try await api.getSiteNeutral()
+                myUser = nil
+            } else {
+                // One combined fetch for the signed-in refresh: on v3 a SINGLE `getSite`
+                // round-trip decodes BOTH halves — previously this issued two, since
+                // `getMyUserNeutral()` re-fetches `getSite()` to reach the embedded
+                // `my_user`. On v4 the two native endpoints (`getSite` / `getMyUser`)
+                // run concurrently. `.myUser` is nil on a v3 signed-out response, but a
+                // signed-in account always carries it.
+                let combined = try await api.getSiteAndMyUserNeutral()
+                siteInfo = combined.site
+                myUser = combined.myUser
+            }
         } catch {
             logger.error("""
                 Fetch site failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
@@ -1121,18 +1138,6 @@ public actor LemmyService: LemmyServiceType {
         }
 
         logger.debug("Fetch site complete. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
-
-        // v4 split the signed-in account's own info out of getSite into a separate
-        // `getMyUserNeutral()` endpoint. Fetch it only for a signed-in account, and
-        // best-effort — a myUser failure must not prevent the site mirror.
-        var myUser: LemmyKit.MyUser?
-        if !accountIsSignedOut {
-            do {
-                myUser = try await api.getMyUserNeutral()
-            } catch {
-                logger.error("Fetch my_user failed: \(String(describing: error), privacy: .public)")
-            }
-        }
 
         do {
             let (_, siteId) = try await appDatabase.upsertSite(from: siteInfo)
