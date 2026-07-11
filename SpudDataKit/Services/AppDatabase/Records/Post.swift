@@ -50,6 +50,15 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
     public var isFeaturedCommunity: Bool
     public var isFeaturedLocal: Bool
     public var isDeleted: Bool
+    /// Per-post creator context carried by the Lemmy `PostView`. Drives the
+    /// MOD / ADMIN / BANNED-from-community author-status badges on posts. The
+    /// site-ban / bot / deleted author flags are NOT here — they live on the
+    /// joined `person` row (`PersonRecord.isBanned` / `isBotAccount` /
+    /// `isDeleted`); these three are the per-community context the creator's
+    /// person row cannot carry.
+    public var isCreatorModerator: Bool
+    public var isCreatorAdmin: Bool
+    public var isCreatorBannedFromCommunity: Bool
     /// The server rejected a request for this post with `couldnt_find_post`
     /// (removed on its origin, author-deleted, or de-federated) while we still
     /// hold a stale cached copy. Distinct from `isRemoved`/`isDeleted`, which
@@ -99,6 +108,9 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         isFeaturedCommunity: Bool = false,
         isFeaturedLocal: Bool = false,
         isDeleted: Bool = false,
+        isCreatorModerator: Bool = false,
+        isCreatorAdmin: Bool = false,
+        isCreatorBannedFromCommunity: Bool = false,
         isUnavailable: Bool = false,
         downloadedAt: Date? = nil,
         published: Date,
@@ -134,6 +146,9 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
         self.isFeaturedCommunity = isFeaturedCommunity
         self.isFeaturedLocal = isFeaturedLocal
         self.isDeleted = isDeleted
+        self.isCreatorModerator = isCreatorModerator
+        self.isCreatorAdmin = isCreatorAdmin
+        self.isCreatorBannedFromCommunity = isCreatorBannedFromCommunity
         self.isUnavailable = isUnavailable
         self.downloadedAt = downloadedAt
         self.published = published

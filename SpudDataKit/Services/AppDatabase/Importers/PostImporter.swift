@@ -133,9 +133,15 @@ public extension AppDatabase {
                 existing.numberOfUpvotes = preserved.numberOfUpvotes
                 existing.numberOfDownvotes = preserved.numberOfDownvotes
             }
-            if pendingKinds.contains(.save) { existing.isSaved = preserved.isSaved }
-            if pendingKinds.contains(.hide) { existing.isHidden = preserved.isHidden }
-            if pendingKinds.contains(.delete) { existing.isDeleted = preserved.isDeleted }
+            if pendingKinds.contains(.save) {
+                existing.isSaved = preserved.isSaved
+            }
+            if pendingKinds.contains(.hide) {
+                existing.isHidden = preserved.isHidden
+            }
+            if pendingKinds.contains(.delete) {
+                existing.isDeleted = preserved.isDeleted
+            }
             // A content edit lives in the composer outbox (`outboundContent`), not
             // the mutation outbox (`pendingOperation`), so it isn't covered by
             // `pendingKinds`. While the edit is un-synced (sending or failed),
@@ -205,6 +211,14 @@ public extension AppDatabase {
         record.isFeaturedCommunity = post.featured_community
         record.isFeaturedLocal = post.featured_local
         record.isDeleted = post.deleted
+
+        // Per-post creator context, mirroring the CommentView import. A later
+        // feed/getPost re-import re-runs `apply`, so these stay current (unlike
+        // the local-only `downloadedAt`, which `apply` deliberately never touches).
+        record.isCreatorModerator = view.creator_is_moderator
+        record.isCreatorAdmin = view.creator_is_admin
+        record.isCreatorBannedFromCommunity = view.creator_banned_from_community
+
         // A fresh authoritative PostView means the post exists again — clear any
         // stale "unavailable" tombstone from a prior couldnt_find_post.
         record.isUnavailable = false

@@ -25,16 +25,19 @@ extension Components.Schemas.PostView {
     static func fake(
         post: Components.Schemas.Post,
         creator: Components.Schemas.Person,
-        community: Components.Schemas.Community
+        community: Components.Schemas.Community,
+        creatorBannedFromCommunity: Bool = false,
+        creatorIsModerator: Bool = false,
+        creatorIsAdmin: Bool = false
     ) -> Components.Schemas.PostView {
         .init(
             post: post,
             creator: creator,
             community: community,
-            creator_banned_from_community: false,
+            creator_banned_from_community: creatorBannedFromCommunity,
             banned_from_community: false,
-            creator_is_moderator: false,
-            creator_is_admin: false,
+            creator_is_moderator: creatorIsModerator,
+            creator_is_admin: creatorIsAdmin,
             counts: .fake(post: post),
             subscribed: .NotSubscribed,
             saved: false,
