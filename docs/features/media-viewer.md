@@ -59,12 +59,15 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
   full-screen, AirPlay, and Picture-in-Picture controls. Only AVFoundation-playable
   containers (mp4 / mov / m4v) are treated as video.
 - **Recognized video hosts play inline.** A post whose link is a recognized video-host page
-  (streamable.com, or a PeerTube instance) is treated as a video post: it shows the video
-  treatment in the feed and the post-detail header (using the server-provided thumbnail as its
-  poster), and tapping it resolves the host page to its stream and plays it inline in the
-  system player. A brief spinner is shown while it resolves. PeerTube is recognized by URL
-  shape (it is federated, with no host list), so a rare non-PeerTube link may be treated as a
-  video and, on tap, fall back to the browser when the instance API does not confirm it.
+  (streamable.com, a PeerTube instance, or a loops.video short) is treated as a video post: it
+  shows the video treatment in the feed and the post-detail header (using the server-provided
+  thumbnail as its poster), and tapping it resolves the host page to its stream and plays it
+  inline in the system player. A brief spinner is shown while it resolves. PeerTube is recognized
+  by URL shape (it is federated, with no host list), so a rare non-PeerTube link may be treated as
+  a video and, on tap, fall back to the browser when the instance API does not confirm it.
+  loops.video (`loops.video/v/<shortcode>`, the Pixelfed team's short-video platform) resolves
+  through loops.video's own public API — no proxy, first-party like streamable and PeerTube;
+  a still-processing loops video (no stream yet) falls back to the browser.
   YouTube links (`youtube.com`/`youtu.be`/`piped.video`) play inline **through the user's
   Piped front-end** — the stream is fetched from the Piped instance and served via its proxy,
   so Google's servers are never contacted. This works only when the user's YouTube front-end
@@ -153,6 +156,12 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
 - **When** I tap it
 - **Then** it opens the streamable page in the browser instead of a dead player
 
+### Play a loops.video short inline
+
+- **Given** a post whose link is a `loops.video/v/<shortcode>` short
+- **When** I tap it
+- **Then** a brief spinner shows while it resolves through loops.video's API, then it plays inline in the system player (a still-processing loops video opens in the browser instead)
+
 ### An unplayable video opens in the browser
 
 - **Given** a post linking to a webm (or other container the device can't decode)
@@ -167,11 +176,12 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
   source thumbnail.
 - webm and mkv are not played in-app; AVFoundation cannot decode them, so they are routed to
   the browser as external links.
-- Inline video-host playback covers streamable, PeerTube, and YouTube-via-Piped. YouTube plays
-  inline only when the user's front-end is a Piped instance; Invidious and other front-ends open
-  in the browser. Google's servers are never contacted for playback — if a proxied stream
-  can't be produced, the video opens in the browser instead. A post whose own link is a
-  streamable or PeerTube video always plays inline; a YouTube/Piped post always shows the
+- Inline video-host playback covers streamable, PeerTube, loops.video, and YouTube-via-Piped.
+  YouTube plays inline only when the user's front-end is a Piped instance; Invidious and other
+  front-ends open in the browser. Google's servers are never contacted for playback — if a
+  proxied stream can't be produced, the video opens in the browser instead. A post whose own
+  link is a streamable, PeerTube, or loops.video video always plays inline; a YouTube/Piped
+  post always shows the
   video badge, but inline playback happens only when the user's front-end is a Piped instance
   (otherwise it opens in the browser). A streamable or PeerTube link written inside
   post or comment **body text** also plays inline when tapped in the post-detail screen — its

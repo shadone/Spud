@@ -11,6 +11,7 @@ public enum VideoHostKind: Equatable, Sendable {
     case streamable
     case peertube
     case piped
+    case loops
 }
 
 /// A URL recognized as belonging to a `VideoHostKind`, carrying the host-specific
