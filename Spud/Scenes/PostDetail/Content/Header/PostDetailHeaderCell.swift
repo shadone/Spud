@@ -145,12 +145,29 @@ class PostDetailHeaderCell: UITableViewCellBase {
             linkPreviewsStackView,
             linkPreviewView,
             attributionLabel,
+            badgesStackView,
             subtitleHorizontalStackView,
         ]
         for view in subviews {
             stackView.addArrangedSubview(view)
         }
 
+        return stackView
+    }()
+
+    /// Author role/status pills (MOD / ADMIN / BOT / BANNED / SUSPENDED) rendered
+    /// as a row beneath the byline, rebuilt on each `configure`. Mirrors the
+    /// comment cell's `badgesStackView`, hidden (zero-height) for an ordinary
+    /// author so a normal header renders identically. Grouped as a single
+    /// VoiceOver element that speaks the folded status phrase.
+    lazy var badgesStackView: UIStackView = {
+        let stackView = UIStackView()
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .horizontal
+        stackView.spacing = 4
+        stackView.alignment = .center
+        stackView.accessibilityIdentifier = "authorBadges"
+        stackView.isHidden = true
         return stackView
     }()
 
@@ -596,6 +613,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
         bodyView.setBlocks([])
 
+        clearAuthorBadges()
         clearBodyLinkPreviews()
 
         linkPreviewView.isHidden = true
@@ -662,6 +680,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
             configureBodyLinkPreviews(viewModel)
         }
         attributionLabel.attributedText = viewModel.attribution
+        configureAuthorBadges(viewModel)
         subtitleScoreLabel.attributedText = viewModel.subtitleScore
         subtitleCommentLabel.attributedText = viewModel.subtitleComments
         subtitleAgeLabel.attributedText = viewModel.subtitleAge
@@ -786,6 +805,34 @@ class PostDetailHeaderCell: UITableViewCellBase {
             view.removeFromSuperview()
         }
         linkPreviewsStackView.isHidden = true
+    }
+
+    /// Rebuilds the author-status pill row from the view model. Shown only when
+    /// the author carries a status, hidden (zero-height in the stack) otherwise —
+    /// so an ordinary post's header is unchanged. Pills are grouped into one
+    /// VoiceOver element that speaks the folded status phrase, keeping the glyphs
+    /// decorative. Synchronous stack work only (no animation).
+    private func configureAuthorBadges(_ viewModel: PostDetailHeaderViewModel) {
+        clearAuthorBadges()
+        guard !viewModel.badges.isEmpty else { return }
+
+        let accent = tintColor ?? .systemTeal
+        for badge in viewModel.badges {
+            badgesStackView.addArrangedSubview(makeAuthorBadgeView(badge, accent: accent))
+        }
+        badgesStackView.isHidden = false
+        badgesStackView.isAccessibilityElement = true
+        badgesStackView.accessibilityLabel = viewModel.authorStatusAccessibilityLabel
+    }
+
+    private func clearAuthorBadges() {
+        for view in badgesStackView.arrangedSubviews {
+            badgesStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        badgesStackView.isHidden = true
+        badgesStackView.isAccessibilityElement = false
+        badgesStackView.accessibilityLabel = nil
     }
 
     /// Rebuilds the body link-preview stack from the view model. Cards appear

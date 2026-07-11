@@ -42,6 +42,14 @@ struct PostDetailHeaderViewModel {
     /// changes between configure calls.
     let textSizeAdjustment: CGFloat
     let attribution: NSAttributedString
+    /// Author role/status pills (MOD / ADMIN / BOT / BANNED / SUSPENDED) rendered
+    /// as a row beneath the byline, shared with the comment header via the DRY
+    /// ``PostAuthorStatus`` builder. Empty for an ordinary author.
+    let badges: [AuthorBadge]
+    /// The folded VoiceOver phrase for the author's statuses (e.g. "moderator,
+    /// suspended site-wide"), spoken as one grouped element beside the byline so
+    /// the pills themselves stay decorative. nil when the author carries no status.
+    let authorStatusAccessibilityLabel: String?
     let subtitleScore: NSAttributedString
     let subtitleComments: NSAttributedString
     let subtitleAge: NSAttributedString
@@ -149,12 +157,27 @@ struct PostDetailHeaderViewModel {
         linkPreviews = bodyBlocks.commentLinkPreviews(limit: 3)
         self.fetchLinkEmbeds = fetchLinkEmbeds
 
+        // Author role/status pills, shared with the comment header via the DRY
+        // `PostAuthorStatus` builder (same order, colors, and VoiceOver phrasing).
+        let authorStatus = PostAuthorStatus(header: row)
+        badges = authorStatus.badges
+        authorStatusAccessibilityLabel = authorStatus.accessibilityPhrases.isEmpty
+            ? nil
+            : authorStatus.accessibilityPhrases.joined(separator: ", ")
+        // A deleted author account has no profile to open and reads as "[deleted]"
+        // in a quiet tertiary color with the deep link suppressed — mirroring the
+        // comment path so a post and a comment by the same deleted author match.
+        // (Distinct from `row.isDeleted`, which means the *post* itself is deleted.)
+        let authorAccountDeleted = authorStatus.isDeleted
+
         // The author's "@host" and their profile deep link both come from the
         // author's OWN actor id (e.g. "https://beehaw.org/u/Tony"), whose host is
         // their home instance — NOT the observing account's instance. Mirrors the
         // community path below.
         var creatorAttributes = secondaryHighlightedAttributes
-        if
+        if authorAccountDeleted {
+            creatorAttributes[.foregroundColor] = UIColor.tertiaryLabel
+        } else if
             let creatorActorId = row.creatorActorId,
             let creatorActorUrl = URL(string: creatorActorId),
             let creatorInstance = InstanceActorId(from: creatorActorUrl)
@@ -204,7 +227,10 @@ struct PostDetailHeaderViewModel {
             return row.communityName
         }()
         let communityHost = row.communityActorId.flatMap { InstanceActorId(from: $0)?.host }
-        let creatorHost = row.creatorActorId.flatMap { InstanceActorId(from: $0)?.host }
+        // A deleted author account carries no home host to show alongside "[deleted]".
+        let creatorHost = authorAccountDeleted
+            ? nil
+            : row.creatorActorId.flatMap { InstanceActorId(from: $0)?.host }
 
         // "in <Community>@host by <Creator>@host" — the whole handle (name + host) is
         // the tap target.
@@ -216,7 +242,8 @@ struct PostDetailHeaderViewModel {
             pieces.append(NSAttributedString(string: "@\(communityHost)", attributes: communityInstanceAttributes))
         }
         pieces.append(NSAttributedString(string: " by ", attributes: secondaryAttributes))
-        pieces.append(NSAttributedString(string: row.creatorName, attributes: creatorAttributes))
+        let creatorDisplayName = authorAccountDeleted ? "[deleted]" : row.creatorName
+        pieces.append(NSAttributedString(string: creatorDisplayName, attributes: creatorAttributes))
         if let creatorHost {
             pieces.append(NSAttributedString(string: "@\(creatorHost)", attributes: creatorInstanceAttributes))
         }
