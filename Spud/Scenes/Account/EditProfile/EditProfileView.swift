@@ -30,7 +30,7 @@ struct EditProfileView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
         .tint(accent)
-        .interactiveDismissDisabled(viewModel.isSaving || viewModel.isUploadingAvatar || viewModel.isUploadingBanner)
+        .interactiveDismissDisabled(viewModel.isSaving)
         .alert(
             Text(verbatim: NSLocalizedString("Something went wrong", comment: "Edit Profile error alert title")),
             isPresented: errorBinding,
@@ -55,13 +55,13 @@ struct EditProfileView: View {
                 bannerUrl: viewModel.bannerUrl,
                 avatarUrl: viewModel.avatarUrl,
                 name: viewModel.name,
-                isUploadingBanner: viewModel.isUploadingBanner,
-                isUploadingAvatar: viewModel.isUploadingAvatar,
+                bannerImageOverride: viewModel.pickedBannerImage,
+                avatarImageOverride: viewModel.pickedAvatarImage,
                 onPickBanner: { data in
-                    await viewModel.uploadBanner(imageData: data)
+                    viewModel.pickBanner(imageData: data)
                 },
                 onPickAvatar: { data in
-                    await viewModel.uploadAvatar(imageData: data)
+                    viewModel.pickAvatar(imageData: data)
                 },
                 onRemoveBanner: {
                     viewModel.removeBanner()

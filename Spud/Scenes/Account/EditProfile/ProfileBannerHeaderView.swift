@@ -35,21 +35,26 @@ struct ProfileBannerHeaderView: View {
     /// The person's username; drives the hue and initial in the avatar fallback.
     let name: String
 
-    // MARK: Upload state
+    // MARK: Local preview overrides
 
-    /// True while a banner upload is in flight; shows a spinner over the banner.
-    let isUploadingBanner: Bool
-    /// True while an avatar upload is in flight; shows a spinner over the avatar.
-    let isUploadingAvatar: Bool
+    /// A just-picked banner image, shown in place of loading ``bannerUrl`` so the
+    /// pick previews instantly with no network round-trip. Nil = show the remote
+    /// banner (or its placeholder). The editor's VM uploads it once, at save.
+    let bannerImageOverride: UIImage?
+    /// The avatar twin of ``bannerImageOverride`` — a just-picked avatar shown in
+    /// place of loading ``avatarUrl``.
+    let avatarImageOverride: UIImage?
 
     // MARK: Interactive affordances (nil = display-only)
 
     /// Called with raw `Data` from the Photos picker when the user picks a new
     /// banner image. Pass `nil` to render the banner display-only (no picker).
-    let onPickBanner: ((Data) async -> Void)?
+    /// Synchronous: picking only records the image locally (encode + stash); the
+    /// upload is deferred to save.
+    let onPickBanner: ((Data) -> Void)?
     /// Called with raw `Data` when the user picks a new avatar image. Pass `nil`
     /// for display-only.
-    let onPickAvatar: ((Data) async -> Void)?
+    let onPickAvatar: ((Data) -> Void)?
     /// Called when the user removes the banner via the context menu. `nil` hides
     /// the remove affordance.
     let onRemoveBanner: (() -> Void)?
@@ -95,12 +100,13 @@ struct ProfileBannerHeaderView: View {
         // Compact (iPhone) stays full-width (.infinity).
         .frame(maxWidth: hSizeClass == .regular ? AdaptiveLayout.contentMaxWidth : .infinity)
         .frame(maxWidth: .infinity, alignment: .center)
-        // Decode picked banner data and forward to the callback
+        // Decode picked banner data and forward to the callback. Only the Photos
+        // transfer is async; the callback itself just records the image locally.
         .onChange(of: pickedBannerItem) { _, newItem in
             guard let newItem, let onPickBanner else { return }
             Task {
                 if let data = try? await newItem.loadTransferable(type: Data.self) {
-                    await onPickBanner(data)
+                    onPickBanner(data)
                 }
                 pickedBannerItem = nil
             }
@@ -110,7 +116,7 @@ struct ProfileBannerHeaderView: View {
             guard let newItem, let onPickAvatar else { return }
             Task {
                 if let data = try? await newItem.loadTransferable(type: Data.self) {
-                    await onPickAvatar(data)
+                    onPickAvatar(data)
                 }
                 pickedAvatarItem = nil
             }
@@ -135,7 +141,6 @@ struct ProfileBannerHeaderView: View {
                     }
             }
             .buttonStyle(.plain)
-            .disabled(isUploadingBanner)
             .accessibilityLabel(Text(NSLocalizedString(
                 "Profile banner",
                 comment: "Edit Profile: banner accessibility label"
@@ -151,7 +156,8 @@ struct ProfileBannerHeaderView: View {
                 // PhotosPicker is activated by its button; hint is sufficient
             }
             .contextMenu {
-                if bannerUrl != nil, let onRemoveBanner {
+                // Removable when there's either a remote banner or a just-picked one.
+                if bannerUrl != nil || bannerImageOverride != nil, let onRemoveBanner {
                     Button(role: .destructive) {
                         onRemoveBanner()
                     } label: {
@@ -172,22 +178,23 @@ struct ProfileBannerHeaderView: View {
         }
     }
 
-    /// The banner image or its placeholder, clipped to `bannerHeight`, with an
-    /// optional spinner overlay while a banner upload is in flight.
+    /// The banner image or its placeholder, clipped to `bannerHeight`. A
+    /// just-picked ``bannerImageOverride`` renders directly (instant, no network);
+    /// otherwise the remote ``bannerUrl`` (or its placeholder) loads.
     private var bannerImage: some View {
-        ZStack {
-            BannerImageView(url: bannerUrl)
-                .frame(height: bannerHeight)
-                .clipped()
+        bannerImageContent
+            .frame(height: bannerHeight)
+            .clipped()
+    }
 
-            if isUploadingBanner {
-                Color.black.opacity(0.35)
-                    .frame(height: bannerHeight)
-                ProgressView()
-                    .tint(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: bannerHeight)
-            }
+    @ViewBuilder
+    private var bannerImageContent: some View {
+        if let bannerImageOverride {
+            Image(uiImage: bannerImageOverride)
+                .resizable()
+                .scaledToFill()
+        } else {
+            BannerImageView(url: bannerUrl)
         }
     }
 
@@ -209,7 +216,6 @@ struct ProfileBannerHeaderView: View {
                     }
             }
             .buttonStyle(.plain)
-            .disabled(isUploadingAvatar)
             .accessibilityLabel(Text(NSLocalizedString(
                 "Profile photo",
                 comment: "Edit Profile: avatar accessibility label"
@@ -219,7 +225,8 @@ struct ProfileBannerHeaderView: View {
                 comment: "Edit Profile: avatar accessibility hint"
             )))
             .contextMenu {
-                if avatarUrl != nil, let onRemoveAvatar {
+                // Removable when there's either a remote avatar or a just-picked one.
+                if avatarUrl != nil || avatarImageOverride != nil, let onRemoveAvatar {
                     Button(role: .destructive) {
                         onRemoveAvatar()
                     } label: {
@@ -240,21 +247,26 @@ struct ProfileBannerHeaderView: View {
         }
     }
 
-    /// The circular avatar with a white border and an optional upload spinner.
+    /// The circular avatar with a white border. A just-picked ``avatarImageOverride``
+    /// renders directly (instant, no network); otherwise ``ProfileAvatarView`` loads
+    /// the remote ``avatarUrl`` (or its hue-tile fallback).
     private var avatarImage: some View {
-        ZStack {
-            ProfileAvatarView(avatarUrl: avatarUrl, name: name, size: avatarSize)
-                .overlay(Circle().strokeBorder(.background, lineWidth: 3))
+        avatarImageContent
+            .overlay(Circle().strokeBorder(.background, lineWidth: 3))
+            .frame(width: avatarSize, height: avatarSize)
+    }
 
-            if isUploadingAvatar {
-                Circle()
-                    .fill(.black.opacity(0.35))
-                    .frame(width: avatarSize, height: avatarSize)
-                ProgressView()
-                    .tint(.white)
-            }
+    @ViewBuilder
+    private var avatarImageContent: some View {
+        if let avatarImageOverride {
+            Image(uiImage: avatarImageOverride)
+                .resizable()
+                .scaledToFill()
+                .frame(width: avatarSize, height: avatarSize)
+                .clipShape(Circle())
+        } else {
+            ProfileAvatarView(avatarUrl: avatarUrl, name: name, size: avatarSize)
         }
-        .frame(width: avatarSize, height: avatarSize)
     }
 
     /// Small camera badge used in the bottom-trailing corner of both the banner

@@ -29,6 +29,10 @@ private actor SpySaveProfileService: LemmyServiceType {
     }
 
     private(set) var saveProfileCalls: [SaveProfileCall] = []
+    /// Counts direct `uploadImage` calls. The editor must NOT upload at pick time
+    /// anymore (that orphaned a pict-rs file); the single upload happens server-side
+    /// inside `saveProfile`, which this spy records separately via `saveProfileCalls`.
+    private(set) var uploadImageCallCount = 0
     var uploadImageResult: Result<URL, Error> = .success(URL(string: "https://example.com/banner.jpg")!)
 
     func saveProfile(
@@ -56,7 +60,8 @@ private actor SpySaveProfileService: LemmyServiceType {
     }
 
     func uploadImage(imageData _: Data, fileName _: String, mimeType _: String) async throws -> URL {
-        try uploadImageResult.get()
+        uploadImageCallCount += 1
+        return try uploadImageResult.get()
     }
 
     // MARK: Unused protocol stubs
@@ -292,12 +297,6 @@ private actor SpySaveProfileService: LemmyServiceType {
     func resolveObject(query _: String) async throws -> ResolvedLemmyObject {
         trap()
     }
-
-    // MARK: Mutation helper (called from outside the actor)
-
-    func setUploadImageResult(_ result: Result<URL, Error>) {
-        uploadImageResult = result
-    }
 }
 
 /// Minimal `AccountServiceType` stub — returns our spy for every keychain id.
@@ -413,19 +412,25 @@ struct EditProfileViewModelBannerTests {
         #expect(calls[0].banner == .removed)
     }
 
-    /// `uploadBanner` marks the banner as edited and retains the encoded bytes,
-    /// so `save()` must forward `banner: .set` carrying those bytes (which issues
-    /// the server-side banner push), not just a url.
+    /// Picking a banner records the encoded bytes locally and drives an instant
+    /// local preview WITHOUT any pick-time upload; `save()` then forwards
+    /// `banner: .set` carrying those bytes (the single, server-side push). The
+    /// direct `uploadImage` endpoint is never hit — the old pick-time upload that
+    /// orphaned a pict-rs file is gone.
     @Test
-    func uploadBanner_thenSave_forwardsBannerSet() async throws {
-        let uploadedUrl = try #require(URL(string: "https://example.com/my-banner.jpg"))
+    func pickBanner_thenSave_uploadsOnceAtSaveNotAtPick() async throws {
         let spy = SpySaveProfileService()
-        await spy.setUploadImageResult(.success(uploadedUrl))
-
         let vm = makeViewModel(spy: spy)
-        await vm.uploadBanner(imageData: Self.minimalJpeg)
+
+        vm.pickBanner(imageData: Self.minimalJpeg)
+
+        // Pick drives the local preview and does NOT upload.
+        #expect(vm.pickedBannerImage != nil)
+        #expect(await spy.uploadImageCallCount == 0)
+
         await vm.save()
 
+        // The single upload is carried by the save push, as `.set` bytes.
         let calls = await spy.saveProfileCalls
         try #require(calls.count == 1)
         guard case let .set(imageData, fileName, contentType) = calls[0].banner else {
@@ -435,6 +440,8 @@ struct EditProfileViewModelBannerTests {
         #expect(!imageData.isEmpty)
         #expect(fileName.hasPrefix("banner-"))
         #expect(contentType == "image/jpeg")
+        // Still no direct uploadImage call — saveProfile carries the push.
+        #expect(await spy.uploadImageCallCount == 0)
     }
 
     /// When the banner is not touched, `save()` must pass `banner: .unchanged` so
@@ -444,7 +451,7 @@ struct EditProfileViewModelBannerTests {
         let spy = SpySaveProfileService()
         let vm = makeViewModel(spy: spy)
 
-        // Do NOT call removeBanner() or uploadBanner — banner is untouched.
+        // Do NOT call removeBanner() or pickBanner — banner is untouched.
         await vm.save()
 
         let calls = await spy.saveProfileCalls
@@ -469,16 +476,19 @@ struct EditProfileViewModelBannerTests {
         #expect(calls[0].avatar == .removed)
     }
 
-    /// `uploadAvatar` retains the encoded bytes, so `save()` must forward
-    /// `avatar: .set` carrying those bytes (issuing the server-side avatar push).
+    /// Picking an avatar retains the encoded bytes and drives an instant local
+    /// preview with no pick-time upload; `save()` forwards `avatar: .set` carrying
+    /// those bytes (the single server-side push).
     @Test
-    func uploadAvatar_thenSave_forwardsAvatarSet() async throws {
-        let uploadedUrl = try #require(URL(string: "https://example.com/my-avatar.jpg"))
+    func pickAvatar_thenSave_uploadsOnceAtSaveNotAtPick() async throws {
         let spy = SpySaveProfileService()
-        await spy.setUploadImageResult(.success(uploadedUrl))
-
         let vm = makeViewModel(spy: spy)
-        await vm.uploadAvatar(imageData: Self.minimalJpeg)
+
+        vm.pickAvatar(imageData: Self.minimalJpeg)
+
+        #expect(vm.pickedAvatarImage != nil)
+        #expect(await spy.uploadImageCallCount == 0)
+
         await vm.save()
 
         let calls = await spy.saveProfileCalls
@@ -490,6 +500,7 @@ struct EditProfileViewModelBannerTests {
         #expect(!imageData.isEmpty)
         #expect(fileName.hasPrefix("avatar-"))
         #expect(contentType == "image/jpeg")
+        #expect(await spy.uploadImageCallCount == 0)
     }
 
     /// When the avatar is not touched, `save()` must pass `avatar: .unchanged`.
@@ -508,7 +519,8 @@ struct EditProfileViewModelBannerTests {
     // MARK: Fixtures
 
     /// A 1x1 red JPEG produced at runtime by `UIGraphicsImageRenderer`, which
-    /// guarantees `UIImage(data:)` round-trips successfully inside `uploadBanner`.
+    /// guarantees `UIImage(data:)` round-trips successfully inside `pickBanner` /
+    /// `pickAvatar`.
     @MainActor
     private static var minimalJpeg: Data {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1))
