@@ -209,6 +209,8 @@ public extension AccountServiceType {
                 )
             case let .saved(oldSortType):
                 return .saved(sortType: sortType ?? oldSortType)
+            case let .downloaded(oldSortType):
+                return .downloaded(sortType: sortType ?? oldSortType)
             }
         }()
         return FeedHandle(feedKey: UUID().uuidString, feedType: newFeedType)

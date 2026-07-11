@@ -15,6 +15,7 @@ Saves the current feed for reading offline — useful before a flight or a long 
 - **What gets saved.** The chosen number of posts from the top of the feed are fetched and persisted; then, for each, its comment tree is fetched and persisted and its thumbnail + full image are warmed into the durable on-disk image cache. With "save linked web pages" on, each post that links to an external article also has that page snapshotted (a web archive) and stored. Once saved, opening any of those posts offline shows its body, comments, and images — and its linked article, if saved.
 - **Reaches the number you asked for.** Paging stops when it has the requested count, the feed genuinely ends, or (backstop) a page budget is hit — and it keeps going past a page that only repeats posts you'd already loaded by scrolling (so starting a 500-post download after browsing the top of the feed still fetches 500, not just what was on screen).
 - **Reading saved links offline.** When you're offline and tap a saved post's external link, it opens in an in-app reader showing the saved snapshot (marked "Saved offline"), with Share and "Open in Browser" actions. When you're online, links open the live page as usual — the snapshot is a no-connection fallback, not a replacement. Offline links that weren't saved show a brief "This page isn't saved for offline" note.
+- **Finding your downloaded posts — the "Downloaded" feed.** Downloaded posts are marked durably (per post, per account), so they can be listed even after the app has been relaunched and the temporary download feed has been cleaned up. A **"Downloaded"** entry appears in the feed switcher (next to All / Local / Subscribed / Saved) **whenever you have downloaded posts** — it's hidden when you have none. Selecting it shows those posts, newest download first. This feed is **entirely local**: it never makes a network request, so it opens instantly and works with no connection (no spinner, no error) — a pull-to-refresh just re-reads the local copy. It's the offline library, distinct from **Saved** (posts you bookmarked on the server).
 - **Non-blocking progress.** A persistent pill anchored to the bottom of the window shows a progress ring and status ("Fetching posts…", then "Saving posts, comments & images — N of M"). It does **not** block the app: after tapping Download you dismiss the options sheet and keep browsing, and the pill stays visible as you switch feeds and switch tabs. It is **not** cancelled by navigating away — only its ✕ cancels. Cancelling stops the download promptly (the pill briefly reads "Cancelling…"); what was already saved remains usable. When the download ends, the pill animates away and a brief toast confirms the outcome ("Saved N posts for offline browsing", or the cancel / failure message). Only one download runs at a time.
 - **Requires a connection to start.** Predownloading needs the network, so the action shows a brief "You're offline" message and doesn't start when there's no connection.
 - **Best-effort per post.** A single post whose comments, image, or linked page fail to download doesn't abort the rest — the download continues and completes with what it could fetch. A transient failure (a timeout or a server "busy"/"slow down") is retried a few times with a growing back-off before the post is given up on.
@@ -51,6 +52,14 @@ Saves the current feed for reading offline — useful before a flight or a long 
 - **Given** I downloaded the feed with "Also save linked web pages" on, then went offline
 - **When** I tap a post's external link
 - **Then** the saved page opens in an in-app reader marked "Saved offline"
+
+### Reach downloaded posts via the Downloaded feed (offline)
+
+- **Given** I downloaded a feed earlier, then relaunched the app with no connection
+- **When** I open the feed switcher
+- **Then** a "Downloaded" entry is listed (next to All / Local / Subscribed / Saved)
+- **And** selecting it shows my downloaded posts (newest download first) immediately, with no network request, spinner, or error
+- **And** the entry is not shown at all when I have no downloaded posts
 
 ### Cancel a download
 
@@ -89,5 +98,5 @@ Saves the current feed for reading offline — useful before a flight or a long 
 - **In-page links inside a saved article need a connection.** The offline reader shows the saved page; tapping a link within it opens the live web (in the browser), so it won't load while offline.
 - **Bounded coverage.** Only the top of the feed (up to the chosen count) is saved, not the entire feed history; images and saved pages are each subject to their cache's size limit, so a very large download may evict the oldest cached items over time.
 - **No background or scheduled downloads.** The download runs while the app is in the foreground (it survives dismissing the options sheet, switching feeds, and switching tabs, but it isn't an OS background task and isn't scheduled automatically). It's cancelled if the feed's screen is torn down under memory pressure.
-- **No separate "offline library" UI.** Saved content is browsed through the normal feed and post screens (which read the local copy when offline) — there is no distinct downloaded-items manager, and no per-download delete beyond the app's normal cache behavior.
+- **The "Downloaded" feed is a list, not a manager.** It lists the posts you've downloaded (so you can find them offline) and opens them through the normal post screen from the local copy — but there is no per-post or per-download delete UI; downloaded content ages out only through the app's normal cache behavior (and the marker is refreshed whenever you download again). Downloaded content is also still reachable by scrolling the original feed offline, exactly as before.
 - **Writing offline** (voting, commenting, posting) is governed by the existing optimistic/durable outbox, not this feature — actions taken offline queue and send when you reconnect.

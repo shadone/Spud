@@ -25,6 +25,7 @@ final class FeedSwitcherViewController: UIViewController {
     private enum FeedKind {
         case frontpage(Components.Schemas.ListingType)
         case saved
+        case downloaded
         case browseCommunities
     }
 
@@ -42,7 +43,15 @@ final class FeedSwitcherViewController: UIViewController {
     /// selection time so a changed preference is honoured.
     private let defaultSortType: @MainActor () -> Components.Schemas.SortType
 
-    private let sections: [[Row]]
+    /// Count of posts saved for offline reading. The "Downloaded" row is shown
+    /// only when this is > 0. Re-evaluated in `viewWillAppear` (the switcher is
+    /// long-lived), so a fresh download makes the row appear — and clearing the
+    /// downloads makes it disappear — without rebuilding the controller.
+    private let downloadedCount: @MainActor () -> Int
+
+    /// The rendered sections. Rebuilt in `viewWillAppear` from the live
+    /// `downloadedCount`, so the Downloaded row's presence tracks the count.
+    private var sections: [[Row]] = []
 
     private lazy var tableView: UITableView = {
         let tableView = UITableView(frame: .zero, style: .insetGrouped)
@@ -56,33 +65,53 @@ final class FeedSwitcherViewController: UIViewController {
 
     init(
         currentFeedType: @escaping @MainActor () -> FeedType?,
-        defaultSortType: @escaping @MainActor () -> Components.Schemas.SortType
+        defaultSortType: @escaping @MainActor () -> Components.Schemas.SortType,
+        downloadedCount: @escaping @MainActor () -> Int
     ) {
         self.currentFeedType = currentFeedType
         self.defaultSortType = defaultSortType
-        sections = [
-            [
+        self.downloadedCount = downloadedCount
+        super.init(nibName: nil, bundle: nil)
+        sections = makeSections()
+    }
+
+    /// Builds the switcher rows. The Downloaded row is appended after Saved only
+    /// when there are downloaded posts to read (`downloadedCount() > 0`), so an
+    /// empty state never advertises an empty feed.
+    private func makeSections() -> [[Row]] {
+        var feeds: [Row] = [
+            Row(
+                title: NSLocalizedString("All", comment: "Feed switcher: all federated content"),
+                symbolName: "globe",
+                kind: .frontpage(.All)
+            ),
+            Row(
+                title: NSLocalizedString("Local", comment: "Feed switcher: this instance only"),
+                symbolName: "house",
+                kind: .frontpage(.Local)
+            ),
+            Row(
+                title: NSLocalizedString("Subscribed", comment: "Feed switcher: subscribed communities"),
+                symbolName: "star",
+                kind: .frontpage(.Subscribed)
+            ),
+            Row(
+                title: NSLocalizedString("Saved", comment: "Feed switcher: saved posts"),
+                symbolName: "bookmark",
+                kind: .saved
+            ),
+        ]
+        if downloadedCount() > 0 {
+            feeds.append(
                 Row(
-                    title: NSLocalizedString("All", comment: "Feed switcher: all federated content"),
-                    symbolName: "globe",
-                    kind: .frontpage(.All)
-                ),
-                Row(
-                    title: NSLocalizedString("Local", comment: "Feed switcher: this instance only"),
-                    symbolName: "house",
-                    kind: .frontpage(.Local)
-                ),
-                Row(
-                    title: NSLocalizedString("Subscribed", comment: "Feed switcher: subscribed communities"),
-                    symbolName: "star",
-                    kind: .frontpage(.Subscribed)
-                ),
-                Row(
-                    title: NSLocalizedString("Saved", comment: "Feed switcher: saved posts"),
-                    symbolName: "bookmark",
-                    kind: .saved
-                ),
-            ],
+                    title: NSLocalizedString("Downloaded", comment: "Feed switcher: posts saved for offline reading"),
+                    symbolName: "arrow.down.circle",
+                    kind: .downloaded
+                )
+            )
+        }
+        return [
+            feeds,
             [
                 Row(
                     title: NSLocalizedString("Browse all communities", comment: "Feed switcher row opening the Communities tab"),
@@ -91,7 +120,6 @@ final class FeedSwitcherViewController: UIViewController {
                 ),
             ],
         ]
-        super.init(nibName: nil, bundle: nil)
     }
 
     @available(*, unavailable)
@@ -117,8 +145,10 @@ final class FeedSwitcherViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        // The active feed may have changed since the switcher was last shown;
-        // refresh so the checkmark lands on the current feed.
+        // Rebuild the rows so the Downloaded row appears/disappears with the live
+        // download count, and refresh so the checkmark lands on the current feed
+        // (both may have changed since the switcher was last shown).
+        sections = makeSections()
         tableView.reloadData()
     }
 
@@ -130,6 +160,8 @@ final class FeedSwitcherViewController: UIViewController {
         case let (.frontpage(lhs), .frontpage(rhs, _)):
             return lhs == rhs
         case (.saved, .saved):
+            return true
+        case (.downloaded, .downloaded):
             return true
         default:
             return false
@@ -164,7 +196,7 @@ extension FeedSwitcherViewController: UITableViewDataSource, UITableViewDelegate
         switch row.kind {
         case .browseCommunities:
             cell.accessoryType = .disclosureIndicator
-        case .frontpage, .saved:
+        case .frontpage, .saved, .downloaded:
             cell.accessoryType = isActive(row) ? .checkmark : .none
         }
         return cell
@@ -180,6 +212,8 @@ extension FeedSwitcherViewController: UITableViewDataSource, UITableViewDelegate
             onSelectFeedType?(.frontpage(listingType: listingType, sortType: defaultSortType()))
         case .saved:
             onSelectFeedType?(.saved(sortType: defaultSortType()))
+        case .downloaded:
+            onSelectFeedType?(.downloaded(sortType: defaultSortType()))
         case .browseCommunities:
             onBrowseAllCommunities?()
         }

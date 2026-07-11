@@ -168,9 +168,11 @@ class MainWindowSplitViewController: UISplitViewController {
     ) -> FeedSwitcherViewController {
         let accountService = accountService
         let accountKeychainId = accountKeychainId
+        let appDatabase = dependencies.nested.appDatabase
         let feedSwitcher = FeedSwitcherViewController(
             currentFeedType: { [weak self] in self?.postListViewController?.currentFeedType },
-            defaultSortType: { accountService.defaultSortType(forAccountKeychainId: accountKeychainId) }
+            defaultSortType: { accountService.defaultSortType(forAccountKeychainId: accountKeychainId) },
+            downloadedCount: { appDatabase.downloadedPostCountSync(forAccountKeychainId: accountKeychainId) }
         )
         feedSwitcher.onSelectFeedType = { [weak self, weak feedSwitcher] feedType in
             guard let self, let feedSwitcher, let postListVC = postListViewController else { return }

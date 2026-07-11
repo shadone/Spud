@@ -28,11 +28,23 @@ public enum FeedType: Equatable, Sendable {
         sortType: Components.Schemas.SortType
     )
 
+    /// The posts this account saved for OFFLINE reading (the offline downloader
+    /// stamped `post.downloadedAt`). Unlike every other case this feed is
+    /// entirely LOCAL: it never calls the network — `LemmyService.fetchFeed`
+    /// returns nil for it and `PostListViewModel` observes
+    /// `observeDownloadedPostListRows` directly. The `sortType` is carried only
+    /// for UI parity (the switcher / sort control); the rows are always ordered
+    /// by `downloadedAt DESC`, so it does not affect the query.
+    case downloaded(
+        sortType: Components.Schemas.SortType
+    )
+
     public var sortType: Components.Schemas.SortType {
         switch self {
         case let .frontpage(_, sortType),
              let .community(_, _, sortType),
-             let .saved(sortType):
+             let .saved(sortType),
+             let .downloaded(sortType):
             return sortType
         }
     }

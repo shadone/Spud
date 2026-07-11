@@ -32,6 +32,11 @@ extension IntentFeedType {
             // The saved feed is per-account and auth-scoped; there is no
             // Siri intent for it.
             return nil
+
+        case .downloaded:
+            // The Downloaded (offline) feed is local-only; there is no Siri
+            // intent for it.
+            return nil
         }
     }
 }

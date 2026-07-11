@@ -791,6 +791,16 @@ public actor LemmyService: LemmyServiceType {
         let feedKey = feed.feedKey
         let feedType = feed.feedType
 
+        // The Downloaded feed is LOCAL-ONLY: it reads exclusively from the durable
+        // `post.downloadedAt` marker in GRDB. Returning nil here — before any
+        // `getPosts` — is the invariant that keeps it network-free (it must render
+        // offline with no request, spinner, or error). `PostListViewModel` never
+        // even calls this for `.downloaded` (its network paths no-op), but this
+        // arm guarantees the invariant defensively at the service boundary too.
+        if case .downloaded = feedType {
+            return nil
+        }
+
         let response: Components.Schemas.GetPostsResponse
         do {
             switch feedType {
@@ -845,6 +855,12 @@ public actor LemmyService: LemmyServiceType {
                     showNSFW: showNsfw,
                     page: pageCursor
                 )
+
+            case .downloaded:
+                // Unreachable: the guard at the top of `fetchFeed` returns nil for
+                // `.downloaded` before this switch. Kept for exhaustiveness and to
+                // make the network-free invariant explicit at the switch too.
+                return nil
             }
         } catch let error as LemmyServiceError {
             throw error
