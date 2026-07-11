@@ -61,5 +61,5 @@ This screen covers the **content** outbox only (new/edited comments, posts, and 
 
 ## Not supported / out of scope
 
-- **Editing an already-posted comment is not done from this screen.** Items in this screen are exclusively unsent (Draft, Sending, or Failed). Editing a *posted* comment is offered inline in its thread (long-press → Edit), which enqueues its own outbound item that may briefly appear here while sending or if it fails — see [Replying](replying.md). A posted *post* is not editable.
+- **Editing an already-posted comment is not done from this screen.** Items in this screen are exclusively unsent (Draft, Sending, or Failed). Editing a *posted* comment is offered inline in its thread (long-press → Edit), which enqueues its own outbound item that may briefly appear here while sending or if it fails — see [Replying](replying.md). Editing a *posted* post works the same way — offered inline on the post (overflow → Edit) and routed through its own outbound item — see [New post](new-post.md).
 - **Push notifications for failures.** Failed sends surface a non-blocking in-app toast only; no push notification is sent.
