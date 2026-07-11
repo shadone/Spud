@@ -1300,7 +1300,11 @@ class PostListViewController: UIViewController {
     /// `FeedStatePresenter`, wiring each descriptor action to a controller
     /// closure.
     private func makeErrorConfiguration(for failure: LoadFailure) -> UIContentUnavailableConfiguration {
-        let descriptor = FeedStatePresenter.descriptor(for: failure.kind, host: viewModel.instanceHost)
+        let descriptor = FeedStatePresenter.descriptor(
+            for: failure.kind,
+            host: viewModel.instanceHost,
+            hasDownloadedContent: viewModel.hasDownloadedContent
+        )
         var config = UIContentUnavailableConfiguration.empty()
         config.image = UIImage(systemName: descriptor.symbolName)
         config.text = descriptor.title
@@ -1345,6 +1349,14 @@ class PostListViewController: UIViewController {
         case .copyDetails:
             return UIAction { [weak self] _ in
                 UIPasteboard.general.string = self?.viewModel.lastFailureDiagnostics
+            }
+        case .viewDownloaded:
+            return UIAction { [weak self] _ in
+                guard let self else { return }
+                // Route to the local-only Downloaded feed (network-free), reusing
+                // the in-place feed switch the feed switcher uses. Carry the
+                // current sort for parity; the feed always orders by download date.
+                showFeed(.downloaded(sortType: viewModel.feed.feedType.sortType))
             }
         }
     }

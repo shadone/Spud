@@ -105,12 +105,13 @@ struct PostListViewModelDownloadedFeedTests {
 
     private func makeViewModel(
         _ seed: Seed,
+        feedType: FeedType = .downloaded(sortType: .New),
         fetchFeedOperation: @escaping @MainActor (FeedHandle, String?) async throws -> String?
     ) -> PostListViewModel {
         PostListViewModel(
             feed: FeedHandle(
                 feedKey: "dl-feed",
-                feedType: .downloaded(sortType: .New)
+                feedType: feedType
             ),
             accountScope: seed.dependencies.accountService.scope(forAccountKeychainId: seed.keychainId),
             appDatabase: seed.appDatabase,
@@ -211,6 +212,52 @@ struct PostListViewModelDownloadedFeedTests {
         // The posts are still there and the load is settled (never a spinner).
         #expect(vm.orderedRows.map(\.serverPostId) == [1001])
         #expect(vm.loadState == .loaded)
+
+        vm.stopObservations()
+    }
+
+    // MARK: - Offline-screen gating + routing
+
+    @Test
+    func hasDownloadedContentReflectsTheMarkerCount() async throws {
+        let seed = try await makeSeed()
+        // A normal (non-downloaded) feed is what shows the offline error surface.
+        let vm = makeViewModel(seed, feedType: .frontpage(listingType: .All, sortType: .Active)) { _, _ in nil }
+
+        #expect(vm.hasDownloadedContent == false, "no downloads yet")
+
+        try await seedDownloadedPosts(seed, posts: [(serverPostId: 1001, title: "downloaded")])
+        #expect(vm.hasDownloadedContent == true, "a downloaded post must flip the gate")
+    }
+
+    @Test
+    func switchingToDownloadedRoutesToTheLocalDownloadedFeed() async throws {
+        let seed = try await makeSeed()
+        try await seedDownloadedPosts(seed, posts: [(serverPostId: 1001, title: "downloaded")])
+
+        // Start on a normal feed (the "You're offline" surface's context), then
+        // take the offline screen's route: switchFeed(to: .downloaded(...)) — this
+        // is exactly what the view controller's `.viewDownloaded` action calls via
+        // `showFeed`.
+        var fetchInvocations = 0
+        let vm = makeViewModel(seed, feedType: .frontpage(listingType: .All, sortType: .Active)) { _, _ in
+            fetchInvocations += 1
+            return nil
+        }
+
+        vm.switchFeed(to: .downloaded(sortType: vm.feed.feedType.sortType))
+
+        // Landed on the local Downloaded feed.
+        if case .downloaded = vm.feed.feedType {} else {
+            Issue.record("switchFeed must target the .downloaded feed")
+        }
+        #expect(vm.navigationTitle == "Downloaded")
+
+        // And it renders offline: observe reaches the downloaded post with no fetch.
+        vm.startObservations()
+        await poll { vm.orderedRows.count == 1 }
+        #expect(vm.orderedRows.map(\.serverPostId) == [1001])
+        #expect(fetchInvocations == 0, "routing to Downloaded must not call the network")
 
         vm.stopObservations()
     }

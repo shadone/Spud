@@ -507,6 +507,13 @@ final class PostListViewModel {
 
     // MARK: - Host / empty / title (unchanged behavior)
 
+    /// Whether the backing account has any posts saved for offline reading.
+    /// Gates the offline error surface's "View downloaded content" action (there
+    /// is no point routing to an empty Downloaded feed). A synchronous DB read.
+    var hasDownloadedContent: Bool {
+        appDatabase.downloadedPostCountSync(forAccountKeychainId: accountKeychainId) > 0
+    }
+
     var instanceHost: String? {
         switch feed.feedType {
         case let .community(_, instance, _):

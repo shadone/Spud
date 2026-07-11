@@ -11,7 +11,7 @@ import SpudDataKit
 /// the actions to offer. Each screen renders this into its own UI (e.g. a
 /// `UIContentUnavailableConfiguration`) and wires the action closures.
 struct FeedErrorDescriptor: Equatable {
-    enum Action: Equatable { case retry, workOffline, copyDetails }
+    enum Action: Equatable { case retry, workOffline, copyDetails, viewDownloaded }
 
     struct ButtonSpec: Equatable {
         let title: String
@@ -26,10 +26,25 @@ struct FeedErrorDescriptor: Equatable {
 }
 
 enum FeedStatePresenter {
-    static func descriptor(for kind: LoadFailure.Kind, host: String?) -> FeedErrorDescriptor {
+    /// Builds the failed-load surface for `kind`.
+    ///
+    /// - Parameter hasDownloadedContent: When true, the offline surface offers a
+    ///   "View downloaded content" secondary action so a user who has saved posts
+    ///   for offline reading can reach them without a connection. Defaults to
+    ///   false, so surfaces that don't know (or don't apply — e.g. the comment
+    ///   failure cell) render unchanged.
+    static func descriptor(
+        for kind: LoadFailure.Kind,
+        host: String?,
+        hasDownloadedContent: Bool = false
+    ) -> FeedErrorDescriptor {
         let tryAgain = FeedErrorDescriptor.ButtonSpec(
             title: NSLocalizedString("Try again", comment: "Feed error-state primary action"),
             action: .retry
+        )
+        let viewDownloaded = FeedErrorDescriptor.ButtonSpec(
+            title: NSLocalizedString("View downloaded content", comment: "Feed offline-state secondary action opening the Downloaded feed"),
+            action: .viewDownloaded
         )
 
         switch kind {
@@ -42,7 +57,9 @@ enum FeedStatePresenter {
                     comment: "Feed offline-state message"
                 ),
                 primary: tryAgain,
-                secondary: nil
+                // Only offered when there is downloaded content to view — no point
+                // routing to an empty Downloaded feed.
+                secondary: hasDownloadedContent ? viewDownloaded : nil
             )
 
         case .unreachable:

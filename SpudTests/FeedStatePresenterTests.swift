@@ -19,6 +19,21 @@ struct FeedStatePresenterTests {
     }
 
     @Test
+    func offlineDescriptorHidesViewDownloadedWhenNoDownloadedContent() {
+        let d = FeedStatePresenter.descriptor(for: .offline, host: "lemmy.world", hasDownloadedContent: false)
+        // No downloaded content: no point routing to an empty Downloaded feed.
+        #expect(d.secondary == nil)
+    }
+
+    @Test
+    func offlineDescriptorOffersViewDownloadedWhenDownloadedContentExists() {
+        let d = FeedStatePresenter.descriptor(for: .offline, host: "lemmy.world", hasDownloadedContent: true)
+        #expect(d.primary.action == .retry)
+        #expect(d.secondary?.action == .viewDownloaded)
+        #expect(d.secondary?.title == "View downloaded content")
+    }
+
+    @Test
     func unreachableDescriptorInterpolatesHost() {
         let d = FeedStatePresenter.descriptor(for: .unreachable, host: "lemmy.world")
         #expect(d.symbolName == "globe")
