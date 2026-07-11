@@ -55,6 +55,7 @@ final class AccountScreenSnapshotTests: XCTestCase {
                 onOpenActivity: { },
                 onOpenYourPosts: { },
                 onOpenYourComments: { },
+                onOpenDraftsOutbox: { },
                 onLogout: { }
             )
             .environment(\.imageService, StaticImageService())

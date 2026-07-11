@@ -9,9 +9,9 @@ import SwiftUI
 
 /// The signed-in Account tab content: a tappable profile header over a grouped
 /// list of account actions (switch account, saved / activity / your posts / your
-/// comments, log out). Navigation is owned by the hosting `AccountViewController`,
-/// reached through the callbacks wired here, so each row works the same on iPhone
-/// and iPad.
+/// comments / drafts & outbox, log out). Navigation is owned by the hosting
+/// `AccountViewController`, reached through the callbacks wired here, so each row
+/// works the same on iPhone and iPad.
 struct AccountView: View {
     let viewModel: AccountViewModel
     let accent: Color
@@ -22,6 +22,7 @@ struct AccountView: View {
     let onOpenActivity: () -> Void
     let onOpenYourPosts: () -> Void
     let onOpenYourComments: () -> Void
+    let onOpenDraftsOutbox: () -> Void
     let onLogout: () -> Void
 
     var body: some View {
@@ -68,6 +69,12 @@ struct AccountView: View {
                     systemImage: "text.bubble",
                     tint: accent,
                     action: onOpenYourComments
+                )
+                AccountRow(
+                    title: NSLocalizedString("Drafts & Outbox", comment: "Account row"),
+                    systemImage: "tray.2",
+                    tint: accent,
+                    action: onOpenDraftsOutbox
                 )
             }
 
