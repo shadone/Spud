@@ -234,11 +234,11 @@ class PostListViewController: UIViewController {
     // MARK: Offline download
 
     // The members in this section (`offlineDownloadService`, `offlineDownloadTask`,
-    // `offlineDownloadProgressViewModel`, `offlineDownloadSheetDelegate`, and the
-    // `currentFeedHandle` / `currentAccountScope` / `currentAccountKeychainId`
-    // accessors over the `private` view model) are `internal` ONLY so the
-    // offline-download extension (`PostListViewController+OfflineDownload.swift`)
-    // can drive the launch + lifecycle. They are an extension seam, not public API.
+    // `offlineDownloadProgressViewModel`, and the `currentFeedHandle` /
+    // `currentAccountScope` / `currentAccountKeychainId` accessors over the
+    // `private` view model) are `internal` ONLY so the offline-download extension
+    // (`PostListViewController+OfflineDownload.swift`) can drive the launch +
+    // lifecycle. They are an extension seam, not public API.
 
     /// The engine that predownloads the current feed for offline browsing.
     /// Instantiated lazily (and held for the controller's lifetime) so a download
@@ -262,27 +262,16 @@ class PostListViewController: UIViewController {
     )
 
     /// The task draining the in-flight download's progress stream, updating the
-    /// progress sheet on each value. Retained so dismissing the sheet (swipe or
-    /// programmatic) can tear it down. Cancelling this task terminates the stream,
-    /// which cancels the download via the stream's `onTermination`.
+    /// status pill's view model on each value. Retained so the controller can tear
+    /// it down (the pill's ✕ or `deinit`). Cancelling this task terminates the
+    /// stream, which cancels the download via the stream's `onTermination`.
     var offlineDownloadTask: Task<Void, Never>?
 
-    /// The presented progress sheet's view model, held so stream values can push
-    /// updates into it. Nil when no download sheet is showing.
+    /// The status pill's view model, held so stream values can push updates into
+    /// it. Non-nil exactly while this controller owns a live download; nil
+    /// otherwise. `deinit` uses this to tell whether it should remove the pill it
+    /// showed (so it never removes a pill another feed's controller owns).
     var offlineDownloadProgressViewModel: OfflineDownloadProgressViewModel?
-
-    /// Presentation-controller delegate for the progress sheet, retained because
-    /// a presentation controller holds its delegate weakly. Its closure cancels a
-    /// live download when the user swipes the sheet away (so a swipe-dismiss
-    /// doesn't leave a runaway background download). Configured in
-    /// `startOfflineDownload`.
-    lazy var offlineDownloadSheetDelegate: OfflineDownloadSheetDismissDelegate = {
-        let delegate = OfflineDownloadSheetDismissDelegate()
-        delegate.onInteractiveDismiss = { [weak self] in
-            self?.handleOfflineSheetSwipedAway()
-        }
-        return delegate
-    }()
 
     /// The feed currently shown, for the offline-download launch path (the
     /// view model is `private`).
@@ -358,6 +347,17 @@ class PostListViewController: UIViewController {
         reachabilityObservationTask?.cancel()
         swipeActionsObservationTask?.cancel()
         offlineDownloadTask?.cancel()
+        // Cancelling the drain task above tears down the run; if this controller
+        // still owned a live download, remove the window-anchored pill it showed
+        // so it can't linger without a drain updating it. (Scoped by the non-nil
+        // view model so we never remove a pill another feed's controller owns.)
+        // NOTE (robustness follow-up): because ownership lives on this VC, a
+        // Posts-tab VC dealloc under memory pressure cancels the download too;
+        // moving ownership to an app-lifetime object would let the run + pill
+        // outlive the controller. Deferred.
+        if offlineDownloadProgressViewModel != nil {
+            OfflineDownloadStatusPresenter.shared.dismiss(animated: false)
+        }
         for task in displayPrefsObservationTasks {
             task.cancel()
         }

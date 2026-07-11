@@ -16,18 +16,21 @@ import UIKit
 /// Flow: the Quick Switch popover's "Download for offline" action calls
 /// ``startOfflineDownload()``, which (after the offline / in-flight guards)
 /// presents a small chooser letting the user pick how many posts to save. On
-/// Download the chooser dismisses and ``beginOfflineDownload(maxPosts:)`` runs:
-/// it resolves the current feed's account/site identifiers and the comment-sort
-/// + show-NSFW preferences, presents a compact progress sheet, and drains the
-/// service's `AsyncStream` on the main actor — pushing each value into the
-/// sheet's view model. On `.finished` / `.failed` / `.cancelled` it dismisses
-/// the sheet and shows a toast.
+/// Download the chooser dismisses and ``beginOfflineDownload(maxPosts:archiveLinks:)``
+/// runs: it resolves the current feed's account/site identifiers and the
+/// comment-sort + show-NSFW preferences, shows a **non-blocking status pill**
+/// (``OfflineDownloadStatusPresenter``), and drains the service's `AsyncStream`
+/// on the main actor — pushing each value into the pill's view model. On
+/// `.finished` / `.failed` / `.cancelled` it dismisses the pill and shows a toast.
 ///
-/// **Dismiss cancels the download.** A swipe-to-dismiss (or the Cancel button)
-/// must not leave a runaway background download: both paths call
-/// `cancelCurrentDownload()`, and the draining task keeps reading until the
-/// terminal `.cancelled` lands before the sheet is gone. The drain task is also
-/// torn down in `deinit`, so the download can't outlive the controller.
+/// **Dismissing the pill does NOT cancel the download.** The download runs in the
+/// service's retained work task, independent of the pill; the pill is anchored to
+/// the window (not this controller's view), so it survives feed switches and tab
+/// switches. Cancellation is exclusively the pill's ✕, which routes to
+/// ``cancelOfflineDownload()`` — that asks the service to cancel while the drain
+/// task keeps reading until the terminal `.cancelled` lands (so the cancelled
+/// state is observably rendered). The drain task is also torn down in the
+/// controller's `deinit`, which cancels the run and removes the pill.
 extension PostListViewController {
     /// Presents the "Download for offline" chooser (post-count picker) for the
     /// current feed. No-ops (with a brief toast) when offline, when a download is
@@ -36,13 +39,13 @@ extension PostListViewController {
     /// appears over a doomed run.
     func startOfflineDownload() {
         // Don't start a second download over a live one — the actor would reject
-        // it anyway, but bailing here keeps the existing sheet in front.
+        // it anyway, but bailing here keeps the existing pill's run intact.
         guard offlineDownloadTask == nil else { return }
 
         // You can't predownload without a connection. Surface a brief toast
         // rather than opening a chooser whose download would immediately fail.
         guard reachabilityMonitor.isOnline else {
-            if let window = view.window {
+            if let window = offlineDownloadWindow {
                 ToastPresenter.shared.show(
                     NSLocalizedString(
                         "You're offline",
@@ -69,7 +72,7 @@ extension PostListViewController {
             onStart: { [weak self] maxPosts, archiveLinks in
                 guard let self else { return }
                 // Dismiss the chooser, then begin from a settled state so the
-                // progress sheet presents cleanly (not over the closing chooser).
+                // status pill appears cleanly (not over the closing chooser).
                 dismiss(animated: true) { [weak self] in
                     self?.beginOfflineDownload(maxPosts: maxPosts, archiveLinks: archiveLinks)
                 }
@@ -88,8 +91,8 @@ extension PostListViewController {
         Haptics.tap()
     }
 
-    /// Starts predownloading the current feed and presents the progress sheet.
-    /// Called from the chooser's Download action with the chosen post cap and
+    /// Starts predownloading the current feed and shows the non-blocking status
+    /// pill. Called from the chooser's Download action with the chosen post cap and
     /// whether to also web-archive external-link pages. The offline / account
     /// guards already ran in ``startOfflineDownload()``, but the in-flight guard
     /// is rechecked here (the chooser is interactive, so a download could
@@ -122,8 +125,9 @@ extension PostListViewController {
             URLSanitizer.sanitize(url, config: sanitizerConfig)
         }
 
-        // The progress view model the sheet binds to; the drain task pushes
-        // stream values into it, and its Cancel button routes back here.
+        // The progress view model the pill binds to; the drain task pushes stream
+        // values into it (the pill re-renders via observation), and its Cancel
+        // routes back here.
         let progressViewModel = OfflineDownloadProgressViewModel(
             onCancel: { [weak self] in
                 self?.cancelOfflineDownload()
@@ -131,14 +135,19 @@ extension PostListViewController {
         )
         offlineDownloadProgressViewModel = progressViewModel
 
-        let sheet = makeOfflineDownloadSheet(viewModel: progressViewModel)
-        present(sheet, animated: true)
+        // Show the non-blocking pill. The download runs regardless of whether the
+        // pill is on screen; if there's somehow no window to anchor it to we still
+        // start the run (the pill is presentation, not the engine).
+        if let window = offlineDownloadWindow {
+            OfflineDownloadStatusPresenter.shared.show(viewModel: progressViewModel, in: window)
+        }
 
         Haptics.tap()
 
-        // Drain the download stream on the main actor, updating the sheet on each
-        // value. The terminal value (.finished / .failed / .cancelled) ends the
-        // loop; cleanup dismisses the sheet and shows the result toast.
+        // Drain the download stream on the main actor, updating the pill's view
+        // model on each value. The terminal value (.finished / .failed /
+        // .cancelled) ends the loop; cleanup dismisses the pill and shows the
+        // result toast.
         offlineDownloadTask = Task { @MainActor [weak self] in
             let stream = service.download(
                 feed: feed,
@@ -169,9 +178,9 @@ extension PostListViewController {
         }
     }
 
-    /// Cancels the in-flight download. The service keeps the progress stream
-    /// alive so the draining task observes the terminal `.cancelled` and then
-    /// dismisses the sheet (via ``finishOfflineDownload(with:)``).
+    /// Cancels the in-flight download. Invoked only by the pill's ✕. The service
+    /// keeps the progress stream alive so the draining task observes the terminal
+    /// `.cancelled` and then dismisses the pill (via ``finishOfflineDownload(with:)``).
     func cancelOfflineDownload() {
         // Reflect the pending-cancel state immediately so the status line reads
         // "Cancelling…" while the in-flight item drains.
@@ -179,74 +188,17 @@ extension PostListViewController {
         Task { await offlineDownloadService.cancelCurrentDownload() }
     }
 
-    /// Handles the user swiping the progress sheet away mid-download. The sheet
-    /// is already gone, so there's nothing left to drain into — cancel the run,
-    /// tear down the drain task, and confirm with a brief toast. We tear the task
-    /// down here (rather than waiting for the `.cancelled` terminal) because the
-    /// sheet no longer needs the intermediate updates.
-    func handleOfflineSheetSwipedAway() {
-        guard offlineDownloadTask != nil else { return }
-        offlineDownloadTask?.cancel()
-        offlineDownloadTask = nil
-        offlineDownloadProgressViewModel = nil
-        // Cancelling the actor's work task stops the in-flight network work even
-        // though we've stopped draining the stream.
-        Task { await offlineDownloadService.cancelCurrentDownload() }
-        showOfflineDownloadToast(NSLocalizedString(
-            "Download cancelled",
-            comment: "Toast after the user swipes away the offline-download sheet"
-        ))
-    }
-
-    /// Builds the page-sheet hosting the SwiftUI progress view, with a small
-    /// content-fitting detent and a visible grabber: swipe-to-dismiss is
-    /// intentional and cancels the download via the presentation-controller
-    /// delegate (see ``handleOfflineSheetSwipedAway()``), as does the Cancel
-    /// button — neither leaves a runaway background download.
-    private func makeOfflineDownloadSheet(
-        viewModel: OfflineDownloadProgressViewModel
-    ) -> UIViewController {
-        let host = UIHostingController(
-            rootView: OfflineDownloadProgressView(viewModel: viewModel)
-        )
-        host.modalPresentationStyle = .pageSheet
-        // Assign the dismiss delegate to the `sheetPresentationController` (a
-        // `UIPresentationController` subclass, non-nil once the style is
-        // `.pageSheet`), NOT `presentationController` — the latter is nil until
-        // UIKit vends it during `present(...)`, so assigning there no-ops and
-        // `presentationControllerDidDismiss` never fires on a swipe-away.
-        host.sheetPresentationController?.delegate = offlineDownloadSheetDelegate
-        if let presentationSheet = host.sheetPresentationController {
-            presentationSheet.prefersGrabberVisible = true
-            presentationSheet.preferredCornerRadius = 20
-            // A compact, content-fitting detent on iOS 16+; medium otherwise.
-            if #available(iOS 16.0, *) {
-                presentationSheet.detents = [
-                    .custom { _ in 240 },
-                    .medium(),
-                ]
-            } else {
-                presentationSheet.detents = [.medium()]
-            }
-        }
-        return host
-    }
-
-    /// Terminal handler for a download run: dismisses the sheet, tears down the
-    /// drain task + view model, and shows a result toast.
+    /// Terminal handler for a download run: tears down the drain task + view model,
+    /// animates the pill out, then shows a result toast (mirrors the old sheet →
+    /// toast handoff so the two never overlap).
     private func finishOfflineDownload(with progress: OfflineDownloadProgress) {
         offlineDownloadTask?.cancel()
         offlineDownloadTask = nil
         offlineDownloadProgressViewModel = nil
 
-        // Dismiss the sheet (if it's still up), then toast the outcome.
         let toast = resultToast(for: progress)
-        if presentedViewController is UIHostingController<OfflineDownloadProgressView> {
-            dismiss(animated: true) { [weak self] in
-                self?.showOfflineDownloadToast(toast)
-            }
-        } else {
-            showOfflineDownloadToast(toast)
+        OfflineDownloadStatusPresenter.shared.dismiss(animated: true) { [weak self] in
+            self?.showOfflineDownloadToast(toast)
         }
     }
 
@@ -281,27 +233,23 @@ extension PostListViewController {
     }
 
     private func showOfflineDownloadToast(_ message: String?) {
-        guard let message, let window = view.window else { return }
+        guard let message, let window = offlineDownloadWindow else { return }
         ToastPresenter.shared.show(message, in: window)
     }
-}
 
-/// Detects an interactive (swipe) dismissal of the offline-download sheet so the
-/// in-flight download is cancelled rather than left running headless. The
-/// Cancel button dismisses via the terminal `.cancelled` path instead; this
-/// covers only the user dragging the sheet away mid-download.
-///
-/// Conforms to `UISheetPresentationControllerDelegate` (which refines
-/// `UIAdaptivePresentationControllerDelegate`) so it can be assigned to the
-/// host's `sheetPresentationController.delegate`, whose type is the sheet
-/// variant; `presentationControllerDidDismiss` is inherited from the adaptive
-/// protocol and still fires on swipe-away.
-@MainActor
-final class OfflineDownloadSheetDismissDelegate: NSObject, UISheetPresentationControllerDelegate {
-    /// Invoked when the sheet is interactively dismissed. Set by the controller.
-    var onInteractiveDismiss: (() -> Void)?
-
-    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
-        onInteractiveDismiss?()
+    /// The window to anchor offline-download UI (pill + result toast) to. Prefers
+    /// this controller's own window, but falls back to the app's active foreground
+    /// window so the status pill and result toast still appear when the download
+    /// finishes while the user has switched to another tab — the Posts-tab VC's
+    /// `view.window` is nil when it's off-screen.
+    private var offlineDownloadWindow: UIWindow? {
+        if let window = view.window {
+            return window
+        }
+        let windows = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
+            .flatMap(\.windows)
+        return windows.first(where: \.isKeyWindow) ?? windows.first
     }
 }
