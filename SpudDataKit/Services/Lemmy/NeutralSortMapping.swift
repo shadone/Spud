@@ -40,6 +40,45 @@ extension Lemmy.SortType {
         case .Scaled: (.scaled, nil)
         }
     }
+
+    /// Re-fuses a neutral `PostSort` + optional `TimeRange` back into this v3
+    /// `SortType` — the inverse of `neutralPostSort`. A `.top` sort fuses its
+    /// window into the matching `Top<Window>` bucket (`.week` -> `TopWeek`); a
+    /// `.top` with no window (or an arbitrary window with no exact v3 bucket, which
+    /// a stored account default never has in practice) folds to `TopAll`. Every
+    /// other sort maps 1:1 and ignores `timeRange`. Used to store an imported
+    /// neutral `MyUser.defaultSort` into the v3-vocabulary `AccountRecord`.
+    init(neutralSort sort: PostSort, timeRange: TimeRange?) {
+        switch sort {
+        case .active: self = .Active
+        case .hot: self = .Hot
+        case .new: self = .New
+        case .old: self = .Old
+        case .mostComments: self = .MostComments
+        case .newComments: self = .NewComments
+        case .controversial: self = .Controversial
+        case .scaled: self = .Scaled
+        case .top: self = Self.v3TopBucket(for: timeRange)
+        }
+    }
+
+    /// Maps a `.top` sort's `TimeRange` window onto v3's bucketed `Top<Window>`
+    /// `SortType` cases; a nil or unrecognized window folds to `TopAll`.
+    private static func v3TopBucket(for timeRange: TimeRange?) -> Self {
+        guard let timeRange else { return .TopAll }
+        switch timeRange {
+        case .sixHours: return .TopSixHour
+        case .twelveHours: return .TopTwelveHour
+        case .day: return .TopDay
+        case .week: return .TopWeek
+        case .month: return .TopMonth
+        case .threeMonths: return .TopThreeMonths
+        case .sixMonths: return .TopSixMonths
+        case .nineMonths: return .TopNineMonths
+        case .year: return .TopYear
+        default: return .TopAll
+        }
+    }
 }
 
 extension Lemmy.CommentSortType {

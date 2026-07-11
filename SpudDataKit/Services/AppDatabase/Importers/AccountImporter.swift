@@ -668,10 +668,18 @@ public extension AppDatabase {
         record.emailVerified = myUser.emailVerified
         record.acceptedApplication = myUser.acceptedApplication
         record.defaultListingType = myUser.defaultListingType.rawValue
-        // `defaultSortType` is deliberately omitted from the neutral `MyUser`
-        // (un-fusing v3's time-bucket-fused sort into a neutral sort+range pair
-        // is a separate follow-up), so it is left untouched here: preserved on an
-        // update, nil on a fresh insert. See the Phase 6 report follow-ups.
+        // The account's server-side default post sort. The neutral `MyUser` carries
+        // it un-fused (a `PostSort` plus an optional `TimeRange` window); re-fuse it
+        // into the v3-vocabulary `SortType` and store the raw value, matching how
+        // `setAccountDefaultSortType` writes this column. Only overwrite when the
+        // server actually reported a default — otherwise leave it untouched
+        // (preserved on an update, nil on a fresh insert).
+        if let defaultSort = myUser.defaultSort {
+            record.defaultSortType = Lemmy.SortType(
+                neutralSort: defaultSort,
+                timeRange: myUser.defaultTimeRange
+            ).rawValue
+        }
         record.showAvatars = myUser.showAvatars
         record.showBotAccounts = myUser.showBotAccounts
         record.showNsfw = myUser.showNsfw

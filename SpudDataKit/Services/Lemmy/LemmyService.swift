@@ -1277,10 +1277,14 @@ public actor LemmyService: LemmyServiceType {
             """)
 
         do {
-            // The neutral surface takes a `PostSort`; the time-bucket window fused
-            // into a v3 `Top*` default sort is dropped (matching the neutral
-            // `saveUserSettings` contract, which sends no TimeRange for the default).
-            try await api.saveUserSettingsNeutral(defaultSortType: sortType.neutralPostSort.sort)
+            // Un-fuse the v3 `Top*` sort into the neutral sort + time-window pair so
+            // the pushed default preserves its window (e.g. Top-Week stays Top-Week
+            // rather than collapsing to Top-All).
+            let (neutralSort, timeRange) = sortType.neutralPostSort
+            try await api.saveUserSettingsNeutral(
+                defaultSortType: neutralSort,
+                defaultTimeRange: timeRange
+            )
         } catch {
             logger.error("""
                 Set default_sort_type failed. \(String(describing: error), privacy: .public)
