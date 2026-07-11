@@ -19,8 +19,8 @@ private actor SpySaveProfileService: LemmyServiceType {
     struct SaveProfileCall {
         let displayName: String?
         let bio: String?
-        let avatar: String?
-        let banner: String?
+        let avatar: ProfileImageEdit
+        let banner: ProfileImageEdit
         let showScores: Bool
         let showBotAccounts: Bool
         let showReadPosts: Bool
@@ -34,8 +34,8 @@ private actor SpySaveProfileService: LemmyServiceType {
     func saveProfile(
         displayName: String?,
         bio: String?,
-        avatar: String?,
-        banner: String?,
+        avatar: ProfileImageEdit,
+        banner: ProfileImageEdit,
         showScores: Bool,
         showBotAccounts: Bool,
         showReadPosts: Bool,
@@ -397,10 +397,11 @@ struct EditProfileViewModelBannerTests {
 
     // MARK: Tests
 
-    /// `removeBanner()` marks the banner as edited, so `save()` must forward
-    /// `banner: ""` (empty string = clear the server-side banner).
+    /// `removeBanner()` marks the banner as edited with no pending bytes, so
+    /// `save()` must forward `banner: .removed` (which issues the server-side
+    /// banner-remove push).
     @Test
-    func removeBanner_thenSave_forwardsBannerEmptyString() async throws {
+    func removeBanner_thenSave_forwardsBannerRemoved() async throws {
         let spy = SpySaveProfileService()
         let vm = makeViewModel(spy: spy)
 
@@ -409,13 +410,14 @@ struct EditProfileViewModelBannerTests {
 
         let calls = await spy.saveProfileCalls
         try #require(calls.count == 1)
-        #expect(calls[0].banner == "")
+        #expect(calls[0].banner == .removed)
     }
 
-    /// `uploadBanner` marks the banner as edited and stores the URL, so
-    /// `save()` must forward the URL string as `banner`.
+    /// `uploadBanner` marks the banner as edited and retains the encoded bytes,
+    /// so `save()` must forward `banner: .set` carrying those bytes (which issues
+    /// the server-side banner push), not just a url.
     @Test
-    func uploadBanner_thenSave_forwardsBannerUrl() async throws {
+    func uploadBanner_thenSave_forwardsBannerSet() async throws {
         let uploadedUrl = try #require(URL(string: "https://example.com/my-banner.jpg"))
         let spy = SpySaveProfileService()
         await spy.setUploadImageResult(.success(uploadedUrl))
@@ -426,13 +428,19 @@ struct EditProfileViewModelBannerTests {
 
         let calls = await spy.saveProfileCalls
         try #require(calls.count == 1)
-        #expect(calls[0].banner == uploadedUrl.absoluteString)
+        guard case let .set(imageData, fileName, contentType) = calls[0].banner else {
+            Issue.record("expected banner .set, got \(calls[0].banner)")
+            return
+        }
+        #expect(!imageData.isEmpty)
+        #expect(fileName.hasPrefix("banner-"))
+        #expect(contentType == "image/jpeg")
     }
 
-    /// When the banner is not touched, `save()` must pass `banner: nil` so the
-    /// server value is left unchanged (gating mirrors the avatar logic exactly).
+    /// When the banner is not touched, `save()` must pass `banner: .unchanged` so
+    /// the server value is left alone (gating mirrors the avatar logic exactly).
     @Test
-    func noChangeToBanner_save_forwardsBannerNil() async throws {
+    func noChangeToBanner_save_forwardsBannerUnchanged() async throws {
         let spy = SpySaveProfileService()
         let vm = makeViewModel(spy: spy)
 
@@ -441,7 +449,60 @@ struct EditProfileViewModelBannerTests {
 
         let calls = await spy.saveProfileCalls
         try #require(calls.count == 1)
-        #expect(calls[0].banner == nil)
+        #expect(calls[0].banner == .unchanged)
+    }
+
+    // MARK: Avatar
+
+    /// `removeAvatar()` marks the avatar as edited with no pending bytes, so
+    /// `save()` must forward `avatar: .removed` (issuing the avatar-remove push).
+    @Test
+    func removeAvatar_thenSave_forwardsAvatarRemoved() async throws {
+        let spy = SpySaveProfileService()
+        let vm = makeViewModel(spy: spy)
+
+        vm.removeAvatar()
+        await vm.save()
+
+        let calls = await spy.saveProfileCalls
+        try #require(calls.count == 1)
+        #expect(calls[0].avatar == .removed)
+    }
+
+    /// `uploadAvatar` retains the encoded bytes, so `save()` must forward
+    /// `avatar: .set` carrying those bytes (issuing the server-side avatar push).
+    @Test
+    func uploadAvatar_thenSave_forwardsAvatarSet() async throws {
+        let uploadedUrl = try #require(URL(string: "https://example.com/my-avatar.jpg"))
+        let spy = SpySaveProfileService()
+        await spy.setUploadImageResult(.success(uploadedUrl))
+
+        let vm = makeViewModel(spy: spy)
+        await vm.uploadAvatar(imageData: Self.minimalJpeg)
+        await vm.save()
+
+        let calls = await spy.saveProfileCalls
+        try #require(calls.count == 1)
+        guard case let .set(imageData, fileName, contentType) = calls[0].avatar else {
+            Issue.record("expected avatar .set, got \(calls[0].avatar)")
+            return
+        }
+        #expect(!imageData.isEmpty)
+        #expect(fileName.hasPrefix("avatar-"))
+        #expect(contentType == "image/jpeg")
+    }
+
+    /// When the avatar is not touched, `save()` must pass `avatar: .unchanged`.
+    @Test
+    func noChangeToAvatar_save_forwardsAvatarUnchanged() async throws {
+        let spy = SpySaveProfileService()
+        let vm = makeViewModel(spy: spy)
+
+        await vm.save()
+
+        let calls = await spy.saveProfileCalls
+        try #require(calls.count == 1)
+        #expect(calls[0].avatar == .unchanged)
     }
 
     // MARK: Fixtures

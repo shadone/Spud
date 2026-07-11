@@ -97,21 +97,22 @@ public protocol LemmyServiceType: Actor {
 
     /// Push the signed-in account's editable profile (display name, bio, avatar,
     /// banner) and synced preference flags (show scores / bot accounts / read
-    /// posts / others' avatars, default feed) to the server via
-    /// `saveUserSettings`, then mirror the new values onto the local
-    /// `PersonRecord` / `AccountRecord` so the cached profile stays in sync.
-    /// Requires a signed-in account: a signed-out account throws
-    /// `LemmyServiceError.requiresAuthentication` (unlike the single-setting
-    /// setters, there is no local-only fallback for a profile edit).
-    /// `displayName` / `bio` may be empty to clear the field on the server;
-    /// pass `avatar: nil` to leave the avatar unchanged, `""` to clear it, or
-    /// a URL string to set a new one. Pass `banner: nil` to leave the banner
-    /// unchanged, `""` to clear it, or a URL string to set a new one.
+    /// posts / others' avatars, default feed) to the server, then mirror the new
+    /// values onto the local `PersonRecord` / `AccountRecord` so the cached
+    /// profile stays in sync. Requires a signed-in account: a signed-out account
+    /// throws `LemmyServiceError.requiresAuthentication` (unlike the
+    /// single-setting setters, there is no local-only fallback for a profile
+    /// edit). `displayName` / `bio` may be empty to clear the field on the server.
+    /// `avatar` / `banner` are `ProfileImageEdit`s: `.unchanged` leaves the image
+    /// alone, `.set(imageData:…)` uploads a new one, `.removed` clears it — the
+    /// image push (via the dedicated neutral avatar/banner endpoints) runs before
+    /// the text settings, so a push failure surfaces the same way a settings-push
+    /// failure does, with nothing mirrored to roll back.
     func saveProfile(
         displayName: String?,
         bio: String?,
-        avatar: String?,
-        banner: String?,
+        avatar: ProfileImageEdit,
+        banner: ProfileImageEdit,
         showScores: Bool,
         showBotAccounts: Bool,
         showReadPosts: Bool,
@@ -1296,8 +1297,8 @@ public actor LemmyService: LemmyServiceType {
     public func saveProfile(
         displayName: String?,
         bio: String?,
-        avatar: String?,
-        banner: String?,
+        avatar: ProfileImageEdit,
+        banner: ProfileImageEdit,
         showScores: Bool,
         showBotAccounts: Bool,
         showReadPosts: Bool,
@@ -1322,12 +1323,20 @@ public actor LemmyService: LemmyServiceType {
             Save profile for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
             """)
 
+        let avatarMirror: String?
+        let bannerMirror: String?
         do {
-            // NOTE: v4 removed avatar/banner from saveUserSettings (they moved to
-            // dedicated upload/delete endpoints), so the neutral surface has no
-            // avatar/banner params. The server push of avatar/banner is dropped;
-            // the local optimistic mirror below still applies them. See the Phase 6
-            // report follow-ups.
+            // Push the avatar/banner images FIRST, ahead of the text settings and
+            // the local mirror. v4 moved avatar/banner off saveUserSettings to
+            // dedicated upload/delete endpoints; the neutral setters hide that
+            // split (v3 uploads to pict-rs then writes the url). Ordering the image
+            // push before the mirror keeps failure handling consistent with the
+            // rest of the save: a push error throws out of saveProfile and nothing
+            // stale is mirrored (there is nothing to roll back), exactly like a
+            // failed settings push.
+            avatarMirror = try await pushAvatarEdit(avatar)
+            bannerMirror = try await pushBannerEdit(banner)
+
             try await api.saveUserSettingsNeutral(
                 defaultListingType: defaultListingType,
                 displayName: displayName,
@@ -1347,14 +1356,16 @@ public actor LemmyService: LemmyServiceType {
         // Mirror the new values onto the local person / account rows so the
         // cached profile reflects the edit immediately, without waiting on the
         // network. This is the optimistic path the open editor / Account header
-        // observe.
+        // observe. `avatarMirror` / `bannerMirror` are nil for an unchanged image
+        // (leave the cached value), "" for a removal (clear it), or the pushed
+        // url for a new image.
         do {
             try await appDatabase.setAccountProfile(
                 forKeychainId: accountIdentifierForLogging,
                 displayName: displayName,
                 bio: bio,
-                avatar: avatar,
-                banner: banner,
+                avatar: avatarMirror,
+                banner: bannerMirror,
                 showScores: showScores,
                 showBotAccounts: showBotAccounts,
                 showReadPosts: showReadPosts,
@@ -1377,6 +1388,50 @@ public actor LemmyService: LemmyServiceType {
             logger.error("""
                 Refresh site after save profile failed. \(String(describing: error), privacy: .public)
                 """)
+        }
+    }
+
+    /// Pushes an avatar `ProfileImageEdit` to the server via the neutral
+    /// avatar endpoints and returns the value to mirror onto the local person
+    /// row: nil to leave the cached avatar unchanged, "" to clear it, or the new
+    /// url. Throws on a server failure so the caller can surface it (the durable
+    /// counterpart of the editor's optimistic preview).
+    private func pushAvatarEdit(_ edit: ProfileImageEdit) async throws -> String? {
+        switch edit {
+        case .unchanged:
+            return nil
+        case .removed:
+            try await api.removeAvatarNeutral()
+            return ""
+        case let .set(imageData, fileName, contentType):
+            let url = try await api.setAvatarNeutral(
+                imageData: imageData,
+                fileName: fileName,
+                contentType: contentType
+            )
+            // v3 always synthesizes a url; on v4 a nil means the response url
+            // failed to parse — leave the mirror as-is and let the post-save
+            // getSite re-import reconcile it to the server's canonical value.
+            return url?.absoluteString
+        }
+    }
+
+    /// The banner twin of `pushAvatarEdit`, targeting the neutral banner
+    /// endpoints. Returns the value to mirror onto the local person row.
+    private func pushBannerEdit(_ edit: ProfileImageEdit) async throws -> String? {
+        switch edit {
+        case .unchanged:
+            return nil
+        case .removed:
+            try await api.removeBannerNeutral()
+            return ""
+        case let .set(imageData, fileName, contentType):
+            let url = try await api.setBannerNeutral(
+                imageData: imageData,
+                fileName: fileName,
+                contentType: contentType
+            )
+            return url?.absoluteString
         }
     }
 

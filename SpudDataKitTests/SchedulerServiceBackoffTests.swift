@@ -52,7 +52,7 @@ private actor FetchSiteLemmyService: LemmyServiceType {
         unreachable()
     }
 
-    func saveProfile(displayName _: String?, bio _: String?, avatar _: String?, banner _: String?, showScores _: Bool, showBotAccounts _: Bool, showReadPosts _: Bool, showAvatars _: Bool, defaultListingType _: Lemmy.ListingType) async throws {
+    func saveProfile(displayName _: String?, bio _: String?, avatar _: ProfileImageEdit, banner _: ProfileImageEdit, showScores _: Bool, showBotAccounts _: Bool, showReadPosts _: Bool, showAvatars _: Bool, defaultListingType _: Lemmy.ListingType) async throws {
         unreachable()
     }
 

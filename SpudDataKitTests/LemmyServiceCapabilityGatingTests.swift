@@ -160,8 +160,8 @@ let gatedOperations: [GatedOperation] = [
         try await service.saveProfile(
             displayName: nil,
             bio: nil,
-            avatar: nil,
-            banner: nil,
+            avatar: .unchanged,
+            banner: .unchanged,
             showScores: true,
             showBotAccounts: true,
             showReadPosts: true,

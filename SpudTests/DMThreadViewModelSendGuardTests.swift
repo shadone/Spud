@@ -58,8 +58,8 @@ private actor RecordingSendLemmyService: LemmyServiceType {
     func saveProfile(
         displayName _: String?,
         bio _: String?,
-        avatar _: String?,
-        banner _: String?,
+        avatar _: ProfileImageEdit,
+        banner _: ProfileImageEdit,
         showScores _: Bool,
         showBotAccounts _: Bool,
         showReadPosts _: Bool,
