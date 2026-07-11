@@ -413,6 +413,16 @@ class PostListViewController: UIViewController {
         scrollingHeaderView = header
         tableView.tableHeaderView = header
         layoutScrollingHeaderIfNeeded()
+        // `layoutScrollingHeaderIfNeeded` bails before it can sync the insets when
+        // the table has no width yet — the exact community cold-open order, where
+        // this host installs its header AFTER the embedded feed's `viewDidLoad`
+        // already showed the loading skeleton (inset 0, no header then). Sync the
+        // background-surface insets directly too, so a skeleton / state surface
+        // already sitting in the shared `backgroundView` slot re-insets below the
+        // just-installed header immediately, instead of staying pinned at inset 0
+        // behind it (hidden in the below-header region) until a later layout pass.
+        syncSkeletonHeaderInset()
+        syncStateSurfaceHeaderInset()
     }
 
     /// Re-measures the scrolling header against the current table width and
@@ -431,14 +441,24 @@ class PostListViewController: UIViewController {
             verticalFittingPriority: .fittingSizeLevel
         ).height
 
-        guard abs(header.frame.height - height) > 0.5 else { return }
-        header.frame.size.height = height
-        // Reassigning is what makes the table adopt the new header height.
-        tableView.tableHeaderView = header
+        // Commit a changed header height — reassigning `tableHeaderView` is what
+        // makes the table adopt it — but guard the reassignment so an unchanged
+        // height skips the churn (this runs every layout pass).
+        if abs(header.frame.height - height) > 0.5 {
+            header.frame.size.height = height
+            tableView.tableHeaderView = header
+        }
+
         // Keep the loading skeleton AND the empty/error state surface clear of the
-        // (now-resized) header. Both share the table's `backgroundView` slot and
-        // are inset below the header; the header height often resolves after one is
-        // already showing (community info loads asynchronously), so re-sync both.
+        // header on EVERY pass — NOT only when the height changed. Both share the
+        // table's `backgroundView` slot and are inset below the header; a surface
+        // can be installed AFTER the header already settled at its final height
+        // (the skeleton shows on a reload while the community header is measured,
+        // or a host installs a pre-sized header), in which case the change-guard
+        // above never fires and the surface would otherwise stay pinned at inset 0
+        // behind the opaque header — the blank below-header region this guards
+        // against. Reads the freshly committed header frame height. Cheap: each
+        // sync only reassigns a constraint constant when it actually changed.
         syncSkeletonHeaderInset()
         syncStateSurfaceHeaderInset()
     }

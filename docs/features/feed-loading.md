@@ -19,7 +19,7 @@ A feed loads its first page automatically when it has nothing to show, then keep
 - **Empty state.** Once the first snapshot has arrived and the feed is genuinely empty (and nothing is fetching), the list shows an empty-state placeholder with an icon, title, and message. It is suppressed during the initial and in-flight loads so it never flashes before content arrives.
 - **Pull-to-refresh.** Pulling the list down refreshes the feed in place: a refresh spinner overlays the existing posts. On success the list updates; on failure a toast is shown and the existing posts stay — the feed does not drop into an error state when it already has content.
 - **Failures never overlap on-screen content.** The full inline error state replaces the list only when the feed is actually empty. Whenever posts are already visible, *any* load failure — a failed pull-to-refresh, a reconnect retry, or an in-place feed switch — keeps them on screen and surfaces the failure as a toast, rather than laying the error placeholder over the live posts. The decision keys off whether posts are displayed, not off which gesture triggered the load. The same rule covers a scrolling header, too: on a screen with a header above the feed (for example the Community screen's banner-and-title header), the full empty and error states render into the list's background rather than as a whole-screen overlay, inset to start below the header instead of centering across the whole screen — so the placeholder never renders underneath the header either. A plain feed with no header centers the placeholder exactly as before.
-- **Initial-load states.** Before the first page arrives the list shows a shimmer skeleton. If the first load fails, the feed renders a designed inline state classified as **Offline**, **Unreachable**, or **Malformed** (each with its own copy and a retry affordance) rather than an alert. A slow first load shows a "slow connection" hint after a few seconds, and the attempt times out at ~25 s into the Unreachable state.
+- **Initial-load states.** Before the first page arrives the list shows a shimmer skeleton. On a screen with a scrolling header above the feed (for example the Community screen), the skeleton is inset to start below the header — like the empty and error states that share the same slot — so it stays visible in the region under the header instead of hiding behind it, and it re-insets immediately when the header is installed or resized. VoiceOver announces the skeleton as "Loading posts" (or the slow-connection hint once shown). If the first load fails, the feed renders a designed inline state classified as **Offline**, **Unreachable**, or **Malformed** (each with its own copy and a retry affordance) rather than an alert. A slow first load shows a "slow connection" hint after a few seconds, and the attempt times out at ~25 s into the Unreachable state.
 - **Automatic retry on reconnect.** A reachability monitor (`NWPathMonitor`) watches connectivity; after an offline failure the feed re-fetches automatically once the network is back.
 - **Pagination failures are non-destructive.** A failed next-page fetch shows a toast and leaves the loaded posts intact; the footer spinner is removed.
 
@@ -63,6 +63,15 @@ A feed loads its first page automatically when it has nothing to show, then keep
 - **Given** the first page returned no posts
 - **When** the list settles
 - **Then** an empty-state icon, title, and message are shown
+
+### The loading skeleton stays visible below a scrolling header
+
+- **Surfaces:** `iphone`, `ipad`
+- **Given** a screen with a scrolling header above the feed, such as the Community screen
+- **When** I open it and its first page is still loading
+- **Then** the shimmer skeleton is shown in the region below the header, not hidden behind it
+- **And** it re-insets below the header as the header is installed or grows (for example when the community description loads)
+- **And** VoiceOver announces "Loading posts"
 
 ### Pull to refresh
 
