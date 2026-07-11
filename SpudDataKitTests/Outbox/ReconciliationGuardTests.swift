@@ -307,6 +307,43 @@ struct ReconciliationGuardTests {
         let (_, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
         #expect(followed == true)
     }
+
+    /// A server `CommunityView` import reporting the SAME v4 follow state the
+    /// community already holds is a no-op: with no pending `.subscribe` op the
+    /// reconcile writes the (unchanged) ApprovalRequired state and keeps the
+    /// junction row, rather than spuriously flipping it. Pins that the widened
+    /// approval-required state survives a matching reconcile.
+    @Test
+    func communityImportApprovalRequiredIsIdempotent() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .approvalRequired)
+
+        let view = Lemmy.CommunityView.fake(community: .fake, followState: .approvalRequired)
+        try await appDatabase.upsertCommunity(from: view, accountId: accountId)
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "ApprovalRequired")
+        #expect(followed == true)
+    }
+
+    /// A server `CommunityView` reporting a v4 `Denied` follow state imports as
+    /// NotSubscribed-equivalent: the row records "Denied" and the junction is
+    /// removed (a denied request is no active follow). The distinct state is
+    /// preserved rather than collapsed to plain NotSubscribed.
+    @Test
+    func communityImportDeniedIsNotFollowed() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let (accountId, _) = try await seedAccountAndSite(appDatabase)
+        let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .subscribed)
+
+        let view = Lemmy.CommunityView.fake(community: .fake, followState: .denied)
+        try await appDatabase.upsertCommunity(from: view, accountId: accountId)
+
+        let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
+        #expect(state == "Denied")
+        #expect(followed == false)
+    }
 }
 
 private func readPostContent(

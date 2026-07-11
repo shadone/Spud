@@ -28,4 +28,20 @@ extension Lemmy.CommunityView {
             canMod: canMod
         )
     }
+
+    /// A fake neutral ``LemmyKit/CommunityView`` carrying an explicit neutral
+    /// ``LemmyKit/FollowState``. Unlike the `subscribed:` overload (which takes a
+    /// v3 `SubscribedType` that cannot represent the v4-only states), this drives
+    /// `.approvalRequired` / `.denied` directly for v4 follow-state tests.
+    static func fake(
+        community: Lemmy.Community = .fake,
+        followState: FollowState,
+        canMod: Bool = false
+    ) -> Lemmy.CommunityView {
+        .init(
+            community: community,
+            communityActions: CommunityActions(followState: followState),
+            canMod: canMod
+        )
+    }
 }

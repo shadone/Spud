@@ -45,20 +45,35 @@ struct OutboxOperationTests {
         #expect(op.entityType == .community)
     }
 
-    /// The subscribe baseline is a 3-valued `CommunitySubscribedState` (rollback
-    /// must be able to restore Pending, not just on/off), so it uses a dedicated
-    /// codec distinct from the 2-valued desired-state encoding. Documented raw
-    /// mapping: 0 = notSubscribed, 1 = subscribed, 2 = pending.
+    /// The subscribe baseline is a `CommunitySubscribedState` (rollback must be
+    /// able to restore an in-flight request, not just on/off), so it uses a
+    /// dedicated codec distinct from the 2-valued desired-state encoding.
+    /// Documented raw mapping: 0 = notSubscribed, 1 = subscribed, 2 = pending,
+    /// 3 = approvalRequired, 4 = denied.
     @Test
-    func subscribeBaselineCodecRoundTripsAllThreeStates() {
+    func subscribeBaselineCodecRoundTripsAllStates() {
         #expect(CommunitySubscribedState.notSubscribed.outboxBaseline == 0)
         #expect(CommunitySubscribedState.subscribed.outboxBaseline == 1)
         #expect(CommunitySubscribedState.pending.outboxBaseline == 2)
-        for state in [CommunitySubscribedState.notSubscribed, .subscribed, .pending] {
+        #expect(CommunitySubscribedState.approvalRequired.outboxBaseline == 3)
+        #expect(CommunitySubscribedState.denied.outboxBaseline == 4)
+        for state in [
+            CommunitySubscribedState.notSubscribed, .subscribed, .pending, .approvalRequired, .denied,
+        ] {
             #expect(CommunitySubscribedState(outboxBaseline: state.outboxBaseline) == state)
         }
         // A missing baseline (nil) and any unknown value decode to notSubscribed.
         #expect(CommunitySubscribedState(outboxBaseline: nil) == .notSubscribed)
         #expect(CommunitySubscribedState(outboxBaseline: 99) == .notSubscribed)
+    }
+
+    /// Backward-compat: baselines persisted by the original 3-state codec only
+    /// ever hold 0/1/2, and those raw codes must still decode to exactly the same
+    /// states after the codec was widened (widening only ADDED codes 3/4).
+    @Test
+    func subscribeBaselineCodecDecodesLegacyCodes() {
+        #expect(CommunitySubscribedState(outboxBaseline: 0) == .notSubscribed)
+        #expect(CommunitySubscribedState(outboxBaseline: 1) == .subscribed)
+        #expect(CommunitySubscribedState(outboxBaseline: 2) == .pending)
     }
 }

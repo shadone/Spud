@@ -295,9 +295,9 @@ private extension AppDatabase {
             }
             return deleted ? 1 : 0
         case .subscribe:
-            // Capture the PRIOR 3-valued CommunitySubscribedState so a rollback
-            // can restore Pending (not just on/off). Encoded via
-            // CommunitySubscribedState.outboxBaseline: 0/1/2.
+            // Capture the PRIOR CommunitySubscribedState so a rollback can
+            // restore Pending / ApprovalRequired / Denied (not just on/off).
+            // Encoded via CommunitySubscribedState.outboxBaseline: 0/1/2/3/4.
             let raw = try String.fetchOne(
                 db,
                 sql: "SELECT subscribedState FROM community WHERE communityId = ? AND accountId = ?",
@@ -337,11 +337,12 @@ private extension AppDatabase {
 
     /// Returns true when the desired state matches the baseline (toggle-to-original).
     ///
-    /// For subscribe this compares the desired Bool (1/0) against the 3-valued
-    /// baseline: it matches only when the baseline is `notSubscribed` (0) or
-    /// `subscribed` (1) — a `pending` (2) baseline never equals either desired
-    /// value, so a tap from Pending always creates a fresh op rather than
-    /// coalescing away (correct: the user is changing a not-yet-confirmed request).
+    /// For subscribe this compares the desired Bool (1/0) against the baseline
+    /// int: it matches only when the baseline is `notSubscribed` (0) or
+    /// `subscribed` (1) — an in-flight baseline (`pending` 2, `approvalRequired`
+    /// 3, `denied` 4) never equals either desired value, so a tap from any of
+    /// those always creates a fresh op rather than coalescing away (correct: the
+    /// user is changing a not-yet-confirmed / rejected request).
     static func desiredEqualsBaseline(_ desired: OutboxDesiredState, baseline: Int64?) -> Bool {
         switch desired {
         case let .vote(status): OutboxProjection.dbVoteStatus(for: status) == baseline
@@ -352,10 +353,10 @@ private extension AppDatabase {
     /// Restores the local projection to the stored `baseline` for the given kind.
     ///
     /// Most kinds decode the baseline into an ``OutboxDesiredState`` and re-apply
-    /// it via ``applyAbsolute``. Subscribe is special: its baseline is a 3-valued
-    /// ``CommunitySubscribedState`` (0/1/2), which a 2-valued `.subscribe(Bool)`
-    /// cannot represent, so it is restored directly — preserving a prior
-    /// Subscribed vs Pending state that the forward apply would otherwise collapse.
+    /// it via ``applyAbsolute``. Subscribe is special: its baseline is a
+    /// ``CommunitySubscribedState`` (0/1/2/3/4), which a 2-valued `.subscribe(Bool)`
+    /// cannot represent, so it is restored directly — preserving a prior Pending /
+    /// ApprovalRequired / Denied state that the forward apply would otherwise collapse.
     static func restoreBaseline(
         _ db: Database,
         accountId: Int64,

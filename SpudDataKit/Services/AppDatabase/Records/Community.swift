@@ -25,8 +25,9 @@ public struct CommunityRecord: Codable, Sendable, Equatable, Identifiable {
     public var isNsfw: Bool
     public var isPostingRestrictedToMods: Bool
     public var isRemoved: Bool
-    /// Lemmy `SubscribedType` raw value: "Subscribed" / "NotSubscribed" /
-    /// "Pending". Stored as text; map via ``subscribedState``.
+    /// ``CommunitySubscribedState`` raw value: "Subscribed" / "NotSubscribed" /
+    /// "Pending" and the v4-only "ApprovalRequired" / "Denied". Stored as free
+    /// text (no CHECK constraint), decoded via ``CommunityRecord/subscribed``.
     public var subscribedState: String
     public var numberOfSubscribers: Int64
     public var numberOfPosts: Int64
@@ -91,66 +92,90 @@ extension CommunityRecord: FetchableRecord, MutablePersistableRecord {
     }
 }
 
-/// Stable mirror of LemmyKit's generated `SubscribedType`, decoupled from the
-/// OpenAPI namespace so UI / persistence code can switch over the persisted
+/// Stable mirror of LemmyKit's version-neutral ``FollowState``, decoupled from
+/// the OpenAPI namespace so UI / persistence code can switch over the persisted
 /// `CommunityRecord.subscribedState` text without importing LemmyKit.
+///
+/// This carries the full v4 follow vocabulary: alongside the v3-era
+/// `Subscribed` / `NotSubscribed` / `Pending`, the v4-only `ApprovalRequired`
+/// (the community gates joining behind moderator approval and the request is
+/// awaiting a decision) and `Denied` (the moderators rejected the request) are
+/// preserved distinctly rather than collapsed. A v3 backend never produces the
+/// last two — its `SubscribedType` folds both into `Pending` / `NotSubscribed` —
+/// so they only ever appear against a Lemmy 1.0 / v4 server.
 public enum CommunitySubscribedState: String, Sendable, Equatable {
     case subscribed = "Subscribed"
     case notSubscribed = "NotSubscribed"
     case pending = "Pending"
+    /// v4-only: the community requires moderator approval to join and the
+    /// request is awaiting a decision. Counts as subscribed for sidebar /
+    /// junction purposes (the user has an in-flight request), like ``pending``.
+    case approvalRequired = "ApprovalRequired"
+    /// v4-only: the community's moderators denied the follow request. Counts as
+    /// NOT subscribed (no active follow) — the user may re-request.
+    case denied = "Denied"
 
-    /// True when the account is subscribed (or has a pending request). Used to
-    /// decide whether a community appears in the followed-communities sidebar
-    /// and how the Subscribe/Unsubscribe toggle should behave.
+    /// True when the account is subscribed or has an in-flight request. Used to
+    /// decide whether a community appears in the followed-communities sidebar and
+    /// how the Subscribe/Unsubscribe toggle should behave. `subscribed`,
+    /// `pending`, and `approvalRequired` all count; `denied` and `notSubscribed`
+    /// do not (a denied request is no active follow — the user may re-request).
     public var isSubscribed: Bool {
         switch self {
-        case .subscribed, .pending: true
-        case .notSubscribed: false
+        case .subscribed, .pending, .approvalRequired: true
+        case .notSubscribed, .denied: false
         }
     }
 }
 
 extension CommunitySubscribedState {
-    /// Folds LemmyKit's version-neutral 4-state ``FollowState`` into the persisted
-    /// 3-state vocabulary. The v4-only `.approvalRequired` collapses to `.pending`
-    /// (a request awaiting a decision) and `.denied` collapses to `.notSubscribed`
-    /// (no active follow — the user may re-request), matching how a v3 backend
-    /// already collapses both into its `Pending`/`NotSubscribed` states. Preserving
-    /// the `.approvalRequired`/`.denied` distinction in persistence would need a new
-    /// column/migration (out of scope here) — see the Phase 6 report's outbox-codec
-    /// follow-up.
+    /// Maps LemmyKit's version-neutral ``FollowState`` onto the persisted
+    /// vocabulary 1:1, preserving the v4-only `.approvalRequired` / `.denied`
+    /// distinctions rather than collapsing them. A v3 backend only ever produces
+    /// `.notFollowing` / `.pending` / `.accepted`, so the two v4-only cases arise
+    /// only against a Lemmy 1.0 server.
     init(followState: FollowState) {
         switch followState {
         case .accepted: self = .subscribed
-        case .pending, .approvalRequired: self = .pending
-        case .notFollowing, .denied: self = .notSubscribed
+        case .pending: self = .pending
+        case .approvalRequired: self = .approvalRequired
+        case .denied: self = .denied
+        case .notFollowing: self = .notSubscribed
         }
     }
 }
 
 extension CommunitySubscribedState {
     /// Compact `Int64` encoding used as the `subscribe` outbox baseline — the
-    /// PRIOR 3-valued state a rollback must be able to restore.
+    /// PRIOR state a rollback must be able to restore.
     ///
     /// Unlike vote/save/hide (whose baseline is the same 2-valued shape as their
-    /// desired state), a subscribe op's desired state is only a Bool, so the
-    /// prior Subscribed-vs-Pending distinction would be lost if it round-tripped
-    /// through the desired-state codec. This dedicated codec preserves all three:
-    /// `0 = notSubscribed, 1 = subscribed, 2 = pending`.
+    /// desired state), a subscribe op's desired state is only a Bool, so a richer
+    /// prior state would be lost if it round-tripped through the desired-state
+    /// codec. This dedicated codec preserves every case: `0 = notSubscribed,
+    /// 1 = subscribed, 2 = pending, 3 = approvalRequired, 4 = denied`. Codes
+    /// `0/1/2` are UNCHANGED from the original 3-state codec, so baselines
+    /// persisted before the widening still decode correctly (a legacy row can
+    /// only ever hold `0/1/2`).
     var outboxBaseline: Int64 {
         switch self {
         case .notSubscribed: 0
         case .subscribed: 1
         case .pending: 2
+        case .approvalRequired: 3
+        case .denied: 4
         }
     }
 
-    /// Decodes an ``outboxBaseline`` integer back to a state. A missing (`nil`)
-    /// or unrecognised value decodes to `.notSubscribed`.
+    /// Decodes an ``outboxBaseline`` integer back to a state. Legacy rows only
+    /// ever hold `0/1/2`; `3/4` are the widened v4 states. A missing (`nil`) or
+    /// unrecognised value decodes to `.notSubscribed`.
     init(outboxBaseline raw: Int64?) {
         switch raw {
         case 1: self = .subscribed
         case 2: self = .pending
+        case 3: self = .approvalRequired
+        case 4: self = .denied
         default: self = .notSubscribed
         }
     }

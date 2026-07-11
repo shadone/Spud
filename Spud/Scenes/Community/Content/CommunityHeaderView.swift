@@ -356,7 +356,11 @@ final class CommunityHeaderView: UIView {
     private func configureSubscribeButton(subscribed: CommunitySubscribedState) {
         var config = subscribeButton.configuration ?? .filled()
         switch subscribed {
-        case .notSubscribed:
+        case .notSubscribed, .denied:
+            // A denied request presents like "not subscribed": the user can tap
+            // to request again. (A distinct "request was denied" treatment — a
+            // hint line or differing tint — is a deferred UI-polish item; the
+            // data layer already carries the `.denied` state distinctly.)
             config.title = NSLocalizedString("Subscribe", comment: "Community subscribe button")
             config.image = UIImage(systemName: "plus")
             config.baseBackgroundColor = .systemBlue
@@ -371,6 +375,15 @@ final class CommunityHeaderView: UIView {
         case .pending:
             config.title = NSLocalizedString("Pending", comment: "Community pending-subscription button")
             config.image = UIImage(systemName: "clock")
+            config.baseBackgroundColor = .secondarySystemBackground
+            config.baseForegroundColor = .secondaryLabel
+            subscribeButton.isEnabled = true
+        case .approvalRequired:
+            // v4: the community gates joining behind moderator approval and the
+            // request is awaiting a decision. Distinct from the momentary
+            // just-tapped Pending — this is the server's confirmed answer.
+            config.title = NSLocalizedString("Requested", comment: "Community subscribe button when the community requires moderator approval and the follow request is awaiting a decision")
+            config.image = UIImage(systemName: "hourglass")
             config.baseBackgroundColor = .secondarySystemBackground
             config.baseForegroundColor = .secondaryLabel
             subscribeButton.isEnabled = true
