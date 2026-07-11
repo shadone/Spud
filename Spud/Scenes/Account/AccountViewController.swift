@@ -163,8 +163,9 @@ class AccountViewController: UIViewController {
         }
 
         // A clean SwiftUI list: a tappable profile header over the account
-        // actions (switch account, saved / your posts / your comments, log out).
-        // Navigation is owned here so each row works on iPhone and iPad.
+        // actions (switch account, saved / your posts / your comments / drafts &
+        // outbox, log out). Navigation is owned here so each row works on iPhone
+        // and iPad.
         let accent = Color(ThemeManager.currentAccentColor)
         let accountView = AccountView(
             viewModel: viewModel,
@@ -175,6 +176,7 @@ class AccountViewController: UIViewController {
             onOpenActivity: { [weak self] in self?.openActivity(keychainId: keychainId) },
             onOpenYourPosts: { [weak self] in self?.openActivity(keychainId: keychainId, initialFilters: [.post]) },
             onOpenYourComments: { [weak self] in self?.openActivity(keychainId: keychainId, initialFilters: [.comment]) },
+            onOpenDraftsOutbox: { [weak self] in self?.openDraftsOutbox(keychainId: keychainId) },
             onLogout: { [weak self] in self?.confirmLogout() }
         )
         .environment(\.imageService, imageService)
@@ -359,6 +361,20 @@ class AccountViewController: UIViewController {
             )
             navigationController?.pushViewController(activityVC, animated: true)
         }
+    }
+
+    /// Pushes the Drafts & Outbox recovery list for the signed-in account: every
+    /// pending draft, in-flight send, and permanently-failed item, with retry /
+    /// discard actions. This is the durable content outbox (comments, posts,
+    /// direct messages) — the same screen the "Couldn't post — View" failure
+    /// toast opens. Per-account content, so it lives here on the Account tab.
+    private func openDraftsOutbox(keychainId: String) {
+        Haptics.tap()
+        let vc = OutboundContentListViewController(
+            accountKeychainId: keychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
     }
 
     private func confirmLogout() {

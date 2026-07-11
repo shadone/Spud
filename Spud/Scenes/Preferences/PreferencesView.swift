@@ -72,16 +72,6 @@ struct PreferencesView: View {
                     NavigationLink { } label: {
                         Label("Accounts", systemImage: "person")
                     }
-
-                    Button {
-                        viewModel.openDraftsOutbox()
-                    } label: {
-                        Label(
-                            NSLocalizedString("Drafts & Outbox", comment: "Preferences row: opens the Drafts & Outbox screen"),
-                            systemImage: "tray.2"
-                        )
-                        .foregroundStyle(Color.primary)
-                    }
                 }
 
                 // Safety / moderation: blocked-list management. Hidden for

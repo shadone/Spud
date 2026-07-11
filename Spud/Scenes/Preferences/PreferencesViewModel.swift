@@ -170,14 +170,6 @@ final class PreferencesViewModel {
     @ObservationIgnored
     private let externalLinkRequestedContinuation: AsyncStream<URL>.Continuation
 
-    /// Fired when the user taps the "Drafts & Outbox" row. The view controller
-    /// drains this stream and pushes `OutboundContentListViewController`.
-    @ObservationIgnored
-    let draftsOutboxRequested: AsyncStream<Void>
-
-    @ObservationIgnored
-    private let draftsOutboxRequestedContinuation: AsyncStream<Void>.Continuation
-
     @ObservationIgnored
     private var preferenceObservationTasks: [Task<Void, Never>] = []
 
@@ -236,10 +228,6 @@ final class PreferencesViewModel {
         let (stream, continuation) = AsyncStream<URL>.makeStream()
         externalLinkRequested = stream
         externalLinkRequestedContinuation = continuation
-
-        let (draftsStream, draftsContinuation) = AsyncStream<Void>.makeStream()
-        draftsOutboxRequested = draftsStream
-        draftsOutboxRequestedContinuation = draftsContinuation
 
         let preferencesService = dependencies.preferencesService
 
@@ -389,8 +377,6 @@ final class PreferencesViewModel {
         accountKeychainId = ""
         externalLinkRequestedContinuation = AsyncStream<URL>.makeStream().continuation
         externalLinkRequested = AsyncStream { _ in }
-        draftsOutboxRequestedContinuation = AsyncStream<Void>.makeStream().continuation
-        draftsOutboxRequested = AsyncStream { _ in }
 
         allPostSortTypes = Components.Schemas.SortType.allCases
         allCommentSortTypes = Components.Schemas.CommentSortType.allCases
@@ -427,17 +413,12 @@ final class PreferencesViewModel {
 
     deinit {
         externalLinkRequestedContinuation.finish()
-        draftsOutboxRequestedContinuation.finish()
         for task in preferenceObservationTasks {
             task.cancel()
         }
     }
 
     // MARK: Inputs
-
-    func openDraftsOutbox() {
-        draftsOutboxRequestedContinuation.yield(())
-    }
 
     func testExternalLink(_ url: URL) {
         externalLinkRequestedContinuation.yield(url)
