@@ -58,14 +58,15 @@ public struct LemmyComposerPerformer: OutboundContentPerforming {
             let trimmedBody = record.body.trimmingCharacters(in: .whitespacesAndNewlines)
             let view: Lemmy.PostView
             if let editPostServerId = record.editPostServerId {
-                // Edit of an existing post: update title/url/body in place. NOTE:
-                // the neutral `editPostNeutral` has no `nsfw` param (it leaves the
-                // flag unchanged); the nsfw edit is dropped. See Phase 6 follow-ups.
+                // Edit of an existing post: update title/url/body/nsfw in place.
+                // The edited nsfw flag rides on the persisted outbound row, so
+                // pass it through — the optimistic local write already applied it.
                 view = try await api.editPostNeutral(
                     id: editPostServerId,
                     name: record.title,
                     url: record.url,
-                    body: trimmedBody.isEmpty ? nil : trimmedBody
+                    body: trimmedBody.isEmpty ? nil : trimmedBody,
+                    nsfw: record.nsfw
                 )
             } else {
                 // Create a new post.
