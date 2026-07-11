@@ -844,14 +844,17 @@ public actor LemmyService: LemmyServiceType {
                     showNsfw=\(showNsfw, privacy: .public) \
                     pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
-                // NOTE: `getPostsNeutral` has no server-side NSFW filter param, so
-                // `showNsfw` is ignored here; NSFW posts are filtered client-side by
-                // the account's blur/hide settings. See the Phase 6 report follow-ups.
+                // Filter NSFW server-side via `show_nsfw` (matches v4, which
+                // filters by the account setting): `showNsfw` carries the client's
+                // synced show-NSFW preference, so it applies to signed-out accounts
+                // too. NSFW posts that ARE returned are still blurred by the
+                // account's blur setting — this only gates server-side inclusion.
                 let (sort, timeRange) = sortType.neutralPostSort
                 page = try await api.getPostsNeutral(
                     listingType: listingType,
                     sort: sort,
                     timeRange: timeRange,
+                    showNsfw: showNsfw,
                     pageCursor: cursor
                 )
 
@@ -877,6 +880,7 @@ public actor LemmyService: LemmyServiceType {
                     sort: sort,
                     communityId: Int64(communityId),
                     timeRange: timeRange,
+                    showNsfw: showNsfw,
                     pageCursor: cursor
                 )
 
@@ -891,13 +895,19 @@ public actor LemmyService: LemmyServiceType {
                     showNsfw=\(showNsfw, privacy: .public) \
                     pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
-                // NOTE: `getSavedPostsNeutral` exposes neither a sort nor a
-                // server-side NSFW filter param (unlike `getPostsNeutral` above,
-                // which at least takes a sort), so `sortType`/`showNsfw` are not
-                // threaded onto the wire here; the server returns its own default
-                // ordering and NSFW posts are filtered client-side by the
-                // account's blur/hide settings, same as the other feed cases.
-                page = try await api.getSavedPostsNeutral(pageCursor: cursor)
+                // Thread the user's chosen sort so the saved feed honours it.
+                // Documented as v3-only: v4's `ListPersonSaved` has no sort param,
+                // so on v4 this is a no-op and the server's default order is used.
+                // `getSavedPostsNeutral` has no `show_nsfw` param, so NSFW posts
+                // that come back are blurred (never hidden) by the account's blur
+                // setting — a saved-feed-only gap, not a general client-side
+                // NSFW filter.
+                let (sort, timeRange) = sortType.neutralPostSort
+                page = try await api.getSavedPostsNeutral(
+                    sort: sort,
+                    timeRange: timeRange,
+                    pageCursor: cursor
+                )
             }
         } catch let error as LemmyServiceError {
             throw error

@@ -133,11 +133,42 @@ struct LemmyServiceFetchSavedFeedTests {
         #expect(postRowId != nil, "the saved post returned by getSavedPostsNeutral must be imported into the local database")
     }
 
-    /// DISABLED (Phase 6 neutral migration): `getPostsNeutral` has no server-side
-    /// NSFW filter param, so `showNsfw` is no longer threaded onto the `getPosts`
-    /// wire query (NSFW is filtered client-side by the account's blur/hide
-    /// settings). Kept compiling for when a neutral NSFW filter is added back.
-    @Test(.disabled("getPostsNeutral drops the show_nsfw wire param; NSFW is now filtered client-side (Phase 6 follow-up)"))
+    /// The `.saved` feed threads its selected sort onto the v3 `getPosts` wire
+    /// query via `getSavedPostsNeutral(sort:timeRange:)`. `.TopWeek` un-fuses to
+    /// `(.top, .week)` and re-fuses on the v3 backend to `sort=TopWeek`, so both
+    /// the sort and its time window reach the request. (v4's `ListPersonSaved`
+    /// has no sort param — documented no-op there.)
+    @Test
+    func fetchSavedFeedThreadsSortIntoGetPostsQuery() async throws {
+        try await seedAccountAndSite()
+
+        let transport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
+
+        let feed = FeedHandle(
+            feedKey: UUID().uuidString,
+            feedType: .saved(sortType: .TopWeek)
+        )
+
+        _ = try await service.fetchFeed(feed, pageCursor: nil, showNsfw: false)
+
+        let query = try #require(transport.lastQuery)
+        #expect(
+            query.contains("sort=TopWeek"),
+            "the saved feed must forward its selected sort (TopWeek) to getPosts, got query: \(query)"
+        )
+    }
+
+    /// `fetchFeed`'s frontpage case threads `showNsfw` onto the `getPosts` wire
+    /// query via `getPostsNeutral(showNsfw:)`, so v3 filters NSFW server-side
+    /// (matching v4, which filters by the account setting). The client's synced
+    /// show-NSFW preference reaches the request param either way.
+    @Test
     func fetchFeedThreadsShowNsfwIntoGetPostsQuery() async throws {
         try await seedAccountAndSite()
 
