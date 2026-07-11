@@ -110,122 +110,45 @@ struct CommentHelperTests {
         // this is a silly test that replicates one of the oldest Lemmy posts.
         // The app was crashing on parsing the comments, but in the end it was
         // something odd in the build as clean build solved it. ¯\_(ツ)_/¯
+        let person = Person.fake
+        let community = Community.fake
+        let post = Post.fake(creator: person, community: community)
+
         let comments: [CommentView] = [
-            CommentView(
-                comment: .init(
-                    id: 471_445,
-                    creator_id: 21550,
-                    post_id: 57679,
-                    content: "XXX",
-                    removed: false,
-                    published: Date(timeIntervalSinceReferenceDate: 708_499_714.602),
-                    updated: nil,
-                    deleted: false,
-                    ap_id: "https://sh.itjust.works/comment/171885",
-                    local: false,
-                    path: "0.471445",
-                    distinguished: false,
-                    language_id: 0
-                ),
-                creator: .fake,
-                post: .fake(creator: .fake, community: .fake),
-                community: .fake,
-                counts: .fake(commentId: 471_445, childCount: 0),
-                creator_banned_from_community: false,
-                banned_from_community: false,
-                creator_is_moderator: false,
-                creator_is_admin: false,
-                subscribed: .NotSubscribed,
-                saved: false,
-                creator_blocked: false,
-                my_vote: nil
+            // "0.471445": no children
+            .fake(
+                comment: .fake(id: 471_445, post: post, creator: person, parent: .root),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 0
             ),
-            CommentView(
-                comment: .init(
-                    id: 403_426,
-                    creator_id: 90452,
-                    post_id: 57679,
-                    content: "XXX",
-                    removed: false,
-                    published: Date(timeIntervalSinceReferenceDate: 709_441_501.208),
-                    updated: nil,
-                    deleted: false,
-                    ap_id: "https://vlemmy.net/comment/390987",
-                    local: false,
-                    path: "0.403426",
-                    distinguished: false,
-                    language_id: 0
-                ),
-                creator: .fake,
-                post: .fake(creator: .fake, community: .fake),
-                community: .fake,
-                counts: .fake(commentId: 403_426, childCount: 0),
-                creator_banned_from_community: false,
-                banned_from_community: false,
-                creator_is_moderator: false,
-                creator_is_admin: false,
-                subscribed: .NotSubscribed,
-                saved: false,
-                creator_blocked: false,
-                my_vote: nil
+
+            // "0.403426": no children
+            .fake(
+                comment: .fake(id: 403_426, post: post, creator: person, parent: .root),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 0
             ),
-            CommentView(
-                comment: .init(
-                    id: 907_431,
-                    creator_id: 45966,
-                    post_id: 57679,
-                    content: "XXX",
-                    removed: false,
-                    published: Date(timeIntervalSinceReferenceDate: 708_459_690.855),
-                    updated: nil,
-                    deleted: false,
-                    ap_id: "https://lemmy.world/comment/181062",
-                    local: false,
-                    path: "0.907431",
-                    distinguished: false,
-                    language_id: 0
-                ),
-                creator: .fake,
-                post: .fake(creator: .fake, community: .fake),
-                community: .fake,
-                counts: .fake(commentId: 907_431, childCount: 0),
-                creator_banned_from_community: false,
-                banned_from_community: false,
-                creator_is_moderator: false,
-                creator_is_admin: false,
-                subscribed: .NotSubscribed,
-                saved: false,
-                creator_blocked: false,
-                my_vote: nil
+
+            // "0.907431": no children
+            .fake(
+                comment: .fake(id: 907_431, post: post, creator: person, parent: .root),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 0
             ),
-            CommentView(
-                comment: .init(
-                    id: 991_036,
-                    creator_id: 625_723,
-                    post_id: 57679,
-                    content: "XXX",
-                    removed: false,
-                    published: Date(timeIntervalSinceReferenceDate: 710_992_247.549),
-                    updated: nil,
-                    deleted: false,
-                    ap_id: "https://talk.kururin.tech/comment/107365",
-                    local: false,
-                    path: "0.991036",
-                    distinguished: false,
-                    language_id: 0
-                ),
-                creator: .fake,
-                post: .fake(creator: .fake, community: .fake),
-                community: .fake,
-                counts: .fake(commentId: 991_036, childCount: 0),
-                creator_banned_from_community: false,
-                banned_from_community: false,
-                creator_is_moderator: false,
-                creator_is_admin: false,
-                subscribed: .NotSubscribed,
-                saved: false,
-                creator_blocked: false,
-                my_vote: nil
+
+            // "0.991036": no children
+            .fake(
+                comment: .fake(id: 991_036, post: post, creator: person, parent: .root),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 0
             ),
         ]
 

@@ -12,17 +12,13 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Lemmy.Person
-private typealias Community = Lemmy.Community
-private typealias Post = Lemmy.Post
-private typealias Comment = Lemmy.Comment
-private typealias CommentAggregates = Lemmy.CommentAggregates
+// Replies/mentions still ride the generated v3 inbox shapes (`CommentReplyView`
+// et al. have no neutral counterpart), so these payload helpers are built on
+// `Components.Schemas.*` via the `V3` fakes.
 private typealias CommentReply = Lemmy.CommentReply
 private typealias CommentReplyView = Lemmy.CommentReplyView
 private typealias GetRepliesResponse = Lemmy.GetRepliesResponse
 private typealias GetUnreadCountResponse = Lemmy.GetUnreadCountResponse
-private typealias PrivateMessage = Lemmy.PrivateMessage
-private typealias PrivateMessageView = Lemmy.PrivateMessageView
 private typealias PrivateMessageResponse = Lemmy.PrivateMessageResponse
 private typealias CommentReplyResponse = Lemmy.CommentReplyResponse
 
@@ -95,10 +91,7 @@ struct LemmyServiceInboxTests {
     }
 
     private func replyView(id: Lemmy.CommentReplyID, read: Bool) -> CommentReplyView {
-        let person = Person.fake
-        let community = Community.fake
-        let post = Post.fake(creator: person, community: community)
-        let comment = Comment.fake(id: 5, post: post, creator: person, parent: .root)
+        let comment = V3.comment(id: 5)
         return CommentReplyView(
             comment_reply: CommentReply(
                 id: id,
@@ -108,11 +101,11 @@ struct LemmyServiceInboxTests {
                 published: Date(timeIntervalSince1970: 1_700_000_000)
             ),
             comment: comment,
-            creator: person,
-            post: post,
-            community: community,
-            recipient: person,
-            counts: CommentAggregates.fake(commentId: comment.id, childCount: 0),
+            creator: V3.person(),
+            post: V3.post(),
+            community: V3.community(),
+            recipient: V3.person(),
+            counts: V3.commentAggregates(commentId: comment.id, childCount: 0),
             creator_banned_from_community: false,
             banned_from_community: false,
             creator_is_moderator: false,
@@ -123,22 +116,15 @@ struct LemmyServiceInboxTests {
         )
     }
 
-    private func messageView(id: Lemmy.PrivateMessageID, creator: Person, recipient: Person) -> PrivateMessageView {
-        PrivateMessageView(
-            private_message: PrivateMessage(
-                id: id,
-                creator_id: creator.id,
-                recipient_id: recipient.id,
-                content: "hi there",
-                deleted: false,
-                read: false,
-                published: Date(timeIntervalSince1970: 1_700_000_000),
-                ap_id: "https://example.com/pm/\(id)",
-                local: true
-            ),
-            creator: creator,
-            recipient: recipient
-        )
+    /// A generated v3 `PrivateMessageView` for the `createPrivateMessage` stub
+    /// payload (`PrivateMessageResponse.private_message_view`); the neutral
+    /// endpoint decodes it and maps to `Lemmy.PrivateMessageView`.
+    private func messageView(
+        id: Lemmy.PrivateMessageID,
+        creator: Components.Schemas.Person,
+        recipient: Components.Schemas.Person
+    ) -> Components.Schemas.PrivateMessageView {
+        V3.privateMessageView(id: id, creator: creator, recipient: recipient, content: "hi there")
     }
 
     // MARK: unread count
@@ -267,12 +253,8 @@ struct LemmyServiceInboxTests {
     func sendPrivateMessageHitsApiAndReturnsView() async throws {
         try await seedAccountAndSite()
 
-        var creator = Person.fake
-        creator.id = 7
-        creator.name = "alice"
-        var recipient = Person.fake
-        recipient.id = 1
-        recipient.name = "me"
+        let creator = V3.person(id: 7, name: "alice")
+        let recipient = V3.person(id: 1, name: "me")
 
         let transport = StubInboxTransport()
         try transport.register(
@@ -289,8 +271,8 @@ struct LemmyServiceInboxTests {
         let view = try await service.sendPrivateMessage(content: "hi there", recipientId: 7)
 
         #expect(transport.sentOperationIds.contains("createPrivateMessage"))
-        #expect(view.private_message.id == 99)
-        #expect(view.private_message.content == "hi there")
+        #expect(view.privateMessage.id == 99)
+        #expect(view.privateMessage.content == "hi there")
     }
 
     @Test

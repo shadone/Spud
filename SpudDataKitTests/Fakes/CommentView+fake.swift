@@ -8,27 +8,45 @@ import Foundation
 import LemmyKit
 
 extension Lemmy.CommentView {
+    /// A fake neutral ``LemmyKit/CommentView``. `childCount` is now a field on the
+    /// neutral ``LemmyKit/Comment`` (v3's `CommentAggregates.child_count` was folded
+    /// onto it), so this rebuilds `comment` with the requested count. Per-viewer state
+    /// (saved/vote/follow) rides on the optional `commentActions`/`communityActions`.
     static func fake(
         comment: Lemmy.Comment,
         creator: Lemmy.Person,
         post: Lemmy.Post,
         community: Lemmy.Community,
-        childCount: Int32
+        childCount: Int32,
+        commentActions: CommentActions? = nil,
+        communityActions: CommunityActions? = nil
     ) -> Lemmy.CommentView {
-        .init(
-            comment: comment,
+        let commentWithCount = Lemmy.Comment(
+            id: comment.id,
+            postId: comment.postId,
+            creatorId: comment.creatorId,
+            content: comment.content,
+            path: comment.path,
+            removed: comment.removed,
+            deleted: comment.deleted,
+            distinguished: comment.distinguished,
+            languageId: comment.languageId,
+            publishedAt: comment.publishedAt,
+            updatedAt: comment.updatedAt,
+            apId: comment.apId,
+            local: comment.local,
+            score: comment.score,
+            upvotes: comment.upvotes,
+            downvotes: comment.downvotes,
+            childCount: Int64(childCount)
+        )
+        return .init(
+            comment: commentWithCount,
             creator: creator,
             post: post,
             community: community,
-            counts: .fake(commentId: comment.id, childCount: childCount),
-            creator_banned_from_community: false,
-            banned_from_community: false,
-            creator_is_moderator: false,
-            creator_is_admin: false,
-            subscribed: .NotSubscribed,
-            saved: false,
-            creator_blocked: false,
-            my_vote: nil
+            commentActions: commentActions,
+            communityActions: communityActions
         )
     }
 }

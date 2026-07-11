@@ -14,11 +14,9 @@ import Testing
 
 // MARK: - Type aliases
 
-private typealias Person = Lemmy.Person
-private typealias PersonView = Lemmy.PersonView
-private typealias Community = Lemmy.Community
-private typealias PostView = Lemmy.PostView
-private typealias CommentView = Lemmy.CommentView
+// These `Get*Response` payloads are fed to a stub transport, so they are built
+// on the generated v3 shapes (`Components.Schemas.*`) via the `V3` fakes; the
+// neutral endpoint decodes the encoded JSON and maps to the neutral result.
 private typealias GetPostResponse = Lemmy.GetPostResponse
 private typealias GetPersonDetailsResponse = Lemmy.GetPersonDetailsResponse
 private typealias GetCommentsResponse = Lemmy.GetCommentsResponse
@@ -171,22 +169,17 @@ struct LemmyServiceFetchPersistenceTests {
     // MARK: - Factory helpers
 
     private func makeGetPostResponse() -> GetPostResponse {
-        let person = Person.fake
-        let community = Community.fake
-        let post = Lemmy.Post.fake(creator: person, community: community)
-        let postView = PostView.fake(post: post, creator: person, community: community)
-        return GetPostResponse(
-            post_view: postView,
-            community_view: .fake(community: community),
+        GetPostResponse(
+            post_view: V3.postView(),
+            community_view: V3.communityView(),
             moderators: [],
             cross_posts: []
         )
     }
 
     private func makeGetPersonDetailsResponse() -> GetPersonDetailsResponse {
-        let person = Person.fake
-        return GetPersonDetailsResponse(
-            person_view: .fake(person: person),
+        GetPersonDetailsResponse(
+            person_view: V3.personView(),
             site: nil,
             comments: [],
             posts: [],
@@ -195,23 +188,15 @@ struct LemmyServiceFetchPersistenceTests {
     }
 
     private func makeGetCommentsResponse() -> GetCommentsResponse {
-        let person = Person.fake
-        let community = Community.fake
-        let post = Lemmy.Post.fake(creator: person, community: community)
-        let comment = Lemmy.Comment.fake(
-            id: 42,
-            post: post,
-            creator: person,
-            parent: .root
-        )
-        let commentView = CommentView.fake(
-            comment: comment,
-            creator: person,
-            post: post,
-            community: community,
-            childCount: 0
-        )
-        return GetCommentsResponse(comments: [commentView])
+        GetCommentsResponse(comments: [
+            V3.commentView(
+                comment: V3.comment(id: 42),
+                creator: V3.person(),
+                post: V3.post(),
+                community: V3.community(),
+                childCount: 0
+            ),
+        ])
     }
 
     // MARK: - fetchPostInfo tests

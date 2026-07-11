@@ -119,7 +119,7 @@ final class SearchResultCellsSnapshotTests: XCTestCase {
                 instance: instance("https://lemmy.world"),
                 subscribersText: "48.2K",
                 iconUrl: iconUrl,
-                subscribed: .NotSubscribed,
+                followState: .notFollowing,
                 isNsfw: false
             ),
             imageService: StaticImageService()

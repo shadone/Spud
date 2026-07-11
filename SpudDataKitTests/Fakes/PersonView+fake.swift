@@ -8,18 +8,16 @@ import Foundation
 import LemmyKit
 
 extension Lemmy.PersonView {
+    /// A fake neutral ``LemmyKit/PersonView``. The old `PersonAggregates` nesting is
+    /// gone — post/comment counts live on the neutral ``LemmyKit/Person`` now, so the
+    /// view just composes the person with its admin/ban standing.
     static func fake(
         person: Lemmy.Person = .fake,
         isAdmin: Bool = false
     ) -> Lemmy.PersonView {
         .init(
             person: person,
-            counts: .init(
-                person_id: person.id,
-                post_count: 0,
-                comment_count: 0
-            ),
-            is_admin: isAdmin
+            isAdmin: isAdmin
         )
     }
 }

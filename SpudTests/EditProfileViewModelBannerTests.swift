@@ -65,7 +65,7 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func getSiteInfo() async throws -> Lemmy.GetSiteResponse {
+    func getSiteInfo() async throws -> LemmyKit.SiteInfo {
         trap()
     }
 
@@ -85,7 +85,7 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func fetchPersonContent(serverPersonId _: Lemmy.PersonID, sort _: Lemmy.SortType, page _: Int64) async throws -> Lemmy.GetPersonDetailsResponse {
+    func fetchPersonContent(serverPersonId _: Lemmy.PersonID, sort _: Lemmy.SortType, page _: Int64) async throws -> PersonContentPage {
         trap()
     }
 
@@ -105,7 +105,7 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func search(query _: String, type _: Lemmy.SearchType, sort _: Lemmy.SortType, listingType _: Lemmy.ListingType, page _: Int64) async throws -> Lemmy.SearchResponse {
+    func search(query _: String, type _: Lemmy.SearchType, sort _: Lemmy.SortType, listingType _: Lemmy.ListingType, page _: Int64) async throws -> LemmyKit.SearchResults {
         trap()
     }
 
@@ -217,7 +217,7 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> Lemmy.PrivateMessagesResponse {
+    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> [IncomingPrivateMessage] {
         trap()
     }
 

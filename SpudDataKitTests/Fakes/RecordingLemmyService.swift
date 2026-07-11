@@ -316,7 +316,7 @@ actor RecordingLemmyService: LemmyServiceType {
         unreachable()
     }
 
-    func getSiteInfo() async throws -> Lemmy.GetSiteResponse {
+    func getSiteInfo() async throws -> LemmyKit.SiteInfo {
         unreachable()
     }
 
@@ -354,7 +354,7 @@ actor RecordingLemmyService: LemmyServiceType {
         serverPersonId _: Lemmy.PersonID,
         sort _: Lemmy.SortType,
         page _: Int64
-    ) async throws -> Lemmy.GetPersonDetailsResponse {
+    ) async throws -> PersonContentPage {
         unreachable()
     }
 
@@ -372,7 +372,7 @@ actor RecordingLemmyService: LemmyServiceType {
         sort _: Lemmy.SortType,
         listingType _: Lemmy.ListingType,
         page _: Int64
-    ) async throws -> Lemmy.SearchResponse {
+    ) async throws -> LemmyKit.SearchResults {
         unreachable()
     }
 
@@ -508,7 +508,7 @@ actor RecordingLemmyService: LemmyServiceType {
         unreachable()
     }
 
-    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> Lemmy.PrivateMessagesResponse {
+    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> [IncomingPrivateMessage] {
         unreachable()
     }
 

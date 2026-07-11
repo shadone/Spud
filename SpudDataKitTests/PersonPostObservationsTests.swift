@@ -48,6 +48,11 @@ struct PersonPostObservationsTests {
 
     /// Builds a `PostView` authored by `person` in `community` with optional
     /// vote / saved / score state.
+    ///
+    /// The neutral surface has no flat `my_vote`/`saved`, and a neutral `Post`'s
+    /// stored fields are `let` — so the vote/saved ride on `postActions`, and the
+    /// per-post title / published / ap id / score are baked into a fresh `Post`
+    /// rather than mutated onto `.fake`.
     private func postView(
         id: Int32,
         title: String,
@@ -58,16 +63,46 @@ struct PersonPostObservationsTests {
         person: Person,
         community: Community
     ) -> PostView {
-        var post = Post.fake(creator: person, community: community)
-        post.id = Lemmy.PostID(id)
-        post.name = title
-        post.published = published
-        post.ap_id = "https://example.com/post/\(id)"
-        var view = PostView.fake(post: post, creator: person, community: community)
-        view.counts.score = score
-        view.my_vote = myVote
-        view.saved = saved
-        return view
+        let post = Post(
+            id: Int64(id),
+            name: title,
+            body: "Hello example world",
+            url: nil,
+            embedTitle: nil,
+            embedDescription: nil,
+            thumbnailUrl: nil,
+            altText: nil,
+            creatorId: person.id,
+            communityId: community.id,
+            apId: "https://example.com/post/\(id)",
+            local: true,
+            nsfw: false,
+            removed: false,
+            deleted: false,
+            locked: false,
+            featuredCommunity: false,
+            featuredLocal: false,
+            languageId: 1,
+            publishedAt: published,
+            updatedAt: nil,
+            newestCommentTimeAt: published,
+            score: score,
+            upvotes: 1,
+            downvotes: 0,
+            comments: 0
+        )
+        let vote = VoteDirection.fromV3Score(myVote.map(Int.init))
+        let postActions = PostActions(
+            savedAt: saved ? Date() : nil,
+            votedAt: vote == .none ? nil : Date(),
+            voteIsUpvote: vote.v4IsUpvote
+        )
+        return PostView.fake(
+            post: post,
+            creator: person,
+            community: community,
+            postActions: postActions
+        )
     }
 
     // MARK: - Tests
@@ -76,20 +111,10 @@ struct PersonPostObservationsTests {
     func observePersonPostListRows_buildsFeedParityRows() async throws {
         let (accountId, siteId) = try await seedAccountAndSite()
 
-        var person = Person.fake
-        person.id = 7
-        person.name = "alice"
-        person.actor_id = "https://example.com/u/alice"
+        let person = Person.fake(id: 7, name: "alice")
 
-        var communityA = Community.fake
-        communityA.id = 100
-        communityA.name = "world"
-        communityA.actor_id = "https://example.com/c/world"
-
-        var communityB = Community.fake
-        communityB.id = 200
-        communityB.name = "news"
-        communityB.actor_id = "https://lemmy.world/c/news"
+        let communityA = Community.fake(id: 100, name: "world")
+        let communityB = Community.fake(id: 200, name: "news", apId: "https://lemmy.world/c/news")
 
         // Two posts authored by alice. The first is upvoted, the second saved.
         let upvoted = postView(
@@ -146,9 +171,7 @@ struct PersonPostObservationsTests {
     func observePersonPostListRows_ordersBySort() async throws {
         let (accountId, siteId) = try await seedAccountAndSite()
 
-        var person = Person.fake
-        person.id = 7
-        person.name = "alice"
+        let person = Person.fake(id: 7, name: "alice")
 
         let community = Community.fake
 

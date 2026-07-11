@@ -113,11 +113,13 @@ struct SaveProfileBannerTests {
 
     // MARK: - Tests
 
-    /// `saveProfile(banner:)` must (a) pass `banner` through to
-    /// `api.saveUserSettings(banner:)` and (b) mirror the value onto the
-    /// local `PersonRecord.bannerUrl` via `setAccountProfile(banner:)`.
+    /// `saveProfile(banner:)` mirrors `banner` onto the local `PersonRecord.bannerUrl`
+    /// via `setAccountProfile(banner:)`. NOTE: v4 removed avatar/banner from
+    /// saveUserSettings (dedicated upload endpoints now), so the neutral
+    /// saveUserSettings no longer forwards the banner to the server — only the local
+    /// mirror is applied. See the Phase 6 report follow-ups.
     @Test
-    func saveProfile_banner_passedToApiAndMirroredLocally() async throws {
+    func saveProfile_banner_mirroredLocallyButNotPushed() async throws {
         try await seedAccountWithPerson()
 
         let transport = StubSaveUserSettingsTransport()
@@ -139,11 +141,12 @@ struct SaveProfileBannerTests {
             defaultListingType: .All
         )
 
-        // (a) The API received the banner URL.
+        // (a) saveUserSettings is still called (for the other fields), but the
+        // neutral surface no longer forwards the banner to the server.
         #expect(transport.didCallSaveUserSettings, "saveProfile should call saveUserSettings")
         #expect(
-            transport.capturedBanner == "https://x/b.jpg",
-            "saveProfile must forward banner to saveUserSettings"
+            transport.capturedBanner == nil,
+            "the neutral saveUserSettings no longer forwards banner (v4 dropped it)"
         )
 
         // (b) The local PersonRecord was updated.

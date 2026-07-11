@@ -12,10 +12,6 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Lemmy.Person
-private typealias PersonView = Lemmy.PersonView
-private typealias PersonAggregates = Lemmy.PersonAggregates
-private typealias CommunityView = Lemmy.CommunityView
 private typealias SearchResponse = Lemmy.SearchResponse
 
 /// Stub `ClientTransport` that returns a canned `SearchResponse` for the
@@ -89,22 +85,18 @@ struct LemmyServiceSearchTests {
         }
     }
 
-    private func personView(id: Lemmy.PersonID, name: String) -> PersonView {
-        var person = Person.fake
-        person.id = id
-        person.name = name
-        return PersonView(
-            person: person,
-            counts: PersonAggregates(person_id: id, post_count: 0, comment_count: 0),
-            is_admin: false
-        )
+    /// A generated v3 `PersonView` for the `SearchResponse.users` stub payload
+    /// (the neutral endpoint decodes it and maps to `SearchResults.persons`).
+    private func personView(id: Lemmy.PersonID, name: String) -> Components.Schemas.PersonView {
+        V3.personView(person: V3.person(id: id, name: name))
     }
 
     @Test
     func searchReturnsResponseWithDecodedResults() async throws {
         try await seedAccountAndSite()
 
-        let community = CommunityView.fake(community: .fake, subscribed: .NotSubscribed)
+        let communityId: Lemmy.CommunityID = 1
+        let community = V3.communityView(community: V3.community(id: communityId), subscribed: .NotSubscribed)
         let person = personView(id: 7, name: "alice")
         let response = SearchResponse(
             type_: .All,
@@ -132,12 +124,12 @@ struct LemmyServiceSearchTests {
         #expect(transport.didSendSearch, "search should call the search api")
 
         #expect(result.communities.count == 1)
-        #expect(result.communities.first?.community.id == community.community.id)
+        #expect(result.communities.first?.community.id == Int64(communityId))
         #expect(result.communities.first?.community.name == "world")
 
-        #expect(result.users.count == 1)
-        #expect(result.users.first?.person.id == 7)
-        #expect(result.users.first?.person.name == "alice")
+        #expect(result.persons.count == 1)
+        #expect(result.persons.first?.person.id == 7)
+        #expect(result.persons.first?.person.name == "alice")
 
         #expect(result.posts.isEmpty)
         #expect(result.comments.isEmpty)
@@ -172,7 +164,7 @@ struct LemmyServiceSearchTests {
 
         #expect(transport.didSendSearch)
         #expect(result.communities.isEmpty)
-        #expect(result.users.isEmpty)
+        #expect(result.persons.isEmpty)
         #expect(result.posts.isEmpty)
         #expect(result.comments.isEmpty)
     }

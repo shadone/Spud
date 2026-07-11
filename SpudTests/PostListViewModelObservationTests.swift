@@ -517,11 +517,7 @@ struct PostListViewModelObservationTests {
 
         #expect(
             values == [.idle, .loading, .idle],
-            Comment(
-                rawValue: "Expected .idle -> .loading -> .idle across loadMore(); got \(values). "
-                    + "Fewer than 3 values means the stream stopped re-emitting after the "
-                    + "initial value — the one-shot ObservationStream regression fixed by 2138d960."
-            )
+            "Expected .idle -> .loading -> .idle across loadMore(); got \(values). Fewer than 3 values means the stream stopped re-emitting after the initial value — the one-shot ObservationStream regression fixed by 2138d960."
         )
 
         vm.stopObservations()

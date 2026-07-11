@@ -120,7 +120,7 @@ struct AccountServiceLoginTests {
         AccountService(
             appDatabase: appDatabase,
             credentialStore: credentialStore
-        ) { url, credential in
+        ) { url, credential, _ in
             LemmyApi(instanceUrl: url, credential: credential, transport: transport)
         }
     }

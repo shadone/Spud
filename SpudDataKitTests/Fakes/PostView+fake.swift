@@ -7,42 +7,24 @@
 import Foundation
 import LemmyKit
 
-extension Lemmy.PostAggregates {
-    static func fake(post: Lemmy.Post) -> Lemmy.PostAggregates {
-        .init(
-            post_id: post.id,
-            comments: 0,
-            score: 1,
-            upvotes: 1,
-            downvotes: 0,
-            published: post.published,
-            newest_comment_time: post.published
-        )
-    }
-}
-
 extension Lemmy.PostView {
+    /// A fake neutral ``LemmyKit/PostView``. Per-viewer state (saved/read/hidden/
+    /// vote/follow) rides on the optional `postActions`/`communityActions` structs
+    /// rather than the old flat `saved`/`read`/`my_vote`/`subscribed` fields — pass
+    /// them to model a signed-in viewer's relationship to the post.
     static func fake(
         post: Lemmy.Post,
         creator: Lemmy.Person,
-        community: Lemmy.Community
+        community: Lemmy.Community,
+        postActions: PostActions? = nil,
+        communityActions: CommunityActions? = nil
     ) -> Lemmy.PostView {
         .init(
             post: post,
             creator: creator,
             community: community,
-            creator_banned_from_community: false,
-            banned_from_community: false,
-            creator_is_moderator: false,
-            creator_is_admin: false,
-            counts: .fake(post: post),
-            subscribed: .NotSubscribed,
-            saved: false,
-            read: false,
-            hidden: false,
-            creator_blocked: false,
-            my_vote: nil,
-            unread_comments: 0
+            postActions: postActions,
+            communityActions: communityActions
         )
     }
 }

@@ -12,11 +12,6 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Lemmy.Person
-private typealias Community = Lemmy.Community
-private typealias Post = Lemmy.Post
-private typealias Comment = Lemmy.Comment
-private typealias CommentView = Lemmy.CommentView
 private typealias CommentResponse = Lemmy.CommentResponse
 
 /// Stub `ClientTransport` that returns a canned JSON response for the
@@ -111,21 +106,14 @@ struct LemmyServiceCreateCommentTests {
         try await seedAccountSiteAndPost()
 
         let newCommentId: Lemmy.CommentID = 42
-        let person = Person.fake
-        let community = Community.fake
-        let post = Post.fake(creator: person, community: community)
-        let comment = Comment.fake(
-            id: newCommentId,
-            post: post,
-            creator: person,
-            parent: .root
-        )
-        let commentView = CommentView.fake(
+        // The stub transport encodes this generated v3 CommentView to v3 JSON,
+        // which the neutral createComment endpoint decodes and mirrors.
+        let comment = V3.comment(id: newCommentId)
+        let commentView = V3.commentView(
             comment: comment,
-            creator: person,
-            post: post,
-            community: community,
-            childCount: 0
+            creator: V3.person(),
+            post: V3.post(),
+            community: V3.community()
         )
         let response = CommentResponse(comment_view: commentView, recipient_ids: [])
 
@@ -160,15 +148,11 @@ struct LemmyServiceCreateCommentTests {
         try await seedAccountSiteAndPost()
 
         // The transport should never be reached; encode an arbitrary response.
-        let person = Person.fake
-        let community = Community.fake
-        let post = Post.fake(creator: person, community: community)
-        let commentView = CommentView.fake(
-            comment: .fake(id: 1, post: post, creator: person, parent: .root),
-            creator: person,
-            post: post,
-            community: community,
-            childCount: 0
+        let commentView = V3.commentView(
+            comment: V3.comment(id: 1),
+            creator: V3.person(),
+            post: V3.post(),
+            community: V3.community()
         )
         let response = CommentResponse(comment_view: commentView, recipient_ids: [])
 

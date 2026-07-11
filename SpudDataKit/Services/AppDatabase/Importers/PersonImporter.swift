@@ -65,11 +65,13 @@ extension AppDatabase {
         if var record = try PersonRecord.fetchOne(db, key: id) {
             record.isAdmin = model.isAdmin
             record.isBanned = model.isBanned
-            // The neutral surface flattens post/comment counts onto the bare
-            // `Person` (always present); `PersonView.postCount`/`commentCount` are
-            // v3-only and nil on a v4 backend, so read the person's own counts.
-            record.numberOfPosts = model.person.postCount
-            record.numberOfComments = model.person.commentCount
+            // v3 keeps the person's post/comment counts on the composed
+            // `PersonView` (from `PersonAggregates`), so `PersonView.postCount`/
+            // `commentCount` carry them there and the bare `Person`'s own counts
+            // are 0; v4 flattens them onto the bare `Person` and leaves the view's
+            // nil. Prefer the view-level count, falling back to the person's own.
+            record.numberOfPosts = model.postCount ?? model.person.postCount
+            record.numberOfComments = model.commentCount ?? model.person.commentCount
             try record.update(db)
         }
         return id

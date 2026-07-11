@@ -73,7 +73,9 @@ struct LemmyServiceContentNotFoundHarness {
         let post = Lemmy.Post.fake(creator: .fake, community: .fake)
         let view = Lemmy.PostView.fake(post: post, creator: .fake, community: .fake)
         try await appDatabase.upsertPost(from: view, accountId: accountId, siteId: siteId)
-        let serverPostId = post.id
+        // The neutral `Post.id` is Int64; the harness/service key on Lemmy.PostID
+        // (Int32), so narrow it here (Post.fake.id == 1).
+        let serverPostId = Lemmy.PostID(post.id)
 
         let api = LemmyApi(
             instanceUrl: URL(string: "https://example.com")!,

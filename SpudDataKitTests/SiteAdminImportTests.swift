@@ -14,15 +14,15 @@ struct SiteAdminImportTests {
     @Test
     func upsertSite_storesAdminsInOrder() async throws {
         let appDatabase = try AppDatabase.inMemory()
-        let response = Self.makeGetSiteResponse(
+        let siteInfo = Self.makeSiteInfo(
             actorId: "https://lemmy.world",
             admins: [
-                Self.personView(name: "ruud", display: "Ruud", actorId: "https://lemmy.world/u/ruud"),
-                Self.personView(name: "milan", display: nil, actorId: "https://lemmy.world/u/milan"),
+                Self.admin(name: "ruud", display: "Ruud", actorId: "https://lemmy.world/u/ruud"),
+                Self.admin(name: "milan", display: nil, actorId: "https://lemmy.world/u/milan"),
             ]
         )
 
-        let (_, siteId) = try await appDatabase.upsertSite(from: response)
+        let (_, siteId) = try await appDatabase.upsertSite(from: siteInfo)
 
         let admins = try await appDatabase.writer.read { db in
             try SiteAdminRecord
@@ -39,13 +39,13 @@ struct SiteAdminImportTests {
     @Test
     func upsertSite_replacesAdminsOnReimport() async throws {
         let appDatabase = try AppDatabase.inMemory()
-        _ = try await appDatabase.upsertSite(from: Self.makeGetSiteResponse(
+        _ = try await appDatabase.upsertSite(from: Self.makeSiteInfo(
             actorId: "https://lemmy.world",
-            admins: [Self.personView(name: "old", display: nil, actorId: "https://lemmy.world/u/old")]
+            admins: [Self.admin(name: "old", display: nil, actorId: "https://lemmy.world/u/old")]
         ))
-        let (_, siteId) = try await appDatabase.upsertSite(from: Self.makeGetSiteResponse(
+        let (_, siteId) = try await appDatabase.upsertSite(from: Self.makeSiteInfo(
             actorId: "https://lemmy.world",
-            admins: [Self.personView(name: "new", display: nil, actorId: "https://lemmy.world/u/new")]
+            admins: [Self.admin(name: "new", display: nil, actorId: "https://lemmy.world/u/new")]
         ))
 
         let names = try await appDatabase.writer.read { db in
@@ -56,75 +56,57 @@ struct SiteAdminImportTests {
 }
 
 extension SiteAdminImportTests {
-    static func personView(
+    /// A neutral admin `Person`. `upsertSite` now consumes a ``LemmyKit/SiteInfo``
+    /// whose `admins` are bare neutral ``LemmyKit/Person`` values (v4 flattened the
+    /// admin identity off the composed `PersonView`).
+    static func admin(
         name: String,
         display: String?,
         actorId: String
-    ) -> Lemmy.PersonView {
-        let date = Date(timeIntervalSince1970: 1_685_577_784)
-        let person = Lemmy.Person(
+    ) -> Lemmy.Person {
+        Lemmy.Person(
             id: 1,
             name: name,
-            display_name: display,
-            avatar: nil,
-            banned: false,
-            published: date,
-            updated: nil,
-            actor_id: actorId,
+            displayName: display,
+            avatarUrl: nil,
+            bannerUrl: nil,
             bio: nil,
-            local: true,
-            banner: nil,
+            apId: actorId,
+            matrixUserId: nil,
+            botAccount: false,
             deleted: false,
-            matrix_user_id: nil,
-            bot_account: false,
-            ban_expires: nil,
-            instance_id: 1
-        )
-        return Lemmy.PersonView(
-            person: person,
-            counts: .init(
-                person_id: person.id,
-                post_count: 0,
-                comment_count: 0
-            ),
-            is_admin: true
+            local: true,
+            publishedAt: Date(timeIntervalSince1970: 1_685_577_784),
+            updatedAt: nil,
+            postCount: 0,
+            commentCount: 0
         )
     }
 
-    static func makeGetSiteResponse(
+    static func makeSiteInfo(
         actorId: String,
-        admins: [Lemmy.PersonView]
-    ) -> Lemmy.GetSiteResponse {
-        let response = Lemmy.GetSiteResponse.fake(myUser: false)
-        // Patch the actor_id on the site to match the requested instance.
-        let view = response.site_view
+        admins: [Lemmy.Person]
+    ) -> LemmyKit.SiteInfo {
         let date = Date(timeIntervalSince1970: 1_685_577_784)
         let site = Lemmy.Site(
-            id: view.site.id,
-            name: view.site.name,
-            published: view.site.published,
-            actor_id: actorId,
-            last_refreshed_at: date,
-            inbox_url: view.site.inbox_url,
-            public_key: view.site.public_key,
-            instance_id: view.site.instance_id
+            id: 1,
+            name: "Example",
+            summary: nil,
+            sidebar: nil,
+            iconUrl: nil,
+            bannerUrl: nil,
+            apId: actorId,
+            publishedAt: date,
+            updatedAt: nil,
+            posts: 0,
+            comments: 0,
+            communities: 0,
+            users: 0,
+            usersActiveDay: 0,
+            usersActiveWeek: 0,
+            usersActiveMonth: 0,
+            usersActiveHalfYear: 0
         )
-        let patchedView = Lemmy.SiteView(
-            site: site,
-            local_site: view.local_site,
-            local_site_rate_limit: view.local_site_rate_limit,
-            counts: view.counts
-        )
-        return Lemmy.GetSiteResponse(
-            site_view: patchedView,
-            admins: admins,
-            version: response.version,
-            my_user: response.my_user,
-            all_languages: response.all_languages,
-            discussion_languages: response.discussion_languages,
-            taglines: response.taglines,
-            custom_emojis: response.custom_emojis,
-            blocked_urls: response.blocked_urls
-        )
+        return SiteInfo(site: site, version: "0.19.0", admins: admins)
     }
 }

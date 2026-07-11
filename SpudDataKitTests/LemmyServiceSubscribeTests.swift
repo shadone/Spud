@@ -11,8 +11,6 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Community = Lemmy.Community
-private typealias CommunityView = Lemmy.CommunityView
 private typealias CommunityResponse = Lemmy.CommunityResponse
 
 /// Stub `ClientTransport` that returns canned JSON for the `followCommunity`
@@ -176,7 +174,9 @@ struct LemmyServiceSubscribeTests {
             subscribed: .notSubscribed
         )
 
-        let subscribedView = CommunityView.fake(community: .fake, subscribed: .Subscribed)
+        // Generated v3 CommunityView (encoded to v3 JSON by the stub transport);
+        // the community defaults to V3.community().
+        let subscribedView = V3.communityView(subscribed: .Subscribed)
         let response = CommunityResponse(community_view: subscribedView, discussion_languages: [])
         let transport = try StubFollowCommunityTransport(communityResponse: response)
         let service = LemmyServiceHarness.make(

@@ -8,26 +8,34 @@ import Foundation
 import LemmyKit
 
 extension Lemmy.Comment {
+    /// A fake neutral ``LemmyKit/Comment``. v4-shaped: the vote aggregates
+    /// (`score`/`upvotes`/`downvotes`) and `childCount` are flattened onto the
+    /// comment itself rather than living on a separate `CommentAggregates` object.
     static func fake(
         id: Lemmy.CommentID,
         post: Lemmy.Post,
         creator: Lemmy.Person,
-        parent: CommentPath
+        parent: CommentPath,
+        childCount: Int64 = 0
     ) -> Lemmy.Comment {
         .init(
-            id: id,
-            creator_id: creator.id,
-            post_id: post.id,
+            id: Int64(id),
+            postId: post.id,
+            creatorId: creator.id,
             content: "hello",
-            removed: false,
-            published: Date(),
-            updated: nil,
-            deleted: false,
-            ap_id: "https://example.com/comment/1",
-            local: true,
             path: parent.appending(id).pathString,
+            removed: false,
+            deleted: false,
             distinguished: false,
-            language_id: 1
+            languageId: 1,
+            publishedAt: Date(),
+            updatedAt: nil,
+            apId: "https://example.com/comment/1",
+            local: true,
+            score: 1,
+            upvotes: 1,
+            downvotes: 0,
+            childCount: childCount
         )
     }
 }

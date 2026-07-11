@@ -9,14 +9,23 @@ import LemmyKit
 import Testing
 @testable import SpudDataKit
 
-/// Tests the pure `GetSiteResponse` -> `ExplorerInstanceRecord` synthesizer used
-/// to open the in-app instance screen for a Lemmy-API-compatible host (PieFed
-/// included) that is not in the bundled Explorer directory.
+/// Tests the pure `SiteInfo` -> `ExplorerInstanceRecord` synthesizer used to open
+/// the in-app instance screen for a Lemmy-API-compatible host (PieFed included)
+/// that is not in the bundled Explorer directory.
+///
+/// NOTE (Phase 6 neutral migration): `synthesized(from:host:)` now consumes the
+/// version-neutral ``LemmyKit/SiteInfo``, which carries only the site's public
+/// identity + aggregate counts — NOT the v3 `LocalSite` policy block
+/// (registration mode, NSFW, downvotes, private-instance, federation flags). Those
+/// have no neutral source, so the synthesizer fills them with fixed optimistic
+/// defaults; the former `mapsPolicyFlags` / `mapsRegistrationMode` tests (which
+/// drove those flags off the response) are replaced by
+/// `policyFlagsUseOptimisticDefaults` below.
 struct ExplorerInstanceSynthesizedTests {
-    /// A `getSite` response shaped like a real `fedinsfw.app` (PieFed) probe:
-    /// `site_view.site` carries identity + icon/banner, `site_view.counts`
-    /// carries the usage tallies, `local_site` carries the policy flags.
-    static func makeResponse(
+    /// A `SiteInfo` shaped like a real `fedinsfw.app` (PieFed) probe: identity +
+    /// icon/banner + usage tallies. `version` rides on the `SiteInfo`, not the
+    /// `Site`.
+    static func makeSiteInfo(
         actorId: String = "https://fedinsfw.app",
         name: String = "FediNSFW",
         description: String? = "An adult-content instance",
@@ -28,93 +37,36 @@ struct ExplorerInstanceSynthesizedTests {
         communities: Int64 = 42,
         posts: Int64 = 9876,
         comments: Int64 = 54321,
-        version: String = "0.19.5",
-        registrationMode: Lemmy.RegistrationMode = .Open,
-        enableNsfw: Bool = true,
-        enableDownvotes: Bool = false,
-        privateInstance: Bool = false,
-        federationEnabled: Bool = true
-    ) -> Lemmy.GetSiteResponse {
-        let base = Lemmy.GetSiteResponse.fake(myUser: false)
+        version: String = "0.19.5"
+    ) -> LemmyKit.SiteInfo {
         let date = Date(timeIntervalSince1970: 1_685_577_784)
-
         let site = Lemmy.Site(
             id: 1,
             name: name,
+            summary: description,
             sidebar: "Sidebar text",
-            published: date,
-            icon: icon,
-            banner: banner,
-            description: description,
-            actor_id: actorId,
-            last_refreshed_at: date,
-            inbox_url: "\(actorId)/inbox",
-            public_key: "fake-public-key",
-            instance_id: 1
-        )
-
-        let localSite = Lemmy.LocalSite(
-            id: 1,
-            site_id: 1,
-            site_setup: true,
-            enable_downvotes: enableDownvotes,
-            enable_nsfw: enableNsfw,
-            community_creation_admin_only: false,
-            require_email_verification: false,
-            private_instance: privateInstance,
-            default_theme: "browser",
-            default_post_listing_type: .Local,
-            hide_modlog_mod_names: false,
-            application_email_admins: false,
-            actor_name_max_length: 20,
-            federation_enabled: federationEnabled,
-            captcha_enabled: false,
-            captcha_difficulty: "medium",
-            published: date,
-            registration_mode: registrationMode,
-            reports_email_admins: false,
-            federation_signed_fetch: false,
-            default_post_listing_mode: .List,
-            default_sort_type: .Active
-        )
-
-        let counts = Lemmy.SiteAggregates(
-            site_id: 1,
-            users: users,
+            iconUrl: icon,
+            bannerUrl: banner,
+            apId: actorId,
+            publishedAt: date,
+            updatedAt: nil,
             posts: posts,
             comments: comments,
             communities: communities,
-            users_active_day: 11,
-            users_active_week: 22,
-            users_active_month: usersActiveMonth,
-            users_active_half_year: usersActiveHalfYear
+            users: users,
+            usersActiveDay: 11,
+            usersActiveWeek: 22,
+            usersActiveMonth: usersActiveMonth,
+            usersActiveHalfYear: usersActiveHalfYear
         )
-
-        let view = Lemmy.SiteView(
-            site: site,
-            local_site: localSite,
-            local_site_rate_limit: base.site_view.local_site_rate_limit,
-            counts: counts
-        )
-
-        return Lemmy.GetSiteResponse(
-            site_view: view,
-            admins: base.admins,
-            version: version,
-            my_user: base.my_user,
-            all_languages: base.all_languages,
-            discussion_languages: base.discussion_languages,
-            taglines: base.taglines,
-            custom_emojis: base.custom_emojis,
-            blocked_urls: base.blocked_urls
-        )
+        return SiteInfo(site: site, version: version)
     }
 
     @Test
     func mapsIdentityAndStats() {
-        let response = Self.makeResponse()
+        let siteInfo = Self.makeSiteInfo()
 
-        let record = ExplorerInstanceRecord.synthesized(from: response, host: "fedinsfw.app")
+        let record = ExplorerInstanceRecord.synthesized(from: siteInfo, host: "fedinsfw.app")
 
         #expect(record.id == nil)
         #expect(record.baseurl == "fedinsfw.app")
@@ -128,9 +80,9 @@ struct ExplorerInstanceSynthesizedTests {
 
     @Test
     func mapsUsageCounts() {
-        let response = Self.makeResponse()
+        let siteInfo = Self.makeSiteInfo()
 
-        let record = ExplorerInstanceRecord.synthesized(from: response, host: "fedinsfw.app")
+        let record = ExplorerInstanceRecord.synthesized(from: siteInfo, host: "fedinsfw.app")
 
         #expect(record.usersTotal == 1234)
         #expect(record.usersActiveMonth == 321)
@@ -140,51 +92,30 @@ struct ExplorerInstanceSynthesizedTests {
         #expect(record.numberOfComments == 54321)
     }
 
+    /// The neutral `SiteInfo` carries no `LocalSite` policy, so the synthesizer
+    /// can't know the registration mode and reports `.unknown` (not a misleading
+    /// "open"); the remaining flags use benign defaults. This replaces the former
+    /// input-driven `mapsPolicyFlags` / `mapsRegistrationMode` tests (Phase 6
+    /// follow-up: recover real policy from a neutral local-site source).
     @Test
-    func mapsPolicyFlags() {
-        let response = Self.makeResponse(
-            registrationMode: .Open,
-            enableNsfw: true,
-            enableDownvotes: false,
-            privateInstance: false,
-            federationEnabled: true
-        )
+    func policyFlagsUseNeutralDefaults() {
+        let record = ExplorerInstanceRecord.synthesized(from: Self.makeSiteInfo(), host: "fedinsfw.app")
 
-        let record = ExplorerInstanceRecord.synthesized(from: response, host: "fedinsfw.app")
-
-        #expect(record.registrationMode == .open)
-        #expect(record.isOpenRegistration == true)
-        #expect(record.isNsfw == true)
-        #expect(record.allowsDownvotes == false)
+        #expect(record.registrationMode == .unknown)
+        #expect(record.isOpenRegistration == false)
+        #expect(record.isNsfw == false)
+        #expect(record.allowsDownvotes == true)
         #expect(record.isPrivate == false)
         #expect(record.federationEnabled == true)
     }
 
-    @Test(arguments: [
-        (Lemmy.RegistrationMode.Closed, ExplorerRegistrationMode.closed, false),
-        (.RequireApplication, .requireApplication, false),
-        (.Open, .open, true),
-    ])
-    func mapsRegistrationMode(
-        apiMode: Lemmy.RegistrationMode,
-        expected: ExplorerRegistrationMode,
-        expectedOpen: Bool
-    ) {
-        let response = Self.makeResponse(registrationMode: apiMode)
-
-        let record = ExplorerInstanceRecord.synthesized(from: response, host: "fedinsfw.app")
-
-        #expect(record.registrationMode == expected)
-        #expect(record.isOpenRegistration == expectedOpen)
-    }
-
     @Test
     func leavesDirectoryOnlyFieldsAtDefaults() {
-        let response = Self.makeResponse()
+        let siteInfo = Self.makeSiteInfo()
 
-        let record = ExplorerInstanceRecord.synthesized(from: response, host: "fedinsfw.app")
+        let record = ExplorerInstanceRecord.synthesized(from: siteInfo, host: "fedinsfw.app")
 
-        // Fields with no /api/v3/site analogue stay at sensible defaults so a
+        // Fields with no site-info analogue stay at sensible defaults so a
         // synthesized record never claims directory-quality metadata.
         #expect(record.uptimeAllTime == nil)
         #expect(record.latency == nil)
@@ -199,9 +130,9 @@ struct ExplorerInstanceSynthesizedTests {
 
     @Test
     func toleratesMissingOptionalIdentity() {
-        let response = Self.makeResponse(description: nil, icon: nil, banner: nil)
+        let siteInfo = Self.makeSiteInfo(description: nil, icon: nil, banner: nil)
 
-        let record = ExplorerInstanceRecord.synthesized(from: response, host: "fedinsfw.app")
+        let record = ExplorerInstanceRecord.synthesized(from: siteInfo, host: "fedinsfw.app")
 
         #expect(record.descriptionText == nil)
         #expect(record.iconUrl == nil)

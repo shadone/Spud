@@ -13,17 +13,24 @@ extension Lemmy.GetSiteResponse {
     /// the response decodes; the moderation-capability resolution only reads
     /// `my_user.moderates` and `my_user.local_user_view.local_user.admin`.
     ///
+    /// `Lemmy.GetSiteResponse` is still the generated v3 response type (the
+    /// neutral retarget only moved `Post`/`Comment`/`Community`/`Person`/`Site`
+    /// over), so this fake builds it from `Components.Schemas.*` directly — the
+    /// neutral `Lemmy.Site`/`Lemmy.Person`/`Lemmy.Community` no longer fit the
+    /// generated `SiteView`/`MyUserInfo` shapes. `getSiteInfo()`'s neutral path
+    /// still decodes exactly this JSON via the v3 backend adapter.
+    ///
     /// Pass `myUser: false` to model a response with no `my_user` (e.g. a
     /// signed-out fetch), which resolves to `.none`.
     static func fake(
-        moderates: [Lemmy.Community] = [],
+        moderates: [Lemmy.CommunityID] = [],
         isAdmin: Bool = false,
         myUser: Bool = true
     ) -> Lemmy.GetSiteResponse {
-        let person = Lemmy.Person.fake
+        let person = generatedPerson()
         let date = Date(timeIntervalSince1970: 1_685_577_784)
 
-        let site = Lemmy.Site(
+        let site = Components.Schemas.Site(
             id: 1,
             name: "Example",
             published: date,
@@ -108,7 +115,7 @@ extension Lemmy.GetSiteResponse {
                     counts: .init(person_id: person.id, post_count: 0, comment_count: 0)
                 ),
                 follows: [],
-                moderates: moderates.map { .init(community: $0, moderator: person) },
+                moderates: moderates.map { .init(community: generatedCommunity(id: $0), moderator: person) },
                 community_blocks: [],
                 instance_blocks: [],
                 person_blocks: [],
@@ -126,6 +133,53 @@ extension Lemmy.GetSiteResponse {
             taglines: [],
             custom_emojis: [],
             blocked_urls: []
+        )
+    }
+
+    /// A minimal generated `Person` for the `my_user` boilerplate (the neutral
+    /// `Lemmy.Person` no longer fits the generated `LocalUserView`/`CommunityModeratorView`).
+    private static func generatedPerson() -> Components.Schemas.Person {
+        .init(
+            id: 1,
+            name: "one",
+            display_name: "One",
+            avatar: nil,
+            banned: false,
+            published: Date(timeIntervalSince1970: 1_683_349_689),
+            updated: nil,
+            actor_id: "https://example.com/u/one",
+            bio: nil,
+            local: true,
+            banner: nil,
+            deleted: false,
+            matrix_user_id: nil,
+            bot_account: false,
+            ban_expires: nil,
+            instance_id: 1
+        )
+    }
+
+    /// A minimal generated `Community` with the given id, used to populate a
+    /// moderated-community entry in `my_user.moderates`.
+    private static func generatedCommunity(id: Lemmy.CommunityID) -> Components.Schemas.Community {
+        .init(
+            id: id,
+            name: "world",
+            title: "World",
+            description: "Hello world community",
+            removed: false,
+            published: Date(timeIntervalSince1970: 1_680_667_628),
+            updated: nil,
+            deleted: false,
+            nsfw: false,
+            actor_id: "https://example.com/c/world",
+            local: true,
+            icon: nil,
+            banner: nil,
+            hidden: false,
+            posting_restricted_to_mods: false,
+            instance_id: 1,
+            visibility: .Public
         )
     }
 

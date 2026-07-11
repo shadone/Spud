@@ -159,7 +159,10 @@ struct LemmyServiceSaveProfileTests {
         let body = try #require(transport.saveUserSettingsBody)
         #expect(body["display_name"] as? String == "Ada Lovelace")
         #expect(body["bio"] as? String == "First programmer.")
-        #expect(body["avatar"] as? String == "https://example.com/pictrs/image/avatar.png")
+        // v4 removed avatar/banner from saveUserSettings (dedicated upload
+        // endpoints now), so the neutral saveUserSettings no longer forwards the
+        // avatar — it is only mirrored locally. See the Phase 6 report follow-ups.
+        #expect(body["avatar"] == nil)
         #expect(body["show_scores"] as? Bool == false)
         #expect(body["show_bot_accounts"] as? Bool == false)
         #expect(body["show_read_posts"] as? Bool == true)

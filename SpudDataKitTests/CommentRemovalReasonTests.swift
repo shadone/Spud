@@ -25,10 +25,14 @@ struct CommentRemovalReasonTests {
     /// Builds a modlog comment-removal entry. Only `mod_remove_comment` matters
     /// to the correlation; the rest is filler so the view type is satisfied.
     private func entry(commentId: Lemmy.CommentID, reason: String?, removed: Bool) -> ModRemoveCommentView {
-        let person = Person.fake
-        let community = Community.fake
-        let post = Post.fake(creator: person, community: community)
-        let comment = Comment.fake(id: commentId, post: post, creator: person, parent: .root)
+        // `ModRemoveCommentView` has no neutral counterpart — it is still the
+        // generated v3 schema type — so its moderator/comment/commenter/post/
+        // community filler is built from the generated `V3.*` fakes, not the
+        // neutral ones. Only `mod_remove_comment` is read by `removalReasons`.
+        let person = V3.person()
+        let community = V3.community()
+        let post = V3.post()
+        let comment = V3.comment(id: commentId)
         return .init(
             mod_remove_comment: .init(
                 id: 1,

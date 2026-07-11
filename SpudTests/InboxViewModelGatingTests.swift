@@ -32,9 +32,9 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         return Lemmy.GetPersonMentionsResponse(mentions: [])
     }
 
-    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> Lemmy.PrivateMessagesResponse {
+    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> [IncomingPrivateMessage] {
         fetchPrivateMessagesCallCount += 1
-        return Lemmy.PrivateMessagesResponse(private_messages: [])
+        return []
     }
 
     // MARK: Unused protocol stubs
@@ -51,7 +51,7 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         trap()
     }
 
-    func getSiteInfo() async throws -> Lemmy.GetSiteResponse {
+    func getSiteInfo() async throws -> LemmyKit.SiteInfo {
         trap()
     }
 
@@ -85,7 +85,7 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         trap()
     }
 
-    func fetchPersonContent(serverPersonId _: Lemmy.PersonID, sort _: Lemmy.SortType, page _: Int64) async throws -> Lemmy.GetPersonDetailsResponse {
+    func fetchPersonContent(serverPersonId _: Lemmy.PersonID, sort _: Lemmy.SortType, page _: Int64) async throws -> PersonContentPage {
         trap()
     }
 
@@ -97,7 +97,7 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         trap()
     }
 
-    func search(query _: String, type _: Lemmy.SearchType, sort _: Lemmy.SortType, listingType _: Lemmy.ListingType, page _: Int64) async throws -> Lemmy.SearchResponse {
+    func search(query _: String, type _: Lemmy.SearchType, sort _: Lemmy.SortType, listingType _: Lemmy.ListingType, page _: Int64) async throws -> LemmyKit.SearchResults {
         trap()
     }
 

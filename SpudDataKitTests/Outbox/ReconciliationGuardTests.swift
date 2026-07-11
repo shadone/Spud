@@ -242,9 +242,9 @@ struct ReconciliationGuardTests {
             now: 100
         )
 
-        // getSite still lists the community as followed.
-        let follow = Lemmy.CommunityFollowerView(community: .fake, follower: .fake)
-        try await appDatabase.setFollowedCommunities(accountId: accountId, follows: [follow])
+        // getSite still lists the community as followed. `setFollowedCommunities`
+        // now takes the neutral follow set as plain `Lemmy.Community` values.
+        try await appDatabase.setFollowedCommunities(accountId: accountId, follows: [.fake])
 
         let (state, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
         #expect(state == "NotSubscribed")
@@ -301,8 +301,8 @@ struct ReconciliationGuardTests {
         let (accountId, _) = try await seedAccountAndSite(appDatabase)
         let cid = try await seedCommunity(appDatabase, accountId: accountId, subscribed: .notSubscribed)
 
-        let follow = Lemmy.CommunityFollowerView(community: .fake, follower: .fake)
-        try await appDatabase.setFollowedCommunities(accountId: accountId, follows: [follow])
+        // A community present in the neutral follow set (matching the seeded id) becomes followed.
+        try await appDatabase.setFollowedCommunities(accountId: accountId, follows: [.fake])
 
         let (_, followed) = try await readCommunitySubscribed(appDatabase, accountId: accountId, serverCommunityId: cid)
         #expect(followed == true)

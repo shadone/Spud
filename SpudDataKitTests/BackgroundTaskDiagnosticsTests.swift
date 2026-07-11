@@ -118,7 +118,7 @@ private actor StubLemmyService: LemmyServiceType {
         unreachable()
     }
 
-    func getSiteInfo() async throws -> Lemmy.GetSiteResponse {
+    func getSiteInfo() async throws -> LemmyKit.SiteInfo {
         unreachable()
     }
 
@@ -142,7 +142,7 @@ private actor StubLemmyService: LemmyServiceType {
         unreachable()
     }
 
-    func fetchPersonContent(serverPersonId _: Lemmy.PersonID, sort _: Lemmy.SortType, page _: Int64) async throws -> Lemmy.GetPersonDetailsResponse {
+    func fetchPersonContent(serverPersonId _: Lemmy.PersonID, sort _: Lemmy.SortType, page _: Int64) async throws -> PersonContentPage {
         unreachable()
     }
 
@@ -154,7 +154,7 @@ private actor StubLemmyService: LemmyServiceType {
         unreachable()
     }
 
-    func search(query _: String, type _: Lemmy.SearchType, sort _: Lemmy.SortType, listingType _: Lemmy.ListingType, page _: Int64) async throws -> Lemmy.SearchResponse {
+    func search(query _: String, type _: Lemmy.SearchType, sort _: Lemmy.SortType, listingType _: Lemmy.ListingType, page _: Int64) async throws -> LemmyKit.SearchResults {
         unreachable()
     }
 
@@ -270,7 +270,7 @@ private actor StubLemmyService: LemmyServiceType {
         unreachable()
     }
 
-    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> Lemmy.PrivateMessagesResponse {
+    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> [IncomingPrivateMessage] {
         unreachable()
     }
 
