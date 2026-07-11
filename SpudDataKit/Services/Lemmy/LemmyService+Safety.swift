@@ -223,9 +223,9 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let view: Lemmy.PostView
+        let detail: PostDetail
         do {
-            view = try await api.getPostNeutral(id: Int64(serverPostId))
+            detail = try await api.getPostNeutral(id: Int64(serverPostId))
         } catch {
             logger.error("""
                 Fetch post failed. postId=\(serverPostId, privacy: .public). \
@@ -245,7 +245,7 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        await mirrorPostInfoToAppDatabase(view: view)
+        await mirrorPostInfoToAppDatabase(view: detail.post)
 
         guard appDatabase.postRowIdSync(
             forKeychainId: accountIdentifierForLogging,
@@ -256,9 +256,11 @@ public extension LemmyService {
             )
         }
 
-        // NOTE: the neutral `getPostNeutral` returns only the post view, not the
-        // cross-posts v3's `getPost` carried, so the cross-post counter harvest is
-        // dropped. See the Phase 6 report follow-ups.
+        // Harvest the post's cross-posts (other posts linking the same url) so
+        // their counters stay fresh without a separate fetch — restoring the v3
+        // `getPost` cross-post harvest now that `getPostNeutral` carries them on
+        // `PostDetail.crossPosts`. Best-effort; a failure is logged and skipped.
+        await mirrorPostViewsToAppDatabase(views: detail.crossPosts)
     }
 
     internal func mirrorPostInfoToAppDatabase(

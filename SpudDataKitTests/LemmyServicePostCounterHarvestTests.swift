@@ -170,16 +170,11 @@ struct LemmyServicePostCounterHarvestTests {
     }
 
     /// `getPost` returns the post's `cross_posts` as full `PostView`s. Their
-    /// counters should be harvested too (in a single batched transaction), so a
-    /// cross-post seen here stays fresh without a separate fetch.
-    ///
-    /// DISABLED in the neutral migration: `getPostNeutral` returns only the main
-    /// post — cross-post harvesting has no neutral source yet (`cross_posts` is
-    /// dropped on the way through the neutral endpoint), so the cross-post
-    /// assertions can no longer hold. Re-enable once the neutral surface carries
-    /// cross-posts again (Phase 6 follow-up). The body is kept (and compiles on
-    /// the generated v3 payload) so it is ready to light back up.
-    @Test(.disabled("cross-post harvest dropped in neutral migration (getPostNeutral returns no cross_posts); Phase 6 follow-up"))
+    /// counters are harvested too (in a single batched transaction), so a
+    /// cross-post seen here stays fresh without a separate fetch. `getPostNeutral`
+    /// carries them on `PostDetail.crossPosts`, and `fetchPostInfo` batch-mirrors
+    /// them via `mirrorPostViewsToAppDatabase`.
+    @Test
     func fetchPostInfoHarvestsCrossPostCounters() async throws {
         let ids = try await seedAccountAndSite()
 
