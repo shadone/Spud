@@ -30,7 +30,7 @@ settings:
 packages:
   LemmyKit:
     url: https://github.com/shadone/LemmyKit
-    exactVersion: 0.5.2
+    exactVersion: 0.6.1
   DiasporaNodeInfo:
     url: https://github.com/shadone/DiasporaNodeInfo
     exactVersion: 1.4.0
