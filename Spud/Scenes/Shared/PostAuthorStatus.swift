@@ -112,13 +112,41 @@ struct PostAuthorStatus: Equatable {
             phrases.append(NSLocalizedString("bot account", comment: "VoiceOver: post by a bot account"))
         }
         if isBannedFromCommunity {
-            phrases.append(NSLocalizedString("banned from this community", comment: "VoiceOver: author banned from the community"))
+            phrases.append(Self.communityBanPhrase)
         }
         if isSiteBanned {
-            phrases.append(NSLocalizedString("suspended site-wide", comment: "VoiceOver: author suspended instance-wide"))
+            phrases.append(Self.siteBanPhrase)
         }
         return phrases
     }
+
+    /// The VoiceOver phrases for the low-noise post-list marker — ONLY the ban
+    /// statuses the feed surfaces (community-ban, then site-ban), never the benign
+    /// mod / admin / bot roles it stays quiet about. Empty unless
+    /// ``showsListWarningIcon``. The list folds these into the cell's spoken
+    /// subtitle so VoiceOver announces the ban without relying on the red glyph.
+    var listWarningAccessibilityPhrases: [String] {
+        guard showsListWarningIcon else { return [] }
+        var phrases: [String] = []
+        if isBannedFromCommunity {
+            phrases.append(Self.communityBanPhrase)
+        }
+        if isSiteBanned {
+            phrases.append(Self.siteBanPhrase)
+        }
+        return phrases
+    }
+
+    /// Shared spoken forms of the two ban statuses, so the full ``accessibilityPhrases``
+    /// and the list-only ``listWarningAccessibilityPhrases`` never drift apart.
+    private static let communityBanPhrase = NSLocalizedString(
+        "banned from this community",
+        comment: "VoiceOver: author banned from the community"
+    )
+    private static let siteBanPhrase = NSLocalizedString(
+        "suspended site-wide",
+        comment: "VoiceOver: author suspended instance-wide"
+    )
 }
 
 extension PostAuthorStatus {
