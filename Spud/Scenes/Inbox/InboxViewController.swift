@@ -559,8 +559,14 @@ extension InboxViewController: UITableViewDelegate {
     /// scope pages (replies/mentions are single-page). The view model guards
     /// re-entrancy / exhaustion / a missing cursor, so a repeated fire while a
     /// page is already in flight is a cheap no-op.
+    ///
+    /// Gated to USER-initiated scrolls (`isDragging`/`isDecelerating`), matching
+    /// the DM thread: a page of the flat PM list can collapse into few new
+    /// conversation rows, so without this gate a programmatic contentSize change
+    /// near the bottom could re-fire and burst-page deep into history.
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
         guard viewModel.scope == .messages else { return }
+        guard scrollView.isDragging || scrollView.isDecelerating else { return }
         let position = scrollView.contentOffset.y + scrollView.bounds.height
         let totalHeight = scrollView.contentSize.height
         guard totalHeight > 0 else { return }
