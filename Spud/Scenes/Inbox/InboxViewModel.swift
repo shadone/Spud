@@ -19,8 +19,6 @@ private let logger = Logger.app
 @MainActor
 @Observable
 final class InboxViewModel {
-    private static let pageLimit: Int64 = 50
-
     // MARK: Observable state
 
     var scope: InboxScope = .replies
@@ -32,6 +30,18 @@ final class InboxViewModel {
     private(set) var replies: [InboxReplyItem] = []
     private(set) var mentions: [InboxMentionItem] = []
     private(set) var conversations: [InboxConversation] = []
+
+    /// True while a `loadMore()` fetch for the conversation list is in flight, so
+    /// the Messages scope's view controller can show a bottom spinner and gate
+    /// re-entrancy. Only meaningful for the Messages scope (replies/mentions are
+    /// single-page).
+    private(set) var isLoadingMore = false
+
+    /// True once the account's OVERALL private-message list is exhausted (its next
+    /// cursor went nil) — there are no more conversations to page in. The view
+    /// controller stops triggering `loadMore()` once this is set. Re-seeded to
+    /// false by a pull-to-refresh (`refreshMessages()` restarts paging from page 1).
+    private(set) var reachedEnd = false
 
     /// True when the home instance's API doesn't support the inbox endpoints
     /// (Lemmy 1.0's v3 compat shim - see `InstanceCapability.inbox`). `loadAll()`
@@ -92,6 +102,15 @@ final class InboxViewModel {
     /// up duplicate observation tasks.
     @ObservationIgnored
     private var messagesObservationsStarted = false
+
+    /// Next-page cursor for the account's OVERALL private-message list — the same
+    /// list `DMThreadViewModel.loadOlder` walks (Lemmy has no dedicated
+    /// conversation-list cursor). Seeded by `refreshMessages()` from page 1 and
+    /// advanced by `loadMore()`. nil means either not yet loaded or the whole list
+    /// is exhausted (`reachedEnd` then reflects which). `@ObservationIgnored`: the
+    /// view controller binds `reachedEnd` / `isLoadingMore`, never the raw cursor.
+    @ObservationIgnored
+    private var nextPMCursor: String?
 
     // MARK: Functions
 
@@ -246,10 +265,16 @@ final class InboxViewModel {
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                // Load the first page only; load-older paging is a later slice, so
-                // the next cursor is intentionally discarded for now.
-                let (messages, _) = try await service.fetchPrivateMessages(unreadOnly: false, pageCursor: nil)
+                // Load page 1 of the overall private-message list.
+                let (messages, nextCursor) = try await service.fetchPrivateMessages(unreadOnly: false, pageCursor: nil)
                 if Task.isCancelled { return }
+                // Re-seed conversation-list pagination from the top. A refresh
+                // resets the cursor to page 1; already-persisted conversations stay
+                // (upsert-only), and a subsequent `loadMore` re-walks pages
+                // idempotently. Set before the upsert so the cursor is live the
+                // instant the list has its first page.
+                nextPMCursor = nextCursor
+                reachedEnd = (nextCursor == nil)
                 // upsert-only (a server page is partial), so nothing is deleted;
                 // the conversation observation re-emits with the imported rows.
                 try await appDatabase.upsertPrivateMessages(
@@ -267,6 +292,45 @@ final class InboxViewModel {
                     messagesPhase = .error
                 }
             }
+        }
+    }
+
+    /// Page in the next batch of conversations by advancing through the account's
+    /// OVERALL private-message list. Called by the view controller on scroll near
+    /// the bottom of the Messages list (standard infinite scroll).
+    ///
+    /// Unlike the DM thread's `loadOlder`, no bounded per-correspondent walk is
+    /// needed: the conversation list shows EVERY correspondent, so any persisted
+    /// page advances it — a single fetch + upsert per call, after which the
+    /// `observeConversations` stream re-emits with the newly-imported rows. The
+    /// store is upsert-only, so a re-fetched page is idempotent (no duplicates).
+    ///
+    /// Guarded against re-entrancy (`isLoadingMore`), an exhausted list
+    /// (`reachedEnd`), and a not-yet-seeded cursor (page 1 hasn't loaded). A failed
+    /// fetch is non-fatal — the already-shown conversations keep rendering and the
+    /// scroll affordance stays available for another attempt. `@MainActor`-correct:
+    /// only `Sendable` values (the fetched page and the cursor string) cross the
+    /// actor boundary to the Lemmy service and the database writer.
+    func loadMore() async {
+        guard isSignedIn, let accountId else { return }
+        guard !isLoadingMore, !reachedEnd, let cursor = nextPMCursor else { return }
+
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        let service = accountScope.lemmyService
+        do {
+            let (messages, nextCursor) = try await service.fetchPrivateMessages(
+                unreadOnly: false,
+                pageCursor: cursor
+            )
+            // upsert-only (a server page is partial), so nothing is deleted; the
+            // conversation observation re-emits with the imported rows.
+            try await appDatabase.upsertPrivateMessages(messages, accountId: accountId)
+            nextPMCursor = nextCursor
+            reachedEnd = (nextCursor == nil)
+        } catch {
+            logger.error("Load more conversations failed: \(String(describing: error), privacy: .public)")
         }
     }
 

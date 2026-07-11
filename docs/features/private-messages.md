@@ -1,7 +1,7 @@
 # Private messages
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** shipped — durable + optimistic sending, GRDB-backed (offline-readable) threads, load-earlier history, new-message compose, Markdown bodies
+- **Status:** shipped — durable + optimistic sending, GRDB-backed (offline-readable) threads, load-earlier history, conversation-list infinite scroll, new-message compose, Markdown bodies
 - **Related:** [Inbox](inbox.md), [Mark inbox items read](inbox-mark-read.md), [Drafts and Outbox](drafts-and-outbox.md), [Draft persistence](draft-persistence.md), [Replying](replying.md), [Background unread refresh](background-unread-refresh.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
@@ -18,6 +18,7 @@ Sending requires a signed-in account.
 ## Behavior and rules
 
 - **Conversations come from the Messages scope, backed by the local store.** The Inbox groups private messages per correspondent (newest thread first, with the correspondent's unread count); tapping a conversation row pushes its thread. The list is driven by the persisted message store, so it shows immediately from cache and refreshes from the server on appear and pull-to-refresh.
+- **The conversation list loads more on scroll.** When you scroll near the bottom of the Messages list, the next page of conversations is fetched and imported (a bottom spinner shows while it loads), so a long message history isn't capped at the first page. Because Lemmy has no dedicated conversation-list endpoint, this pages the account's **overall** private-message list — and unlike a single thread, any page advances the list (it shows every correspondent), so one fetch per scroll suffices. Loading stops once the whole list is reached. Pull-to-refresh restarts paging from the top; already-loaded conversations stay (the store is upsert-only), so nothing disappears.
 - **Start a new conversation.** A compose button in the Inbox nav bar (shown in the Messages scope when signed in) opens a "New Message" recipient picker: search for a user and tap them to open a fresh thread and start typing. (You can also still start a DM by messaging a user from their profile elsewhere in the app.)
 - **Markdown message bodies.** Message bodies render Markdown (bold, italic, links, inline code, code blocks, quotes, lists), like comments and posts; tapping a Lemmy user/community/post link inside a message opens it in-app, and other links open per your link settings. On your own (outgoing) bubble the text and links stay high-contrast on the accent fill.
 - **Inline images in a message body.** A markdown image (`![alt](url)`) in a message body renders inline as part of the bubble's text, the same as in a post or comment (see [Post detail and comments](post-detail-and-comments.md)). It loads asynchronously, and once it arrives the bubble snaps to its new height instantly, with no animation — never a zoom-in from a corner.
@@ -95,6 +96,13 @@ Sending requires a signed-in account.
 - **Then** the previous page of history is fetched and inserted above the oldest visible message
 - **And** the messages I was reading stay exactly where they were (no jump)
 - **And** the control shows a spinner while loading, and disappears once the start of the conversation is reached
+
+### Scroll to load more conversations
+
+- **Given** the Inbox Messages scope with more conversations than the first page
+- **When** I scroll near the bottom of the list
+- **Then** the next page of conversations is fetched and appended, with a bottom spinner while it loads
+- **And** loading stops once the whole message history has been paged in
 
 ### Read a thread offline
 
