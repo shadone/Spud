@@ -1,7 +1,7 @@
 # Private messages
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** shipped — durable + optimistic sending, GRDB-backed (offline-readable) threads, new-message compose, Markdown bodies
+- **Status:** shipped — durable + optimistic sending, GRDB-backed (offline-readable) threads, load-earlier history, new-message compose, Markdown bodies
 - **Related:** [Inbox](inbox.md), [Mark inbox items read](inbox-mark-read.md), [Drafts and Outbox](drafts-and-outbox.md), [Draft persistence](draft-persistence.md), [Replying](replying.md), [Background unread refresh](background-unread-refresh.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
@@ -29,7 +29,8 @@ Sending requires a signed-in account.
 - **Failure is recoverable, never lost.** A permanent failure flips the bubble to "Not delivered — tap to retry"; tapping offers Retry (re-enqueue) or Discard (drop the unsent message). The failed message is also listed in [Drafts and Outbox](drafts-and-outbox.md) for retry/discard. The text is never silently dropped.
 - **Optimistic conversation list.** Sending the first message to a correspondent makes the conversation appear in the Messages list immediately; a conversation with pending or failed sends shows a "Sending…" / "Not delivered" indicator on its row. The indicator clears and the row reconciles to the real conversation once the send confirms.
 - **Marks read on open.** Opening a thread marks every unread message *from the correspondent* read and decrements the unread badge by that many; returning to an already-open thread marks newly-arrived messages read too. Your own sent messages are never counted as unread.
-- **Auto-scroll.** The thread scrolls to the newest message when it appears and again whenever a message is sent or arrives.
+- **Auto-scroll.** The thread scrolls to the newest message when it appears and again whenever a message is sent or arrives. Loading older history is the exception: prepended older messages appear above without moving what you were reading.
+- **Load earlier messages.** When there is older history to fetch, a "Load earlier messages" control sits at the top of the thread (above the oldest message); tapping it — or pulling to the very top — loads the previous page of history and inserts it above, holding your reading position steady (no jump). While a load runs the control shows a spinner; it disappears once the start of the conversation is reached. Lemmy has no per-conversation history endpoint, so this pages the account's **overall** private-message history and persists it — the thread's own observation then surfaces this conversation's older messages. Because one overall page can contain no messages for this conversation, a single tap walks forward a bounded number of pages (up to 5) until it finds older messages for this thread, exhausts the history, or hits that cap (the control stays available so you can keep going). Loading older history never reverts an already-read message to unread.
 - **Empty thread.** A conversation with no messages shows a "No messages yet — say hello" placeholder; the compose bar is still available.
 - **Sign-in gate on send.** Sending while signed out is rejected (the service throws an authentication error); nothing is enqueued.
 - **Instance capability gate.** When the account's home instance is on Lemmy 1.0, an existing or new thread shows a gated explanatory state with its compose input disabled instead of loading or sending — see [Instance capability gating](instance-capability-gating.md).
@@ -87,6 +88,14 @@ Sending requires a signed-in account.
 - **When** the image finishes loading
 - **Then** the bubble snaps instantly to its new height, with no animation
 
+### Load earlier history
+
+- **Given** an open thread that has older messages not yet loaded
+- **When** I tap "Load earlier messages" at the top (or pull to the very top)
+- **Then** the previous page of history is fetched and inserted above the oldest visible message
+- **And** the messages I was reading stay exactly where they were (no jump)
+- **And** the control shows a spinner while loading, and disappears once the start of the conversation is reached
+
 ### Read a thread offline
 
 - **Given** I have previously loaded a conversation
@@ -101,7 +110,7 @@ Sending requires a signed-in account.
 
 ## Not supported / out of scope
 
-- Older history is not paginated; the thread shows what has been imported from the server's message pages plus anything sent locally.
+- Older history paginates through the account's **overall** private-message list, because Lemmy exposes no per-conversation history endpoint: on v3 it walks the flat all-conversations list with a synthesized cursor; on v4 it walks the native unified-notification cursor. That v4 notification cursor carries **incoming** history only, so your OWN older sent messages authored on another device are not recoverable through Load-earlier — only messages already imported (or sent from this device) show for the outgoing side. Pull-to-refresh re-seeds paging from the top of the list, so after a refresh a subsequent Load-earlier re-walks already-seen pages (idempotently — no duplicates) before reaching new history.
 - Messages cannot be edited, deleted, or reported from the thread, and there are no read receipts or typing indicators.
 - Message bodies render Markdown but do not support attachments or inline media uploads (a Markdown image link in a body still renders, but there's no attach-from-DM flow).
 - Marking conversations read happens by opening their thread, not from the Messages list — see [Mark inbox items read](inbox-mark-read.md).

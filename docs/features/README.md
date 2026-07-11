@@ -91,7 +91,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Sign-in gate on write actions](sign-in-gate.md) | `iphone`, `ipad` | shipped |
 | [Inbox](inbox.md) | `iphone`, `ipad` | shipped — backend-neutral (v3 per-kind endpoints or the native v4 unified notification inbox); no longer gated on Lemmy 1.0 |
 | [Marking inbox items read](inbox-mark-read.md) | `iphone`, `ipad` | shipped |
-| [Private messages](private-messages.md) | `iphone`, `ipad` | shipped — GRDB-backed (offline-readable) threads + optimistic, durable sending (instant bubble, background retry, failure recovery via Drafts & Outbox); new-message compose (recipient picker) + Markdown bodies |
+| [Private messages](private-messages.md) | `iphone`, `ipad` | shipped — GRDB-backed (offline-readable) threads + optimistic, durable sending (instant bubble, background retry, failure recovery via Drafts & Outbox); load-earlier history (position-preserving prepend); new-message compose (recipient picker) + Markdown bodies |
 | [Background unread refresh](background-unread-refresh.md) | `iphone`, `ipad` | shipped — foreground scene refresh (unread badge) + periodic scheduler site-info refresh with persisted exponential back-off and permanent give-up after N=5 consecutive permanent failures |
 | [Account provenance and site-info refresh](account-provenance-and-site-refresh.md) | `iphone`, `ipad` | shipped — pending release — ephemeral browse accounts excluded from the recurring sweep; one on-demand site-info fetch on first open; persisted per-site give-up after N=5 permanent failures; self-heals on a successful visit |
 | [New post](new-post.md) | `iphone`, `ipad` | shipped; composer sheet uses proper medium/large detents on iPad |
@@ -181,7 +181,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 **Inbox & messaging**
 - [x] Inbox (replies / mentions / messages) + unread badge — backend-neutral: reads the v3 per-kind endpoints or the native v4 unified notification inbox, identical UI either way; no longer gated on Lemmy 1.0
 - [x] Mark read / mark-all-read
-- [x] Private message threads — GRDB-backed (offline-readable), with optimistic + durable sending (instant "Sending…" bubble, multiple in flight, background retry, failure recovery in Drafts & Outbox), per-correspondent draft autosave, optimistic conversation-list rows, new-message compose (recipient picker), and Markdown-rendered message bodies
+- [x] Private message threads — GRDB-backed (offline-readable), with optimistic + durable sending (instant "Sending…" bubble, multiple in flight, background retry, failure recovery in Drafts & Outbox), load-earlier history (a top control that pages the overall PM list and prepends older messages without moving the reading position), per-correspondent draft autosave, optimistic conversation-list rows, new-message compose (recipient picker), and Markdown-rendered message bodies
 - [x] Background unread-count refresh (foreground scene refresh; not a `BGAppRefreshTask`) + periodic scheduler site-info refresh with persisted per-site exponential back-off (≈5 min doubling → ~2 h cap) and permanent give-up after N=5 consecutive permanent failures (account-provenance-and-site-refresh.md, background-unread-refresh.md)
 
 **Content creation**

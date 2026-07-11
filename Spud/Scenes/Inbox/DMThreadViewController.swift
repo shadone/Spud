@@ -60,6 +60,14 @@ final class DMThreadViewController: UIViewController {
 
     private var bubblesObservationTask: Task<Void, Never>?
 
+    /// A stable scroll position: a specific message bubble and how far its top
+    /// sits below the table's top content edge. Captured before older rows are
+    /// prepended and restored after, so the visible messages don't jump.
+    private struct ScrollAnchor {
+        let itemId: DMBubbleItem.ID
+        let distanceFromTop: CGFloat
+    }
+
     /// Tracks whether `viewDidAppear` has fired at least once. The FIRST appear is
     /// a no-op for mark-read because `start()` (in `viewDidLoad`) already marks the
     /// thread read via `refresh(markRead:)`; subsequent appears (returning to an
@@ -84,6 +92,10 @@ final class DMThreadViewController: UIViewController {
     private lazy var dataSource: UITableViewDiffableDataSource<Section, DMBubbleItem> = makeDataSource()
 
     private lazy var inputBar = DMInputBar()
+
+    /// Top-of-thread "Load earlier messages" control, installed as the table
+    /// header while there is older history to fetch (see `updateLoadEarlierHeader`).
+    private lazy var loadEarlierHeader = DMLoadEarlierHeaderView()
 
     // MARK: Functions
 
@@ -146,6 +158,13 @@ final class DMThreadViewController: UIViewController {
             self?.viewModel.autosaveDraft(text)
         }
 
+        loadEarlierHeader.onTap = { [weak self] in
+            self?.loadOlder()
+        }
+        // The delegate is only for `scrollViewDidScroll` (scroll-to-top load); row
+        // sizing stays automatic (no `heightForRow`).
+        tableView.delegate = self
+
         view.addSubview(tableView)
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
@@ -190,10 +209,64 @@ final class DMThreadViewController: UIViewController {
         bubblesObservationTask = Task { @MainActor [weak self] in
             for await _ in ObservationStream.values(of: { viewModel.bubbles }) {
                 if Task.isCancelled { break }
-                self?.applySnapshot(animated: true)
-                self?.scrollToBottom(animated: true)
+                self?.handleBubblesChanged()
             }
         }
+    }
+
+    /// Apply the latest bubbles. A change that PREPENDS older history at the top
+    /// (load-earlier) holds the reading position steady and applies without
+    /// animation; every other change (initial load, a new incoming/optimistic
+    /// message appended at the bottom) animates and scrolls to the bottom as
+    /// before. The prepend-vs-append distinction is structural (see `isPrepend`),
+    /// so no cross-call mode flag is needed and a late observation emit can't be
+    /// misclassified.
+    private func handleBubblesChanged() {
+        let oldItems = dataSource.snapshot().itemIdentifiers
+        let newItems = viewModel.bubbles
+        let prepend = isPrepend(old: oldItems, new: newItems)
+
+        // Reconcile the header's presence FIRST so its height is settled before we
+        // capture/restore the scroll anchor — removing it after an anchor restore
+        // would shift content by the header's height.
+        updateLoadEarlierHeader()
+
+        if prepend {
+            let anchor = captureTopAnchor()
+            applySnapshot(animated: false)
+            if let anchor {
+                restoreScrollAnchor(anchor)
+            }
+        } else {
+            applySnapshot(animated: true)
+            scrollToBottom(animated: true)
+        }
+    }
+
+    /// True when `new` inserted at least one item ABOVE the previous first item —
+    /// i.e. older history was prepended — as opposed to a new message appended at
+    /// the bottom. The old top bubble's id is stable (a server message id doesn't
+    /// change, and confirmations happen at the bottom), so its new index equals
+    /// the number of prepended rows.
+    private func isPrepend(old: [DMBubbleItem], new: [DMBubbleItem]) -> Bool {
+        // Only a list already anchored by CONFIRMED history can be prepended. An
+        // all-optimistic old list (a fast send before the first page loads) is the
+        // pre-history state — its confirmed load must scroll to the bottom, not
+        // anchor — so it is never treated as a prepend.
+        guard let oldTop = old.first, !oldTop.isOptimistic,
+              let newIndex = new.firstIndex(where: { $0.id == oldTop.id })
+        else {
+            return false
+        }
+        return newIndex > 0
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        // The table header (a plain UIView) doesn't self-size; measure it once the
+        // width is known and whenever it changes (rotation, split-view resize,
+        // Dynamic Type). Guarded on an actual size delta so it never loops.
+        sizeTableHeaderIfNeeded()
     }
 
     /// Restore the per-recipient draft into the input bar on open, unless the
@@ -334,6 +407,136 @@ final class DMThreadViewController: UIViewController {
         guard count > 0 else { return }
         let indexPath = IndexPath(row: count - 1, section: 0)
         tableView.scrollToRow(at: indexPath, at: .bottom, animated: animated)
+    }
+
+    // MARK: - Load earlier
+
+    /// Kick off a load of older history. Triggered by the header button and by
+    /// scrolling to the very top. Re-entrancy and the exhausted-history case are
+    /// handled by the view model; the spinner is shown immediately so the tap
+    /// feels responsive even before the async load sets `isLoadingOlder`.
+    private func loadOlder() {
+        guard !viewModel.isLoadingOlder, !viewModel.reachedHistoryStart else { return }
+        loadEarlierHeader.setLoading(true)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await viewModel.loadOlder()
+            // The prepended rows arrive via the bubbles observation; reconcile the
+            // header here too for the case where the load persisted nothing new
+            // (no emit) — e.g. the cap was hit on already-seen pages.
+            updateLoadEarlierHeader()
+        }
+    }
+
+    /// Install / update / remove the "Load earlier" table header. Shown only when
+    /// the thread has messages AND the overall history isn't exhausted; hidden
+    /// once `reachedHistoryStart`. Toggles button↔spinner without changing height.
+    private func updateLoadEarlierHeader() {
+        // Show only once there is CONFIRMED history to page back through — never
+        // above a lone optimistic (just-sent) bubble whose thread hasn't loaded its
+        // first page yet: there is no cursor to page with, and it would also make
+        // the first confirmed load look like a prepend (see `isPrepend`).
+        let hasConfirmedHistory = viewModel.bubbles.contains { !$0.isOptimistic }
+        let shouldShow = hasConfirmedHistory && !viewModel.reachedHistoryStart
+        guard shouldShow else {
+            removeLoadEarlierHeaderPreservingScroll()
+            return
+        }
+        loadEarlierHeader.setLoading(viewModel.isLoadingOlder)
+        if tableView.tableHeaderView !== loadEarlierHeader {
+            tableView.tableHeaderView = loadEarlierHeader
+        }
+        sizeTableHeaderIfNeeded()
+    }
+
+    /// Remove the "Load earlier" header without jumping the visible messages. The
+    /// header sits at the very top, so removing it shifts all content up by its
+    /// height; counter that by pulling the content offset up the same amount
+    /// (clamped to the top). This keeps the reading position steady whether the
+    /// header is removed on its own — the final page yielded nothing for this
+    /// thread, so no row prepend follows and no observation emit fires — or just
+    /// before a prepend in `handleBubblesChanged`.
+    private func removeLoadEarlierHeaderPreservingScroll() {
+        guard let header = tableView.tableHeaderView else { return }
+        let removedHeight = header.frame.height
+        tableView.tableHeaderView = nil
+        let minY = -tableView.adjustedContentInset.top
+        tableView.contentOffset.y = max(tableView.contentOffset.y - removedHeight, minY)
+    }
+
+    /// A `tableHeaderView` (a plain UIView) must be given an explicit frame — it
+    /// does not self-size from Auto Layout. Measure it against the table width and
+    /// reassign only on an actual size change, so this is safe to call from
+    /// `viewDidLayoutSubviews` without looping (and never reassigns mid-prepend,
+    /// where the header height is constant).
+    private func sizeTableHeaderIfNeeded() {
+        guard let header = tableView.tableHeaderView else { return }
+        let width = tableView.bounds.width
+        guard width > 0 else { return }
+        let target = header.systemLayoutSizeFitting(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        if abs(header.frame.height - target.height) > 0.5 || header.frame.width != width {
+            header.frame = CGRect(x: 0, y: 0, width: width, height: target.height)
+            // Reassigning applies the new header height to the table's layout.
+            tableView.tableHeaderView = header
+        }
+    }
+
+    /// Capture the top-most visible message and its on-screen offset, so the same
+    /// message can be pinned to the same position after older rows prepend above.
+    private func captureTopAnchor() -> ScrollAnchor? {
+        guard let indexPath = tableView.indexPathsForVisibleRows?.min(),
+              let item = dataSource.itemIdentifier(for: indexPath)
+        else {
+            return nil
+        }
+        let rowRect = tableView.rectForRow(at: indexPath)
+        let distanceFromTop = rowRect.minY - tableView.contentOffset.y
+        return ScrollAnchor(itemId: item.id, distanceFromTop: distanceFromTop)
+    }
+
+    /// Restore a previously-captured anchor after a non-animated prepend: pin the
+    /// anchored message back to its original on-screen offset so the newly-inserted
+    /// older rows appear above without moving what the user was reading.
+    private func restoreScrollAnchor(_ anchor: ScrollAnchor) {
+        // Force the just-applied snapshot to lay out so `rectForRow` reflects the
+        // new geometry (older rows now occupy space above the anchored row).
+        tableView.layoutIfNeeded()
+        guard let item = viewModel.bubbles.first(where: { $0.id == anchor.itemId }),
+              let indexPath = dataSource.indexPath(for: item)
+        else {
+            return
+        }
+        let rowRect = tableView.rectForRow(at: indexPath)
+        let targetY = max(rowRect.minY - anchor.distanceFromTop, -tableView.adjustedContentInset.top)
+        tableView.setContentOffset(CGPoint(x: tableView.contentOffset.x, y: targetY), animated: false)
+    }
+}
+
+// MARK: - UITableViewDelegate
+
+extension DMThreadViewController: UITableViewDelegate {
+    /// Trigger a load when the user pulls near the very top (older history is
+    /// above). Gated to USER-initiated scrolls (`isDragging`/`isDecelerating`) so
+    /// the programmatic anchor restore in `restoreScrollAnchor` never re-triggers
+    /// a load, and to a loaded, non-empty, not-yet-exhausted thread. `loadOlder`'s
+    /// own guards make repeat calls during a load inert.
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard scrollView.isDragging || scrollView.isDecelerating else { return }
+        guard viewModel.phase == .loaded,
+              !viewModel.bubbles.isEmpty,
+              !viewModel.isLoadingOlder,
+              !viewModel.reachedHistoryStart
+        else {
+            return
+        }
+        let topThreshold: CGFloat = 80
+        if scrollView.contentOffset.y <= -scrollView.adjustedContentInset.top + topThreshold {
+            loadOlder()
+        }
     }
 }
 
