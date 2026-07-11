@@ -182,10 +182,13 @@ public extension AppDatabase {
         record.urlEmbedTitle = post.embedTitle
         record.urlEmbedDescription = post.embedDescription
         record.thumbnailUrl = post.thumbnailUrl
-        // The neutral surface does not carry image pixel dimensions
-        // (v3's `PostView.image_details` has no neutral equivalent yet), so
-        // `imageWidth`/`imageHeight` are left as-is: preserved on an update,
-        // nil on a fresh insert. See the Phase 6 report follow-ups.
+        // Pixel dimensions of the post's image, so the post-detail header can
+        // reserve the exact aspect ratio before the image loads (no row reflow
+        // when it appears). Coalesce rather than assign: a later PostView that
+        // omits dimensions (a backend not carrying `image_details`) must not
+        // blank a previously-known size back to nil.
+        record.imageWidth = post.imageWidth ?? record.imageWidth
+        record.imageHeight = post.imageHeight ?? record.imageHeight
         record.altText = post.altText
         record.originalPostUrl = post.apId
         record.published = post.publishedAt

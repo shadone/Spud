@@ -17,7 +17,9 @@ extension Lemmy.Post {
         nsfw: Bool = false,
         id: Lemmy.PostID = 1,
         score: Int64 = 1,
-        comments: Int64 = 0
+        comments: Int64 = 0,
+        imageWidth: Int? = nil,
+        imageHeight: Int? = nil
     ) -> Lemmy.Post {
         .init(
             id: Int64(id),
@@ -28,6 +30,8 @@ extension Lemmy.Post {
             embedDescription: nil,
             thumbnailUrl: nil,
             altText: nil,
+            imageWidth: imageWidth,
+            imageHeight: imageHeight,
             creatorId: creator.id,
             communityId: community.id,
             apId: "https://example.com/post/\(id)",
