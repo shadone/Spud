@@ -36,9 +36,6 @@ struct PostAuthorStatus: Equatable {
     /// The author is banned site-wide — "suspended" — on their home instance
     /// (`Person.banned`). Distinct from ``isBannedFromCommunity``.
     let isSiteBanned: Bool
-    /// Expiry of a temporary site-wide ban, when known (`Person.ban_expires`).
-    /// nil for a permanent ban or an unbanned author.
-    let banExpires: Date?
     /// The author is banned from this specific community
     /// (`PostView.creator_banned_from_community`). Distinct from ``isSiteBanned``.
     let isBannedFromCommunity: Bool
@@ -86,14 +83,6 @@ struct PostAuthorStatus: Equatable {
     /// Tint for the post-list warning marker.
     var listWarningTint: UIColor {
         .systemRed
-    }
-
-    /// A human-readable suspension status ("Banned" / "Banned · until <date>")
-    /// for a render surface to show alongside the SUSPENDED pill, or nil when the
-    /// author is not site-banned. Backed by the shared ``PersonFormatter/banStatus(isBanned:banExpires:)``,
-    /// the same helper the profile header uses.
-    var suspensionStatusText: String? {
-        PersonFormatter.banStatus(isBanned: isSiteBanned, banExpires: banExpires)
     }
 
     /// The spoken (VoiceOver) forms of the author's statuses, in the same order
@@ -157,7 +146,6 @@ extension PostAuthorStatus {
             isAdmin: row.isCreatorAdmin,
             isBot: row.isCreatorBot,
             isSiteBanned: row.isCreatorSiteBanned,
-            banExpires: row.creatorBanExpires,
             isBannedFromCommunity: row.isCreatorBannedFromCommunity,
             isDeleted: row.isCreatorAccountDeleted
         )
@@ -170,7 +158,6 @@ extension PostAuthorStatus {
             isAdmin: header.isCreatorAdmin,
             isBot: header.isCreatorBot,
             isSiteBanned: header.isCreatorSiteBanned,
-            banExpires: header.creatorBanExpires,
             isBannedFromCommunity: header.isCreatorBannedFromCommunity,
             isDeleted: header.isCreatorAccountDeleted
         )

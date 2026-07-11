@@ -22,7 +22,6 @@ struct PostDetailHeaderAuthorStatusTests {
         isCreatorAdmin: Bool = false,
         isCreatorBannedFromCommunity: Bool = false,
         isCreatorSiteBanned: Bool = false,
-        creatorBanExpires: Date? = nil,
         isCreatorBot: Bool = false,
         isCreatorAccountDeleted: Bool = false
     ) -> PostDetailHeaderViewModel {
@@ -60,7 +59,6 @@ struct PostDetailHeaderAuthorStatusTests {
             isCreatorAdmin: isCreatorAdmin,
             isCreatorBannedFromCommunity: isCreatorBannedFromCommunity,
             isCreatorSiteBanned: isCreatorSiteBanned,
-            creatorBanExpires: creatorBanExpires,
             isCreatorBot: isCreatorBot,
             isCreatorAccountDeleted: isCreatorAccountDeleted,
             published: Date(timeIntervalSince1970: 0)

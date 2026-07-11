@@ -495,7 +495,6 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
             isCreatorAdmin: isCreatorAdmin,
             isCreatorBannedFromCommunity: isCreatorBannedFromCommunity,
             isCreatorSiteBanned: isCreatorSiteBanned,
-            creatorBanExpires: nil,
             isCreatorBot: false,
             isCreatorAccountDeleted: isCreatorAccountDeleted,
             published: Date(timeIntervalSinceNow: -5 * 3600)

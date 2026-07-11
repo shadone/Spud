@@ -77,9 +77,6 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
     public let isCreatorAdmin: Bool
     public let isCreatorBannedFromCommunity: Bool
     public let isCreatorSiteBanned: Bool
-    /// The creator's instance-ban expiry (`person.banExpires`), when the ban is
-    /// temporary. nil for a permanent ban or an unbanned author.
-    public let creatorBanExpires: Date?
     public let isCreatorBot: Bool
     public let isCreatorAccountDeleted: Bool
     public let published: Date
@@ -117,7 +114,6 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
         isCreatorAdmin: Bool = false,
         isCreatorBannedFromCommunity: Bool = false,
         isCreatorSiteBanned: Bool = false,
-        creatorBanExpires: Date? = nil,
         isCreatorBot: Bool = false,
         isCreatorAccountDeleted: Bool = false,
         published: Date
@@ -154,7 +150,6 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
         self.isCreatorAdmin = isCreatorAdmin
         self.isCreatorBannedFromCommunity = isCreatorBannedFromCommunity
         self.isCreatorSiteBanned = isCreatorSiteBanned
-        self.creatorBanExpires = creatorBanExpires
         self.isCreatorBot = isCreatorBot
         self.isCreatorAccountDeleted = isCreatorAccountDeleted
         self.published = published
@@ -219,7 +214,6 @@ public extension AppDatabase {
                             creator.name           AS creatorName,
                             creator.actorId        AS creatorActorId,
                             creator.isBanned       AS isCreatorSiteBanned,
-                            creator.banExpires     AS creatorBanExpires,
                             creator.isBotAccount   AS isCreatorBot,
                             creator.isDeleted      AS isCreatorAccountDeleted
                         FROM post
@@ -276,7 +270,6 @@ public extension AppDatabase {
                         isCreatorAdmin: row["isCreatorAdmin"],
                         isCreatorBannedFromCommunity: row["isCreatorBannedFromCommunity"],
                         isCreatorSiteBanned: row["isCreatorSiteBanned"],
-                        creatorBanExpires: row["creatorBanExpires"],
                         isCreatorBot: row["isCreatorBot"],
                         isCreatorAccountDeleted: row["isCreatorAccountDeleted"],
                         published: row["published"]

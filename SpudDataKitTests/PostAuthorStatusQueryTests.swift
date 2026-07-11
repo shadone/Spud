@@ -11,11 +11,9 @@ import Testing
 
 /// Verifies the two post read queries surface the author's status: the per-post
 /// creator context (moderator / admin / banned-from-community) from the post row
-/// and the site-ban / ban-expiry / bot / deleted flags from the joined creator
-/// `person` row — in both `PostListRow` (feed) and `PostDetailHeaderRow` (detail).
+/// and the site-ban / bot / deleted flags from the joined creator `person` row —
+/// in both `PostListRow` (feed) and `PostDetailHeaderRow` (detail).
 struct PostAuthorStatusQueryTests {
-    private let banExpiry = Date(timeIntervalSince1970: 2_000_000_000)
-
     private func seedAccount(_ appDatabase: AppDatabase) async throws -> (accountId: Int64, siteId: Int64) {
         try await appDatabase.writer.write { db in
             var instance = InstanceRecord(actorId: "https://example.com")
@@ -32,12 +30,11 @@ struct PostAuthorStatusQueryTests {
         }
     }
 
-    /// A creator that is site-banned (temporary), a bot, and deleted, whose post
-    /// carries all three per-community context flags.
+    /// A creator that is site-banned, a bot, and deleted, whose post carries all
+    /// three per-community context flags.
     private func makeView() -> Components.Schemas.PostView {
         var creator = Components.Schemas.Person.fake
         creator.banned = true
-        creator.ban_expires = banExpiry
         creator.bot_account = true
         creator.deleted = true
 
@@ -69,7 +66,6 @@ struct PostAuthorStatusQueryTests {
         #expect(header.isCreatorAdmin == true)
         #expect(header.isCreatorBannedFromCommunity == true)
         #expect(header.isCreatorSiteBanned == true)
-        #expect(header.creatorBanExpires == banExpiry)
         #expect(header.isCreatorBot == true)
         #expect(header.isCreatorAccountDeleted == true)
     }
@@ -111,7 +107,6 @@ struct PostAuthorStatusQueryTests {
         #expect(row.isCreatorAdmin == true)
         #expect(row.isCreatorBannedFromCommunity == true)
         #expect(row.isCreatorSiteBanned == true)
-        #expect(row.creatorBanExpires == banExpiry)
         #expect(row.isCreatorBot == true)
         #expect(row.isCreatorAccountDeleted == true)
     }

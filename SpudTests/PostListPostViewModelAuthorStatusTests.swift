@@ -27,7 +27,6 @@ struct PostListPostViewModelAuthorStatusTests {
         isCreatorAdmin: Bool = false,
         isCreatorBannedFromCommunity: Bool = false,
         isCreatorSiteBanned: Bool = false,
-        creatorBanExpires: Date? = nil,
         isCreatorBot: Bool = false
     ) -> PostListPostViewModel {
         let row = PostListRow(
@@ -62,7 +61,6 @@ struct PostListPostViewModelAuthorStatusTests {
             isCreatorAdmin: isCreatorAdmin,
             isCreatorBannedFromCommunity: isCreatorBannedFromCommunity,
             isCreatorSiteBanned: isCreatorSiteBanned,
-            creatorBanExpires: creatorBanExpires,
             isCreatorBot: isCreatorBot,
             isCreatorAccountDeleted: false,
             published: Date(timeIntervalSince1970: 0)

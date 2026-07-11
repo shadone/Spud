@@ -26,7 +26,6 @@ struct PostAuthorStatusTests {
             isAdmin: true,
             isBot: true,
             isSiteBanned: true,
-            banExpires: nil,
             isBannedFromCommunity: true,
             isDeleted: true
         )
@@ -93,7 +92,7 @@ struct PostAuthorStatusTests {
     func badges_emptyWhenNoStatus() {
         let status = PostAuthorStatus(
             isModerator: false, isAdmin: false, isBot: false,
-            isSiteBanned: false, banExpires: nil, isBannedFromCommunity: false, isDeleted: false
+            isSiteBanned: false, isBannedFromCommunity: false, isDeleted: false
         )
         #expect(status.badges.isEmpty)
     }
@@ -139,23 +138,8 @@ struct PostAuthorStatusTests {
         #expect(status().isDeleted == false)
         #expect(PostAuthorStatus(
             isModerator: false, isAdmin: false, isBot: false,
-            isSiteBanned: false, banExpires: nil, isBannedFromCommunity: false, isDeleted: true
+            isSiteBanned: false, isBannedFromCommunity: false, isDeleted: true
         ).isDeleted == true)
-    }
-
-    // MARK: - Suspension status text (PersonFormatter.banStatus)
-
-    @Test
-    func suspensionStatusText_usesBanStatusFormatter() {
-        #expect(status().suspensionStatusText == nil)
-        #expect(status(siteBanned: true).suspensionStatusText == PersonFormatter.banStatus(isBanned: true, banExpires: nil))
-
-        let expiry = Date(timeIntervalSince1970: 2_000_000_000)
-        let temp = PostAuthorStatus(
-            isModerator: false, isAdmin: false, isBot: false,
-            isSiteBanned: true, banExpires: expiry, isBannedFromCommunity: false, isDeleted: false
-        )
-        #expect(temp.suspensionStatusText == PersonFormatter.banStatus(isBanned: true, banExpires: expiry))
     }
 
     // MARK: - Accessibility phrases
@@ -176,51 +160,35 @@ struct PostAuthorStatusTests {
 
     @Test
     func constructibleFromPostListRow() {
-        let expiry = Date(timeIntervalSince1970: 2_000_000_000)
         let row = makePostListRow(
             isCreatorModerator: true,
             isCreatorAdmin: true,
             isCreatorBannedFromCommunity: true,
             isCreatorSiteBanned: true,
-            creatorBanExpires: expiry,
             isCreatorBot: true,
             isCreatorAccountDeleted: true
         )
         let status = PostAuthorStatus(row: row)
-        #expect(status == fullStatusWithExpiry(expiry))
+        #expect(status == fullStatus())
         #expect(status.badges == fullStatus().badges)
     }
 
     @Test
     func constructibleFromPostDetailHeaderRow() {
-        let expiry = Date(timeIntervalSince1970: 2_000_000_000)
         let header = makeHeaderRow(
             isCreatorModerator: true,
             isCreatorAdmin: true,
             isCreatorBannedFromCommunity: true,
             isCreatorSiteBanned: true,
-            creatorBanExpires: expiry,
             isCreatorBot: true,
             isCreatorAccountDeleted: true
         )
         let status = PostAuthorStatus(header: header)
-        #expect(status == fullStatusWithExpiry(expiry))
+        #expect(status == fullStatus())
         #expect(status.badges == fullStatus().badges)
     }
 
     // MARK: - Builders
-
-    private func fullStatusWithExpiry(_ expiry: Date) -> PostAuthorStatus {
-        PostAuthorStatus(
-            isModerator: true,
-            isAdmin: true,
-            isBot: true,
-            isSiteBanned: true,
-            banExpires: expiry,
-            isBannedFromCommunity: true,
-            isDeleted: true
-        )
-    }
 
     private func status(
         mod: Bool = false,
@@ -234,7 +202,6 @@ struct PostAuthorStatusTests {
             isAdmin: admin,
             isBot: bot,
             isSiteBanned: siteBanned,
-            banExpires: nil,
             isBannedFromCommunity: communityBanned,
             isDeleted: false
         )
@@ -245,7 +212,6 @@ struct PostAuthorStatusTests {
         isCreatorAdmin: Bool,
         isCreatorBannedFromCommunity: Bool,
         isCreatorSiteBanned: Bool,
-        creatorBanExpires: Date?,
         isCreatorBot: Bool,
         isCreatorAccountDeleted: Bool
     ) -> PostListRow {
@@ -281,7 +247,6 @@ struct PostAuthorStatusTests {
             isCreatorAdmin: isCreatorAdmin,
             isCreatorBannedFromCommunity: isCreatorBannedFromCommunity,
             isCreatorSiteBanned: isCreatorSiteBanned,
-            creatorBanExpires: creatorBanExpires,
             isCreatorBot: isCreatorBot,
             isCreatorAccountDeleted: isCreatorAccountDeleted,
             published: Date()
@@ -293,7 +258,6 @@ struct PostAuthorStatusTests {
         isCreatorAdmin: Bool,
         isCreatorBannedFromCommunity: Bool,
         isCreatorSiteBanned: Bool,
-        creatorBanExpires: Date?,
         isCreatorBot: Bool,
         isCreatorAccountDeleted: Bool
     ) -> PostDetailHeaderRow {
@@ -330,7 +294,6 @@ struct PostAuthorStatusTests {
             isCreatorAdmin: isCreatorAdmin,
             isCreatorBannedFromCommunity: isCreatorBannedFromCommunity,
             isCreatorSiteBanned: isCreatorSiteBanned,
-            creatorBanExpires: creatorBanExpires,
             isCreatorBot: isCreatorBot,
             isCreatorAccountDeleted: isCreatorAccountDeleted,
             published: Date()
