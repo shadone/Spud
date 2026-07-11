@@ -12,7 +12,7 @@ Subscribe to a community to follow it, or unsubscribe to stop. The same toggle i
 
 - **Instant everywhere, via the durable outbox.** Tapping Subscribe or Unsubscribe writes the community's subscribed state and your followed-communities membership to the local database synchronously, in one transaction, before any network call. Every surface reading that state — the Community screen header, the Subscribed section of the [Communities tab](subscriptions-sidebar.md), and any other open row for the same community — reflects the change at once, the same instant the tap lands.
 - **Pending is the honest optimistic state; Requested is the confirmed "awaiting approval" answer.** The moment you tap Subscribe, the button reads Pending: that's the truthful "not sent yet" state, not a guess at the outcome. Once the background send completes, the server's actual answer replaces it — Subscribed for a community anyone can join, or **Requested** for a Lemmy 1.0 community that gates joining behind moderator approval and hasn't decided yet. So Pending always means "queued, not sent"; Requested (an hourglass) means "sent, and the community's moderators are yet to approve your request". These are stored as distinct states, so the app can tell "queued" from "awaiting approval" rather than showing the same Pending for both. (Against an older v3 server, which cannot distinguish the two, an approval-gated request still surfaces as Pending.)
-- **A denied request re-presents as Subscribe.** If a community's moderators deny your follow request (a Lemmy 1.0 outcome), the state is recorded distinctly as denied, and the header button returns to **Subscribe** so you can request again. (A dedicated "request was denied" affordance — a hint line or different tint — is not yet built; the distinct state is carried through the data layer so it can be surfaced later.)
+- **A denied request keeps Subscribe as the action, with a "Request declined" hint.** If a community's moderators deny your follow request (a Lemmy 1.0 outcome), the state is recorded distinctly as denied. The header button's primary action stays **Subscribe** so you can request again, but it carries a secondary **Request declined** line (and a matching VoiceOver label, "Subscribe. Your previous request was declined.") so the prior rejection is visible rather than looking identical to a community you never subscribed to.
 - **Background send, with retry and rollback.** The change is sent in the background with automatic retry and backoff — it works offline, since the change is queued durably and survives an app relaunch before it sends. If the server permanently rejects it, the community and your subscriptions revert to their pre-tap state, and the shared "Couldn't update subscription" toast appears — the same failure toast used for a failed vote, save, or hide.
 - **A server refresh in flight doesn't clobber an in-flight subscribe.** While a subscribe or unsubscribe is queued or sending, a server-driven refresh of that community (reopening its page, a full-account refresh) does not overwrite the optimistic state in either direction: an optimistic subscribe not yet reflected in the account's server-side follow list survives, and an optimistic unsubscribe still present there is not resurrected. The refresh's normal effect on that community resumes once the send's own authoritative answer lands.
 - **Sign-in gate.** Subscribing is gated on being signed in. A signed-out attempt fires a warning haptic and shows a "Sign in to subscribe" alert before anything is written; the service also rejects a signed-out subscribe.
@@ -69,11 +69,12 @@ Subscribe to a community to follow it, or unsubscribe to stop. The same toggle i
 - **Then** the Community screen header shows Requested (an hourglass) — the server's own confirmed "awaiting approval" answer, distinct from the momentary just-tapped Pending
 - **And** against an older v3 server that cannot distinguish the two, the header shows Pending instead
 
-### A denied follow request returns to Subscribe
+### A denied follow request shows Subscribe with a declined hint
 
 - **Given** a community whose moderators denied my follow request
 - **When** the Community screen reflects the server's answer
-- **Then** the header button reads Subscribe again, so I can request to join once more
+- **Then** the header button's primary action reads Subscribe again, so I can request to join once more
+- **And** it shows a "Request declined" secondary line (conveyed to VoiceOver as "Subscribe. Your previous request was declined.") so the prior rejection is not hidden
 
 ## Not supported / out of scope
 

@@ -355,17 +355,36 @@ final class CommunityHeaderView: UIView {
 
     private func configureSubscribeButton(subscribed: CommunitySubscribedState) {
         var config = subscribeButton.configuration ?? .filled()
+        // Default: no secondary line. Only `.denied` sets one, and the config is
+        // reused across reconfigures, so the subtitle must be cleared for every
+        // other state (otherwise a stale "Request declined" would linger).
+        config.subtitle = nil
+        // A bespoke VoiceOver label is set only where the visible text alone isn't
+        // enough (`.denied`); nil lets UIKit derive it from the title/subtitle.
+        var accessibilityLabel: String?
+
         switch subscribed {
-        case .notSubscribed, .denied:
-            // A denied request presents like "not subscribed": the user can tap
-            // to request again. (A distinct "request was denied" treatment — a
-            // hint line or differing tint — is a deferred UI-polish item; the
-            // data layer already carries the `.denied` state distinctly.)
+        case .notSubscribed:
             config.title = NSLocalizedString("Subscribe", comment: "Community subscribe button")
             config.image = UIImage(systemName: "plus")
             config.baseBackgroundColor = .systemBlue
             config.baseForegroundColor = .white
             subscribeButton.isEnabled = true
+        case .denied:
+            // v4: the moderators denied the follow request. The primary action stays
+            // Subscribe so the user can re-request, but a "Request declined" subtitle
+            // and an explicit VoiceOver label distinguish it from a community never
+            // subscribed to — the prior rejection isn't silently hidden.
+            config.title = NSLocalizedString("Subscribe", comment: "Community subscribe button")
+            config.subtitle = NSLocalizedString("Request declined", comment: "Community subscribe button secondary line when the moderators denied a prior follow request")
+            config.image = UIImage(systemName: "plus")
+            config.baseBackgroundColor = .systemBlue
+            config.baseForegroundColor = .white
+            subscribeButton.isEnabled = true
+            accessibilityLabel = NSLocalizedString(
+                "Subscribe. Your previous request was declined.",
+                comment: "VoiceOver label for the community subscribe button after the moderators denied a follow request"
+            )
         case .subscribed:
             config.title = NSLocalizedString("Subscribed", comment: "Community unsubscribe button")
             config.image = UIImage(systemName: "checkmark")
@@ -390,6 +409,7 @@ final class CommunityHeaderView: UIView {
         }
         config.imagePadding = 4
         subscribeButton.configuration = config
+        subscribeButton.accessibilityLabel = accessibilityLabel
     }
 
     // MARK: Images
