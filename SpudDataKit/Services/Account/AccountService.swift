@@ -249,6 +249,14 @@ public class AccountService: AccountServiceType {
 
     private var lemmyServices: [String: LemmyService] = [:]
 
+    /// The `ApiVersion` each `lemmyServices` entry was built with, keyed by the
+    /// same `keychainId`. `LemmyService`/`LemmyApi` are actors, so their stored
+    /// `apiVersion` can't be read synchronously from this `@MainActor` cache —
+    /// tracking it here instead lets `lemmyService(forAccountKeychainId:)` compare
+    /// against the account's current resolved version with no `await` on its hot
+    /// path. See `lemmyService(forAccountKeychainId:)` for the self-healing use.
+    private var lemmyServiceApiVersions: [String: LemmyKit.ApiVersion] = [:]
+
     // MARK: Functions
 
     public convenience init(
@@ -477,11 +485,33 @@ public class AccountService: AccountServiceType {
         }
     }
 
+    /// Resolves the (possibly cached) `LemmyService` for `keychainId`, self-healing
+    /// when the account's resolved `ApiVersion` has changed since the cached
+    /// service was built. This covers two cases the initiative design requires
+    /// (D4): a mid-session v3->v4 flip (the instance upgrades and a later
+    /// `getSite` mirrors the new version), and a newly-added account whose
+    /// service was first built before its initial `getSite` had persisted any
+    /// version (so it was frozen at the v3 fail-open default). The version is
+    /// re-resolved from the persisted site version on every call — a cheap sync
+    /// DB read — so this stays correct without an explicit invalidation hook.
     public func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType {
         assert(Thread.current.isMainThread)
 
+        let currentApiVersion = resolvedApiVersion(forKeychainId: keychainId)
+
         if let cached = lemmyServices[keychainId] {
-            return cached
+            if lemmyServiceApiVersions[keychainId] == currentApiVersion {
+                return cached
+            }
+            // The account's resolved ApiVersion changed since this service was
+            // built (e.g. getSite just mirrored a version bump). Evict so it's
+            // rebuilt below against the current version.
+            logger.debug("""
+                Evicting cached LemmyService for \(keychainId, privacy: .sensitive(mask: .hash)): \
+                apiVersion changed to \(String(describing: currentApiVersion), privacy: .public)
+                """)
+            lemmyServices[keychainId] = nil
+            lemmyServiceApiVersions[keychainId] = nil
         }
 
         let snapshot: (isSignedOut: Bool, actorId: InstanceActorId)
@@ -516,7 +546,7 @@ public class AccountService: AccountServiceType {
             fatalError("Failed to create URL from instance actor id '\(snapshot.actorId.actorId)'")
         }
         let credential = snapshot.isSignedOut ? nil : readCredential(forKeychainId: keychainId)
-        let api = makeApi(url, credential, resolvedApiVersion(forKeychainId: keychainId))
+        let api = makeApi(url, credential, currentApiVersion)
 
         logger.debug("Creating new LemmyService for \(keychainId, privacy: .sensitive(mask: .hash))")
 
@@ -528,6 +558,7 @@ public class AccountService: AccountServiceType {
             reachability: reachabilityMonitor
         )
         lemmyServices[keychainId] = service
+        lemmyServiceApiVersions[keychainId] = currentApiVersion
         return service
     }
 
@@ -729,8 +760,10 @@ public class AccountService: AccountServiceType {
         let instanceActorId = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId)
         let fallbackKeychainId = appDatabase.fallbackAccountKeychainIdSync(excludingKeychainId: keychainId)
 
-        // Drop the cached service so a stale authenticated api isn't reused.
+        // Drop the cached service (and its tracked apiVersion) so a stale
+        // authenticated api isn't reused.
         lemmyServices[keychainId] = nil
+        lemmyServiceApiVersions[keychainId] = nil
 
         deleteCredential(forKeychainId: keychainId)
         do {
@@ -757,8 +790,10 @@ public class AccountService: AccountServiceType {
         let instanceActorId = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId)
         let fallbackKeychainId = appDatabase.fallbackAccountKeychainIdSync(excludingKeychainId: keychainId)
 
-        // Drop the cached service so a stale authenticated api isn't reused.
+        // Drop the cached service (and its tracked apiVersion) so a stale
+        // authenticated api isn't reused.
         lemmyServices[keychainId] = nil
+        lemmyServiceApiVersions[keychainId] = nil
 
         // Signed-out accounts have no keychain credential to clear.
         if !isSignedOut(forAccountKeychainId: keychainId) {
