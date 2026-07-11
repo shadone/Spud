@@ -30,11 +30,12 @@ settings:
 packages:
   LemmyKit:
     url: https://github.com/shadone/LemmyKit
-    # Pinned by commit, not a release tag: the neutral v4 surface + follow-ups are
-    # code-complete but not yet human-validated / tested against a real 1.0 server,
-    # so it is not released. Push LemmyKit main and validate first; tag a release +
-    # switch this to exactVersion only once it is verified.
-    revision: 2ee5750d13b0aefbfd97f381db09760a7abf086b
+    # Pinned by commit, not a release tag: the neutral v4 surface + follow-ups
+    # (incl. the paginated private-message endpoint) are code-complete but not yet
+    # human-validated / tested against a real 1.0 server, so it is not released.
+    # Push LemmyKit main and validate first; tag a release + switch this to
+    # exactVersion only once it is verified.
+    revision: 69f66c41a7e4b4fdafd0efe88eb97188bda71863
   DiasporaNodeInfo:
     url: https://github.com/shadone/DiasporaNodeInfo
     exactVersion: 1.4.0
