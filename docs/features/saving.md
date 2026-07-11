@@ -64,3 +64,4 @@ confirmed result back, so the bookmark state is authoritative.
 - Optimistic UI: the save state is applied to the local DB synchronously at enqueue time (before any network call), so the bookmark flips immediately; a permanent server error rolls back to the pre-save state. Save is durable via the mutation outbox (the same OutboxService path as voting).
 - Coalescing: tapping save then unsave before the request confirms collapses to a no-op (the pending operation is cancelled and the optimistic state reverts), with no net server call.
 - No folders, tags, or organization of saved items.
+- **Saved feed sort is not sent to the server.** The neutral saved-posts endpoint takes no sort parameter, so choosing a different sort on the Saved feed re-fetches but the server returns its own default ordering — unlike the frontpage/community feeds, whose sort selection is applied server-side.

@@ -14,8 +14,8 @@ import Testing
 
 private typealias GetPostsResponse = Lemmy.GetPostsResponse
 
-/// Stub `ClientTransport` that answers the `getPosts` operation with an empty
-/// page and records the query string it was asked to send, so the test can
+/// Stub `ClientTransport` that answers the `getPosts` operation with a canned
+/// response and records the query string it was asked to send, so the test can
 /// assert the `.saved` FeedType maps to `saved_only=true`.
 private final class StubGetPostsTransport: ClientTransport, @unchecked Sendable {
     private let getPostsResponseJSON: Data
@@ -23,7 +23,16 @@ private final class StubGetPostsTransport: ClientTransport, @unchecked Sendable 
     private(set) var lastQuery: String?
 
     init(response: GetPostsResponse) throws {
+        // v3 wire dates are ISO-8601-with-microseconds strings, not the
+        // default JSONEncoder numeric epoch — required once a fixture
+        // carries an actual post (its `published` date), not just an empty
+        // `posts` array.
         let encoder = JSONEncoder()
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "UTC")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS'Z'"
+        encoder.dateEncodingStrategy = .formatted(formatter)
         getPostsResponseJSON = try encoder.encode(response)
     }
 
@@ -65,7 +74,7 @@ struct LemmyServiceFetchSavedFeedTests {
     }
 
     /// Seeds an account + site so `fetchFeed`'s `appendFeedPage` mirror can
-    /// resolve the account/site ids after the (empty) server response.
+    /// resolve the account/site ids before importing the server response.
     private func seedAccountAndSite() async throws {
         let keychainId = keychainId
         try await appDatabase.writer.write { db in
@@ -84,17 +93,23 @@ struct LemmyServiceFetchSavedFeedTests {
         }
     }
 
-    /// KNOWN REGRESSION (Phase 6 neutral migration): the neutral `getPostsNeutral`
-    /// exposes no `saved`-only filter, so the server-backed Saved feed returns an
-    /// empty page and never calls `getPosts` (see `LemmyService.fetchFeed`'s
-    /// `.saved` case). This test pins that documented behavior; it replaces the
-    /// former `fetchSavedFeedRequestsSavedOnlyFilter`, which asserted a
-    /// `saved_only=true` query that the neutral surface can no longer emit.
+    /// Regression guard for the Phase 6 neutral migration: `LemmyService.fetchFeed`'s
+    /// `.saved` case now calls `LemmyApi.getSavedPostsNeutral(pageCursor:)`, whose v3
+    /// path reuses `getPosts` with `saved_only=true` (see
+    /// `LemmyApi+AccountFeedsNeutral.swift`). This exercises the full round trip
+    /// through `LemmyService` — the stub transport is hit with the `saved_only`
+    /// filter, and the returned posts land in the local database — rather than
+    /// pinning the former (broken) empty-page behavior.
     @Test
-    func fetchSavedFeedReturnsEmptyPageWithoutHittingApi() async throws {
+    func fetchSavedFeedFetchesFromApiAndImportsPosts() async throws {
         try await seedAccountAndSite()
 
-        let transport = try StubGetPostsTransport(response: GetPostsResponse(posts: []))
+        let savedPostId: Lemmy.PostID = 42
+        let response = GetPostsResponse(
+            posts: [V3.postView(postId: savedPostId)],
+            next_page: "Pc7"
+        )
+        let transport = try StubGetPostsTransport(response: response)
         let service = LemmyServiceHarness.make(
             accountKeychainId: keychainId,
             appDatabase: appDatabase,
@@ -109,11 +124,13 @@ struct LemmyServiceFetchSavedFeedTests {
 
         let nextCursor = try await service.fetchFeed(feed, pageCursor: nil, showNsfw: false)
 
-        #expect(nextCursor == nil, "the saved feed returns an empty page (no next cursor)")
-        #expect(
-            !transport.didSendGetPosts,
-            "the saved feed no longer hits getPosts on the neutral surface (documented regression)"
-        )
+        #expect(transport.didSendGetPosts, "the saved feed must hit getPosts via getSavedPostsNeutral's v3 path")
+        let query = try #require(transport.lastQuery)
+        #expect(query.contains("saved_only=true"), "the saved feed must request saved_only=true, got query: \(query)")
+        #expect(nextCursor == "Pc7", "the wire next_page cursor must bridge through to the returned page cursor")
+
+        let postRowId = appDatabase.postRowIdSync(forKeychainId: keychainId, serverPostId: Int64(savedPostId))
+        #expect(postRowId != nil, "the saved post returned by getSavedPostsNeutral must be imported into the local database")
     }
 
     /// DISABLED (Phase 6 neutral migration): `getPostsNeutral` has no server-side

@@ -873,12 +873,13 @@ public actor LemmyService: LemmyServiceType {
                     showNsfw=\(showNsfw, privacy: .public) \
                     pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
-                // KNOWN REGRESSION: the neutral `getPostsNeutral` exposes no
-                // `saved`-only filter, so the server-backed Saved feed cannot be
-                // fetched yet. Return an empty page until LemmyKit's neutral surface
-                // grows a saved filter. See the Phase 6 report follow-ups.
-                logger.error("Saved feed fetch is unsupported on the neutral surface; returning empty page")
-                page = Page(items: [], nextPage: nil, prevPage: nil)
+                // NOTE: `getSavedPostsNeutral` exposes neither a sort nor a
+                // server-side NSFW filter param (unlike `getPostsNeutral` above,
+                // which at least takes a sort), so `sortType`/`showNsfw` are not
+                // threaded onto the wire here; the server returns its own default
+                // ordering and NSFW posts are filtered client-side by the
+                // account's blur/hide settings, same as the other feed cases.
+                page = try await api.getSavedPostsNeutral(pageCursor: cursor)
             }
         } catch let error as LemmyServiceError {
             throw error
