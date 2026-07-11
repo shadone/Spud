@@ -187,8 +187,8 @@ public extension LemmyService {
 
     func fetchPrivateMessages(
         unreadOnly: Bool,
-        page: Int64
-    ) async throws -> [IncomingPrivateMessage] {
+        pageCursor: String?
+    ) async throws -> (messages: [IncomingPrivateMessage], nextCursor: String?) {
         try await requireCapability(.privateMessages)
 
         guard !accountIsSignedOut else {
@@ -197,24 +197,24 @@ public extension LemmyService {
 
         logger.debug("""
             Fetch private messages. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-            unreadOnly=\(unreadOnly, privacy: .public) page=\(page, privacy: .public)
+            unreadOnly=\(unreadOnly, privacy: .public) pageCursor=\(pageCursor ?? "nil", privacy: .public)
             """)
 
-        // The neutral surface has no standalone private-message list; DMs arrive
-        // through the unified notification feed. Fetch it and keep only the
-        // private-message entries, pairing each with the notification's read state.
-        // NOTE: `page` maps to an opaque cursor ("N" on a v3 backend); on v3 the
-        // notification list is a single fan-out page, so paging degrades. See the
-        // Phase 6 report follow-ups (full inbox → listNotificationsNeutral).
+        // The neutral private-message list is cursor-paginated: on v4 it pages the
+        // native unified inbox filtered to private messages; on v3 it pages the flat
+        // all-conversations list with a synthesized cursor. Spud persists the cursor
+        // as a bare string, so bridge in both directions (as `fetchFeed` does). Each
+        // `PrivateMessageListItem` pairs the neutral view with its read state.
+        let cursor = pageCursor.map { Cursor(rawValue: $0) }
         do {
-            let notifications = try await api.listNotificationsNeutral(
+            let page = try await api.getPrivateMessagesNeutral(
                 unreadOnly: unreadOnly,
-                pageCursor: Self.inboxCursor(forPage: page)
+                pageCursor: cursor
             )
-            return notifications.items.compactMap { notification in
-                guard case let .privateMessage(view) = notification.data else { return nil }
-                return IncomingPrivateMessage(view: view, isRead: notification.notification.isRead)
+            let messages = page.items.map { item in
+                IncomingPrivateMessage(view: item.view, isRead: item.isRead)
             }
+            return (messages: messages, nextCursor: page.nextPage?.rawValue)
         } catch {
             logger.error("""
                 Fetch private messages failed. \

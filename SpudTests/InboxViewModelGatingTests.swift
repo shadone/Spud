@@ -32,9 +32,9 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         return []
     }
 
-    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> [IncomingPrivateMessage] {
+    func fetchPrivateMessages(unreadOnly _: Bool, pageCursor _: String?) async throws -> (messages: [IncomingPrivateMessage], nextCursor: String?) {
         fetchPrivateMessagesCallCount += 1
-        return []
+        return ([], nil)
     }
 
     // MARK: Unused protocol stubs

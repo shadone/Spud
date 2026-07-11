@@ -145,7 +145,7 @@ let gatedOperations: [GatedOperation] = [
         try await service.markPrivateMessageAsRead(privateMessageId: 1, read: true)
     },
     GatedOperation(testDescription: "fetchPrivateMessages") { service in
-        _ = try await service.fetchPrivateMessages(unreadOnly: false, page: 1)
+        _ = try await service.fetchPrivateMessages(unreadOnly: false, pageCursor: nil)
     },
     GatedOperation(testDescription: "sendPrivateMessage") { service in
         _ = try await service.sendPrivateMessage(content: "hi", recipientId: 1)

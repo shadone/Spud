@@ -196,7 +196,7 @@ private actor GiveUpLemmyService: LemmyServiceType {
         giveUpUnreachable()
     }
 
-    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> [IncomingPrivateMessage] {
+    func fetchPrivateMessages(unreadOnly _: Bool, pageCursor _: String?) async throws -> (messages: [IncomingPrivateMessage], nextCursor: String?) {
         giveUpUnreachable()
     }
 

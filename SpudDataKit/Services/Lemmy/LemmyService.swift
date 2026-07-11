@@ -389,13 +389,16 @@ public protocol LemmyServiceType: Actor {
         page: Int64
     ) async throws -> [InboxCommentNotification]
 
-    /// Fetch one page of private messages. Transient, like `fetchReplies`.
-    /// Sourced from the version-neutral unified notification list (filtered to
-    /// private-message entries), each paired with its read state.
+    /// Fetch one cursor-delimited page of private messages, returning the mapped
+    /// messages plus the opaque cursor for the next page (nil at the end of the
+    /// listing). Transient, like `fetchReplies`. Sourced from the version-neutral,
+    /// cursor-paginated private-message list, each message paired with its read
+    /// state. Pass `nil` for `pageCursor` to fetch the first page; feed a returned
+    /// `nextCursor` back in to load the next.
     func fetchPrivateMessages(
         unreadOnly: Bool,
-        page: Int64
-    ) async throws -> [IncomingPrivateMessage]
+        pageCursor: String?
+    ) async throws -> (messages: [IncomingPrivateMessage], nextCursor: String?)
 
     /// Fetch the count of unread replies, mentions, and private messages.
     /// Throws `LemmyServiceError.requiresAuthentication` when signed out.

@@ -174,7 +174,9 @@ final class DMThreadViewModel {
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                let messages = try await service.fetchPrivateMessages(unreadOnly: false, page: 1)
+                // Load the first page only; load-older paging is a later slice, so
+                // the next cursor is intentionally discarded for now.
+                let (messages, _) = try await service.fetchPrivateMessages(unreadOnly: false, pageCursor: nil)
                 if Task.isCancelled { return }
                 // Import the whole page; the read layer filters to this thread.
                 // upsert-only (a server page is partial), so nothing is deleted.
