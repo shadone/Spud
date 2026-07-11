@@ -58,6 +58,11 @@ public extension AppDatabase {
     /// is GC'd; see ``markPostDownloaded(serverPostId:accountId:)``). This renders
     /// entirely from GRDB with no network; the images come from the durable disk
     /// cache the download warmed.
+    ///
+    /// Unlike ``observePostListRows(feedId:)`` this deliberately does NOT drop
+    /// posts whose community is muted: the Downloaded feed is your explicit
+    /// offline library, so a post you chose to download stays reachable offline
+    /// even if you later mute its community.
     func observeDownloadedPostListRows(
         forAccountKeychainId keychainId: String
     ) -> AsyncStream<[PostListRow]> {

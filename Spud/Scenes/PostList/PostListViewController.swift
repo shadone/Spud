@@ -1988,6 +1988,10 @@ extension PostListViewController: UITableViewDelegate {
     /// short-circuited for rows already read; the new read state flows back
     /// through the GRDB observation. Callers gate on the relevant preference.
     private func markReadInBackground(serverPostId: Int64) {
+        // The Downloaded feed is a local, offline library — usually browsed with
+        // no network — so firing a server mark-as-read would only make doomed
+        // requests. Skip it there entirely (keeps the feed genuinely network-free).
+        guard !viewModel.isDownloadedFeed else { return }
         // Skip rows already read or already enqueued this session.
         guard !markedReadIds.contains(serverPostId) else { return }
         if viewModel.row(forServerPostId: serverPostId)?.isRead == true {

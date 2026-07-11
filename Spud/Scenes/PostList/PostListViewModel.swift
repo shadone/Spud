@@ -305,8 +305,9 @@ final class PostListViewModel {
 
     /// Whether the current feed is the local-only Downloaded feed. It reads
     /// exclusively from GRDB (`post.downloadedAt`) and must never touch the
-    /// network — the observation, load, and pagination paths all branch on this.
-    private var isDownloadedFeed: Bool {
+    /// network — the observation, load, and pagination paths all branch on this,
+    /// and the view controller also suppresses its best-effort mark-as-read here.
+    var isDownloadedFeed: Bool {
         if case .downloaded = feed.feedType { return true }
         return false
     }
