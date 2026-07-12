@@ -832,6 +832,7 @@ public class AccountService: AccountServiceType {
         // authenticated api isn't reused.
         lemmyServices[keychainId] = nil
         lemmyServiceApiVersions[keychainId] = nil
+        reminderServices[keychainId] = nil
 
         deleteCredential(forKeychainId: keychainId)
         do {
@@ -862,6 +863,7 @@ public class AccountService: AccountServiceType {
         // authenticated api isn't reused.
         lemmyServices[keychainId] = nil
         lemmyServiceApiVersions[keychainId] = nil
+        reminderServices[keychainId] = nil
 
         // Signed-out accounts have no keychain credential to clear.
         if !isSignedOut(forAccountKeychainId: keychainId) {
