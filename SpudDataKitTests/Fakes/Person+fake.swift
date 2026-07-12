@@ -36,6 +36,8 @@ extension Lemmy.Person {
         id: Lemmy.PersonID = 1,
         name: String = "one",
         displayName: String? = "One",
+        botAccount: Bool = false,
+        deleted: Bool = false,
         postCount: Int64 = 0,
         commentCount: Int64 = 0
     ) -> Lemmy.Person {
@@ -48,8 +50,8 @@ extension Lemmy.Person {
             bio: nil,
             apId: "https://example.com/u/\(name)",
             matrixUserId: nil,
-            botAccount: false,
-            deleted: false,
+            botAccount: botAccount,
+            deleted: deleted,
             local: true,
             publishedAt: Date(timeIntervalSince1970: 1_683_349_689),
             updatedAt: nil,

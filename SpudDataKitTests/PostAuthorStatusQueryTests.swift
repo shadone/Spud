@@ -31,22 +31,22 @@ struct PostAuthorStatusQueryTests {
     }
 
     /// A creator that is site-banned, a bot, and deleted, whose post carries all
-    /// three per-community context flags.
-    private func makeView() -> Components.Schemas.PostView {
-        var creator = Components.Schemas.Person.fake
-        creator.banned = true
-        creator.bot_account = true
-        creator.deleted = true
-
-        let community = Components.Schemas.Community.fake
-        let post = Components.Schemas.Post.fake(creator: creator, community: community)
-        return Components.Schemas.PostView.fake(
+    /// three per-community context flags. In the neutral (v4) shape the bare
+    /// `Person` carries `botAccount`/`deleted` while the instance-wide ban rides on
+    /// the `PostView` as `creatorBanned` (the importer mirrors it onto the creator's
+    /// person row, which the query reads back as `isCreatorSiteBanned`).
+    private func makeView() -> Lemmy.PostView {
+        let creator = Lemmy.Person.fake(botAccount: true, deleted: true)
+        let community = Lemmy.Community.fake
+        let post = Lemmy.Post.fake(creator: creator, community: community)
+        return Lemmy.PostView.fake(
             post: post,
             creator: creator,
             community: community,
             creatorBannedFromCommunity: true,
             creatorIsModerator: true,
-            creatorIsAdmin: true
+            creatorIsAdmin: true,
+            creatorBanned: true
         )
     }
 

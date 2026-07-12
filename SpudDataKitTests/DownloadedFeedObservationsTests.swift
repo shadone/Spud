@@ -10,10 +10,10 @@ import LemmyKit
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias PostView = Components.Schemas.PostView
+private typealias Person = Lemmy.Person
+private typealias Community = Lemmy.Community
+private typealias Post = Lemmy.Post
+private typealias PostView = Lemmy.PostView
 
 /// Covers the durable offline-download marker (`post.downloadedAt`) and the
 /// "Downloaded" feed's read side: the additive migration, the
@@ -45,21 +45,14 @@ struct DownloadedFeedObservationsTests {
         }
     }
 
-    private func postView(id: Int32, title: String) -> PostView {
-        var person = Person.fake
-        person.id = 7
-        person.name = "alice"
-        person.actor_id = "https://example.com/u/alice"
-
-        var community = Community.fake
-        community.id = 100
-        community.name = "world"
-        community.actor_id = "https://example.com/c/world"
-
-        var post = Post.fake(creator: person, community: community)
-        post.id = Components.Schemas.PostID(id)
-        post.name = title
-        post.ap_id = "https://example.com/post/\(id)"
+    private func postView(id: Int32, title _: String) -> PostView {
+        // Neutral struct fields are immutable, so build the fixtures through the
+        // parametrized fake factories rather than mutating `.fake`. The default
+        // apId patterns already match what the v3 shape set explicitly
+        // (`/u/alice`, `/c/world`, `/post/<id>`); the title is not asserted on.
+        let person = Person.fake(id: 7, name: "alice")
+        let community = Community.fake(id: 100, name: "world")
+        let post = Post.fake(creator: person, community: community, id: Lemmy.PostID(id))
         return PostView.fake(post: post, creator: person, community: community)
     }
 

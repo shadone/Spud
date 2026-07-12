@@ -19,6 +19,7 @@ extension Lemmy.PostView {
         creatorBannedFromCommunity: Bool = false,
         creatorIsModerator: Bool = false,
         creatorIsAdmin: Bool = false,
+        creatorBanned: Bool = false,
         postActions: PostActions? = nil,
         communityActions: CommunityActions? = nil
     ) -> Lemmy.PostView {
@@ -29,6 +30,7 @@ extension Lemmy.PostView {
             creatorBannedFromCommunity: creatorBannedFromCommunity,
             creatorIsModerator: creatorIsModerator,
             creatorIsAdmin: creatorIsAdmin,
+            creatorBanned: creatorBanned,
             postActions: postActions,
             communityActions: communityActions
         )

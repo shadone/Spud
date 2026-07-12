@@ -35,10 +35,10 @@ struct PostCreatorContextImportTests {
         let appDatabase = try AppDatabase.inMemory()
         let (accountId, siteId) = try await seedAccount(appDatabase)
 
-        let person = Components.Schemas.Person.fake
-        let community = Components.Schemas.Community.fake
-        let post = Components.Schemas.Post.fake(creator: person, community: community)
-        let view = Components.Schemas.PostView.fake(
+        let person = Lemmy.Person.fake
+        let community = Lemmy.Community.fake
+        let post = Lemmy.Post.fake(creator: person, community: community)
+        let view = Lemmy.PostView.fake(
             post: post,
             creator: person,
             community: community,
@@ -64,10 +64,10 @@ struct PostCreatorContextImportTests {
         let appDatabase = try AppDatabase.inMemory()
         let (accountId, siteId) = try await seedAccount(appDatabase)
 
-        let person = Components.Schemas.Person.fake
-        let community = Components.Schemas.Community.fake
-        let post = Components.Schemas.Post.fake(creator: person, community: community)
-        let view = Components.Schemas.PostView.fake(
+        let person = Lemmy.Person.fake
+        let community = Lemmy.Community.fake
+        let post = Lemmy.Post.fake(creator: person, community: community)
+        let view = Lemmy.PostView.fake(
             post: post,
             creator: person,
             community: community,

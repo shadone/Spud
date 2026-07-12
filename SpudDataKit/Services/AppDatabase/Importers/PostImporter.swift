@@ -106,6 +106,17 @@ public extension AppDatabase {
             siteId: siteId,
             in: db
         )
+        // The neutral bare `Person` carries no site-ban (v4 moved `banned` onto the
+        // views), but v4's `PostView` exposes the creator's instance-wide ban as
+        // `creatorBanned`. Mirror it onto the creator's person row so the feed /
+        // post-detail author-status indicator lights up from a feed import — matching
+        // v3, where the bare `Person.banned` set this — instead of only after a
+        // separate `PersonView` (profile) import. `PostListRow`/`PostDetailHeaderRow`
+        // read `isCreatorSiteBanned` from the joined `person.isBanned`.
+        if var creatorRecord = try PersonRecord.fetchOne(db, key: creatorId) {
+            creatorRecord.isBanned = view.creatorBanned
+            try creatorRecord.update(db)
+        }
         let communityRowId = try AppDatabase.upsertCommunity(
             from: view.community,
             accountId: accountId,
@@ -217,9 +228,9 @@ public extension AppDatabase {
         // Per-post creator context, mirroring the CommentView import. A later
         // feed/getPost re-import re-runs `apply`, so these stay current (unlike
         // the local-only `downloadedAt`, which `apply` deliberately never touches).
-        record.isCreatorModerator = view.creator_is_moderator
-        record.isCreatorAdmin = view.creator_is_admin
-        record.isCreatorBannedFromCommunity = view.creator_banned_from_community
+        record.isCreatorModerator = view.creatorIsModerator
+        record.isCreatorAdmin = view.creatorIsAdmin
+        record.isCreatorBannedFromCommunity = view.creatorBannedFromCommunity
 
         // A fresh authoritative PostView means the post exists again — clear any
         // stale "unavailable" tombstone from a prior couldnt_find_post.
