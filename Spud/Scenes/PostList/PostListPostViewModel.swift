@@ -75,6 +75,18 @@ struct PostListPostViewModel {
     /// Whether the cell shows the trailing up/down vote arrows.
     let showVoteButtons: Bool
 
+    /// The feed's "Also in ..." cross-post affordance line — visible when this
+    /// post is the primary of one or more collapsed cross-post siblings
+    /// (`CrossPostGrouper`), `nil` otherwise (no siblings, or grouping is off).
+    /// Carries a leading branch glyph; the spoken form is
+    /// ``crossPostAffordanceAccessibilityLabel``, since VoiceOver can't read an
+    /// inline symbol attachment.
+    let crossPostAffordanceText: NSAttributedString?
+
+    /// Plain-text form of ``crossPostAffordanceText`` for the affordance's own
+    /// accessibility label. `nil` exactly when the text is.
+    let crossPostAffordanceAccessibilityLabel: String?
+
     /// An optional author line — the post creator's `@user@instance` handle — shown
     /// under the title. `nil` unless the view model was built with `showsAuthor: true`
     /// (Search only); the feed leaves it `nil` so the feed cell is unchanged.
@@ -170,6 +182,11 @@ struct PostListPostViewModel {
     ///     off, ignoring the `showVoteButtons` appearance preference. Search passes `false`
     ///     to suppress the arrows (a search row taps into PostDetail, it doesn't vote);
     ///     the feed / Activity / Person pass `nil` to honor the preference.
+    ///   - crossPostSiblingCommunityNames: The community names of this post's collapsed
+    ///     cross-post siblings (`CrossPostGrouper`), in encounter order. Empty (the
+    ///     default) when this row has no siblings or grouping is off — the feed passes
+    ///     `crossPostSiblings[serverPostId]`'s community names; every other caller leaves
+    ///     it empty, keeping their cells unchanged.
     init(
         row: PostListRow,
         appearance: AppearanceServiceType,
@@ -177,7 +194,8 @@ struct PostListPostViewModel {
         blurNsfw: Bool = false,
         isRevealed: Bool = false,
         showsAuthor: Bool = false,
-        showVoteButtonsOverride: Bool? = nil
+        showVoteButtonsOverride: Bool? = nil,
+        crossPostSiblingCommunityNames: [String] = []
     ) {
         isNsfw = row.isNsfw
         self.blurNsfw = blurNsfw
@@ -376,6 +394,29 @@ struct PostListPostViewModel {
                 .foregroundColor: UIColor.secondaryLabel,
             ]
         )
+
+        crossPostAffordanceAccessibilityLabel = CrossPostAffordance.summaryText(
+            communityNames: crossPostSiblingCommunityNames
+        )
+        if let crossPostAffordanceAccessibilityLabel {
+            let crossPostAttributes: [NSAttributedString.Key: Any] = [
+                .font: UIFont.scaledSystemFont(
+                    style: .body,
+                    relativeSize: -2 + textSizeAdjustment,
+                    weight: .regular
+                ),
+                .foregroundColor: UIColor.secondaryLabel,
+            ]
+            let icon = NSAttributedString.symbol(
+                from: UIImage(systemName: "arrow.triangle.branch")!,
+                attributes: crossPostAttributes
+            )
+            let space = NSAttributedString(string: " ", attributes: crossPostAttributes)
+            let label = NSAttributedString(string: crossPostAffordanceAccessibilityLabel, attributes: crossPostAttributes)
+            crossPostAffordanceText = [icon, space, label].joined()
+        } else {
+            crossPostAffordanceText = nil
+        }
 
         accessibilityLabel = Self.makeAccessibilityLabel(
             row: row,
