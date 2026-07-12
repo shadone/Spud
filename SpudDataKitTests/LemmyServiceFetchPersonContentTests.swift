@@ -198,4 +198,92 @@ struct LemmyServiceFetchPersonContentTests {
         #expect(result.posts.isEmpty)
         #expect(result.comments.isEmpty)
     }
+
+    // MARK: - Persistence-or-throw tests
+
+    /// Without account/site seeded, `mirrorPersonPostsToAppDatabase` silently
+    /// no-ops (its `accountSiteIds()` lookup fails and it swallows the error).
+    /// A non-empty posts page must make `fetchPersonContent` throw rather than
+    /// returning success while the Posts tab's GRDB observation stays empty.
+    @Test
+    func fetchPersonContentThrowsWhenPostsNotPersisted() async throws {
+        // Do NOT seed account/site - the posts mirror will silently no-op.
+        let personId: Lemmy.PersonID = 1
+        let postId: Lemmy.PostID = 1
+
+        let post = V3.post(id: postId, creatorId: personId)
+        let postView = V3.postView(post: post, creator: V3.person(id: personId), community: V3.community())
+
+        let response = GetPersonDetailsResponse(
+            person_view: personView(id: personId, name: "alice", posts: 1, comments: 0),
+            site: nil,
+            comments: [],
+            posts: [postView],
+            moderates: []
+        )
+
+        let transport = try StubGetPersonDetailsTransport(response: response)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: transport
+        )
+
+        do {
+            _ = try await service.fetchPersonContent(
+                serverPersonId: personId,
+                sort: .New,
+                page: 1
+            )
+            Issue.record("fetchPersonContent should throw when the person's posts were not persisted")
+        } catch {
+            // Expected - any throw is acceptable here.
+        }
+
+        // The post row must not exist.
+        let rowId = appDatabase.postRowIdSync(
+            forKeychainId: keychainId,
+            serverPostId: Int64(postId)
+        )
+        #expect(rowId == nil, "post row must not exist when persistence failed")
+    }
+
+    /// An honestly post-less profile (the API returns zero posts) must NOT
+    /// throw, even when nothing is seeded to persist against - the "posts
+    /// not persisted" guard is gated on a non-empty posts page so it doesn't
+    /// misfire into an error state for a person who genuinely has no posts.
+    @Test
+    func fetchPersonContentDoesNotThrowWhenHonestlyPostless() async throws {
+        // Do NOT seed account/site either - proves the guard is gated on
+        // `posts.first` and not merely on persistence succeeding.
+        let personId: Lemmy.PersonID = 1
+        let response = GetPersonDetailsResponse(
+            person_view: personView(id: personId, name: "alice", posts: 0, comments: 0),
+            site: nil,
+            comments: [],
+            posts: [],
+            moderates: []
+        )
+
+        let transport = try StubGetPersonDetailsTransport(response: response)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            transport: transport
+        )
+
+        let result: PersonContentPage
+        do {
+            result = try await service.fetchPersonContent(
+                serverPersonId: personId,
+                sort: .New,
+                page: 1
+            )
+        } catch {
+            Issue.record("fetchPersonContent should not throw for an honestly post-less profile, but got: \(error)")
+            return
+        }
+
+        #expect(result.posts.isEmpty)
+    }
 }
