@@ -901,6 +901,44 @@ extension AppDatabase {
             )
         }
 
+        migrator.registerMigration("v35_reminder") { db in
+            // Durable per-account "remind me later" reminders (Phase 1: time-based
+            // only, on the whole post). `apId` denormalizes the post's permalink so
+            // a fired reminder opens without the (evictable) `post` cache row, the
+            // same pattern as `postInteraction`/`voteEvent`'s snapshot columns.
+            // `rootCommentServerId` uses the sentinel 0 for "whole post" rather than
+            // NULL, because SQLite treats NULL as distinct-from-itself in a UNIQUE
+            // index (two NULL rows would not collide) - the sentinel makes the
+            // (accountId, postServerId, rootCommentServerId, kind) unique key
+            // actually enforce "one live reminder per kind per target". `kind` is
+            // `"time"` in Phase 1; `nextCheckAt`/`baselineCount`/`baselineAt` and the
+            // `"activity"` kind are unused until Phase 2, but present now so that
+            // phase adds no migration.
+            try db.create(table: "reminder") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("accountId", .integer).notNull().indexed()
+                t.column("postServerId", .integer).notNull()
+                t.column("apId", .text).notNull()
+                t.column("rootCommentServerId", .integer).notNull().defaults(to: 0) // 0 = whole post
+                t.column("kind", .text).notNull()
+                t.column("fireAt", .datetime)
+                t.column("nextCheckAt", .datetime)
+                t.column("baselineCount", .integer)
+                t.column("baselineAt", .datetime)
+                t.column("lastNotifiedAt", .datetime)
+                t.column("status", .text).notNull()
+                t.column("unseen", .boolean).notNull().defaults(to: false)
+                t.column("notificationRequestId", .text)
+                t.column("titleSnapshot", .text).notNull()
+                t.column("communityName", .text).notNull()
+                t.column("instanceHost", .text).notNull()
+                t.column("thumbnailUrl", .text)
+                t.column("createdAt", .datetime).notNull()
+                t.uniqueKey(["accountId", "postServerId", "rootCommentServerId", "kind"])
+            }
+            try db.create(index: "index_reminder_on_fireAt", on: "reminder", columns: ["fireAt"])
+        }
+
         return migrator
     }
 }
