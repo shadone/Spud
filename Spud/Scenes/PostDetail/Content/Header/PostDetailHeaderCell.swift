@@ -44,6 +44,11 @@ class PostDetailHeaderCell: UITableViewCellBase {
     /// Invoked when the user taps a link inside the post body markdown.
     var onBodyLinkTapped: ((URL) -> Void)?
 
+    /// Builds the long-press context menu for an inline post-body link. Returns a
+    /// scheme-safe menu (no preview for internal / non-web links), so UIKit's
+    /// crashing default link menu is never used.
+    var onBodyLinkMenu: ((URL) -> UITextItem.MenuConfiguration?)?
+
     /// Invoked when the user taps an inline image in the post body markdown.
     var onBodyImageTapped: ((_ url: URL, _ altText: String?, _ sourceRect: CGRect) -> Void)?
 
@@ -607,6 +612,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         openInBrowser = nil
 
         onBodyLinkTapped = nil
+        onBodyLinkMenu = nil
         onBodyImageTapped = nil
         onBodyVideoTapped = nil
         onBodyAudioTapped = nil
@@ -1151,6 +1157,10 @@ class PostDetailHeaderCell: UITableViewCellBase {
 extension PostDetailHeaderCell: MarkdownBodyDelegate {
     func markdownBody(didTapLink url: URL) {
         onBodyLinkTapped?(url)
+    }
+
+    func markdownBody(menuConfigurationForLink url: URL) -> UITextItem.MenuConfiguration? {
+        onBodyLinkMenu?(url)
     }
 
     func markdownBody(didTapImage url: URL, altText: String?, sourceRect: CGRect) {
