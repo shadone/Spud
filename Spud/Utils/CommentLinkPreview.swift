@@ -143,14 +143,19 @@ private func webLinkPreview(for url: URL, anchorText: String) -> CommentLinkPrev
     // Drop anchor text that is just the URL (bare autolink) — the host line already shows it.
     let anchor = (trimmed.isEmpty || trimmed == url.absoluteString) ? nil : trimmed
     let kind: LinkPreviewKind = VideoLinkParser.parse(url) != nil ? .video : .generic
-    // A frontend post URL (`/c/<community>/p/<id>[/<slug>]`, e.g. PieFed / feddit)
-    // taps to an in-app federated resolve rather than the browser — even on
-    // instances outside the Explorer directory, matching the body-text render
-    // rewrite and the search paste path (`LemmyURLParser.classify` alone gates
-    // content paths on known instances, so the raw URL would bounce to Safari).
-    // `displayURL` stays the human-readable link.
-    let tapURL = LemmyURLParser.frontendPostURL(for: url)
-        .map { URL.SpudInternalLink.objectAtURL(url: $0).url } ?? url
+    // A canonical Lemmy link (`/post/<id>`, `/comment/<id>`, `/u/name`, `/c/name`)
+    // or the frontend post form (`/c/<community>/p/<id>[/<slug>]`, e.g. PieFed /
+    // feddit) taps to an in-app federated resolve rather than the browser — even
+    // on instances outside the Explorer directory, matching the body-text render
+    // rewrite (`LemmyURLParser.classify` alone gates content paths on known
+    // instances, so the raw URL would bounce to Safari). Reuse the same ungated
+    // rewrite the body text uses: `lemmyReferenceURL` maps the canonical forms to
+    // a `spud-markdown://` link and `MarkdownInternalLink.resolve` turns that into
+    // the app's internal link. The `frontendPostURL` branch is a fallback for the
+    // frontend form. `displayURL` stays the human-readable link.
+    let tapURL = InlineAttributedStringBuilder.lemmyReferenceURL(for: url).flatMap(MarkdownInternalLink.resolve)
+        ?? LemmyURLParser.frontendPostURL(for: url).map { URL.SpudInternalLink.objectAtURL(url: $0).url }
+        ?? url
     return CommentLinkPreview(displayURL: url, tapURL: tapURL, anchorText: anchor, kind: kind)
 }
 

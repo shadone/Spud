@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import SpudMarkdownKit
 import SpudUtilKit
 import Testing
 @testable import Spud
@@ -84,6 +85,40 @@ struct MarkdownInternalLinkTests {
     @Test
     func objectURL_missingURL_returnsNil() {
         #expect(resolve("spud-markdown://object") == nil)
+    }
+
+    /// The two sibling codecs for a Lemmy object URL must escape the inner URL
+    /// identically. `InlineAttributedStringBuilder.objectURL(forResolved:)`
+    /// (encode) and `URL.SpudInternalLink.objectAtURL` (the form `resolve`
+    /// re-encodes into) both carry the inner URL as a `url=<escaped>` query value;
+    /// `objectAtURL` deliberately percent-escapes the sub-delimiters `& = ? +` so
+    /// the inner query can't corrupt the outer one, and `objectURL` must match.
+    /// Before the parity fix, `objectURL` (built via `URLComponents.queryItems`)
+    /// left the inner `?` and `+` raw, so the two `url=` values diverged.
+    @Test
+    func objectURL_escapesInnerURL_withParityToObjectAtURL() throws {
+        let inner = try #require(URL(string: "https://lemmy.world/post/1?foo=bar&x=y"))
+        let mdValue = InlineAttributedStringBuilder.objectURL(forResolved: inner)
+            .absoluteString.components(separatedBy: "url=").last
+        let spudValue = URL.SpudInternalLink.objectAtURL(url: inner).url
+            .absoluteString.components(separatedBy: "url=").last
+        #expect(mdValue == spudValue)
+    }
+
+    /// The inner query survives a full encode -> `MarkdownInternalLink.resolve`
+    /// round-trip (a regression guard for the escaping above).
+    @Test
+    func objectURL_withInnerQuery_roundTripsIntact() throws {
+        let inner = try #require(URL(string: "https://lemmy.world/post/1?foo=bar&x=y"))
+        let encoded = InlineAttributedStringBuilder.objectURL(forResolved: inner)
+        let resolved = try #require(MarkdownInternalLink.resolve(encoded))
+        let link = try #require(resolved.spud)
+        guard case let .objectAtURL(recovered) = link else {
+            Issue.record("expected .objectAtURL, got \(link)")
+            return
+        }
+        #expect(recovered == inner)
+        #expect(recovered.query == "foo=bar&x=y")
     }
 
     // MARK: - Non-spud-markdown URLs return nil

@@ -81,20 +81,70 @@ enum InlineLexer {
             return (.mention(name: String(m.output.1), instance: String(m.output.2)), count(m.range.upperBound))
         }
         if let m = rest.prefixMatch(of: Pattern.httpURL) {
-            let raw = String(m.output)
+            let trimmed = trimAutolinkTrailing(m.output)
+            let raw = String(trimmed)
             if let url = URL(string: raw) {
-                return (.link(text: [.text(raw)], url: url), count(m.range.upperBound))
+                return (.link(text: [.text(raw)], url: url), trimmed.count)
             }
-            return (.text(raw), count(m.range.upperBound))
+            return (.text(raw), trimmed.count)
         }
         if let m = rest.prefixMatch(of: Pattern.wwwURL) {
-            let raw = String(m.output)
+            let trimmed = trimAutolinkTrailing(m.output)
+            let raw = String(trimmed)
             if let url = URL(string: "https://\(raw)") {
-                return (.link(text: [.text(raw)], url: url), count(m.range.upperBound))
+                return (.link(text: [.text(raw)], url: url), trimmed.count)
             }
-            return (.text(raw), count(m.range.upperBound))
+            return (.text(raw), trimmed.count)
         }
         return nil
+    }
+
+    /// Applies the GFM autolink trailing-character rules to a raw autolinked URL
+    /// match. The autolink regexes greedily grab every non-space, non-`<`
+    /// character (so a balanced `…/Foo_(bar)` stays whole); this trims what should
+    /// not belong to the URL:
+    ///
+    /// 1. Trailing sentence punctuation (`.,;:!?'"` and `>`) is dropped, so
+    ///    `see https://example.com.` links only `https://example.com`.
+    /// 2. An unbalanced trailing `)` is dropped — while the match ends in `)` and
+    ///    it contains more `)` than `(`, peel the last `)` off. This keeps a link
+    ///    inside parentheses tidy (`(see https://example.com)` -> the `)` is not
+    ///    part of the link) while preserving a balanced Wikipedia-style
+    ///    `…/Foo_(bar)` or nested `…/Foo_(bar_(baz))`.
+    ///
+    /// The two rules alternate in one loop because trimming one can uncover the
+    /// other (e.g. `…(x).` drops `.` then `)`). The dropped suffix is left in the
+    /// input to re-enter the lexer as literal text: `match` reports only
+    /// `trimmed.count` Characters consumed.
+    private static func trimAutolinkTrailing(_ raw: Substring) -> Substring {
+        // Count parens ONCE, then track a running close-count as we peel. The GFM
+        // balanced-paren rule keeps a trailing ')' only while the URL holds more
+        // ')' than '(' — recounting the whole (shrinking) slice per dropped ')'
+        // would be O(n^2) on a crafted wall of ')' (this runs per rendered body).
+        var opens = 0
+        var closes = 0
+        for character in raw {
+            if character == "(" { opens += 1 }
+            else if character == ")" { closes += 1 }
+        }
+        var end = raw.endIndex
+        loop: while end > raw.startIndex {
+            let lastIndex = raw.index(before: end)
+            switch raw[lastIndex] {
+            case ".", ",", ";", ":", "!", "?", "'", "\"", ">":
+                end = lastIndex
+            case ")":
+                if closes > opens {
+                    end = lastIndex
+                    closes -= 1
+                } else {
+                    break loop
+                }
+            default:
+                break loop
+            }
+        }
+        return raw[raw.startIndex..<end]
     }
 
     /// Compile-once regexes for the inline extension rules.
@@ -121,8 +171,11 @@ enum InlineLexer {
         nonisolated(unsafe) static let tildeSubscript = /~([^~\s]+)~/
         nonisolated(unsafe) static let community = /!([a-zA-Z0-9_]+)@([a-zA-Z0-9.\-]+)/
         nonisolated(unsafe) static let mention = /@([a-zA-Z0-9_]+)@([a-zA-Z0-9.\-]+)/
-        nonisolated(unsafe) static let httpURL = /https?:\/\/[^\s)<]+[^\s).,;:!?'"<]/
-        nonisolated(unsafe) static let wwwURL = /www\.[^\s)<]+[^\s).,;:!?'"<]/
+        // Grab the whole non-space run (parentheses included, so a balanced
+        // `…/Foo_(bar)` stays intact); `trimAutolinkTrailing` then peels off
+        // trailing sentence punctuation and any unbalanced `)` per the GFM rule.
+        nonisolated(unsafe) static let httpURL = /https?:\/\/[^\s<]+/
+        nonisolated(unsafe) static let wwwURL = /www\.[^\s<]+/
     }
 }
 

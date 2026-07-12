@@ -54,6 +54,75 @@ struct InlineLexerTests {
         #expect(text == [.text("https://lemmy.world/post/42")])
     }
 
+    /// A balanced trailing `)` is part of the URL (GFM autolink rule): a Wikipedia
+    /// link like `…/Foo_(bar)` has equal `(` and `)` counts, so the `)` is kept.
+    @Test
+    func autolinkKeepsBalancedTrailingParen() {
+        let result = InlineLexer.parse("https://en.wikipedia.org/wiki/Foo_(bar)")
+        #expect(result.count == 1)
+        guard case let .link(text, url) = result.first else {
+            Issue.record("expected one link, got \(result)")
+            return
+        }
+        #expect(url == URL(string: "https://en.wikipedia.org/wiki/Foo_(bar)"))
+        #expect(text == [.text("https://en.wikipedia.org/wiki/Foo_(bar)")])
+    }
+
+    /// Nested balanced parentheses are all kept (`Foo_(bar_(baz))` -> 2 `(` / 2 `)`).
+    @Test
+    func autolinkKeepsNestedBalancedParens() throws {
+        let result = InlineLexer.parse("https://en.wikipedia.org/wiki/Foo_(bar_(baz))")
+        #expect(
+            try result == [.link(
+                text: [.text("https://en.wikipedia.org/wiki/Foo_(bar_(baz))")],
+                url: #require(URL(string: "https://en.wikipedia.org/wiki/Foo_(bar_(baz))"))
+            )]
+        )
+    }
+
+    /// A long run of unbalanced trailing `)` is all stripped in a single linear
+    /// pass. The balanced-paren peel counts parens once and tracks a running
+    /// close-count rather than rescanning the shrinking slice per dropped `)`, so
+    /// a crafted wall of `)` can't turn autolinking quadratic (it did briefly).
+    @Test
+    func autolinkStripsLargeUnbalancedParenRunLinearly() throws {
+        let closers = String(repeating: ")", count: 20000)
+        let result = InlineLexer.parse("https://a.com" + closers)
+        #expect(
+            try result == [
+                .link(text: [.text("https://a.com")], url: #require(URL(string: "https://a.com"))),
+                .text(closers),
+            ]
+        )
+    }
+
+    /// An autolink wrapped in parentheses drops the unbalanced trailing `)`, which
+    /// re-enters as literal text (GFM rule for links inside parentheses).
+    @Test
+    func autolinkDropsUnbalancedTrailingParen() throws {
+        let result = InlineLexer.parse("(see https://example.com)")
+        #expect(
+            try result == [
+                .text("(see "),
+                .link(text: [.text("https://example.com")], url: #require(URL(string: "https://example.com"))),
+                .text(")"),
+            ]
+        )
+    }
+
+    /// Trailing sentence punctuation is still trimmed and left as literal text.
+    @Test
+    func autolinkTrimsTrailingSentencePunctuation() throws {
+        let result = InlineLexer.parse("see https://example.com.")
+        #expect(
+            try result == [
+                .text("see "),
+                .link(text: [.text("https://example.com")], url: #require(URL(string: "https://example.com"))),
+                .text("."),
+            ]
+        )
+    }
+
     @Test
     func knownEmojiAndCustomEmoji() {
         #expect(InlineLexer.parse(":penguin:") == [.emoji("\u{1F427}")])
