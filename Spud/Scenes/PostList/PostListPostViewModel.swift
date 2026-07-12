@@ -75,6 +75,15 @@ struct PostListPostViewModel {
     /// Whether the cell shows the trailing up/down vote arrows.
     let showVoteButtons: Bool
 
+    /// An optional author line — the post creator's `@user@instance` handle — shown
+    /// under the title. `nil` unless the view model was built with `showsAuthor: true`
+    /// (Search only); the feed leaves it `nil` so the feed cell is unchanged.
+    let authorLine: NSAttributedString?
+
+    /// Spoken form of `authorLine` (e.g. "user@instance") folded into the cell's
+    /// VoiceOver label so the author is announced. `nil` when `authorLine` is `nil`.
+    let authorAccessibilityLabel: String?
+
     /// Cell margin and inter-element spacing for the active density.
     let density: PostDensity
 
@@ -153,12 +162,22 @@ struct PostListPostViewModel {
         }
     }
 
+    /// - Parameters:
+    ///   - showsAuthor: When `true`, builds the optional `@user@instance` author line
+    ///     under the title. Search sets this; the feed leaves it `false` (the default),
+    ///     keeping the feed cell byte-identical.
+    ///   - showVoteButtonsOverride: When non-`nil`, forces the trailing vote arrows on or
+    ///     off, ignoring the `showVoteButtons` appearance preference. Search passes `false`
+    ///     to suppress the arrows (a search row taps into PostDetail, it doesn't vote);
+    ///     the feed / Activity / Person pass `nil` to honor the preference.
     init(
         row: PostListRow,
         appearance: AppearanceServiceType,
         postContentDetector: PostContentDetectorServiceType,
         blurNsfw: Bool = false,
-        isRevealed: Bool = false
+        isRevealed: Bool = false,
+        showsAuthor: Bool = false,
+        showVoteButtonsOverride: Bool? = nil
     ) {
         isNsfw = row.isNsfw
         self.blurNsfw = blurNsfw
@@ -167,7 +186,7 @@ struct PostListPostViewModel {
         let density = appearance.postList.postDensity
         self.density = density
         thumbnailPosition = appearance.postList.thumbnailPosition
-        showVoteButtons = appearance.postList.showVoteButtons
+        showVoteButtons = showVoteButtonsOverride ?? appearance.postList.showVoteButtons
 
         // The user's text-scale override plus the active density's own
         // adjustment (compact shaves a point).
@@ -316,6 +335,31 @@ struct PostListPostViewModel {
 
         subtitle = pieces.joined()
 
+        // Optional author line (Search only): the creator's `@user@instance` handle,
+        // shown quietly under the title in the post-detail header's attribution style
+        // — the display name (here the `@user` handle) in the secondary label color and
+        // the `@instance` host tertiary. `nil` when `showsAuthor` is off (the feed) or
+        // the row carries no creator handle, so the feed cell is unchanged.
+        if showsAuthor, let creatorName = row.creatorName, !creatorName.isEmpty {
+            let creatorHost = row.creatorActorId.flatMap { InstanceActorId(from: $0)?.host }
+            var authorPieces = [NSAttributedString(string: "@\(creatorName)", attributes: secondaryAttributes)]
+            if let creatorHost {
+                authorPieces.append(NSAttributedString(string: "@\(creatorHost)", attributes: instanceAttributes))
+            }
+            authorLine = authorPieces.joined()
+            let spokenHandle = creatorHost.map { "\(creatorName)@\($0)" } ?? creatorName
+            authorAccessibilityLabel = String(
+                format: NSLocalizedString(
+                    "by %@",
+                    comment: "VoiceOver: the author of a searched post, %@ is a user handle"
+                ),
+                spokenHandle
+            )
+        } else {
+            authorLine = nil
+            authorAccessibilityLabel = nil
+        }
+
         let content = Self.content(for: row, postContentDetector: postContentDetector)
         thumbnail = content.thumbnail
         fullImageUrl = content.fullImageUrl
@@ -333,7 +377,11 @@ struct PostListPostViewModel {
             ]
         )
 
-        accessibilityLabel = Self.makeAccessibilityLabel(row: row, voteStatus: voteStatus)
+        accessibilityLabel = Self.makeAccessibilityLabel(
+            row: row,
+            voteStatus: voteStatus,
+            authorAccessibilityLabel: authorAccessibilityLabel
+        )
         accessibilityHint = NSLocalizedString(
             "Opens the post and its comments",
             comment: "VoiceOver hint for a post in the list"
@@ -355,9 +403,13 @@ struct PostListPostViewModel {
     }
 
     /// Assembles a natural-language description of the post for VoiceOver,
-    /// ordered most-to-least important: read state, title, community, score,
-    /// comment count, saved state.
-    private static func makeAccessibilityLabel(row: PostListRow, voteStatus: VoteStatus) -> String {
+    /// ordered most-to-least important: read state, title, community, author
+    /// (Search only), score, comment count, saved state.
+    private static func makeAccessibilityLabel(
+        row: PostListRow,
+        voteStatus: VoteStatus,
+        authorAccessibilityLabel: String?
+    ) -> String {
         var parts: [String] = []
 
         if row.isRead {
@@ -369,6 +421,11 @@ struct PostListPostViewModel {
             format: NSLocalizedString("in %@", comment: "VoiceOver: community a post belongs to"),
             row.communityName
         ))
+        // The author handle is announced right after the community, matching where the
+        // visible author line sits under the title. Present only for Search.
+        if let authorAccessibilityLabel {
+            parts.append(authorAccessibilityLabel)
+        }
         parts.append(VoteAccessibility.scoreLabel(score: row.score, voteStatus: voteStatus))
         parts.append(CommentsAccessibility.label(count: row.numberOfComments))
 

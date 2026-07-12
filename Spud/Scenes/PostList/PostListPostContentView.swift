@@ -114,11 +114,13 @@ class PostListPostContentView: UIView {
             return view
         }()
 
-        // Order matches the Scout cell: title, then the optional link domain and
-        // self-text preview, then the metadata line. The optional rows collapse
-        // (and take their spacing with them) when hidden.
+        // Order matches the Scout cell: title, the optional author line (Search only),
+        // then the optional link domain and self-text preview, then the metadata line.
+        // The optional rows collapse (and take their spacing with them) when hidden, so
+        // the feed — where `authorLabel` stays hidden — is unaffected.
         let subviews = [
             titleLabel,
+            authorLabel,
             domainLabel,
             bodyLabel,
             subtitleLabel,
@@ -136,6 +138,18 @@ class PostListPostContentView: UIView {
         label.translatesAutoresizingMaskIntoConstraints = false
         label.numberOfLines = 0
         label.accessibilityIdentifier = "title"
+        return label
+    }()
+
+    /// The post author's `@user@instance` handle, shown under the title on Search
+    /// results only. Hidden (and collapsed out of the stack) on the feed, so feed
+    /// cells are unchanged.
+    lazy var authorLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 1
+        label.isHidden = true
+        label.accessibilityIdentifier = "author"
         return label
     }()
 
@@ -350,6 +364,8 @@ class PostListPostContentView: UIView {
         voteTapped = nil
         revealNsfwTapped = nil
 
+        authorLabel.attributedText = nil
+        authorLabel.isHidden = true
         domainLabel.attributedText = nil
         domainLabel.isHidden = true
         bodyLabel.attributedText = nil
@@ -508,6 +524,12 @@ class PostListPostContentView: UIView {
         titleLabel.accessibilityTraits = [.staticText, .button]
 
         subtitleLabel.accessibilityLabel = viewModel.subtitleAccessibilityLabel
+
+        // The author line (Search only) is folded into the title's spoken label, so
+        // hide the visible label from VoiceOver to avoid announcing the handle twice.
+        authorLabel.attributedText = viewModel.authorLine
+        authorLabel.isHidden = viewModel.authorLine == nil
+        authorLabel.isAccessibilityElement = false
 
         domainLabel.attributedText = viewModel.domainText
         domainLabel.isHidden = viewModel.domainText == nil
