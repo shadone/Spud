@@ -61,10 +61,31 @@ final class SearchViewController: UIViewController {
         dependencies.own.appDatabase
     }
 
+    /// The post cell reuses the feed's `PostListPostViewModel`, which needs the
+    /// appearance / content-detector / preferences services. They already live in
+    /// `NestedDependencies` (the child VCs require them), so read them off `nested`
+    /// rather than widening `OwnDependencies`.
+    private var appearanceService: AppearanceServiceType {
+        dependencies.nested.appearanceService
+    }
+
+    private var postContentDetector: PostContentDetectorServiceType {
+        dependencies.nested.postContentDetectorService
+    }
+
+    private var preferencesService: PreferencesServiceType {
+        dependencies.nested.preferencesService
+    }
+
     // MARK: Private
 
     private let accountKeychainId: String
     private let viewModel: SearchViewModel
+
+    /// Server post ids whose NSFW thumbnail the user has revealed this session, so a
+    /// revealed search row stays revealed across a reconfigure. Mirrors the feed /
+    /// Activity / Person reveal state.
+    private var revealedNsfwPostIds: Set<Int64> = []
 
     private var phaseObservationTask: Task<Void, Never>?
     private var resultsObservationTask: Task<Void, Never>?
@@ -334,12 +355,7 @@ final class SearchViewController: UIViewController {
                 return cell
 
             case let .post(result):
-                let cell = tableView.dequeueReusableCell(
-                    withIdentifier: SearchPostCell.reuseIdentifier,
-                    for: indexPath
-                ) as! SearchPostCell
-                cell.configure(with: result, imageService: imageService)
-                return cell
+                return makePostCell(tableView, indexPath: indexPath, result: result)
 
             case let .community(result):
                 let cell = tableView.dequeueReusableCell(
@@ -377,6 +393,66 @@ final class SearchViewController: UIViewController {
                 return cell
             }
         }
+    }
+
+    /// Configures a `SearchPostCell`'s hosted `PostListPostContentView` from the
+    /// result's feed row, mirroring `ActivityViewController.makePostCell`: the shared
+    /// feed view model (with the author line on and the vote arrows suppressed), plus
+    /// the NSFW-reveal callback and thumbnail-tap callbacks that route to PostDetail
+    /// (a search row opens the post as a whole; it doesn't open the media viewer).
+    private func makePostCell(
+        _ tableView: UITableView,
+        indexPath: IndexPath,
+        result: SearchPostResult
+    ) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(
+            withIdentifier: SearchPostCell.reuseIdentifier,
+            for: indexPath
+        ) as! SearchPostCell
+
+        let row = result.row
+        let serverPostRowId = row.serverPostId
+        let serverPostId = result.serverPostId
+        let cellViewModel = PostListPostViewModel(
+            row: row,
+            appearance: appearanceService,
+            postContentDetector: postContentDetector,
+            blurNsfw: preferencesService.blurNsfw,
+            isRevealed: revealedNsfwPostIds.contains(serverPostRowId),
+            showsAuthor: true,
+            showVoteButtonsOverride: false
+        )
+        cell.postContentView.configure(with: cellViewModel, imageService: imageService)
+
+        // A blurred NSFW thumbnail reveals on tap; reconfigure just this row so the
+        // reveal sticks (search has no backing observation to re-emit it).
+        cell.postContentView.revealNsfwTapped = { [weak self] in
+            guard let self else { return }
+            revealedNsfwPostIds.insert(serverPostRowId)
+            var snapshot = dataSource.snapshot()
+            snapshot.reconfigureItems([.post(result)])
+            dataSource.apply(snapshot, animatingDifferences: false)
+        }
+
+        // Every non-blur thumbnail tap opens the post, matching a whole-row tap: search
+        // routes to PostDetail rather than to the media viewer / external link.
+        cell.postContentView.imageTapped = { [weak self] _, _, _ in
+            self?.openPost(serverPostId: serverPostId)
+        }
+        cell.postContentView.videoTapped = { [weak self] _ in
+            self?.openPost(serverPostId: serverPostId)
+        }
+        cell.postContentView.linkTapped = { [weak self] _ in
+            self?.openPost(serverPostId: serverPostId)
+        }
+        return cell
+    }
+
+    /// Opens PostDetail for a search post result. Shared by the row tap and the
+    /// thumbnail-tap callbacks.
+    private func openPost(serverPostId: Lemmy.PostID) {
+        guard let window = view.window as? MainWindow else { return }
+        window.display(serverPostId: serverPostId, accountKeychainId: accountKeychainId)
     }
 
     // MARK: Actions
@@ -510,8 +586,7 @@ extension SearchViewController: UITableViewDelegate {
             openSuggestion(suggestion.link, in: window)
 
         case let .post(result):
-            guard let window = view.window as? MainWindow else { return }
-            window.display(serverPostId: result.serverPostId, accountKeychainId: accountKeychainId)
+            openPost(serverPostId: result.serverPostId)
 
         case let .community(result):
             let vc = CommunityOrLoadingViewController(

@@ -11,64 +11,39 @@ import UIKit
 
 // MARK: - Post result cell
 
-/// Post search result, styled like a feed cell: bold title above a secondary
-/// "community  score  comments" line, with an optional thumbnail.
+/// Post search result, rendered through the SHARED `PostListPostContentView` — the
+/// exact view the feed cell hosts — so a searched post shows the same rich info as the
+/// feed (community@instance, counts, thumbnail, status/author badges, NSFW blur), plus
+/// an author line under the title. The trailing vote arrows are suppressed (a search
+/// row taps through to PostDetail, it doesn't vote).
+///
+/// Like `ActivityPostRowCell`, this hosts a plain content `UIView`, not a nested
+/// `UITableViewCell` — a nested cell's own `contentView` is attached by autoresizing
+/// mask, which severs the Auto Layout height chain and collapses the embedded content.
+/// The view controller configures the exposed `postContentView` (view model + media /
+/// reveal callbacks) the way `ActivityViewController` / `PersonViewController` do.
 final class SearchPostCell: UITableViewCell {
     static let reuseIdentifier = "SearchPostCell"
 
-    private let titleLabel: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.numberOfLines = 3
-        label.font = .preferredFont(forTextStyle: .headline)
-        label.adjustsFontForContentSizeCategory = true
-        return label
-    }()
-
-    private let subtitleLabel: UILabel = {
-        let label = UILabel()
-        label.translatesAutoresizingMaskIntoConstraints = false
-        label.numberOfLines = 1
-        label.font = .preferredFont(forTextStyle: .footnote)
-        label.textColor = .secondaryLabel
-        label.adjustsFontForContentSizeCategory = true
-        return label
-    }()
-
-    private let thumbnailView: UIImageView = {
-        let view = UIImageView()
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.contentMode = .scaleAspectFill
-        view.clipsToBounds = true
-        view.layer.cornerRadius = 8
-        view.backgroundColor = .secondarySystemBackground
-        return view
-    }()
-
-    private var thumbnailLoadTask: Task<Void, Never>?
+    /// The reused feed post rendering. Exposed so the view controller configures its
+    /// view model and callbacks directly, mirroring `PersonViewController.makePostCell`.
+    let postContentView = PostListPostContentView()
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
-        accessoryType = .disclosureIndicator
 
-        let textStack = UIStackView(arrangedSubviews: [titleLabel, subtitleLabel])
-        textStack.translatesAutoresizingMaskIntoConstraints = false
-        textStack.axis = .vertical
-        textStack.spacing = 4
+        // No disclosure chevron and no selection tint: the cell renders as a feed post
+        // (which carries neither) and taps through to PostDetail via `didSelectRow`.
+        selectionStyle = .none
 
-        contentView.addSubview(textStack)
-        contentView.addSubview(thumbnailView)
+        postContentView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(postContentView)
 
         NSLayoutConstraint.activate([
-            textStack.leadingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.leadingAnchor),
-            textStack.topAnchor.constraint(equalTo: contentView.layoutMarginsGuide.topAnchor),
-            textStack.bottomAnchor.constraint(equalTo: contentView.layoutMarginsGuide.bottomAnchor),
-
-            thumbnailView.leadingAnchor.constraint(equalTo: textStack.trailingAnchor, constant: 12),
-            thumbnailView.trailingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.trailingAnchor),
-            thumbnailView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            thumbnailView.widthAnchor.constraint(equalToConstant: 56),
-            thumbnailView.heightAnchor.constraint(equalToConstant: 56),
+            postContentView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            postContentView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
+            postContentView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            postContentView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
         ])
     }
 
@@ -79,37 +54,8 @@ final class SearchPostCell: UITableViewCell {
 
     override func prepareForReuse() {
         super.prepareForReuse()
-        thumbnailLoadTask?.cancel()
-        thumbnailLoadTask = nil
-        thumbnailView.image = nil
-        thumbnailView.isHidden = false
-    }
-
-    func configure(with result: SearchPostResult, imageService: ImageServiceType) {
-        titleLabel.text = result.title
-
-        let pieces = [
-            result.communityName,
-            "\(result.score) points",
-            "\(result.numberOfComments) comments",
-        ]
-        subtitleLabel.text = pieces.joined(separator: "  •  ")
-
-        thumbnailLoadTask?.cancel()
-        guard let thumbnailUrl = result.thumbnailUrl else {
-            thumbnailView.isHidden = true
-            return
-        }
-        thumbnailView.isHidden = false
-        thumbnailLoadTask = Task { [weak self] in
-            for await state in imageService.fetch(thumbnailUrl) {
-                if Task.isCancelled { return }
-                guard let self else { return }
-                if case let .ready(image) = state {
-                    thumbnailView.image = image
-                }
-            }
-        }
+        // Reset the shared rendering (cancels its thumbnail load and clears callbacks).
+        postContentView.prepareForReuse()
     }
 }
 
