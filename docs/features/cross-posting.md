@@ -6,11 +6,15 @@
 
 ## What it does
 
-Re-share an existing post into another community. A "Cross-post" action on the feed's
-long-press menu and on the open post's "•••" overflow menu opens the ordinary new-post
-composer, pre-filled with the source post's title and link (and, when the full post is
-available, an attribution quoting its body), with the target community left for the user
-to choose. From there it behaves exactly like composing a brand-new post.
+Two complementary halves. **Creating** a cross-post: re-share an existing post into
+another community. A "Cross-post" action on the feed's long-press menu and on the open
+post's "•••" overflow menu opens the ordinary new-post composer, pre-filled with the
+source post's title and link (and, when the full post is available, an attribution
+quoting its body), with the target community left for the user to choose. From there it
+behaves exactly like composing a brand-new post. **Viewing** a post's existing
+cross-posts: when a post's server response reports other posts sharing its link, the
+open post shows a "Cross-posted to N communities" section listing each one, tappable to
+open it.
 
 ## Behavior and rules
 
@@ -32,6 +36,29 @@ to choose. From there it behaves exactly like composing a brand-new post.
 - **Requires sign-in.** Cross-posting creates a post, so it is gated the same way the
   ordinary compose entry points are: a signed-out account sees a "Sign in to post" alert
   instead of the composer.
+
+### Cross-posts on a post
+
+- **Data already fetched, now persisted.** Opening a post fetches its detail from the
+  server, which reports the other posts that share its link (if any) alongside it. The
+  client already fetched this to keep those posts' vote/comment counters fresh; it is now
+  also persisted as a relationship (not just refreshed counters), so the open post can
+  list them.
+- **Server order, not re-sorted.** The section lists cross-posts in the order the server
+  reported them, not by score or recency.
+- **Replaces on every fetch.** Each time the post's detail is re-fetched (opening it fresh,
+  or pull-to-refresh), the set of listed cross-posts is replaced wholesale to match the
+  latest server response — a cross-post that no longer appears (e.g. deleted, or the link
+  was edited) drops out; a newly-discovered one appears.
+- **No section when there are none.** A post fetched with no cross-posts, or never
+  fetched with the full post-detail request (e.g. opened straight from an already-cached
+  feed row, before any pull-to-refresh), shows no section at all — nothing is forced to
+  fetch it.
+- **Each entry shows the community and a light metadata line.** A cross-post's row shows
+  its community as `c/name@instance` plus a compact score/comment-count line; tapping it
+  opens that post in-app (resolving it federated, so a cross-post hosted on a different
+  instance opens correctly too), pushing on iPhone and opening in the detail column on
+  iPad, like any other in-app post link.
 
 ## Scenarios
 
@@ -72,13 +99,36 @@ to choose. From there it behaves exactly like composing a brand-new post.
 - **When** they choose "Cross-post" from either surface
 - **Then** a "Sign in to post" alert is shown and the composer is not presented
 
+### Opening a post with cross-posts shows the section
+
+- **Given** a post whose server detail response reports two other posts sharing its link
+- **When** the post is opened
+- **Then** the header shows a "Cross-posted to 2 communities" section listing both, in the
+  server's order, each showing its `c/name@instance` handle and a score/comment-count line
+
+### Tapping a cross-post opens it
+
+- **Given** the "Cross-posted to N communities" section is showing
+- **When** the user taps one of the listed cross-posts
+- **Then** that post opens in-app (pushed on iPhone, opened in the detail column on iPad),
+  even when it lives on a different instance than the currently-open post
+
+### A post with none shows no section
+
+- **Given** a post whose server detail response reports no other posts sharing its link
+  (or a post opened from a feed row that hasn't had its full detail fetched yet)
+- **When** the post is opened
+- **Then** no cross-posts section is shown
+
 ## Not supported / out of scope
 
 - The feed's cross-post action seeds title + link only; only the post-detail overflow's
   cross-post (where the full post is already loaded) includes the quoted-body
   attribution.
-- No duplicate-cross-post detection, no list of a post's existing cross-posts, and no
-  suggested target community — the user picks the community manually via the ordinary
-  community picker.
+- No duplicate-cross-post detection and no suggested target community when creating a
+  cross-post — the user picks the community manually via the ordinary community picker.
+- The cross-posts section is a one-shot read taken when the post loads and on
+  pull-to-refresh; it does not live-update if a cross-post is created elsewhere while the
+  post is on screen.
 - Editing the pre-filled title, link, body, or NSFW flag before posting works exactly
   like an ordinary new post; see [New post](new-post.md) for that behavior.

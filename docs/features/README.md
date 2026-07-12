@@ -95,7 +95,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Background unread refresh](background-unread-refresh.md) | `iphone`, `ipad` | shipped — foreground scene refresh (unread badge) + periodic scheduler site-info refresh with persisted exponential back-off and permanent give-up after N=5 consecutive permanent failures |
 | [Account provenance and site-info refresh](account-provenance-and-site-refresh.md) | `iphone`, `ipad` | shipped — pending release — ephemeral browse accounts excluded from the recurring sweep; one on-demand site-info fetch on first open; persisted per-site give-up after N=5 permanent failures; self-heals on a successful visit |
 | [New post](new-post.md) | `iphone`, `ipad` | shipped; composer sheet uses proper medium/large detents on iPad |
-| [Cross-posting](cross-posting.md) | `iphone`, `ipad` | shipped — "Cross-post" on the feed context menu and post-detail overflow menu; opens the new-post composer pre-filled with title + link (+ quoted body attribution from post detail) |
+| [Cross-posting](cross-posting.md) | `iphone`, `ipad` | shipped — "Cross-post" on the feed context menu and post-detail overflow menu; opens the new-post composer pre-filled with title + link (+ quoted body attribution from post detail); an open post also shows a "Cross-posted to N communities" section listing its existing cross-posts, tappable to open one |
 | [Image upload](image-upload.md) | `iphone`, `ipad` | shipped |
 | [Markdown editor](markdown-editor.md) | `iphone`, `ipad` | shipped |
 | [Draft persistence](draft-persistence.md) | `iphone`, `ipad` | shipped |
@@ -150,6 +150,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Configurable swipe actions (comments)
 - [x] Comment sort — global default (Settings) + in-screen per-post picker (post-detail config popover: Hot / Top / New / Old / Controversial)
 - [x] Post author status — full MOD/ADMIN/BOT/BANNED/SUSPENDED pills on the post-detail byline (mirroring comment badges); a single low-noise red banned-author marker in the feed for suspended / community-banned authors only; "[deleted]" author byline with the profile link suppressed; VoiceOver announces the status (author-status.md)
+- [x] Cross-posts on a post — "Cross-posted to N communities" section on the open post, listing other posts sharing its link in server order (community handle + score/comment-count line), tappable to open one; one-shot read on load + pull-to-refresh, no section when there are none (cross-posting.md)
 - [x] Share post / comment / community URL; open in Safari
 
 **Media**
