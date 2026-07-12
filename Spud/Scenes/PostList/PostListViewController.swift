@@ -2298,7 +2298,10 @@ extension PostListViewController: UITableViewDelegate {
         let children = siblings.map { sibling in
             UIAction(
                 title: Self.qualifiedCommunityHandle(for: sibling),
-                image: UIImage(systemName: "arrow.triangle.branch")
+                // `square.on.square` (stacked copies) distinguishes JUMPING to an
+                // existing cross-post from the `arrow.triangle.branch` CREATE action
+                // that composes a new one.
+                image: UIImage(systemName: "square.on.square")
             ) { [weak self] _ in
                 self?.postSelected(serverPostId: sibling.serverPostId)
             }
@@ -2308,7 +2311,7 @@ extension PostListViewController: UITableViewDelegate {
                 "Also posted in",
                 comment: "Context-menu submenu listing a post's collapsed cross-post siblings"
             ),
-            image: UIImage(systemName: "arrow.triangle.branch"),
+            image: UIImage(systemName: "square.on.square"),
             children: children
         )
     }

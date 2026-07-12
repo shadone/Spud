@@ -887,6 +887,7 @@ extension AppDatabase {
                     .notNull()
                     .references("post", onDelete: .cascade)
                 t.column("position", .integer)
+                    .notNull()
                 t.uniqueKey(["postId", "crossPostId"])
             }
             // The read (`crossPostSummariesSync`) filters by `postId` alone; an
