@@ -94,7 +94,10 @@ final class PostDetailCrossPostsCell: UITableViewCell {
             if index < crossPosts.count - 1 {
                 let divider = UIView()
                 divider.backgroundColor = .separator
-                divider.heightAnchor.constraint(equalToConstant: 1 / UIScreen.main.scale).isActive = true
+                // `UIScreen.main` is soft-deprecated; fall back to 1x only in the
+                // (untappable in practice) case the cell isn't in a window yet.
+                let scale = traitCollection.displayScale > 0 ? traitCollection.displayScale : 1
+                divider.heightAnchor.constraint(equalToConstant: 1 / scale).isActive = true
                 rowsStack.addArrangedSubview(divider)
             }
         }
