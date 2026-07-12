@@ -80,6 +80,14 @@ final class NewPostViewModel {
     @ObservationIgnored
     let editPostServerId: Int64?
 
+    /// True when the composer was constructed with explicit initial content
+    /// (`initialTitle`/`initialBody`/`initialUrl`) — either an edit or a
+    /// cross-post. In new-post mode this suppresses `loadExistingDraft()`'s
+    /// overlay so a stale nil-community draft can't clobber freshly-seeded
+    /// cross-post content; see `loadExistingDraft()`.
+    @ObservationIgnored
+    private let hasSeededInitialContent: Bool
+
     var accountKeychainId: String {
         accountScope.accountKeychainId
     }
@@ -179,6 +187,7 @@ final class NewPostViewModel {
         self.accountScope = accountScope
         self.dependencies = dependencies
         self.editPostServerId = editPostServerId
+        hasSeededInitialContent = initialTitle != nil || initialBody != nil || initialUrl != nil
 
         if let serverCommunityId {
             community = NewPostCommunity(
@@ -188,19 +197,27 @@ final class NewPostViewModel {
             )
         }
 
-        // Edit mode: seed the editable fields from the current post. A later
-        // `loadExistingDraft()` will overlay a previously-saved edit draft if one
-        // exists (keyed by `editPostDraftKey`, so it can't collide with a new-post
-        // draft for the same community).
-        if editPostServerId != nil {
-            titleText = initialTitle ?? ""
-            bodyText = initialBody ?? ""
-            urlText = initialUrl ?? ""
-            nsfw = initialNsfw
-            // Show the link field when the post has a url; otherwise keep the
-            // text affordance selected.
-            postType = (initialUrl?.isEmpty == false) ? .link : .text
-        }
+        // Seed the editable fields from the provided initial content. Two
+        // callers use this: edit mode (seeded from the post being edited) and
+        // cross-post (seeded from the source post being cross-posted — a NEW
+        // post, so `editPostServerId` is nil here). For a plain new post with
+        // no initial content, `initial*` are all nil/false and this just
+        // re-assigns the properties' own declared defaults, so the unseeded
+        // case is unaffected.
+        //
+        // A later `loadExistingDraft()` overlays a previously-saved draft: in
+        // edit mode unconditionally (keyed by `editPostDraftKey`, so it can't
+        // collide with a new-post draft for the same community); in new-post
+        // mode only when this seeding did NOT happen, so a stale nil-community
+        // draft can't clobber freshly-seeded cross-post content. See
+        // `loadExistingDraft()`.
+        titleText = initialTitle ?? ""
+        bodyText = initialBody ?? ""
+        urlText = initialUrl ?? ""
+        nsfw = initialNsfw
+        // Show the link field when the post has a url; otherwise keep the
+        // text affordance selected.
+        postType = (initialUrl?.isEmpty == false) ? .link : .text
     }
 
     // MARK: Draft key + input
@@ -230,6 +247,13 @@ final class NewPostViewModel {
     // MARK: Draft lifecycle
 
     func loadExistingDraft() async {
+        // A cross-post seeds explicit content into a fresh new-post composer
+        // (the community picker is still open, so the draft key is the
+        // nil-community key). Skip the overlay so a stale nil-community draft
+        // can't clobber the freshly-seeded content. Edit mode is unaffected —
+        // it uses its own `editPostDraftKey`, distinct from any new-post
+        // draft, and legitimately wants to resume an in-progress edit draft.
+        guard editPostServerId != nil || !hasSeededInitialContent else { return }
         guard let row = try? await accountScope.lemmyService.loadDraft(draftKey: draftKey) else { return }
         let hasTitle = !(row.title ?? "").isEmpty
         let hasBody = !row.body.isEmpty
