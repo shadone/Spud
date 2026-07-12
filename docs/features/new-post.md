@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Markdown editor](markdown-editor.md), [Image upload](image-upload.md), [Draft persistence](draft-persistence.md), [Drafts and Outbox](drafts-and-outbox.md), [Community screen](community-screen.md), [Sign-in gate on write actions](sign-in-gate.md), [NSFW content visibility and blur](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Markdown editor](markdown-editor.md), [Image upload](image-upload.md), [Draft persistence](draft-persistence.md), [Drafts and Outbox](drafts-and-outbox.md), [Community screen](community-screen.md), [Sign-in gate on write actions](sign-in-gate.md), [NSFW content visibility and blur](nsfw-content.md), [Cross-posting](cross-posting.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -84,6 +84,6 @@ Create a new post in a community from a sheet composer. The composer has a commu
 
 - **No editing or deleting your own post.** The composer only creates; there is no edit or delete path for an existing post.
 - **Private messages** are durable + optimistic too (instant bubble, background retry, failure recovery), documented in [private-messages.md](private-messages.md).
-- **No cross-posting**, scheduling, or language selection.
+- **No scheduling or language selection.** Cross-posting (re-sharing an existing post into another community, pre-filling this same composer) is documented separately in [Cross-posting](cross-posting.md).
 - **Dedup is not guaranteed.** If a send commits on the server but its response is lost before the app records success, and no later refresh imports the post before an auto-retry, a duplicate post may appear. This is a known rare edge case.
 - The markdown body editor (toolbar, live preview) is documented in [Markdown editor](markdown-editor.md); image upload mechanics are in [Image upload](image-upload.md); draft lifecycle is in [Draft persistence](draft-persistence.md); recovery for failed items is in [Drafts and Outbox](drafts-and-outbox.md).

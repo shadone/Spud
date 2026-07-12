@@ -95,6 +95,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Background unread refresh](background-unread-refresh.md) | `iphone`, `ipad` | shipped — foreground scene refresh (unread badge) + periodic scheduler site-info refresh with persisted exponential back-off and permanent give-up after N=5 consecutive permanent failures |
 | [Account provenance and site-info refresh](account-provenance-and-site-refresh.md) | `iphone`, `ipad` | shipped — pending release — ephemeral browse accounts excluded from the recurring sweep; one on-demand site-info fetch on first open; persisted per-site give-up after N=5 permanent failures; self-heals on a successful visit |
 | [New post](new-post.md) | `iphone`, `ipad` | shipped; composer sheet uses proper medium/large detents on iPad |
+| [Cross-posting](cross-posting.md) | `iphone`, `ipad` | shipped — "Cross-post" on the feed context menu and post-detail overflow menu; opens the new-post composer pre-filled with title + link (+ quoted body attribution from post detail) |
 | [Image upload](image-upload.md) | `iphone`, `ipad` | shipped |
 | [Markdown editor](markdown-editor.md) | `iphone`, `ipad` | shipped |
 | [Draft persistence](draft-persistence.md) | `iphone`, `ipad` | shipped |
@@ -188,6 +189,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 
 **Content creation**
 - [x] New post (text / link / image) + community picker + NSFW; on iPad the composer sheet uses proper medium/large detents (not a full-screen modal)
+- [x] Cross-posting — "Cross-post" on the feed's long-press context menu and the post-detail "•••" overflow menu opens the new-post composer pre-filled with the source post's title + link (post detail also seeds a `cross-posted from: <link>` quoted-body attribution); target community left for the user to pick (cross-posting.md)
 - [x] Image upload (pict-rs)
 - [x] Markdown editor + toolbar + live preview
 - [x] Draft persistence — durable, per-target, auto-saved (survives dismiss / relaunch)
