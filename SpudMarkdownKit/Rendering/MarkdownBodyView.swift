@@ -55,6 +55,14 @@ public final class MarkdownBodyView: UIView {
                 delegate?.markdownBody(didTapLink: url)
             }
         }
+        renderer.onLinkMenu = { [weak self] url in
+            guard let self else { return nil }
+            // A footnote jump has no useful long-press menu, and its synthetic URL
+            // isn't a link the host knows how to classify — suppress the menu (nil)
+            // rather than hand it over. Everything else goes to the host.
+            if MarkdownFootnoteLink(url) != nil { return nil }
+            return delegate?.markdownBody(menuConfigurationForLink: url)
+        }
         renderer.onContentSizeChange = { [weak self] in
             self?.setNeedsLayout()
             self?.invalidateIntrinsicContentSize()

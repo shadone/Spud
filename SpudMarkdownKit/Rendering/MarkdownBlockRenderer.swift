@@ -17,6 +17,9 @@ import UIKit
 final class MarkdownBlockRenderer {
     let context: MarkdownContext
     var onTapLink: ((URL) -> Void)?
+    /// Builds the long-press context menu for an inline link. Forwarded to every
+    /// `ProseBlockView`, mirroring `onTapLink`.
+    var onLinkMenu: ((URL) -> UITextItem.MenuConfiguration?)?
     var onContentSizeChange: (() -> Void)?
     var onTapImage: ((URL, String?, CGRect) -> Void)?
     var onTapVideo: ((URL) -> Void)?
@@ -82,6 +85,7 @@ final class MarkdownBlockRenderer {
         view.attributedText = m
         view.tintColor = context.accentColor
         view.onTapLink = { [weak self] url in self?.onTapLink?(url) }
+        view.onLinkMenu = { [weak self] url in self?.onLinkMenu?(url) }
         return view
     }
 

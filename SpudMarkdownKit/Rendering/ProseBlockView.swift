@@ -13,6 +13,12 @@ import UIKit
 final class ProseBlockView: UITextView {
     var onTapLink: ((URL) -> Void)?
 
+    /// Builds the long-press context menu for an inline link, or `nil` to show
+    /// no menu. Mirrors `onTapLink`: the host resolves the URL and returns a menu
+    /// that is safe for the link's scheme (never UIKit's default, which traps on
+    /// a non-`http(s)` link preview). See `textView(_:menuConfigurationFor:defaultMenu:)`.
+    var onLinkMenu: ((URL) -> UITextItem.MenuConfiguration?)?
+
     /// Strongly held so the manual TextKit 1 stack isn't torn down.
     private let chipTextStorage: NSTextStorage
 
@@ -88,5 +94,29 @@ extension ProseBlockView: UITextViewDelegate {
             return UIAction { [weak self] _ in self?.onTapLink?(url) }
         }
         return defaultAction
+    }
+
+    /// The context menu for a long-press on a text item.
+    ///
+    /// For a LINK we must never let UIKit's default menu run: its default menu
+    /// eagerly builds a URL preview that TRAPS when the link's scheme is not
+    /// `http(s)` — the synthetic `spud-markdown://mention?…` URL a Lemmy mention
+    /// renders as crashes here. So we always take over the link case and forward
+    /// to `onLinkMenu`; when the host provides no hook, or declines (returns
+    /// `nil`), we return `nil` to SUPPRESS the menu. Returning `nil` here is
+    /// verified-safe: `UITextViewDelegate` documents it as "prevent the menu from
+    /// being presented" — it does NOT fall back to the crashing default.
+    ///
+    /// Non-link text items (attachments/tags) keep UIKit's default menu, mirroring
+    /// how `primaryActionFor` returns `defaultAction` for non-links.
+    func textView(
+        _: UITextView,
+        menuConfigurationFor textItem: UITextItem,
+        defaultMenu: UIMenu
+    ) -> UITextItem.MenuConfiguration? {
+        guard case let .link(url) = textItem.content else {
+            return UITextItem.MenuConfiguration(menu: defaultMenu)
+        }
+        return onLinkMenu?(url)
     }
 }

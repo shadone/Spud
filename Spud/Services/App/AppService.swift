@@ -24,8 +24,11 @@ protocol AppServiceType: AnyObject {
     /// Opens the given external link according to user preferences (e.g. opens in In-App Safari or external browser).
     func open(url: URL, on viewController: UIViewController) async
 
-    /// Returns the SFSafariViewController configured as per user preferences. This is meant to be used in context menu link previews.
-    func safariViewControllerForPreview(url: URL) -> SFSafariViewController
+    /// Returns the SFSafariViewController configured as per user preferences, or
+    /// `nil` when `url` is not an `http(s)` URL (SFSafariViewController traps on
+    /// any other scheme). Meant to be used as a context-menu link preview, whose
+    /// provider accepts a `nil` (no-preview) result.
+    func safariViewControllerForPreview(url: URL) -> SFSafariViewController?
 
     /// The user's current URL-sanitizer config (front-end preferences). Read on the
     /// main actor to build a preference-aware video-host registry for playback.
@@ -79,7 +82,7 @@ class AppService: AppServiceType {
         presentSafariViewController(url: postUrl, on: viewController)
     }
 
-    func safariViewControllerForPreview(url: URL) -> SFSafariViewController {
+    func safariViewControllerForPreview(url: URL) -> SFSafariViewController? {
         createSafariViewController(url: resolvedExternalURL(url))
     }
 
@@ -179,7 +182,13 @@ class AppService: AppServiceType {
     /// uses that to restore the link after it is dismissed (a fresh load — an
     /// SFSafariViewController instance cannot be reused once dismissed).
     private func presentSafariViewController(url: URL, on viewController: UIViewController) {
-        let safariVC = createSafariViewController(url: url)
+        guard let safariVC = createSafariViewController(url: url) else {
+            // Not an http(s) URL — SFSafariViewController would trap. Hand it to
+            // the system, which opens mailto:/tel:/custom schemes safely (and does
+            // nothing for a scheme nothing can handle).
+            Task { await UIApplication.shared.open(url) }
+            return
+        }
 
         viewController.navigationController?.pendingExternalLinkRestore = { [weak self, weak viewController] in
             guard let self, let viewController else { return }
@@ -189,7 +198,15 @@ class AppService: AppServiceType {
         viewController.present(safariVC, animated: true)
     }
 
-    private func createSafariViewController(url: URL) -> SFSafariViewController {
+    /// Builds an in-app Safari view controller for `url`, or `nil` when `url` is
+    /// not an `http(s)` URL. `SFSafariViewController(url:)` traps on any other
+    /// scheme (e.g. a `spud-markdown://` mention or a `mailto:` link), so every
+    /// caller must treat `nil` as "not openable in Safari" and fall back.
+    private func createSafariViewController(url: URL) -> SFSafariViewController? {
+        guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else {
+            return nil
+        }
+
         let configuration = SFSafariViewController.Configuration()
 
         if preferencesService.openExternalLinksInSafariVCReaderMode {

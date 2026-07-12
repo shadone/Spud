@@ -1488,61 +1488,104 @@ class PostDetailViewController: UIViewController {
     /// The modern context menu for a long press on a comment's link preview card.
     /// Mirrors ``linkLongPressed(_:)``'s actions: a web URL gets a Safari peek plus
     /// open-in-Spud (when it classifies as Lemmy content) / open-in-browser / copy
-    /// / share; an internal-scheme link (e.g. a community) offers in-app open only.
+    /// / share; an internal-scheme link (e.g. a community / mention) offers in-app
+    /// open only, with NO preview (a non-`http(s)` scheme traps the Safari peek).
     private func linkContextMenuConfiguration(for url: URL) -> UIContextMenuConfiguration? {
+        let menu = bodyLinkMenu(for: url)
+
+        switch BodyLinkPreviewability.classify(url) {
+        case .notPreviewable:
+            // Internal / non-web link: in-app open only, nothing to peek.
+            return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in menu }
+        case .previewable:
+            // A web URL: Safari peek plus the browser / copy / share hatch.
+            return UIContextMenuConfiguration(
+                identifier: nil,
+                previewProvider: { [appService] in appService.safariViewControllerForPreview(url: url) },
+                actionProvider: { _ in menu }
+            )
+        }
+    }
+
+    /// The context menu for a long-press on an INLINE body link (rendered by
+    /// `SpudMarkdownKit`), shared with the card path via ``bodyLinkMenu(for:)``.
+    ///
+    /// The critical safety invariant: a preview is attached ONLY for a genuine
+    /// `http(s)` web URL. An internal link (a `spud-markdown://` mention/community
+    /// or the app scheme) or any other non-`http(s)` URL gets a preview-FREE
+    /// configuration — the system link preview traps on a non-`http(s)` scheme,
+    /// which is exactly the mention long-press crash.
+    func inlineBodyLinkMenuConfiguration(for url: URL) -> UITextItem.MenuConfiguration? {
+        let menu = bodyLinkMenu(for: url)
+
+        switch BodyLinkPreviewability.classify(url) {
+        case .previewable:
+            // `init(menu:)` attaches the default system link preview (safe for http).
+            return UITextItem.MenuConfiguration(menu: menu)
+        case .notPreviewable:
+            // No preview — never let UIKit build a link preview for this scheme.
+            return UITextItem.MenuConfiguration(preview: nil, menu: menu)
+        }
+    }
+
+    /// The actions offered for a long-press on a body link, shared by the inline
+    /// text path (``inlineBodyLinkMenuConfiguration(for:)``) and the link-preview
+    /// card path (``linkContextMenuConfiguration(for:)``) so both label and
+    /// classify identically.
+    ///
+    /// An internal link — the app's own `info.ddenis.spud://` scheme OR a
+    /// `SpudMarkdownKit` `spud-markdown://` mention/community/object link —
+    /// collapses to a single "Open in Spud" action (opening its resolved in-app
+    /// target). A web URL gets "Open in Spud" (only when it classifies as Lemmy
+    /// content) plus Open in Browser / Copy Link / Share.
+    private func bodyLinkMenu(for url: URL) -> UIMenu {
         let openInSpud = NSLocalizedString("Open in Spud", comment: "")
 
-        // Internal-scheme link (community / object / instance): only in-app open
-        // is meaningful, and there is nothing to peek in a browser.
-        if url.spud != nil {
-            return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
-                UIMenu(children: [
-                    UIAction(title: openInSpud, image: UIImage(systemName: "arrow.up.forward.app")) { _ in
-                        self?.linkTapped(url)
-                    },
-                ])
-            }
+        if let internalURL = internalLinkTarget(for: url) {
+            return UIMenu(children: [
+                UIAction(title: openInSpud, image: UIImage(systemName: "arrow.up.forward.app")) { [weak self] _ in
+                    self?.linkTapped(internalURL)
+                },
+            ])
         }
 
-        // A web URL: Safari peek, plus the browser / copy / share hatch and an
-        // in-app open when it classifies as Lemmy content.
-        return UIContextMenuConfiguration(
-            identifier: nil,
-            previewProvider: { [appService] in appService.safariViewControllerForPreview(url: url) },
-            actionProvider: { [weak self] _ in
-                guard let self else { return nil }
-                var children: [UIMenuElement] = []
+        var children: [UIMenuElement] = []
+        let isKnown: (String) -> Bool = { [viewModel] host in
+            viewModel.isKnownInstance(host: host)
+        }
+        if let internalLink = LemmyURLParser.classify(url: url, isKnownInstance: isKnown) {
+            children.append(UIAction(title: openInSpud, image: UIImage(systemName: "arrow.up.forward.app")) { [weak self] _ in
+                self?.linkTapped(internalLink.url)
+            })
+        }
+        children.append(UIAction(
+            title: NSLocalizedString("Open in Browser", comment: ""),
+            image: UIImage(systemName: "safari")
+        ) { [weak self] _ in
+            guard let self else { return }
+            Task { await self.appService.open(url: url, on: self) }
+        })
+        children.append(UIAction(
+            title: NSLocalizedString("Copy Link", comment: ""),
+            image: UIImage(systemName: "doc.on.doc")
+        ) { _ in
+            UIPasteboard.general.url = url
+        })
+        children.append(UIAction(
+            title: NSLocalizedString("Share", comment: ""),
+            image: UIImage(systemName: "square.and.arrow.up")
+        ) { [weak self] _ in
+            self?.presentShareSheet(for: url)
+        })
+        return UIMenu(children: children)
+    }
 
-                let isKnown: (String) -> Bool = { [viewModel] host in
-                    viewModel.isKnownInstance(host: host)
-                }
-                if let internalLink = LemmyURLParser.classify(url: url, isKnownInstance: isKnown) {
-                    children.append(UIAction(title: openInSpud, image: UIImage(systemName: "arrow.up.forward.app")) { _ in
-                        self.linkTapped(internalLink.url)
-                    })
-                }
-                children.append(UIAction(
-                    title: NSLocalizedString("Open in Browser", comment: ""),
-                    image: UIImage(systemName: "safari")
-                ) { [weak self] _ in
-                    guard let self else { return }
-                    Task { await self.appService.open(url: url, on: self) }
-                })
-                children.append(UIAction(
-                    title: NSLocalizedString("Copy Link", comment: ""),
-                    image: UIImage(systemName: "doc.on.doc")
-                ) { _ in
-                    UIPasteboard.general.url = url
-                })
-                children.append(UIAction(
-                    title: NSLocalizedString("Share", comment: ""),
-                    image: UIImage(systemName: "square.and.arrow.up")
-                ) { [weak self] _ in
-                    self?.presentShareSheet(for: url)
-                })
-                return UIMenu(children: children)
-            }
-        )
+    /// The in-app URL a body link should open, or `nil` if it is not an internal
+    /// link. Covers both the app's own `info.ddenis.spud://` scheme (`url.spud`)
+    /// and the `SpudMarkdownKit` `spud-markdown://` mention/community/object links.
+    private func internalLinkTarget(for url: URL) -> URL? {
+        if url.spud != nil { return url }
+        return MarkdownInternalLink.resolve(url)
     }
 
     /// Commits a comment link preview's peek: opens the previewed Safari view
@@ -1828,6 +1871,9 @@ extension PostDetailViewController {
                 cell.onBodyLinkTapped = { [weak self] url in
                     self?.linkTapped(MarkdownInternalLink.resolve(url) ?? url)
                 }
+                cell.onBodyLinkMenu = { [weak self] url in
+                    self?.inlineBodyLinkMenuConfiguration(for: url)
+                }
                 cell.onBodyImageTapped = { [weak self] url, altText, _ in
                     self?.presentMediaViewer(
                         imageUrl: url,
@@ -1955,6 +2001,9 @@ extension PostDetailViewController {
                 }
                 cell.onBodyLinkTapped = { [weak self] url in
                     self?.linkTapped(MarkdownInternalLink.resolve(url) ?? url)
+                }
+                cell.onBodyLinkMenu = { [weak self] url in
+                    self?.inlineBodyLinkMenuConfiguration(for: url)
                 }
                 cell.onBodyImageTapped = { [weak self] url, altText, _ in
                     self?.presentMediaViewer(

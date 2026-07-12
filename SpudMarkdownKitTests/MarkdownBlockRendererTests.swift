@@ -76,4 +76,35 @@ struct MarkdownBlockRendererTests {
         let font = s.attribute(.font, at: italicRange.location, effectiveRange: nil) as? UIFont
         #expect(font?.fontDescriptor.symbolicTraits.contains(.traitItalic) ?? false, "italic run lost in H6")
     }
+
+    // MARK: - onLinkMenu forwarding (long-press link menu)
+
+    @Test
+    func onLinkMenuForwardsThroughProseView() throws {
+        let renderer = renderer()
+        var received: URL?
+        renderer.onLinkMenu = { url in
+            received = url
+            return UITextItem.MenuConfiguration(menu: UIMenu())
+        }
+        let url = try #require(URL(string: "spud-markdown://mention?name=hiking&instance=fediverse.social"))
+        let prose = try #require(renderer.view(for: .paragraph([.link(text: [.text("@hiking")], url: url)])) as? ProseBlockView)
+
+        let config = prose.onLinkMenu?(url)
+
+        #expect(received == url)
+        #expect(config != nil)
+    }
+
+    @Test
+    func onLinkMenuNilWhenRendererHasNoHook() throws {
+        // With no renderer hook, the prose view's hook resolves to nil, so the
+        // delegate method returns nil and the long-press menu is suppressed
+        // (never UIKit's crashing default preview).
+        let renderer = renderer()
+        let url = try #require(URL(string: "https://example.com"))
+        let prose = try #require(renderer.view(for: .paragraph([.link(text: [.text("x")], url: url)])) as? ProseBlockView)
+
+        #expect(prose.onLinkMenu?(url) == nil)
+    }
 }
