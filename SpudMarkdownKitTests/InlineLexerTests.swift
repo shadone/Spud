@@ -80,6 +80,22 @@ struct InlineLexerTests {
         )
     }
 
+    /// A long run of unbalanced trailing `)` is all stripped in a single linear
+    /// pass. The balanced-paren peel counts parens once and tracks a running
+    /// close-count rather than rescanning the shrinking slice per dropped `)`, so
+    /// a crafted wall of `)` can't turn autolinking quadratic (it did briefly).
+    @Test
+    func autolinkStripsLargeUnbalancedParenRunLinearly() throws {
+        let closers = String(repeating: ")", count: 20000)
+        let result = InlineLexer.parse("https://a.com" + closers)
+        #expect(
+            try result == [
+                .link(text: [.text("https://a.com")], url: #require(URL(string: "https://a.com"))),
+                .text(closers),
+            ]
+        )
+    }
+
     /// An autolink wrapped in parentheses drops the unbalanced trailing `)`, which
     /// re-enters as literal text (GFM rule for links inside parentheses).
     @Test

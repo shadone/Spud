@@ -117,6 +117,16 @@ enum InlineLexer {
     /// input to re-enter the lexer as literal text: `match` reports only
     /// `trimmed.count` Characters consumed.
     private static func trimAutolinkTrailing(_ raw: Substring) -> Substring {
+        // Count parens ONCE, then track a running close-count as we peel. The GFM
+        // balanced-paren rule keeps a trailing ')' only while the URL holds more
+        // ')' than '(' — recounting the whole (shrinking) slice per dropped ')'
+        // would be O(n^2) on a crafted wall of ')' (this runs per rendered body).
+        var opens = 0
+        var closes = 0
+        for character in raw {
+            if character == "(" { opens += 1 }
+            else if character == ")" { closes += 1 }
+        }
         var end = raw.endIndex
         loop: while end > raw.startIndex {
             let lastIndex = raw.index(before: end)
@@ -124,15 +134,9 @@ enum InlineLexer {
             case ".", ",", ";", ":", "!", "?", "'", "\"", ">":
                 end = lastIndex
             case ")":
-                let slice = raw[raw.startIndex..<end]
-                var opens = 0
-                var closes = 0
-                for character in slice {
-                    if character == "(" { opens += 1 }
-                    else if character == ")" { closes += 1 }
-                }
                 if closes > opens {
                     end = lastIndex
+                    closes -= 1
                 } else {
                     break loop
                 }
