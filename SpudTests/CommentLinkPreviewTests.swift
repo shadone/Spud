@@ -136,6 +136,73 @@ struct CommentLinkPreviewTests {
     }
 
     @Test
+    func canonicalPostLink_offDirectoryHost_tapsInApp() throws {
+        // A canonical Lemmy post URL (`/post/<id>`) on an instance outside the
+        // Explorer directory must resolve in-app via a federated resolve, not
+        // Safari — matching the body-text render. Without resolving `tapURL` here
+        // the raw URL bounces off `LemmyURLParser.classify`'s known-instance gate.
+        let raw = try #require(URL(string: "https://lemmygrad.ml/post/12174876"))
+        let previews = paragraph(autolink(raw.absoluteString)).commentLinkPreviews(limit: 3)
+        #expect(previews.count == 1)
+        let preview = try #require(previews.first)
+        #expect(preview.displayURL == raw)
+        #expect(preview.tapURL != raw, "tapURL should be an in-app link, not the raw web URL")
+        #expect(preview.tapURL.spud != nil, "tapURL should decode as an internal link")
+        // The federated resolve carries the canonical URL through.
+        guard case let .objectAtURL(url) = preview.tapURL.spud else {
+            Issue.record("expected .objectAtURL, got \(String(describing: preview.tapURL.spud))")
+            return
+        }
+        #expect(url == raw)
+    }
+
+    @Test
+    func canonicalCommentLink_offDirectoryHost_tapsInApp() throws {
+        let raw = try #require(URL(string: "https://lemmygrad.ml/comment/98765"))
+        let preview = try #require(paragraph(autolink(raw.absoluteString)).commentLinkPreviews(limit: 3).first)
+        #expect(preview.displayURL == raw)
+        #expect(preview.tapURL.spud != nil)
+        guard case let .objectAtURL(url) = preview.tapURL.spud else {
+            Issue.record("expected .objectAtURL, got \(String(describing: preview.tapURL.spud))")
+            return
+        }
+        #expect(url == raw)
+    }
+
+    @Test
+    func canonicalUserLink_offDirectoryHost_tapsInApp() throws {
+        // `/u/<name>` -> in-app person resolve.
+        let raw = try #require(URL(string: "https://lemmygrad.ml/u/alice"))
+        let preview = try #require(paragraph(autolink(raw.absoluteString)).commentLinkPreviews(limit: 3).first)
+        #expect(preview.displayURL == raw)
+        #expect(preview.tapURL.spud != nil, "tapURL should decode as an internal link")
+    }
+
+    @Test
+    func canonicalCommunityLink_offDirectoryHost_tapsInApp() throws {
+        // `/c/<name>` -> in-app community.
+        let raw = try #require(URL(string: "https://lemmygrad.ml/c/news"))
+        let preview = try #require(paragraph(autolink(raw.absoluteString)).commentLinkPreviews(limit: 3).first)
+        #expect(preview.displayURL == raw)
+        let link = try #require(preview.tapURL.spud)
+        guard case let .community(name, _) = link else {
+            Issue.record("expected .community, got \(link)")
+            return
+        }
+        #expect(name == "news")
+    }
+
+    @Test
+    func ordinaryWebLink_tapsExternallyUnchanged() throws {
+        // A non-Lemmy web URL keeps opening externally (tapURL == url).
+        let raw = try #require(URL(string: "https://example.com/article"))
+        let preview = try #require(paragraph(autolink(raw.absoluteString)).commentLinkPreviews(limit: 3).first)
+        #expect(preview.displayURL == raw)
+        #expect(preview.tapURL == raw)
+        #expect(preview.tapURL.spud == nil)
+    }
+
+    @Test
     func frontendPostLink_tapsInAppFederatedResolve() throws {
         // A frontend post URL (`/c/<community>/p/<id>[/<slug>]`, e.g. PieFed /
         // feddit) must open in-app via a federated resolve, not the browser —

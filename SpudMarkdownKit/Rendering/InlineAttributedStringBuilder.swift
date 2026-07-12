@@ -11,7 +11,7 @@ import UIKit
 /// `spud-markdown://` URL so the host can resolve navigation without this
 /// framework knowing the app's URL scheme.
 @MainActor
-enum InlineAttributedStringBuilder {
+public enum InlineAttributedStringBuilder {
     static func build(
         _ inlines: [MarkdownInline],
         context: MarkdownContext,
@@ -26,17 +26,21 @@ enum InlineAttributedStringBuilder {
     }
 
     /// Internal destination URLs for mentions/communities (host decodes).
-    static func mentionURL(name: String, instance: String) -> URL {
+    ///
+    /// `nonisolated` because these are pure URL builders with no main-actor
+    /// state, so `lemmyReferenceURL` (also `nonisolated`, callable off the main
+    /// actor) can reach them.
+    nonisolated static func mentionURL(name: String, instance: String) -> URL {
         internalURL(host: "mention", name: name, instance: instance)
     }
 
-    static func communityURL(name: String, instance: String) -> URL {
+    nonisolated static func communityURL(name: String, instance: String) -> URL {
         internalURL(host: "community", name: name, instance: instance)
     }
 
     /// Internal destination URL for a Lemmy object (post/comment) the host resolves
     /// by its federation URL (via `resolve_object`).
-    static func objectURL(forResolved url: URL) -> URL {
+    nonisolated static func objectURL(forResolved url: URL) -> URL {
         var components = URLComponents()
         components.scheme = "spud-markdown"
         components.host = "object"
@@ -55,7 +59,11 @@ enum InlineAttributedStringBuilder {
     /// (`/c/<community>/p/<id>[/<slug>]`, e.g. feddit.online) maps to the canonical
     /// post. Returns nil for anything that is not a recognizable Lemmy link, so
     /// ordinary links fall through unchanged.
-    static func lemmyReferenceURL(for url: URL) -> URL? {
+    ///
+    /// `public` + `nonisolated` so the app (`CommentLinkPreview`) can reuse this
+    /// ungated rewrite to make link-preview cards resolve canonical Lemmy links
+    /// in-app off the main actor.
+    public nonisolated static func lemmyReferenceURL(for url: URL) -> URL? {
         guard
             let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
             let urlHost = url.host, isLemmyHost(urlHost)
@@ -100,19 +108,19 @@ enum InlineAttributedStringBuilder {
     /// A Lemmy local username / community name: ASCII word characters only. The
     /// `isASCII` guard must cover `isNumber` too, or non-ASCII digits (e.g.
     /// Arabic-Indic) would slip through.
-    private static func isLemmyName(_ s: String) -> Bool {
+    private nonisolated static func isLemmyName(_ s: String) -> Bool {
         !s.isEmpty && s.allSatisfy { $0 == "_" || ($0.isASCII && ($0.isLetter || $0.isNumber)) }
     }
 
     /// A plausible instance host: dotted domain of host characters.
-    private static func isLemmyHost(_ s: String) -> Bool {
+    private nonisolated static func isLemmyHost(_ s: String) -> Bool {
         s.contains(".") && s.allSatisfy { $0 == "." || $0 == "-" || $0.isASCII && ($0.isLetter || $0.isNumber) }
     }
 
     /// Builds a `spud-markdown://<host>?name=…&instance=…` URL, percent-encoding
     /// the query values. The scheme/host are literals, so `components.url` is
     /// non-nil; the fallback keeps this total without a force-unwrap on input.
-    private static func internalURL(host: String, name: String, instance: String) -> URL {
+    private nonisolated static func internalURL(host: String, name: String, instance: String) -> URL {
         var components = URLComponents()
         components.scheme = "spud-markdown"
         components.host = host
