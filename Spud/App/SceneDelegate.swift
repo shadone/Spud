@@ -106,7 +106,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // connectivity change since.
         let accountService = dependencies.accountService
         if let keychainId = accountService.currentDefaultAccountKeychainId() {
-            Task { await accountService.scope(forAccountKeychainId: keychainId).drainPendingOutbox() }
+            let scope = accountService.scope(forAccountKeychainId: keychainId)
+            Task { await scope.drainPendingOutbox() }
+
+            // Catch any time reminders that fired while backgrounded/not running
+            // to receive the OS notification callback - mirrors the Spotlight
+            // reindex calls above. Best-effort: a failed reconcile just leaves
+            // the badge stale until the next launch/foreground.
+            Task { try? await scope.reminderService.reconcileOverdue(asOf: Date()) }
         }
     }
 

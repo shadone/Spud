@@ -84,6 +84,10 @@ private final class BlockingAccountService: AccountServiceType {
     func lemmyService(forAccountKeychainId _: String) -> LemmyServiceType {
         fatalError()
     }
+
+    func reminderService(forAccountKeychainId _: String) -> ReminderService {
+        fatalError("reminderService not stubbed")
+    }
 }
 
 // MARK: - Tests

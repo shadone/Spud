@@ -321,6 +321,10 @@ private final class FakeAccountServiceForComposer: AccountServiceType {
         lemmyServiceFake
     }
 
+    func reminderService(forAccountKeychainId _: String) -> ReminderService {
+        fatalError("reminderService not stubbed")
+    }
+
     // MARK: Unused stubs
 
     func accountForSignedOut(forInstance _: InstanceActorId, isServiceAccount _: Bool) -> String {

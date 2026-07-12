@@ -300,6 +300,14 @@ class MainWindow: UIWindow {
         // Keep the Spotlight saved + history content index current too.
         ContentSpotlightIndexer.reindex(appDatabase: appDatabase, diagnostics: log)
 
+        // Catch any time reminders that fired while we weren't running to
+        // receive the OS notification callback - flips them fired/unseen so
+        // the Inbox "Reminders" segment/badge is current on launch. Best-effort
+        // (mirrors the Spotlight reindex calls above): a failed reconcile just
+        // means the badge stays stale until the next launch/foreground.
+        let reminderService = accountService.scope(forAccountKeychainId: keychainId).reminderService
+        Task { try? await reminderService.reconcileOverdue(asOf: Date()) }
+
         // Surface this account's permanent outbox failures as toasts, and drain
         // any ops left pending from a previous session.
         startObservingOutboxFailures(keychainId: keychainId)
