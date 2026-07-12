@@ -115,15 +115,17 @@ class PostListPostContentView: UIView {
         }()
 
         // Order matches the Scout cell: title, the optional author line (Search only),
-        // then the optional link domain and self-text preview, then the metadata line.
-        // The optional rows collapse (and take their spacing with them) when hidden, so
-        // the feed — where `authorLabel` stays hidden — is unaffected.
+        // then the optional link domain and self-text preview, then the metadata line,
+        // then the optional cross-post affordance (last — it's supplementary, not core
+        // metadata). The optional rows collapse (and take their spacing with them) when
+        // hidden, so the feed — where `authorLabel` stays hidden — is unaffected.
         let subviews = [
             titleLabel,
             authorLabel,
             domainLabel,
             bodyLabel,
             subtitleLabel,
+            crossPostLabel,
             contentBottomSpacerView,
         ]
         for view in subviews {
@@ -184,6 +186,21 @@ class PostListPostContentView: UIView {
         label.numberOfLines = 0
         label.lineBreakMode = .byWordWrapping
         label.accessibilityIdentifier = "subtitle"
+        return label
+    }()
+
+    /// "Also in c/name" / "Also in N communities" — shown only when this post is
+    /// the primary of one or more collapsed cross-post siblings
+    /// (`CrossPostGrouper`, preference-gated, default on). Hidden (and collapsed
+    /// out of the stack) otherwise, so an ungrouped post's cell is unchanged. Its
+    /// own accessibility element (unlike `authorLabel`) since it carries
+    /// information the title's spoken label doesn't include.
+    lazy var crossPostLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 0
+        label.isHidden = true
+        label.accessibilityIdentifier = "crossPostAffordance"
         return label
     }()
 
@@ -370,6 +387,10 @@ class PostListPostContentView: UIView {
         domainLabel.isHidden = true
         bodyLabel.attributedText = nil
         bodyLabel.isHidden = true
+
+        crossPostLabel.attributedText = nil
+        crossPostLabel.isHidden = true
+        crossPostLabel.isAccessibilityElement = false
     }
 
     @objc
@@ -536,6 +557,15 @@ class PostListPostContentView: UIView {
 
         bodyLabel.attributedText = viewModel.bodyPreview
         bodyLabel.isHidden = viewModel.bodyPreview == nil
+
+        // The visible text carries an inline SF Symbol attachment, which
+        // VoiceOver can't pronounce — override with the plain-text label, same
+        // treatment as `subtitleLabel` above.
+        crossPostLabel.attributedText = viewModel.crossPostAffordanceText
+        crossPostLabel.isHidden = viewModel.crossPostAffordanceText == nil
+        crossPostLabel.isAccessibilityElement = viewModel.crossPostAffordanceText != nil
+        crossPostLabel.accessibilityLabel = viewModel.crossPostAffordanceAccessibilityLabel
+        crossPostLabel.accessibilityTraits = .staticText
 
         appliedUpvoteColor = viewModel.upvoteActiveColor
         appliedDownvoteColor = viewModel.downvoteActiveColor

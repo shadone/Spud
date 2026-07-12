@@ -95,6 +95,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Background unread refresh](background-unread-refresh.md) | `iphone`, `ipad` | shipped — foreground scene refresh (unread badge) + periodic scheduler site-info refresh with persisted exponential back-off and permanent give-up after N=5 consecutive permanent failures |
 | [Account provenance and site-info refresh](account-provenance-and-site-refresh.md) | `iphone`, `ipad` | shipped — pending release — ephemeral browse accounts excluded from the recurring sweep; one on-demand site-info fetch on first open; persisted per-site give-up after N=5 permanent failures; self-heals on a successful visit |
 | [New post](new-post.md) | `iphone`, `ipad` | shipped; composer sheet uses proper medium/large detents on iPad |
+| [Cross-posting](cross-posting.md) | `iphone`, `ipad` | shipped — "Cross-post" on the feed context menu and post-detail overflow menu; opens the new-post composer pre-filled with title + link (+ quoted body attribution from post detail); an open post also shows a "Cross-posted to N communities" section listing its existing cross-posts, tappable to open one; the feed also collapses same-link duplicates it has loaded into one row with an "Also in ..." affordance and a context-menu jump to each sibling (preference-gated, default on; same-page only — see [Display density and text size](display-density-and-text.md) for the toggle) |
 | [Image upload](image-upload.md) | `iphone`, `ipad` | shipped |
 | [Markdown editor](markdown-editor.md) | `iphone`, `ipad` | shipped |
 | [Draft persistence](draft-persistence.md) | `iphone`, `ipad` | shipped |
@@ -136,6 +137,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Inline thumbnails (text / link / image / video) + media badges
 - [x] Context-menu peek on posts
 - [x] Marking posts read / hiding read posts
+- [x] Grouping cross-posts in the feed — same-link duplicates already loaded into the feed collapse into one row with an "Also in c/name" / "Also in N communities" affordance and a context-menu "Also posted in" jump to each collapsed sibling; runs after the hide-read filter; preference-gated (Settings → Display → "Group Cross-posts", default on); client-side and same-page only, since the feed API carries no cross-post list (cross-posting.md)
 - [x] NSFW content visibility and blur — hidden by default; server-side filter + client-side discovery gating (Search, picker, Discover); age acknowledgment on first enable; blur overlay (thumbnails, post-detail header, community art) with tap-to-reveal on posts; privacy screen hides NSFW media from the app-switcher snapshot and screen capture; synced to server for signed-in accounts (nsfw-content.md)
 - [x] Configurable swipe actions (posts)
 
@@ -149,6 +151,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Configurable swipe actions (comments)
 - [x] Comment sort — global default (Settings) + in-screen per-post picker (post-detail config popover: Hot / Top / New / Old / Controversial)
 - [x] Post author status — full MOD/ADMIN/BOT/BANNED/SUSPENDED pills on the post-detail byline (mirroring comment badges); a single low-noise red banned-author marker in the feed for suspended / community-banned authors only; "[deleted]" author byline with the profile link suppressed; VoiceOver announces the status (author-status.md)
+- [x] Cross-posts on a post — "Cross-posted to N communities" section on the open post, listing other posts sharing its link in server order (community handle + score/comment-count line), tappable to open one; one-shot read on load + pull-to-refresh, no section when there are none (cross-posting.md)
 - [x] Share post / comment / community URL; open in Safari
 
 **Media**
@@ -188,6 +191,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 
 **Content creation**
 - [x] New post (text / link / image) + community picker + NSFW; on iPad the composer sheet uses proper medium/large detents (not a full-screen modal)
+- [x] Cross-posting — "Cross-post" on the feed's long-press context menu and the post-detail "•••" overflow menu opens the new-post composer pre-filled with the source post's title + link (post detail also seeds a `cross-posted from: <link>` quoted-body attribution); target community left for the user to pick (cross-posting.md)
 - [x] Image upload (pict-rs)
 - [x] Markdown editor + toolbar + live preview
 - [x] Draft persistence — durable, per-target, auto-saved (survives dismiss / relaunch)

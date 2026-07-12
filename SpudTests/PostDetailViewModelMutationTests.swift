@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import GRDB
 import LemmyKit
 import SpudDataKit
 import Testing
@@ -463,6 +464,72 @@ struct PostDetailViewModelMutationTests {
             try await vm.refreshPostInfo()
         }
         #expect(recording.invocations.isEmpty)
+    }
+
+    /// `fetchPostInfo` is production's ONLY path that populates the
+    /// `postCrossPost` junction (see `LemmyService.fetchPostInfo`'s harvest);
+    /// the recording double is a pure fake that never writes to the database.
+    /// So this seeds the junction directly (as if a real `fetchPostInfo` had
+    /// already run) and asserts `refreshPostInfo()` re-reads it into
+    /// `crossPosts` after the (faked) fetch succeeds - the pull-to-refresh half
+    /// of the one-shot-read contract (`PostDetailViewModelObservationTests`
+    /// covers the `startObservations()` half).
+    @Test
+    func refreshPostInfoRefreshesCrossPosts() async throws {
+        let recording = RecordingPostDetailLemmyService()
+        let dependencies = TestDependencies()
+        let appDatabase = dependencies.appDatabase
+        let vm = PostDetailViewModel(
+            serverPostId: 1,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: "kc-1"),
+            appDatabase: appDatabase,
+            dependencies: dependencies,
+            lemmy: recording
+        )
+
+        try await appDatabase.writer.write { db in
+            var instance = InstanceRecord(actorId: "https://example.com")
+            try instance.insert(db)
+            var site = SiteRecord(instanceId: instance.id!)
+            try site.insert(db)
+            var account = AccountRecord(siteId: site.id!, accountKeychainId: "kc-1", isSignedOutAccountType: false)
+            try account.insert(db)
+            var community = CommunityRecord(accountId: account.id!, communityId: 1, name: "opened")
+            try community.insert(db)
+            var crossCommunity = CommunityRecord(accountId: account.id!, communityId: 2, name: "other")
+            try crossCommunity.insert(db)
+            var creator = PersonRecord(siteId: site.id!, personId: 1, name: "op")
+            try creator.insert(db)
+            var post = PostRecord(
+                accountId: account.id!,
+                communityId: community.id!,
+                creatorId: creator.id!,
+                postId: 1,
+                title: "Opened post",
+                originalPostUrl: "https://example.com/post/1",
+                published: Date()
+            )
+            try post.insert(db)
+            var crossPost = PostRecord(
+                accountId: account.id!,
+                communityId: crossCommunity.id!,
+                creatorId: creator.id!,
+                postId: 2,
+                title: "Cross-post",
+                originalPostUrl: "https://example.com/post/2",
+                published: Date()
+            )
+            try crossPost.insert(db)
+            var junction = PostCrossPostRecord(postId: post.id!, crossPostId: crossPost.id!, position: 0)
+            try junction.insert(db)
+        }
+
+        #expect(vm.crossPosts.isEmpty, "nothing read until a fetch runs")
+
+        try await vm.refreshPostInfo()
+
+        #expect(vm.crossPosts.map(\.serverPostId) == [2])
+        #expect(vm.crossPosts.first?.communityName == "other")
     }
 
     @Test

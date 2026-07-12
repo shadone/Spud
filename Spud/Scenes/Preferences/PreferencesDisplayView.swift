@@ -26,6 +26,10 @@ struct PreferencesDisplayView: View {
         .init { viewModel.showVoteButtons } set: { viewModel.updateShowVoteButtons($0) }
     }
 
+    private var groupCrossPostsInFeed: Binding<Bool> {
+        .init { viewModel.groupCrossPostsInFeed } set: { viewModel.updateGroupCrossPostsInFeed($0) }
+    }
+
     /// The text-scale slider works in whole points from -3 to +6 relative to
     /// the system body size.
     private var postTextScale: Binding<Double> {
@@ -66,6 +70,14 @@ struct PreferencesDisplayView: View {
                 }
             } footer: {
                 Text("Show up and down vote arrows on each post in the feed. Swipe actions still work when hidden.")
+            }
+
+            Section {
+                Toggle(isOn: groupCrossPostsInFeed) {
+                    Label("Group Cross-posts", systemImage: "arrow.triangle.branch")
+                }
+            } footer: {
+                Text("Collapse posts that share the same link into one row, with an \"Also in\" note. Only groups posts already loaded in the feed.")
             }
 
             Section {

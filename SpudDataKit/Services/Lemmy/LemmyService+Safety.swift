@@ -261,6 +261,15 @@ public extension LemmyService {
         // `getPost` cross-post harvest now that `getPostNeutral` carries them on
         // `PostDetail.crossPosts`. Best-effort; a failure is logged and skipped.
         await mirrorPostViewsToAppDatabase(views: detail.crossPosts)
+
+        // Persist the cross-post *relationship* (not just counters), so the
+        // post-detail screen can render a "Cross-posted to N communities"
+        // section. Runs after the mirror above so every cross-post's `post` row
+        // already exists to reference. Best-effort, matching the harvest.
+        await mirrorCrossPostsToAppDatabase(
+            postServerId: Int64(serverPostId),
+            crossPosts: detail.crossPosts
+        )
     }
 
     internal func mirrorPostInfoToAppDatabase(
@@ -298,6 +307,25 @@ public extension LemmyService {
             )
         } catch {
             logger.error("AppDatabase upsertPost (cross-posts) failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// Persists the cross-post *relationship* discovered on this fetch (not
+    /// just counters) to the `postCrossPost` junction, replacing it wholesale —
+    /// see `AppDatabase.replaceCrossPosts`. Best-effort, mirroring
+    /// ``mirrorPostViewsToAppDatabase(views:)``: a failure is logged and skipped.
+    internal func mirrorCrossPostsToAppDatabase(
+        postServerId: Int64,
+        crossPosts: [Lemmy.PostView]
+    ) async {
+        do {
+            try await appDatabase.replaceCrossPosts(
+                forPostServerId: postServerId,
+                crossPostServerIds: crossPosts.map { Int64($0.post.id) },
+                forKeychainId: accountIdentifierForLogging
+            )
+        } catch {
+            logger.error("AppDatabase replaceCrossPosts failed: \(String(describing: error), privacy: .public)")
         }
     }
 

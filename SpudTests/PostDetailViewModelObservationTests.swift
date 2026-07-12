@@ -209,6 +209,48 @@ struct PostDetailViewModelObservationTests {
         }
     }
 
+    /// Seeds one cross-post: another post under `communityName` (a fresh
+    /// community row under the same account) plus the `postCrossPost` junction
+    /// row linking it to the seeded post at `position`. Mirrors what
+    /// `LemmyService.fetchPostInfo`'s harvest would have written on a prior
+    /// fetch.
+    @discardableResult
+    private func seedCrossPost(
+        _ seed: Seed,
+        serverPostId: Int64,
+        communityName: String,
+        position: Int64
+    ) async throws -> Int64 {
+        try await seed.appDatabase.writer.write { db -> Int64 in
+            var community = CommunityRecord(
+                accountId: seed.accountId,
+                communityId: 100 + serverPostId,
+                name: communityName,
+                actorId: "https://example.com/c/\(communityName)"
+            )
+            try community.insert(db)
+
+            var crossPost = PostRecord(
+                accountId: seed.accountId,
+                communityId: community.id!,
+                creatorId: seed.creatorRowId,
+                postId: serverPostId,
+                title: "Cross-post in \(communityName)",
+                originalPostUrl: "https://example.com/post/\(serverPostId)",
+                published: Date(timeIntervalSince1970: 1_000_000)
+            )
+            try crossPost.insert(db)
+
+            var junction = PostCrossPostRecord(
+                postId: seed.postRowId,
+                crossPostId: crossPost.id!,
+                position: position
+            )
+            try junction.insert(db)
+            return crossPost.id!
+        }
+    }
+
     /// Writes each spec as a real `comment` + `commentElement` pair for the
     /// seeded post, under `sortType` so the comments observation picks them up.
     /// Can run before or after ``PostDetailViewModel/startObservations()`` — a
@@ -322,6 +364,41 @@ struct PostDetailViewModelObservationTests {
         await poll { fetchCount > 0 }
         #expect(fetchCount == 1)
         #expect(vm.headerRow == nil)
+
+        vm.stopObservations()
+    }
+
+    // MARK: - Cross-posts (one-shot read)
+
+    @Test
+    func startObservationsPublishesSeededCrossPostsInPositionOrder() async throws {
+        let seed = try await makeSeed()
+
+        // Seed out of position order (community "beta" at position 0, "alpha"
+        // at position 1) - the published order must follow `position`, not
+        // insertion order.
+        try await seedCrossPost(seed, serverPostId: 201, communityName: "beta", position: 0)
+        try await seedCrossPost(seed, serverPostId: 202, communityName: "alpha", position: 1)
+
+        let vm = makeViewModel(seed)
+        #expect(vm.crossPosts.isEmpty, "nothing read before startObservations")
+
+        vm.startObservations()
+
+        #expect(vm.crossPosts.map(\.serverPostId) == [201, 202])
+        #expect(vm.crossPosts.map(\.communityName) == ["beta", "alpha"])
+
+        vm.stopObservations()
+    }
+
+    @Test
+    func startObservationsLeavesCrossPostsEmptyWhenPostHasNone() async throws {
+        let seed = try await makeSeed()
+        let vm = makeViewModel(seed)
+
+        vm.startObservations()
+
+        #expect(vm.crossPosts.isEmpty)
 
         vm.stopObservations()
     }

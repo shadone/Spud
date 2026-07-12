@@ -132,6 +132,7 @@ class PostDetailViewController: UIViewController {
         tableView.refreshControl = refreshControl
         tableView.register(PostDetailHeaderCell.self, forCellReuseIdentifier: PostDetailHeaderCell.reuseIdentifier)
         tableView.register(PostDetailNewSinceBannerCell.self, forCellReuseIdentifier: PostDetailNewSinceBannerCell.reuseIdentifier)
+        tableView.register(PostDetailCrossPostsCell.self, forCellReuseIdentifier: PostDetailCrossPostsCell.reuseIdentifier)
         tableView.register(PostDetailCommentCell.self, forCellReuseIdentifier: PostDetailCommentCell.reuseIdentifier)
         tableView.register(PostDetailCommentLoadingCell.self, forCellReuseIdentifier: PostDetailCommentLoadingCell.reuseIdentifier)
         tableView.register(PostDetailEmptyCommentsCell.self, forCellReuseIdentifier: PostDetailEmptyCommentsCell.reuseIdentifier)
@@ -878,6 +879,10 @@ class PostDetailViewController: UIViewController {
             snapshot.appendItems([.newSinceBanner], toSection: .header)
             snapshot.reconfigureItems([.newSinceBanner])
         }
+        if !viewModel.crossPosts.isEmpty {
+            snapshot.appendItems([.crossPostedTo], toSection: .header)
+            snapshot.reconfigureItems([.crossPostedTo])
+        }
         // Refresh content in place. Reconfigure (not reload) re-runs the cell
         // provider on the existing cells, avoiding the cross-dissolve that
         // reloadItems animates under `animatingDifferences: true` — that fade,
@@ -1306,6 +1311,16 @@ class PostDetailViewController: UIViewController {
             alertService.handle(error, for: .fetchComments)
         }
         await postInfoRefresh
+        // `refreshPostInfo()` re-reads `viewModel.crossPosts` as a plain
+        // one-shot assignment (not a GRDB observation), so it doesn't itself
+        // trigger a reaction loop's `applySnapshot()`. The header-row
+        // observation happens to cover most refreshes (a fresh PostView
+        // usually changes score/comment-count columns too), but a refresh
+        // whose ONLY delta is a gained/lost cross-post wouldn't touch those
+        // columns and so wouldn't re-emit. Apply explicitly (non-animated, the
+        // default) so the section is deterministic rather than riding along on
+        // an unrelated observation.
+        applySnapshot()
         refreshControl.endRefreshing()
     }
 
@@ -1370,6 +1385,19 @@ class PostDetailViewController: UIViewController {
     /// sheets, context menus, comment cells) keeps working unchanged.
     private func linkTapped(_ url: URL) {
         routeInternalLink(url)
+    }
+
+    /// Opens a tapped cross-post by its `ap_id`, via the same internal-link
+    /// routing every other post-detail link uses (`.objectAtURL` federated
+    /// resolve, then `routeToPost` -> `openPost`). Works for a cross-post on any
+    /// instance, not just the current account's, and pushes on iPhone / opens
+    /// in the detail column on iPad like every other in-app post navigation.
+    private func openCrossPost(_ summary: CrossPostSummary) {
+        guard let apURL = URL(string: summary.apId) else {
+            logger.error("Cross-post tapped with an unparsable ap_id: \(summary.apId, privacy: .public)")
+            return
+        }
+        routeInternalLink(URL.SpudInternalLink.objectAtURL(url: apURL).url)
     }
 
     private func pushPerson(personId: Lemmy.PersonID, instance: InstanceActorId) {
@@ -1774,6 +1802,36 @@ class PostDetailViewController: UIViewController {
         )
         present(composer, animated: true)
     }
+
+    /// Presents the new-post composer pre-filled with this post's title/url,
+    /// plus a quoted-body attribution (the full post is loaded here, unlike
+    /// the feed row), so the user can re-share it to another community. Sign-in
+    /// gated, community picker left open for the user to choose the cross-post
+    /// target. Uses the same durable-enqueue pending-post flow as the toolbar
+    /// compose action.
+    // internal: shared with PostDetailViewController+OverflowMenu
+    func crossPostPost() {
+        guard let row = viewModel.headerRow else { return }
+        let keychainId = viewModel.accountKeychainId
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to post", comment: "Sign-in gate title when a signed-out user tries to cross-post")
+            )
+            return
+        }
+
+        let composer = NewPostViewController.makeCrossPostSheet(
+            initialTitle: row.title,
+            initialUrl: row.url,
+            initialBody: crossPostBody(originalApId: row.originalPostUrl, originalBody: row.body),
+            accountKeychainId: keychainId,
+            dependencies: dependencies.own
+        ) { [weak self] clientToken in
+            guard let window = self?.view.window as? MainWindow else { return }
+            window.displayPending(clientToken: clientToken, accountKeychainId: keychainId)
+        }
+        present(composer, animated: true)
+    }
 }
 
 // MARK: - Data source
@@ -1787,6 +1845,10 @@ extension PostDetailViewController {
     enum Item: Hashable {
         case header
         case newSinceBanner
+        /// The "Cross-posted to N communities" section. A plain marker (no
+        /// associated value, like `.commentsFailed`) — the cell provider reads
+        /// `viewModel.crossPosts` when configuring the cell.
+        case crossPostedTo
         case commentLoadingSkeleton
         case commentsEmpty
         /// The inline "couldn't load comments" failed-state row. A plain marker
@@ -1904,6 +1966,15 @@ extension PostDetailViewController {
                     accent: accent
                 )
                 cell.jumpTapped = { [weak self] in self?.jumpToFirstNewComment() }
+                return cell
+
+            case .crossPostedTo:
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: PostDetailCrossPostsCell.reuseIdentifier,
+                    for: indexPath
+                ) as! PostDetailCrossPostsCell
+                cell.configure(with: self?.viewModel.crossPosts ?? [])
+                cell.crossPostTapped = { [weak self] summary in self?.openCrossPost(summary) }
                 return cell
 
             case .commentLoadingSkeleton:

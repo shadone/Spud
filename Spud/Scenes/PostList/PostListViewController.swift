@@ -136,6 +136,14 @@ class PostListViewController: UIViewController {
     /// (`orderedRows` / `row(forServerPostId:)`); this is the VC-side hide-read
     /// view transform of them.
     private var displayedRows: [PostListRow] = []
+    /// Primary `serverPostId` -> its collapsed cross-post siblings, recomputed by
+    /// `CrossPostGrouper` on every `apply(rows:)` (empty when grouping is off).
+    /// Read by the cell provider (the "Also in N communities" affordance) and the
+    /// context menu (the "Also posted in" jump submenu). Not part of the
+    /// diffable snapshot's identity — `displayedRows` / `viewModel.orderedRows`
+    /// stay the source of truth for what's on screen; this is auxiliary lookup
+    /// state for rows already in `displayedRows`.
+    private var crossPostSiblings: [Int64: [PostListRow]] = [:]
     /// The backing account's moderation capability, refreshed when the feed
     /// loads. Drives whether the post context menu shows mod actions. `.none`
     /// until the first fetch (and for signed-out accounts).
@@ -178,6 +186,10 @@ class PostListViewController: UIViewController {
     /// re-apply the current snapshot through `HideReadPostsFilter`.
     private var hideReadPosts = false
     private var hideReadPostsMode: HideReadPostsFilter.Mode = .onRefresh
+
+    /// Cross-post grouping preference, seeded from `PreferencesService` and kept
+    /// live. Changes re-apply the current snapshot through `CrossPostGrouper`.
+    private var groupCrossPosts = true
 
     /// Mark-read prefs, seeded and kept live. Drive `scrollViewDidScroll`'s
     /// best-effort mark-as-read.
@@ -323,6 +335,7 @@ class PostListViewController: UIViewController {
 
         hideReadPosts = dependencies.preferencesService.hideReadPosts
         hideReadPostsMode = dependencies.preferencesService.hideReadPostsMode
+        groupCrossPosts = dependencies.preferencesService.groupCrossPostsInFeed
         markPostsRead = dependencies.preferencesService.markPostsRead
         markPostsReadOnScroll = dependencies.preferencesService.markPostsReadOnScroll
 
@@ -896,6 +909,22 @@ class PostListViewController: UIViewController {
 
         displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
             guard let self else { return }
+            for await value in preferencesService.groupCrossPostsInFeedStream {
+                if Task.isCancelled { break }
+                guard value != groupCrossPosts else { continue }
+                groupCrossPosts = value
+                // Re-runs the same pipeline `apply(rows:)` always does; turning
+                // grouping off drops `crossPostSiblings` back to empty and
+                // restores every collapsed sibling to the snapshot, turning it
+                // on re-collapses them. `apply` recomputes `crossPostSiblings`
+                // itself, so there's nothing else to re-seed here (unlike
+                // hide-read's `pinnedReadIds`, which grouping doesn't touch).
+                apply(rows: viewModel.orderedRows)
+            }
+        })
+
+        displayPrefsObservationTasks.append(Task { @MainActor [weak self] in
+            guard let self else { return }
             for await value in preferencesService.markPostsReadStream {
                 if Task.isCancelled { break }
                 markPostsRead = value
@@ -1178,6 +1207,11 @@ class PostListViewController: UIViewController {
         // so the dangerous lookup-empty-but-snapshot-populated window never opens.
         if !keepingContent {
             displayedRows.removeAll()
+            // `crossPostSiblings` is auxiliary lookup state for rows already in
+            // `displayedRows` (see its doc comment) — reset it in lockstep so a
+            // stale sibling map from the prior feed can't outlive the rows it
+            // was computed from.
+            crossPostSiblings.removeAll()
             clearPostItems()
         }
         viewModel.restartObservations(keepingContent: keepingContent)
@@ -1198,29 +1232,43 @@ class PostListViewController: UIViewController {
         refreshModerationCapability()
     }
 
-    /// Renders a feed snapshot: filters `rows` for the hide-read preference into
-    /// `displayedRows`, applies the diffable snapshot (reconfiguring surviving
-    /// cells in place), and re-evaluates the top-level load state. The view model
-    /// owns the ordered snapshot + the `serverPostId` lookup (already stored when
-    /// this runs); this only reads them via the passed `rows`. Called from the
-    /// row reaction (a DB emit, `animatingDifferences: false`) and the
-    /// display-preference reactions (a hide-read toggle re-filtering the same
-    /// `viewModel.orderedRows`, keeping the default animation for its removals).
+    /// Renders a feed snapshot: filters `rows` for the hide-read preference,
+    /// then (preference-gated) collapses cross-post duplicates via
+    /// `CrossPostGrouper` into `displayedRows` + `crossPostSiblings`, applies the
+    /// diffable snapshot (reconfiguring surviving cells in place), and
+    /// re-evaluates the top-level load state. The view model owns the ordered
+    /// snapshot + the `serverPostId` lookup (already stored when this runs) for
+    /// EVERY row, including collapsed siblings — this only reads them via the
+    /// passed `rows`. Called from the row reaction (a DB emit,
+    /// `animatingDifferences: false`) and the display-preference reactions (a
+    /// hide-read or grouping toggle re-filtering the same `viewModel.orderedRows`,
+    /// keeping the default animation for the resulting removals/insertions).
     private func apply(rows: [PostListRow], animatingDifferences: Bool = true) {
         // Filter for display per the hide-read preference. The view model's
         // `serverPostId` lookup still maps every row so cells resolve, but the
         // snapshot only carries the rows that should be visible.
-        let displayed = HideReadPostsFilter.filter(
+        let filtered = HideReadPostsFilter.filter(
             rows: rows,
             enabled: hideReadPosts,
             mode: hideReadPostsMode,
             pinnedReadIds: pinnedReadIds
         )
-        displayedRows = displayed
+
+        // Cross-post grouping runs AFTER the hide-read filter, so a read/hidden
+        // row already dropped above can never anchor a group as a primary or be
+        // counted as a sibling. Preference-gated: when off, skip the transform
+        // entirely (`filtered` passes through unchanged) rather than calling
+        // `CrossPostGrouper.group` and discarding its result — the grouper
+        // itself has no "disabled" mode.
+        let grouped = groupCrossPosts
+            ? CrossPostGrouper.group(rows: filtered)
+            : CrossPostGrouper.Result(displayed: filtered, siblingsByPrimary: [:])
+        crossPostSiblings = grouped.siblingsByPrimary
+        displayedRows = grouped.displayed
 
         var snapshot = NSDiffableDataSourceSnapshot<Section, Item>()
         snapshot.appendSections([.posts])
-        let items = displayed.map { Item.post(serverPostId: $0.serverPostId) }
+        let items = grouped.displayed.map { Item.post(serverPostId: $0.serverPostId) }
         snapshot.appendItems(items, toSection: .posts)
         // Refresh content in place. The item identity is the serverPostId, so a
         // GRDB emission that only changes a post's data (vote, read-state) or
@@ -1424,7 +1472,9 @@ class PostListViewController: UIViewController {
                     appearance: appearance,
                     postContentDetector: postContentDetector,
                     blurNsfw: self?.preferencesService.blurNsfw ?? false,
-                    isRevealed: self?.revealedNsfwPostIds.contains(serverPostId) ?? false
+                    isRevealed: self?.revealedNsfwPostIds.contains(serverPostId) ?? false,
+                    crossPostSiblingCommunityNames: (self?.crossPostSiblings[serverPostId] ?? [])
+                        .map(\.communityName)
                 )
                 cell.configure(with: viewModel, imageService: imageService)
                 cell.seenTrackingServerPostId = serverPostId
@@ -1569,6 +1619,38 @@ class PostListViewController: UIViewController {
             accountKeychainId: keychainId,
             dependencies: dependencies.own
         )
+        present(composer, animated: true)
+    }
+
+    /// Opens the new-post composer pre-filled with the post's title + url, so
+    /// the user can re-share it to another community. The feed row carries no
+    /// body, so the attribution is title + url only (matches lemmy-ui for a
+    /// no-body post) — the post-detail overflow menu's cross-post action
+    /// includes the quoted body since the full post is loaded there.
+    private func crossPostPost(serverPostId: Int64) {
+        let keychainId = viewModel.accountKeychainId
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to post", comment: "Sign-in gate title when a signed-out user tries to cross-post")
+            )
+            return
+        }
+        guard let row = viewModel.row(forServerPostId: serverPostId) else {
+            Haptics.warning()
+            return
+        }
+
+        Haptics.tap()
+        let composer = NewPostViewController.makeCrossPostSheet(
+            initialTitle: row.title,
+            initialUrl: row.url,
+            initialBody: crossPostBody(originalApId: row.originalPostUrl, originalBody: nil),
+            accountKeychainId: keychainId,
+            dependencies: dependencies.own
+        ) { [weak self] clientToken in
+            guard let window = self?.view.window as? MainWindow else { return }
+            window.displayPending(clientToken: clientToken, accountKeychainId: keychainId)
+        }
         present(composer, animated: true)
     }
 
@@ -2111,6 +2193,13 @@ extension PostListViewController: UITableViewDelegate {
                     self?.sharePost(serverPostId: serverPostId)
                 }
 
+                let crossPostAction = UIAction(
+                    title: NSLocalizedString("Cross-post", comment: "Context-menu action to re-share a post to another community"),
+                    image: UIImage(systemName: "arrow.triangle.branch")
+                ) { [weak self] _ in
+                    self?.crossPostPost(serverPostId: serverPostId)
+                }
+
                 let row = self?.viewModel.row(forServerPostId: serverPostId)
 
                 let visitCommunityAction = UIAction(
@@ -2164,8 +2253,17 @@ extension PostListViewController: UITableViewDelegate {
                 // Grouped with inline submenus so each renders with a divider,
                 // matching the design's long-press menu layout.
                 let voteGroup = UIMenu(options: .displayInline, children: [upvoteAction, downvoteAction, saveAction])
-                let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction])
-                let navGroup = UIMenu(options: .displayInline, children: [visitCommunityAction, viewAuthorAction])
+                let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction, crossPostAction])
+                var navChildren: [UIMenuElement] = [visitCommunityAction, viewAuthorAction]
+                // "Also posted in" jump submenu — only when this post is a
+                // cross-post-grouping primary with collapsed siblings. Task 1's
+                // `crossPostAction` above CREATES a new cross-post; this
+                // navigates to ones that already exist, so the two never
+                // conflate despite sharing a symbol.
+                if let crossPostMenu = self?.crossPostSiblingsMenu(serverPostId: serverPostId) {
+                    navChildren.append(crossPostMenu)
+                }
+                let navGroup = UIMenu(options: .displayInline, children: navChildren)
                 var hideChildren: [UIMenuElement] = [hideAction]
                 if let self, let communityName = row?.communityName, !communityName.isEmpty, row?.communityActorId != nil {
                     hideChildren.append(makeMuteCommunityMenu(serverPostId: serverPostId, communityName: communityName))
@@ -2183,6 +2281,53 @@ extension PostListViewController: UITableViewDelegate {
                 return UIMenu(title: "", children: children)
             }
         )
+    }
+
+    // MARK: Cross-post grouping
+
+    /// The "Also posted in" jump submenu for the post at `serverPostId`, or nil
+    /// when it isn't a cross-post-grouping primary (no collapsed siblings —
+    /// either it wasn't grouped, or grouping is off, in which case
+    /// `crossPostSiblings` is empty). Each child opens a sibling post via
+    /// `postSelected(serverPostId:)`, the same path a feed tap uses — that path
+    /// resolves by `serverPostId` alone (`window.display(serverPostId:...)`), so
+    /// it works whether or not the sibling itself is currently on screen.
+    private func crossPostSiblingsMenu(serverPostId: Int64) -> UIMenu? {
+        guard let siblings = crossPostSiblings[serverPostId], !siblings.isEmpty else { return nil }
+
+        let children = siblings.map { sibling in
+            UIAction(
+                title: Self.qualifiedCommunityHandle(for: sibling),
+                // `square.on.square` (stacked copies) distinguishes JUMPING to an
+                // existing cross-post from the `arrow.triangle.branch` CREATE action
+                // that composes a new one.
+                image: UIImage(systemName: "square.on.square")
+            ) { [weak self] _ in
+                self?.postSelected(serverPostId: sibling.serverPostId)
+            }
+        }
+        return UIMenu(
+            title: NSLocalizedString(
+                "Also posted in",
+                comment: "Context-menu submenu listing a post's collapsed cross-post siblings"
+            ),
+            image: UIImage(systemName: "square.on.square"),
+            children: children
+        )
+    }
+
+    /// `c/<community>@<instance>`, or just `c/<community>` when the row's actor
+    /// id can't be parsed to a host. Mirrors the `@instance` suffix convention
+    /// the feed subtitle and the "Cross-posted to N communities" post-detail
+    /// section both use.
+    private static func qualifiedCommunityHandle(for row: PostListRow) -> String {
+        guard
+            let actorId = row.communityActorId,
+            let instance = InstanceActorId(from: actorId)
+        else {
+            return "c/\(row.communityName)"
+        }
+        return "c/\(row.communityName)@\(instance.host)"
     }
 
     // MARK: Moderation

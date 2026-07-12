@@ -130,6 +130,9 @@ final class PreferencesViewModel {
     var thumbnailPosition: ThumbnailPosition
     var postTextScale: CGFloat
     var showVoteButtons: Bool
+    /// Whether feed rows sharing the same link are collapsed into one primary
+    /// row with an "Also in N communities" affordance. Default `true`.
+    var groupCrossPostsInFeed: Bool
 
     var showNsfw: Bool
     var blurNsfw: Bool
@@ -203,6 +206,7 @@ final class PreferencesViewModel {
         thumbnailPosition = dependencies.preferencesService.thumbnailPosition
         postTextScale = dependencies.preferencesService.postTextScale
         showVoteButtons = dependencies.preferencesService.showVoteButtons
+        groupCrossPostsInFeed = dependencies.preferencesService.groupCrossPostsInFeed
         showNsfw = dependencies.preferencesService.showNsfw
         blurNsfw = dependencies.preferencesService.blurNsfw
         fetchLinkEmbeds = dependencies.preferencesService.fetchLinkEmbeds
@@ -310,6 +314,12 @@ final class PreferencesViewModel {
         })
 
         preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.groupCrossPostsInFeedStream {
+                self?.groupCrossPostsInFeed = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
             for await value in preferencesService.showNsfwStream {
                 self?.showNsfw = value
             }
@@ -394,6 +404,7 @@ final class PreferencesViewModel {
         thumbnailPosition = .left
         postTextScale = 0
         showVoteButtons = true
+        groupCrossPostsInFeed = true
         showNsfw = false
         blurNsfw = true
         fetchLinkEmbeds = true
@@ -571,6 +582,13 @@ final class PreferencesViewModel {
         guard value != showVoteButtons else { return }
         showVoteButtons = value
         preferencesService?.showVoteButtons = value
+        Haptics.tap()
+    }
+
+    func updateGroupCrossPostsInFeed(_ value: Bool) {
+        guard value != groupCrossPostsInFeed else { return }
+        groupCrossPostsInFeed = value
+        preferencesService?.groupCrossPostsInFeed = value
         Haptics.tap()
     }
 

@@ -51,6 +51,7 @@ struct AppDatabaseTests {
                 "pageElement",
                 "person",
                 "post",
+                "postCrossPost",
                 "postInteraction",
                 "postInteractionFts",
                 "privateMessage",

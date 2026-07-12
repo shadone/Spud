@@ -22,6 +22,11 @@ protocol PostListAppearanceType: AnyObject {
 
     /// Whether the cell shows the trailing up/down vote arrows.
     var showVoteButtons: Bool { get }
+
+    /// Whether feed rows sharing the same `url` are collapsed into one primary
+    /// row with an "Also in N communities" affordance. See
+    /// ``PreferencesServiceType/groupCrossPostsInFeed``.
+    var groupCrossPostsInFeed: Bool { get }
 }
 
 /// Resolves post-list display preferences for the cell layer. The reading /
@@ -57,5 +62,9 @@ final class PostListAppearance: PostListAppearanceType {
 
     var showVoteButtons: Bool {
         preferencesService.showVoteButtons
+    }
+
+    var groupCrossPostsInFeed: Bool {
+        preferencesService.groupCrossPostsInFeed
     }
 }
