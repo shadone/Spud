@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Login](login.md), [Instance picker](instance-picker.md), [Accounts and switching](accounts-and-switching.md), [Signed-out browsing](signed-out-browsing.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Login](login.md), [Instance picker](instance-picker.md), [Accounts and switching](accounts-and-switching.md), [Signed-out browsing](signed-out-browsing.md), [Custom instance entry](custom-instance-entry.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -22,7 +22,7 @@ Spud explains the pending state instead.
   - **Application pending** — the account awaits admin approval; you can log in once approved.
   - **Verify email** — the account needs its email verified before logging in.
   - **Generic pending** — the account isn't active yet; try logging in shortly.
-- **Rejections surface the reason.** If the instance rejects the sign-up (username taken, weak password, captcha required, etc.), an alert shows the server's reason when available, or a generic "username may be taken, password too weak, or a captcha may be required" message otherwise. Connection / API failures show a generic retry message.
+- **Rejections surface the reason.** If the instance rejects the sign-up (username taken, weak password, captcha required, etc.), an alert shows the server's reason when available, or a generic "username may be taken, password too weak, or a captcha may be required" message otherwise. **A connection failure is distinguished from a rejection.** If the request never reaches the instance (unreachable host, DNS failure, timeout — most likely on a typed/custom instance, see [Custom instance entry](custom-instance-entry.md)), the alert reads "Couldn't connect to `<host>`. Check the address and your connection." instead of a generic retry message; other API failures still show the generic retry message.
 
 ## Scenarios
 
@@ -55,6 +55,12 @@ Spud explains the pending state instead.
 - **Given** the sign-up form
 - **When** the instance rejects the registration
 - **Then** an alert shows the server's reason (or a generic reason) and I can adjust and retry
+
+### An unreachable instance shows a connection error
+
+- **Given** the sign-up form for an instance that is unreachable (offline, DNS failure, timeout)
+- **When** I submit the form
+- **Then** the alert reads "Couldn't connect to `<host>`. Check the address and your connection." rather than a generic rejection message
 
 ## Not supported / out of scope
 

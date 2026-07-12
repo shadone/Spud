@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Login](login.md), [Registration](registration.md), [Accounts and switching](accounts-and-switching.md), [Signed-out browsing](signed-out-browsing.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Login](login.md), [Registration](registration.md), [Accounts and switching](accounts-and-switching.md), [Signed-out browsing](signed-out-browsing.md), [Custom instance entry](custom-instance-entry.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -22,6 +22,7 @@ a compact stats line (total users, monthly active, all-time uptime).
 - **Filterable.** A filter menu toggles "Registration open" and "Hide NSFW", and offers a Language submenu. Languages are titled by their localized display name ("English", "German") and ordered by that name, not the raw code. The language list is scoped to the instances that still match the other active filters, so every offered language has at least one matching instance — turning on "Registration open" then opening Language shows only languages available among open-registration instances.
 - **Feeds into login.** Selecting an instance pushes the login screen for that instance. From there you can sign in, tap Register to sign up, or choose to browse anonymously — so the picker is the shared entry point for [login.md](login.md), [registration.md](registration.md), and anonymous browsing.
 - **Live updates.** The list observes the underlying site rows, so newly added or refreshed instances appear without leaving the screen.
+- **"Add your own instance" row.** A row above the directory list — its own SF Symbol + label + chevron, styled like a system settings row — opens a dedicated address-entry screen for a Lemmy instance that isn't in the directory (most commonly a private, non-federated server). See [Custom instance entry](custom-instance-entry.md).
 
 ## Scenarios
 
@@ -55,8 +56,13 @@ a compact stats line (total users, monthly active, all-time uptime).
 - **When** I tap an instance
 - **Then** the login screen for that instance opens, from which I can sign in, register, or browse anonymously
 
+### Add an instance that isn't in the list
+
+- **Given** the instance list
+- **When** I tap "Add your own instance" at the top of the list, type an address, and continue
+- **Then** the login screen opens for that typed instance, the same as picking one from the directory — see [Custom instance entry](custom-instance-entry.md)
+
 ## Not supported / out of scope
 
-- No free-form "enter a custom instance URL" field — selection is from the seeded / known list only.
 - The per-row stats line shows total users, monthly active users, and all-time uptime; deeper live health (latency, version, moderation signals) lives on the instance detail screen, not the list. See [instance-browsing.md](instance-browsing.md).
 - It does not perform sign-in or sign-up itself — it only routes to the login screen. See [login.md](login.md) and [registration.md](registration.md).
