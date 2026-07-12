@@ -134,10 +134,14 @@ final class LoginViewModel {
             )
             needsTwoFactorCode = true
         } catch {
-            loginError = NSLocalizedString(
-                "Incorrect username or password.",
-                comment: "Inline login error shown under the password field"
-            )
+            loginError = if AccountConnectionFailure.isConnectionFailure(error) {
+                AccountConnectionFailure.message(host: instanceName)
+            } else {
+                NSLocalizedString(
+                    "Incorrect username or password.",
+                    comment: "Inline login error shown under the password field"
+                )
+            }
             alertService.handle(error, for: .login)
         }
     }

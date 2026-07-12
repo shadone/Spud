@@ -124,7 +124,12 @@ final class OnboardingLabeledField: UIView {
     private lazy var eyeButton = UIButton(type: .system)
     private let showsEyeToggle: Bool
 
-    init(caption: String, isSecure: Bool = false) {
+    /// - Parameters:
+    ///   - leadingSymbolName: an optional SF Symbol name shown inline at the
+    ///     field's leading edge (e.g. "network" for an instance-address
+    ///     field). `nil` (the default) matches the plain field look used by
+    ///     login/register.
+    init(caption: String, isSecure: Bool = false, leadingSymbolName: String? = nil) {
         showsEyeToggle = isSecure
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
@@ -146,6 +151,9 @@ final class OnboardingLabeledField: UIView {
         textField.textColor = .label
         textField.isSecureTextEntry = isSecure
         textField.delegate = self
+        // The caption is the persistent VoiceOver label; the placeholder
+        // disappears once text is entered, so it alone isn't a reliable label.
+        textField.accessibilityLabel = caption
 
         errorLabel.translatesAutoresizingMaskIntoConstraints = false
         errorLabel.font = .systemFont(ofSize: 12)
@@ -173,9 +181,26 @@ final class OnboardingLabeledField: UIView {
 
             container.heightAnchor.constraint(equalToConstant: 48),
 
-            textField.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 14),
             textField.centerYAnchor.constraint(equalTo: container.centerYAnchor),
         ])
+
+        if let leadingSymbolName {
+            let leadingIcon = UIImageView(image: UIImage(systemName: leadingSymbolName))
+            leadingIcon.translatesAutoresizingMaskIntoConstraints = false
+            leadingIcon.tintColor = .secondaryLabel
+            leadingIcon.contentMode = .scaleAspectFit
+            leadingIcon.setContentHuggingPriority(.required, for: .horizontal)
+            container.addSubview(leadingIcon)
+            NSLayoutConstraint.activate([
+                leadingIcon.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 14),
+                leadingIcon.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+                leadingIcon.widthAnchor.constraint(equalToConstant: 18),
+                leadingIcon.heightAnchor.constraint(equalToConstant: 18),
+                textField.leadingAnchor.constraint(equalTo: leadingIcon.trailingAnchor, constant: 8),
+            ])
+        } else {
+            textField.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 14).isActive = true
+        }
 
         if showsEyeToggle {
             eyeButton.translatesAutoresizingMaskIntoConstraints = false

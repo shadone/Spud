@@ -141,7 +141,11 @@ final class RegisterViewModel {
         } catch let error as PlatformUnsupportedError {
             blockedPlatform = error
         } catch let error as AccountServiceRegisterError {
-            outcomeMessage = Self.message(for: error)
+            outcomeMessage = if AccountConnectionFailure.isConnectionFailure(error) {
+                AccountConnectionFailure.message(host: instanceName)
+            } else {
+                Self.message(for: error)
+            }
         } catch {
             logger.error("Register failed: \(String(describing: error), privacy: .public)")
             outcomeMessage = NSLocalizedString(

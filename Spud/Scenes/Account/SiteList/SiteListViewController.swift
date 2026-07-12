@@ -21,6 +21,17 @@ class SiteListViewController: UIViewController {
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)
 
+    /// The table's two sections: a single static "Add your own instance" row,
+    /// then the Explorer directory. Kept as its own section (rather than a
+    /// prepended directory row) so `visibleRows`/`indexPath.row` indexing for
+    /// the directory never has to account for an offset.
+    private enum Section: Int, CaseIterable {
+        case addCustomInstance
+        case directory
+    }
+
+    private static let addCustomInstanceReuseIdentifier = "AddCustomInstanceCell"
+
     var appDatabase: AppDatabase {
         dependencies.own.appDatabase
     }
@@ -47,6 +58,7 @@ class SiteListViewController: UIViewController {
         tableView.dataSource = self
 
         tableView.register(SiteListSiteCell.self, forCellReuseIdentifier: SiteListSiteCell.reuseIdentifier)
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: Self.addCustomInstanceReuseIdentifier)
 
         return tableView
     }()
@@ -275,15 +287,26 @@ class SiteListViewController: UIViewController {
 
 extension SiteListViewController: UITableViewDelegate {
     func tableView(_: UITableView, didSelectRowAt indexPath: IndexPath) {
-        let row = visibleRows[indexPath.row]
-        // Show the instance detail ("before you commit") screen. Fall back to
-        // login directly if the directory record isn't available.
-        if let record = appDatabase.explorerInstanceSync(baseurl: row.hostname) {
-            let detail = InstanceDetailViewController(record: record, dependencies: dependencies.nested)
-            navigationController?.pushViewController(detail, animated: true)
-        } else {
-            let login = LoginViewController(row: row, dependencies: dependencies.nested)
-            navigationController?.pushViewController(login, animated: true)
+        switch Section(rawValue: indexPath.section) {
+        case .addCustomInstance:
+            tableView.deselectRow(at: indexPath, animated: true)
+            let entry = CustomInstanceEntryViewController(dependencies: dependencies.nested)
+            navigationController?.pushViewController(entry, animated: true)
+
+        case .directory:
+            let row = visibleRows[indexPath.row]
+            // Show the instance detail ("before you commit") screen. Fall back to
+            // login directly if the directory record isn't available.
+            if let record = appDatabase.explorerInstanceSync(baseurl: row.hostname) {
+                let detail = InstanceDetailViewController(record: record, dependencies: dependencies.nested)
+                navigationController?.pushViewController(detail, animated: true)
+            } else {
+                let login = LoginViewController(row: row, dependencies: dependencies.nested)
+                navigationController?.pushViewController(login, animated: true)
+            }
+
+        case nil:
+            break
         }
     }
 }
@@ -291,24 +314,60 @@ extension SiteListViewController: UITableViewDelegate {
 // MARK: - Table View DataSource
 
 extension SiteListViewController: UITableViewDataSource {
-    func tableView(_: UITableView, numberOfRowsInSection _: Int) -> Int {
-        visibleRows.count
+    func numberOfSections(in _: UITableView) -> Int {
+        Section.allCases.count
+    }
+
+    func tableView(_: UITableView, numberOfRowsInSection section: Int) -> Int {
+        switch Section(rawValue: section) {
+        case .addCustomInstance: 1
+        case .directory: visibleRows.count
+        case nil: 0
+        }
     }
 
     func tableView(
         _ tableView: UITableView,
         cellForRowAt indexPath: IndexPath
     ) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(
-            withIdentifier: SiteListSiteCell.reuseIdentifier,
-            for: indexPath
-        ) as! SiteListSiteCell
+        switch Section(rawValue: indexPath.section) {
+        case .addCustomInstance:
+            return addCustomInstanceCell(for: tableView, at: indexPath)
 
-        let viewModel = SiteListSiteViewModel(
-            row: visibleRows[indexPath.row],
-            dependencies: dependencies.nested
+        case .directory, nil:
+            let cell = tableView.dequeueReusableCell(
+                withIdentifier: SiteListSiteCell.reuseIdentifier,
+                for: indexPath
+            ) as! SiteListSiteCell
+
+            let viewModel = SiteListSiteViewModel(
+                row: visibleRows[indexPath.row],
+                dependencies: dependencies.nested
+            )
+            cell.configure(with: viewModel)
+
+            return cell
+        }
+    }
+
+    /// The static top-of-list row: an SF Symbol + "Add your own instance" +
+    /// disclosure chevron, styled like a plain system settings row via
+    /// `UIListContentConfiguration` (native Dynamic Type / a11y for free).
+    /// Pushes `CustomInstanceEntryViewController` for a Lemmy instance not in
+    /// the bundled/Explorer directory (e.g. a private, non-federated server).
+    private func addCustomInstanceCell(for tableView: UITableView, at indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(
+            withIdentifier: Self.addCustomInstanceReuseIdentifier,
+            for: indexPath
         )
-        cell.configure(with: viewModel)
+
+        var content = UIListContentConfiguration.cell()
+        content.text = NSLocalizedString("Add your own instance", comment: "SiteList add-custom-instance row")
+        content.image = UIImage(systemName: "plus.circle")
+        content.imageProperties.tintColor = tableView.tintColor
+        cell.contentConfiguration = content
+        cell.accessoryType = .disclosureIndicator
+        cell.accessibilityIdentifier = "site-list-add-custom-instance"
 
         return cell
     }
