@@ -14,20 +14,6 @@ import UIKit
 
 private let logger = Logger.app
 
-/// A small pill in the comment header line marking the author's role or status
-/// (OP / MOD / ADMIN / BOT / BANNED / SUSPENDED). Pure value; the cell renders it.
-struct CommentBadge: Equatable {
-    let text: String
-    /// Optional leading SF Symbol (e.g. a bot/banned glyph).
-    let symbolName: String?
-    /// OP follows the app accent (resolved in the cell); everything else uses
-    /// `color` directly.
-    let usesAccent: Bool
-    let color: UIColor
-    /// Solid fill (a distinguished moderator/admin statement) vs a tinted pill.
-    let solid: Bool
-}
-
 /// Plain-value snapshot consumed by `PostDetailCommentCell`. Built once per
 /// `PostDetailCommentRow` emission. The cell drops Combine and applies these
 /// values directly.
@@ -79,7 +65,7 @@ struct PostDetailCommentViewModel {
     let scorePillFillColor: UIColor?
 
     /// Author role/status pills shown after the name, in order.
-    let badges: [CommentBadge]
+    let badges: [AuthorBadge]
 
     /// One colored rail per ancestor depth, leading edge first. Drives the
     /// stacked Apollo-style depth rails. Empty for top-level comments.
@@ -229,24 +215,24 @@ struct PostDetailCommentViewModel {
 
         // MARK: Badges
 
-        var badges: [CommentBadge] = []
+        var badges: [AuthorBadge] = []
         if isOriginalPoster {
-            badges.append(CommentBadge(text: "OP", symbolName: nil, usesAccent: true, color: .systemTeal, solid: false))
+            badges.append(AuthorBadge(text: "OP", symbolName: nil, usesAccent: true, color: .systemTeal, solid: false))
         }
         if row.isCreatorModerator == true {
-            badges.append(CommentBadge(text: "MOD", symbolName: nil, usesAccent: false, color: .systemGreen, solid: distinguished))
+            badges.append(AuthorBadge(text: "MOD", symbolName: nil, usesAccent: false, color: .systemGreen, solid: distinguished))
         }
         if row.isCreatorAdmin == true {
-            badges.append(CommentBadge(text: "ADMIN", symbolName: nil, usesAccent: false, color: .systemIndigo, solid: distinguished))
+            badges.append(AuthorBadge(text: "ADMIN", symbolName: nil, usesAccent: false, color: .systemIndigo, solid: distinguished))
         }
         if row.isCreatorBot == true {
-            badges.append(CommentBadge(text: "BOT", symbolName: "cpu", usesAccent: false, color: .systemGray, solid: false))
+            badges.append(AuthorBadge(text: "BOT", symbolName: "cpu", usesAccent: false, color: .systemGray, solid: false))
         }
         if row.isCreatorBannedFromCommunity == true {
-            badges.append(CommentBadge(text: "BANNED", symbolName: "person.fill.xmark", usesAccent: false, color: .systemRed, solid: false))
+            badges.append(AuthorBadge(text: "BANNED", symbolName: "person.fill.xmark", usesAccent: false, color: .systemRed, solid: false))
         }
         if row.isCreatorSiteBanned == true {
-            badges.append(CommentBadge(text: "SUSPENDED", symbolName: "person.fill.xmark", usesAccent: false, color: .systemRed, solid: false))
+            badges.append(AuthorBadge(text: "SUSPENDED", symbolName: "person.fill.xmark", usesAccent: false, color: .systemRed, solid: false))
         }
         self.badges = badges
 

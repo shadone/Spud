@@ -133,6 +133,26 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - Author status
+
+    /// A post by a site-suspended author: the feed leads the metadata run with a
+    /// single low-noise red `person.fill.xmark` marker.
+    func test_authorSuspended() async {
+        await assertCell(row(url: nil, isCreatorSiteBanned: true))
+    }
+
+    /// A post by an author banned from this community shows the same marker (the
+    /// list doesn't distinguish site-ban from community-ban — the detail does).
+    func test_authorCommunityBanned() async {
+        await assertCell(row(url: nil, isCreatorBannedFromCommunity: true))
+    }
+
+    /// A post by an admin/mod author shows NO marker — the feed stays quiet for
+    /// benign roles, so this must render identically to an ordinary text post.
+    func test_authorAdminMod() async {
+        await assertCell(row(url: nil, isCreatorModerator: true, isCreatorAdmin: true))
+    }
+
     // MARK: - Fold (arrows hidden)
 
     func test_fold_upvoted() async {
@@ -300,7 +320,11 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         isFeaturedLocal: Bool = false,
         isDeleted: Bool = false,
         isUnavailable: Bool = false,
-        isNsfw: Bool = false
+        isNsfw: Bool = false,
+        isCreatorModerator: Bool = false,
+        isCreatorAdmin: Bool = false,
+        isCreatorBannedFromCommunity: Bool = false,
+        isCreatorSiteBanned: Bool = false
     ) -> PostListRow {
         PostListRow(
             id: 1,
@@ -331,6 +355,10 @@ final class PostListPostCellSnapshotTests: XCTestCase {
             isDeleted: isDeleted,
             isUnavailable: isUnavailable,
             isNsfw: isNsfw,
+            isCreatorModerator: isCreatorModerator,
+            isCreatorAdmin: isCreatorAdmin,
+            isCreatorBannedFromCommunity: isCreatorBannedFromCommunity,
+            isCreatorSiteBanned: isCreatorSiteBanned,
             published: Date(timeIntervalSinceNow: -5 * 3600)
         )
     }

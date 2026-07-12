@@ -163,6 +163,43 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - Author status
+
+    /// A post by a site-suspended author: the header shows the full red
+    /// "SUSPENDED" pill beneath the byline (text post, so no image to load).
+    func test_authorSuspended() async {
+        await assertHeader(
+            row: row(url: nil, isCreatorSiteBanned: true),
+            imageService: ScriptedImageService([.failure])
+        )
+    }
+
+    /// A post by an author banned from this community: the red "BANNED" pill.
+    func test_authorCommunityBanned() async {
+        await assertHeader(
+            row: row(url: nil, isCreatorBannedFromCommunity: true),
+            imageService: ScriptedImageService([.failure])
+        )
+    }
+
+    /// A post by an admin who also moderates the community: the tinted "MOD" and
+    /// "ADMIN" pills render in order beneath the byline.
+    func test_authorAdminMod() async {
+        await assertHeader(
+            row: row(url: nil, isCreatorModerator: true, isCreatorAdmin: true),
+            imageService: ScriptedImageService([.failure])
+        )
+    }
+
+    /// A post whose author account is deleted: the byline reads "by [deleted]"
+    /// (no profile link, no home host) and carries no pills.
+    func test_authorDeleted() async {
+        await assertHeader(
+            row: row(url: nil, isCreatorAccountDeleted: true),
+            imageService: ScriptedImageService([.failure])
+        )
+    }
+
     // MARK: - Logic
 
     func test_isImageBlurred_logic() {
@@ -417,7 +454,12 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         urlEmbedTitle: String? = nil,
         urlEmbedDescription: String? = nil,
         isNsfw: Bool = false,
-        voteStatus: Int64? = nil
+        voteStatus: Int64? = nil,
+        isCreatorModerator: Bool = false,
+        isCreatorAdmin: Bool = false,
+        isCreatorBannedFromCommunity: Bool = false,
+        isCreatorSiteBanned: Bool = false,
+        isCreatorAccountDeleted: Bool = false
     ) -> PostDetailHeaderRow {
         PostDetailHeaderRow(
             id: 1,
@@ -449,6 +491,12 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
             isFeaturedLocal: false,
             isDeleted: false,
             isNsfw: isNsfw,
+            isCreatorModerator: isCreatorModerator,
+            isCreatorAdmin: isCreatorAdmin,
+            isCreatorBannedFromCommunity: isCreatorBannedFromCommunity,
+            isCreatorSiteBanned: isCreatorSiteBanned,
+            isCreatorBot: false,
+            isCreatorAccountDeleted: isCreatorAccountDeleted,
             published: Date(timeIntervalSinceNow: -5 * 3600)
         )
     }

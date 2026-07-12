@@ -66,6 +66,19 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
     public let isUnavailable: Bool
     /// Whether the post or its community is marked NSFW. Drives blur-on-display.
     public let isNsfw: Bool
+    /// Author-status flags driving the post author's role/status badges.
+    /// The per-community context (`isCreatorModerator` / `isCreatorAdmin` /
+    /// `isCreatorBannedFromCommunity`) comes from the post row (`PostView`); the
+    /// site-ban / bot / deleted flags come from the joined creator `person` row.
+    /// Only the primary feed query populates these — other `PostListRow`
+    /// producers (Activity, Downloaded, person posts) leave them at their
+    /// defaults, so consult them only where a query is known to set them.
+    public let isCreatorModerator: Bool
+    public let isCreatorAdmin: Bool
+    public let isCreatorBannedFromCommunity: Bool
+    public let isCreatorSiteBanned: Bool
+    public let isCreatorBot: Bool
+    public let isCreatorAccountDeleted: Bool
     public let published: Date
 
     public init(
@@ -97,6 +110,12 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
         isDeleted: Bool,
         isUnavailable: Bool = false,
         isNsfw: Bool,
+        isCreatorModerator: Bool = false,
+        isCreatorAdmin: Bool = false,
+        isCreatorBannedFromCommunity: Bool = false,
+        isCreatorSiteBanned: Bool = false,
+        isCreatorBot: Bool = false,
+        isCreatorAccountDeleted: Bool = false,
         published: Date
     ) {
         self.id = id
@@ -127,6 +146,12 @@ public struct PostListRow: Sendable, Equatable, Identifiable {
         self.isDeleted = isDeleted
         self.isUnavailable = isUnavailable
         self.isNsfw = isNsfw
+        self.isCreatorModerator = isCreatorModerator
+        self.isCreatorAdmin = isCreatorAdmin
+        self.isCreatorBannedFromCommunity = isCreatorBannedFromCommunity
+        self.isCreatorSiteBanned = isCreatorSiteBanned
+        self.isCreatorBot = isCreatorBot
+        self.isCreatorAccountDeleted = isCreatorAccountDeleted
         self.published = published
     }
 }
@@ -178,13 +203,19 @@ public extension AppDatabase {
                             post.isDeleted         AS isDeleted,
                             post.isUnavailable     AS isUnavailable,
                             (post.isNsfw OR community.isNsfw) AS isNsfw,
+                            post.isCreatorModerator          AS isCreatorModerator,
+                            post.isCreatorAdmin              AS isCreatorAdmin,
+                            post.isCreatorBannedFromCommunity AS isCreatorBannedFromCommunity,
                             post.published         AS published,
                             community.communityId  AS serverCommunityId,
                             community.name         AS communityName,
                             community.actorId      AS communityActorId,
                             creator.personId       AS creatorPersonId,
                             creator.name           AS creatorName,
-                            creator.actorId        AS creatorActorId
+                            creator.actorId        AS creatorActorId,
+                            creator.isBanned       AS isCreatorSiteBanned,
+                            creator.isBotAccount   AS isCreatorBot,
+                            creator.isDeleted      AS isCreatorAccountDeleted
                         FROM post
                         JOIN pageElement ON pageElement.postId = post.id
                         JOIN page        ON page.id = pageElement.pageId
@@ -235,6 +266,12 @@ public extension AppDatabase {
                         isDeleted: row["isDeleted"],
                         isUnavailable: row["isUnavailable"],
                         isNsfw: row["isNsfw"],
+                        isCreatorModerator: row["isCreatorModerator"],
+                        isCreatorAdmin: row["isCreatorAdmin"],
+                        isCreatorBannedFromCommunity: row["isCreatorBannedFromCommunity"],
+                        isCreatorSiteBanned: row["isCreatorSiteBanned"],
+                        isCreatorBot: row["isCreatorBot"],
+                        isCreatorAccountDeleted: row["isCreatorAccountDeleted"],
                         published: row["published"]
                     )
                 }

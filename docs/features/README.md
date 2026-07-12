@@ -113,6 +113,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [iPad split-view handoff](ipad-split-view.md) | `ipad`, `iphone` | shipped — Posts two-column split + feed-switcher title popover; Communities two-column reading split; Activity two-column split (timeline primary + Summary detail pinned); adaptive layouts (Discover grid, capped banners, sheet detents) at regular width |
 | [Empty, error, and loading states](empty-error-loading-states.md) | `iphone`, `ipad` | shipped |
 | [Removed and unavailable posts](removed-unavailable-content.md) | `iphone`, `ipad` | shipped — neutral feed badge + placeholder screen for gone posts; cause-specific copy (ambiguous / removed / deleted); moderator + author bypass; automatic recovery on re-fetch; deep-link resolves to placeholder not spinner |
+| [Post author status](author-status.md) | `iphone`, `ipad` | shipped — full role/status pills (MOD/ADMIN/BOT/BANNED/SUSPENDED) on the post-detail byline (mirroring comment badges); low-noise single red banned-author marker in the feed (suspended / community-banned only); "[deleted]" author byline; VoiceOver announces status |
 | [Accessibility](accessibility.md) | `iphone`, `ipad` | shipped |
 | [Home Screen widget (top posts)](widget.md) | `widget` | shipped |
 | [App Shortcuts, Siri & Spotlight](app-shortcuts-and-siri.md) | `iphone`, `ipad` | shipped — 7 App Intents (incl. Open Saved, Switch Account); Spotlight indexes communities + saved/history posts |
@@ -147,6 +148,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Edit / delete / restore your own post — optimistic + durable (edit via the content outbox; delete / restore via the mutation outbox)
 - [x] Configurable swipe actions (comments)
 - [x] Comment sort — global default (Settings) + in-screen per-post picker (post-detail config popover: Hot / Top / New / Old / Controversial)
+- [x] Post author status — full MOD/ADMIN/BOT/BANNED/SUSPENDED pills on the post-detail byline (mirroring comment badges); a single low-noise red banned-author marker in the feed for suspended / community-banned authors only; "[deleted]" author byline with the profile link suppressed; VoiceOver announces the status (author-status.md)
 - [x] Share post / comment / community URL; open in Safari
 
 **Media**

@@ -251,9 +251,27 @@ struct PostListPostViewModel {
             handlePieces.append(NSAttributedString(string: "@\(instanceHost)", attributes: instanceAttributes))
         }
 
+        // The author's role/status, via the DRY `PostAuthorStatus` builder shared
+        // with the detail header and the comment cell. The feed stays low-noise:
+        // it surfaces only the "this author is banned" signal (suspended site-wide
+        // or banned from this community) as one small red marker leading the
+        // fixed-width metadata run — never the benign mod/admin/bot roles.
+        let authorStatus = PostAuthorStatus(row: row)
+
         var pieces: [NSAttributedString] = [
             handlePieces.joined(),
             handleSpace,
+        ]
+        if authorStatus.showsListWarningIcon {
+            var warningAttributes = monoAttributes
+            warningAttributes[.foregroundColor] = authorStatus.listWarningTint
+            pieces.append(NSAttributedString.symbol(
+                from: UIImage(systemName: authorStatus.listWarningSymbolName)!,
+                attributes: warningAttributes
+            ))
+            pieces.append(space)
+        }
+        pieces.append(contentsOf: [
             IconValueFormatter.attributedString(
                 numberOfVotesOrScore: row.score,
                 voteStatus: voteStatus,
@@ -270,7 +288,7 @@ struct PostListPostViewModel {
                 relativeDate: row.published,
                 attributes: monoAttributes
             ),
-        ]
+        ])
 
         isSaved = row.isSaved
         if row.isSaved {
@@ -321,12 +339,15 @@ struct PostListPostViewModel {
             comment: "VoiceOver hint for a post in the list"
         )
 
-        var subtitlePieces: [String] = [
-            row.communityName,
+        var subtitlePieces: [String] = [row.communityName]
+        // Announce the banned-author status VoiceOver can't read off the red glyph
+        // — only the ban phrases the feed actually surfaces, never mod/admin/bot.
+        subtitlePieces.append(contentsOf: authorStatus.listWarningAccessibilityPhrases)
+        subtitlePieces.append(contentsOf: [
             VoteAccessibility.scoreLabel(score: row.score, voteStatus: voteStatus),
             CommentsAccessibility.label(count: row.numberOfComments),
             row.published.relativeString,
-        ]
+        ])
         if row.isSaved {
             subtitlePieces.append(NSLocalizedString("Saved", comment: "VoiceOver: post is saved"))
         }

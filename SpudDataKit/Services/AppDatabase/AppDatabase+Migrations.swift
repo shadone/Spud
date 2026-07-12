@@ -847,6 +847,21 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v33_postCreatorContext") { db in
+            // Per-post creator context from the Lemmy `PostView`. Drives the
+            // MOD / ADMIN / BANNED-here author-status badges on posts. Mirrors
+            // the comment table's `v12_commentCreatorContext`; the equivalent
+            // site-ban / bot / deleted flags already live on the joined `person`
+            // row (v1 schema), so only these three per-community context flags
+            // need a post column. Additive, default-false, no backfill: existing
+            // rows read false until the next feed/getPost import repopulates them.
+            try db.alter(table: "post") { t in
+                t.add(column: "isCreatorModerator", .boolean).notNull().defaults(to: false)
+                t.add(column: "isCreatorAdmin", .boolean).notNull().defaults(to: false)
+                t.add(column: "isCreatorBannedFromCommunity", .boolean).notNull().defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }
