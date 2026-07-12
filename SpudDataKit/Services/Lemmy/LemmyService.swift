@@ -159,10 +159,15 @@ public protocol LemmyServiceType: Actor {
     /// into the persistent feed. Navigation from a result uses the server-side
     /// ids carried in the response, which the id-based screens resolve on
     /// their own. Works for both signed-in and signed-out accounts.
+    ///
+    /// - Parameter sort: result ordering, or `nil` to let the server apply its
+    ///   own default. LemmyKit's v4 `Search` operation has no sort parameter at
+    ///   all, so `nil` is the only choice that is consistent across the v3->v4
+    ///   upgrade; pass a non-nil value only if a caller needs a specific v3 sort.
     func search(
         query: String,
         type: Lemmy.SearchType,
-        sort: Lemmy.SortType,
+        sort: Lemmy.SortType?,
         listingType: Lemmy.ListingType,
         page: Int64
     ) async throws -> LemmyKit.SearchResults
@@ -1664,21 +1669,31 @@ public actor LemmyService: LemmyServiceType {
     public func search(
         query: String,
         type: Lemmy.SearchType,
-        sort: Lemmy.SortType,
+        sort: Lemmy.SortType?,
         listingType: Lemmy.ListingType,
         page: Int64
     ) async throws -> LemmyKit.SearchResults {
         logger.debug("""
             Search. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             query=\(query, privacy: .private) type=\(type.rawValue, privacy: .public) \
-            sort=\(sort.rawValue, privacy: .public) listingType=\(listingType.rawValue, privacy: .public) \
+            sort=\(sort?.rawValue ?? "server-default", privacy: .public) listingType=\(listingType.rawValue, privacy: .public) \
             page=\(page, privacy: .public)
             """)
 
         // NOTE: `searchNeutral` has no listing-type param (search is instance-wide),
         // so `listingType` is ignored here; `page` becomes an opaque cursor (page N
         // > 1 encodes as "N" for the v3 backend). See the Phase 6 report follow-ups.
-        let (neutralSort, timeRange) = sort.neutralPostSort
+        // A nil sort is passed straight through to `searchNeutral`, which omits it on
+        // v3 (server applies its default, Hot) -- matching v4, whose Search operation
+        // has no sort param at all. This keeps search ordering server-owned across the
+        // v3->v4 upgrade rather than pinning it to a client-chosen sort.
+        let neutralSort: PostSort?
+        let timeRange: TimeRange?
+        if let sort {
+            (neutralSort, timeRange) = sort.neutralPostSort
+        } else {
+            (neutralSort, timeRange) = (nil, nil)
+        }
         let cursor = page <= 1 ? nil : Cursor(rawValue: String(page))
         let results: LemmyKit.SearchResults
         do {
