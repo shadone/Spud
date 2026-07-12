@@ -9,51 +9,56 @@ import LemmyKit
 import SpudDataKit
 import SpudUtilKit
 
-/// A single post result. Carries the server post id so a tap can open
-/// PostDetail directly.
+/// A single post result. Carries the full feed ``PostListRow`` built from the
+/// network `PostView`, so a searched post renders through the exact same rich
+/// feed cell (`community@instance`, counts, thumbnail, status/author badges, NSFW
+/// blur) — plus the author line the feed omits. The server post id (for opening
+/// PostDetail on tap) and the title / NSFW flag are exposed off the row.
 struct SearchPostResult: Hashable, Identifiable {
-    let serverPostId: Lemmy.PostID
-    let title: String
-    let communityName: String
-    let score: Int64
-    let numberOfComments: Int64
-    let published: Date
-    let thumbnailUrl: URL?
-    let isNsfw: Bool
+    /// The feed row the shared post cell renders from. Author-status, counts,
+    /// thumbnail, NSFW, vote/save/read, and moderation flags all ride along.
+    let row: PostListRow
 
-    var id: Lemmy.PostID {
-        serverPostId
+    /// Hashable / Equatable identity keyed on the unique server post id: a search
+    /// response never repeats a post, and the list is replaced wholesale on each
+    /// query, so identity alone is the right diffable key.
+    var id: Int64 {
+        row.serverPostId
     }
 
-    init(
-        serverPostId: Lemmy.PostID,
-        title: String,
-        communityName: String,
-        score: Int64,
-        numberOfComments: Int64,
-        published: Date,
-        thumbnailUrl: URL?,
-        isNsfw: Bool
-    ) {
-        self.serverPostId = serverPostId
-        self.title = title
-        self.communityName = communityName
-        self.score = score
-        self.numberOfComments = numberOfComments
-        self.published = published
-        self.thumbnailUrl = thumbnailUrl
-        self.isNsfw = isNsfw
+    /// Server post id for the tap-to-PostDetail navigation. Narrowed to `Lemmy.PostID`
+    /// (`Int32`) with the trapping initializer, matching every other `Int64 -> PostID`
+    /// site in the app — Lemmy's wire post id is already `Int32`, so this never traps.
+    var serverPostId: Lemmy.PostID {
+        Lemmy.PostID(row.serverPostId)
+    }
+
+    /// The post title. Retained for URL-suggestion / accessibility callers.
+    var title: String {
+        row.title
+    }
+
+    /// Whether the post (or its community) is NSFW. Drives the cell's blur when the
+    /// post is *kept* (Show-NSFW on). When Show-NSFW is off the post is dropped from
+    /// search entirely (see ``SearchResults/filteringNsfw(_:)``), matching the feed.
+    var isNsfw: Bool {
+        row.isNsfw
+    }
+
+    init(row: PostListRow) {
+        self.row = row
     }
 
     init(view: Lemmy.PostView) {
-        serverPostId = Lemmy.PostID(view.post.id)
-        title = view.post.name
-        communityName = view.community.name
-        score = view.post.score
-        numberOfComments = view.post.comments
-        published = view.post.publishedAt
-        thumbnailUrl = view.post.thumbnailUrl.flatMap { URL(string: $0) }
-        isNsfw = view.post.nsfw
+        self.init(row: PostListRow(view: view))
+    }
+
+    static func == (lhs: SearchPostResult, rhs: SearchPostResult) -> Bool {
+        lhs.row.serverPostId == rhs.row.serverPostId
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(row.serverPostId)
     }
 }
 
@@ -273,9 +278,21 @@ struct SearchResults {
         comments = response.comments.map(SearchCommentResult.init)
     }
 
-    /// Returns a copy with NSFW communities and posts removed. Keeps NSFW
-    /// content out of search when the user has not opted in (`show_nsfw` off).
-    /// Lemmy's search API has no server NSFW filter, so this is client-side.
+    /// Returns a copy with NSFW *posts and communities* removed when the user has not
+    /// opted in (`show_nsfw` off, so `removeNsfw` is true). Lemmy's search API has no
+    /// server NSFW filter, so this is client-side.
+    ///
+    /// This mirrors the feed's NSFW policy exactly. The feed only *shows* NSFW posts
+    /// when Show-NSFW is on (then blurs each per the blur preference); with Show-NSFW
+    /// off the server filters them out entirely. Search realizes the same policy
+    /// client-side:
+    /// - **Show-NSFW off** (`removeNsfw` true): drop NSFW posts *and* communities —
+    ///   respect the opt-out, never render NSFW to a user who turned it off.
+    /// - **Show-NSFW on** (`removeNsfw` false): keep NSFW posts; the shared feed cell
+    ///   blurs them per the `blurNsfw` preference (with tap-to-reveal). Communities are
+    ///   kept too — the community cell has no blur affordance, but the user opted in.
+    ///
+    /// Non-NSFW content is never dropped.
     func filteringNsfw(_ removeNsfw: Bool) -> SearchResults {
         guard removeNsfw else { return self }
         var copy = self
