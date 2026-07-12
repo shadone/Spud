@@ -40,12 +40,26 @@ public enum InlineAttributedStringBuilder {
 
     /// Internal destination URL for a Lemmy object (post/comment) the host resolves
     /// by its federation URL (via `resolve_object`).
-    nonisolated static func objectURL(forResolved url: URL) -> URL {
-        var components = URLComponents()
-        components.scheme = "spud-markdown"
-        components.host = "object"
-        components.queryItems = [URLQueryItem(name: "url", value: url.absoluteString)]
-        return components.url ?? URL(string: "spud-markdown://object")!
+    ///
+    /// `public` so the app can round-trip it through `MarkdownInternalLink.resolve`.
+    ///
+    /// Escapes the inner URL with the SAME allowed-character set as
+    /// `URL.SpudInternalLink.objectAtURL` (the decode counterpart `resolve`
+    /// re-encodes into) for codec parity: `.urlQueryAllowed` permits `& = ? +`,
+    /// which would let an embedded URL's own query split or corrupt the outer
+    /// `object?url=` query, so those sub-delimiters are percent-escaped. Built by
+    /// string interpolation rather than `URLComponents.queryItems` because the
+    /// latter leaves `?` and `+` raw in the value.
+    public nonisolated static func objectURL(forResolved url: URL) -> URL {
+        let queryValueAllowed = CharacterSet.urlQueryAllowed
+            .subtracting(CharacterSet(charactersIn: "&=?+"))
+        guard
+            let encodedURL = url.absoluteString
+            .addingPercentEncoding(withAllowedCharacters: queryValueAllowed)
+        else {
+            return URL(string: "spud-markdown://object")!
+        }
+        return URL(string: "spud-markdown://object?url=\(encodedURL)") ?? URL(string: "spud-markdown://object")!
     }
 
     /// If `url` is an explicit Lemmy user (`/u/<name>`), community (`/c/<name>`),
