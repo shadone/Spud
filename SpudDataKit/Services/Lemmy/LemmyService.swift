@@ -1546,12 +1546,34 @@ public actor LemmyService: LemmyServiceType {
         await mirrorPersonPostsToAppDatabase(posts: posts)
         await mirrorPersonInfoToAppDatabase(personView: details.personView)
 
+        // The profile's Posts tab reads exclusively from the GRDB observation
+        // (not from `PersonContentPage.posts` below), so a swallowed mirror
+        // failure would otherwise surface as a false "no posts" empty state
+        // with no error and no retry. Mirror the fetchPersonInfo/fetchPostInfo
+        // pattern: verify persistence and throw if it silently no-op'd.
+        // `upsertPosts` is a single atomic `writer.write`, so checking whether
+        // the first post persisted is a sufficient proxy for "did anything
+        // persist". Gated on non-empty posts so an honestly post-less profile
+        // still renders the normal empty state instead of an error.
+        if let firstPost = posts.first {
+            guard appDatabase.postRowIdSync(
+                forKeychainId: accountIdentifierForLogging,
+                serverPostId: Int64(firstPost.post.id)
+            ) != nil else {
+                throw LemmyServiceError.internalInconsistency(
+                    description: "fetchPersonContent: person posts not persisted after mirror for personId=\(serverPersonId)"
+                )
+            }
+        }
+
         return PersonContentPage(posts: posts, comments: comments)
     }
 
     /// Persists the person's posts so the profile's Posts tab can observe them
     /// as `PostListRow`s (feed parity). Best-effort: a failure leaves the posts
-    /// unpersisted (the caller's transient comments are unaffected).
+    /// unpersisted — the caller (`fetchPersonContent`) verifies persistence
+    /// afterward and throws if it silently no-op'd, so callers must not treat
+    /// this method's return as success on its own.
     private func mirrorPersonPostsToAppDatabase(
         posts: [Lemmy.PostView]
     ) async {
