@@ -162,3 +162,37 @@ extension PostRecord: FetchableRecord, MutablePersistableRecord {
         id = inserted.rowID
     }
 }
+
+/// Junction row: one cross-post relationship discovered on ``postId`` (the
+/// opened post)'s last `getPostNeutral` fetch. ``crossPostId`` is another post
+/// row sharing ``postId``'s link. Both reference `post.id`; see
+/// `v34_postCrossPost` for why no `accountId` column is needed.
+/// ``position`` preserves the server's cross-post order. Rows are always
+/// replaced wholesale for a given ``postId`` (see
+/// `AppDatabase.replaceCrossPosts`), never partially updated.
+public struct PostCrossPostRecord: Codable, Sendable, Equatable, Identifiable {
+    public static let databaseTableName = "postCrossPost"
+
+    public var id: Int64?
+    public var postId: Int64
+    public var crossPostId: Int64
+    public var position: Int64
+
+    public init(
+        id: Int64? = nil,
+        postId: Int64,
+        crossPostId: Int64,
+        position: Int64
+    ) {
+        self.id = id
+        self.postId = postId
+        self.crossPostId = crossPostId
+        self.position = position
+    }
+}
+
+extension PostCrossPostRecord: FetchableRecord, MutablePersistableRecord {
+    public mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
+}

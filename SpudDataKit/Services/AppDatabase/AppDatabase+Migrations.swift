@@ -862,6 +862,44 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v34_postCrossPost") { db in
+            // Junction persisting the cross-post *relationship* discovered on a
+            // post's `getPostNeutral` fetch (`PostDetail.crossPosts`) — other posts
+            // sharing this post's link. Previously the harvest only upserted them
+            // as standalone `PostRecord`s (for counter freshness) and discarded the
+            // relationship; this table lets the post-detail screen render a
+            // "Cross-posted to N communities" section. `postId` is the opened
+            // ("parent") post's row id; `crossPostId` is the other post. Both
+            // reference `post.id`, mirroring how `pageElement` references `post` by
+            // rowid with ON DELETE CASCADE. `PostRecord`'s own uniqueness is
+            // (accountId, postId), and the harvest upserts cross-posts under the
+            // SAME account as the opened post, so a `post.id` rowid on either side
+            // is already unambiguously scoped to one account - no accountId column
+            // needed here. `position` preserves the server's cross-post order.
+            // Replaced wholesale (delete + reinsert) on every fetch by
+            // `AppDatabase.replaceCrossPosts`, never partially updated.
+            try db.create(table: "postCrossPost") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("postId", .integer)
+                    .notNull()
+                    .references("post", onDelete: .cascade)
+                t.column("crossPostId", .integer)
+                    .notNull()
+                    .references("post", onDelete: .cascade)
+                t.column("position", .integer)
+                t.uniqueKey(["postId", "crossPostId"])
+            }
+            // The read (`crossPostSummariesSync`) filters by `postId` alone; an
+            // explicit index keeps it off a full table scan (the uniqueKey above
+            // already covers this as a leftmost prefix, but a dedicated index
+            // documents the read path and is cheap on this small table).
+            try db.create(
+                index: "index_postCrossPost_on_postId",
+                on: "postCrossPost",
+                columns: ["postId"]
+            )
+        }
+
         return migrator
     }
 }
