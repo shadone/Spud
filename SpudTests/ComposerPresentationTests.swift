@@ -85,7 +85,7 @@ struct ComposerPresentationTests {
         let deps = ComposerFakeDependencies()
         let nav = NewPostViewController.makeEditSheet(
             serverPostId: 42,
-            serverCommunityId: Components.Schemas.CommunityID(1),
+            serverCommunityId: Lemmy.CommunityID(1),
             communityName: "testcommunity",
             title: "Test post title",
             body: nil,

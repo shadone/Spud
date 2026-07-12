@@ -20,14 +20,31 @@ struct InstanceCapabilitiesTests {
     }
 
     @Test(arguments: ["1.0.0-alpha.18", "2.0.0"])
-    func lemmy1ViaV3ShimLosesEveryGatedCapability(versionString: String) {
+    func lemmy1NativelySupportsEveryCapability(versionString: String) {
+        // The Phase-1 gating that withheld seven capabilities on Lemmy 1.0 (while
+        // Spud spoke only v3 and the 1.0 server's v3 shim lacked the endpoints)
+        // has been retired: Spud now speaks native v4, so every capability is
+        // available on a Lemmy 1.0+ instance.
         let caps = InstanceCapabilities.capabilities(
             software: .lemmy,
             version: LemmyVersion(parsing: versionString)
         )
         for capability in InstanceCapability.allCases {
-            #expect(!caps.can(capability), "expected \(capability) gated on Lemmy \(versionString) via the v3 shim")
+            #expect(caps.can(capability), "expected \(capability) available on Lemmy \(versionString) (gating retired)")
         }
+    }
+
+    @Test
+    func explicitlyGatedSetWithholdsOnlyThoseCapabilities() {
+        // The version-derivation table gates nothing today, but the MECHANISM is
+        // kept intact for non-Lemmy software and future capabilities: a directly
+        // constructed gated set still withholds exactly its members and fails open
+        // for the rest.
+        let caps = InstanceCapabilities(unavailable: [.inbox, .privateMessages])
+        #expect(!caps.can(.inbox))
+        #expect(!caps.can(.privateMessages))
+        #expect(caps.can(.personProfiles))
+        #expect(caps.can(.imageUpload))
     }
 
     @Test
@@ -52,8 +69,10 @@ struct InstanceCapabilitiesTests {
 
     @Test
     func platformProfileExposesCapabilities() {
+        // Lemmy 1.0 is no longer gated now that Spud speaks native v4, so both a
+        // 1.0 and a 0.19 profile report the inbox as available.
         let profile = PlatformProfile.profile(for: .lemmy, version: "1.0.0")
-        #expect(!profile.capabilities.can(.inbox))
+        #expect(profile.capabilities.can(.inbox))
         let old = PlatformProfile.profile(for: .lemmy, version: "0.19.11")
         #expect(old.capabilities.can(.inbox))
     }

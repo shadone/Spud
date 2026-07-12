@@ -11,9 +11,7 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Community = Components.Schemas.Community
-private typealias CommunityView = Components.Schemas.CommunityView
-private typealias CommunityResponse = Components.Schemas.CommunityResponse
+private typealias CommunityResponse = Lemmy.CommunityResponse
 
 /// Stub `ClientTransport` that returns canned JSON for the `followCommunity`
 /// operation and records whether it was invoked.
@@ -93,7 +91,7 @@ private final class FailingFollowCommunityTransport: ClientTransport, @unchecked
 @MainActor
 struct LemmyServiceSubscribeTests {
     private let keychainId = "keychain-1"
-    private let serverCommunityId: Components.Schemas.CommunityID = 1
+    private let serverCommunityId: Lemmy.CommunityID = 1
 
     private let appDatabase: AppDatabase
 
@@ -176,7 +174,9 @@ struct LemmyServiceSubscribeTests {
             subscribed: .notSubscribed
         )
 
-        let subscribedView = CommunityView.fake(community: .fake, subscribed: .Subscribed)
+        // Generated v3 CommunityView (encoded to v3 JSON by the stub transport);
+        // the community defaults to V3.community().
+        let subscribedView = V3.communityView(subscribed: .Subscribed)
         let response = CommunityResponse(community_view: subscribedView, discussion_languages: [])
         let transport = try StubFollowCommunityTransport(communityResponse: response)
         let service = LemmyServiceHarness.make(

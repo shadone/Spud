@@ -22,19 +22,19 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
     private(set) var fetchMentionsCallCount = 0
     private(set) var fetchPrivateMessagesCallCount = 0
 
-    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.GetRepliesResponse {
+    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> [InboxCommentNotification] {
         fetchRepliesCallCount += 1
-        return Components.Schemas.GetRepliesResponse(replies: [])
+        return []
     }
 
-    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.GetPersonMentionsResponse {
+    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> [InboxCommentNotification] {
         fetchMentionsCallCount += 1
-        return Components.Schemas.GetPersonMentionsResponse(mentions: [])
+        return []
     }
 
-    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.PrivateMessagesResponse {
+    func fetchPrivateMessages(unreadOnly _: Bool, pageCursor _: String?) async throws -> (messages: [IncomingPrivateMessage], nextCursor: String?) {
         fetchPrivateMessagesCallCount += 1
-        return Components.Schemas.PrivateMessagesResponse(private_messages: [])
+        return ([], nil)
     }
 
     // MARK: Unused protocol stubs
@@ -43,7 +43,7 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         trap()
     }
 
-    func fetchComments(serverPostId _: Components.Schemas.PostID, sortType _: Components.Schemas.CommentSortType) async throws {
+    func fetchComments(serverPostId _: Lemmy.PostID, sortType _: Lemmy.CommentSortType) async throws {
         trap()
     }
 
@@ -51,7 +51,7 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         trap()
     }
 
-    func getSiteInfo() async throws -> Components.Schemas.GetSiteResponse {
+    func getSiteInfo() async throws -> LemmyKit.SiteInfo {
         trap()
     }
 
@@ -63,65 +63,65 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         trap()
     }
 
-    func setDefaultSortType(_: Components.Schemas.SortType) async throws {
+    func setDefaultSortType(_: Lemmy.SortType) async throws {
         trap()
     }
 
     func saveProfile(
         displayName _: String?,
         bio _: String?,
-        avatar _: String?,
-        banner _: String?,
+        avatar _: ProfileImageEdit,
+        banner _: ProfileImageEdit,
         showScores _: Bool,
         showBotAccounts _: Bool,
         showReadPosts _: Bool,
         showAvatars _: Bool,
-        defaultListingType _: Components.Schemas.ListingType
+        defaultListingType _: Lemmy.ListingType
     ) async throws {
         trap()
     }
 
-    func fetchPersonInfo(serverPersonId _: Components.Schemas.PersonID) async throws {
+    func fetchPersonInfo(serverPersonId _: Lemmy.PersonID) async throws {
         trap()
     }
 
-    func fetchPersonContent(serverPersonId _: Components.Schemas.PersonID, sort _: Components.Schemas.SortType, page _: Int64) async throws -> Components.Schemas.GetPersonDetailsResponse {
+    func fetchPersonContent(serverPersonId _: Lemmy.PersonID, sort _: Lemmy.SortType, page _: Int64) async throws -> PersonContentPage {
         trap()
     }
 
-    func fetchCommunityInfo(serverCommunityId _: Components.Schemas.CommunityID) async throws {
+    func fetchCommunityInfo(serverCommunityId _: Lemmy.CommunityID) async throws {
         trap()
     }
 
-    func fetchCommunityInfo(communityName _: String) async throws -> Components.Schemas.CommunityID {
+    func fetchCommunityInfo(communityName _: String) async throws -> Lemmy.CommunityID {
         trap()
     }
 
-    func search(query _: String, type _: Components.Schemas.SearchType, sort _: Components.Schemas.SortType, listingType _: Components.Schemas.ListingType, page _: Int64) async throws -> Components.Schemas.SearchResponse {
+    func search(query _: String, type _: Lemmy.SearchType, sort _: Lemmy.SortType, listingType _: Lemmy.ListingType, page _: Int64) async throws -> LemmyKit.SearchResults {
         trap()
     }
 
-    func listCommunities(type _: Components.Schemas.ListingType, sort _: Components.Schemas.SortType?, limit _: Int64?) async throws -> [Components.Schemas.CommunityView] {
+    func listCommunities(type _: Lemmy.ListingType, sort _: Lemmy.SortType?, limit _: Int64?) async throws -> [Lemmy.CommunityView] {
         trap()
     }
 
-    func setSubscribed(serverCommunityId _: Components.Schemas.CommunityID, subscribed _: Bool) async throws {
+    func setSubscribed(serverCommunityId _: Lemmy.CommunityID, subscribed _: Bool) async throws {
         trap()
     }
 
-    func vote(serverPostId _: Components.Schemas.PostID, vote _: VoteStatus.Action) async throws {
+    func vote(serverPostId _: Lemmy.PostID, vote _: VoteStatus.Action) async throws {
         trap()
     }
 
-    func vote(serverCommentId _: Components.Schemas.CommentID, vote _: VoteStatus.Action) async throws {
+    func vote(serverCommentId _: Lemmy.CommentID, vote _: VoteStatus.Action) async throws {
         trap()
     }
 
-    func createComment(serverPostId _: Components.Schemas.PostID, content _: String, parentCommentId _: Components.Schemas.CommentID?) async throws {
+    func createComment(serverPostId _: Lemmy.PostID, content _: String, parentCommentId _: Lemmy.CommentID?) async throws {
         trap()
     }
 
-    func createPost(serverCommunityId _: Components.Schemas.CommunityID, name _: String, url _: String?, body _: String?, nsfw _: Bool) async throws -> Components.Schemas.PostID {
+    func createPost(serverCommunityId _: Lemmy.CommunityID, name _: String, url _: String?, body _: String?, nsfw _: Bool) async throws -> Lemmy.PostID {
         trap()
     }
 
@@ -129,27 +129,27 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         trap()
     }
 
-    func setSaved(serverPostId _: Components.Schemas.PostID, saved _: Bool) async throws {
+    func setSaved(serverPostId _: Lemmy.PostID, saved _: Bool) async throws {
         trap()
     }
 
-    func setSaved(serverCommentId _: Components.Schemas.CommentID, saved _: Bool) async throws {
+    func setSaved(serverCommentId _: Lemmy.CommentID, saved _: Bool) async throws {
         trap()
     }
 
-    func deleteComment(serverCommentId _: Components.Schemas.CommentID, deleted _: Bool) async throws {
+    func deleteComment(serverCommentId _: Lemmy.CommentID, deleted _: Bool) async throws {
         trap()
     }
 
-    func deletePost(serverPostId _: Components.Schemas.PostID, deleted _: Bool) async throws {
+    func deletePost(serverPostId _: Lemmy.PostID, deleted _: Bool) async throws {
         trap()
     }
 
-    func fetchPostInfo(serverPostId _: Components.Schemas.PostID) async throws {
+    func fetchPostInfo(serverPostId _: Lemmy.PostID) async throws {
         trap()
     }
 
-    func hidePost(serverPostId _: Components.Schemas.PostID, hidden _: Bool) async throws {
+    func hidePost(serverPostId _: Lemmy.PostID, hidden _: Bool) async throws {
         trap()
     }
 
@@ -189,7 +189,7 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         trap()
     }
 
-    func applyOptimisticPostEdit(serverPostId _: Components.Schemas.PostID, title _: String, body _: String?, url _: String?, nsfw _: Bool) async {
+    func applyOptimisticPostEdit(serverPostId _: Lemmy.PostID, title _: String, body _: String?, url _: String?, nsfw _: Bool) async {
         trap()
     }
 
@@ -201,7 +201,7 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         AsyncStream { $0.finish() }
     }
 
-    func markAsRead(serverPostId _: Components.Schemas.PostID) async throws {
+    func markAsRead(serverPostId _: Lemmy.PostID) async throws {
         trap()
     }
 
@@ -209,15 +209,11 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         trap()
     }
 
-    func markReplyAsRead(commentReplyId _: Components.Schemas.CommentReplyID, read _: Bool) async throws {
+    func markInboxItemAsRead(reference _: InboxItemReadReference, read _: Bool) async throws {
         trap()
     }
 
-    func markMentionAsRead(personMentionId _: Components.Schemas.PersonMentionID, read _: Bool) async throws {
-        trap()
-    }
-
-    func markPrivateMessageAsRead(privateMessageId _: Components.Schemas.PrivateMessageID, read _: Bool) async throws {
+    func markPrivateMessageAsRead(privateMessageId _: Lemmy.PrivateMessageID, read _: Bool) async throws {
         trap()
     }
 
@@ -225,23 +221,23 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         trap()
     }
 
-    func sendPrivateMessage(content _: String, recipientId _: Components.Schemas.PersonID) async throws -> Components.Schemas.PrivateMessageView {
+    func sendPrivateMessage(content _: String, recipientId _: Lemmy.PersonID) async throws -> Lemmy.PrivateMessageView {
         trap()
     }
 
-    func setBlocked(serverPersonId _: Components.Schemas.PersonID, blocked _: Bool) async throws {
+    func setBlocked(serverPersonId _: Lemmy.PersonID, blocked _: Bool) async throws {
         trap()
     }
 
-    func setBlocked(serverCommunityId _: Components.Schemas.CommunityID, blocked _: Bool) async throws {
+    func setBlocked(serverCommunityId _: Lemmy.CommunityID, blocked _: Bool) async throws {
         trap()
     }
 
-    func reportPost(serverPostId _: Components.Schemas.PostID, reason _: String) async throws {
+    func reportPost(serverPostId _: Lemmy.PostID, reason _: String) async throws {
         trap()
     }
 
-    func reportComment(serverCommentId _: Components.Schemas.CommentID, reason _: String) async throws {
+    func reportComment(serverCommentId _: Lemmy.CommentID, reason _: String) async throws {
         trap()
     }
 
@@ -253,27 +249,27 @@ private actor RecordingInboxLemmyService: LemmyServiceType {
         trap()
     }
 
-    func removePost(serverPostId _: Components.Schemas.PostID, removed _: Bool, reason _: String?) async throws {
+    func removePost(serverPostId _: Lemmy.PostID, removed _: Bool, reason _: String?) async throws {
         trap()
     }
 
-    func lockPost(serverPostId _: Components.Schemas.PostID, locked _: Bool) async throws {
+    func lockPost(serverPostId _: Lemmy.PostID, locked _: Bool) async throws {
         trap()
     }
 
-    func featurePost(serverPostId _: Components.Schemas.PostID, featured _: Bool, local _: Bool) async throws {
+    func featurePost(serverPostId _: Lemmy.PostID, featured _: Bool, local _: Bool) async throws {
         trap()
     }
 
-    func removeComment(serverCommentId _: Components.Schemas.CommentID, removed _: Bool, reason _: String?) async throws {
+    func removeComment(serverCommentId _: Lemmy.CommentID, removed _: Bool, reason _: String?) async throws {
         trap()
     }
 
-    func distinguishComment(serverCommentId _: Components.Schemas.CommentID, distinguished _: Bool) async throws {
+    func distinguishComment(serverCommentId _: Lemmy.CommentID, distinguished _: Bool) async throws {
         trap()
     }
 
-    func banFromCommunity(serverCommunityId _: Components.Schemas.CommunityID, serverPersonId _: Components.Schemas.PersonID, ban _: Bool, removeData _: Bool, reason _: String?) async throws {
+    func banFromCommunity(serverCommunityId _: Lemmy.CommunityID, serverPersonId _: Lemmy.PersonID, ban _: Bool, removeData _: Bool, reason _: String?) async throws {
         trap()
     }
 
@@ -357,15 +353,15 @@ private final class FakeGatingAccountService: AccountServiceType {
         ""
     }
 
-    func defaultListingType(forAccountKeychainId _: String) -> Components.Schemas.ListingType {
+    func defaultListingType(forAccountKeychainId _: String) -> Lemmy.ListingType {
         .All
     }
 
-    func defaultSortType(forAccountKeychainId _: String) -> Components.Schemas.SortType {
+    func defaultSortType(forAccountKeychainId _: String) -> Lemmy.SortType {
         .Hot
     }
 
-    func setDefaultSortType(_: Components.Schemas.SortType, forAccountKeychainId _: String) { }
+    func setDefaultSortType(_: Lemmy.SortType, forAccountKeychainId _: String) { }
 
     func refreshSiteInfoOnDemandIfNeeded(forAccountKeychainId _: String) { }
 
@@ -407,17 +403,19 @@ struct InboxViewModelGatingTests {
         )
     }
 
-    /// The core gating requirement: on a Lemmy 1.0 (v3-shim) instance, none of
-    /// the three inbox fetches ever reach the service, and the VM exposes the
-    /// gated state (host + flag) the view controller renders instead.
+    /// The core gating requirement: when the inbox capability is unavailable,
+    /// none of the three inbox fetches ever reach the service, and the VM exposes
+    /// the gated state (host + flag) the view controller renders instead.
+    ///
+    /// No live Lemmy version gates the inbox anymore (Spud speaks native v4 — see
+    /// `InstanceCapabilities`), so this constructs an explicitly-gated capability
+    /// set directly to exercise the VM's still-present gated branch, decoupled
+    /// from the now-inert version-derivation table.
     @Test
     func loadAll_whenInboxGated_performsNoServiceCallsAndExposesGatedState() async throws {
         let lemmyServiceDouble = RecordingInboxLemmyService()
         let unreadCountService = SpyUnreadCountService()
-        let gatedCapabilities = InstanceCapabilities.capabilities(
-            software: .lemmy,
-            version: LemmyVersion(parsing: "1.0.0-alpha.18")
-        )
+        let gatedCapabilities = InstanceCapabilities(unavailable: [.inbox])
         let instance = try #require(InstanceActorId(from: "https://lemmy.example.com"))
         let vm = makeViewModel(
             capabilities: gatedCapabilities,

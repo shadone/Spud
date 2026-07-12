@@ -14,10 +14,8 @@ import Testing
 
 // MARK: - Type aliases
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias PostView = Components.Schemas.PostView
-private typealias GetPostResponse = Components.Schemas.GetPostResponse
+private typealias PostView = Lemmy.PostView
+private typealias GetPostResponse = Lemmy.GetPostResponse
 
 // MARK: - Stub transport
 
@@ -96,7 +94,7 @@ struct LemmyServicePostCounterHarvestTests {
 
     private func storedCommentCount(
         accountId: Int64,
-        serverPostId: Components.Schemas.PostID
+        serverPostId: Lemmy.PostID
     ) async throws -> Int64? {
         try await appDatabase.writer.write { db -> Int64? in
             try PostRecord
@@ -107,16 +105,27 @@ struct LemmyServicePostCounterHarvestTests {
         }
     }
 
-    private func makePostView(
-        postId: Components.Schemas.PostID = 1,
+    /// Neutral seed builder for the importer (`upsertPost`): a neutral `PostView`
+    /// with the comment count flattened onto the post.
+    private func seedPostView(
+        postId: Lemmy.PostID = 1,
         commentCount: Int64
     ) -> PostView {
-        let person = Person.fake
-        let community = Community.fake
-        var post = Components.Schemas.Post.fake(creator: person, community: community)
-        post.id = postId
-        post.ap_id = "https://example.com/post/\(postId)"
-        var view = PostView.fake(post: post, creator: person, community: community)
+        Lemmy.PostView.fake(
+            post: Lemmy.Post.fake(creator: .fake, community: .fake, id: postId, comments: commentCount),
+            creator: .fake,
+            community: .fake
+        )
+    }
+
+    /// Generated v3 builder for the `getPost` response payload (`post_view` /
+    /// `cross_posts`): the stub transport encodes this v3 shape for the neutral
+    /// endpoint to decode and map.
+    private func responsePostView(
+        postId: Lemmy.PostID = 1,
+        commentCount: Int64
+    ) -> Components.Schemas.PostView {
+        var view = V3.postView(postId: postId)
         view.counts.comments = commentCount
         return view
     }
@@ -130,22 +139,21 @@ struct LemmyServicePostCounterHarvestTests {
     func fetchPostInfoUpdatesStaleCommentCount() async throws {
         let ids = try await seedAccountAndSite()
 
+        let postId: Lemmy.PostID = 1
+
         // Seed the post locally with a STALE comment count of 1.
-        let stalePostView = makePostView(commentCount: 1)
-        let serverPostId = stalePostView.post.id
         try await appDatabase.upsertPost(
-            from: stalePostView,
+            from: seedPostView(postId: postId, commentCount: 1),
             accountId: ids.accountId,
             siteId: ids.siteId
         )
-        let before = try await storedCommentCount(accountId: ids.accountId, serverPostId: serverPostId)
+        let before = try await storedCommentCount(accountId: ids.accountId, serverPostId: postId)
         #expect(before == 1, "precondition: stored count starts stale at 1")
 
         // Server now reports 3 comments via getPost.
-        let freshPostView = makePostView(commentCount: 3)
         let getPostResponse = GetPostResponse(
-            post_view: freshPostView,
-            community_view: .fake(community: Community.fake),
+            post_view: responsePostView(postId: postId, commentCount: 3),
+            community_view: V3.communityView(),
             moderators: [],
             cross_posts: []
         )
@@ -155,25 +163,27 @@ struct LemmyServicePostCounterHarvestTests {
             transport: StubGetPostTransport(response: getPostResponse)
         )
 
-        try await service.fetchPostInfo(serverPostId: serverPostId)
+        try await service.fetchPostInfo(serverPostId: postId)
 
-        let after = try await storedCommentCount(accountId: ids.accountId, serverPostId: serverPostId)
+        let after = try await storedCommentCount(accountId: ids.accountId, serverPostId: postId)
         #expect(after == 3, "importing a fresh PostView must refresh the stored comment count")
     }
 
     /// `getPost` returns the post's `cross_posts` as full `PostView`s. Their
-    /// counters should be harvested too (in a single batched transaction), so a
-    /// cross-post seen here stays fresh without a separate fetch.
+    /// counters are harvested too (in a single batched transaction), so a
+    /// cross-post seen here stays fresh without a separate fetch. `getPostNeutral`
+    /// carries them on `PostDetail.crossPosts`, and `fetchPostInfo` batch-mirrors
+    /// them via `mirrorPostViewsToAppDatabase`.
     @Test
     func fetchPostInfoHarvestsCrossPostCounters() async throws {
         let ids = try await seedAccountAndSite()
 
-        let mainView = makePostView(postId: 1, commentCount: 3)
-        let crossA = makePostView(postId: 2, commentCount: 7)
-        let crossB = makePostView(postId: 3, commentCount: 11)
+        let mainView = responsePostView(postId: 1, commentCount: 3)
+        let crossA = responsePostView(postId: 2, commentCount: 7)
+        let crossB = responsePostView(postId: 3, commentCount: 11)
         let getPostResponse = GetPostResponse(
             post_view: mainView,
-            community_view: .fake(community: Community.fake),
+            community_view: V3.communityView(),
             moderators: [],
             cross_posts: [crossA, crossB]
         )

@@ -43,13 +43,21 @@ class IPadSplitUITests: XCTestCase {
             )
 
             // Stub the community info fetch triggered when CommunityOrLoadingViewController
-            // loads. The wildcard URL matches any host's /api/v3/community endpoint.
+            // loads. The neutral surface has no get-community-by-name endpoint, so opening a
+            // community resolves it by its federation actor url via `resolve_object`
+            // (`GET /api/v3/resolve_object?q=https://<host>/c/<name>`), not the retired
+            // `GET /api/v3/community?name=`. The match keys only on the PRESENCE of a `q`
+            // param (the regex `q=` matches any value), so — exactly like the old wildcard
+            // `.*/api/v3/community` stub it replaces — WHICHEVER community the tapped Discover
+            // row opens resolves to tincidunt (community id 9544). The stub returns a
+            // `ResolveObjectResponse` whose `community` is the tincidunt `CommunityView`.
             _ = self.app.stubRequests(
                 matching: SBTRequestMatch(
-                    url: ".*/api/v3/community",
+                    url: ".*/api/v3/resolve_object",
+                    query: ["q="],
                     method: "GET"
                 ),
-                response: SBTStubResponse(fileNamed: "community-tincidunt.json")
+                response: SBTStubResponse(fileNamed: "resolve-object-community-tincidunt.json")
             )
 
             // --- Community-feed CONTENT stubs (test_discoverCommunity_tapPost_fillsDetailColumn) ---
@@ -75,30 +83,29 @@ class IPadSplitUITests: XCTestCase {
                 )
             )
 
-            // The community feed itself. The reading-split feed issues getPosts filtered by
-            // COMMUNITY — the actual request observed is
-            //   GET /api/v3/post/list?sort=Hot&community_name=<name>@<instance>&show_nsfw=false
-            // (see LemmyService.fetchFeed(.community), which builds it via
-            // CommunityFilter.name(...)). It is distinguished from the FRONTPAGE feed, whose
-            // request carries `type_=All` and NO `community_name` at all.
+            // The community feed itself. The neutral `getPostsNeutral` scopes a community by
+            // ID, not by name (see LemmyService.fetchFeed(.community) → resolveCommunityServerId),
+            // so the actual request observed is
+            //   GET /api/v3/post/list?type_=All&sort=Hot&community_id=9544&show_nsfw=false
+            // It is distinguished from the FRONTPAGE feed, whose request carries `type_=All`
+            // and NO `community_id` at all.
             //
-            // The match is keyed only on the PRESENCE of a `community_name` param (the regex
-            // `community_name=` matches any value) rather than a specific community. This is
-            // deliberate: which Discover row the seeded directory surfaces first is NOT
-            // deterministic — the bundled 4.9 MB seed populates the directory before any
-            // network refresh, so the tapped row (and thus this feed's community_name) can be
-            // e.g. technology@lemmy.ml rather than tincidunt. Whatever the row, the wildcard
-            // `.*/api/v3/community` stub above resolves the OPENED community to tincidunt
-            // (community id 9544), and this feed returns the same 2-post fixture; its first
-            // post (id 1549703, "Nunc scelerisque...") is community 9544's post, so the
-            // detail/comment stubs below (keyed on id 1549703) line up regardless of the row.
+            // The match keys on `community_id=9544` — the tincidunt community id. That id is
+            // deterministic even though which Discover row is tapped is NOT: the bundled 4.9 MB
+            // seed can populate the directory before the stubbed refresh, so the tapped row can
+            // be e.g. technology@lemmy.ml rather than tincidunt. Whatever the row, the wildcard
+            // `resolve_object` stub above resolves the OPENED community to tincidunt (id 9544),
+            // so the feed the reading split then loads is always scoped to community_id=9544 and
+            // returns this 2-post fixture; its first post (id 1549703, "Nunc scelerisque...") is
+            // community 9544's post, so the detail/comment stubs below (keyed on id 1549703) line
+            // up regardless of the row.
             //
-            // The `community_name=` matcher also keeps this stub from shadowing the frontpage
-            // feed, so the empty-split test's frontpage requests are unaffected.
+            // The `community_id=9544` matcher also keeps this stub from shadowing the frontpage
+            // feed (no community_id), so the empty-split test's frontpage requests are unaffected.
             _ = self.app.stubRequests(
                 matching: SBTRequestMatch(
                     url: ".*/api/v3/post/list",
-                    query: ["community_name="],
+                    query: ["community_id=9544"],
                     method: "GET"
                 ),
                 response: SBTStubResponse(fileNamed: "post-list-all-hot.json")
@@ -277,14 +284,14 @@ class IPadSplitUITests: XCTestCase {
     ///   3. the detail header lands in the RIGHT/secondary column (geometric proof), not a
     ///      single-column push.
     ///
-    /// Determinism: the wildcard `.*/api/v3/community` stub (registered in setUp) resolves
-    /// EVERY tapped Discover row's getCommunity call to tincidunt (community id 9544), so the
-    /// persisted community — and thus the post-detail (id 1549703) and comment-tree stubs — always
-    /// line up. The community feed's getPosts request itself carries the TAPPED row's
-    /// `community_name` (non-deterministic, e.g. technology@lemmy.ml — the bundled seed picks the
-    /// first row, NOT tincidunt), but the `community_name=` wildcard stub in setUp matches any
-    /// value, so whichever community is opened, its feed returns the same 2-post fixture. All
-    /// three content stubs (feed, detail, comments) are wired in setUp.
+    /// Determinism: the wildcard `resolve_object` stub (registered in setUp) resolves EVERY
+    /// tapped Discover row's community to tincidunt (community id 9544), so the persisted
+    /// community — and thus the community feed (scoped by community_id=9544), the post-detail
+    /// (id 1549703), and comment-tree stubs — always line up. The tapped row itself is
+    /// non-deterministic (e.g. technology@lemmy.ml — the bundled seed can pick the first row,
+    /// NOT tincidunt), but the `resolve_object` stub matches any `q` value, so whichever
+    /// community is opened resolves to id 9544 and its feed returns the same 2-post fixture.
+    /// All three content stubs (feed, detail, comments) are wired in setUp.
     func test_discoverCommunity_tapPost_fillsDetailColumn() {
         // --- Navigate to the reading split (same path as the empty-split test). ---
         // See test_discoverCommunity_showsTwoColumnSplit for why each selector is shaped the

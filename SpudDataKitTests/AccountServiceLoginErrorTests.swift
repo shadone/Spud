@@ -17,7 +17,7 @@ import Testing
 /// prompt for a code.
 struct AccountServiceLoginErrorTests {
     private func mapped(serverError error: String) -> AccountServiceLoginError {
-        let errorResponse = Components.Schemas.ErrorResponse(error: error, message: nil)
+        let errorResponse = Lemmy.ErrorResponse(error: error, message: nil)
         return AccountServiceLoginError(from: LemmyApiError.serverError(errorResponse))
     }
 

@@ -12,10 +12,9 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias PrivateMessage = Components.Schemas.PrivateMessage
-private typealias PrivateMessageView = Components.Schemas.PrivateMessageView
-private typealias PrivateMessageResponse = Components.Schemas.PrivateMessageResponse
+/// The `createPrivateMessage` confirmation is a stub payload fed to the transport,
+/// so it is built on the generated v3 shapes (`Components.Schemas.*`) via `V3`.
+private typealias PrivateMessageResponse = Lemmy.PrivateMessageResponse
 
 /// Decoded shape of the `createPrivateMessage` request body, so a test can
 /// assert the performer sent the right content + recipient.
@@ -138,10 +137,8 @@ struct OutboundDirectMessagePerformerTests {
         }
     }
 
-    private static func person(id: Int64, name: String) -> Person {
-        var p = Person.fake
-        p.id = Components.Schemas.PersonID(id)
-        p.name = name
+    private static func person(id: Int64, name: String) -> Components.Schemas.Person {
+        var p = V3.person(id: Lemmy.PersonID(id), name: name)
         p.display_name = name.capitalized
         p.actor_id = "https://\(name).test/u/\(name)"
         return p
@@ -149,23 +146,16 @@ struct OutboundDirectMessagePerformerTests {
 
     private static func response(
         messageId: Int64,
-        creator: Person,
-        recipient: Person,
+        creator: Components.Schemas.Person,
+        recipient: Components.Schemas.Person,
         content: String
     ) -> PrivateMessageResponse {
-        let pm = PrivateMessage(
-            id: Components.Schemas.PrivateMessageID(messageId),
-            creator_id: creator.id,
-            recipient_id: recipient.id,
-            content: content,
-            deleted: false,
-            read: false,
-            published: Date(timeIntervalSince1970: 1_700_000_000),
-            updated: nil,
-            ap_id: "https://x.test/private_message/\(messageId)",
-            local: true
+        let view = V3.privateMessageView(
+            id: Lemmy.PrivateMessageID(messageId),
+            creator: creator,
+            recipient: recipient,
+            content: content
         )
-        let view = PrivateMessageView(private_message: pm, creator: creator, recipient: recipient)
         return PrivateMessageResponse(private_message_view: view)
     }
 

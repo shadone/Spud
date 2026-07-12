@@ -92,6 +92,22 @@ final class InboxViewController: UIViewController {
         return indicator
     }()
 
+    /// Spinner shown as the table's footer while the Messages scope pages in more
+    /// conversations (`viewModel.isLoadingMore`). Standard infinite-scroll bottom
+    /// indicator — hidden in the other scopes and when there is nothing more to load.
+    private let loadMoreSpinner = UIActivityIndicatorView(style: .medium)
+
+    private lazy var loadMoreFooter: UIView = {
+        let container = UIView(frame: CGRect(x: 0, y: 0, width: 0, height: 44))
+        loadMoreSpinner.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(loadMoreSpinner)
+        NSLayoutConstraint.activate([
+            loadMoreSpinner.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            loadMoreSpinner.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+        ])
+        return container
+    }()
+
     private lazy var refreshControl: UIRefreshControl = {
         let control = UIRefreshControl()
         control.addTarget(self, action: #selector(refreshTriggered), for: .valueChanged)
@@ -124,7 +140,7 @@ final class InboxViewController: UIViewController {
 
         let myPersonId = dependencies.appDatabase
             .accountOwnPersonIdsSync(forKeychainId: accountKeychainId)
-            .map { Components.Schemas.PersonID($0.serverPersonId) }
+            .map { Lemmy.PersonID($0.serverPersonId) }
 
         viewModel = InboxViewModel(
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
@@ -223,7 +239,8 @@ final class InboxViewController: UIViewController {
             for await _ in ObservationStream.values(of: {
                 (
                     viewModel.repliesPhase, viewModel.mentionsPhase, viewModel.messagesPhase,
-                    viewModel.replies, viewModel.mentions, viewModel.conversations
+                    viewModel.replies, viewModel.mentions, viewModel.conversations,
+                    viewModel.isLoadingMore
                 )
             }) {
                 if Task.isCancelled { break }
@@ -252,6 +269,7 @@ final class InboxViewController: UIViewController {
 
     private func render() {
         updateNavigationItems()
+        updateLoadMoreFooter()
 
         guard viewModel.isSignedIn else {
             loadingIndicator.stopAnimating()
@@ -316,6 +334,25 @@ final class InboxViewController: UIViewController {
         navigationItem.rightBarButtonItems = viewModel.scope == .messages && capabilities.can(.privateMessages)
             ? [markAllReadButton, composeButton]
             : [markAllReadButton]
+    }
+
+    /// Shows or hides the bottom load-more spinner. Only the Messages scope pages
+    /// (its conversation list walks the overall private-message list); the spinner
+    /// appears while `viewModel.isLoadingMore` and is removed otherwise so it never
+    /// lingers under a single-page replies/mentions list.
+    private func updateLoadMoreFooter() {
+        let shouldShow = viewModel.scope == .messages && viewModel.isLoadingMore
+        if shouldShow {
+            loadMoreSpinner.startAnimating()
+            if tableView.tableFooterView !== loadMoreFooter {
+                tableView.tableFooterView = loadMoreFooter
+            }
+        } else {
+            loadMoreSpinner.stopAnimating()
+            if tableView.tableFooterView === loadMoreFooter {
+                tableView.tableFooterView = nil
+            }
+        }
     }
 
     private func applyScopeSnapshot() {
@@ -495,7 +532,7 @@ final class InboxViewController: UIViewController {
     /// Pushes a new DM thread onto the inbox nav stack. The picker has already
     /// dismissed itself by the time this runs.
     private func openNewThread(
-        correspondentId: Components.Schemas.PersonID,
+        correspondentId: Lemmy.PersonID,
         correspondentName: String
     ) {
         let threadVC = DMThreadViewController(
@@ -507,7 +544,7 @@ final class InboxViewController: UIViewController {
         navigationController?.pushViewController(threadVC, animated: true)
     }
 
-    private func openComment(serverPostId: Components.Schemas.PostID) {
+    private func openComment(serverPostId: Lemmy.PostID) {
         guard let window = view.window as? MainWindow else { return }
         window.display(serverPostId: serverPostId, accountKeychainId: accountKeychainId)
     }
@@ -516,6 +553,28 @@ final class InboxViewController: UIViewController {
 // MARK: - UITableViewDelegate
 
 extension InboxViewController: UITableViewDelegate {
+    /// Infinite-scroll trigger for the Messages scope's conversation list. Fires
+    /// `loadMore()` once the user scrolls into the last tenth of the content —
+    /// mirroring `PostListViewController`'s threshold idiom. Only the Messages
+    /// scope pages (replies/mentions are single-page). The view model guards
+    /// re-entrancy / exhaustion / a missing cursor, so a repeated fire while a
+    /// page is already in flight is a cheap no-op.
+    ///
+    /// Gated to USER-initiated scrolls (`isDragging`/`isDecelerating`), matching
+    /// the DM thread: a page of the flat PM list can collapse into few new
+    /// conversation rows, so without this gate a programmatic contentSize change
+    /// near the bottom could re-fire and burst-page deep into history.
+    func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        guard viewModel.scope == .messages else { return }
+        guard scrollView.isDragging || scrollView.isDecelerating else { return }
+        let position = scrollView.contentOffset.y + scrollView.bounds.height
+        let totalHeight = scrollView.contentSize.height
+        guard totalHeight > 0 else { return }
+        if position / totalHeight > 0.9 {
+            Task { [weak self] in await self?.viewModel.loadMore() }
+        }
+    }
+
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         tableView.deselectRow(at: indexPath, animated: true)
         guard let item = dataSource.itemIdentifier(for: indexPath) else { return }

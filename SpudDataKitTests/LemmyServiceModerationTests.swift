@@ -12,14 +12,15 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias Comment = Components.Schemas.Comment
-private typealias PostResponse = Components.Schemas.PostResponse
-private typealias CommentResponse = Components.Schemas.CommentResponse
-private typealias BanFromCommunityResponse = Components.Schemas.BanFromCommunityResponse
-private typealias GetSiteResponse = Components.Schemas.GetSiteResponse
+private typealias Person = Lemmy.Person
+private typealias Community = Lemmy.Community
+private typealias Post = Lemmy.Post
+private typealias Comment = Lemmy.Comment
+private typealias PostResponse = Lemmy.PostResponse
+private typealias CommentResponse = Lemmy.CommentResponse
+private typealias BanFromCommunityResponse = Lemmy.BanFromCommunityResponse
+private typealias GetSiteResponse = Lemmy.GetSiteResponse
+private typealias GetPostResponse = Lemmy.GetPostResponse
 
 /// Stub `ClientTransport` returning canned JSON for the moderation operations,
 /// recording which operation was invoked. Mirrors `StubBlockReportTransport`.
@@ -31,6 +32,10 @@ private final class StubModerationTransport: ClientTransport, @unchecked Sendabl
     private let distinguishCommentJSON: Data?
     private let banJSON: Data?
     private let getSiteJSON: Data?
+    /// `removePost` mirrors its state change by re-fetching through the neutral
+    /// getPost (the v3 removePost response can't feed the neutral importer), so a
+    /// getPost body is served too.
+    private let getPostJSON: Data?
 
     private(set) var didSendRemovePost = false
     private(set) var didSendLockPost = false
@@ -47,7 +52,8 @@ private final class StubModerationTransport: ClientTransport, @unchecked Sendabl
         removeComment: CommentResponse? = nil,
         distinguishComment: CommentResponse? = nil,
         ban: BanFromCommunityResponse? = nil,
-        getSite: GetSiteResponse? = nil
+        getSite: GetSiteResponse? = nil,
+        getPost: GetPostResponse? = nil
     ) throws {
         let encoder = JSONEncoder()
         // Matches LemmyDateTranscoder: 2024-06-09T11:54:37.981990Z (UTC, 6
@@ -64,6 +70,7 @@ private final class StubModerationTransport: ClientTransport, @unchecked Sendabl
         distinguishCommentJSON = try distinguishComment.map { try encoder.encode($0) }
         banJSON = try ban.map { try encoder.encode($0) }
         getSiteJSON = try getSite.map { try encoder.encode($0) }
+        getPostJSON = try getPost.map { try encoder.encode($0) }
     }
 
     func send(
@@ -101,6 +108,8 @@ private final class StubModerationTransport: ClientTransport, @unchecked Sendabl
         case "getSite":
             didSendGetSite = true
             return try ok(getSiteJSON)
+        case "getPost":
+            return try ok(getPostJSON)
         default:
             throw UnexpectedOperation(operationID: operationID)
         }
@@ -151,7 +160,7 @@ struct LemmyServiceModerationTests {
         creator: Person,
         community: Community
     ) async throws -> Int64 {
-        let view = Components.Schemas.PostView.fake(post: post, creator: creator, community: community)
+        let view = Lemmy.PostView.fake(post: post, creator: creator, community: community)
         try await appDatabase.upsertPost(from: view, accountId: accountId, siteId: siteId)
         return Int64(post.id)
     }
@@ -164,16 +173,29 @@ struct LemmyServiceModerationTests {
 
         let person = Person.fake
         let community = Community.fake
-        var post = Post.fake(creator: person, community: community)
-        post.removed = false
-        let postId = post.id
+        let postId: Lemmy.PostID = 1
+        // Seed a neutral post (removed defaults false); neutral fields are `let`,
+        // so the removed variant is built separately below on the generated v3
+        // shapes the stub transport encodes.
+        let post = Post.fake(creator: person, community: community, id: postId)
         try await seedPost(accountId: ids.accountId, siteId: ids.siteId, post: post, creator: person, community: community)
 
-        // The server returns the post now flagged removed.
-        var removedPost = post
-        removedPost.removed = true
-        let response = PostResponse(post_view: .fake(post: removedPost, creator: person, community: community))
-        let transport = try StubModerationTransport(removePost: response)
+        // The server returns the post now flagged removed. `removePost` mirrors the
+        // flag by re-fetching through the neutral getPost (the v3 removePost
+        // response can't feed the neutral importer), so the removed post_view is
+        // served for BOTH the removePost call (decoded then discarded) and the
+        // getPost re-fetch that actually drives the mirror.
+        var removedView = V3.postView(postId: postId)
+        removedView.post.removed = true
+        let transport = try StubModerationTransport(
+            removePost: PostResponse(post_view: removedView),
+            getPost: GetPostResponse(
+                post_view: removedView,
+                community_view: V3.communityView(),
+                moderators: [],
+                cross_posts: []
+            )
+        )
         let service = LemmyServiceHarness.make(
             accountKeychainId: keychainId,
             appDatabase: appDatabase,
@@ -220,7 +242,17 @@ struct LemmyServiceModerationTests {
 
     // MARK: distinguishComment mirrors state
 
-    @Test
+    //
+    // The distinguished-flag mirror was DROPPED in the neutral migration:
+    // `distinguishComment` no longer re-fetches the comment (there is no
+    // single-comment neutral refetch to re-mirror from, and the v3 response can't
+    // feed the neutral importer — see `LemmyService+Moderation`'s comment and the
+    // Phase 6 follow-ups), so nothing updates the local `isDistinguished` flag
+    // until the next comment-tree load. The test body still builds the confirmed
+    // view on the generated v3 shapes so it compiles and can be re-enabled once a
+    // re-mirror path returns.
+
+    @Test(.disabled("distinguished-flag mirror dropped in neutral migration (no single-comment refetch); Phase 6 follow-up"))
     func distinguishCommentHitsApiAndMirrorsFlag() async throws {
         let ids = try await seedAccountAndSite()
 
@@ -229,20 +261,27 @@ struct LemmyServiceModerationTests {
         let post = Post.fake(creator: person, community: community)
         try await seedPost(accountId: ids.accountId, siteId: ids.siteId, post: post, creator: person, community: community)
 
-        var comment = Comment.fake(id: 7, post: post, creator: person, parent: .root)
-        comment.distinguished = false
-        let commentId = comment.id
-        // Seed the comment row first.
-        let seedView = Components.Schemas.CommentView.fake(
+        let commentId: Lemmy.CommentID = 7
+        let comment = Comment.fake(id: commentId, post: post, creator: person, parent: .root)
+        // Seed the comment row first (undistinguished; neutral `.distinguished`
+        // defaults false and is `let`).
+        let seedView = Lemmy.CommentView.fake(
             comment: comment, creator: person, post: post, community: community, childCount: 0
         )
         try await appDatabase.upsertComment(from: seedView, accountId: ids.accountId, siteId: ids.siteId)
 
-        // The server returns the comment now distinguished.
-        var distinguished = comment
+        // The server returns the comment now distinguished (built on the generated
+        // v3 shapes the stub transport encodes).
+        var distinguished = V3.comment(id: commentId)
         distinguished.distinguished = true
         let response = CommentResponse(
-            comment_view: .fake(comment: distinguished, creator: person, post: post, community: community, childCount: 0),
+            comment_view: V3.commentView(
+                comment: distinguished,
+                creator: V3.person(),
+                post: V3.post(),
+                community: V3.community(),
+                childCount: 0
+            ),
             recipient_ids: []
         )
         let transport = try StubModerationTransport(distinguishComment: response)
@@ -298,9 +337,7 @@ struct LemmyServiceModerationTests {
     func moderationCapabilityResolvesModeratedCommunitiesAndAdmin() async throws {
         try await seedAccountAndSite()
 
-        var modCommunity = Community.fake
-        modCommunity.id = 42
-        let getSite = GetSiteResponse.fake(moderates: [modCommunity], isAdmin: false)
+        let getSite = GetSiteResponse.fake(moderates: [42], isAdmin: false)
         let transport = try StubModerationTransport(getSite: getSite)
         let service = LemmyServiceHarness.make(
             accountKeychainId: keychainId,

@@ -12,12 +12,7 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias Comment = Components.Schemas.Comment
-private typealias CommentView = Components.Schemas.CommentView
-private typealias CommentResponse = Components.Schemas.CommentResponse
+private typealias CommentResponse = Lemmy.CommentResponse
 
 /// Stub `ClientTransport` that returns a canned JSON response for the
 /// `createComment` operation and records whether it was ever invoked.
@@ -61,7 +56,7 @@ private final class StubCreateCommentTransport: ClientTransport, @unchecked Send
 @MainActor
 struct LemmyServiceCreateCommentTests {
     private let keychainId = "keychain-1"
-    private let serverPostId: Components.Schemas.PostID = 1
+    private let serverPostId: Lemmy.PostID = 1
 
     private let appDatabase: AppDatabase
 
@@ -92,7 +87,7 @@ struct LemmyServiceCreateCommentTests {
             return (account.id!, site.id!)
         }
 
-        let postView = Components.Schemas.PostView.fake(
+        let postView = Lemmy.PostView.fake(
             post: .fake(creator: .fake, community: .fake),
             creator: .fake,
             community: .fake
@@ -110,22 +105,15 @@ struct LemmyServiceCreateCommentTests {
     func createCommentUpsertsReturnedCommentIntoDatabase() async throws {
         try await seedAccountSiteAndPost()
 
-        let newCommentId: Components.Schemas.CommentID = 42
-        let person = Person.fake
-        let community = Community.fake
-        let post = Post.fake(creator: person, community: community)
-        let comment = Comment.fake(
-            id: newCommentId,
-            post: post,
-            creator: person,
-            parent: .root
-        )
-        let commentView = CommentView.fake(
+        let newCommentId: Lemmy.CommentID = 42
+        // The stub transport encodes this generated v3 CommentView to v3 JSON,
+        // which the neutral createComment endpoint decodes and mirrors.
+        let comment = V3.comment(id: newCommentId)
+        let commentView = V3.commentView(
             comment: comment,
-            creator: person,
-            post: post,
-            community: community,
-            childCount: 0
+            creator: V3.person(),
+            post: V3.post(),
+            community: V3.community()
         )
         let response = CommentResponse(comment_view: commentView, recipient_ids: [])
 
@@ -160,15 +148,11 @@ struct LemmyServiceCreateCommentTests {
         try await seedAccountSiteAndPost()
 
         // The transport should never be reached; encode an arbitrary response.
-        let person = Person.fake
-        let community = Community.fake
-        let post = Post.fake(creator: person, community: community)
-        let commentView = CommentView.fake(
-            comment: .fake(id: 1, post: post, creator: person, parent: .root),
-            creator: person,
-            post: post,
-            community: community,
-            childCount: 0
+        let commentView = V3.commentView(
+            comment: V3.comment(id: 1),
+            creator: V3.person(),
+            post: V3.post(),
+            community: V3.community()
         )
         let response = CommentResponse(comment_view: commentView, recipient_ids: [])
 

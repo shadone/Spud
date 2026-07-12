@@ -92,7 +92,7 @@ class PersonViewController: UIViewController {
     /// Retained so the share sheet's iPad popover can anchor to it.
     private var overflowBarButtonItem: UIBarButtonItem?
     private var sortTypeBarButtonItem: UIBarButtonItem!
-    private var sortTypeMenuActionsBySortType: [Components.Schemas.SortType: UIAction] = [:]
+    private var sortTypeMenuActionsBySortType: [Lemmy.SortType: UIAction] = [:]
 
     private var headerObservationTask: Task<Void, Never>?
     private var contentObservationTask: Task<Void, Never>?
@@ -187,7 +187,7 @@ class PersonViewController: UIViewController {
 
     init(
         personRowId: Int64,
-        serverPersonId: Components.Schemas.PersonID,
+        serverPersonId: Lemmy.PersonID,
         accountKeychainId: String,
         dependencies: Dependencies,
         initialTab: PersonContentTab = .posts
@@ -346,7 +346,7 @@ class PersonViewController: UIViewController {
         rebuildSortTypeMenu(activeSortType: viewModel.sortType)
     }
 
-    private func rebuildSortTypeMenu(activeSortType: Components.Schemas.SortType) {
+    private func rebuildSortTypeMenu(activeSortType: Lemmy.SortType) {
         for (sortType, action) in sortTypeMenuActionsBySortType {
             action.state = (sortType == activeSortType) ? .on : .off
         }
@@ -361,7 +361,7 @@ class PersonViewController: UIViewController {
         )
     }
 
-    private func sortTypeChanged(to sortType: Components.Schemas.SortType) {
+    private func sortTypeChanged(to sortType: Lemmy.SortType) {
         Haptics.tap()
         viewModel.changeSortType(sortType)
         rebuildSortTypeMenu(activeSortType: viewModel.sortType)
@@ -516,7 +516,7 @@ class PersonViewController: UIViewController {
         guard !viewModel.accountScope.isSignedOut else { return false }
         let ownPersonId = appDatabase
             .accountOwnPersonIdsSync(forKeychainId: accountKeychainId)
-            .map { Components.Schemas.PersonID($0.serverPersonId) }
+            .map { Lemmy.PersonID($0.serverPersonId) }
         return ownPersonId == viewModel.serverPersonId
     }
 
@@ -885,7 +885,7 @@ class PersonViewController: UIViewController {
         }
         Haptics.tap()
         let composer = ComposerViewController.makeSheet(
-            target: .postReply(serverPostId: Components.Schemas.PostID(serverPostId)),
+            target: .postReply(serverPostId: Lemmy.PostID(serverPostId)),
             accountKeychainId: accountKeychainId,
             dependencies: dependencies.nested
         )
@@ -960,7 +960,7 @@ extension PersonViewController: InternalLinkRouting {
         viewModel.accountScope.lemmyService
     }
 
-    func routeToPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId) {
+    func routeToPerson(personId: Lemmy.PersonID, instance: InstanceActorId) {
         let vc = PersonOrLoadingViewController(
             personId: personId,
             instance: instance,
@@ -980,7 +980,7 @@ extension PersonViewController: InternalLinkRouting {
         navigationController?.pushViewController(vc, animated: true)
     }
 
-    func routeToPost(postId: Components.Schemas.PostID, instance _: InstanceActorId) {
+    func routeToPost(postId: Lemmy.PostID, instance _: InstanceActorId) {
         guard let window = view.window as? MainWindow else {
             logger.error("No MainWindow available to display post")
             return
@@ -1013,7 +1013,7 @@ extension PersonViewController: UITableViewDelegate {
         switch item {
         case let .post(serverPostId):
             window.display(
-                serverPostId: Components.Schemas.PostID(serverPostId),
+                serverPostId: Lemmy.PostID(serverPostId),
                 accountKeychainId: accountKeychainId
             )
         case let .comment(result):

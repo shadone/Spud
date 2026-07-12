@@ -135,17 +135,17 @@ let gatedOperations: [GatedOperation] = [
     GatedOperation(testDescription: "markAllInboxAsRead") { service in
         try await service.markAllInboxAsRead()
     },
-    GatedOperation(testDescription: "markReplyAsRead") { service in
-        try await service.markReplyAsRead(commentReplyId: 1, read: true)
+    GatedOperation(testDescription: "markInboxItemAsRead(commentReply)") { service in
+        try await service.markInboxItemAsRead(reference: .commentReply(1), read: true)
     },
-    GatedOperation(testDescription: "markMentionAsRead") { service in
-        try await service.markMentionAsRead(personMentionId: 1, read: true)
+    GatedOperation(testDescription: "markInboxItemAsRead(personMention)") { service in
+        try await service.markInboxItemAsRead(reference: .personMention(1), read: true)
     },
     GatedOperation(testDescription: "markPrivateMessageAsRead") { service in
         try await service.markPrivateMessageAsRead(privateMessageId: 1, read: true)
     },
     GatedOperation(testDescription: "fetchPrivateMessages") { service in
-        _ = try await service.fetchPrivateMessages(unreadOnly: false, page: 1)
+        _ = try await service.fetchPrivateMessages(unreadOnly: false, pageCursor: nil)
     },
     GatedOperation(testDescription: "sendPrivateMessage") { service in
         _ = try await service.sendPrivateMessage(content: "hi", recipientId: 1)
@@ -160,8 +160,8 @@ let gatedOperations: [GatedOperation] = [
         try await service.saveProfile(
             displayName: nil,
             bio: nil,
-            avatar: nil,
-            banner: nil,
+            avatar: .unchanged,
+            banner: .unchanged,
             showScores: true,
             showBotAccounts: true,
             showReadPosts: true,
@@ -199,15 +199,26 @@ let softDegradedOperations: [GatedOperation] = [
 
 // MARK: - Tests
 
+/// The gating that once withheld seven operations on a Lemmy 1.0 (v3-shim)
+/// instance has been RETIRED: Spud speaks native v4, so `InstanceCapabilities`
+/// now reports every capability available on every Lemmy version. These tests
+/// therefore assert the NEW reality — that the previously-gated operations no
+/// longer short-circuit on a 1.0 instance — alongside the unchanged fail-open
+/// behavior on a pre-1.0 instance.
+///
+/// The fixture builds a v3-dispatching `LemmyApi` over a `CountingTransport` that
+/// answers every request with a 400, so an operation that "proceeds" reaches the
+/// network and then throws a plain `apiError`; what matters is that it is no
+/// longer blocked BEFORE the network by the capability backstop.
 @MainActor
 struct LemmyServiceCapabilityGatingTests {
     @Test
-    func inboxFetchThrowsUnsupportedOnLemmy1WithoutNetwork() async throws {
+    func inboxFetchNoLongerBlocksOnLemmy1() async throws {
         let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
-        await #expect(throws: LemmyServiceError.self) {
-            try await fixture.service.fetchReplies(unreadOnly: false, page: 1)
-        }
-        #expect(fixture.transport.requestCount == 0)
+        // No longer gated: the fetch reaches the network (and fails on the 400
+        // stub) instead of throwing .unsupportedByInstance before any request.
+        _ = try? await fixture.service.fetchReplies(unreadOnly: false, page: 1)
+        #expect(fixture.transport.requestCount > 0)
     }
 
     @Test
@@ -224,27 +235,25 @@ struct LemmyServiceCapabilityGatingTests {
         #expect(fixture.transport.requestCount > 0)
     }
 
-    /// Every gated operation must throw `.unsupportedByInstance` BEFORE any
-    /// network call when the home instance is a Lemmy 1.0 v3-shim server —
-    /// proving the guard is genuinely the first statement, not just present
-    /// somewhere in the method.
+    /// After retiring the gating, NO previously-gated operation throws
+    /// `.unsupportedByInstance` on a Lemmy 1.0 instance — the capability backstop
+    /// stays in the code but never fires, because every capability is available.
+    /// Each op may still throw a plain network error against the 400 stub, or
+    /// enqueue, or succeed; only `.unsupportedByInstance` is disallowed.
     @Test(arguments: gatedOperations)
-    func gatedOperationThrowsUnsupportedOnLemmy1WithoutNetwork(_ operation: GatedOperation) async throws {
+    func previouslyGatedOperationDoesNotBlockOnLemmy1(_ operation: GatedOperation) async throws {
         let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
 
-        var thrown: Error?
         do {
             try await operation.run(fixture.service)
+        } catch let error as LemmyServiceError {
+            if case .unsupportedByInstance = error {
+                Issue.record("\(operation.testDescription) is still gated on Lemmy 1.0 after the gating was retired")
+            }
+            // Any other LemmyServiceError (e.g. the 400-stub apiError) is expected.
         } catch {
-            thrown = error
+            // A non-LemmyServiceError is also fine — it is not the gate firing.
         }
-
-        let serviceError = try #require(thrown as? LemmyServiceError)
-        guard case .unsupportedByInstance = serviceError else {
-            Issue.record("expected .unsupportedByInstance, got \(serviceError)")
-            return
-        }
-        #expect(fixture.transport.requestCount == 0, "\(operation.testDescription) must not reach the network")
     }
 
     /// Same operations must proceed to the network on a pre-1.0 (fully
@@ -257,59 +266,45 @@ struct LemmyServiceCapabilityGatingTests {
         #expect(fixture.transport.requestCount > 0, "\(operation.testDescription) must reach the network on 0.19")
     }
 
-    /// `sendDirectMessage` guards BEFORE enqueueing, so a gated instance must
-    /// never park content in the composer outbox table.
+    /// `sendDirectMessage` is no longer gated on Lemmy 1.0, so it enqueues an
+    /// outbound-content row (the durable/optimistic send) rather than throwing
+    /// `.unsupportedByInstance` before enqueueing.
     @Test
-    func sendDirectMessageDoesNotEnqueueOnLemmy1() async throws {
+    func sendDirectMessageEnqueuesOnLemmy1() async throws {
         let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
 
-        await #expect(throws: LemmyServiceError.self) {
-            _ = try await fixture.service.sendDirectMessage(body: "hi", recipientServerPersonId: 1)
-        }
+        _ = try await fixture.service.sendDirectMessage(body: "hi", recipientServerPersonId: 1)
 
         let rows = try await fixture.appDatabase.writer.read { db in
             try OutboundContentRecord.fetchAll(db)
         }
-        #expect(rows.isEmpty, "gated sendDirectMessage must not enqueue any outboundContent row")
+        #expect(!rows.isEmpty, "ungated sendDirectMessage must enqueue an outboundContent row")
     }
 
-    /// The gate records a durable `capability.blocked` diagnostic event
-    /// (matching the `site.fetchFailed` idiom in `LemmyService.swift`) so a
-    /// blocked operation is observable in About -> Logs.
+    /// The capability gate no longer fires on Lemmy 1.0, so no `capability.blocked`
+    /// diagnostic event is recorded there. The event idiom (matching
+    /// `site.fetchFailed` in `LemmyService.swift`) is kept for a future gated
+    /// capability.
     @Test
-    func blockedCapabilityEmitsCapabilityBlockedEvent() async throws {
+    func noCapabilityBlockedEventOnLemmy1() async throws {
         let spy = DiagnosticLogSpy()
         let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18", diagnostics: spy)
 
         _ = try? await fixture.service.fetchReplies(unreadOnly: false, page: 1)
 
-        let events = spy.events(matching: "capability.blocked")
-        #expect(events.count == 1)
-        let event = try #require(events.first)
-        #expect(event.level == .info)
-        #expect(event.instance == "example.com")
-        #expect(event.metadata?["capability"] == InstanceCapability.inbox.rawValue)
+        #expect(spy.events(matching: "capability.blocked").isEmpty)
     }
 
-    // MARK: - Soft-degrade paths (Task 5)
+    // MARK: - Previously soft-degraded paths
 
     //
-    // These four are background mirrors / scheduler polls with a local source
-    // of truth, so a gated instance must SKIP silently rather than throw.
+    // These background mirrors / scheduler polls once SKIPPED the server push on
+    // a gated instance. With the gating retired, the skip is inert: on Lemmy 1.0
+    // they now proceed to the network exactly as they always did on a pre-1.0
+    // instance.
 
-    @Test
-    func unreadCountReturnsZeroOnLemmy1WithoutNetwork() async throws {
-        let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
-
-        let count = try await fixture.service.unreadCount()
-
-        #expect(count == .zero)
-        #expect(fixture.transport.requestCount == 0)
-    }
-
-    /// All soft-degrade operations must proceed to the network on a pre-1.0
-    /// (fully supported) instance — the skip must not over-block, mirroring
-    /// `gatedOperationProceedsOn019` for the throwing set.
+    /// All soft-degrade operations reach the network on a pre-1.0 (fully
+    /// supported) instance — unchanged by the retirement.
     @Test(arguments: softDegradedOperations)
     func softDegradedOperationProceedsOn019(_ operation: GatedOperation) async throws {
         let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "0.19.11")
@@ -317,43 +312,13 @@ struct LemmyServiceCapabilityGatingTests {
         #expect(fixture.transport.requestCount > 0, "\(operation.testDescription) must reach the network on 0.19")
     }
 
-    @Test
-    func setShowNsfwSkipsServerPushButMirrorsLocallyOnLemmy1() async throws {
+    /// And now also reach the network on a Lemmy 1.0 instance — the soft-degrade
+    /// skip no longer short-circuits them, because their capabilities are
+    /// available.
+    @Test(arguments: softDegradedOperations)
+    func softDegradedOperationProceedsOnLemmy1(_ operation: GatedOperation) async throws {
         let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
-
-        try await fixture.service.setShowNsfw(true)
-
-        #expect(fixture.transport.requestCount == 0)
-        let account = try await fixture.fetchAccountRecord()
-        #expect(account?.showNsfw == true)
-    }
-
-    @Test
-    func setBlurNsfwSkipsServerPushButMirrorsLocallyOnLemmy1() async throws {
-        let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
-
-        try await fixture.service.setBlurNsfw(true)
-
-        #expect(fixture.transport.requestCount == 0)
-        let account = try await fixture.fetchAccountRecord()
-        #expect(account?.blurNsfw == true)
-    }
-
-    @Test
-    func setDefaultSortTypeSkipsServerPushOnLemmy1() async throws {
-        let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
-
-        try await fixture.service.setDefaultSortType(.New)
-
-        #expect(fixture.transport.requestCount == 0)
-    }
-
-    @Test
-    func markAsReadSkipsServerPushOnLemmy1() async throws {
-        let fixture = try await LemmyServiceCapabilityGatingFixture.make(siteVersion: "1.0.0-alpha.18")
-
-        try await fixture.service.markAsRead(serverPostId: 1)
-
-        #expect(fixture.transport.requestCount == 0)
+        _ = try? await operation.run(fixture.service)
+        #expect(fixture.transport.requestCount > 0, "\(operation.testDescription) must reach the network on Lemmy 1.0")
     }
 }

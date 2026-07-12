@@ -54,7 +54,7 @@ final class CommunityViewModel {
     /// True once the first GRDB snapshot for this community has arrived.
     var hasLoaded = false
 
-    let serverCommunityId: Components.Schemas.CommunityID
+    let serverCommunityId: Lemmy.CommunityID
 
     @ObservationIgnored
     private let appDatabase: AppDatabase
@@ -65,7 +65,7 @@ final class CommunityViewModel {
 
     init(
         accountRowId: Int64,
-        serverCommunityId: Components.Schemas.CommunityID,
+        serverCommunityId: Lemmy.CommunityID,
         accountKeychainId: String,
         appDatabase: AppDatabase
     ) {

@@ -15,32 +15,27 @@ import Testing
 struct CommunityListRowCommunityViewMappingTests {
     @Test
     func mapsCoreFieldsFromCommunityView() {
-        let community = Components.Schemas.Community(
+        let community = Lemmy.Community(
             id: 42,
             name: "technology",
             title: "Technology",
-            description: "All things tech",
-            removed: false,
-            published: Date(timeIntervalSince1970: 1_700_000_000),
-            updated: nil,
-            deleted: false,
-            nsfw: false,
-            actor_id: "https://lemmy.world/c/technology",
+            sidebar: "All things tech",
+            apId: "https://lemmy.world/c/technology",
+            iconUrl: "https://lemmy.world/pictrs/image/icon.png",
+            bannerUrl: nil,
+            visibility: ._public,
             local: true,
-            icon: "https://lemmy.world/pictrs/image/icon.png",
-            banner: nil,
-            hidden: false,
-            posting_restricted_to_mods: false,
-            instance_id: 1,
-            visibility: .Public
-        )
-        let counts = Components.Schemas.CommunityAggregates.fake(
-            communityId: 42,
+            nsfw: false,
+            postingRestrictedToMods: false,
+            removed: false,
+            deleted: false,
+            publishedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            updatedAt: nil,
             subscribers: 12345,
             posts: 678,
             comments: 9012
         )
-        let view = Components.Schemas.CommunityView.fake(community: community, counts: counts)
+        let view = Lemmy.CommunityView.fake(community: community)
 
         let row = CommunityListRow(communityView: view)
 
@@ -59,26 +54,27 @@ struct CommunityListRowCommunityViewMappingTests {
 
     @Test
     func derivesHostFromActorIdForRemoteCommunity() {
-        let community = Components.Schemas.Community(
+        let community = Lemmy.Community(
             id: 7,
             name: "asklemmy",
             title: "Ask Lemmy",
-            description: nil,
-            removed: false,
-            published: Date(timeIntervalSince1970: 1_680_000_000),
-            updated: nil,
-            deleted: false,
-            nsfw: true,
-            actor_id: "https://fedinsfw.app/c/asklemmy",
+            sidebar: nil,
+            apId: "https://fedinsfw.app/c/asklemmy",
+            iconUrl: nil,
+            bannerUrl: nil,
+            visibility: ._public,
             local: false,
-            icon: nil,
-            banner: nil,
-            hidden: false,
-            posting_restricted_to_mods: false,
-            instance_id: 2,
-            visibility: .Public
+            nsfw: true,
+            postingRestrictedToMods: false,
+            removed: false,
+            deleted: false,
+            publishedAt: Date(timeIntervalSince1970: 1_680_000_000),
+            updatedAt: nil,
+            subscribers: 100,
+            posts: 50,
+            comments: 200
         )
-        let view = Components.Schemas.CommunityView.fake(community: community)
+        let view = Lemmy.CommunityView.fake(community: community)
 
         let row = CommunityListRow(communityView: view)
 
@@ -92,13 +88,10 @@ struct CommunityListRowCommunityViewMappingTests {
 
     @Test
     func reflectsZeroCountsWithoutCrashing() {
-        let counts = Components.Schemas.CommunityAggregates.fake(
-            communityId: 1,
-            subscribers: 0,
-            posts: 0,
-            comments: 0
-        )
-        let view = Components.Schemas.CommunityView.fake(counts: counts)
+        // The neutral Community carries its own counts, so fold the zeros onto it
+        // (v3's separate CommunityAggregates is gone).
+        let community = Lemmy.Community.fake(id: 1, subscribers: 0, posts: 0, comments: 0)
+        let view = Lemmy.CommunityView.fake(community: community)
 
         let row = CommunityListRow(communityView: view)
 

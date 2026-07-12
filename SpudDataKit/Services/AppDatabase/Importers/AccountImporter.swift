@@ -48,20 +48,20 @@ public extension AppDatabase {
 
     /// Upserts an account row tied to `siteId`, optionally including the
     /// signed-in user's person row and per-account settings drawn from the
-    /// `MyUserInfo` payload of `GetSiteResponse`.
+    /// version-neutral ``LemmyKit/MyUser`` returned by `getMyUserNeutral()`.
     @discardableResult
     func upsertAccount(
         keychainId: String,
         isSignedOut: Bool,
         siteId: Int64,
-        myUser: Components.Schemas.MyUserInfo?
+        myUser: LemmyKit.MyUser?
     ) async throws -> Int64 {
         try await writer.write { db in
             let now = Date()
 
             let personId: Int64? = try myUser.flatMap { info in
                 try AppDatabase.upsertPerson(
-                    from: info.local_user_view.person,
+                    from: info.person,
                     siteId: siteId,
                     in: db
                 )
@@ -269,7 +269,7 @@ public extension AppDatabase {
         showBotAccounts: Bool,
         showReadPosts: Bool,
         showAvatars: Bool,
-        defaultListingType: Components.Schemas.ListingType
+        defaultListingType: Lemmy.ListingType
     ) async throws {
         try await writer.write { db in
             guard var account = try AccountRecord
@@ -315,7 +315,7 @@ public extension AppDatabase {
     /// a settings-picker tap and avoids hopping off to await. No-op if the row
     /// hasn't been imported yet.
     func setAccountDefaultSortType(
-        _ sortType: Components.Schemas.SortType,
+        _ sortType: Lemmy.SortType,
         forKeychainId keychainId: String
     ) throws {
         try writer.write { db in
@@ -419,7 +419,7 @@ public extension AppDatabase {
                 }
 
                 let listingType = account.defaultListingType
-                    .flatMap { Components.Schemas.ListingType(rawValue: $0) }
+                    .flatMap { Lemmy.ListingType(rawValue: $0) }
                     ?? .All
 
                 return AccountEditableProfile(
@@ -654,7 +654,7 @@ public extension AppDatabase {
     }
 
     private static func apply(
-        myUser: Components.Schemas.MyUserInfo?,
+        myUser: LemmyKit.MyUser?,
         to record: inout AccountRecord,
         now: Date
     ) {
@@ -663,19 +663,29 @@ public extension AppDatabase {
             return
         }
 
-        let local = myUser.local_user_view.local_user
-        record.localAccountId = Int64(local.id)
-        record.email = local.email
-        record.emailVerified = local.email_verified
-        record.acceptedApplication = local.accepted_application
-        record.defaultListingType = local.default_listing_type.rawValue
-        record.defaultSortType = local.default_sort_type.rawValue
-        record.showAvatars = local.show_avatars
-        record.showBotAccounts = local.show_bot_accounts
-        record.showNsfw = local.show_nsfw
-        record.blurNsfw = local.blur_nsfw
-        record.showReadPosts = local.show_read_posts
-        record.showScores = local.show_scores
+        record.localAccountId = myUser.localUserId
+        record.email = myUser.email
+        record.emailVerified = myUser.emailVerified
+        record.acceptedApplication = myUser.acceptedApplication
+        record.defaultListingType = myUser.defaultListingType.rawValue
+        // The account's server-side default post sort. The neutral `MyUser` carries
+        // it un-fused (a `PostSort` plus an optional `TimeRange` window); re-fuse it
+        // into the v3-vocabulary `SortType` and store the raw value, matching how
+        // `setAccountDefaultSortType` writes this column. Only overwrite when the
+        // server actually reported a default — otherwise leave it untouched
+        // (preserved on an update, nil on a fresh insert).
+        if let defaultSort = myUser.defaultSort {
+            record.defaultSortType = Lemmy.SortType(
+                neutralSort: defaultSort,
+                timeRange: myUser.defaultTimeRange
+            ).rawValue
+        }
+        record.showAvatars = myUser.showAvatars
+        record.showBotAccounts = myUser.showBotAccounts
+        record.showNsfw = myUser.showNsfw
+        record.blurNsfw = myUser.blurNsfw
+        record.showReadPosts = myUser.showReadPosts
+        record.showScores = myUser.showScores
         record.updatedAt = now
     }
 }

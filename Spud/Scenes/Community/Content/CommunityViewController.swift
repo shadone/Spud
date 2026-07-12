@@ -85,7 +85,7 @@ class CommunityViewController: UIViewController {
 
     init(
         accountRowId: Int64,
-        serverCommunityId: Components.Schemas.CommunityID,
+        serverCommunityId: Lemmy.CommunityID,
         feed: FeedHandle,
         accountKeychainId: String,
         dependencies: Dependencies
@@ -641,7 +641,7 @@ extension CommunityViewController: InternalLinkRouting {
         accountScope.lemmyService
     }
 
-    func routeToPerson(personId: Components.Schemas.PersonID, instance: InstanceActorId) {
+    func routeToPerson(personId: Lemmy.PersonID, instance: InstanceActorId) {
         let vc = PersonOrLoadingViewController(
             personId: personId,
             instance: instance,
@@ -661,7 +661,7 @@ extension CommunityViewController: InternalLinkRouting {
         navigationController?.pushViewController(vc, animated: true)
     }
 
-    func routeToPost(postId: Components.Schemas.PostID, instance _: InstanceActorId) {
+    func routeToPost(postId: Lemmy.PostID, instance _: InstanceActorId) {
         guard let window = view.window as? MainWindow else {
             logger.error("No MainWindow available to display post")
             return

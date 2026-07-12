@@ -93,10 +93,10 @@ public extension AccountRecord {
     /// Decodes the persisted `defaultSortType` raw value to its OpenAPI
     /// enum case, or `.Hot` when the column is nil or its value no longer
     /// maps to a known case.
-    var resolvedDefaultSortType: Components.Schemas.SortType {
+    var resolvedDefaultSortType: Lemmy.SortType {
         guard
             let raw = defaultSortType,
-            let value = Components.Schemas.SortType(rawValue: raw)
+            let value = Lemmy.SortType(rawValue: raw)
         else { return .Hot }
         return value
     }

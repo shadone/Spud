@@ -27,36 +27,44 @@ public enum InstanceCapability: String, Sendable, CaseIterable, Codable {
 public struct InstanceCapabilities: Sendable, Equatable {
     private let unavailable: Set<InstanceCapability>
 
+    /// Builds a capability set that withholds exactly `unavailable`; every other
+    /// capability reads as available (fail-open). Pass `[]` (or use
+    /// ``allAvailable``) for "everything supported". Exposed so a caller — or a
+    /// test — can construct a specific gated set directly, independent of the
+    /// version-derivation table below, which today gates nothing (see
+    /// ``capabilities(software:version:)``).
+    public init(unavailable: Set<InstanceCapability>) {
+        self.unavailable = unavailable
+    }
+
     public func can(_ capability: InstanceCapability) -> Bool {
         !unavailable.contains(capability)
     }
 
     public static let allAvailable = InstanceCapabilities(unavailable: [])
 
-    /// The derivation table. Lemmy >= 1.0 is reached through its partial v3
-    /// compat shim until Spud speaks the v4 API (initiative Phase 5/6); the
-    /// shim lacks exactly these endpoints: person details, replies/mentions,
-    /// all private-message operations, image upload, `/post/hide`,
-    /// `/post/mark_as_read`, and `save_user_settings`. Non-Lemmy software
-    /// fails open — it cannot be a home connection at all (`PlatformRouter`),
-    /// and its version numbers must not be read on the Lemmy scale.
+    /// The version-derivation table. **Gates nothing today**: it returns
+    /// ``allAvailable`` for every input.
+    ///
+    /// Spud speaks both Lemmy's stable v3 API (pre-1.0 instances) and the native
+    /// v4 API (the 1.0 rewrite — initiative Phase 6), so all seven capabilities
+    /// — person profiles, inbox, private messages, image upload, server
+    /// settings, hide-posts, and mark-posts-read — work on every Lemmy version.
+    /// The Phase-1 gating that briefly withheld these on Lemmy 1.0, back when
+    /// Spud spoke only v3 and the 1.0 server's v3 compat shim lacked the
+    /// endpoints, has been retired now that Spud speaks v4 natively.
+    ///
+    /// The gating MECHANISM is deliberately kept intact — this function, the
+    /// service-level ``LemmyServiceError/unsupportedByInstance`` backstop, and
+    /// the UI gates all remain — so a future capability whose support genuinely
+    /// varies by software or version can be re-added to a real gated set here
+    /// without re-plumbing anything. Non-Lemmy software also fails open: it
+    /// cannot be a home connection at all (`PlatformRouter` blocks it), and its
+    /// version numbers must not be read on the Lemmy scale.
     public static func capabilities(
-        software: InstanceSoftware,
-        version: LemmyVersion?
+        software _: InstanceSoftware,
+        version _: LemmyVersion?
     ) -> InstanceCapabilities {
-        guard software == .lemmy, let version, version.major >= 1 else {
-            return .allAvailable
-        }
-        // Listed explicitly (not allCases) so adding a capability to the enum
-        // forces a deliberate row here instead of inheriting gating silently.
-        return InstanceCapabilities(unavailable: [
-            .personProfiles,
-            .inbox,
-            .privateMessages,
-            .imageUpload,
-            .serverUserSettings,
-            .hidePosts,
-            .markPostsRead,
-        ])
+        .allAvailable
     }
 }

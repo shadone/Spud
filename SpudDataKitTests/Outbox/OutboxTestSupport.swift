@@ -71,8 +71,8 @@ func seedPost(
     isHidden: Bool = false,
     isDeleted: Bool = false
 ) async throws -> Int64 {
-    let post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
-    let view = Components.Schemas.PostView.fake(post: post, creator: .fake, community: .fake)
+    let post = Lemmy.Post.fake(creator: .fake, community: .fake)
+    let view = Lemmy.PostView.fake(post: post, creator: .fake, community: .fake)
     try await appDatabase.upsertPost(from: view, accountId: accountId, siteId: siteId)
 
     // Patch the initial values the importer doesn't carry from the fake view.
@@ -106,14 +106,14 @@ func seedComment(
     isDeleted: Bool = false
 ) async throws {
     // Recreate the same fake post the importer needs to resolve the postId FK.
-    let post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
-    let comment = Components.Schemas.Comment.fake(
-        id: Components.Schemas.CommentID(commentServerId),
+    let post = Lemmy.Post.fake(creator: .fake, community: .fake)
+    let comment = Lemmy.Comment.fake(
+        id: Lemmy.CommentID(commentServerId),
         post: post,
         creator: .fake,
         parent: .root
     )
-    let view = Components.Schemas.CommentView.fake(
+    let view = Lemmy.CommentView.fake(
         comment: comment,
         creator: .fake,
         post: post,
@@ -296,16 +296,48 @@ func readCommentDeleted(
 
 /// Builds a PostView for the fake post (server id 1) with the given vote and
 /// score. Used by ReconciliationGuardTests to simulate a background refresh.
+///
+/// Neutral `Post.score` is a `let`, so this rebuilds the fake post with the
+/// requested score rather than mutating it; the viewer's vote rides on
+/// `postActions` (v3's `my_vote` score is folded into `votedAt`/`voteIsUpvote`).
 func makePostView(
-    postId: Int64,
+    postId _: Int64,
     myVote: Int32?,
     score: Int64
-) -> Components.Schemas.PostView {
-    let post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
-    var counts = Components.Schemas.PostAggregates.fake(post: post)
-    counts.score = score
-    var view = Components.Schemas.PostView.fake(post: post, creator: .fake, community: .fake)
-    view.counts = counts
-    view.my_vote = myVote
-    return view
+) -> Lemmy.PostView {
+    let base = Lemmy.Post.fake(creator: .fake, community: .fake)
+    let post = Lemmy.Post(
+        id: base.id,
+        name: base.name,
+        body: base.body,
+        url: base.url,
+        embedTitle: base.embedTitle,
+        embedDescription: base.embedDescription,
+        thumbnailUrl: base.thumbnailUrl,
+        altText: base.altText,
+        creatorId: base.creatorId,
+        communityId: base.communityId,
+        apId: base.apId,
+        local: base.local,
+        nsfw: base.nsfw,
+        removed: base.removed,
+        deleted: base.deleted,
+        locked: base.locked,
+        featuredCommunity: base.featuredCommunity,
+        featuredLocal: base.featuredLocal,
+        languageId: base.languageId,
+        publishedAt: base.publishedAt,
+        updatedAt: base.updatedAt,
+        newestCommentTimeAt: base.newestCommentTimeAt,
+        score: score,
+        upvotes: base.upvotes,
+        downvotes: base.downvotes,
+        comments: base.comments
+    )
+    let vote = VoteDirection.fromV3Score(myVote.map(Int.init))
+    let postActions = PostActions(
+        votedAt: vote == .none ? nil : Date(),
+        voteIsUpvote: vote.v4IsUpvote
+    )
+    return Lemmy.PostView.fake(post: post, creator: .fake, community: .fake, postActions: postActions)
 }

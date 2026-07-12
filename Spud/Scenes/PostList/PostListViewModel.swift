@@ -190,7 +190,7 @@ final class PostListViewModel {
 
     // MARK: - Feed switching (reset state)
 
-    func didChangeSortType(_ sortType: Components.Schemas.SortType) {
+    func didChangeSortType(_ sortType: Lemmy.SortType) {
         let newFeed = accountService.createFeed(duplicateOf: feed, forAccountKeychainId: accountKeychainId, sortType: sortType)
         resetForNewFeed(newFeed)
     }

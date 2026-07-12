@@ -32,7 +32,7 @@ final class PostDetailViewModel {
     private let appDatabase: AppDatabase
 
     @ObservationIgnored
-    let serverPostId: Components.Schemas.PostID
+    let serverPostId: Lemmy.PostID
 
     @ObservationIgnored
     let accountScope: AccountScope
@@ -48,7 +48,7 @@ final class PostDetailViewModel {
     /// until the first emit (and when the post row is absent from the database).
     private(set) var headerRow: PostDetailHeaderRow?
 
-    private(set) var commentSortType: Components.Schemas.CommentSortType
+    private(set) var commentSortType: Lemmy.CommentSortType
 
     /// True while a (non-pull-refresh) comment fetch is in flight. Pull-to-refresh
     /// calls `LemmyService.fetchComments` directly and does not flip this.
@@ -154,7 +154,7 @@ final class PostDetailViewModel {
     }
 
     @ObservationIgnored
-    private let fetchCommentsOperation: @MainActor (Components.Schemas.CommentSortType) async throws -> Void
+    private let fetchCommentsOperation: @MainActor (Lemmy.CommentSortType) async throws -> Void
 
     @ObservationIgnored
     private var fetchTask: Task<Void, Never>?
@@ -199,12 +199,12 @@ final class PostDetailViewModel {
     }
 
     init(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         accountScope: AccountScope,
         appDatabase: AppDatabase,
         dependencies: Dependencies,
         lemmy: (any PostDetailLemmyServicing)? = nil,
-        fetchCommentsOperation: (@MainActor (Components.Schemas.CommentSortType) async throws -> Void)? = nil
+        fetchCommentsOperation: (@MainActor (Lemmy.CommentSortType) async throws -> Void)? = nil
     ) {
         self.dependencies = dependencies
         self.appDatabase = appDatabase
@@ -326,7 +326,7 @@ final class PostDetailViewModel {
     /// (rather than reusing ``postRowId``) and the observation only restarts once
     /// it resolves. The caller separately kicks a fetch (cancel-and-replace) to
     /// pull the newly-sorted tree from the server.
-    func restartComments(sortType: Components.Schemas.CommentSortType) {
+    func restartComments(sortType: Lemmy.CommentSortType) {
         setCommentSortType(sortType)
         guard let postRowId = appDatabase.postRowIdSync(
             forKeychainId: accountKeychainId,
@@ -362,7 +362,7 @@ final class PostDetailViewModel {
         }
     }
 
-    func setCommentSortType(_ sortType: Components.Schemas.CommentSortType) {
+    func setCommentSortType(_ sortType: Lemmy.CommentSortType) {
         commentSortType = sortType
     }
 
@@ -568,7 +568,7 @@ final class PostDetailViewModel {
     /// error unchanged.
     func reportComment(serverCommentId: Int64, reason: String) async throws {
         try await lemmy.reportComment(
-            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            serverCommentId: Lemmy.CommentID(serverCommentId),
             reason: reason
         )
     }
@@ -580,14 +580,14 @@ final class PostDetailViewModel {
     /// stays free of that conversion. Rethrows the service error unchanged.
     func deleteComment(serverCommentId: Int64, deleted: Bool) async throws {
         try await lemmy.deleteComment(
-            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            serverCommentId: Lemmy.CommentID(serverCommentId),
             deleted: deleted
         )
     }
 
     /// Deletes or restores the user's OWN post `serverPostId`. Rethrows the
     /// service error unchanged.
-    func deletePost(serverPostId: Components.Schemas.PostID, deleted: Bool) async throws {
+    func deletePost(serverPostId: Lemmy.PostID, deleted: Bool) async throws {
         try await lemmy.deletePost(serverPostId: serverPostId, deleted: deleted)
     }
 
@@ -596,20 +596,20 @@ final class PostDetailViewModel {
     /// Removes (or restores) `serverPostId` as a moderator/admin, optionally
     /// with a `reason` shown to the author. Rethrows the service error
     /// unchanged.
-    func removePost(serverPostId: Components.Schemas.PostID, removed: Bool, reason: String?) async throws {
+    func removePost(serverPostId: Lemmy.PostID, removed: Bool, reason: String?) async throws {
         try await lemmy.removePost(serverPostId: serverPostId, removed: removed, reason: reason)
     }
 
     /// Locks (or unlocks) `serverPostId` as a moderator/admin. Rethrows the
     /// service error unchanged.
-    func lockPost(serverPostId: Components.Schemas.PostID, locked: Bool) async throws {
+    func lockPost(serverPostId: Lemmy.PostID, locked: Bool) async throws {
         try await lemmy.lockPost(serverPostId: serverPostId, locked: locked)
     }
 
     /// Features (pins) or unfeatures `serverPostId`. `local` pins to the
     /// instance front page (admin-only); otherwise pins to the community.
     /// Rethrows the service error unchanged.
-    func featurePost(serverPostId: Components.Schemas.PostID, featured: Bool, local: Bool) async throws {
+    func featurePost(serverPostId: Lemmy.PostID, featured: Bool, local: Bool) async throws {
         try await lemmy.featurePost(serverPostId: serverPostId, featured: featured, local: local)
     }
 
@@ -619,7 +619,7 @@ final class PostDetailViewModel {
     /// conversion. Rethrows the service error unchanged.
     func removeComment(serverCommentId: Int64, removed: Bool, reason: String?) async throws {
         try await lemmy.removeComment(
-            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            serverCommentId: Lemmy.CommentID(serverCommentId),
             removed: removed,
             reason: reason
         )
@@ -631,7 +631,7 @@ final class PostDetailViewModel {
     /// unchanged.
     func distinguishComment(serverCommentId: Int64, distinguished: Bool) async throws {
         try await lemmy.distinguishComment(
-            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            serverCommentId: Lemmy.CommentID(serverCommentId),
             distinguished: distinguished
         )
     }
@@ -642,8 +642,8 @@ final class PostDetailViewModel {
     /// flag through. When `removeData` is true, the person's existing content
     /// in the community is also removed. Rethrows the service error unchanged.
     func banFromCommunity(
-        communityId: Components.Schemas.CommunityID,
-        serverPersonId: Components.Schemas.PersonID,
+        communityId: Lemmy.CommunityID,
+        serverPersonId: Lemmy.PersonID,
         removeData: Bool,
         reason: String?
     ) async throws {
@@ -679,7 +679,7 @@ final class PostDetailViewModel {
     /// error unchanged.
     func blockAuthor(serverPersonId: Int64) async throws {
         try await lemmy.setBlocked(
-            serverPersonId: Components.Schemas.PersonID(serverPersonId),
+            serverPersonId: Lemmy.PersonID(serverPersonId),
             blocked: true
         )
     }
@@ -729,7 +729,7 @@ final class PostDetailViewModel {
     /// unchanged.
     func voteOnComment(serverCommentId: Int64, action: VoteStatus.Action) async throws {
         try await lemmy.vote(
-            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            serverCommentId: Lemmy.CommentID(serverCommentId),
             vote: action
         )
     }
@@ -740,7 +740,7 @@ final class PostDetailViewModel {
     /// unchanged.
     func setSavedOnComment(serverCommentId: Int64, saved: Bool) async throws {
         try await lemmy.setSaved(
-            serverCommentId: Components.Schemas.CommentID(serverCommentId),
+            serverCommentId: Lemmy.CommentID(serverCommentId),
             saved: saved
         )
     }

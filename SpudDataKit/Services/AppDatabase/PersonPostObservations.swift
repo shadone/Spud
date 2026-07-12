@@ -30,7 +30,7 @@ public extension AppDatabase {
     func observePersonPostListRows(
         personRowId: Int64,
         accountId: Int64,
-        sort: Components.Schemas.SortType
+        sort: Lemmy.SortType
     ) -> AsyncStream<[PostListRow]> {
         let orderClause: String
         switch sort {

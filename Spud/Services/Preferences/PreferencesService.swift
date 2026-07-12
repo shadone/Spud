@@ -15,8 +15,8 @@ enum Preferences { }
 
 @MainActor
 protocol PreferencesServiceType: AnyObject {
-    var defaultCommentSortType: Components.Schemas.CommentSortType { get set }
-    var defaultCommentSortTypeStream: AsyncStream<Components.Schemas.CommentSortType> { get }
+    var defaultCommentSortType: Lemmy.CommentSortType { get set }
+    var defaultCommentSortTypeStream: AsyncStream<Lemmy.CommentSortType> { get }
 
     /// The selected app appearance (system / light / dark / true-black).
     var appTheme: AppTheme { get set }
@@ -172,9 +172,9 @@ protocol HasPreferencesService {
 @MainActor
 class PreferencesService: PreferencesServiceType {
     @UserDefaultsBacked
-    var defaultCommentSortType: Components.Schemas.CommentSortType
+    var defaultCommentSortType: Lemmy.CommentSortType
 
-    var defaultCommentSortTypeStream: AsyncStream<Components.Schemas.CommentSortType> {
+    var defaultCommentSortTypeStream: AsyncStream<Lemmy.CommentSortType> {
         $defaultCommentSortType
     }
 

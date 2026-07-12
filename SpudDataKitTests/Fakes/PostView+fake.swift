@@ -7,45 +7,30 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.PostAggregates {
-    static func fake(post: Components.Schemas.Post) -> Components.Schemas.PostAggregates {
-        .init(
-            post_id: post.id,
-            comments: 0,
-            score: 1,
-            upvotes: 1,
-            downvotes: 0,
-            published: post.published,
-            newest_comment_time: post.published
-        )
-    }
-}
-
-extension Components.Schemas.PostView {
+extension Lemmy.PostView {
+    /// A fake neutral ``LemmyKit/PostView``. Per-viewer state (saved/read/hidden/
+    /// vote/follow) rides on the optional `postActions`/`communityActions` structs
+    /// rather than the old flat `saved`/`read`/`my_vote`/`subscribed` fields — pass
+    /// them to model a signed-in viewer's relationship to the post.
     static func fake(
-        post: Components.Schemas.Post,
-        creator: Components.Schemas.Person,
-        community: Components.Schemas.Community,
+        post: Lemmy.Post,
+        creator: Lemmy.Person,
+        community: Lemmy.Community,
         creatorBannedFromCommunity: Bool = false,
         creatorIsModerator: Bool = false,
-        creatorIsAdmin: Bool = false
-    ) -> Components.Schemas.PostView {
+        creatorIsAdmin: Bool = false,
+        postActions: PostActions? = nil,
+        communityActions: CommunityActions? = nil
+    ) -> Lemmy.PostView {
         .init(
             post: post,
             creator: creator,
             community: community,
-            creator_banned_from_community: creatorBannedFromCommunity,
-            banned_from_community: false,
-            creator_is_moderator: creatorIsModerator,
-            creator_is_admin: creatorIsAdmin,
-            counts: .fake(post: post),
-            subscribed: .NotSubscribed,
-            saved: false,
-            read: false,
-            hidden: false,
-            creator_blocked: false,
-            my_vote: nil,
-            unread_comments: 0
+            creatorBannedFromCommunity: creatorBannedFromCommunity,
+            creatorIsModerator: creatorIsModerator,
+            creatorIsAdmin: creatorIsAdmin,
+            postActions: postActions,
+            communityActions: communityActions
         )
     }
 }

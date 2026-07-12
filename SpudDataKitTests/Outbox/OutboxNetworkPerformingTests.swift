@@ -41,7 +41,7 @@ private final class StubFollowCommunityTransport: ClientTransport, @unchecked Se
     private(set) var followCalls = 0
     private(set) var lastRequest: FollowCommunityRequest?
 
-    init(communityResponse: Components.Schemas.CommunityResponse) throws {
+    init(communityResponse: Lemmy.CommunityResponse) throws {
         let encoder = JSONEncoder()
         // The generated client decodes dates via LemmyDateTranscoder (Lemmy 0.19
         // format: 2024-06-09T11:54:37.981990Z).
@@ -93,9 +93,10 @@ struct LemmyOutboxPerformerSubscribeTests {
         // The optimistic Pending projection is already applied locally.
         let cid = try await seedCommunity(db, accountId: accountId, subscribed: .pending)
 
-        // The server confirms Subscribed.
-        let view = Components.Schemas.CommunityView.fake(community: .fake, subscribed: .Subscribed)
-        let response = Components.Schemas.CommunityResponse(community_view: view, discussion_languages: [])
+        // The server confirms Subscribed. `CommunityResponse.community_view` is
+        // the generated v3 shape, so build it via the V3 fake.
+        let view = V3.communityView(subscribed: .Subscribed)
+        let response = Lemmy.CommunityResponse(community_view: view, discussion_languages: [])
         let transport = try StubFollowCommunityTransport(communityResponse: response)
         let api = try makeApi(transport: transport)
         let performer = LemmyOutboxPerformer(api: api, appDatabase: db, accountId: accountId, siteId: siteId)
@@ -120,8 +121,8 @@ struct LemmyOutboxPerformerSubscribeTests {
         let (accountId, siteId) = try await seedAccountAndSite(db)
         let cid = try await seedCommunity(db, accountId: accountId, subscribed: .subscribed)
 
-        let view = Components.Schemas.CommunityView.fake(community: .fake, subscribed: .NotSubscribed)
-        let response = Components.Schemas.CommunityResponse(community_view: view, discussion_languages: [])
+        let view = V3.communityView(subscribed: .NotSubscribed)
+        let response = Lemmy.CommunityResponse(community_view: view, discussion_languages: [])
         let transport = try StubFollowCommunityTransport(communityResponse: response)
         let api = try makeApi(transport: transport)
         let performer = LemmyOutboxPerformer(api: api, appDatabase: db, accountId: accountId, siteId: siteId)

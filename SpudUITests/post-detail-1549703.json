@@ -49,7 +49,8 @@
       "icon": "https://lemmy.world/pictrs/image/1457718c-43b7-41df-b443-85747c9c5396.jpeg",
       "hidden": false,
       "posting_restricted_to_mods": false,
-      "instance_id": 1192
+      "instance_id": 1192,
+      "visibility": "Public"
     },
     "creator_banned_from_community": false,
     "counts": {
@@ -73,7 +74,11 @@
     "saved": false,
     "read": false,
     "creator_blocked": false,
-    "unread_comments": 198
+    "unread_comments": 198,
+    "banned_from_community": false,
+    "creator_is_moderator": false,
+    "creator_is_admin": false,
+    "hidden": false
   },
   "community_view": {
     "community": {
@@ -91,14 +96,17 @@
       "icon": "https://lemmy.world/pictrs/image/1457718c-43b7-41df-b443-85747c9c5396.jpeg",
       "hidden": false,
       "posting_restricted_to_mods": false,
-      "instance_id": 1192
+      "instance_id": 1192,
+      "visibility": "Public"
     },
     "subscribed": "NotSubscribed",
     "blocked": false,
+    "banned_from_community": false,
     "counts": {
       "id": 1966,
       "community_id": 9544,
       "subscribers": 95,
+      "subscribers_local": 40,
       "posts": 222,
       "comments": 5809,
       "published": "2023-06-12T01:33:44.287172",
@@ -126,7 +134,8 @@
         "icon": "https://lemmy.world/pictrs/image/1457718c-43b7-41df-b443-85747c9c5396.jpeg",
         "hidden": false,
         "posting_restricted_to_mods": false,
-        "instance_id": 1192
+        "instance_id": 1192,
+        "visibility": "Public"
       },
       "moderator": {
         "id": 51054,
@@ -157,7 +166,8 @@
         "icon": "https://lemmy.world/pictrs/image/1457718c-43b7-41df-b443-85747c9c5396.jpeg",
         "hidden": false,
         "posting_restricted_to_mods": false,
-        "instance_id": 1192
+        "instance_id": 1192,
+        "visibility": "Public"
       },
       "moderator": {
         "id": 266736,

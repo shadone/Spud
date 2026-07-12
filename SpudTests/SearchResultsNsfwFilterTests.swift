@@ -46,7 +46,7 @@ struct SearchResultsNsfwFilterTests {
             instance: InstanceActorId(from: "example.com")!,
             subscribersText: "100",
             iconUrl: nil,
-            subscribed: .NotSubscribed,
+            followState: .notFollowing,
             isNsfw: false
         )
     }
@@ -59,7 +59,7 @@ struct SearchResultsNsfwFilterTests {
             instance: InstanceActorId(from: "example.com")!,
             subscribersText: "50",
             iconUrl: nil,
-            subscribed: .NotSubscribed,
+            followState: .notFollowing,
             isNsfw: true
         )
     }

@@ -33,7 +33,7 @@ final class RecipientPickerViewController: UIViewController {
     /// Invoked when the user taps a result. Carries the chosen person's server
     /// id and display name — exactly what `DMThreadViewController` needs to open
     /// a new thread. The picker dismisses itself before this fires.
-    var onRecipientSelected: ((Components.Schemas.PersonID, String) -> Void)?
+    var onRecipientSelected: ((Lemmy.PersonID, String) -> Void)?
 
     // MARK: Private
 
@@ -94,7 +94,7 @@ final class RecipientPickerViewController: UIViewController {
                 listingType: .All,
                 page: 1
             )
-            return response.users.compactMap(SearchUserResult.init)
+            return response.persons.compactMap(SearchUserResult.init)
         })
 
         super.init(nibName: nil, bundle: nil)

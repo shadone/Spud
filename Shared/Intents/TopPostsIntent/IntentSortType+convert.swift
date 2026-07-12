@@ -10,7 +10,7 @@ import LemmyKit
 import SpudDataKit
 
 extension IntentSortType {
-    init(from sortType: Components.Schemas.SortType) {
+    init(from sortType: Lemmy.SortType) {
         switch sortType {
         case .Active:
             self = .active
@@ -53,7 +53,7 @@ extension IntentSortType {
     }
 }
 
-extension Components.Schemas.SortType {
+extension Lemmy.SortType {
     init?(from intentSortType: IntentSortType) {
         switch intentSortType {
         case .unknown:

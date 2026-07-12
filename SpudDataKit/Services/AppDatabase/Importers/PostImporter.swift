@@ -61,7 +61,7 @@ public extension AppDatabase {
     /// optimistic fields from being overwritten by server data.
     @discardableResult
     func upsertPost(
-        from view: Components.Schemas.PostView,
+        from view: Lemmy.PostView,
         accountId: Int64,
         siteId: Int64,
         respectsPendingOutbox: Bool = true
@@ -75,7 +75,7 @@ public extension AppDatabase {
     /// transaction per post. Atomic: if any upsert throws the whole batch rolls
     /// back. No-ops on an empty input.
     func upsertPosts(
-        from views: [Components.Schemas.PostView],
+        from views: [Lemmy.PostView],
         accountId: Int64,
         siteId: Int64,
         respectsPendingOutbox: Bool = true
@@ -95,7 +95,7 @@ public extension AppDatabase {
     }
 
     internal static func upsertPost(
-        from view: Components.Schemas.PostView,
+        from view: Lemmy.PostView,
         accountId: Int64,
         siteId: Int64,
         respectsPendingOutbox: Bool = true,
@@ -166,8 +166,8 @@ public extension AppDatabase {
             creatorId: creatorId,
             postId: serverPostId,
             title: view.post.name,
-            originalPostUrl: view.post.ap_id,
-            published: view.post.published,
+            originalPostUrl: view.post.apId,
+            published: view.post.publishedAt,
             createdAt: now,
             updatedAt: now
         )
@@ -177,7 +177,7 @@ public extension AppDatabase {
     }
 
     private static func apply(
-        view: Components.Schemas.PostView,
+        view: Lemmy.PostView,
         to record: inout PostRecord,
         now: Date
     ) {
@@ -185,31 +185,33 @@ public extension AppDatabase {
         record.title = post.name
         record.body = post.body
         record.url = post.url
-        record.urlEmbedTitle = post.embed_title
-        record.urlEmbedDescription = post.embed_description
-        record.thumbnailUrl = post.thumbnail_url
-        // `image_details` (width/height) rides on the PostView, not the Post, and
-        // is only present when the instance's media service processed the image.
-        record.imageWidth = view.image_details.map { Int($0.width) }
-        record.imageHeight = view.image_details.map { Int($0.height) }
-        record.altText = post.alt_text
-        record.originalPostUrl = post.ap_id
-        record.published = post.published
+        record.urlEmbedTitle = post.embedTitle
+        record.urlEmbedDescription = post.embedDescription
+        record.thumbnailUrl = post.thumbnailUrl
+        // Pixel dimensions of the post's image, so the post-detail header can
+        // reserve the exact aspect ratio before the image loads (no row reflow
+        // when it appears). Coalesce rather than assign: a later PostView that
+        // omits dimensions (a backend not carrying `image_details`) must not
+        // blank a previously-known size back to nil.
+        record.imageWidth = post.imageWidth ?? record.imageWidth
+        record.imageHeight = post.imageHeight ?? record.imageHeight
+        record.altText = post.altText
+        record.originalPostUrl = post.apId
+        record.published = post.publishedAt
 
-        let counts = view.counts
-        record.score = Int64(counts.score)
-        record.numberOfUpvotes = Int64(counts.upvotes)
-        record.numberOfDownvotes = Int64(counts.downvotes)
-        record.numberOfComments = Int64(counts.comments)
+        record.score = post.score
+        record.numberOfUpvotes = post.upvotes
+        record.numberOfDownvotes = post.downvotes
+        record.numberOfComments = post.comments
 
-        record.isRead = view.read
-        record.isSaved = view.saved
-        record.isHidden = view.hidden
+        record.isRead = view.isRead
+        record.isSaved = view.isSaved
+        record.isHidden = view.isHidden
 
         record.isRemoved = post.removed
         record.isLocked = post.locked
-        record.isFeaturedCommunity = post.featured_community
-        record.isFeaturedLocal = post.featured_local
+        record.isFeaturedCommunity = post.featuredCommunity
+        record.isFeaturedLocal = post.featuredLocal
         record.isDeleted = post.deleted
 
         // Per-post creator context, mirroring the CommentView import. A later
@@ -224,13 +226,12 @@ public extension AppDatabase {
         record.isUnavailable = false
         record.isNsfw = post.nsfw
 
-        switch view.my_vote {
-        case 1: record.voteStatus = 1
-        case -1: record.voteStatus = 0
-        case 0, nil: record.voteStatus = nil
-        default:
-            logger.assertionFailure("Unexpected my_vote \(String(describing: view.my_vote)) for post \(post.id)")
-            record.voteStatus = nil
+        // Map the neutral `VoteDirection` onto the record's stored encoding
+        // (1 = upvote, 0 = downvote, nil = no vote).
+        switch view.myVote {
+        case .up: record.voteStatus = 1
+        case .down: record.voteStatus = 0
+        case .none: record.voteStatus = nil
         }
 
         record.updatedAt = now

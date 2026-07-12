@@ -31,7 +31,7 @@ struct SubscriptionsCommunityRow: Equatable, Identifiable {
 }
 
 enum SubscriptionsViewItemType {
-    case listing(Components.Schemas.ListingType)
+    case listing(Lemmy.ListingType)
     case community(SubscriptionsCommunityRow)
     /// The logged-in account's saved posts. Only offered for signed-in
     /// accounts (saved requires authentication).

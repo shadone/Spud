@@ -19,8 +19,8 @@ import Testing
 struct QuickSwitchViewModelTests {
     private func makeViewModel(
         preferences: PreferencesService,
-        currentSort: Components.Schemas.SortType = .Hot,
-        onSelectSort: @escaping (Components.Schemas.SortType) -> Void = { _ in }
+        currentSort: Lemmy.SortType = .Hot,
+        onSelectSort: @escaping (Lemmy.SortType) -> Void = { _ in }
     ) -> QuickSwitchViewModel {
         QuickSwitchViewModel(
             preferencesService: preferences,
@@ -96,7 +96,7 @@ struct QuickSwitchViewModelTests {
     @Test
     func selectSortInvokesCallbackAndUpdatesCurrent() {
         let prefs = PreferencesService.ephemeral()
-        var selected: Components.Schemas.SortType?
+        var selected: Lemmy.SortType?
         let viewModel = makeViewModel(
             preferences: prefs,
             currentSort: .Hot,

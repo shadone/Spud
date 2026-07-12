@@ -19,28 +19,32 @@ private actor SpySaveProfileService: LemmyServiceType {
     struct SaveProfileCall {
         let displayName: String?
         let bio: String?
-        let avatar: String?
-        let banner: String?
+        let avatar: ProfileImageEdit
+        let banner: ProfileImageEdit
         let showScores: Bool
         let showBotAccounts: Bool
         let showReadPosts: Bool
         let showAvatars: Bool
-        let defaultListingType: Components.Schemas.ListingType
+        let defaultListingType: Lemmy.ListingType
     }
 
     private(set) var saveProfileCalls: [SaveProfileCall] = []
+    /// Counts direct `uploadImage` calls. The editor must NOT upload at pick time
+    /// anymore (that orphaned a pict-rs file); the single upload happens server-side
+    /// inside `saveProfile`, which this spy records separately via `saveProfileCalls`.
+    private(set) var uploadImageCallCount = 0
     var uploadImageResult: Result<URL, Error> = .success(URL(string: "https://example.com/banner.jpg")!)
 
     func saveProfile(
         displayName: String?,
         bio: String?,
-        avatar: String?,
-        banner: String?,
+        avatar: ProfileImageEdit,
+        banner: ProfileImageEdit,
         showScores: Bool,
         showBotAccounts: Bool,
         showReadPosts: Bool,
         showAvatars: Bool,
-        defaultListingType: Components.Schemas.ListingType
+        defaultListingType: Lemmy.ListingType
     ) async throws {
         saveProfileCalls.append(SaveProfileCall(
             displayName: displayName,
@@ -56,7 +60,8 @@ private actor SpySaveProfileService: LemmyServiceType {
     }
 
     func uploadImage(imageData _: Data, fileName _: String, mimeType _: String) async throws -> URL {
-        try uploadImageResult.get()
+        uploadImageCallCount += 1
+        return try uploadImageResult.get()
     }
 
     // MARK: Unused protocol stubs
@@ -65,7 +70,7 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func getSiteInfo() async throws -> Components.Schemas.GetSiteResponse {
+    func getSiteInfo() async throws -> LemmyKit.SiteInfo {
         trap()
     }
 
@@ -77,15 +82,15 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func setDefaultSortType(_: Components.Schemas.SortType) async throws {
+    func setDefaultSortType(_: Lemmy.SortType) async throws {
         trap()
     }
 
-    func fetchPersonInfo(serverPersonId _: Components.Schemas.PersonID) async throws {
+    func fetchPersonInfo(serverPersonId _: Lemmy.PersonID) async throws {
         trap()
     }
 
-    func fetchPersonContent(serverPersonId _: Components.Schemas.PersonID, sort _: Components.Schemas.SortType, page _: Int64) async throws -> Components.Schemas.GetPersonDetailsResponse {
+    func fetchPersonContent(serverPersonId _: Lemmy.PersonID, sort _: Lemmy.SortType, page _: Int64) async throws -> PersonContentPage {
         trap()
     }
 
@@ -93,67 +98,67 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func fetchComments(serverPostId _: Components.Schemas.PostID, sortType _: Components.Schemas.CommentSortType) async throws {
+    func fetchComments(serverPostId _: Lemmy.PostID, sortType _: Lemmy.CommentSortType) async throws {
         trap()
     }
 
-    func fetchCommunityInfo(serverCommunityId _: Components.Schemas.CommunityID) async throws {
+    func fetchCommunityInfo(serverCommunityId _: Lemmy.CommunityID) async throws {
         trap()
     }
 
-    func fetchCommunityInfo(communityName _: String) async throws -> Components.Schemas.CommunityID {
+    func fetchCommunityInfo(communityName _: String) async throws -> Lemmy.CommunityID {
         trap()
     }
 
-    func search(query _: String, type _: Components.Schemas.SearchType, sort _: Components.Schemas.SortType, listingType _: Components.Schemas.ListingType, page _: Int64) async throws -> Components.Schemas.SearchResponse {
+    func search(query _: String, type _: Lemmy.SearchType, sort _: Lemmy.SortType, listingType _: Lemmy.ListingType, page _: Int64) async throws -> LemmyKit.SearchResults {
         trap()
     }
 
-    func listCommunities(type _: Components.Schemas.ListingType, sort _: Components.Schemas.SortType?, limit _: Int64?) async throws -> [Components.Schemas.CommunityView] {
+    func listCommunities(type _: Lemmy.ListingType, sort _: Lemmy.SortType?, limit _: Int64?) async throws -> [Lemmy.CommunityView] {
         trap()
     }
 
-    func setSubscribed(serverCommunityId _: Components.Schemas.CommunityID, subscribed _: Bool) async throws {
+    func setSubscribed(serverCommunityId _: Lemmy.CommunityID, subscribed _: Bool) async throws {
         trap()
     }
 
-    func vote(serverPostId _: Components.Schemas.PostID, vote _: VoteStatus.Action) async throws {
+    func vote(serverPostId _: Lemmy.PostID, vote _: VoteStatus.Action) async throws {
         trap()
     }
 
-    func vote(serverCommentId _: Components.Schemas.CommentID, vote _: VoteStatus.Action) async throws {
+    func vote(serverCommentId _: Lemmy.CommentID, vote _: VoteStatus.Action) async throws {
         trap()
     }
 
-    func createComment(serverPostId _: Components.Schemas.PostID, content _: String, parentCommentId _: Components.Schemas.CommentID?) async throws {
+    func createComment(serverPostId _: Lemmy.PostID, content _: String, parentCommentId _: Lemmy.CommentID?) async throws {
         trap()
     }
 
-    func createPost(serverCommunityId _: Components.Schemas.CommunityID, name _: String, url _: String?, body _: String?, nsfw _: Bool) async throws -> Components.Schemas.PostID {
+    func createPost(serverCommunityId _: Lemmy.CommunityID, name _: String, url _: String?, body _: String?, nsfw _: Bool) async throws -> Lemmy.PostID {
         trap()
     }
 
-    func setSaved(serverPostId _: Components.Schemas.PostID, saved _: Bool) async throws {
+    func setSaved(serverPostId _: Lemmy.PostID, saved _: Bool) async throws {
         trap()
     }
 
-    func setSaved(serverCommentId _: Components.Schemas.CommentID, saved _: Bool) async throws {
+    func setSaved(serverCommentId _: Lemmy.CommentID, saved _: Bool) async throws {
         trap()
     }
 
-    func deleteComment(serverCommentId _: Components.Schemas.CommentID, deleted _: Bool) async throws {
+    func deleteComment(serverCommentId _: Lemmy.CommentID, deleted _: Bool) async throws {
         trap()
     }
 
-    func deletePost(serverPostId _: Components.Schemas.PostID, deleted _: Bool) async throws {
+    func deletePost(serverPostId _: Lemmy.PostID, deleted _: Bool) async throws {
         trap()
     }
 
-    func fetchPostInfo(serverPostId _: Components.Schemas.PostID) async throws {
+    func fetchPostInfo(serverPostId _: Lemmy.PostID) async throws {
         trap()
     }
 
-    func hidePost(serverPostId _: Components.Schemas.PostID, hidden _: Bool) async throws {
+    func hidePost(serverPostId _: Lemmy.PostID, hidden _: Bool) async throws {
         trap()
     }
 
@@ -193,7 +198,7 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func applyOptimisticPostEdit(serverPostId _: Components.Schemas.PostID, title _: String, body _: String?, url _: String?, nsfw _: Bool) async {
+    func applyOptimisticPostEdit(serverPostId _: Lemmy.PostID, title _: String, body _: String?, url _: String?, nsfw _: Bool) async {
         trap()
     }
 
@@ -205,19 +210,19 @@ private actor SpySaveProfileService: LemmyServiceType {
         AsyncStream { $0.finish() }
     }
 
-    func markAsRead(serverPostId _: Components.Schemas.PostID) async throws {
+    func markAsRead(serverPostId _: Lemmy.PostID) async throws {
         trap()
     }
 
-    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.GetRepliesResponse {
+    func fetchReplies(unreadOnly _: Bool, page _: Int64) async throws -> [InboxCommentNotification] {
         trap()
     }
 
-    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.GetPersonMentionsResponse {
+    func fetchMentions(unreadOnly _: Bool, page _: Int64) async throws -> [InboxCommentNotification] {
         trap()
     }
 
-    func fetchPrivateMessages(unreadOnly _: Bool, page _: Int64) async throws -> Components.Schemas.PrivateMessagesResponse {
+    func fetchPrivateMessages(unreadOnly _: Bool, pageCursor _: String?) async throws -> (messages: [IncomingPrivateMessage], nextCursor: String?) {
         trap()
     }
 
@@ -225,15 +230,11 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func markReplyAsRead(commentReplyId _: Components.Schemas.CommentReplyID, read _: Bool) async throws {
+    func markInboxItemAsRead(reference _: InboxItemReadReference, read _: Bool) async throws {
         trap()
     }
 
-    func markMentionAsRead(personMentionId _: Components.Schemas.PersonMentionID, read _: Bool) async throws {
-        trap()
-    }
-
-    func markPrivateMessageAsRead(privateMessageId _: Components.Schemas.PrivateMessageID, read _: Bool) async throws {
+    func markPrivateMessageAsRead(privateMessageId _: Lemmy.PrivateMessageID, read _: Bool) async throws {
         trap()
     }
 
@@ -241,23 +242,23 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func sendPrivateMessage(content _: String, recipientId _: Components.Schemas.PersonID) async throws -> Components.Schemas.PrivateMessageView {
+    func sendPrivateMessage(content _: String, recipientId _: Lemmy.PersonID) async throws -> Lemmy.PrivateMessageView {
         trap()
     }
 
-    func setBlocked(serverPersonId _: Components.Schemas.PersonID, blocked _: Bool) async throws {
+    func setBlocked(serverPersonId _: Lemmy.PersonID, blocked _: Bool) async throws {
         trap()
     }
 
-    func setBlocked(serverCommunityId _: Components.Schemas.CommunityID, blocked _: Bool) async throws {
+    func setBlocked(serverCommunityId _: Lemmy.CommunityID, blocked _: Bool) async throws {
         trap()
     }
 
-    func reportPost(serverPostId _: Components.Schemas.PostID, reason _: String) async throws {
+    func reportPost(serverPostId _: Lemmy.PostID, reason _: String) async throws {
         trap()
     }
 
-    func reportComment(serverCommentId _: Components.Schemas.CommentID, reason _: String) async throws {
+    func reportComment(serverCommentId _: Lemmy.CommentID, reason _: String) async throws {
         trap()
     }
 
@@ -269,38 +270,32 @@ private actor SpySaveProfileService: LemmyServiceType {
         trap()
     }
 
-    func removePost(serverPostId _: Components.Schemas.PostID, removed _: Bool, reason _: String?) async throws {
+    func removePost(serverPostId _: Lemmy.PostID, removed _: Bool, reason _: String?) async throws {
         trap()
     }
 
-    func lockPost(serverPostId _: Components.Schemas.PostID, locked _: Bool) async throws {
+    func lockPost(serverPostId _: Lemmy.PostID, locked _: Bool) async throws {
         trap()
     }
 
-    func featurePost(serverPostId _: Components.Schemas.PostID, featured _: Bool, local _: Bool) async throws {
+    func featurePost(serverPostId _: Lemmy.PostID, featured _: Bool, local _: Bool) async throws {
         trap()
     }
 
-    func removeComment(serverCommentId _: Components.Schemas.CommentID, removed _: Bool, reason _: String?) async throws {
+    func removeComment(serverCommentId _: Lemmy.CommentID, removed _: Bool, reason _: String?) async throws {
         trap()
     }
 
-    func distinguishComment(serverCommentId _: Components.Schemas.CommentID, distinguished _: Bool) async throws {
+    func distinguishComment(serverCommentId _: Lemmy.CommentID, distinguished _: Bool) async throws {
         trap()
     }
 
-    func banFromCommunity(serverCommunityId _: Components.Schemas.CommunityID, serverPersonId _: Components.Schemas.PersonID, ban _: Bool, removeData _: Bool, reason _: String?) async throws {
+    func banFromCommunity(serverCommunityId _: Lemmy.CommunityID, serverPersonId _: Lemmy.PersonID, ban _: Bool, removeData _: Bool, reason _: String?) async throws {
         trap()
     }
 
     func resolveObject(query _: String) async throws -> ResolvedLemmyObject {
         trap()
-    }
-
-    // MARK: Mutation helper (called from outside the actor)
-
-    func setUploadImageResult(_ result: Result<URL, Error>) {
-        uploadImageResult = result
     }
 }
 
@@ -348,15 +343,15 @@ private final class FakeAccountService: AccountServiceType {
         ""
     }
 
-    func defaultListingType(forAccountKeychainId _: String) -> Components.Schemas.ListingType {
+    func defaultListingType(forAccountKeychainId _: String) -> Lemmy.ListingType {
         .All
     }
 
-    func defaultSortType(forAccountKeychainId _: String) -> Components.Schemas.SortType {
+    func defaultSortType(forAccountKeychainId _: String) -> Lemmy.SortType {
         .Hot
     }
 
-    func setDefaultSortType(_: Components.Schemas.SortType, forAccountKeychainId _: String) { }
+    func setDefaultSortType(_: Lemmy.SortType, forAccountKeychainId _: String) { }
     func instanceActorId(forAccountKeychainId _: String) -> InstanceActorId? {
         nil
     }
@@ -401,10 +396,11 @@ struct EditProfileViewModelBannerTests {
 
     // MARK: Tests
 
-    /// `removeBanner()` marks the banner as edited, so `save()` must forward
-    /// `banner: ""` (empty string = clear the server-side banner).
+    /// `removeBanner()` marks the banner as edited with no pending bytes, so
+    /// `save()` must forward `banner: .removed` (which issues the server-side
+    /// banner-remove push).
     @Test
-    func removeBanner_thenSave_forwardsBannerEmptyString() async throws {
+    func removeBanner_thenSave_forwardsBannerRemoved() async throws {
         let spy = SpySaveProfileService()
         let vm = makeViewModel(spy: spy)
 
@@ -413,45 +409,118 @@ struct EditProfileViewModelBannerTests {
 
         let calls = await spy.saveProfileCalls
         try #require(calls.count == 1)
-        #expect(calls[0].banner == "")
+        #expect(calls[0].banner == .removed)
     }
 
-    /// `uploadBanner` marks the banner as edited and stores the URL, so
-    /// `save()` must forward the URL string as `banner`.
+    /// Picking a banner records the encoded bytes locally and drives an instant
+    /// local preview WITHOUT any pick-time upload; `save()` then forwards
+    /// `banner: .set` carrying those bytes (the single, server-side push). The
+    /// direct `uploadImage` endpoint is never hit — the old pick-time upload that
+    /// orphaned a pict-rs file is gone.
     @Test
-    func uploadBanner_thenSave_forwardsBannerUrl() async throws {
-        let uploadedUrl = try #require(URL(string: "https://example.com/my-banner.jpg"))
+    func pickBanner_thenSave_uploadsOnceAtSaveNotAtPick() async throws {
         let spy = SpySaveProfileService()
-        await spy.setUploadImageResult(.success(uploadedUrl))
-
         let vm = makeViewModel(spy: spy)
-        await vm.uploadBanner(imageData: Self.minimalJpeg)
+
+        vm.pickBanner(imageData: Self.minimalJpeg)
+
+        // Pick drives the local preview and does NOT upload.
+        #expect(vm.pickedBannerImage != nil)
+        #expect(await spy.uploadImageCallCount == 0)
+
+        await vm.save()
+
+        // The single upload is carried by the save push, as `.set` bytes.
+        let calls = await spy.saveProfileCalls
+        try #require(calls.count == 1)
+        guard case let .set(imageData, fileName, contentType) = calls[0].banner else {
+            Issue.record("expected banner .set, got \(calls[0].banner)")
+            return
+        }
+        #expect(!imageData.isEmpty)
+        #expect(fileName.hasPrefix("banner-"))
+        #expect(contentType == "image/jpeg")
+        // Still no direct uploadImage call — saveProfile carries the push.
+        #expect(await spy.uploadImageCallCount == 0)
+    }
+
+    /// When the banner is not touched, `save()` must pass `banner: .unchanged` so
+    /// the server value is left alone (gating mirrors the avatar logic exactly).
+    @Test
+    func noChangeToBanner_save_forwardsBannerUnchanged() async throws {
+        let spy = SpySaveProfileService()
+        let vm = makeViewModel(spy: spy)
+
+        // Do NOT call removeBanner() or pickBanner — banner is untouched.
         await vm.save()
 
         let calls = await spy.saveProfileCalls
         try #require(calls.count == 1)
-        #expect(calls[0].banner == uploadedUrl.absoluteString)
+        #expect(calls[0].banner == .unchanged)
     }
 
-    /// When the banner is not touched, `save()` must pass `banner: nil` so the
-    /// server value is left unchanged (gating mirrors the avatar logic exactly).
+    // MARK: Avatar
+
+    /// `removeAvatar()` marks the avatar as edited with no pending bytes, so
+    /// `save()` must forward `avatar: .removed` (issuing the avatar-remove push).
     @Test
-    func noChangeToBanner_save_forwardsBannerNil() async throws {
+    func removeAvatar_thenSave_forwardsAvatarRemoved() async throws {
         let spy = SpySaveProfileService()
         let vm = makeViewModel(spy: spy)
 
-        // Do NOT call removeBanner() or uploadBanner — banner is untouched.
+        vm.removeAvatar()
         await vm.save()
 
         let calls = await spy.saveProfileCalls
         try #require(calls.count == 1)
-        #expect(calls[0].banner == nil)
+        #expect(calls[0].avatar == .removed)
+    }
+
+    /// Picking an avatar retains the encoded bytes and drives an instant local
+    /// preview with no pick-time upload; `save()` forwards `avatar: .set` carrying
+    /// those bytes (the single server-side push).
+    @Test
+    func pickAvatar_thenSave_uploadsOnceAtSaveNotAtPick() async throws {
+        let spy = SpySaveProfileService()
+        let vm = makeViewModel(spy: spy)
+
+        vm.pickAvatar(imageData: Self.minimalJpeg)
+
+        #expect(vm.pickedAvatarImage != nil)
+        #expect(await spy.uploadImageCallCount == 0)
+
+        await vm.save()
+
+        let calls = await spy.saveProfileCalls
+        try #require(calls.count == 1)
+        guard case let .set(imageData, fileName, contentType) = calls[0].avatar else {
+            Issue.record("expected avatar .set, got \(calls[0].avatar)")
+            return
+        }
+        #expect(!imageData.isEmpty)
+        #expect(fileName.hasPrefix("avatar-"))
+        #expect(contentType == "image/jpeg")
+        #expect(await spy.uploadImageCallCount == 0)
+    }
+
+    /// When the avatar is not touched, `save()` must pass `avatar: .unchanged`.
+    @Test
+    func noChangeToAvatar_save_forwardsAvatarUnchanged() async throws {
+        let spy = SpySaveProfileService()
+        let vm = makeViewModel(spy: spy)
+
+        await vm.save()
+
+        let calls = await spy.saveProfileCalls
+        try #require(calls.count == 1)
+        #expect(calls[0].avatar == .unchanged)
     }
 
     // MARK: Fixtures
 
     /// A 1x1 red JPEG produced at runtime by `UIGraphicsImageRenderer`, which
-    /// guarantees `UIImage(data:)` round-trips successfully inside `uploadBanner`.
+    /// guarantees `UIImage(data:)` round-trips successfully inside `pickBanner` /
+    /// `pickAvatar`.
     @MainActor
     private static var minimalJpeg: Data {
         let renderer = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1))

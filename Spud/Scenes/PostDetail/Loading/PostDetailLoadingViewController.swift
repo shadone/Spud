@@ -32,7 +32,7 @@ class PostDetailLoadingViewController: UIViewController {
 
     /// Fires once the post row appears in AppDatabase, with the resolved
     /// server post id ready for the content view controller to consume.
-    var didFinishLoading: ((Components.Schemas.PostID) -> Void)?
+    var didFinishLoading: ((Lemmy.PostID) -> Void)?
 
     /// Fires when the post cannot be loaded because the server reports it gone
     /// (`couldnt_find_post`). The parent swaps in the unavailable placeholder.
@@ -73,13 +73,13 @@ class PostDetailLoadingViewController: UIViewController {
     // MARK: Private
 
     private let accountKeychainId: String
-    private let serverPostId: Components.Schemas.PostID
+    private let serverPostId: Lemmy.PostID
     private var observationTask: Task<Void, Never>?
 
     // MARK: - Functions
 
     init(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         accountKeychainId: String,
         dependencies: Dependencies
     ) {

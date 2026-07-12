@@ -27,7 +27,7 @@ struct OfflineDownloadServiceTests {
         feedKey: "feed-1",
         feedType: .frontpage(listingType: .All, sortType: .Hot)
     )
-    private let commentSort = Components.Schemas.CommentSortType.Hot
+    private let commentSort = Lemmy.CommentSortType.Hot
 
     init() async throws {
         appDatabase = try AppDatabase.inMemory()

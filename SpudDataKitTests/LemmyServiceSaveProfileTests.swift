@@ -23,8 +23,12 @@ private final class StubSaveProfileTransport: ClientTransport, @unchecked Sendab
     private(set) var didSendGetSite = false
     /// The decoded JSON object of the most recent `saveUserSettings` request body.
     private(set) var saveUserSettingsBody: [String: Any]?
+    /// Every `saveUserSettings` request body, in order — `saveProfile` may issue
+    /// more than one (e.g. an avatar/banner remove writes `avatar`/`banner: ""` in
+    /// its own call on v3, ahead of the text-settings call).
+    private(set) var saveUserSettingsBodies: [[String: Any]] = []
 
-    init(getSite: Components.Schemas.GetSiteResponse? = nil) throws {
+    init(getSite: Lemmy.GetSiteResponse? = nil) throws {
         let encoder = JSONEncoder()
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -45,7 +49,9 @@ private final class StubSaveProfileTransport: ClientTransport, @unchecked Sendab
             didSendSaveUserSettings = true
             if let body {
                 let data = try await Data(collecting: body, upTo: .max)
-                saveUserSettingsBody = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                saveUserSettingsBody = json
+                if let json { saveUserSettingsBodies.append(json) }
             }
             var response = HTTPResponse(status: .ok)
             response.headerFields[.contentType] = "application/json"
@@ -113,8 +119,8 @@ struct LemmyServiceSaveProfileTests {
         try await service.saveProfile(
             displayName: "Ada Lovelace",
             bio: "First programmer.",
-            avatar: "https://example.com/pictrs/image/avatar.png",
-            banner: nil,
+            avatar: .unchanged,
+            banner: .unchanged,
             showScores: false,
             showBotAccounts: false,
             showReadPosts: true,
@@ -147,8 +153,8 @@ struct LemmyServiceSaveProfileTests {
         try await service.saveProfile(
             displayName: "Ada Lovelace",
             bio: "First programmer.",
-            avatar: "https://example.com/pictrs/image/avatar.png",
-            banner: nil,
+            avatar: .unchanged,
+            banner: .unchanged,
             showScores: false,
             showBotAccounts: false,
             showReadPosts: true,
@@ -159,12 +165,80 @@ struct LemmyServiceSaveProfileTests {
         let body = try #require(transport.saveUserSettingsBody)
         #expect(body["display_name"] as? String == "Ada Lovelace")
         #expect(body["bio"] as? String == "First programmer.")
-        #expect(body["avatar"] as? String == "https://example.com/pictrs/image/avatar.png")
+        // v4 removed avatar/banner from saveUserSettings (dedicated upload
+        // endpoints now), so the neutral saveUserSettings no longer forwards the
+        // avatar — it is only mirrored locally. See the Phase 6 report follow-ups.
+        #expect(body["avatar"] == nil)
         #expect(body["show_scores"] as? Bool == false)
         #expect(body["show_bot_accounts"] as? Bool == false)
         #expect(body["show_read_posts"] as? Bool == true)
         #expect(body["show_avatars"] as? Bool == true)
         #expect(body["default_listing_type"] as? String == "Subscribed")
+    }
+
+    /// A removed avatar must issue the server-side remove push: on v3 that is a
+    /// `saveUserSettings` call carrying `avatar: ""` (empty string = clear),
+    /// distinct from the text-settings call.
+    @Test
+    func saveProfile_removedAvatar_pushesEmptyAvatar() async throws {
+        try await seedAccountAndSite()
+
+        let transport = try StubSaveProfileTransport(getSite: .fake())
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
+
+        try await service.saveProfile(
+            displayName: "Ada Lovelace",
+            bio: "First programmer.",
+            avatar: .removed,
+            banner: .unchanged,
+            showScores: true,
+            showBotAccounts: true,
+            showReadPosts: true,
+            showAvatars: true,
+            defaultListingType: .All
+        )
+
+        #expect(
+            transport.saveUserSettingsBodies.contains { $0["avatar"] as? String == "" },
+            "removed avatar should push saveUserSettings with avatar cleared to an empty string"
+        )
+    }
+
+    /// A removed banner must issue the server-side remove push: on v3 a
+    /// `saveUserSettings` call carrying `banner: ""`.
+    @Test
+    func saveProfile_removedBanner_pushesEmptyBanner() async throws {
+        try await seedAccountAndSite()
+
+        let transport = try StubSaveProfileTransport(getSite: .fake())
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: keychainId,
+            appDatabase: appDatabase,
+            accountIsSignedOut: false,
+            transport: transport
+        )
+
+        try await service.saveProfile(
+            displayName: "Ada Lovelace",
+            bio: "First programmer.",
+            avatar: .unchanged,
+            banner: .removed,
+            showScores: true,
+            showBotAccounts: true,
+            showReadPosts: true,
+            showAvatars: true,
+            defaultListingType: .All
+        )
+
+        #expect(
+            transport.saveUserSettingsBodies.contains { $0["banner"] as? String == "" },
+            "removed banner should push saveUserSettings with banner cleared to an empty string"
+        )
     }
 
     // MARK: Signed out
@@ -183,8 +257,8 @@ struct LemmyServiceSaveProfileTests {
             try await service.saveProfile(
                 displayName: "Ada Lovelace",
                 bio: "First programmer.",
-                avatar: nil,
-                banner: nil,
+                avatar: .unchanged,
+                banner: .unchanged,
                 showScores: true,
                 showBotAccounts: true,
                 showReadPosts: true,

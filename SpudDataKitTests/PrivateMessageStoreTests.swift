@@ -54,38 +54,56 @@ struct PrivateMessageStoreTests {
         return (accountId, siteId)
     }
 
-    private static func person(id: Int64, name: String, displayName: String?, avatar: String?) -> Components.Schemas.Person {
-        var p = Components.Schemas.Person.fake
-        p.id = Components.Schemas.PersonID(id)
-        p.name = name
-        p.display_name = displayName
-        p.avatar = avatar
-        p.actor_id = "https://\(name).test/u/\(name)"
-        return p
+    private static func person(id: Int64, name: String, displayName: String?, avatar: String?) -> Lemmy.Person {
+        // Neutral `Person` fields are `let`, so build a fresh value rather than
+        // mutating `.fake`.
+        Lemmy.Person(
+            id: id,
+            name: name,
+            displayName: displayName,
+            avatarUrl: avatar,
+            bannerUrl: nil,
+            bio: nil,
+            apId: "https://\(name).test/u/\(name)",
+            matrixUserId: nil,
+            botAccount: false,
+            deleted: false,
+            local: true,
+            publishedAt: Date(timeIntervalSince1970: 1_683_349_689),
+            updatedAt: nil,
+            postCount: 0,
+            commentCount: 0
+        )
     }
 
+    /// Builds an ``IncomingPrivateMessage`` (a neutral ``LemmyKit/PrivateMessageView``
+    /// paired with its read state). The neutral `PrivateMessage` dropped v3's bare
+    /// `read` bool, so read state rides on the wrapping `IncomingPrivateMessage`,
+    /// which is what `upsertPrivateMessages` now consumes.
     private static func view(
         messageId: Int64,
-        creator: Components.Schemas.Person,
-        recipient: Components.Schemas.Person,
+        creator: Lemmy.Person,
+        recipient: Lemmy.Person,
         content: String,
         published: Date,
         read: Bool,
         deleted: Bool = false
-    ) -> Components.Schemas.PrivateMessageView {
-        let pm = Components.Schemas.PrivateMessage(
-            id: Components.Schemas.PrivateMessageID(messageId),
-            creator_id: creator.id,
-            recipient_id: recipient.id,
+    ) -> IncomingPrivateMessage {
+        let pm = LemmyKit.PrivateMessage(
+            id: messageId,
+            creatorId: creator.id,
+            recipientId: recipient.id,
             content: content,
             deleted: deleted,
-            read: read,
-            published: published,
-            updated: nil,
-            ap_id: "https://x.test/private_message/\(messageId)",
-            local: true
+            deletedByRecipient: false,
+            removed: false,
+            local: true,
+            apId: "https://x.test/private_message/\(messageId)",
+            publishedAt: published,
+            updatedAt: nil
         )
-        return .init(private_message: pm, creator: creator, recipient: recipient)
+        let pmView = Lemmy.PrivateMessageView(privateMessage: pm, creator: creator, recipient: recipient)
+        return IncomingPrivateMessage(view: pmView, isRead: read)
     }
 
     private static func firstConversations(_ stream: AsyncStream<[PrivateMessageConversationRow]>) async -> [PrivateMessageConversationRow] {
@@ -115,7 +133,7 @@ struct PrivateMessageStoreTests {
         }
 
         try await appDatabase.upsertPrivateMessages(
-            views: [
+            [
                 Self.view(messageId: 1, creator: alice, recipient: me, content: "hi", published: Date(timeIntervalSince1970: 1000), read: false),
             ],
             accountId: accountId
@@ -150,17 +168,45 @@ struct PrivateMessageStoreTests {
         }
 
         let unread = Self.view(messageId: 1, creator: alice, recipient: me, content: "hello", published: Date(timeIntervalSince1970: 1000), read: false)
-        try await appDatabase.upsertPrivateMessages(views: [unread], accountId: accountId)
+        try await appDatabase.upsertPrivateMessages([unread], accountId: accountId)
 
         // Re-import the SAME server message, now marked read with edited content.
         let readEdited = Self.view(messageId: 1, creator: alice, recipient: me, content: "hello (edited)", published: Date(timeIntervalSince1970: 1000), read: true)
-        try await appDatabase.upsertPrivateMessages(views: [readEdited], accountId: accountId)
+        try await appDatabase.upsertPrivateMessages([readEdited], accountId: accountId)
 
         let stored = appDatabase.privateMessagesSync(accountId: accountId)
         // No duplicate row for the same (accountId, serverMessageId).
         #expect(stored.count == 1)
         #expect(stored.first?.isRead == true)
         #expect(stored.first?.content == "hello (edited)")
+    }
+
+    @Test
+    func reimportNeverDowngradesReadBackToUnread() async throws {
+        // A message read locally (or already read server-side) must stay read
+        // when a later server page re-imports it as unread. On a v4 instance the
+        // per-message read is cleared only locally (the notification id needed to
+        // mark it server-side isn't carried), so the server keeps reporting it
+        // unread; without this monotonic guard the re-import would revert the read
+        // row and the DM thread would re-mark it and double-decrement the badge.
+        let appDatabase = try AppDatabase.inMemory()
+        let me = Self.person(id: PID.me, name: "me", displayName: "Me", avatar: nil)
+        let alice = Self.person(id: PID.alice, name: "alice", displayName: "Alice", avatar: nil)
+
+        let accountId = try await appDatabase.writer.write { db -> Int64 in
+            try Self.seedAccount(db, keychainId: "kc-1", ownServerPersonId: PID.me).accountId
+        }
+
+        let read = Self.view(messageId: 1, creator: alice, recipient: me, content: "hi", published: Date(timeIntervalSince1970: 1000), read: true)
+        try await appDatabase.upsertPrivateMessages([read], accountId: accountId)
+
+        // Server page still reports it unread (v4 never learned about the read).
+        let staleUnread = Self.view(messageId: 1, creator: alice, recipient: me, content: "hi", published: Date(timeIntervalSince1970: 1000), read: false)
+        try await appDatabase.upsertPrivateMessages([staleUnread], accountId: accountId)
+
+        let stored = appDatabase.privateMessagesSync(accountId: accountId)
+        #expect(stored.count == 1)
+        #expect(stored.first?.isRead == true)
     }
 
     // MARK: - observeConversations
@@ -178,7 +224,7 @@ struct PrivateMessageStoreTests {
 
         let t = { (s: TimeInterval) in Date(timeIntervalSince1970: s) }
         try await appDatabase.upsertPrivateMessages(
-            views: [
+            [
                 // Thread with Alice: one incoming unread + one outgoing (sent by me).
                 Self.view(messageId: 1, creator: alice, recipient: me, content: "alice 1", published: t(1000), read: true),
                 Self.view(messageId: 2, creator: me, recipient: alice, content: "me to alice", published: t(1100), read: true),
@@ -223,7 +269,7 @@ struct PrivateMessageStoreTests {
         }
 
         try await appDatabase.upsertPrivateMessages(
-            views: [
+            [
                 Self.view(messageId: 1, creator: alice, recipient: me, content: "incoming", published: Date(timeIntervalSince1970: 1000), read: false),
             ],
             accountId: accountId
@@ -251,7 +297,7 @@ struct PrivateMessageStoreTests {
 
         let t = { (s: TimeInterval) in Date(timeIntervalSince1970: s) }
         try await appDatabase.upsertPrivateMessages(
-            views: [
+            [
                 // Alice thread, out of order on insert.
                 Self.view(messageId: 3, creator: me, recipient: alice, content: "me reply", published: t(1200), read: true),
                 Self.view(messageId: 1, creator: alice, recipient: me, content: "alice first", published: t(1000), read: true),

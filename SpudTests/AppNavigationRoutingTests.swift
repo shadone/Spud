@@ -13,7 +13,7 @@ import Testing
 struct AppNavigationRoutingTests {
     private final class SpyNavigator: AppNavigating {
         var calls: [String] = []
-        func selectFeed(listing: Components.Schemas.ListingType, sort: Components.Schemas.SortType?) {
+        func selectFeed(listing: Lemmy.ListingType, sort: Lemmy.SortType?) {
             calls.append("feed:\(listing):\(String(describing: sort))")
         }
 
@@ -33,7 +33,7 @@ struct AppNavigationRoutingTests {
             calls.append("community:\(communityName)")
         }
 
-        func selectSavedFeed(sort: Components.Schemas.SortType?) {
+        func selectSavedFeed(sort: Lemmy.SortType?) {
             calls.append("savedFeed:\(String(describing: sort))")
         }
     }

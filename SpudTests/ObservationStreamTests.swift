@@ -49,11 +49,7 @@ struct ObservationStreamTests {
 
         #expect(
             values == [0, 42],
-            Comment(
-                rawValue: "Expected the initial value followed by the post-change value; "
-                    + "got \(values). A single element means the observation was "
-                    + "never re-registered."
-            )
+            "Expected the initial value followed by the post-change value; got \(values). A single element means the observation was never re-registered."
         )
     }
 }

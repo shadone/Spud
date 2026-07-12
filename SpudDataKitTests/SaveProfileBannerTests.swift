@@ -12,19 +12,21 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-/// Stubs `ClientTransport` for the `saveUserSettings` operation, recording
-/// the `banner` field from the request body so the test can assert that
-/// `saveProfile(banner:)` threads the value all the way to the API call.
-/// The `getSite` that `saveProfile` issues after a successful save is
-/// allowed to fail; `saveProfile` catches that error silently.
+/// Stubs `ClientTransport` for the `saveUserSettings` operation, recording every
+/// `banner` value seen across the request bodies. A banner removal issues its own
+/// `saveUserSettings(banner: "")` (the v3 neutral remove path) ahead of the
+/// text-settings call, so a single "most recent body" capture isn't enough — the
+/// test asserts that one of the calls cleared the banner. The `getSite` that
+/// `saveProfile` issues after a successful save is allowed to fail; `saveProfile`
+/// catches that error silently.
 private final class StubSaveUserSettingsTransport: ClientTransport, @unchecked Sendable {
-    /// The `banner` value decoded from the most recent `saveUserSettings` body.
-    /// `nil` means the operation hasn't been called yet, or `banner` was absent.
-    private(set) var capturedBanner: String?
+    /// Every `banner` value decoded from a `saveUserSettings` body, in order.
+    /// A `""` entry is a banner clear; an absent/null banner is a `nil` entry.
+    private(set) var bannerValues: [String?] = []
     private(set) var didCallSaveUserSettings = false
 
     func send(
-        _ request: HTTPRequest,
+        _: HTTPRequest,
         body: HTTPBody?,
         baseURL _: URL,
         operationID: String
@@ -40,9 +42,7 @@ private final class StubSaveUserSettingsTransport: ClientTransport, @unchecked S
                     bytes.append(contentsOf: chunk)
                 }
                 if let json = try? JSONSerialization.jsonObject(with: bytes) as? [String: Any] {
-                    // `banner` is present and non-null only when a real URL was passed;
-                    // nil/absent means "leave unchanged" on the Lemmy side.
-                    capturedBanner = json["banner"] as? String
+                    bannerValues.append(json["banner"] as? String)
                 }
             }
 
@@ -86,6 +86,7 @@ struct SaveProfileBannerTests {
                 name: "alice",
                 actorId: "https://example.com/u/alice"
             )
+            person.bannerUrl = "https://x/old-banner.jpg"
             try person.insert(db)
 
             var account = AccountRecord(
@@ -113,11 +114,12 @@ struct SaveProfileBannerTests {
 
     // MARK: - Tests
 
-    /// `saveProfile(banner:)` must (a) pass `banner` through to
-    /// `api.saveUserSettings(banner:)` and (b) mirror the value onto the
-    /// local `PersonRecord.bannerUrl` via `setAccountProfile(banner:)`.
+    /// Removing the banner both pushes the removal to the server (on v3 a
+    /// `saveUserSettings` carrying `banner: ""`) and clears the local
+    /// `PersonRecord.bannerUrl` mirror, so the Account tab header reverts
+    /// immediately.
     @Test
-    func saveProfile_banner_passedToApiAndMirroredLocally() async throws {
+    func saveProfile_removedBanner_pushesRemovalAndClearsMirror() async throws {
         try await seedAccountWithPerson()
 
         let transport = StubSaveUserSettingsTransport()
@@ -130,8 +132,8 @@ struct SaveProfileBannerTests {
         try await service.saveProfile(
             displayName: nil,
             bio: nil,
-            avatar: nil,
-            banner: "https://x/b.jpg",
+            avatar: .unchanged,
+            banner: .removed,
             showScores: false,
             showBotAccounts: false,
             showReadPosts: false,
@@ -139,18 +141,18 @@ struct SaveProfileBannerTests {
             defaultListingType: .All
         )
 
-        // (a) The API received the banner URL.
+        // (a) The removal reached the server as a banner cleared to "".
         #expect(transport.didCallSaveUserSettings, "saveProfile should call saveUserSettings")
         #expect(
-            transport.capturedBanner == "https://x/b.jpg",
-            "saveProfile must forward banner to saveUserSettings"
+            transport.bannerValues.contains(""),
+            "a banner removal should push saveUserSettings with banner cleared to an empty string"
         )
 
-        // (b) The local PersonRecord was updated.
+        // (b) The local PersonRecord banner mirror was cleared.
         let person = try await fetchPerson()
         #expect(
-            person?.bannerUrl == "https://x/b.jpg",
-            "saveProfile must mirror banner onto PersonRecord.bannerUrl"
+            person?.bannerUrl == nil,
+            "saveProfile must clear PersonRecord.bannerUrl on a banner removal"
         )
     }
 }

@@ -46,7 +46,7 @@ struct PostSortMenuTests {
     @Test
     func allCoversEveryApiSortTypeExactlyOnce() {
         #expect(
-            Set(PostSortMenu.all) == Set(Components.Schemas.SortType.allCases),
+            Set(PostSortMenu.all) == Set(Lemmy.SortType.allCases),
             "Sort menu must expose exactly the API's SortType set"
         )
         #expect(

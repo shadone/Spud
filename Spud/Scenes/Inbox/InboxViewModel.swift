@@ -19,8 +19,6 @@ private let logger = Logger.app
 @MainActor
 @Observable
 final class InboxViewModel {
-    private static let pageLimit: Int64 = 50
-
     // MARK: Observable state
 
     var scope: InboxScope = .replies
@@ -32,6 +30,18 @@ final class InboxViewModel {
     private(set) var replies: [InboxReplyItem] = []
     private(set) var mentions: [InboxMentionItem] = []
     private(set) var conversations: [InboxConversation] = []
+
+    /// True while a `loadMore()` fetch for the conversation list is in flight, so
+    /// the Messages scope's view controller can show a bottom spinner and gate
+    /// re-entrancy. Only meaningful for the Messages scope (replies/mentions are
+    /// single-page).
+    private(set) var isLoadingMore = false
+
+    /// True once the account's OVERALL private-message list is exhausted (its next
+    /// cursor went nil) — there are no more conversations to page in. The view
+    /// controller stops triggering `loadMore()` once this is set. Re-seeded to
+    /// false by a pull-to-refresh (`refreshMessages()` restarts paging from page 1).
+    private(set) var reachedEnd = false
 
     /// True when the home instance's API doesn't support the inbox endpoints
     /// (Lemmy 1.0's v3 compat shim - see `InstanceCapability.inbox`). `loadAll()`
@@ -56,7 +66,7 @@ final class InboxViewModel {
     @ObservationIgnored
     private let unreadCountService: UnreadCountServiceType
     @ObservationIgnored
-    private let myPersonId: Components.Schemas.PersonID?
+    private let myPersonId: Lemmy.PersonID?
     /// Resolved once at init from `accountKeychainId`; nil when signed out / the
     /// account row isn't present. The conversation-list observations need it.
     @ObservationIgnored
@@ -93,13 +103,22 @@ final class InboxViewModel {
     @ObservationIgnored
     private var messagesObservationsStarted = false
 
+    /// Next-page cursor for the account's OVERALL private-message list — the same
+    /// list `DMThreadViewModel.loadOlder` walks (Lemmy has no dedicated
+    /// conversation-list cursor). Seeded by `refreshMessages()` from page 1 and
+    /// advanced by `loadMore()`. nil means either not yet loaded or the whole list
+    /// is exhausted (`reachedEnd` then reflects which). `@ObservationIgnored`: the
+    /// view controller binds `reachedEnd` / `isLoadingMore`, never the raw cursor.
+    @ObservationIgnored
+    private var nextPMCursor: String?
+
     // MARK: Functions
 
     init(
         accountScope: AccountScope,
         appDatabase: AppDatabase,
         isSignedIn: Bool,
-        myPersonId: Components.Schemas.PersonID?,
+        myPersonId: Lemmy.PersonID?,
         alertService: AlertServiceType,
         unreadCountService: UnreadCountServiceType
     ) {
@@ -169,9 +188,9 @@ final class InboxViewModel {
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                let response = try await service.fetchReplies(unreadOnly: false, page: 1)
+                let notifications = try await service.fetchReplies(unreadOnly: false, page: 1)
                 if Task.isCancelled { return }
-                replies = response.replies.map(InboxReplyItem.init)
+                replies = notifications.map(InboxReplyItem.init)
                 repliesPhase = .loaded
             } catch {
                 if Task.isCancelled { return }
@@ -191,9 +210,9 @@ final class InboxViewModel {
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                let response = try await service.fetchMentions(unreadOnly: false, page: 1)
+                let notifications = try await service.fetchMentions(unreadOnly: false, page: 1)
                 if Task.isCancelled { return }
-                mentions = response.mentions.map(InboxMentionItem.init)
+                mentions = notifications.map(InboxMentionItem.init)
                 mentionsPhase = .loaded
             } catch {
                 if Task.isCancelled { return }
@@ -246,12 +265,20 @@ final class InboxViewModel {
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                let response = try await service.fetchPrivateMessages(unreadOnly: false, page: 1)
+                // Load page 1 of the overall private-message list.
+                let (messages, nextCursor) = try await service.fetchPrivateMessages(unreadOnly: false, pageCursor: nil)
                 if Task.isCancelled { return }
+                // Re-seed conversation-list pagination from the top. A refresh
+                // resets the cursor to page 1; already-persisted conversations stay
+                // (upsert-only), and a subsequent `loadMore` re-walks pages
+                // idempotently. Set before the upsert so the cursor is live the
+                // instant the list has its first page.
+                nextPMCursor = nextCursor
+                reachedEnd = (nextCursor == nil)
                 // upsert-only (a server page is partial), so nothing is deleted;
                 // the conversation observation re-emits with the imported rows.
                 try await appDatabase.upsertPrivateMessages(
-                    views: response.private_messages,
+                    messages,
                     accountId: accountId
                 )
             } catch {
@@ -265,6 +292,45 @@ final class InboxViewModel {
                     messagesPhase = .error
                 }
             }
+        }
+    }
+
+    /// Page in the next batch of conversations by advancing through the account's
+    /// OVERALL private-message list. Called by the view controller on scroll near
+    /// the bottom of the Messages list (standard infinite scroll).
+    ///
+    /// Unlike the DM thread's `loadOlder`, no bounded per-correspondent walk is
+    /// needed: the conversation list shows EVERY correspondent, so any persisted
+    /// page advances it — a single fetch + upsert per call, after which the
+    /// `observeConversations` stream re-emits with the newly-imported rows. The
+    /// store is upsert-only, so a re-fetched page is idempotent (no duplicates).
+    ///
+    /// Guarded against re-entrancy (`isLoadingMore`), an exhausted list
+    /// (`reachedEnd`), and a not-yet-seeded cursor (page 1 hasn't loaded). A failed
+    /// fetch is non-fatal — the already-shown conversations keep rendering and the
+    /// scroll affordance stays available for another attempt. `@MainActor`-correct:
+    /// only `Sendable` values (the fetched page and the cursor string) cross the
+    /// actor boundary to the Lemmy service and the database writer.
+    func loadMore() async {
+        guard isSignedIn, let accountId else { return }
+        guard !isLoadingMore, !reachedEnd, let cursor = nextPMCursor else { return }
+
+        isLoadingMore = true
+        defer { isLoadingMore = false }
+
+        let service = accountScope.lemmyService
+        do {
+            let (messages, nextCursor) = try await service.fetchPrivateMessages(
+                unreadOnly: false,
+                pageCursor: cursor
+            )
+            // upsert-only (a server page is partial), so nothing is deleted; the
+            // conversation observation re-emits with the imported rows.
+            try await appDatabase.upsertPrivateMessages(messages, accountId: accountId)
+            nextPMCursor = nextCursor
+            reachedEnd = (nextCursor == nil)
+        } catch {
+            logger.error("Load more conversations failed: \(String(describing: error), privacy: .public)")
         }
     }
 
@@ -340,14 +406,14 @@ final class InboxViewModel {
     func markReplyRead(_ item: InboxReplyItem) {
         guard isSignedIn, !item.isRead else { return }
         // Optimistic local update.
-        replies = replies.map { $0.commentReplyId == item.commentReplyId ? $0.markedRead() : $0 }
+        replies = replies.map { $0.readReference == item.readReference ? $0.markedRead() : $0 }
         unreadCountService.decrement(replies: 1, mentions: 0, privateMessages: 0)
 
         Task { [weak self] in
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                try await service.markReplyAsRead(commentReplyId: item.commentReplyId, read: true)
+                try await service.markInboxItemAsRead(reference: item.readReference, read: true)
             } catch {
                 logger.error("Mark reply read failed: \(String(describing: error), privacy: .public)")
                 alertService.handle(error, for: .markInboxItemRead)
@@ -357,14 +423,14 @@ final class InboxViewModel {
 
     func markMentionRead(_ item: InboxMentionItem) {
         guard isSignedIn, !item.isRead else { return }
-        mentions = mentions.map { $0.personMentionId == item.personMentionId ? $0.markedRead() : $0 }
+        mentions = mentions.map { $0.readReference == item.readReference ? $0.markedRead() : $0 }
         unreadCountService.decrement(replies: 0, mentions: 1, privateMessages: 0)
 
         Task { [weak self] in
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                try await service.markMentionAsRead(personMentionId: item.personMentionId, read: true)
+                try await service.markInboxItemAsRead(reference: item.readReference, read: true)
             } catch {
                 logger.error("Mark mention read failed: \(String(describing: error), privacy: .public)")
                 alertService.handle(error, for: .markInboxItemRead)

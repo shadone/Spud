@@ -12,13 +12,10 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias PersonView = Components.Schemas.PersonView
-private typealias PersonAggregates = Components.Schemas.PersonAggregates
-private typealias PostView = Components.Schemas.PostView
-private typealias CommentView = Components.Schemas.CommentView
-private typealias Community = Components.Schemas.Community
-private typealias GetPersonDetailsResponse = Components.Schemas.GetPersonDetailsResponse
+/// The `GetPersonDetailsResponse` payload (person_view + posts + comments) is fed
+/// to a stub transport, so it is built on the generated v3 shapes via the `V3`
+/// fakes; the neutral endpoint decodes the JSON and maps it to `PersonContentPage`.
+private typealias GetPersonDetailsResponse = Lemmy.GetPersonDetailsResponse
 
 /// Stub `ClientTransport` returning a canned `GetPersonDetailsResponse` for the
 /// `getPersonDetails` operation, recording whether it was invoked.
@@ -86,37 +83,38 @@ struct LemmyServiceFetchPersonContentTests {
         }
     }
 
-    private func personView(id: Components.Schemas.PersonID, name: String, posts: Int64, comments: Int64) -> PersonView {
-        var person = Person.fake
-        person.id = id
-        person.name = name
-        person.display_name = "Alice"
-        return PersonView(
-            person: person,
-            counts: PersonAggregates(person_id: id, post_count: posts, comment_count: comments),
-            is_admin: false
-        )
+    /// A generated v3 `PersonView` for the `GetPersonDetailsResponse.person_view`
+    /// stub payload; v3 keeps `post_count`/`comment_count` on `PersonAggregates`,
+    /// which the neutral mirror folds onto the person row.
+    private func personView(id: Lemmy.PersonID, name: String, posts: Int64, comments: Int64) -> Components.Schemas.PersonView {
+        V3.personView(person: V3.person(id: id, name: name), postCount: posts, commentCount: comments)
     }
 
     @Test
     func fetchPersonContentReturnsPostsAndCommentsAndMirrorsProfile() async throws {
         try await seedAccountAndSite()
 
-        let person = Person.fake
-        let community = Community.fake
-        let post = Components.Schemas.Post.fake(creator: person, community: community)
-        let postView = PostView.fake(post: post, creator: person, community: community)
-        let comment = Components.Schemas.Comment.fake(id: 11, post: post, creator: person, parent: .root)
-        let commentView = CommentView.fake(
+        let personId: Lemmy.PersonID = 1
+        let postId: Lemmy.PostID = 1
+        let commentId: Lemmy.CommentID = 11
+
+        // The person's post + comment feed the generated `GetPersonDetailsResponse`,
+        // so they are built on the generated v3 shapes; the post/comment creator id
+        // matches the person_view id so the later profile mirror overwrites the same
+        // (initially bare) person row.
+        let post = V3.post(id: postId, creatorId: personId)
+        let postView = V3.postView(post: post, creator: V3.person(id: personId), community: V3.community())
+        let comment = V3.comment(id: commentId, postId: postId, creatorId: personId)
+        let commentView = V3.commentView(
             comment: comment,
-            creator: person,
+            creator: V3.person(id: personId),
             post: post,
-            community: community,
+            community: V3.community(),
             childCount: 0
         )
 
         let response = GetPersonDetailsResponse(
-            person_view: personView(id: person.id, name: "alice", posts: 42, comments: 7),
+            person_view: personView(id: personId, name: "alice", posts: 42, comments: 7),
             site: nil,
             comments: [commentView],
             posts: [postView],
@@ -131,7 +129,7 @@ struct LemmyServiceFetchPersonContentTests {
         )
 
         let result = try await service.fetchPersonContent(
-            serverPersonId: person.id,
+            serverPersonId: personId,
             sort: .New,
             page: 1
         )
@@ -140,9 +138,9 @@ struct LemmyServiceFetchPersonContentTests {
 
         // Transient content is returned directly.
         #expect(result.posts.count == 1)
-        #expect(result.posts.first?.post.id == post.id)
+        #expect(result.posts.first?.post.id == Int64(postId))
         #expect(result.comments.count == 1)
-        #expect(result.comments.first?.comment.id == 11)
+        #expect(result.comments.first?.comment.id == Int64(commentId))
 
         // The profile (person_view) is mirrored into the database.
         let mirrored = try await appDatabase.writer.read { db -> (String?, Int64, Int64)? in
@@ -150,7 +148,7 @@ struct LemmyServiceFetchPersonContentTests {
                     SELECT name, numberOfPosts, numberOfComments
                     FROM person
                     WHERE personId = ?
-                """, arguments: [Int64(person.id)])
+                """, arguments: [Int64(personId)])
             else { return nil }
             return (row["name"], row["numberOfPosts"], row["numberOfComments"])
         }
@@ -165,7 +163,7 @@ struct LemmyServiceFetchPersonContentTests {
         let persistedPost = try await appDatabase.writer.read { db -> String? in
             try Row.fetchOne(db, sql: """
                     SELECT title FROM post WHERE postId = ?
-                """, arguments: [Int64(post.id)])?["title"]
+                """, arguments: [Int64(postId)])?["title"]
         }
         #expect(persistedPost == "Hello world", "the person's post should be persisted")
     }
@@ -174,9 +172,9 @@ struct LemmyServiceFetchPersonContentTests {
     func fetchPersonContentReturnsEmptyListsWhenNoContent() async throws {
         try await seedAccountAndSite()
 
-        let person = Person.fake
+        let personId: Lemmy.PersonID = 1
         let response = GetPersonDetailsResponse(
-            person_view: personView(id: person.id, name: "alice", posts: 0, comments: 0),
+            person_view: personView(id: personId, name: "alice", posts: 0, comments: 0),
             site: nil,
             comments: [],
             posts: [],
@@ -191,7 +189,7 @@ struct LemmyServiceFetchPersonContentTests {
         )
 
         let result = try await service.fetchPersonContent(
-            serverPersonId: person.id,
+            serverPersonId: personId,
             sort: .New,
             page: 1
         )

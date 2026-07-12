@@ -14,9 +14,10 @@ import UIKit
 private let logger = Logger.app
 
 /// Drives the Edit Profile editor. Seeds its editable fields from the account's
-/// own `PersonRecord` / `AccountRecord` (read synchronously at bring-up), pushes
-/// the edit to the server via `LemmyService.saveProfile`, and handles avatar
-/// changes (pick -> JPEG -> upload) against the same account's `LemmyService`.
+/// own `PersonRecord` / `AccountRecord` (read synchronously at bring-up) and
+/// pushes the edit to the server via `LemmyService.saveProfile`. A picked avatar
+/// or banner is previewed locally from the picked image (no pick-time upload) and
+/// uploaded exactly once, at save.
 @MainActor
 @Observable
 final class EditProfileViewModel {
@@ -37,7 +38,7 @@ final class EditProfileViewModel {
     var showBotAccounts: Bool
     var showReadPosts: Bool
     var showAvatars: Bool
-    var defaultListingType: Components.Schemas.ListingType
+    var defaultListingType: Lemmy.ListingType
 
     // MARK: Status
 
@@ -48,12 +49,16 @@ final class EditProfileViewModel {
     }
 
     private(set) var saveState: SaveState = .idle
-    /// True while an avatar upload is in flight (drives the avatar spinner and
-    /// disables Save so a half-uploaded avatar can't be committed).
-    private(set) var isUploadingAvatar = false
-    /// True while a banner upload is in flight (disables Save so a half-uploaded
-    /// banner can't be committed).
-    private(set) var isUploadingBanner = false
+
+    /// The locally-picked avatar image, shown in the editor preview the instant
+    /// the user picks it — no network round-trip. Nil until a pick (and cleared by
+    /// Remove Photo); while nil the existing remote ``avatarUrl`` drives the
+    /// preview. The bytes behind it upload exactly once, in ``save()``. Held on the
+    /// `@MainActor` VM so the non-`Sendable` `UIImage` never crosses an actor
+    /// boundary — only `Data` reaches `LemmyService`.
+    private(set) var pickedAvatarImage: UIImage?
+    /// The banner twin of ``pickedAvatarImage``.
+    private(set) var pickedBannerImage: UIImage?
 
     /// Emits once the save completed successfully so the host can dismiss.
     @ObservationIgnored
@@ -103,95 +108,89 @@ final class EditProfileViewModel {
         saveState == .saving
     }
 
-    /// Save is blocked while a save, an avatar upload, or a banner upload is
-    /// already in flight.
+    /// Save is blocked only while a save is already in flight. Picking an avatar or
+    /// banner no longer performs a pick-time upload, so there is no per-image
+    /// in-flight state to gate on — the single upload happens inside ``save()``.
     var canSave: Bool {
-        !isSaving && !isUploadingAvatar && !isUploadingBanner
+        !isSaving
     }
 
     /// Whether the avatar was changed in this session (set or removed). Tracked so
-    /// `saveProfile` only sends the `avatar` field when the user actually touched
-    /// it (passing `nil` otherwise leaves the server value unchanged).
+    /// `saveProfile` only touches the avatar when the user actually edited it
+    /// (`.unchanged` otherwise leaves the server value alone).
     @ObservationIgnored
     private var avatarEdited = false
 
     /// Whether the banner was changed in this session (set or removed). Mirrors
-    /// `avatarEdited` — `saveProfile` only sends `banner` when truly edited.
+    /// `avatarEdited` — `saveProfile` only touches the banner when truly edited.
     @ObservationIgnored
     private var bannerEdited = false
 
+    /// The raw JPEG bytes (and upload filename) of the most recently picked
+    /// avatar, retained so `save()` can push them to the server via
+    /// `setAvatarNeutral`. Nil when the avatar was removed (or never set) — a
+    /// removal is `avatarEdited == true` with no pending bytes.
+    @ObservationIgnored
+    private var pendingAvatarData: Data?
+    @ObservationIgnored
+    private var pendingAvatarFileName: String?
+
+    /// The banner twin of `pendingAvatarData` / `pendingAvatarFileName`.
+    @ObservationIgnored
+    private var pendingBannerData: Data?
+    @ObservationIgnored
+    private var pendingBannerFileName: String?
+
     // MARK: Avatar
 
-    /// Uploads picked image data as the account's new avatar. Encodes to JPEG
-    /// (quality 0.85, matching the New Post composer) and uploads via the
-    /// account's `LemmyService`, then points `avatarUrl` at the uploaded image.
-    func uploadAvatar(imageData: Data) async {
+    /// Records a picked avatar for preview and save. Decodes the picked bytes,
+    /// re-encodes to JPEG (quality 0.85, matching the New Post composer), and
+    /// retains both the encoded bytes (for the single save-time upload via
+    /// `setAvatarNeutral`) and the decoded image (for the instant local preview via
+    /// ``pickedAvatarImage``). Does NOT upload — the avatar reaches the server only
+    /// in ``save()``, so a pick no longer performs a throwaway upload that orphaned
+    /// a pict-rs file every time. Un-decodable data is ignored.
+    func pickAvatar(imageData: Data) {
         guard let image = UIImage(data: imageData) else { return }
-        let jpegData = image.jpegData(compressionQuality: 0.85) ?? imageData
-        let fileName = "avatar-\(UUID().uuidString).jpg"
-
-        isUploadingAvatar = true
-        defer { isUploadingAvatar = false }
-
-        do {
-            let url = try await accountScope.lemmyService.uploadImage(
-                imageData: jpegData,
-                fileName: fileName,
-                mimeType: "image/jpeg"
-            )
-            avatarUrl = url
-            avatarEdited = true
-        } catch {
-            logger.error("Avatar upload failed: \(String(describing: error), privacy: .public)")
-            saveState = .failed(NSLocalizedString(
-                "Couldn't upload the photo. Please try again.",
-                comment: "Edit Profile avatar upload error"
-            ))
-        }
+        pickedAvatarImage = image
+        pendingAvatarData = image.jpegData(compressionQuality: 0.85) ?? imageData
+        pendingAvatarFileName = "avatar-\(UUID().uuidString).jpg"
+        avatarEdited = true
     }
 
-    /// Clears the avatar. The empty string is sent to the server on save, which
-    /// removes the avatar there too.
+    /// Clears the avatar. On save the removal is pushed to the server via
+    /// `removeAvatarNeutral`.
     func removeAvatar() {
         avatarUrl = nil
+        pickedAvatarImage = nil
         avatarEdited = true
+        pendingAvatarData = nil
+        pendingAvatarFileName = nil
     }
 
     // MARK: Banner
 
-    /// Uploads picked image data as the account's new banner. Encodes to JPEG
-    /// (quality 0.85, matching the avatar upload) and uploads via the account's
-    /// `LemmyService`, then points `bannerUrl` at the uploaded image.
-    func uploadBanner(imageData: Data) async {
+    /// Records a picked banner for preview and save — the banner twin of
+    /// ``pickAvatar(imageData:)``. Decodes and re-encodes to JPEG (quality 0.85),
+    /// retaining the bytes for the single save-time upload and the decoded image
+    /// for the instant local preview (``pickedBannerImage``). Does NOT upload; the
+    /// banner reaches the server only in ``save()``.
+    func pickBanner(imageData: Data) {
         guard let image = UIImage(data: imageData) else { return }
-        let jpegData = image.jpegData(compressionQuality: 0.85) ?? imageData
-        let fileName = "banner-\(UUID().uuidString).jpg"
-
-        isUploadingBanner = true
-        defer { isUploadingBanner = false }
-
-        do {
-            let url = try await accountScope.lemmyService.uploadImage(
-                imageData: jpegData,
-                fileName: fileName,
-                mimeType: "image/jpeg"
-            )
-            bannerUrl = url
-            bannerEdited = true
-        } catch {
-            logger.error("Banner upload failed: \(String(describing: error), privacy: .public)")
-            saveState = .failed(NSLocalizedString(
-                "Couldn't upload the banner. Please try again.",
-                comment: "Edit Profile banner upload error"
-            ))
-        }
+        pickedBannerImage = image
+        pendingBannerData = image.jpegData(compressionQuality: 0.85) ?? imageData
+        pendingBannerFileName = "banner-\(UUID().uuidString).jpg"
+        bannerEdited = true
     }
 
-    /// Clears the banner. The empty string is sent to the server on save, which
-    /// removes the banner there too.
+    /// Clears the banner. On save the removal is pushed to the server via
+    /// `removeBannerNeutral`.
     func removeBanner() {
         bannerUrl = nil
+        pickedBannerImage = nil
         bannerEdited = true
+        pendingBannerData = nil
+        pendingBannerFileName = nil
     }
 
     // MARK: Save
@@ -202,21 +201,27 @@ final class EditProfileViewModel {
         guard canSave else { return }
         saveState = .saving
 
-        // Only send the avatar/banner fields when actually changed; passing nil
-        // leaves the server value untouched. A removed image is sent as "".
-        let avatarToSend: String? = avatarEdited
-            ? (avatarUrl?.absoluteString ?? "")
-            : nil
-        let bannerToSend: String? = bannerEdited
-            ? (bannerUrl?.absoluteString ?? "")
-            : nil
+        // Only touch the avatar/banner when actually changed: `.unchanged` leaves
+        // the server value alone, `.set` pushes the retained bytes, `.removed`
+        // clears it. `canSave` already gated out an in-flight upload, so the
+        // pending bytes are settled by now.
+        let avatarEdit = Self.imageEdit(
+            edited: avatarEdited,
+            data: pendingAvatarData,
+            fileName: pendingAvatarFileName
+        )
+        let bannerEdit = Self.imageEdit(
+            edited: bannerEdited,
+            data: pendingBannerData,
+            fileName: pendingBannerFileName
+        )
 
         do {
             try await accountScope.lemmyService.saveProfile(
                 displayName: displayName,
                 bio: bio,
-                avatar: avatarToSend,
-                banner: bannerToSend,
+                avatar: avatarEdit,
+                banner: bannerEdit,
                 showScores: showScores,
                 showBotAccounts: showBotAccounts,
                 showReadPosts: showReadPosts,
@@ -232,6 +237,20 @@ final class EditProfileViewModel {
                 comment: "Edit Profile save error"
             ))
         }
+    }
+
+    /// Builds the `ProfileImageEdit` for a save from the tracked edit state: an
+    /// untouched image is `.unchanged`; a touched image with retained bytes is
+    /// `.set` (JPEG, so a fixed `image/jpeg` MIME); a touched image with no bytes
+    /// is a `.removed`.
+    private static func imageEdit(edited: Bool, data: Data?, fileName: String?) -> ProfileImageEdit {
+        guard edited else { return .unchanged }
+        guard let data else { return .removed }
+        return .set(
+            imageData: data,
+            fileName: fileName ?? "image.jpg",
+            contentType: "image/jpeg"
+        )
     }
 
     /// Clears a parked error so the alert dismisses and the form is editable

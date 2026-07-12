@@ -13,7 +13,7 @@ import Testing
 /// Integration coverage for the post-detail header's creator-host resolution.
 ///
 /// The header attribution renders "by <user>@<host>". The author's `@host` must
-/// be the author's *home* instance (the host of `person.actor_id`), not the
+/// be the author's *home* instance (the host of `person.apId`), not the
 /// observing account's instance (`person.siteId` -> site -> instance), which is
 /// always the local instance the post was fetched on.
 ///
@@ -43,14 +43,30 @@ struct PostDetailHeaderCreatorHostTests {
         }
 
         // The post's creator's home instance is beehaw.org — encoded in their
-        // federation actor_id, which differs from the observing lemmy.world site.
-        var creator = Components.Schemas.Person.fake
-        creator.actor_id = "https://beehaw.org/u/Tony"
-        creator.name = "Tony"
+        // federation apId, which differs from the observing lemmy.world site.
+        // The neutral `Person`'s stored fields are `let`, so build a fresh value
+        // with the beehaw.org home actor id rather than mutating `.fake`.
+        let creator = Lemmy.Person(
+            id: 1,
+            name: "Tony",
+            displayName: "One",
+            avatarUrl: nil,
+            bannerUrl: nil,
+            bio: nil,
+            apId: "https://beehaw.org/u/Tony",
+            matrixUserId: nil,
+            botAccount: false,
+            deleted: false,
+            local: true,
+            publishedAt: Date(timeIntervalSince1970: 1_683_349_689),
+            updatedAt: nil,
+            postCount: 0,
+            commentCount: 0
+        )
 
-        let community = Components.Schemas.Community.fake
-        let post = Components.Schemas.Post.fake(creator: creator, community: community)
-        let view = Components.Schemas.PostView.fake(post: post, creator: creator, community: community)
+        let community = Lemmy.Community.fake
+        let post = Lemmy.Post.fake(creator: creator, community: community)
+        let view = Lemmy.PostView.fake(post: post, creator: creator, community: community)
 
         let rowId = try await appDatabase.writer.write { db in
             try AppDatabase.upsertPost(from: view, accountId: accountId, siteId: siteId, in: db)

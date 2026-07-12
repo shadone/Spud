@@ -23,7 +23,7 @@ public struct AccountEditableProfile: Sendable, Equatable {
     public var showBotAccounts: Bool
     public var showReadPosts: Bool
     public var showAvatars: Bool
-    public var defaultListingType: Components.Schemas.ListingType
+    public var defaultListingType: Lemmy.ListingType
 
     public init(
         displayName: String,
@@ -35,7 +35,7 @@ public struct AccountEditableProfile: Sendable, Equatable {
         showBotAccounts: Bool,
         showReadPosts: Bool,
         showAvatars: Bool,
-        defaultListingType: Components.Schemas.ListingType
+        defaultListingType: Lemmy.ListingType
     ) {
         self.displayName = displayName
         self.bio = bio

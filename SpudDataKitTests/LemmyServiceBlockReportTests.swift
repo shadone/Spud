@@ -12,16 +12,10 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias Comment = Components.Schemas.Comment
-private typealias PersonView = Components.Schemas.PersonView
-private typealias CommunityView = Components.Schemas.CommunityView
-private typealias BlockPersonResponse = Components.Schemas.BlockPersonResponse
-private typealias BlockCommunityResponse = Components.Schemas.BlockCommunityResponse
-private typealias PostReportResponse = Components.Schemas.PostReportResponse
-private typealias CommentReportResponse = Components.Schemas.CommentReportResponse
+private typealias BlockPersonResponse = Lemmy.BlockPersonResponse
+private typealias BlockCommunityResponse = Lemmy.BlockCommunityResponse
+private typealias PostReportResponse = Lemmy.PostReportResponse
+private typealias CommentReportResponse = Lemmy.CommentReportResponse
 
 /// Stub `ClientTransport` returning canned JSON for the block / report
 /// operations, recording which operation was invoked.
@@ -125,9 +119,11 @@ struct LemmyServiceBlockReportTests {
     // MARK: Fakes
 
     private func postReportResponse() -> PostReportResponse {
-        let person = Person.fake
-        let community = Community.fake
-        let post = Post.fake(creator: person, community: community)
+        // PostReportView has no neutral equivalent; it embeds generated
+        // post/community/creator/counts, so build them all with V3 helpers.
+        let person = V3.person()
+        let community = V3.community()
+        let post = V3.post()
         return PostReportResponse(post_report_view: .init(
             post_report: .init(
                 id: 1,
@@ -156,16 +152,18 @@ struct LemmyServiceBlockReportTests {
             creator_blocked: false,
             my_vote: nil,
             unread_comments: 0,
-            counts: .fake(post: post),
+            counts: V3.postAggregates(postId: post.id),
             resolver: nil
         ))
     }
 
     private func commentReportResponse() -> CommentReportResponse {
-        let person = Person.fake
-        let community = Community.fake
-        let post = Post.fake(creator: person, community: community)
-        let comment = Comment.fake(id: 7, post: post, creator: person, parent: .root)
+        // CommentReportView has no neutral equivalent; it embeds generated
+        // comment/post/community/creator/counts, so build them all with V3.
+        let person = V3.person()
+        let community = V3.community()
+        let post = V3.post()
+        let comment = V3.comment(id: 7)
         return CommentReportResponse(comment_report_view: .init(
             comment_report: .init(
                 id: 1,
@@ -183,7 +181,7 @@ struct LemmyServiceBlockReportTests {
             community: community,
             creator: person,
             comment_creator: person,
-            counts: .fake(commentId: comment.id, childCount: 0),
+            counts: V3.commentAggregates(commentId: comment.id, childCount: 0),
             creator_banned_from_community: false,
             creator_is_moderator: false,
             creator_is_admin: false,
@@ -201,8 +199,8 @@ struct LemmyServiceBlockReportTests {
     func setBlockedPersonHitsApiAndMirrorsPerson() async throws {
         let ids = try await seedAccountAndSite()
 
-        let person = Person.fake
-        let response = BlockPersonResponse(person_view: .fake(person: person), blocked: true)
+        let person = V3.person()
+        let response = BlockPersonResponse(person_view: V3.personView(person: person), blocked: true)
         let transport = try StubBlockReportTransport(blockPerson: response)
         let service = LemmyServiceHarness.make(
             accountKeychainId: keychainId,
@@ -254,9 +252,9 @@ struct LemmyServiceBlockReportTests {
     func setBlockedCommunityHitsApiAndMirrorsCommunity() async throws {
         let ids = try await seedAccountAndSite()
 
-        let community = Community.fake
+        let community = V3.community()
         let response = BlockCommunityResponse(
-            community_view: .fake(community: community),
+            community_view: V3.communityView(community: community),
             blocked: true
         )
         let transport = try StubBlockReportTransport(blockCommunity: response)

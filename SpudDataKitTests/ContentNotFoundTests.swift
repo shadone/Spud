@@ -11,7 +11,7 @@ import Testing
 
 struct ContentNotFoundTests {
     private func serverError(_ code: String) -> LemmyApiError {
-        .serverError(Components.Schemas.ErrorResponse(error: code, message: nil))
+        .serverError(Lemmy.ErrorResponse(error: code, message: nil))
     }
 
     @Test

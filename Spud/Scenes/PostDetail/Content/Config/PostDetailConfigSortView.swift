@@ -14,7 +14,7 @@ struct PostDetailConfigSortView: View {
     let viewModel: PostDetailConfigViewModel
     @Environment(\.dismiss) private var dismiss
 
-    private let sortTypes: [Components.Schemas.CommentSortType] = [.Hot, .Top, .New, .Old, .Controversial]
+    private let sortTypes: [Lemmy.CommentSortType] = [.Hot, .Top, .New, .Old, .Controversial]
 
     var body: some View {
         List {

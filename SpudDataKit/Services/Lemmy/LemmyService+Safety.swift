@@ -15,7 +15,7 @@ private let logger = Logger.lemmyService
 /// Safety actions: block person/community, report post/comment, hide post, and read the blocked list.
 public extension LemmyService {
     func setBlocked(
-        serverPersonId: Components.Schemas.PersonID,
+        serverPersonId: Lemmy.PersonID,
         blocked: Bool
     ) async throws {
         guard !accountIsSignedOut else {
@@ -33,9 +33,9 @@ public extension LemmyService {
             personId=\(serverPersonId, privacy: .public)
             """)
 
-        let response: Components.Schemas.BlockPersonResponse
+        let view: Lemmy.PersonView
         do {
-            response = try await api.blockPerson(personID: serverPersonId, block: blocked)
+            view = try await api.blockPersonNeutral(id: Int64(serverPersonId), block: blocked)
         } catch {
             logger.error("""
                 Block person failed. personId=\(serverPersonId, privacy: .public). \
@@ -46,11 +46,11 @@ public extension LemmyService {
 
         // Mirror the refreshed author info. The server now filters this author's
         // content out of subsequent feed fetches; the caller refreshes the feed.
-        await mirrorPersonInfoToAppDatabase(view: response.person_view)
+        await mirrorPersonInfoToAppDatabase(view: view)
     }
 
     func setBlocked(
-        serverCommunityId: Components.Schemas.CommunityID,
+        serverCommunityId: Lemmy.CommunityID,
         blocked: Bool
     ) async throws {
         guard !accountIsSignedOut else {
@@ -68,9 +68,9 @@ public extension LemmyService {
             communityId=\(serverCommunityId, privacy: .public)
             """)
 
-        let response: Components.Schemas.BlockCommunityResponse
+        let view: Lemmy.CommunityView
         do {
-            response = try await api.blockCommunity(communityID: serverCommunityId, block: blocked)
+            view = try await api.blockCommunityNeutral(id: Int64(serverCommunityId), block: blocked)
         } catch {
             logger.error("""
                 Block community failed. communityId=\(serverCommunityId, privacy: .public). \
@@ -82,11 +82,11 @@ public extension LemmyService {
         // Mirror the refreshed community info. The server now filters this
         // community's content out of subsequent feed fetches; the caller
         // refreshes the feed.
-        await mirrorCommunityInfoToAppDatabase(view: response.community_view)
+        await mirrorCommunityInfoToAppDatabase(view: view)
     }
 
     internal func mirrorPersonInfoToAppDatabase(
-        view: Components.Schemas.PersonView
+        view: Lemmy.PersonView
     ) async {
         do {
             guard let (_, siteRowId) = try await accountSiteIds() else { return }
@@ -97,7 +97,7 @@ public extension LemmyService {
     }
 
     func reportPost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         reason: String
     ) async throws {
         guard !accountIsSignedOut else {
@@ -126,7 +126,7 @@ public extension LemmyService {
     }
 
     func reportComment(
-        serverCommentId: Components.Schemas.CommentID,
+        serverCommentId: Lemmy.CommentID,
         reason: String
     ) async throws {
         guard !accountIsSignedOut else {
@@ -165,7 +165,7 @@ public extension LemmyService {
 
         logger.debug("Fetch blocked list for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
 
-        let response: Components.Schemas.GetSiteResponse
+        let response: Lemmy.GetSiteResponse
         do {
             response = try await api.getSite()
         } catch {
@@ -216,16 +216,16 @@ public extension LemmyService {
     }
 
     func fetchPostInfo(
-        serverPostId: Components.Schemas.PostID
+        serverPostId: Lemmy.PostID
     ) async throws {
         logger.debug("""
             Fetch post. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Components.Schemas.GetPostResponse
+        let detail: PostDetail
         do {
-            response = try await api.getPost(id: serverPostId)
+            detail = try await api.getPostNeutral(id: Int64(serverPostId))
         } catch {
             logger.error("""
                 Fetch post failed. postId=\(serverPostId, privacy: .public). \
@@ -245,7 +245,7 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        await mirrorPostInfoToAppDatabase(view: response.post_view)
+        await mirrorPostInfoToAppDatabase(view: detail.post)
 
         guard appDatabase.postRowIdSync(
             forKeychainId: accountIdentifierForLogging,
@@ -256,15 +256,15 @@ public extension LemmyService {
             )
         }
 
-        // getPost also returns the cross-posts as full PostViews, so harvest
-        // their counters too — keeps any cross-post we already cache fresh
-        // without a separate fetch. Best-effort: a cross-post is incidental and
-        // must not affect the primary post's persistence contract above.
-        await mirrorPostViewsToAppDatabase(views: response.cross_posts)
+        // Harvest the post's cross-posts (other posts linking the same url) so
+        // their counters stay fresh without a separate fetch — restoring the v3
+        // `getPost` cross-post harvest now that `getPostNeutral` carries them on
+        // `PostDetail.crossPosts`. Best-effort; a failure is logged and skipped.
+        await mirrorPostViewsToAppDatabase(views: detail.crossPosts)
     }
 
     internal func mirrorPostInfoToAppDatabase(
-        view: Components.Schemas.PostView
+        view: Lemmy.PostView
     ) async {
         do {
             guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
@@ -284,7 +284,7 @@ public extension LemmyService {
     /// so their counters stay fresh without an extra fetch. Each is upserted
     /// like any other post; a failure is logged and the rest are skipped.
     internal func mirrorPostViewsToAppDatabase(
-        views: [Components.Schemas.PostView]
+        views: [Lemmy.PostView]
     ) async {
         guard !views.isEmpty else { return }
         do {
@@ -302,7 +302,7 @@ public extension LemmyService {
     }
 
     func hidePost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         hidden: Bool
     ) async throws {
         try await requireCapability(.hidePosts)

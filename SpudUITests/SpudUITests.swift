@@ -72,10 +72,16 @@ class SpudUITests: XCTestCase {
                 response: SBTStubResponse(fileNamed: "post-detail-1549703.json")
             )
 
+            // The neutral `getCommentsNeutral` request is
+            // `type_=All&sort=Hot&post_id=1549703` -- it no longer sends the
+            // `max_depth=8` the old client did, so the matcher keys only on the
+            // params that are actually present (a stale `max_depth=8` matcher
+            // would miss and fall through to the 500 catch-all, leaving the
+            // detail with no comments).
             _ = self.app.stubRequests(
                 matching: SBTRequestMatch(
                     url: "discuss.tchncs.de/api/v3/comment/list",
-                    query: ["post_id=1549703", "max_depth=8", "sort=Hot"],
+                    query: ["post_id=1549703", "sort=Hot"],
                     method: "GET"
                 ),
                 response: SBTStubResponse(fileNamed: "comment-list-1549703-Hot.json")
@@ -90,16 +96,20 @@ class SpudUITests: XCTestCase {
                 response: SBTStubResponse(fileNamed: "user-31989.json")
             )
 
-            // The first post's community ("Visit c/tincidunt"). Resolved by name
-            // (the qualified `tincidunt@lemmy.world`) when opening the community
-            // screen from the post context menu.
+            // The first post's community ("Visit c/tincidunt"). The neutral
+            // surface has no get-community-by-name endpoint, so opening a
+            // community resolves it by its federation actor url via
+            // `resolve_object` (`GET /api/v3/resolve_object?q=https://lemmy.world/c/tincidunt`),
+            // not the retired `GET /api/v3/community?name=tincidunt`. The stub
+            // returns a `ResolveObjectResponse` whose `community` is the
+            // tincidunt `CommunityView`.
             _ = self.app.stubRequests(
                 matching: SBTRequestMatch(
-                    url: "discuss.tchncs.de/api/v3/community",
-                    query: ["name=tincidunt"],
+                    url: "discuss.tchncs.de/api/v3/resolve_object",
+                    query: ["q=.*tincidunt"],
                     method: "GET"
                 ),
-                response: SBTStubResponse(fileNamed: "community-tincidunt.json")
+                response: SBTStubResponse(fileNamed: "resolve-object-community-tincidunt.json")
             )
         }
     }

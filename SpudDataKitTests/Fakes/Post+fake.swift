@@ -7,34 +7,49 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.Post {
+extension Lemmy.Post {
+    /// A fake neutral ``LemmyKit/Post``. v4-shaped: the vote/comment aggregates
+    /// (`score`/`upvotes`/`downvotes`/`comments`) are flattened onto the post
+    /// itself rather than living on a separate `PostAggregates` object.
     static func fake(
-        creator: Components.Schemas.Person,
-        community: Components.Schemas.Community,
-        nsfw: Bool = false
-    ) -> Components.Schemas.Post {
+        creator: Lemmy.Person,
+        community: Lemmy.Community,
+        nsfw: Bool = false,
+        id: Lemmy.PostID = 1,
+        score: Int64 = 1,
+        comments: Int64 = 0,
+        imageWidth: Int? = nil,
+        imageHeight: Int? = nil
+    ) -> Lemmy.Post {
         .init(
-            id: 1,
+            id: Int64(id),
             name: "Hello world",
-            url: nil,
             body: "Hello example world",
-            creator_id: creator.id,
-            community_id: community.id,
-            removed: false,
-            locked: false,
-            published: Date(timeIntervalSince1970: 1_685_577_784),
-            updated: nil,
-            deleted: false,
-            nsfw: nsfw,
-            embed_title: nil,
-            embed_description: nil,
-            thumbnail_url: nil,
-            ap_id: "https://example.com/post/1",
+            url: nil,
+            embedTitle: nil,
+            embedDescription: nil,
+            thumbnailUrl: nil,
+            altText: nil,
+            imageWidth: imageWidth,
+            imageHeight: imageHeight,
+            creatorId: creator.id,
+            communityId: community.id,
+            apId: "https://example.com/post/\(id)",
             local: true,
-            embed_video_url: nil,
-            language_id: 1,
-            featured_community: false,
-            featured_local: false
+            nsfw: nsfw,
+            removed: false,
+            deleted: false,
+            locked: false,
+            featuredCommunity: false,
+            featuredLocal: false,
+            languageId: 1,
+            publishedAt: Date(timeIntervalSince1970: 1_685_577_784),
+            updatedAt: nil,
+            newestCommentTimeAt: Date(timeIntervalSince1970: 1_685_577_784),
+            score: score,
+            upvotes: 1,
+            downvotes: 0,
+            comments: comments
         )
     }
 }

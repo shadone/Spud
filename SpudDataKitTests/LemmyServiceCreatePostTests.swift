@@ -12,11 +12,7 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias PostView = Components.Schemas.PostView
-private typealias PostResponse = Components.Schemas.PostResponse
+private typealias PostResponse = Lemmy.PostResponse
 
 /// Stub `ClientTransport` that returns a canned JSON response for the
 /// `createPost` operation and records whether it was ever invoked.
@@ -60,8 +56,8 @@ private final class StubCreatePostTransport: ClientTransport, @unchecked Sendabl
 @MainActor
 struct LemmyServiceCreatePostTests {
     private let keychainId = "keychain-1"
-    private let serverCommunityId: Components.Schemas.CommunityID = 1
-    private let newServerPostId: Components.Schemas.PostID = 99
+    private let serverCommunityId: Lemmy.CommunityID = 1
+    private let newServerPostId: Lemmy.PostID = 99
 
     private let appDatabase: AppDatabase
 
@@ -95,13 +91,14 @@ struct LemmyServiceCreatePostTests {
     /// Builds a canned createPost response carrying a post with a distinct
     /// server id so the mirror can be unambiguously read back.
     private func makePostResponse() -> PostResponse {
-        let person = Person.fake
-        let community = Community.fake
-        var post = Post.fake(creator: person, community: community)
+        // Generated v3 shapes: the stub transport encodes this to v3 JSON for
+        // the neutral createPost endpoint to decode and mirror. Mutable `var`
+        // fields let us stamp a distinct server id for an unambiguous read-back.
+        var post = V3.post()
         post.id = newServerPostId
         post.name = "Created from a test"
         post.ap_id = "https://example.com/post/\(newServerPostId)"
-        let postView = PostView.fake(post: post, creator: person, community: community)
+        let postView = V3.postView(post: post, creator: V3.person(), community: V3.community())
         return PostResponse(post_view: postView)
     }
 

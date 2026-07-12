@@ -6,16 +6,22 @@
 
 import Foundation
 import LemmyKit
+import SpudDataKit
 import SpudUtilKit
 
 /// A single inbox reply: someone replied to one of the account holder's posts
-/// or comments. Carries the server post id so a tap can open PostDetail, and
-/// the comment-reply id so it can be marked read.
+/// or comments. Carries the server post id so a tap can open PostDetail, and a
+/// backend-neutral read reference so it can be marked read on whichever API
+/// produced it (see `InboxItemReadReference`).
+///
+/// Built from the version-neutral `InboxCommentNotification` the service returns,
+/// so it renders identically whether the reply came from a v3 (`getReplies`) or
+/// v4 (unified notification inbox) backend.
 struct InboxReplyItem: Hashable, Identifiable {
-    let commentReplyId: Components.Schemas.CommentReplyID
-    let serverCommentId: Components.Schemas.CommentID
-    let serverPostId: Components.Schemas.PostID
-    let serverPersonId: Components.Schemas.PersonID
+    let readReference: InboxItemReadReference
+    let serverCommentId: Lemmy.CommentID
+    let serverPostId: Lemmy.PostID
+    let serverPersonId: Lemmy.PersonID
     let creatorName: String
     let content: String
     let postTitle: String
@@ -24,8 +30,8 @@ struct InboxReplyItem: Hashable, Identifiable {
     let published: Date
     var isRead: Bool
 
-    var id: Components.Schemas.CommentReplyID {
-        commentReplyId
+    var id: InboxItemReadReference {
+        readReference
     }
 
     /// Returns a copy with `isRead` set, for optimistic local updates.
@@ -35,27 +41,30 @@ struct InboxReplyItem: Hashable, Identifiable {
         return copy
     }
 
-    init(view: Components.Schemas.CommentReplyView) {
-        commentReplyId = view.comment_reply.id
-        serverCommentId = view.comment.id
-        serverPostId = view.post.id
-        serverPersonId = view.creator.id
-        creatorName = view.creator.display_name ?? view.creator.name
-        content = view.comment.content
-        postTitle = view.post.name
-        communityName = view.community.name
-        score = view.counts.score
-        published = view.comment.published
-        isRead = view.comment_reply.read
+    init(_ notification: InboxCommentNotification) {
+        readReference = notification.readReference
+        serverCommentId = notification.serverCommentId
+        serverPostId = notification.serverPostId
+        serverPersonId = notification.serverPersonId
+        creatorName = notification.creatorName
+        content = notification.content
+        postTitle = notification.postTitle
+        communityName = notification.communityName
+        score = notification.score
+        published = notification.published
+        isRead = notification.isRead
     }
 }
 
 /// A single inbox mention: someone @-mentioned the account holder in a comment.
+/// Built from the same version-neutral `InboxCommentNotification` as
+/// `InboxReplyItem`; the two differ only in which fetch (mentions vs replies)
+/// produced them.
 struct InboxMentionItem: Hashable, Identifiable {
-    let personMentionId: Components.Schemas.PersonMentionID
-    let serverCommentId: Components.Schemas.CommentID
-    let serverPostId: Components.Schemas.PostID
-    let serverPersonId: Components.Schemas.PersonID
+    let readReference: InboxItemReadReference
+    let serverCommentId: Lemmy.CommentID
+    let serverPostId: Lemmy.PostID
+    let serverPersonId: Lemmy.PersonID
     let creatorName: String
     let content: String
     let postTitle: String
@@ -64,8 +73,8 @@ struct InboxMentionItem: Hashable, Identifiable {
     let published: Date
     var isRead: Bool
 
-    var id: Components.Schemas.PersonMentionID {
-        personMentionId
+    var id: InboxItemReadReference {
+        readReference
     }
 
     /// Returns a copy with `isRead` set, for optimistic local updates.
@@ -75,18 +84,18 @@ struct InboxMentionItem: Hashable, Identifiable {
         return copy
     }
 
-    init(view: Components.Schemas.PersonMentionView) {
-        personMentionId = view.person_mention.id
-        serverCommentId = view.comment.id
-        serverPostId = view.post.id
-        serverPersonId = view.creator.id
-        creatorName = view.creator.display_name ?? view.creator.name
-        content = view.comment.content
-        postTitle = view.post.name
-        communityName = view.community.name
-        score = view.counts.score
-        published = view.comment.published
-        isRead = view.person_mention.read
+    init(_ notification: InboxCommentNotification) {
+        readReference = notification.readReference
+        serverCommentId = notification.serverCommentId
+        serverPostId = notification.serverPostId
+        serverPersonId = notification.serverPersonId
+        creatorName = notification.creatorName
+        content = notification.content
+        postTitle = notification.postTitle
+        communityName = notification.communityName
+        score = notification.score
+        published = notification.published
+        isRead = notification.isRead
     }
 }
 
@@ -115,7 +124,7 @@ enum InboxConversationPendingStatus: Hashable {
 /// id, so a synthetic pending-only row collapses into the real thread once the
 /// server copy lands. See `InboxConversationMerger`.
 struct InboxConversation: Hashable, Identifiable {
-    let correspondentId: Components.Schemas.PersonID
+    let correspondentId: Lemmy.PersonID
     let correspondentName: String
     let correspondentAvatarUrl: URL?
     /// Most-recent message in the thread (confirmed or optimistic), for the
@@ -128,7 +137,7 @@ struct InboxConversation: Hashable, Identifiable {
     /// nothing is in flight.
     let pendingStatus: InboxConversationPendingStatus?
 
-    var id: Components.Schemas.PersonID {
+    var id: Lemmy.PersonID {
         correspondentId
     }
 

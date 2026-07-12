@@ -14,11 +14,10 @@ struct LemmyServiceResolveObjectTests {
 
     @Test
     func mapsPostResponse_toPostCaseWithHomeInstance() {
-        var post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
-        post.id = 77
-        let view = Components.Schemas.PostView.fake(post: post, creator: .fake, community: .fake)
+        let post = Lemmy.Post.fake(creator: .fake, community: .fake, id: 77)
+        let view = Lemmy.PostView.fake(post: post, creator: .fake, community: .fake)
         let resolved = ResolvedLemmyObject(
-            response: Components.Schemas.ResolveObjectResponse(post: view),
+            response: .post(view),
             homeInstance: home
         )
         guard case let .post(postId, instance) = resolved else {
@@ -31,12 +30,13 @@ struct LemmyServiceResolveObjectTests {
 
     @Test
     func mapsCommunityResponse_toCommunityCaseFromActorId() {
-        var community = Components.Schemas.Community.fake
-        community.name = "technology"
-        community.actor_id = "https://beehaw.org/c/technology"
-        let view = Components.Schemas.CommunityView.fake(community: community)
+        let community = Lemmy.Community.fake(
+            name: "technology",
+            apId: "https://beehaw.org/c/technology"
+        )
+        let view = Lemmy.CommunityView.fake(community: community)
         let resolved = ResolvedLemmyObject(
-            response: Components.Schemas.ResolveObjectResponse(community: view),
+            response: .community(view),
             homeInstance: home
         )
         guard case let .community(name, instance) = resolved else {
@@ -50,7 +50,7 @@ struct LemmyServiceResolveObjectTests {
     @Test
     func emptyResponse_isUnresolved() {
         let resolved = ResolvedLemmyObject(
-            response: Components.Schemas.ResolveObjectResponse(),
+            response: nil,
             homeInstance: home
         )
         guard case .unresolved = resolved else {
@@ -61,11 +61,10 @@ struct LemmyServiceResolveObjectTests {
 
     @Test
     func mapsPersonResponse_toPersonCase() {
-        var person = Components.Schemas.Person.fake
-        person.id = 55
-        let view = Components.Schemas.PersonView.fake(person: person)
+        let person = Lemmy.Person.fake(id: 55)
+        let view = Lemmy.PersonView.fake(person: person)
         let resolved = ResolvedLemmyObject(
-            response: Components.Schemas.ResolveObjectResponse(person: view),
+            response: .person(view),
             homeInstance: home
         )
         guard case let .person(personId, instance) = resolved else {
@@ -78,15 +77,14 @@ struct LemmyServiceResolveObjectTests {
 
     @Test
     func mapsCommentResponse_toCommentCaseWithPostAndCommentIds() {
-        var post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
-        post.id = 42
-        let comment = Components.Schemas.Comment.fake(
+        let post = Lemmy.Post.fake(creator: .fake, community: .fake, id: 42)
+        let comment = Lemmy.Comment.fake(
             id: 7,
             post: post,
             creator: .fake,
             parent: .root
         )
-        let view = Components.Schemas.CommentView.fake(
+        let view = Lemmy.CommentView.fake(
             comment: comment,
             creator: .fake,
             post: post,
@@ -94,7 +92,7 @@ struct LemmyServiceResolveObjectTests {
             childCount: 0
         )
         let resolved = ResolvedLemmyObject(
-            response: Components.Schemas.ResolveObjectResponse(comment: view),
+            response: .comment(view),
             homeInstance: home
         )
         guard case let .comment(postId, commentId, instance) = resolved else {

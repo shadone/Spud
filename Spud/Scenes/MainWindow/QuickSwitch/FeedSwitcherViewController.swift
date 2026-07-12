@@ -23,7 +23,7 @@ final class FeedSwitcherViewController: UIViewController {
     var onBrowseAllCommunities: (() -> Void)?
 
     private enum FeedKind {
-        case frontpage(Components.Schemas.ListingType)
+        case frontpage(Lemmy.ListingType)
         case saved
         case downloaded
         case browseCommunities
@@ -41,7 +41,7 @@ final class FeedSwitcherViewController: UIViewController {
 
     /// Resolves the default sort applied to a freshly chosen feed. Evaluated at
     /// selection time so a changed preference is honoured.
-    private let defaultSortType: @MainActor () -> Components.Schemas.SortType
+    private let defaultSortType: @MainActor () -> Lemmy.SortType
 
     /// Count of posts saved for offline reading. The "Downloaded" row is shown
     /// only when this is > 0. Re-evaluated in `viewWillAppear` (the switcher is
@@ -65,7 +65,7 @@ final class FeedSwitcherViewController: UIViewController {
 
     init(
         currentFeedType: @escaping @MainActor () -> FeedType?,
-        defaultSortType: @escaping @MainActor () -> Components.Schemas.SortType,
+        defaultSortType: @escaping @MainActor () -> Lemmy.SortType,
         downloadedCount: @escaping @MainActor () -> Int
     ) {
         self.currentFeedType = currentFeedType

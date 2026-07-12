@@ -63,15 +63,15 @@ private final class BlockingAccountService: AccountServiceType {
         ""
     }
 
-    func defaultListingType(forAccountKeychainId _: String) -> Components.Schemas.ListingType {
+    func defaultListingType(forAccountKeychainId _: String) -> Lemmy.ListingType {
         .All
     }
 
-    func defaultSortType(forAccountKeychainId _: String) -> Components.Schemas.SortType {
+    func defaultSortType(forAccountKeychainId _: String) -> Lemmy.SortType {
         .Hot
     }
 
-    func setDefaultSortType(_: Components.Schemas.SortType, forAccountKeychainId _: String) { }
+    func setDefaultSortType(_: Lemmy.SortType, forAccountKeychainId _: String) { }
     func instanceActorId(forAccountKeychainId _: String) -> InstanceActorId? {
         nil
     }

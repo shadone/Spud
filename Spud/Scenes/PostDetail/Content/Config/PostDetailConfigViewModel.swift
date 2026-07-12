@@ -17,17 +17,17 @@ import SpudUIKit
 @Observable
 final class PostDetailConfigViewModel {
     private let preferencesService: PreferencesServiceType
-    private let onSelectSort: (Components.Schemas.CommentSortType) -> Void
+    private let onSelectSort: (Lemmy.CommentSortType) -> Void
 
     let allCommentDensities: [PostDensity] = PostDensity.allCases
 
     var commentDensity: PostDensity
-    var currentSort: Components.Schemas.CommentSortType
+    var currentSort: Lemmy.CommentSortType
 
     init(
         preferencesService: PreferencesServiceType,
-        currentSort: Components.Schemas.CommentSortType,
-        onSelectSort: @escaping (Components.Schemas.CommentSortType) -> Void
+        currentSort: Lemmy.CommentSortType,
+        onSelectSort: @escaping (Lemmy.CommentSortType) -> Void
     ) {
         self.preferencesService = preferencesService
         self.onSelectSort = onSelectSort
@@ -41,7 +41,7 @@ final class PostDetailConfigViewModel {
         Haptics.tap()
     }
 
-    func selectSort(_ value: Components.Schemas.CommentSortType) {
+    func selectSort(_ value: Lemmy.CommentSortType) {
         currentSort = value
         onSelectSort(value)
         Haptics.tap()

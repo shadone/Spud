@@ -14,7 +14,7 @@ private let logger = Logger.app
 
 /// A community the user can post to, surfaced by the community picker.
 struct NewPostCommunity: Equatable {
-    let id: Components.Schemas.CommunityID
+    let id: Lemmy.CommunityID
     /// Display name, e.g. `worldnews@lemmy.world` for a remote community or
     /// `gnome` for a local one.
     let qualifiedName: String
@@ -38,7 +38,7 @@ enum NewPostSubmissionState: Equatable {
     case submitting
     /// Submission succeeded; carries the new post's server id so the view
     /// controller can dismiss and navigate to it.
-    case finished(serverPostId: Components.Schemas.PostID)
+    case finished(serverPostId: Lemmy.PostID)
     /// Post was durably enqueued in the outbox; the view controller can dismiss
     /// and show the pending post screen. Carries the client token so the VC can
     /// locate the outbox row.
@@ -166,7 +166,7 @@ final class NewPostViewModel {
     }
 
     init(
-        serverCommunityId: Components.Schemas.CommunityID?,
+        serverCommunityId: Lemmy.CommunityID?,
         initialCommunityName: String?,
         accountScope: AccountScope,
         dependencies: Dependencies,
@@ -334,7 +334,7 @@ final class NewPostViewModel {
             // pending-post screen).
             let trimmedBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
             await accountScope.lemmyService.applyOptimisticPostEdit(
-                serverPostId: Components.Schemas.PostID(editPostServerId),
+                serverPostId: Lemmy.PostID(editPostServerId),
                 title: title,
                 body: trimmedBody.isEmpty ? nil : trimmedBody,
                 url: urlText.isEmpty ? nil : urlText,

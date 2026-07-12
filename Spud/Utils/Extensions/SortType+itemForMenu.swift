@@ -8,7 +8,7 @@ import Foundation
 import LemmyKit
 import UIKit
 
-extension Components.Schemas.SortType {
+extension Lemmy.SortType {
     struct MenuItem {
         let title: String
 

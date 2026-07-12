@@ -12,7 +12,7 @@ import SpudUtilKit
 /// A single post result. Carries the server post id so a tap can open
 /// PostDetail directly.
 struct SearchPostResult: Hashable, Identifiable {
-    let serverPostId: Components.Schemas.PostID
+    let serverPostId: Lemmy.PostID
     let title: String
     let communityName: String
     let score: Int64
@@ -21,12 +21,12 @@ struct SearchPostResult: Hashable, Identifiable {
     let thumbnailUrl: URL?
     let isNsfw: Bool
 
-    var id: Components.Schemas.PostID {
+    var id: Lemmy.PostID {
         serverPostId
     }
 
     init(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         title: String,
         communityName: String,
         score: Int64,
@@ -45,14 +45,14 @@ struct SearchPostResult: Hashable, Identifiable {
         self.isNsfw = isNsfw
     }
 
-    init(view: Components.Schemas.PostView) {
-        serverPostId = view.post.id
+    init(view: Lemmy.PostView) {
+        serverPostId = Lemmy.PostID(view.post.id)
         title = view.post.name
         communityName = view.community.name
-        score = view.counts.score
-        numberOfComments = view.counts.comments
-        published = view.post.published
-        thumbnailUrl = view.post.thumbnail_url.flatMap { URL(string: $0) }
+        score = view.post.score
+        numberOfComments = view.post.comments
+        published = view.post.publishedAt
+        thumbnailUrl = view.post.thumbnailUrl.flatMap { URL(string: $0) }
         isNsfw = view.post.nsfw
     }
 }
@@ -61,31 +61,31 @@ struct SearchPostResult: Hashable, Identifiable {
 /// can open the Community screen, and the server id + subscribed state so the
 /// inline subscribe button can call `setSubscribed`.
 struct SearchCommunityResult: Hashable, Identifiable {
-    let serverCommunityId: Components.Schemas.CommunityID
+    let serverCommunityId: Lemmy.CommunityID
     let name: String
     let qualifiedName: String
     let instance: InstanceActorId
     let subscribersText: String
     let iconUrl: URL?
-    let subscribed: Components.Schemas.SubscribedType
+    let followState: FollowState
     let isNsfw: Bool
 
-    var id: Components.Schemas.CommunityID {
+    var id: Lemmy.CommunityID {
         serverCommunityId
     }
 
     var isSubscribed: Bool {
-        subscribed == .Subscribed
+        followState == .accepted
     }
 
     init(
-        serverCommunityId: Components.Schemas.CommunityID,
+        serverCommunityId: Lemmy.CommunityID,
         name: String,
         qualifiedName: String,
         instance: InstanceActorId,
         subscribersText: String,
         iconUrl: URL?,
-        subscribed: Components.Schemas.SubscribedType,
+        followState: FollowState,
         isNsfw: Bool
     ) {
         self.serverCommunityId = serverCommunityId
@@ -94,25 +94,25 @@ struct SearchCommunityResult: Hashable, Identifiable {
         self.instance = instance
         self.subscribersText = subscribersText
         self.iconUrl = iconUrl
-        self.subscribed = subscribed
+        self.followState = followState
         self.isNsfw = isNsfw
     }
 
-    init?(view: Components.Schemas.CommunityView) {
+    init?(view: Lemmy.CommunityView) {
         let community = view.community
         guard
-            let actorUrl = URL(string: community.actor_id),
+            let actorUrl = URL(string: community.apId),
             let instance = InstanceActorId(from: actorUrl)
         else {
             return nil
         }
-        serverCommunityId = community.id
+        serverCommunityId = Lemmy.CommunityID(community.id)
         name = community.name
         qualifiedName = "!\(community.name)@\(instance.hostWithPort)"
         self.instance = instance
-        subscribersText = "\(view.counts.subscribers)"
-        iconUrl = community.icon.flatMap { URL(string: $0) }
-        subscribed = view.subscribed
+        subscribersText = "\(community.subscribers)"
+        iconUrl = community.iconUrl.flatMap { URL(string: $0) }
+        followState = view.followState
         isNsfw = community.nsfw
     }
 }
@@ -120,18 +120,18 @@ struct SearchCommunityResult: Hashable, Identifiable {
 /// A single user result. Carries the server person id + home instance so a tap
 /// can open the Person screen.
 struct SearchUserResult: Hashable, Identifiable {
-    let serverPersonId: Components.Schemas.PersonID
+    let serverPersonId: Lemmy.PersonID
     let name: String
     let qualifiedName: String
     let instance: InstanceActorId
     let avatarUrl: URL?
 
-    var id: Components.Schemas.PersonID {
+    var id: Lemmy.PersonID {
         serverPersonId
     }
 
     init(
-        serverPersonId: Components.Schemas.PersonID,
+        serverPersonId: Lemmy.PersonID,
         name: String,
         qualifiedName: String,
         instance: InstanceActorId,
@@ -144,40 +144,40 @@ struct SearchUserResult: Hashable, Identifiable {
         self.avatarUrl = avatarUrl
     }
 
-    init?(view: Components.Schemas.PersonView) {
+    init?(view: Lemmy.PersonView) {
         let person = view.person
         guard
-            let actorUrl = URL(string: person.actor_id),
+            let actorUrl = URL(string: person.apId),
             let instance = InstanceActorId(from: actorUrl)
         else {
             return nil
         }
-        serverPersonId = person.id
-        name = person.display_name ?? person.name
+        serverPersonId = Lemmy.PersonID(person.id)
+        name = person.displayName ?? person.name
         qualifiedName = "@\(person.name)@\(instance.hostWithPort)"
         self.instance = instance
-        avatarUrl = person.avatar.flatMap { URL(string: $0) }
+        avatarUrl = person.avatarUrl.flatMap { URL(string: $0) }
     }
 }
 
 /// A single comment result. Carries the parent post id so a tap can open the
 /// post containing the comment.
 struct SearchCommentResult: Hashable, Identifiable {
-    let serverCommentId: Components.Schemas.CommentID
-    let serverPostId: Components.Schemas.PostID
+    let serverCommentId: Lemmy.CommentID
+    let serverPostId: Lemmy.PostID
     let content: String
     let postTitle: String
     let creatorName: String
     let score: Int64
     let published: Date
 
-    var id: Components.Schemas.CommentID {
+    var id: Lemmy.CommentID {
         serverCommentId
     }
 
     init(
-        serverCommentId: Components.Schemas.CommentID,
-        serverPostId: Components.Schemas.PostID,
+        serverCommentId: Lemmy.CommentID,
+        serverPostId: Lemmy.PostID,
         content: String,
         postTitle: String,
         creatorName: String,
@@ -193,14 +193,14 @@ struct SearchCommentResult: Hashable, Identifiable {
         self.published = published
     }
 
-    init(view: Components.Schemas.CommentView) {
-        serverCommentId = view.comment.id
-        serverPostId = view.post.id
+    init(view: Lemmy.CommentView) {
+        serverCommentId = Lemmy.CommentID(view.comment.id)
+        serverPostId = Lemmy.PostID(view.post.id)
         content = view.comment.content
         postTitle = view.post.name
-        creatorName = view.creator.display_name ?? view.creator.name
-        score = view.counts.score
-        published = view.comment.published
+        creatorName = view.creator.displayName ?? view.creator.name
+        score = view.comment.score
+        published = view.comment.publishedAt
     }
 }
 
@@ -266,10 +266,10 @@ struct SearchResults {
 
     init() { }
 
-    init(response: Components.Schemas.SearchResponse) {
+    init(response: LemmyKit.SearchResults) {
         posts = response.posts.map(SearchPostResult.init)
         communities = response.communities.compactMap(SearchCommunityResult.init)
-        users = response.users.compactMap(SearchUserResult.init)
+        users = response.persons.compactMap(SearchUserResult.init)
         comments = response.comments.map(SearchCommentResult.init)
     }
 

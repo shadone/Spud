@@ -7,12 +7,12 @@
 import Foundation
 import LemmyKit
 
-extension Components.Schemas.LoginResponse {
+extension Lemmy.LoginResponse {
     static func fake(
         jwt: String? = nil,
         registrationCreated: Bool = false,
         verifyEmailSent: Bool = false
-    ) -> Components.Schemas.LoginResponse {
+    ) -> Lemmy.LoginResponse {
         .init(
             jwt: jwt,
             registration_created: registrationCreated,

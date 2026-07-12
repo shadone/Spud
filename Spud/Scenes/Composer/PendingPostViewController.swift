@@ -38,7 +38,7 @@ final class PendingPostViewController: UIViewController {
     /// Invoked once the queued post has been accepted by the server, carrying the
     /// real post id so the presenter can replace this pending screen with the
     /// real post detail.
-    var onResolvedPost: ((Components.Schemas.PostID) -> Void)?
+    var onResolvedPost: ((Lemmy.PostID) -> Void)?
 
     /// Invoked when the user discards the pending post. The presenter owns the
     /// dismissal so it can restore the correct navigation state on both iPhone
@@ -274,7 +274,7 @@ final class PendingPostViewController: UIViewController {
                 guard success.clientToken == clientToken else { continue }
                 guard let serverPostId = success.serverPostId else { continue }
                 resolved = true
-                onResolvedPost?(Components.Schemas.PostID(serverPostId))
+                onResolvedPost?(Lemmy.PostID(serverPostId))
                 break
             }
         })

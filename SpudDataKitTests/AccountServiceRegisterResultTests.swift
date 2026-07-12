@@ -16,13 +16,13 @@ import Testing
 struct AccountServiceRegisterResultTests {
     @Test
     func jwtPresentMapsToLoggedIn() {
-        let response = Components.Schemas.LoginResponse.fake(jwt: "a.jwt.token")
+        let response = Lemmy.LoginResponse.fake(jwt: "a.jwt.token")
         #expect(AccountServiceRegisterResult(response: response) == .loggedIn)
     }
 
     @Test
     func jwtPresentTakesPrecedenceOverPendingFlags() {
-        let response = Components.Schemas.LoginResponse.fake(
+        let response = Lemmy.LoginResponse.fake(
             jwt: "a.jwt.token",
             registrationCreated: true,
             verifyEmailSent: true
@@ -32,7 +32,7 @@ struct AccountServiceRegisterResultTests {
 
     @Test
     func verifyEmailSentMapsToVerifyEmail() {
-        let response = Components.Schemas.LoginResponse.fake(
+        let response = Lemmy.LoginResponse.fake(
             jwt: nil,
             registrationCreated: true,
             verifyEmailSent: true
@@ -42,7 +42,7 @@ struct AccountServiceRegisterResultTests {
 
     @Test
     func registrationCreatedWithoutEmailMapsToApplicationPending() {
-        let response = Components.Schemas.LoginResponse.fake(
+        let response = Lemmy.LoginResponse.fake(
             jwt: nil,
             registrationCreated: true,
             verifyEmailSent: false
@@ -52,7 +52,7 @@ struct AccountServiceRegisterResultTests {
 
     @Test
     func noJwtNoFlagsMapsToPending() {
-        let response = Components.Schemas.LoginResponse.fake(
+        let response = Lemmy.LoginResponse.fake(
             jwt: nil,
             registrationCreated: false,
             verifyEmailSent: false

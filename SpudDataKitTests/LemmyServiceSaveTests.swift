@@ -12,14 +12,9 @@ import OpenAPIRuntime
 import Testing
 @testable import SpudDataKit
 
-private typealias Person = Components.Schemas.Person
-private typealias Community = Components.Schemas.Community
-private typealias Post = Components.Schemas.Post
-private typealias Comment = Components.Schemas.Comment
-private typealias PostView = Components.Schemas.PostView
-private typealias CommentView = Components.Schemas.CommentView
-private typealias PostResponse = Components.Schemas.PostResponse
-private typealias CommentResponse = Components.Schemas.CommentResponse
+private typealias PostView = Lemmy.PostView
+private typealias PostResponse = Lemmy.PostResponse
+private typealias CommentResponse = Lemmy.CommentResponse
 
 /// Stub `ClientTransport` that returns canned JSON for the `savePost` /
 /// `saveComment` operations and records whether each was invoked.
@@ -80,7 +75,7 @@ private final class StubSaveTransport: ClientTransport, @unchecked Sendable {
 @MainActor
 struct LemmyServiceSaveTests {
     private let keychainId = "keychain-1"
-    private let serverPostId: Components.Schemas.PostID = 1
+    private let serverPostId: Lemmy.PostID = 1
 
     private let appDatabase: AppDatabase
 
@@ -130,11 +125,14 @@ struct LemmyServiceSaveTests {
     func setSavedPostMirrorsSavedFlagIntoDatabase() async throws {
         try await seedAccountSiteAndPost()
 
-        // The confirmed view returned by the server carries saved = true.
-        let person = Person.fake
-        let community = Community.fake
-        let post = Post.fake(creator: person, community: community)
-        var savedPostView = PostView.fake(post: post, creator: person, community: community)
+        // The confirmed view returned by the server is a *generated* v3 PostView
+        // (the stub transport encodes it to v3 JSON for the neutral endpoint to
+        // decode), so it carries the flat `saved` flag we flip to true.
+        var savedPostView = V3.postView(
+            post: V3.post(),
+            creator: V3.person(),
+            community: V3.community()
+        )
         savedPostView.saved = true
         let response = PostResponse(post_view: savedPostView)
 
@@ -191,22 +189,14 @@ struct LemmyServiceSaveTests {
     func setSavedCommentMirrorsSavedFlagIntoDatabase() async throws {
         try await seedAccountSiteAndPost()
 
-        let serverCommentId: Components.Schemas.CommentID = 42
-        let person = Person.fake
-        let community = Community.fake
-        let post = Post.fake(creator: person, community: community)
-        let comment = Comment.fake(
-            id: serverCommentId,
-            post: post,
-            creator: person,
-            parent: .root
-        )
-        var savedCommentView = CommentView.fake(
-            comment: comment,
-            creator: person,
-            post: post,
-            community: community,
-            childCount: 0
+        let serverCommentId: Lemmy.CommentID = 42
+        // Generated v3 CommentView (encoded to v3 JSON by the stub transport),
+        // so the flat `saved` flag is settable.
+        var savedCommentView = V3.commentView(
+            comment: V3.comment(id: serverCommentId),
+            creator: V3.person(),
+            post: V3.post(),
+            community: V3.community()
         )
         savedCommentView.saved = true
         let response = CommentResponse(comment_view: savedCommentView, recipient_ids: [])

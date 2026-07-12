@@ -121,7 +121,7 @@ public extension LemmyService {
     }
 
     func applyOptimisticPostEdit(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         title: String,
         body: String?,
         url: String?,
@@ -156,7 +156,7 @@ public extension LemmyService {
     }
 
     func markAsRead(
-        serverPostId: Components.Schemas.PostID
+        serverPostId: Lemmy.PostID
     ) async throws {
         guard await instanceCapabilities().can(.markPostsRead) else {
             // Read tracking is locally owned by postInteraction (lastOpenedAt);
@@ -170,9 +170,10 @@ public extension LemmyService {
             postId=\(serverPostId, privacy: .public)
             """)
 
-        let response: Components.Schemas.SuccessResponse
         do {
-            response = try await api.markPostAsRead(postIDs: [serverPostId], read: true)
+            // The neutral `markPostAsReadNeutral` returns Void and throws on
+            // failure, so a clean return is success (no `success` flag to inspect).
+            try await api.markPostAsReadNeutral(id: Int64(serverPostId), read: true)
         } catch {
             logger.error("""
                 Mark post as read failed. postId=\(serverPostId, privacy: .public). \
@@ -183,20 +184,18 @@ public extension LemmyService {
 
         logger.debug("""
             Mark post as read complete. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-            postId=\(serverPostId, privacy: .public) success=\(response.success, privacy: .public)
+            postId=\(serverPostId, privacy: .public)
             """)
 
-        if response.success {
-            do {
-                guard let (accountRowId, _) = try await accountSiteIds() else { return }
-                try await appDatabase.setPostIsRead(
-                    accountId: accountRowId,
-                    serverPostId: Int64(serverPostId),
-                    isRead: true
-                )
-            } catch {
-                logger.error("AppDatabase setPostIsRead failed: \(String(describing: error), privacy: .public)")
-            }
+        do {
+            guard let (accountRowId, _) = try await accountSiteIds() else { return }
+            try await appDatabase.setPostIsRead(
+                accountId: accountRowId,
+                serverPostId: Int64(serverPostId),
+                isRead: true
+            )
+        } catch {
+            logger.error("AppDatabase setPostIsRead failed: \(String(describing: error), privacy: .public)")
         }
     }
 }

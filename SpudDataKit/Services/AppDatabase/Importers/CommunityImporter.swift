@@ -16,7 +16,7 @@ extension AppDatabase {
     /// community row id.
     @discardableResult
     public func upsertCommunity(
-        from model: Components.Schemas.Community,
+        from model: Lemmy.Community,
         accountId: Int64
     ) async throws -> Int64 {
         try await writer.write { db in
@@ -38,14 +38,14 @@ extension AppDatabase {
     /// the authoritative state separately via `upsertCommunity`.
     public func setFollowedCommunities(
         accountId: Int64,
-        follows: [Components.Schemas.CommunityFollowerView],
+        follows: [Lemmy.Community],
         respectsPendingOutbox: Bool = true
     ) async throws {
         try await writer.write { db in
             var communityRowIds: [Int64] = []
             for follow in follows {
                 let id = try Self.upsertCommunity(
-                    from: follow.community,
+                    from: follow,
                     accountId: accountId,
                     in: db
                 )
@@ -105,7 +105,7 @@ extension AppDatabase {
     /// the confirmed server state through.
     @discardableResult
     public func upsertCommunity(
-        from view: Components.Schemas.CommunityView,
+        from view: Lemmy.CommunityView,
         accountId: Int64,
         respectsPendingOutbox: Bool = true
     ) async throws -> Int64 {
@@ -120,7 +120,7 @@ extension AppDatabase {
     }
 
     static func upsertCommunity(
-        from model: Components.Schemas.Community,
+        from model: Lemmy.Community,
         accountId: Int64,
         in db: Database
     ) throws -> Int64 {
@@ -148,7 +148,7 @@ extension AppDatabase {
     }
 
     static func upsertCommunity(
-        from view: Components.Schemas.CommunityView,
+        from view: Lemmy.CommunityView,
         accountId: Int64,
         respectsPendingOutbox: Bool = true,
         in db: Database
@@ -200,7 +200,7 @@ extension AppDatabase {
             try Self.syncFollowedCommunityJunction(
                 accountId: accountId,
                 communityRowId: communityRowId,
-                subscribed: view.subscribed,
+                followState: view.followState,
                 in: db
             )
         }
@@ -209,15 +209,16 @@ extension AppDatabase {
     }
 
     /// Inserts or removes the `accountFollowedCommunity` junction row so the
-    /// followed-communities observation reflects `subscribed`. Pending counts
-    /// as followed (the user has requested subscription).
+    /// followed-communities observation reflects `followState`. Pending (and the
+    /// v4-only approval-required) counts as followed (the user has requested
+    /// subscription); denied and not-following do not.
     static func syncFollowedCommunityJunction(
         accountId: Int64,
         communityRowId: Int64,
-        subscribed: Components.Schemas.SubscribedType,
+        followState: FollowState,
         in db: Database
     ) throws {
-        let isFollowed = subscribed != .NotSubscribed
+        let isFollowed = CommunitySubscribedState(followState: followState).isSubscribed
         if isFollowed {
             let junction = AccountFollowedCommunityRecord(
                 accountId: accountId,
@@ -233,35 +234,42 @@ extension AppDatabase {
     }
 
     static func apply(
-        model: Components.Schemas.Community,
+        model: Lemmy.Community,
         to record: inout CommunityRecord,
         now: Date
     ) {
         record.name = model.name
         record.title = model.title
-        record.descriptionText = model.description
-        record.actorId = model.actor_id
-        record.iconUrl = model.icon
-        record.bannerUrl = model.banner
-        record.isHidden = model.hidden
+        // v4 renamed the community's short `description` to `sidebar`; the neutral
+        // Community carries only `sidebar`, which the local `descriptionText`
+        // column mirrors.
+        record.descriptionText = model.sidebar
+        record.actorId = model.apId
+        record.iconUrl = model.iconUrl
+        record.bannerUrl = model.bannerUrl
+        // v4 replaced v3's `hidden: Bool` with a richer `visibility`; anything
+        // other than public reads as hidden for the local filter flag.
+        record.isHidden = model.visibility != ._public
         record.isLocal = model.local
         record.isNsfw = model.nsfw
-        record.isPostingRestrictedToMods = model.posting_restricted_to_mods
+        record.isPostingRestrictedToMods = model.postingRestrictedToMods
         record.isRemoved = model.removed
-        record.communityCreatedDate = model.published
-        record.communityUpdatedDate = model.updated
+        record.communityCreatedDate = model.publishedAt
+        record.communityUpdatedDate = model.updatedAt
         record.updatedAt = now
     }
 
-    /// Applies the view-level fields (subscribed state + counts) that a bare
-    /// `Community` model doesn't carry.
+    /// Applies the view-level fields (subscribed state + counts). The neutral
+    /// surface flattens the counts onto the `Community` itself (v3 kept them on a
+    /// separate `counts` aggregate), and the account's follow relationship is the
+    /// derived `followState`.
     static func apply(
-        view: Components.Schemas.CommunityView,
+        view: Lemmy.CommunityView,
         to record: inout CommunityRecord
     ) {
-        record.subscribedState = view.subscribed.rawValue
-        record.numberOfSubscribers = view.counts.subscribers
-        record.numberOfPosts = view.counts.posts
-        record.numberOfComments = view.counts.comments
+        record.subscribedState = CommunitySubscribedState(followState: view.followState).rawValue
+        record.numberOfSubscribers = view.community.subscribers
+        record.numberOfPosts = view.community.posts
+        record.numberOfComments = view.community.comments
     }
 }

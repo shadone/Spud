@@ -18,8 +18,8 @@ public enum OutboxKind: String, Codable, Sendable {
     case delete
     /// Subscribe to or unsubscribe from a community. Targets the `community`
     /// entity. Idempotent: re-sending the same `follow` value is safe. Its
-    /// optimistic projection is 3-valued (see the subscribe baseline codec on
-    /// ``CommunitySubscribedState``) even though the desired state is a Bool.
+    /// optimistic projection carries the full ``CommunitySubscribedState`` (see
+    /// its subscribe baseline codec) even though the desired state is a Bool.
     case subscribe
 }
 

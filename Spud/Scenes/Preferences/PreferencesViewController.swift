@@ -33,7 +33,7 @@ class PreferencesViewController: UIViewController {
     private var externalLinkTask: Task<Void, Never>?
 
     init(
-        defaultPostSortType: Components.Schemas.SortType,
+        defaultPostSortType: Lemmy.SortType,
         accountKeychainId: String,
         dependencies: Dependencies
     ) {

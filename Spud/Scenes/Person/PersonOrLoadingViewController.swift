@@ -42,7 +42,7 @@ class PersonOrLoadingViewController: UIViewController {
         }
     }
 
-    private let serverPersonId: Components.Schemas.PersonID
+    private let serverPersonId: Lemmy.PersonID
     private let instance: InstanceActorId
     private let accountKeychainId: String
     private var currentViewController: UIViewController?
@@ -50,7 +50,7 @@ class PersonOrLoadingViewController: UIViewController {
     // MARK: - Functions
 
     init(
-        personId: Components.Schemas.PersonID,
+        personId: Lemmy.PersonID,
         instance: InstanceActorId,
         accountKeychainId: String,
         dependencies: Dependencies

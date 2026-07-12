@@ -38,7 +38,17 @@ final class DMThreadViewModel {
     private(set) var bubbles: [DMBubbleItem] = []
     private(set) var phase: InboxPhase = .loading
 
-    let correspondentId: Components.Schemas.PersonID
+    /// True while a `loadOlder()` fetch loop is in flight, so the view controller
+    /// can show a spinner in place of the "Load earlier" button and gate
+    /// re-entrancy.
+    private(set) var isLoadingOlder = false
+
+    /// True once the OVERALL private-message list is exhausted (its next cursor
+    /// went nil) — there is no earlier history left to fetch. The view controller
+    /// hides the "Load earlier" affordance when this is set.
+    private(set) var reachedHistoryStart = false
+
+    let correspondentId: Lemmy.PersonID
     let correspondentName: String
 
     // MARK: Private
@@ -82,14 +92,35 @@ final class DMThreadViewModel {
     @ObservationIgnored
     private let dedupWindow: TimeInterval = 120
 
+    // MARK: Load-earlier pagination
+
+    /// Next-page cursor for the OVERALL private-message list (Lemmy has no
+    /// per-conversation history endpoint — see `loadOlder()`). Seeded by
+    /// `refresh()` from the first page and advanced by `loadOlder()`. nil means
+    /// either not yet loaded or the whole list is exhausted (`reachedHistoryStart`
+    /// then reflects which). `@ObservationIgnored`: the view controller binds
+    /// `reachedHistoryStart`/`isLoadingOlder`, never the raw cursor.
+    @ObservationIgnored
+    private var nextPMCursor: String?
+
+    /// Cap on how many OVERALL pages a single `loadOlder()` invocation walks
+    /// forward looking for at least one message belonging to THIS thread. One
+    /// overall page can contain zero messages for this correspondent, so we page
+    /// ahead — but bounded, so a correspondent whose messages are all far down the
+    /// shared history doesn't drain the entire inbox in one tap. When the cap is
+    /// hit without exhausting the cursor, the affordance stays available so the
+    /// user can continue.
+    @ObservationIgnored
+    private let loadOlderPageCap = 5
+
     // MARK: Functions
 
     init(
         accountScope: AccountScope,
         appDatabase: AppDatabase,
-        correspondentId: Components.Schemas.PersonID,
+        correspondentId: Lemmy.PersonID,
         correspondentName: String,
-        myPersonId: Components.Schemas.PersonID?,
+        myPersonId: Lemmy.PersonID?,
         alertService: AlertServiceType,
         unreadCountService: UnreadCountServiceType
     ) {
@@ -174,12 +205,20 @@ final class DMThreadViewModel {
             guard let self else { return }
             let service = accountScope.lemmyService
             do {
-                let response = try await service.fetchPrivateMessages(unreadOnly: false, page: 1)
+                // Load the first page of the OVERALL private-message list.
+                let (messages, nextCursor) = try await service.fetchPrivateMessages(unreadOnly: false, pageCursor: nil)
                 if Task.isCancelled { return }
+                // Seed load-earlier pagination from the first page. A refresh
+                // re-seeds the cursor to the top of the list; already-persisted
+                // older messages stay (upsert-only), and a subsequent `loadOlder`
+                // re-walks pages idempotently. Set before the upsert so the cursor
+                // is live the instant the thread has its first page.
+                nextPMCursor = nextCursor
+                reachedHistoryStart = (nextCursor == nil)
                 // Import the whole page; the read layer filters to this thread.
                 // upsert-only (a server page is partial), so nothing is deleted.
                 try await appDatabase.upsertPrivateMessages(
-                    views: response.private_messages,
+                    messages,
                     accountId: accountId
                 )
                 if markRead { await markCorrespondentMessagesRead() }
@@ -194,6 +233,92 @@ final class DMThreadViewModel {
                 }
             }
         }
+    }
+
+    /// Fetch older private-message history and persist it, so this thread's
+    /// `observeMessages` stream surfaces the newly-available older messages
+    /// (the UI is driven by the observation, not this fetch's result directly).
+    ///
+    /// Lemmy has no per-conversation history endpoint: `fetchPrivateMessages`
+    /// pages the OVERALL private-message list (v3 flat all-conversations list with
+    /// a synthesized cursor; v4 the native notification cursor). A single overall
+    /// page can hold zero messages for THIS correspondent, so this walks forward —
+    /// bounded by `loadOlderPageCap` — until it persists at least one older
+    /// message for this thread, the cursor exhausts, or the cap is hit. Because
+    /// the store is upsert-only, re-walking already-seen pages is idempotent (no
+    /// duplicate rows) and the importer's monotonic `isRead` guard keeps
+    /// locally-read dots from reverting.
+    ///
+    /// v4 caveat: the neutral notification cursor carries INCOMING history only,
+    /// so your OWN older sent messages authored on another device aren't
+    /// recoverable through this path (see the private-messages feature doc).
+    ///
+    /// `@MainActor`-correct: only `Sendable` values (the fetched
+    /// `IncomingPrivateMessage` page and the cursor string) cross the actor
+    /// boundary to the Lemmy service and the database writer.
+    func loadOlder() async {
+        guard let accountId else { return }
+        // Guard re-entrancy, an exhausted list, and a missing cursor (the thread
+        // hasn't loaded its first page yet).
+        guard !isLoadingOlder, !reachedHistoryStart, let startCursor = nextPMCursor else { return }
+
+        isLoadingOlder = true
+        defer { isLoadingOlder = false }
+
+        let service = accountScope.lemmyService
+        let correspondentServerPersonId = Int64(correspondentId)
+        var cursor: String? = startCursor
+        var pagesFetched = 0
+
+        while pagesFetched < loadOlderPageCap {
+            let page: (messages: [IncomingPrivateMessage], nextCursor: String?)
+            do {
+                page = try await service.fetchPrivateMessages(unreadOnly: false, pageCursor: cursor)
+            } catch {
+                // Non-fatal: the already-shown history keeps rendering, and the
+                // affordance stays available for another attempt.
+                logger.error("DM thread load-older fetch failed: \(String(describing: error), privacy: .public)")
+                return
+            }
+            pagesFetched += 1
+
+            do {
+                try await appDatabase.upsertPrivateMessages(page.messages, accountId: accountId)
+            } catch {
+                logger.error("DM thread load-older persist failed: \(String(describing: error), privacy: .public)")
+                return
+            }
+
+            // Advance the shared cursor and record exhaustion for the affordance.
+            nextPMCursor = page.nextCursor
+            reachedHistoryStart = (page.nextCursor == nil)
+
+            // Stop as soon as this page yielded at least one message for THIS
+            // thread (older content is now persisted and will surface via the
+            // observation), or the overall list is exhausted.
+            let yieldedForThisThread = page.messages.contains { message in
+                belongsToThisThread(message, correspondentServerPersonId: correspondentServerPersonId)
+            }
+            if yieldedForThisThread || page.nextCursor == nil {
+                return
+            }
+            cursor = page.nextCursor
+        }
+        // Cap hit without exhausting the list: `reachedHistoryStart` stays false,
+        // so the affordance remains available for the user to continue paging.
+    }
+
+    /// True when `message` was exchanged with this thread's correspondent — the
+    /// correspondent is a participant (creator or recipient) of the message.
+    /// Mirrors `observeMessages`' thread filter; drives the bounded page-forward
+    /// in `loadOlder()`.
+    private func belongsToThisThread(
+        _ message: IncomingPrivateMessage,
+        correspondentServerPersonId: Int64
+    ) -> Bool {
+        let pm = message.view.privateMessage
+        return Int64(pm.creatorId) == correspondentServerPersonId
+            || Int64(pm.recipientId) == correspondentServerPersonId
     }
 
     /// Marks unread incoming messages read when the thread opens (also invoked by
@@ -220,7 +345,7 @@ final class DMThreadViewModel {
         for message in unread {
             do {
                 try await service.markPrivateMessageAsRead(
-                    privateMessageId: Components.Schemas.PrivateMessageID(message.serverMessageId),
+                    privateMessageId: Lemmy.PrivateMessageID(message.serverMessageId),
                     read: true
                 )
                 // Reflect the read state in the persisted store so the

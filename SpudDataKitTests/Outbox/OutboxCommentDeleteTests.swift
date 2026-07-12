@@ -164,14 +164,14 @@ struct OutboxCommentDeleteTests {
 
         // Simulate a background refresh returning the old server state
         // (deleted=false). The guard preserves the optimistic delete.
-        let post = Components.Schemas.Post.fake(creator: .fake, community: .fake)
-        let staleComment = Components.Schemas.Comment.fake(
-            id: Components.Schemas.CommentID(7),
+        let post = Lemmy.Post.fake(creator: .fake, community: .fake)
+        let staleComment = Lemmy.Comment.fake(
+            id: Lemmy.CommentID(7),
             post: post,
             creator: .fake,
             parent: .root
         )
-        let staleView = Components.Schemas.CommentView.fake(
+        let staleView = Lemmy.CommentView.fake(
             comment: staleComment,
             creator: .fake,
             post: post,

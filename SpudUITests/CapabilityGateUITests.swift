@@ -7,10 +7,11 @@
 import SBTUITestTunnelClient
 import XCTest
 
-/// End-to-end regression coverage for the capability-gating chain built on
-/// this branch: a stubbed `getSite` reporting Lemmy version "1.0.0" flows
-/// through site import -> `SiteRecord.version` -> `InstanceCapabilities` ->
-/// the Inbox tab's gated `UIContentUnavailableConfiguration` (Task 7).
+/// End-to-end regression guard that the capability gating has been RETIRED for
+/// the inbox: a stubbed `getSite` reporting Lemmy version "1.0.0" flows through
+/// site import -> `SiteRecord.version` -> `InstanceCapabilities` -> the Inbox
+/// tab, which now resolves `.can(.inbox) == true` (Spud speaks native v4), so the
+/// gated `UIContentUnavailableConfiguration` must NOT appear.
 ///
 /// ## Why this proves the whole chain, not just the UI
 ///
@@ -18,13 +19,14 @@ import XCTest
 /// `InstanceCapabilities` directly), this test never touches
 /// `InstanceCapabilities` or `AccountScope` - it only stubs the network
 /// response for `GET /api/v3/site` and drives the real app. The gated title
-/// appearing is only possible if: the stub decoded (every required
-/// `GetSiteResponse` field is present - the fixture is derived from the same
-/// shape as `GetSiteResponse+fake.swift`, with only `version` changed to
-/// "1.0.0"), `SiteImporter.upsertSite` wrote `SiteRecord.version`,
-/// `AccountService.instanceCapabilities` parsed it into a Lemmy 1.x
-/// `LemmyVersion`, and `InboxViewModel.loadAll()` read `.can(.inbox) ==
-/// false` from the live `AccountScope`.
+/// staying absent, even after that stub is imported, exercises the full chain:
+/// the stub decoded (every required `GetSiteResponse` field is present - the
+/// fixture is derived from the same shape as `GetSiteResponse+fake.swift`, with
+/// only `version` changed to "1.0.0"), `SiteImporter.upsertSite` wrote
+/// `SiteRecord.version`, `AccountService.instanceCapabilities` parsed it into a
+/// Lemmy 1.x `LemmyVersion`, and `InboxViewModel.loadAll()` read `.can(.inbox) ==
+/// true` from the live `AccountScope` — proving the version table no longer
+/// gates.
 ///
 /// ## Timing
 ///
@@ -105,16 +107,23 @@ class CapabilityGateUITests: XCTestCase {
         print("### Network requests intercepted during the test:\n\(allRequestUrls)")
     }
 
-    /// A Lemmy 1.0 home instance gates the Inbox tab: the tab stays reachable
-    /// but shows "Inbox isn't available yet" (Task 7's explain-don't-hide
-    /// design) instead of replies/mentions/messages, and the compose button
-    /// (only ever shown ungated, in the Messages scope) never appears.
-    func test_gatedInbox_onLemmy1_0Instance() {
+    /// A Lemmy 1.0 home instance NO LONGER gates the Inbox tab: now that Spud
+    /// speaks native v4, the previously-gated inbox is available, so the
+    /// "Inbox isn't available yet" explain-don't-hide title must never appear —
+    /// even after the stubbed 1.0.0 `getSite` version is imported.
+    ///
+    /// This is the end-to-end regression guard against re-introducing the gate:
+    /// the same chain the old test relied on (getSite -> SiteRecord.version ->
+    /// InstanceCapabilities -> InboxViewModel.loadAll) now resolves to
+    /// `.can(.inbox) == true`, so the inbox loads its normal content/error state
+    /// (the v4 notification fetch hits the catch-all 500 stub) rather than the
+    /// gated title.
+    func test_inboxNotGated_onLemmy1_0Instance() {
         let postsTab = app.buttons["Posts"].firstMatch
         XCTAssertTrue(postsTab.waitForExistence(timeout: 15), "App should land signed-in on the Posts tab")
 
         let inboxTab = app.buttons["Inbox"].firstMatch
-        XCTAssertTrue(inboxTab.waitForExistence(timeout: 5), "Inbox tab should be reachable even when gated")
+        XCTAssertTrue(inboxTab.waitForExistence(timeout: 5), "Inbox tab should be reachable")
 
         // Query any element type (not just staticTexts): `UIContentUnavailableView`
         // is a system view whose exact accessibility-tree shape (single label vs.
@@ -123,30 +132,19 @@ class CapabilityGateUITests: XCTestCase {
             .matching(NSPredicate(format: "label CONTAINS %@", "Inbox isn't available yet"))
             .firstMatch
 
-        // Poll by leaving and returning to the Inbox tab: each return fires
-        // `viewWillAppear` -> `InboxViewModel.loadAll()`, which re-reads
-        // capabilities live. The scheduler's background `getSite` fetch (which
-        // imports the stubbed "1.0.0" version) lands asynchronously ~10s after
-        // launch, so a single tap right after launch can race it - retrying for
-        // up to 30s comfortably covers that delay without a blind sleep.
-        var gated = false
-        let deadline = Date().addingTimeInterval(30)
+        // Give the scheduler's background `getSite` fetch (which imports the
+        // stubbed "1.0.0" version) ample time to land — it fires asynchronously
+        // ~10s after launch — while repeatedly returning to the Inbox tab so each
+        // `viewWillAppear` re-reads capabilities live. The gated title must never
+        // appear across the whole window.
+        let deadline = Date().addingTimeInterval(20)
         while Date() < deadline {
             inboxTab.tap()
-            if gatedTitle.waitForExistence(timeout: 3) {
-                gated = true
-                break
-            }
+            XCTAssertFalse(
+                gatedTitle.waitForExistence(timeout: 3),
+                "Inbox must not gate on a Lemmy 1.0 instance now that Spud speaks native v4"
+            )
             postsTab.tap()
         }
-        XCTAssertTrue(
-            gated,
-            "Inbox should show the capability-gate title once the stubbed 1.0.0 getSite response is imported"
-        )
-
-        XCTAssertFalse(
-            app.buttons["New message"].exists,
-            "The compose button must not appear while the Inbox is gated"
-        )
     }
 }

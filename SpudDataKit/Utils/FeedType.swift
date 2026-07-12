@@ -10,14 +10,14 @@ import SpudUtilKit
 
 public enum FeedType: Equatable, Sendable {
     case frontpage(
-        listingType: Components.Schemas.ListingType,
-        sortType: Components.Schemas.SortType
+        listingType: Lemmy.ListingType,
+        sortType: Lemmy.SortType
     )
 
     case community(
         communityName: String,
         instance: InstanceActorId,
-        sortType: Components.Schemas.SortType
+        sortType: Lemmy.SortType
     )
 
     /// The logged-in account's saved posts. Requires authentication; the
@@ -25,7 +25,7 @@ public enum FeedType: Equatable, Sendable {
     /// is inherently per-account (the server scopes saved posts to the
     /// authenticated user).
     case saved(
-        sortType: Components.Schemas.SortType
+        sortType: Lemmy.SortType
     )
 
     /// The posts this account saved for OFFLINE reading (the offline downloader
@@ -36,10 +36,10 @@ public enum FeedType: Equatable, Sendable {
     /// for UI parity (the switcher / sort control); the rows are always ordered
     /// by `downloadedAt DESC`, so it does not affect the query.
     case downloaded(
-        sortType: Components.Schemas.SortType
+        sortType: Lemmy.SortType
     )
 
-    public var sortType: Components.Schemas.SortType {
+    public var sortType: Lemmy.SortType {
         switch self {
         case let .frontpage(_, sortType),
              let .community(_, _, sortType),
@@ -50,8 +50,8 @@ public enum FeedType: Equatable, Sendable {
     }
 
     init?(
-        sortType: Components.Schemas.SortType?,
-        frontpageListingType: Components.Schemas.ListingType?,
+        sortType: Lemmy.SortType?,
+        frontpageListingType: Lemmy.ListingType?,
         communityName: String?,
         communityInstanceActorId: InstanceActorId?,
         savedOnly: Bool = false

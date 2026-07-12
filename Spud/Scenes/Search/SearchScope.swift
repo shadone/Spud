@@ -35,7 +35,7 @@ enum SearchScope: Int, CaseIterable {
 
     /// The Lemmy federated `SearchType` for this scope, or `nil` for client-side
     /// scopes (`.instances`) that Lemmy has no search type for.
-    var searchType: Components.Schemas.SearchType? {
+    var searchType: Lemmy.SearchType? {
         switch self {
         case .posts: .Posts
         case .communities: .Communities

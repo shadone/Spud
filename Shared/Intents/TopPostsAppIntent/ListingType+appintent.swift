@@ -8,7 +8,7 @@ import Foundation
 import LemmyKit
 
 @available(iOS 16.0, *)
-extension Components.Schemas.ListingType {
+extension Lemmy.ListingType {
     init(from value: IntentFeedTypeAppEnum) {
         switch value {
         case .all:

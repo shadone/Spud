@@ -44,14 +44,14 @@ struct OutboxFailureClassTests {
 
     @Test
     func serverErrorIsPermanent() {
-        let errorResponse = Components.Schemas.ErrorResponse(error: "couldnt_like_post", message: nil)
+        let errorResponse = Lemmy.ErrorResponse(error: "couldnt_like_post", message: nil)
         let error = LemmyApiError.serverError(errorResponse)
         #expect(OutboxFailureClass.classify(error, isOnline: true) == .permanent)
     }
 
     @Test
     func rateLimitServerErrorIsTransient() {
-        let errorResponse = Components.Schemas.ErrorResponse(error: "rate_limit_error", message: nil)
+        let errorResponse = Lemmy.ErrorResponse(error: "rate_limit_error", message: nil)
         let error = LemmyApiError.serverError(errorResponse)
         #expect(OutboxFailureClass.classify(error, isOnline: true) == .transient)
     }

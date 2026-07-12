@@ -6,9 +6,10 @@
 
 import Foundation
 import LemmyKit
+import SpudDataKit
 
 /// The transient comments for a person, decoded from one page of a
-/// `GetPersonDetailsResponse`. Reuses the `SearchCommentResult` value type (and
+/// `PersonContentPage`. Reuses the `SearchCommentResult` value type (and
 /// thus the comment-with-context cell) since the rendering is identical. Like
 /// search results these are a snapshot of the requested page rather than rows
 /// in a persistent feed; a tap navigates by the server-side ids.
@@ -22,7 +23,7 @@ struct PersonContent {
 
     init() { }
 
-    init(response: Components.Schemas.GetPersonDetailsResponse) {
+    init(response: PersonContentPage) {
         comments = response.comments.map(SearchCommentResult.init)
     }
 }

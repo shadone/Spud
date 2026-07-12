@@ -74,7 +74,7 @@ class PersonLoadingViewController: UIViewController {
 
     // MARK: Private
 
-    private let serverPersonId: Components.Schemas.PersonID
+    private let serverPersonId: Lemmy.PersonID
     private let instance: InstanceActorId
     private let accountKeychainId: String
     private var observationTask: Task<Void, Never>?
@@ -82,7 +82,7 @@ class PersonLoadingViewController: UIViewController {
     // MARK: - Functions
 
     init(
-        serverPersonId: Components.Schemas.PersonID,
+        serverPersonId: Lemmy.PersonID,
         instance: InstanceActorId,
         accountKeychainId: String,
         dependencies: Dependencies

@@ -91,11 +91,11 @@ final class PreferencesViewModel {
         )
     }
 
-    let allPostSortTypes: [Components.Schemas.SortType]
-    let allCommentSortTypes: [Components.Schemas.CommentSortType]
+    let allPostSortTypes: [Lemmy.SortType]
+    let allCommentSortTypes: [Lemmy.CommentSortType]
 
-    var defaultPostSortType: Components.Schemas.SortType
-    var defaultCommentSortType: Components.Schemas.CommentSortType
+    var defaultPostSortType: Lemmy.SortType
+    var defaultCommentSortType: Lemmy.CommentSortType
 
     var openExternalLink: Preferences.OpenExternalLink
     var openExternalLinkInSafariVCReaderMode: Bool
@@ -174,15 +174,15 @@ final class PreferencesViewModel {
     private var preferenceObservationTasks: [Task<Void, Never>] = []
 
     init(
-        defaultPostSortType initialDefaultPostSortType: Components.Schemas.SortType,
+        defaultPostSortType initialDefaultPostSortType: Lemmy.SortType,
         accountKeychainId: String,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
         self.accountKeychainId = accountKeychainId
 
-        allPostSortTypes = Components.Schemas.SortType.allCases
-        allCommentSortTypes = Components.Schemas.CommentSortType.allCases
+        allPostSortTypes = Lemmy.SortType.allCases
+        allCommentSortTypes = Lemmy.CommentSortType.allCases
 
         defaultPostSortType = initialDefaultPostSortType
         defaultCommentSortType = dependencies.preferencesService.defaultCommentSortType
@@ -378,8 +378,8 @@ final class PreferencesViewModel {
         externalLinkRequestedContinuation = AsyncStream<URL>.makeStream().continuation
         externalLinkRequested = AsyncStream { _ in }
 
-        allPostSortTypes = Components.Schemas.SortType.allCases
-        allCommentSortTypes = Components.Schemas.CommentSortType.allCases
+        allPostSortTypes = Lemmy.SortType.allCases
+        allCommentSortTypes = Lemmy.CommentSortType.allCases
         defaultPostSortType = .Hot
         defaultCommentSortType = .Hot
         openExternalLink = .safariViewController
@@ -424,7 +424,7 @@ final class PreferencesViewModel {
         externalLinkRequestedContinuation.yield(url)
     }
 
-    func updateDefaultPostSort(_ value: Components.Schemas.SortType) {
+    func updateDefaultPostSort(_ value: Lemmy.SortType) {
         defaultPostSortType = value
         // The default post sort is a per-account value (the getter reads it from
         // the account's stored record), so it must persist to the account store,
@@ -439,7 +439,7 @@ final class PreferencesViewModel {
         }
     }
 
-    func updateDefaultCommentSort(_ value: Components.Schemas.CommentSortType) {
+    func updateDefaultCommentSort(_ value: Lemmy.CommentSortType) {
         defaultCommentSortType = value
         preferencesService?.defaultCommentSortType = value
     }

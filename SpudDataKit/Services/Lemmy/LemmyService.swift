@@ -58,21 +58,20 @@ public protocol LemmyServiceType: Actor {
     func fetchFeed(_ feed: FeedHandle, pageCursor: String?, showNsfw: Bool) async throws -> String?
 
     func fetchComments(
-        serverPostId: Components.Schemas.PostID,
-        sortType: Components.Schemas.CommentSortType
+        serverPostId: Lemmy.PostID,
+        sortType: Lemmy.CommentSortType
     ) async throws
 
     func fetchSiteInfo() async throws
 
-    /// Probe `/api/v3/site` and return the decoded response, mirroring it into
-    /// the database exactly like ``fetchSiteInfo()`` does. Unlike that method,
-    /// the raw `GetSiteResponse` is handed back so the caller can read the
-    /// instance's identity / stats directly (used to open the in-app instance
+    /// Fetch the instance's site info via the version-neutral `getSiteNeutral()`
+    /// and return it, mirroring it into the database exactly like ``fetchSiteInfo()``
+    /// does. The neutral ``LemmyKit/SiteInfo`` is handed back so the caller can read
+    /// the instance's identity / stats directly (used to open the in-app instance
     /// screen for an arbitrary host that isn't in the Explorer directory). A
-    /// successful return doubles as the Lemmy-API-compatibility test for the
-    /// host (any server that answers `/api/v3/site`, including PieFed).
+    /// successful return doubles as the Lemmy-API-compatibility test for the host.
     @discardableResult
-    func getSiteInfo() async throws -> Components.Schemas.GetSiteResponse
+    func getSiteInfo() async throws -> LemmyKit.SiteInfo
 
     /// Push the account's `show_nsfw` preference to the server via
     /// `saveUserSettings`, then mirror the new value onto the local account
@@ -94,34 +93,35 @@ public protocol LemmyServiceType: Actor {
     /// by `AccountServiceType.setDefaultSortType(_:forAccountKeychainId:)` — which
     /// also persists it for signed-out accounts — so this only mirrors the value
     /// up to the server. A signed-out account is a silent no-op.
-    func setDefaultSortType(_ sortType: Components.Schemas.SortType) async throws
+    func setDefaultSortType(_ sortType: Lemmy.SortType) async throws
 
     /// Push the signed-in account's editable profile (display name, bio, avatar,
     /// banner) and synced preference flags (show scores / bot accounts / read
-    /// posts / others' avatars, default feed) to the server via
-    /// `saveUserSettings`, then mirror the new values onto the local
-    /// `PersonRecord` / `AccountRecord` so the cached profile stays in sync.
-    /// Requires a signed-in account: a signed-out account throws
-    /// `LemmyServiceError.requiresAuthentication` (unlike the single-setting
-    /// setters, there is no local-only fallback for a profile edit).
-    /// `displayName` / `bio` may be empty to clear the field on the server;
-    /// pass `avatar: nil` to leave the avatar unchanged, `""` to clear it, or
-    /// a URL string to set a new one. Pass `banner: nil` to leave the banner
-    /// unchanged, `""` to clear it, or a URL string to set a new one.
+    /// posts / others' avatars, default feed) to the server, then mirror the new
+    /// values onto the local `PersonRecord` / `AccountRecord` so the cached
+    /// profile stays in sync. Requires a signed-in account: a signed-out account
+    /// throws `LemmyServiceError.requiresAuthentication` (unlike the
+    /// single-setting setters, there is no local-only fallback for a profile
+    /// edit). `displayName` / `bio` may be empty to clear the field on the server.
+    /// `avatar` / `banner` are `ProfileImageEdit`s: `.unchanged` leaves the image
+    /// alone, `.set(imageData:…)` uploads a new one, `.removed` clears it — the
+    /// image push (via the dedicated neutral avatar/banner endpoints) runs before
+    /// the text settings, so a push failure surfaces the same way a settings-push
+    /// failure does, with nothing mirrored to roll back.
     func saveProfile(
         displayName: String?,
         bio: String?,
-        avatar: String?,
-        banner: String?,
+        avatar: ProfileImageEdit,
+        banner: ProfileImageEdit,
         showScores: Bool,
         showBotAccounts: Bool,
         showReadPosts: Bool,
         showAvatars: Bool,
-        defaultListingType: Components.Schemas.ListingType
+        defaultListingType: Lemmy.ListingType
     ) async throws
 
     func fetchPersonInfo(
-        serverPersonId: Components.Schemas.PersonID
+        serverPersonId: Lemmy.PersonID
     ) async throws
 
     /// Fetch a person's profile together with one page of their posts and
@@ -133,16 +133,16 @@ public protocol LemmyServiceType: Actor {
     /// carried in the response, which the id-based screens resolve on their
     /// own. Works for both signed-in and signed-out accounts.
     func fetchPersonContent(
-        serverPersonId: Components.Schemas.PersonID,
-        sort: Components.Schemas.SortType,
+        serverPersonId: Lemmy.PersonID,
+        sort: Lemmy.SortType,
         page: Int64
-    ) async throws -> Components.Schemas.GetPersonDetailsResponse
+    ) async throws -> PersonContentPage
 
     /// Fetch the full community info (header fields, counts, subscribed state)
     /// for `serverCommunityId` and mirror it into the database. Used to
     /// populate the community screen for communities the account hasn't cached.
     func fetchCommunityInfo(
-        serverCommunityId: Components.Schemas.CommunityID
+        serverCommunityId: Lemmy.CommunityID
     ) async throws
 
     /// Fetch the full community info by name (`gnome` for a local community or
@@ -151,7 +151,7 @@ public protocol LemmyServiceType: Actor {
     @discardableResult
     func fetchCommunityInfo(
         communityName: String
-    ) async throws -> Components.Schemas.CommunityID
+    ) async throws -> Lemmy.CommunityID
 
     /// Run a search against the backing instance and return the decoded
     /// results. Search results are transient (a snapshot of what matched the
@@ -161,11 +161,11 @@ public protocol LemmyServiceType: Actor {
     /// their own. Works for both signed-in and signed-out accounts.
     func search(
         query: String,
-        type: Components.Schemas.SearchType,
-        sort: Components.Schemas.SortType,
-        listingType: Components.Schemas.ListingType,
+        type: Lemmy.SearchType,
+        sort: Lemmy.SortType,
+        listingType: Lemmy.ListingType,
         page: Int64
-    ) async throws -> Components.Schemas.SearchResponse
+    ) async throws -> LemmyKit.SearchResults
 
     /// List communities on the backing instance via `/api/v3/community/list`
     /// and return the decoded `CommunityView`s. Like `search`, the results are
@@ -175,10 +175,10 @@ public protocol LemmyServiceType: Actor {
     /// remote/synthesized instance resolved live via `/api/v3/site`). Works for
     /// both signed-in and signed-out accounts.
     func listCommunities(
-        type: Components.Schemas.ListingType,
-        sort: Components.Schemas.SortType?,
+        type: Lemmy.ListingType,
+        sort: Lemmy.SortType?,
         limit: Int64?
-    ) async throws -> [Components.Schemas.CommunityView]
+    ) async throws -> [Lemmy.CommunityView]
 
     /// Subscribe to or unsubscribe from `serverCommunityId` for the backing
     /// account. Flips the community's `subscribedState` (to `.pending` /
@@ -191,17 +191,17 @@ public protocol LemmyServiceType: Actor {
     /// `LemmyServiceError.requiresAuthentication` if this service is backed by
     /// a signed-out account.
     func setSubscribed(
-        serverCommunityId: Components.Schemas.CommunityID,
+        serverCommunityId: Lemmy.CommunityID,
         subscribed: Bool
     ) async throws
 
     func vote(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         vote action: VoteStatus.Action
     ) async throws
 
     func vote(
-        serverCommentId: Components.Schemas.CommentID,
+        serverCommentId: Lemmy.CommentID,
         vote action: VoteStatus.Action
     ) async throws
 
@@ -210,9 +210,9 @@ public protocol LemmyServiceType: Actor {
     /// Throws `LemmyServiceError.requiresAuthentication` if this service is
     /// backed by a signed-out account.
     func createComment(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         content: String,
-        parentCommentId: Components.Schemas.CommentID?
+        parentCommentId: Lemmy.CommentID?
     ) async throws
 
     /// Create a new post in `serverCommunityId` and mirror the returned
@@ -221,12 +221,12 @@ public protocol LemmyServiceType: Actor {
     /// `LemmyServiceError.requiresAuthentication` when signed out.
     @discardableResult
     func createPost(
-        serverCommunityId: Components.Schemas.CommunityID,
+        serverCommunityId: Lemmy.CommunityID,
         name: String,
         url: String?,
         body: String?,
         nsfw: Bool
-    ) async throws -> Components.Schemas.PostID
+    ) async throws -> Lemmy.PostID
 
     /// Upload an image to the backing instance's pict-rs and return the
     /// fully-qualified image url. Transient (not mirrored). Throws
@@ -241,7 +241,7 @@ public protocol LemmyServiceType: Actor {
     /// `LemmyServiceError.requiresAuthentication` if this service is backed
     /// by a signed-out account.
     func setSaved(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         saved: Bool
     ) async throws
 
@@ -249,7 +249,7 @@ public protocol LemmyServiceType: Actor {
     /// `LemmyServiceError.requiresAuthentication` if this service is backed
     /// by a signed-out account.
     func setSaved(
-        serverCommentId: Components.Schemas.CommentID,
+        serverCommentId: Lemmy.CommentID,
         saved: Bool
     ) async throws
 
@@ -259,7 +259,7 @@ public protocol LemmyServiceType: Actor {
     /// like hide). Throws `LemmyServiceError.requiresAuthentication` if this
     /// service is backed by a signed-out account.
     func deleteComment(
-        serverCommentId: Components.Schemas.CommentID,
+        serverCommentId: Lemmy.CommentID,
         deleted: Bool
     ) async throws
 
@@ -269,19 +269,19 @@ public protocol LemmyServiceType: Actor {
     /// comment delete). Throws `LemmyServiceError.requiresAuthentication` if this
     /// service is backed by a signed-out account.
     func deletePost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         deleted: Bool
     ) async throws
 
     func fetchPostInfo(
-        serverPostId: Components.Schemas.PostID
+        serverPostId: Lemmy.PostID
     ) async throws
 
     /// Hide or unhide `serverPostId` for the backing account. Hidden posts are
     /// dropped from feed lists. Throws `LemmyServiceError.requiresAuthentication`
     /// if this service is backed by a signed-out account.
     func hidePost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         hidden: Bool
     ) async throws
 
@@ -350,7 +350,7 @@ public protocol LemmyServiceType: Actor {
     /// from being clobbered by a refresh until the server confirms. A no-op when
     /// the account row can't be resolved.
     func applyOptimisticPostEdit(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         title: String,
         body: String?,
         url: String?,
@@ -368,50 +368,53 @@ public protocol LemmyServiceType: Actor {
     func composerSuccessEvents() async -> AsyncStream<ComposerOutboxSuccess>
 
     func markAsRead(
-        serverPostId: Components.Schemas.PostID
+        serverPostId: Lemmy.PostID
     ) async throws
 
     // MARK: Inbox
 
-    /// Fetch one page of inbox replies. Results are transient (returned to the
+    /// Fetch one page of inbox replies as version-neutral
+    /// ``InboxCommentNotification``s. Results are transient (returned to the
     /// caller, like `search`) rather than mirrored into the persistent store.
     /// Throws `LemmyServiceError.requiresAuthentication` when signed out.
     func fetchReplies(
         unreadOnly: Bool,
         page: Int64
-    ) async throws -> Components.Schemas.GetRepliesResponse
+    ) async throws -> [InboxCommentNotification]
 
-    /// Fetch one page of inbox mentions. Transient, like `fetchReplies`.
+    /// Fetch one page of inbox mentions as version-neutral
+    /// ``InboxCommentNotification``s. Transient, like `fetchReplies`.
     func fetchMentions(
         unreadOnly: Bool,
         page: Int64
-    ) async throws -> Components.Schemas.GetPersonMentionsResponse
+    ) async throws -> [InboxCommentNotification]
 
-    /// Fetch one page of private messages. Transient, like `fetchReplies`.
+    /// Fetch one cursor-delimited page of private messages, returning the mapped
+    /// messages plus the opaque cursor for the next page (nil at the end of the
+    /// listing). Transient, like `fetchReplies`. Sourced from the version-neutral,
+    /// cursor-paginated private-message list, each message paired with its read
+    /// state. Pass `nil` for `pageCursor` to fetch the first page; feed a returned
+    /// `nextCursor` back in to load the next.
     func fetchPrivateMessages(
         unreadOnly: Bool,
-        page: Int64
-    ) async throws -> Components.Schemas.PrivateMessagesResponse
+        pageCursor: String?
+    ) async throws -> (messages: [IncomingPrivateMessage], nextCursor: String?)
 
     /// Fetch the count of unread replies, mentions, and private messages.
     /// Throws `LemmyServiceError.requiresAuthentication` when signed out.
     func unreadCount() async throws -> UnreadCount
 
-    /// Mark a single comment reply as read/unread.
-    func markReplyAsRead(
-        commentReplyId: Components.Schemas.CommentReplyID,
-        read: Bool
-    ) async throws
-
-    /// Mark a single person mention as read/unread.
-    func markMentionAsRead(
-        personMentionId: Components.Schemas.PersonMentionID,
+    /// Mark a single comment-based inbox item (reply or mention) read/unread. The
+    /// ``InboxItemReadReference`` carries the id from the fetch that produced the
+    /// item and routes to the endpoint matching its originating backend.
+    func markInboxItemAsRead(
+        reference: InboxItemReadReference,
         read: Bool
     ) async throws
 
     /// Mark a single private message as read/unread.
     func markPrivateMessageAsRead(
-        privateMessageId: Components.Schemas.PrivateMessageID,
+        privateMessageId: Lemmy.PrivateMessageID,
         read: Bool
     ) async throws
 
@@ -423,8 +426,8 @@ public protocol LemmyServiceType: Actor {
     @discardableResult
     func sendPrivateMessage(
         content: String,
-        recipientId: Components.Schemas.PersonID
-    ) async throws -> Components.Schemas.PrivateMessageView
+        recipientId: Lemmy.PersonID
+    ) async throws -> Lemmy.PrivateMessageView
 
     // MARK: Safety (block / report)
 
@@ -435,7 +438,7 @@ public protocol LemmyServiceType: Actor {
     /// disappear. Throws `LemmyServiceError.requiresAuthentication` when signed
     /// out.
     func setBlocked(
-        serverPersonId: Components.Schemas.PersonID,
+        serverPersonId: Lemmy.PersonID,
         blocked: Bool
     ) async throws
 
@@ -445,14 +448,14 @@ public protocol LemmyServiceType: Actor {
     /// fetches, so the caller should refresh the current feed. Throws
     /// `LemmyServiceError.requiresAuthentication` when signed out.
     func setBlocked(
-        serverCommunityId: Components.Schemas.CommunityID,
+        serverCommunityId: Lemmy.CommunityID,
         blocked: Bool
     ) async throws
 
     /// Report `serverPostId` with the given `reason`. Transient (not mirrored).
     /// Throws `LemmyServiceError.requiresAuthentication` when signed out.
     func reportPost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         reason: String
     ) async throws
 
@@ -460,7 +463,7 @@ public protocol LemmyServiceType: Actor {
     /// mirrored). Throws `LemmyServiceError.requiresAuthentication` when signed
     /// out.
     func reportComment(
-        serverCommentId: Components.Schemas.CommentID,
+        serverCommentId: Lemmy.CommentID,
         reason: String
     ) async throws
 
@@ -484,7 +487,7 @@ public protocol LemmyServiceType: Actor {
     /// updated `PostView` is mirrored into the store. Throws
     /// `LemmyServiceError.requiresAuthentication` when signed out.
     func removePost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         removed: Bool,
         reason: String?
     ) async throws
@@ -492,7 +495,7 @@ public protocol LemmyServiceType: Actor {
     /// Lock (or unlock) `serverPostId` as a moderator/admin. Mirrors the
     /// updated `PostView`. Throws `.requiresAuthentication` when signed out.
     func lockPost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         locked: Bool
     ) async throws
 
@@ -500,7 +503,7 @@ public protocol LemmyServiceType: Actor {
     /// front page (admin-only); otherwise pins to the community. Mirrors the
     /// updated `PostView`. Throws `.requiresAuthentication` when signed out.
     func featurePost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         featured: Bool,
         local: Bool
     ) async throws
@@ -508,7 +511,7 @@ public protocol LemmyServiceType: Actor {
     /// Remove (or restore) `serverCommentId` as a moderator/admin. Mirrors the
     /// updated `CommentView`. Throws `.requiresAuthentication` when signed out.
     func removeComment(
-        serverCommentId: Components.Schemas.CommentID,
+        serverCommentId: Lemmy.CommentID,
         removed: Bool,
         reason: String?
     ) async throws
@@ -516,7 +519,7 @@ public protocol LemmyServiceType: Actor {
     /// Distinguish (or undistinguish) `serverCommentId`. Mirrors the updated
     /// `CommentView`. Throws `.requiresAuthentication` when signed out.
     func distinguishComment(
-        serverCommentId: Components.Schemas.CommentID,
+        serverCommentId: Lemmy.CommentID,
         distinguished: Bool
     ) async throws
 
@@ -525,8 +528,8 @@ public protocol LemmyServiceType: Actor {
     /// community. Mirrors the updated `PersonView`. Transient otherwise. Throws
     /// `.requiresAuthentication` when signed out.
     func banFromCommunity(
-        serverCommunityId: Components.Schemas.CommunityID,
-        serverPersonId: Components.Schemas.PersonID,
+        serverCommunityId: Lemmy.CommunityID,
+        serverPersonId: Lemmy.PersonID,
         ban: Bool,
         removeData: Bool,
         reason: String?
@@ -538,19 +541,37 @@ public protocol LemmyServiceType: Actor {
     func resolveObject(query: String) async throws -> ResolvedLemmyObject
 }
 
+/// One page of a person's authored content, split by kind. Replaces the raw
+/// `GetPersonDetailsResponse` the person screens used to read: the neutral
+/// surface serves a person's profile (`personDetailsNeutral`) separately from a
+/// paged, interleaved post/comment feed (`personContentNeutral`), so this carries
+/// just the transient content page (the profile is mirrored into the store). A
+/// small Sendable value type so it can flow from the actor to the main-actor UI.
+public struct PersonContentPage: Sendable, Equatable {
+    /// The posts on this page, newest first.
+    public let posts: [Lemmy.PostView]
+    /// The comments on this page, newest first.
+    public let comments: [Lemmy.CommentView]
+
+    public init(posts: [Lemmy.PostView], comments: [Lemmy.CommentView]) {
+        self.posts = posts
+        self.comments = comments
+    }
+}
+
 /// The current account's moderation capability, decoded from `getSite` →
 /// `my_user`: the communities it moderates and whether it is a site admin. A
 /// small Sendable value type so it can flow from the `LemmyService` actor to
 /// the main-actor UI that gates mod controls.
 public struct ModerationCapability: Sendable, Equatable {
     /// Server-side ids of the communities the account moderates.
-    public let moderatedCommunityIds: Set<Components.Schemas.CommunityID>
+    public let moderatedCommunityIds: Set<Lemmy.CommunityID>
     /// Whether the account is a site admin (can moderate anywhere and feature
     /// posts to the instance front page).
     public let isAdmin: Bool
 
     public init(
-        moderatedCommunityIds: Set<Components.Schemas.CommunityID>,
+        moderatedCommunityIds: Set<Lemmy.CommunityID>,
         isAdmin: Bool
     ) {
         self.moderatedCommunityIds = moderatedCommunityIds
@@ -564,7 +585,7 @@ public struct ModerationCapability: Sendable, Equatable {
     /// Whether the account can take moderator actions in `communityId` -
     /// either because it moderates that community or because it is a site
     /// admin (admins can moderate everywhere).
-    public func canModerate(communityId: Components.Schemas.CommunityID) -> Bool {
+    public func canModerate(communityId: Lemmy.CommunityID) -> Bool {
         isAdmin || moderatedCommunityIds.contains(communityId)
     }
 
@@ -579,25 +600,25 @@ public struct ModerationCapability: Sendable, Equatable {
 /// the main-actor settings screen.
 public struct BlockedList: Sendable, Equatable {
     public struct Person: Sendable, Equatable, Identifiable {
-        public let serverPersonId: Components.Schemas.PersonID
+        public let serverPersonId: Lemmy.PersonID
         public let name: String
         /// `@user@instance`-style handle for display.
         public let handle: String
         public let avatarUrl: URL?
 
-        public var id: Components.Schemas.PersonID {
+        public var id: Lemmy.PersonID {
             serverPersonId
         }
     }
 
     public struct Community: Sendable, Equatable, Identifiable {
-        public let serverCommunityId: Components.Schemas.CommunityID
+        public let serverCommunityId: Lemmy.CommunityID
         public let name: String
         /// `community@instance`-style handle for display.
         public let handle: String
         public let iconUrl: URL?
 
-        public var id: Components.Schemas.CommunityID {
+        public var id: Lemmy.CommunityID {
             serverCommunityId
         }
     }
@@ -619,19 +640,39 @@ public struct UnreadCount: Sendable, Equatable {
     public let replies: Int
     public let mentions: Int
     public let privateMessages: Int
+    /// Total unread across all kinds; drives the tab badge. Stored (not derived)
+    /// because a v4 instance reports only a combined total with no per-kind
+    /// breakdown, so `total` can exceed `replies + mentions + privateMessages`
+    /// (which are all zero there) — read `total`, never re-sum the per-kind
+    /// fields.
+    public let total: Int
 
-    public init(replies: Int, mentions: Int, privateMessages: Int) {
+    /// Full init. `total` is independent of the per-kind fields so a v4-backed
+    /// count (a combined total with no breakdown) is representable.
+    public init(replies: Int, mentions: Int, privateMessages: Int, total: Int) {
         self.replies = replies
         self.mentions = mentions
         self.privateMessages = privateMessages
+        self.total = total
+    }
+
+    /// Per-kind init (the v3 shape): `total` is the sum of the three kinds.
+    public init(replies: Int, mentions: Int, privateMessages: Int) {
+        self.init(
+            replies: replies,
+            mentions: mentions,
+            privateMessages: privateMessages,
+            total: replies + mentions + privateMessages
+        )
+    }
+
+    /// Combined-total init (the v4 shape): the per-kind breakdown is unavailable,
+    /// so the three per-kind fields are zero and only `total` carries the count.
+    public init(total: Int) {
+        self.init(replies: 0, mentions: 0, privateMessages: 0, total: total)
     }
 
     public static let zero = UnreadCount(replies: 0, mentions: 0, privateMessages: 0)
-
-    /// Total across all kinds; drives the tab badge.
-    public var total: Int {
-        replies + mentions + privateMessages
-    }
 }
 
 public actor LemmyService: LemmyServiceType {
@@ -801,7 +842,11 @@ public actor LemmyService: LemmyServiceType {
             return nil
         }
 
-        let response: Components.Schemas.GetPostsResponse
+        // The neutral `getPostsNeutral` takes an opaque `Cursor`; Spud persists the
+        // cursor as a bare string, so bridge in both directions.
+        let cursor = pageCursor.map { Cursor(rawValue: $0) }
+
+        let page: Page<Lemmy.PostView>
         do {
             switch feedType {
             case let .frontpage(listingType, sortType):
@@ -813,11 +858,18 @@ public actor LemmyService: LemmyServiceType {
                     showNsfw=\(showNsfw, privacy: .public) \
                     pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
-                response = try await api.getPosts(
-                    type: listingType,
-                    sort: sortType,
-                    showNSFW: showNsfw,
-                    page: pageCursor
+                // Filter NSFW server-side via `show_nsfw` (matches v4, which
+                // filters by the account setting): `showNsfw` carries the client's
+                // synced show-NSFW preference, so it applies to signed-out accounts
+                // too. NSFW posts that ARE returned are still blurred by the
+                // account's blur setting — this only gates server-side inclusion.
+                let (sort, timeRange) = sortType.neutralPostSort
+                page = try await api.getPostsNeutral(
+                    listingType: listingType,
+                    sort: sort,
+                    timeRange: timeRange,
+                    showNsfw: showNsfw,
+                    pageCursor: cursor
                 )
 
             case let .community(communityName, instance, sortType):
@@ -830,11 +882,20 @@ public actor LemmyService: LemmyServiceType {
                     showNsfw=\(showNsfw, privacy: .public) \
                     pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
-                response = try await api.getPosts(
-                    community: .name("\(communityName)@\(instance.hostWithPort)"),
-                    sort: sortType,
-                    showNSFW: showNsfw,
-                    page: pageCursor
+                // `getPostsNeutral` scopes a community by id, not by name, so resolve
+                // (and cache) the community's server id first.
+                let communityId = try await resolveCommunityServerId(
+                    name: communityName,
+                    instance: instance
+                )
+                let (sort, timeRange) = sortType.neutralPostSort
+                page = try await api.getPostsNeutral(
+                    listingType: .All,
+                    sort: sort,
+                    communityId: Int64(communityId),
+                    timeRange: timeRange,
+                    showNsfw: showNsfw,
+                    pageCursor: cursor
                 )
 
             case let .saved(sortType):
@@ -848,12 +909,18 @@ public actor LemmyService: LemmyServiceType {
                     showNsfw=\(showNsfw, privacy: .public) \
                     pageCursor=\(pageCursor ?? "nil", privacy: .public)
                     """)
-                response = try await api.getPosts(
-                    type: .All,
-                    sort: sortType,
-                    filter: .saved,
-                    showNSFW: showNsfw,
-                    page: pageCursor
+                // Thread the user's chosen sort so the saved feed honours it.
+                // Documented as v3-only: v4's `ListPersonSaved` has no sort param,
+                // so on v4 this is a no-op and the server's default order is used.
+                // `getSavedPostsNeutral` has no `show_nsfw` param, so NSFW posts
+                // that come back are blurred (never hidden) by the account's blur
+                // setting — a saved-feed-only gap, not a general client-side
+                // NSFW filter.
+                let (sort, timeRange) = sortType.neutralPostSort
+                page = try await api.getSavedPostsNeutral(
+                    sort: sort,
+                    timeRange: timeRange,
+                    pageCursor: cursor
                 )
 
             case .downloaded:
@@ -875,7 +942,7 @@ public actor LemmyService: LemmyServiceType {
         }
 
         logger.debug("""
-            Fetch feed complete with \(response.posts.count, privacy: .public) posts. \
+            Fetch feed complete with \(page.items.count, privacy: .public) posts. \
             account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             feedId=\(feedKey, privacy: .public)
             """)
@@ -883,16 +950,38 @@ public actor LemmyService: LemmyServiceType {
         try await mirrorFeedPageToAppDatabase(
             feedKey: feedKey,
             feedType: feedType,
-            posts: response.posts
+            posts: page.items
         )
 
-        return response.next_page
+        return page.nextPage?.rawValue
+    }
+
+    /// Resolves the server-side id of the community named `name` (`gnome` for a
+    /// local community, or `worldnews@lemmy.world` for a remote one) at `instance`,
+    /// preferring the cached row and falling back to a network fetch+mirror. Needed
+    /// because `getPostsNeutral` scopes a community by id, not by name.
+    private func resolveCommunityServerId(
+        name: String,
+        instance: InstanceActorId
+    ) async throws -> Lemmy.CommunityID {
+        // The community's own federation actor id is `<instance>/c/<local-name>`.
+        let localName = name.split(separator: "@").first.map(String.init) ?? name
+        let actorId = "\(instance.actorId)/c/\(localName)"
+        if let (accountRowId, _) = try? await accountSiteIds(),
+           let cached = appDatabase.communityServerIdSync(forAccountId: accountRowId, actorId: actorId)
+        {
+            return Lemmy.CommunityID(cached)
+        }
+        // Not cached — fetch+mirror by fully-qualified name so a remote community
+        // resolves against ITS home instance, not the account's.
+        let qualifiedName = "\(localName)@\(instance.hostWithPort)"
+        return try await fetchCommunityInfo(communityName: qualifiedName)
     }
 
     private func mirrorFeedPageToAppDatabase(
         feedKey: String,
         feedType: FeedType,
-        posts: [Components.Schemas.PostView]
+        posts: [Lemmy.PostView]
     ) async throws {
         guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
             throw LemmyServiceError.internalInconsistency(
@@ -909,8 +998,8 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func fetchComments(
-        serverPostId: Components.Schemas.PostID,
-        sortType: Components.Schemas.CommentSortType
+        serverPostId: Lemmy.PostID,
+        sortType: Lemmy.CommentSortType
     ) async throws {
         logger.debug("""
             Fetch comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
@@ -918,12 +1007,11 @@ public actor LemmyService: LemmyServiceType {
             sortType=\(sortType.rawValue, privacy: .public)
             """)
 
-        let response: Components.Schemas.GetCommentsResponse
+        let page: Page<Lemmy.CommentView>
         do {
-            response = try await api.getComments(
-                postID: serverPostId,
-                sort: sortType,
-                maxDepth: 8
+            page = try await api.getCommentsNeutral(
+                postId: Int64(serverPostId),
+                sort: sortType.neutralCommentSort
             )
         } catch {
             logger.error("""
@@ -942,18 +1030,18 @@ public actor LemmyService: LemmyServiceType {
 
         logger.debug("""
             Fetch comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-            complete with \(response.comments.count, privacy: .public) comments
+            complete with \(page.items.count, privacy: .public) comments
             """)
 
         try await mirrorCommentsToAppDatabase(
             serverPostId: serverPostId,
             sortType: sortType,
-            comments: response.comments
+            comments: page.items
         )
 
         // A removed comment carries no reason in the comment object — fetch it
         // from the public modlog, but only when there's something to explain.
-        if response.comments.contains(where: \.comment.removed) {
+        if page.items.contains(where: \.comment.removed) {
             await mirrorCommentRemovalReasons(serverPostId: serverPostId)
         }
     }
@@ -961,7 +1049,7 @@ public actor LemmyService: LemmyServiceType {
     /// Fetches moderator removal reasons for the post's removed comments from
     /// the public modlog and mirrors them. Best-effort: a failure here must not
     /// break comment loading.
-    private func mirrorCommentRemovalReasons(serverPostId: Components.Schemas.PostID) async {
+    private func mirrorCommentRemovalReasons(serverPostId: Lemmy.PostID) async {
         do {
             guard let (accountRowId, _) = try await accountSiteIds() else { return }
 
@@ -986,7 +1074,7 @@ public actor LemmyService: LemmyServiceType {
     /// is the most recent removal; restores (`removed == false`) and empty
     /// reasons are skipped.
     static func removalReasons(
-        from removedComments: [Components.Schemas.ModRemoveCommentView]
+        from removedComments: [Lemmy.ModRemoveCommentView]
     ) -> [Int64: String] {
         var reasons: [Int64: String] = [:]
         for view in removedComments {
@@ -1001,9 +1089,9 @@ public actor LemmyService: LemmyServiceType {
     }
 
     private func mirrorCommentsToAppDatabase(
-        serverPostId: Components.Schemas.PostID,
-        sortType: Components.Schemas.CommentSortType,
-        comments: [Components.Schemas.CommentView]
+        serverPostId: Lemmy.PostID,
+        sortType: Lemmy.CommentSortType,
+        comments: [Lemmy.CommentView]
     ) async throws {
         guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
             throw LemmyServiceError.internalInconsistency(
@@ -1024,12 +1112,29 @@ public actor LemmyService: LemmyServiceType {
     }
 
     @discardableResult
-    public func getSiteInfo() async throws -> Components.Schemas.GetSiteResponse {
+    public func getSiteInfo() async throws -> LemmyKit.SiteInfo {
         logger.debug("Fetch site for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
 
-        let response: Components.Schemas.GetSiteResponse
+        let siteInfo: LemmyKit.SiteInfo
+        let myUser: LemmyKit.MyUser?
         do {
-            response = try await api.getSite()
+            if accountIsSignedOut {
+                // A signed-out account has no `my_user`, so a single `getSite` is all
+                // that's needed. (On v4 the separate `getMyUser` endpoint throws for a
+                // signed-out viewer, so the combined fetch must not be used here.)
+                siteInfo = try await api.getSiteNeutral()
+                myUser = nil
+            } else {
+                // One combined fetch for the signed-in refresh: on v3 a SINGLE `getSite`
+                // round-trip decodes BOTH halves — previously this issued two, since
+                // `getMyUserNeutral()` re-fetches `getSite()` to reach the embedded
+                // `my_user`. On v4 the two native endpoints (`getSite` / `getMyUser`)
+                // run concurrently. `.myUser` is nil on a v3 signed-out response, but a
+                // signed-in account always carries it.
+                let combined = try await api.getSiteAndMyUserNeutral()
+                siteInfo = combined.site
+                myUser = combined.myUser
+            }
         } catch {
             logger.error("""
                 Fetch site failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
@@ -1055,24 +1160,24 @@ public actor LemmyService: LemmyServiceType {
         logger.debug("Fetch site complete. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))")
 
         do {
-            let (_, siteId) = try await appDatabase.upsertSite(from: response)
+            let (_, siteId) = try await appDatabase.upsertSite(from: siteInfo)
             let accountId = try await appDatabase.upsertAccount(
                 keychainId: accountIdentifierForLogging,
                 isSignedOut: accountIsSignedOut,
                 siteId: siteId,
-                myUser: response.my_user
+                myUser: myUser
             )
-            if let follows = response.my_user?.follows {
+            if let myUser {
                 try await appDatabase.setFollowedCommunities(
                     accountId: accountId,
-                    follows: follows
+                    follows: myUser.follows
                 )
             }
         } catch {
             logger.error("AppDatabase fetchSiteInfo upsert failed: \(String(describing: error), privacy: .public)")
         }
 
-        return response
+        return siteInfo
     }
 
     public func setShowNsfw(_ showNsfw: Bool) async throws {
@@ -1094,7 +1199,7 @@ public actor LemmyService: LemmyServiceType {
                 """)
 
             do {
-                _ = try await api.saveUserSettings(showNSFW: showNsfw)
+                try await api.saveUserSettingsNeutral(showNSFW: showNsfw)
             } catch {
                 logger.error("""
                     Set show_nsfw failed. \(String(describing: error), privacy: .public)
@@ -1138,7 +1243,7 @@ public actor LemmyService: LemmyServiceType {
                 """)
 
             do {
-                _ = try await api.saveUserSettings(blurNSFW: blurNsfw)
+                try await api.saveUserSettingsNeutral(blurNSFW: blurNsfw)
             } catch {
                 logger.error("""
                     Set blur_nsfw failed. \(String(describing: error), privacy: .public)
@@ -1166,7 +1271,7 @@ public actor LemmyService: LemmyServiceType {
         }
     }
 
-    public func setDefaultSortType(_ sortType: Components.Schemas.SortType) async throws {
+    public func setDefaultSortType(_ sortType: Lemmy.SortType) async throws {
         guard !accountIsSignedOut else {
             // Signed-out accounts have no server settings to push; the local
             // account record still holds the default sort, so this is a
@@ -1192,7 +1297,14 @@ public actor LemmyService: LemmyServiceType {
             """)
 
         do {
-            _ = try await api.saveUserSettings(defaultSortType: sortType)
+            // Un-fuse the v3 `Top*` sort into the neutral sort + time-window pair so
+            // the pushed default preserves its window (e.g. Top-Week stays Top-Week
+            // rather than collapsing to Top-All).
+            let (neutralSort, timeRange) = sortType.neutralPostSort
+            try await api.saveUserSettingsNeutral(
+                defaultSortType: neutralSort,
+                defaultTimeRange: timeRange
+            )
         } catch {
             logger.error("""
                 Set default_sort_type failed. \(String(describing: error), privacy: .public)
@@ -1204,13 +1316,13 @@ public actor LemmyService: LemmyServiceType {
     public func saveProfile(
         displayName: String?,
         bio: String?,
-        avatar: String?,
-        banner: String?,
+        avatar: ProfileImageEdit,
+        banner: ProfileImageEdit,
         showScores: Bool,
         showBotAccounts: Bool,
         showReadPosts: Bool,
         showAvatars: Bool,
-        defaultListingType: Components.Schemas.ListingType
+        defaultListingType: Lemmy.ListingType
     ) async throws {
         try await requireCapability(.serverUserSettings)
 
@@ -1230,17 +1342,28 @@ public actor LemmyService: LemmyServiceType {
             Save profile for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash))
             """)
 
+        let avatarMirror: String?
+        let bannerMirror: String?
         do {
-            _ = try await api.saveUserSettings(
+            // Push the avatar/banner images FIRST, ahead of the text settings and
+            // the local mirror. v4 moved avatar/banner off saveUserSettings to
+            // dedicated upload/delete endpoints; the neutral setters hide that
+            // split (v3 uploads to pict-rs then writes the url). Ordering the image
+            // push before the mirror keeps failure handling consistent with the
+            // rest of the save: a push error throws out of saveProfile and nothing
+            // stale is mirrored (there is nothing to roll back), exactly like a
+            // failed settings push.
+            avatarMirror = try await pushAvatarEdit(avatar)
+            bannerMirror = try await pushBannerEdit(banner)
+
+            try await api.saveUserSettingsNeutral(
                 defaultListingType: defaultListingType,
-                avatar: avatar,
-                banner: banner,
                 displayName: displayName,
                 bio: bio,
-                showAvatars: showAvatars,
+                showScores: showScores,
                 showBotAccounts: showBotAccounts,
                 showReadPosts: showReadPosts,
-                showScores: showScores
+                showAvatars: showAvatars
             )
         } catch {
             logger.error("""
@@ -1252,14 +1375,16 @@ public actor LemmyService: LemmyServiceType {
         // Mirror the new values onto the local person / account rows so the
         // cached profile reflects the edit immediately, without waiting on the
         // network. This is the optimistic path the open editor / Account header
-        // observe.
+        // observe. `avatarMirror` / `bannerMirror` are nil for an unchanged image
+        // (leave the cached value), "" for a removal (clear it), or the pushed
+        // url for a new image.
         do {
             try await appDatabase.setAccountProfile(
                 forKeychainId: accountIdentifierForLogging,
                 displayName: displayName,
                 bio: bio,
-                avatar: avatar,
-                banner: banner,
+                avatar: avatarMirror,
+                banner: bannerMirror,
                 showScores: showScores,
                 showBotAccounts: showBotAccounts,
                 showReadPosts: showReadPosts,
@@ -1285,8 +1410,52 @@ public actor LemmyService: LemmyServiceType {
         }
     }
 
+    /// Pushes an avatar `ProfileImageEdit` to the server via the neutral
+    /// avatar endpoints and returns the value to mirror onto the local person
+    /// row: nil to leave the cached avatar unchanged, "" to clear it, or the new
+    /// url. Throws on a server failure so the caller can surface it (the durable
+    /// counterpart of the editor's optimistic preview).
+    private func pushAvatarEdit(_ edit: ProfileImageEdit) async throws -> String? {
+        switch edit {
+        case .unchanged:
+            return nil
+        case .removed:
+            try await api.removeAvatarNeutral()
+            return ""
+        case let .set(imageData, fileName, contentType):
+            let url = try await api.setAvatarNeutral(
+                imageData: imageData,
+                fileName: fileName,
+                contentType: contentType
+            )
+            // v3 always synthesizes a url; on v4 a nil means the response url
+            // failed to parse — leave the mirror as-is and let the post-save
+            // getSite re-import reconcile it to the server's canonical value.
+            return url?.absoluteString
+        }
+    }
+
+    /// The banner twin of `pushAvatarEdit`, targeting the neutral banner
+    /// endpoints. Returns the value to mirror onto the local person row.
+    private func pushBannerEdit(_ edit: ProfileImageEdit) async throws -> String? {
+        switch edit {
+        case .unchanged:
+            return nil
+        case .removed:
+            try await api.removeBannerNeutral()
+            return ""
+        case let .set(imageData, fileName, contentType):
+            let url = try await api.setBannerNeutral(
+                imageData: imageData,
+                fileName: fileName,
+                contentType: contentType
+            )
+            return url?.absoluteString
+        }
+    }
+
     public func fetchPersonInfo(
-        serverPersonId: Components.Schemas.PersonID
+        serverPersonId: Lemmy.PersonID
     ) async throws {
         try await requireCapability(.personProfiles)
 
@@ -1295,9 +1464,9 @@ public actor LemmyService: LemmyServiceType {
             personId=\(serverPersonId, privacy: .public)
             """)
 
-        let response: Components.Schemas.GetPersonDetailsResponse
+        let details: LemmyKit.PersonDetails
         do {
-            response = try await api.getPersonDetails(personID: serverPersonId)
+            details = try await api.personDetailsNeutral(personId: Int64(serverPersonId))
         } catch {
             logger.error("""
                 Fetch person info failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
@@ -1312,7 +1481,7 @@ public actor LemmyService: LemmyServiceType {
             personId=\(serverPersonId, privacy: .public)
             """)
 
-        await mirrorPersonInfoToAppDatabase(personView: response.person_view)
+        await mirrorPersonInfoToAppDatabase(personView: details.personView)
 
         guard appDatabase.personRowIdSync(
             forKeychainId: accountIdentifierForLogging,
@@ -1325,10 +1494,10 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func fetchPersonContent(
-        serverPersonId: Components.Schemas.PersonID,
-        sort: Components.Schemas.SortType,
+        serverPersonId: Lemmy.PersonID,
+        sort: Lemmy.SortType,
         page: Int64
-    ) async throws -> Components.Schemas.GetPersonDetailsResponse {
+    ) async throws -> PersonContentPage {
         try await requireCapability(.personProfiles)
 
         logger.debug("""
@@ -1337,12 +1506,19 @@ public actor LemmyService: LemmyServiceType {
             page=\(page, privacy: .public)
             """)
 
-        let response: Components.Schemas.GetPersonDetailsResponse
+        // v4 split a person's profile (`personDetailsNeutral`) from their paged
+        // post/comment feed (`personContentNeutral`); Spud fetches both. NOTE: the
+        // neutral content feed is cursor-paged and ignores `sort`; the v3 backend
+        // encodes its page number as a bare-integer cursor, so page N > 1 maps to a
+        // cursor of "N". See the Phase 6 report follow-ups (sort + v4 cursor paging).
+        let details: LemmyKit.PersonDetails
+        let contentPage: Page<LemmyKit.PostOrComment>
         do {
-            response = try await api.getPersonDetails(
-                personID: serverPersonId,
-                sort: sort,
-                page: page
+            let cursor = page <= 1 ? nil : Cursor(rawValue: String(page))
+            details = try await api.personDetailsNeutral(personId: Int64(serverPersonId))
+            contentPage = try await api.personContentNeutral(
+                personId: Int64(serverPersonId),
+                pageCursor: cursor
             )
         } catch {
             logger.error("""
@@ -1353,24 +1529,26 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
+        let posts = contentPage.items.compactMap(\.post)
+        let comments = contentPage.items.compactMap(\.comment)
+
         // Persist the posts as real PostRecords first (so the profile's Posts
         // tab renders them with the canonical PostListPostCell and gets live
         // vote/save updates). The post import also upserts each post's bare
-        // creator person, so mirror the richer `person_view` profile AFTER that
-        // — the full profile (display name, bio, banner, counts) must win over
-        // the lean creator embedded on a post. The comments stay transient
-        // (returned to the caller).
-        await mirrorPersonPostsToAppDatabase(posts: response.posts)
-        await mirrorPersonInfoToAppDatabase(personView: response.person_view)
+        // creator person, so mirror the richer profile AFTER that — the full
+        // profile (display name, bio, banner, counts) must win over the lean
+        // creator embedded on a post. The comments stay transient (returned).
+        await mirrorPersonPostsToAppDatabase(posts: posts)
+        await mirrorPersonInfoToAppDatabase(personView: details.personView)
 
-        return response
+        return PersonContentPage(posts: posts, comments: comments)
     }
 
     /// Persists the person's posts so the profile's Posts tab can observe them
     /// as `PostListRow`s (feed parity). Best-effort: a failure leaves the posts
     /// unpersisted (the caller's transient comments are unaffected).
     private func mirrorPersonPostsToAppDatabase(
-        posts: [Components.Schemas.PostView]
+        posts: [Lemmy.PostView]
     ) async {
         guard !posts.isEmpty else { return }
         do {
@@ -1382,7 +1560,7 @@ public actor LemmyService: LemmyServiceType {
     }
 
     private func mirrorPersonInfoToAppDatabase(
-        personView: Components.Schemas.PersonView
+        personView: Lemmy.PersonView
     ) async {
         do {
             guard let (_, siteId) = try await accountSiteIds() else { return }
@@ -1393,16 +1571,16 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func fetchCommunityInfo(
-        serverCommunityId: Components.Schemas.CommunityID
+        serverCommunityId: Lemmy.CommunityID
     ) async throws {
         logger.debug("""
             Fetch community info. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             communityId=\(serverCommunityId, privacy: .public)
             """)
 
-        let response: Components.Schemas.GetCommunityResponse
+        let view: Lemmy.CommunityView
         do {
-            response = try await api.getCommunity(communityID: serverCommunityId)
+            view = try await api.getCommunityNeutral(id: Int64(serverCommunityId))
         } catch {
             logger.error("""
                 Fetch community info failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
@@ -1412,21 +1590,26 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorCommunityInfoToAppDatabase(view: response.community_view)
+        await mirrorCommunityInfoToAppDatabase(view: view)
     }
 
     @discardableResult
     public func fetchCommunityInfo(
         communityName: String
-    ) async throws -> Components.Schemas.CommunityID {
+    ) async throws -> Lemmy.CommunityID {
         logger.debug("""
             Fetch community info. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             communityName=\(communityName, privacy: .public)
             """)
 
-        let response: Components.Schemas.GetCommunityResponse
+        // The neutral surface has no get-community-by-name endpoint, so resolve the
+        // community by its federation actor url (`resolveObjectNeutral` works on
+        // v3 and v4). `communityName` is either `local` (a community on the home
+        // instance) or `local@host` (a federated one).
+        let object: LemmyKit.ResolvedObject?
         do {
-            response = try await api.getCommunity(name: communityName)
+            let query = try await communityActorUrl(forName: communityName)
+            object = try await api.resolveObjectNeutral(query: query)
         } catch {
             logger.error("""
                 Fetch community info failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
@@ -1436,13 +1619,37 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorCommunityInfoToAppDatabase(view: response.community_view)
+        guard let view = object?.community else {
+            throw LemmyServiceError.internalInconsistency(
+                description: "fetchCommunityInfo: '\(communityName)' did not resolve to a community"
+            )
+        }
 
-        return response.community_view.community.id
+        await mirrorCommunityInfoToAppDatabase(view: view)
+
+        return Lemmy.CommunityID(view.community.id)
+    }
+
+    /// Builds a community's federation actor url from a `local` or `local@host`
+    /// name, using the account's home instance host for a bare local name.
+    private func communityActorUrl(forName name: String) async throws -> String {
+        let parts = name.split(separator: "@", maxSplits: 1).map(String.init)
+        let localName = parts.first ?? name
+        let host: String
+        if parts.count == 2 {
+            host = parts[1]
+        } else if let homeHost = await resolveInstanceHost() {
+            host = homeHost
+        } else {
+            throw LemmyServiceError.internalInconsistency(
+                description: "fetchCommunityInfo: no home instance to resolve local community '\(name)'"
+            )
+        }
+        return "https://\(host)/c/\(localName)"
     }
 
     public func resolveObject(query: String) async throws -> ResolvedLemmyObject {
-        let response = try await api.resolveObject(query: query)
+        let response = try await api.resolveObjectNeutral(query: query)
         // Resolve under the current account, so the returned ids are local to
         // this account's home instance. Use the async read (not the *Sync
         // variant) so we don't block the actor's executor.
@@ -1456,11 +1663,11 @@ public actor LemmyService: LemmyServiceType {
 
     public func search(
         query: String,
-        type: Components.Schemas.SearchType,
-        sort: Components.Schemas.SortType,
-        listingType: Components.Schemas.ListingType,
+        type: Lemmy.SearchType,
+        sort: Lemmy.SortType,
+        listingType: Lemmy.ListingType,
         page: Int64
-    ) async throws -> Components.Schemas.SearchResponse {
+    ) async throws -> LemmyKit.SearchResults {
         logger.debug("""
             Search. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             query=\(query, privacy: .private) type=\(type.rawValue, privacy: .public) \
@@ -1468,14 +1675,19 @@ public actor LemmyService: LemmyServiceType {
             page=\(page, privacy: .public)
             """)
 
-        let response: Components.Schemas.SearchResponse
+        // NOTE: `searchNeutral` has no listing-type param (search is instance-wide),
+        // so `listingType` is ignored here; `page` becomes an opaque cursor (page N
+        // > 1 encodes as "N" for the v3 backend). See the Phase 6 report follow-ups.
+        let (neutralSort, timeRange) = sort.neutralPostSort
+        let cursor = page <= 1 ? nil : Cursor(rawValue: String(page))
+        let results: LemmyKit.SearchResults
         do {
-            response = try await api.search(
+            results = try await api.searchNeutral(
                 query: query,
-                type: type,
-                sort: sort,
-                listingType: listingType,
-                page: page
+                type: type.neutralSearchType,
+                sort: neutralSort,
+                timeRange: timeRange,
+                pageCursor: cursor
             )
         } catch {
             logger.error("""
@@ -1486,14 +1698,14 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        return response
+        return results
     }
 
     public func listCommunities(
-        type: Components.Schemas.ListingType,
-        sort: Components.Schemas.SortType?,
+        type: Lemmy.ListingType,
+        sort: Lemmy.SortType?,
         limit: Int64?
-    ) async throws -> [Components.Schemas.CommunityView] {
+    ) async throws -> [Lemmy.CommunityView] {
         logger.debug("""
             List communities. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
             type=\(type.rawValue, privacy: .public) \
@@ -1501,15 +1713,13 @@ public actor LemmyService: LemmyServiceType {
             limit=\(limit ?? -1, privacy: .public)
             """)
 
-        let response: Components.Schemas.ListCommunitiesResponse
+        // NOTE: `listCommunitiesNeutral` lists all communities with a single
+        // `sort`; it takes no listing-`type`, NSFW, or `limit` param, so those are
+        // ignored here (the caller trims the returned page). See Phase 6 follow-ups.
+        let neutralSort = (sort ?? .Active).neutralPostSort.sort
+        let page: Page<Lemmy.CommunityView>
         do {
-            response = try await api.listCommunities(
-                type: type,
-                sort: sort,
-                showNSFW: nil,
-                page: nil,
-                limit: limit
-            )
+            page = try await api.listCommunitiesNeutral(sort: neutralSort)
         } catch {
             logger.error("""
                 List communities failed. \
@@ -1520,11 +1730,14 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        return response.communities
+        if let limit {
+            return Array(page.items.prefix(Int(limit)))
+        }
+        return page.items
     }
 
     public func setSubscribed(
-        serverCommunityId: Components.Schemas.CommunityID,
+        serverCommunityId: Lemmy.CommunityID,
         subscribed: Bool
     ) async throws {
         guard !accountIsSignedOut else {
@@ -1554,7 +1767,7 @@ public actor LemmyService: LemmyServiceType {
 
     // internal: shared with LemmyService+Safety
     func mirrorCommunityInfoToAppDatabase(
-        view: Components.Schemas.CommunityView
+        view: Lemmy.CommunityView
     ) async {
         do {
             guard let (accountRowId, _) = try await accountSiteIds() else { return }
@@ -1565,7 +1778,7 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func vote(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         vote action: VoteStatus.Action
     ) async throws {
         guard !accountIsSignedOut else {
@@ -1623,7 +1836,7 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func vote(
-        serverCommentId: Components.Schemas.CommentID,
+        serverCommentId: Lemmy.CommentID,
         vote action: VoteStatus.Action
     ) async throws {
         guard !accountIsSignedOut else {
@@ -1728,9 +1941,9 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func createComment(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         content: String,
-        parentCommentId: Components.Schemas.CommentID?
+        parentCommentId: Lemmy.CommentID?
     ) async throws {
         guard !accountIsSignedOut else {
             logger.debug("""
@@ -1747,12 +1960,13 @@ public actor LemmyService: LemmyServiceType {
             parentCommentId=\(parentCommentId.map(String.init) ?? "nil", privacy: .public)
             """)
 
-        let response: Components.Schemas.CommentResponse
+        let view: Lemmy.CommentView
         do {
-            response = try await api.createComment(
-                postID: serverPostId,
+            view = try await api.createCommentNeutral(
                 content: content,
-                parentID: parentCommentId
+                postId: Int64(serverPostId),
+                parentId: parentCommentId.map { Int64($0) },
+                languageId: nil
             )
         } catch {
             logger.error("""
@@ -1762,17 +1976,17 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorCommentToAppDatabase(view: response.comment_view)
+        await mirrorCommentToAppDatabase(view: view)
     }
 
     @discardableResult
     public func createPost(
-        serverCommunityId: Components.Schemas.CommunityID,
+        serverCommunityId: Lemmy.CommunityID,
         name: String,
         url: String?,
         body: String?,
         nsfw: Bool
-    ) async throws -> Components.Schemas.PostID {
+    ) async throws -> Lemmy.PostID {
         guard !accountIsSignedOut else {
             logger.debug("""
                 Create post rejected - account is signed out. \
@@ -1787,14 +2001,15 @@ public actor LemmyService: LemmyServiceType {
             communityId=\(serverCommunityId, privacy: .public)
             """)
 
-        let response: Components.Schemas.PostResponse
+        let view: Lemmy.PostView
         do {
-            response = try await api.createPost(
-                communityID: serverCommunityId,
+            view = try await api.createPostNeutral(
                 name: name,
+                communityId: Int64(serverCommunityId),
                 url: url,
                 body: body,
-                nsfw: nsfw
+                nsfw: nsfw,
+                languageId: nil
             )
         } catch {
             logger.error("""
@@ -1804,8 +2019,8 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        await mirrorPostInfoToAppDatabase(view: response.post_view)
-        return response.post_view.post.id
+        await mirrorPostInfoToAppDatabase(view: view)
+        return Lemmy.PostID(view.post.id)
     }
 
     public func uploadImage(
@@ -1828,12 +2043,13 @@ public actor LemmyService: LemmyServiceType {
             bytes=\(imageData.count, privacy: .public)
             """)
 
-        let uploaded: LemmyApi.UploadedImage
+        // The neutral `uploadImageNeutral` takes no `mimeType` (it is inferred);
+        // `mimeType` is retained on this method's signature but unused.
+        let uploaded: LemmyKit.UploadedImage
         do {
-            uploaded = try await api.uploadImage(
+            uploaded = try await api.uploadImageNeutral(
                 imageData: imageData,
-                fileName: fileName,
-                mimeType: mimeType
+                fileName: fileName
             )
         } catch {
             logger.error("""
@@ -1842,11 +2058,16 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        return uploaded.url
+        guard let url = uploaded.imageURL else {
+            throw LemmyServiceError.internalInconsistency(
+                description: "uploadImage: upload returned no image url"
+            )
+        }
+        return url
     }
 
     public func setSaved(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         saved: Bool
     ) async throws {
         guard !accountIsSignedOut else {
@@ -1875,7 +2096,7 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func setSaved(
-        serverCommentId: Components.Schemas.CommentID,
+        serverCommentId: Lemmy.CommentID,
         saved: Bool
     ) async throws {
         guard !accountIsSignedOut else {
@@ -1904,7 +2125,7 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func deleteComment(
-        serverCommentId: Components.Schemas.CommentID,
+        serverCommentId: Lemmy.CommentID,
         deleted: Bool
     ) async throws {
         guard !accountIsSignedOut else {
@@ -1933,7 +2154,7 @@ public actor LemmyService: LemmyServiceType {
     }
 
     public func deletePost(
-        serverPostId: Components.Schemas.PostID,
+        serverPostId: Lemmy.PostID,
         deleted: Bool
     ) async throws {
         guard !accountIsSignedOut else {
@@ -1962,7 +2183,7 @@ public actor LemmyService: LemmyServiceType {
     }
 
     func mirrorCommentToAppDatabase(
-        view: Components.Schemas.CommentView
+        view: Lemmy.CommentView
     ) async {
         do {
             guard let (accountRowId, siteRowId) = try await accountSiteIds() else {

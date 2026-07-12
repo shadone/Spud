@@ -11,6 +11,21 @@ import OSLog
 
 private let logger = Logger.appDatabase
 
+/// A private-message view paired with its read state. The neutral
+/// ``LemmyKit/PrivateMessage`` deliberately dropped v3's bare `read` bool (v4 moved
+/// read state onto the unified notification entry), so the read flag rides
+/// alongside the view here: the send path marks its own outgoing message read,
+/// and the inbox fetch path sources it from `NotificationEntry.isRead`.
+public struct IncomingPrivateMessage: Sendable {
+    public let view: Lemmy.PrivateMessageView
+    public let isRead: Bool
+
+    public init(view: Lemmy.PrivateMessageView, isRead: Bool) {
+        self.view = view
+        self.isRead = isRead
+    }
+}
+
 public extension AppDatabase {
     /// Public mirror entry point. Upserts a page of private-message views for
     /// `accountId` in its own write transaction.
@@ -20,12 +35,12 @@ public extension AppDatabase {
     /// personId)`, same as post/comment creators). No-op — and logs — if the
     /// account row isn't in AppDatabase yet.
     func upsertPrivateMessages(
-        views: [Components.Schemas.PrivateMessageView],
+        _ messages: [IncomingPrivateMessage],
         accountId: Int64
     ) async throws {
-        guard !views.isEmpty else { return }
+        guard !messages.isEmpty else { return }
         try await writer.write { db in
-            try Self.upsertPrivateMessages(views: views, accountId: accountId, db: db)
+            try Self.upsertPrivateMessages(messages, accountId: accountId, db: db)
         }
     }
 
@@ -44,7 +59,7 @@ public extension AppDatabase {
     /// kept in a separate outbox table (a later slice) and merged at the read
     /// layer; reconciliation happens there, not by clearing this table.
     static func upsertPrivateMessages(
-        views: [Components.Schemas.PrivateMessageView],
+        _ messages: [IncomingPrivateMessage],
         accountId: Int64,
         db: Database
     ) throws {
@@ -53,8 +68,8 @@ public extension AppDatabase {
             return
         }
 
-        for view in views {
-            _ = try upsertPrivateMessage(from: view, accountId: accountId, siteId: siteId, db: db)
+        for message in messages {
+            _ = try upsertPrivateMessage(from: message, accountId: accountId, siteId: siteId, db: db)
         }
     }
 
@@ -63,18 +78,19 @@ public extension AppDatabase {
     /// a write transaction.
     @discardableResult
     static func upsertPrivateMessage(
-        from view: Components.Schemas.PrivateMessageView,
+        from incoming: IncomingPrivateMessage,
         accountId: Int64,
         siteId: Int64,
         db: Database
     ) throws -> Int64 {
+        let view = incoming.view
         // Both participants are bare `Person` objects on the view; land them so
         // the read layer can join for name/avatar regardless of which one is the
         // correspondent.
         _ = try upsertPerson(from: view.creator, siteId: siteId, in: db)
         _ = try upsertPerson(from: view.recipient, siteId: siteId, in: db)
 
-        let message = view.private_message
+        let message = view.privateMessage
         let now = Date()
         let serverMessageId = Int64(message.id)
 
@@ -83,11 +99,22 @@ public extension AppDatabase {
             .filter(Column("serverMessageId") == serverMessageId)
             .fetchOne(db)
         {
-            existing.creatorServerPersonId = Int64(message.creator_id)
-            existing.recipientServerPersonId = Int64(message.recipient_id)
+            existing.creatorServerPersonId = Int64(message.creatorId)
+            existing.recipientServerPersonId = Int64(message.recipientId)
             existing.content = message.content
-            existing.published = message.published
-            existing.isRead = message.read
+            existing.published = message.publishedAt
+            // Never downgrade a locally-read message back to unread on re-import.
+            // DM read state is monotonic (there is no "un-read" action), so a
+            // re-import only ever confirms or upgrades it. This also protects the
+            // v4 path: a private message read in a thread is cleared LOCALLY but
+            // not yet pushed to the server per-message (the neutral fetch drops
+            // the notification id needed to mark it — see markPrivateMessageAsRead
+            // and IncomingPrivateMessage), so the server keeps reporting it unread;
+            // without this guard, the very next refresh's import would revert the
+            // local read state and the thread would re-mark + double-decrement the
+            // badge on every re-open. Bulk server sync still happens via
+            // markAllInboxAsRead.
+            existing.isRead = incoming.isRead || existing.isRead
             existing.isDeleted = message.deleted
             existing.updatedAt = now
             try existing.update(db)
@@ -97,11 +124,11 @@ public extension AppDatabase {
         var record = PrivateMessageRecord(
             accountId: accountId,
             serverMessageId: serverMessageId,
-            creatorServerPersonId: Int64(message.creator_id),
-            recipientServerPersonId: Int64(message.recipient_id),
+            creatorServerPersonId: Int64(message.creatorId),
+            recipientServerPersonId: Int64(message.recipientId),
             content: message.content,
-            published: message.published,
-            isRead: message.read,
+            published: message.publishedAt,
+            isRead: incoming.isRead,
             isDeleted: message.deleted,
             updatedAt: now
         )

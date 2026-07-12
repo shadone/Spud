@@ -59,8 +59,8 @@ class TopPostsProvider: @preconcurrency IntentTimelineProvider {
     ) {
         logger.debug("Timeline requested")
 
-        let listingType = Components.Schemas.ListingType(from: configuration.feedType) ?? .Subscribed
-        let sortType = Components.Schemas.SortType(from: configuration.sortType) ?? .Hot
+        let listingType = Lemmy.ListingType(from: configuration.feedType) ?? .Subscribed
+        let sortType = Lemmy.SortType(from: configuration.sortType) ?? .Hot
 
         Task {
             let entry = await dependencies.entryService

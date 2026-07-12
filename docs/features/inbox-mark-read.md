@@ -22,7 +22,8 @@ private messages) — marking *posts* read in a feed is a separate feature.
 - **Badge stays in step.** Each per-item mark decrements the badge by one for its kind; mark-all-read resets the badge to zero. The badge is the `UnreadCountService` count surfaced on the Inbox tab.
 - **Failures surface an alert, locally already applied.** If the server call fails, an error alert is shown; the optimistic local change has already been made, so the row stays read on screen.
 - **Signed-out has nothing to mark.** The mark-all-read button is hidden when signed out, and per-item mark-read is a no-op without a signed-in account.
-- **Instance capability gate.** When the signed-in account's home instance is on Lemmy 1.0, the whole Inbox is gated (see [Inbox](inbox.md)) and the mark-all-read button is hidden along with it, the same as when signed out — see [Instance capability gating](instance-capability-gating.md).
+- **Backend-neutral mark-read.** A reply or mention is marked read by whichever id its backend uses — the per-kind comment-reply / person-mention id on a v3 instance, or the unified notification id on a native-v4 instance — routed automatically from the fetched item; mark-all-read uses the v3 replies+mentions call (plus a per-message pass for DMs) or the v4 mark-all-notifications call, which already covers DMs.
+- **Instance capability gate (now dormant for Lemmy).** The Inbox has a capability-gated state that also hides the mark-all-read button, but it no longer triggers on any Lemmy version — Spud speaks the native v4 inbox, so a Lemmy 1.0 instance is not gated (see [Inbox](inbox.md) and [Instance capability gating](instance-capability-gating.md)). The button is still hidden when signed out.
 
 ## Scenarios
 

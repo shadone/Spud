@@ -12,28 +12,30 @@ public extension CommunityListRow {
     /// Discover "search the network" fallback. Returns nil when the actor id has
     /// no parseable host. No trust/ranking data is available for live results, so
     /// `isSuspicious` and `score` are left at their defaults.
-    init?(searchView view: Components.Schemas.CommunityView) {
+    init?(searchView view: Lemmy.CommunityView) {
         let community = view.community
         guard
-            let url = URL(string: community.actor_id),
+            let url = URL(string: community.apId),
             let host = url.host
         else { return nil }
 
         self.init(
-            id: Int64(community.id),
-            communityUrl: community.actor_id,
+            id: community.id,
+            communityUrl: community.apId,
             instanceHost: host,
             name: community.name,
             title: community.title,
-            descriptionText: community.description,
-            iconUrl: community.icon.flatMap { URL(string: $0) },
+            descriptionText: community.sidebar,
+            iconUrl: community.iconUrl.flatMap { URL(string: $0) },
             isNsfw: community.nsfw,
             isSuspicious: false,
-            numberOfSubscribers: view.counts.subscribers,
-            numberOfPosts: view.counts.posts,
-            numberOfComments: view.counts.comments,
-            usersActiveWeek: view.counts.users_active_week,
-            usersActiveMonth: view.counts.users_active_month,
+            numberOfSubscribers: community.subscribers,
+            numberOfPosts: community.posts,
+            numberOfComments: community.comments,
+            // The neutral Community drops active-user counts (no v4 source), so
+            // the "active this week/month" figures are unavailable for live rows.
+            usersActiveWeek: 0,
+            usersActiveMonth: 0,
             score: 0
         )
     }

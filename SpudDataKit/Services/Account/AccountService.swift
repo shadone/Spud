@@ -123,17 +123,17 @@ public protocol AccountServiceType: AnyObject {
 
     /// The account's preferred listing type. Falls back to the site's
     /// `defaultPostListingType`, then to `.All` if neither is set.
-    func defaultListingType(forAccountKeychainId keychainId: String) -> Components.Schemas.ListingType
+    func defaultListingType(forAccountKeychainId keychainId: String) -> Lemmy.ListingType
 
     /// The account's preferred sort type. Falls back to `.Hot` if not set.
-    func defaultSortType(forAccountKeychainId keychainId: String) -> Components.Schemas.SortType
+    func defaultSortType(forAccountKeychainId keychainId: String) -> Lemmy.SortType
 
     /// Persists the account's preferred POST sort type to its stored record so
     /// the choice survives relaunch. The value is read back by
     /// `defaultSortType(forAccountKeychainId:)`. No-op if the account isn't
     /// registered.
     func setDefaultSortType(
-        _ sortType: Components.Schemas.SortType,
+        _ sortType: Lemmy.SortType,
         forAccountKeychainId keychainId: String
     )
 
@@ -192,7 +192,7 @@ public extension AccountServiceType {
     func createFeed(
         duplicateOf existing: FeedHandle,
         forAccountKeychainId _: String,
-        sortType: Components.Schemas.SortType? = nil
+        sortType: Lemmy.SortType? = nil
     ) -> FeedHandle {
         let newFeedType: FeedType = {
             switch existing.feedType {
@@ -232,7 +232,7 @@ public class AccountService: AccountServiceType {
     /// Injectable so the sign-in path can be unit-tested with a stub
     /// `ClientTransport` instead of a live instance; production wires up the
     /// real `URLSessionTransport`-backed api.
-    private let makeApi: @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?) -> LemmyApi
+    private let makeApi: @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?, _ apiVersion: LemmyKit.ApiVersion) -> LemmyApi
 
     /// Persists per-account credentials. Injectable so tests exercise the
     /// sign-in flow without the shared-group keychain entitlements the test
@@ -251,6 +251,14 @@ public class AccountService: AccountServiceType {
 
     private var lemmyServices: [String: LemmyService] = [:]
 
+    /// The `ApiVersion` each `lemmyServices` entry was built with, keyed by the
+    /// same `keychainId`. `LemmyService`/`LemmyApi` are actors, so their stored
+    /// `apiVersion` can't be read synchronously from this `@MainActor` cache —
+    /// tracking it here instead lets `lemmyService(forAccountKeychainId:)` compare
+    /// against the account's current resolved version with no `await` on its hot
+    /// path. See `lemmyService(forAccountKeychainId:)` for the self-healing use.
+    private var lemmyServiceApiVersions: [String: LemmyKit.ApiVersion] = [:]
+
     // MARK: Functions
 
     public convenience init(
@@ -262,8 +270,13 @@ public class AccountService: AccountServiceType {
             appDatabase: appDatabase,
             reachabilityMonitor: reachabilityMonitor,
             nodeInfoService: nodeInfoService
-        ) { instanceUrl, credential in
-            LemmyApi(instanceUrl: instanceUrl, credential: credential, userAgent: AppUserAgent.value)
+        ) { instanceUrl, credential, apiVersion in
+            LemmyApi(
+                instanceUrl: instanceUrl,
+                credential: credential,
+                userAgent: AppUserAgent.value,
+                apiVersion: apiVersion
+            )
         }
     }
 
@@ -272,7 +285,7 @@ public class AccountService: AccountServiceType {
         credentialStore: CredentialStore = KeychainCredentialStore(),
         reachabilityMonitor: ReachabilityMonitoring = StaticReachabilityMonitor(isOnline: true),
         nodeInfoService: NodeInfoServiceType? = nil,
-        makeApi: @escaping @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?) -> LemmyApi
+        makeApi: @escaping @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?, _ apiVersion: LemmyKit.ApiVersion) -> LemmyApi
     ) {
         self.appDatabase = appDatabase
         self.credentialStore = credentialStore
@@ -319,7 +332,7 @@ public class AccountService: AccountServiceType {
         )
     }
 
-    public func defaultListingType(forAccountKeychainId keychainId: String) -> Components.Schemas.ListingType {
+    public func defaultListingType(forAccountKeychainId keychainId: String) -> Lemmy.ListingType {
         do {
             return try appDatabase.writer.read { db in
                 guard
@@ -329,14 +342,14 @@ public class AccountService: AccountServiceType {
                 else { return .All }
                 if
                     let raw = account.defaultListingType,
-                    let value = Components.Schemas.ListingType(rawValue: raw)
+                    let value = Lemmy.ListingType(rawValue: raw)
                 {
                     return value
                 }
                 if
                     let site = try SiteRecord.filter(Column("id") == account.siteId).fetchOne(db),
                     let raw = site.defaultPostListingType,
-                    let value = Components.Schemas.ListingType(rawValue: raw)
+                    let value = Lemmy.ListingType(rawValue: raw)
                 {
                     return value
                 }
@@ -348,7 +361,7 @@ public class AccountService: AccountServiceType {
         }
     }
 
-    public func defaultSortType(forAccountKeychainId keychainId: String) -> Components.Schemas.SortType {
+    public func defaultSortType(forAccountKeychainId keychainId: String) -> Lemmy.SortType {
         do {
             return try appDatabase.writer.read { db in
                 guard
@@ -365,7 +378,7 @@ public class AccountService: AccountServiceType {
     }
 
     public func setDefaultSortType(
-        _ sortType: Components.Schemas.SortType,
+        _ sortType: Lemmy.SortType,
         forAccountKeychainId keychainId: String
     ) {
         do {
@@ -474,11 +487,33 @@ public class AccountService: AccountServiceType {
         }
     }
 
+    /// Resolves the (possibly cached) `LemmyService` for `keychainId`, self-healing
+    /// when the account's resolved `ApiVersion` has changed since the cached
+    /// service was built. This covers two cases the initiative design requires
+    /// (D4): a mid-session v3->v4 flip (the instance upgrades and a later
+    /// `getSite` mirrors the new version), and a newly-added account whose
+    /// service was first built before its initial `getSite` had persisted any
+    /// version (so it was frozen at the v3 fail-open default). The version is
+    /// re-resolved from the persisted site version on every call — a cheap sync
+    /// DB read — so this stays correct without an explicit invalidation hook.
     public func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType {
         assert(Thread.current.isMainThread)
 
+        let currentApiVersion = resolvedApiVersion(forKeychainId: keychainId)
+
         if let cached = lemmyServices[keychainId] {
-            return cached
+            if lemmyServiceApiVersions[keychainId] == currentApiVersion {
+                return cached
+            }
+            // The account's resolved ApiVersion changed since this service was
+            // built (e.g. getSite just mirrored a version bump). Evict so it's
+            // rebuilt below against the current version.
+            logger.debug("""
+                Evicting cached LemmyService for \(keychainId, privacy: .sensitive(mask: .hash)): \
+                apiVersion changed to \(String(describing: currentApiVersion), privacy: .public)
+                """)
+            lemmyServices[keychainId] = nil
+            lemmyServiceApiVersions[keychainId] = nil
         }
 
         let snapshot: (isSignedOut: Bool, actorId: InstanceActorId)
@@ -513,7 +548,7 @@ public class AccountService: AccountServiceType {
             fatalError("Failed to create URL from instance actor id '\(snapshot.actorId.actorId)'")
         }
         let credential = snapshot.isSignedOut ? nil : readCredential(forKeychainId: keychainId)
-        let api = makeApi(url, credential)
+        let api = makeApi(url, credential, currentApiVersion)
 
         logger.debug("Creating new LemmyService for \(keychainId, privacy: .sensitive(mask: .hash))")
 
@@ -525,7 +560,20 @@ public class AccountService: AccountServiceType {
             reachability: reachabilityMonitor
         )
         lemmyServices[keychainId] = service
+        lemmyServiceApiVersions[keychainId] = currentApiVersion
         return service
+    }
+
+    /// Derives which LemmyKit API version to dispatch through for the account
+    /// matching `keychainId`, from the site version last mirrored from getSite —
+    /// the same signal Phase 1's capability detection uses. A parsed Lemmy major
+    /// >= 1 is v4; anything older, or an unknown/unparseable version, fails open
+    /// to v3.
+    private func resolvedApiVersion(forKeychainId keychainId: String) -> LemmyKit.ApiVersion {
+        let major = appDatabase
+            .accountSiteVersionSync(forKeychainId: keychainId)
+            .flatMap { LemmyVersion(parsing: $0)?.major } ?? 0
+        return major >= 1 ? .v4 : .v3
     }
 
     /// Blocks a home connection to non-Lemmy software; fail-open when the router
@@ -550,9 +598,12 @@ public class AccountService: AccountServiceType {
         try await preflightHomeConnection(host: instance.host)
 
         // Temporary unauthenticated api for the login request.
-        let api = makeApi(url, nil)
+        // The instance's API version isn't known until getSite has run; login,
+        // register, and password-reset predate that, so dispatch through v3 (the
+        // compat surface). TODO: probe the version once neutral auth is adopted here.
+        let api = makeApi(url, nil, .v3)
 
-        let response: Components.Schemas.LoginResponse
+        let response: Lemmy.LoginResponse
         do {
             response = try await api.login(
                 usernameOrEmail: username,
@@ -604,9 +655,12 @@ public class AccountService: AccountServiceType {
         try await preflightHomeConnection(host: instance.host)
 
         // Temporary unauthenticated api for the registration request.
-        let api = makeApi(url, nil)
+        // The instance's API version isn't known until getSite has run; login,
+        // register, and password-reset predate that, so dispatch through v3 (the
+        // compat surface). TODO: probe the version once neutral auth is adopted here.
+        let api = makeApi(url, nil, .v3)
 
-        let response: Components.Schemas.LoginResponse
+        let response: Lemmy.LoginResponse
         do {
             response = try await api.register(
                 username: username,
@@ -646,7 +700,10 @@ public class AccountService: AccountServiceType {
 
         // Temporary unauthenticated api for the password-reset request, mirroring
         // `login` / `register`.
-        let api = makeApi(url, nil)
+        // The instance's API version isn't known until getSite has run; login,
+        // register, and password-reset predate that, so dispatch through v3 (the
+        // compat surface). TODO: probe the version once neutral auth is adopted here.
+        let api = makeApi(url, nil, .v3)
 
         do {
             _ = try await api.passwordReset(email: email)
@@ -705,8 +762,10 @@ public class AccountService: AccountServiceType {
         let instanceActorId = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId)
         let fallbackKeychainId = appDatabase.fallbackAccountKeychainIdSync(excludingKeychainId: keychainId)
 
-        // Drop the cached service so a stale authenticated api isn't reused.
+        // Drop the cached service (and its tracked apiVersion) so a stale
+        // authenticated api isn't reused.
         lemmyServices[keychainId] = nil
+        lemmyServiceApiVersions[keychainId] = nil
 
         deleteCredential(forKeychainId: keychainId)
         do {
@@ -733,8 +792,10 @@ public class AccountService: AccountServiceType {
         let instanceActorId = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId)
         let fallbackKeychainId = appDatabase.fallbackAccountKeychainIdSync(excludingKeychainId: keychainId)
 
-        // Drop the cached service so a stale authenticated api isn't reused.
+        // Drop the cached service (and its tracked apiVersion) so a stale
+        // authenticated api isn't reused.
         lemmyServices[keychainId] = nil
+        lemmyServiceApiVersions[keychainId] = nil
 
         // Signed-out accounts have no keychain credential to clear.
         if !isSignedOut(forAccountKeychainId: keychainId) {

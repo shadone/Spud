@@ -99,7 +99,7 @@ extension AppDatabase {
         feedType: FeedType,
         accountId: Int64,
         siteId: Int64,
-        posts: [Components.Schemas.PostView]
+        posts: [Lemmy.PostView]
     ) async throws -> Int64 {
         try await writer.write { db in
             let feedId = try Self.upsertFeed(
@@ -141,7 +141,7 @@ extension AppDatabase {
 
             var elementPosition: Int64 = 0
             for view in posts {
-                let url = view.post.ap_id
+                let url = view.post.apId
                 guard !existingUrls.contains(url) else { continue }
 
                 let postRowId = try AppDatabase.upsertPost(

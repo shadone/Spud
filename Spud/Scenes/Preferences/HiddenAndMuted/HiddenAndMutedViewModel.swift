@@ -55,7 +55,7 @@ final class HiddenAndMutedViewModel {
             guard let self else { return }
             do {
                 try await accountScope.lemmyService
-                    .hidePost(serverPostId: Components.Schemas.PostID(post.serverPostId), hidden: false)
+                    .hidePost(serverPostId: Lemmy.PostID(post.serverPostId), hidden: false)
             } catch {
                 logger.error("Unhide post failed: \(String(describing: error), privacy: .public)")
                 if let index, index <= hiddenPosts.count {

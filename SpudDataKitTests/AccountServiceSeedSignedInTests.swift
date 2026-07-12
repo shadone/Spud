@@ -58,7 +58,7 @@ struct AccountServiceSeedSignedInTests {
         AccountService(
             appDatabase: appDatabase,
             credentialStore: credentialStore
-        ) { _, _ in
+        ) { _, _, _ in
             fatalError("seedSignedInDefaultAccount must not build a LemmyApi")
         }
     }
