@@ -599,6 +599,43 @@ extension NewPostViewController {
         return navigationController
     }
 
+    /// Wraps the new-post composer, pre-filled with a source post's title/url/
+    /// body, in a navigation controller configured as a large detent sheet,
+    /// ready to `present(...)`. Mirrors `makeSheet` (a brand-new post, no
+    /// `editPostServerId`, community picker left open so the user picks the
+    /// cross-post's target community) but forwards the seeded content — see
+    /// `NewPostViewModel.hasSeededInitialContent` for how that content is
+    /// protected from being clobbered by a stale draft.
+    static func makeCrossPostSheet(
+        initialTitle: String,
+        initialUrl: String?,
+        initialBody: String?,
+        accountKeychainId: String,
+        dependencies: Dependencies,
+        onQueued: @escaping (String) -> Void
+    ) -> UIViewController {
+        let composer = NewPostViewController(
+            serverCommunityId: nil,
+            initialCommunityName: nil,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies,
+            initialTitle: initialTitle,
+            initialBody: initialBody,
+            initialUrl: initialUrl
+        )
+        composer.onQueued = onQueued
+        let navigationController = UINavigationController(rootViewController: composer)
+        // Set .pageSheet before reading sheetPresentationController: on iPad the
+        // default is .formSheet, which leaves that property nil and silently drops
+        // the detents configuration.
+        navigationController.modalPresentationStyle = .pageSheet
+        if let sheet = navigationController.sheetPresentationController {
+            sheet.detents = [.large()]
+            sheet.prefersGrabberVisible = true
+        }
+        return navigationController
+    }
+
     /// Wraps the composer in edit mode (seeded with an existing post) in a
     /// navigation controller configured as a large detent sheet, ready to
     /// `present(...)`. The composer self-dismisses once the edit is durably

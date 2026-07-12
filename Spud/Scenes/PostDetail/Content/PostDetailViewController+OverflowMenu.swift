@@ -49,6 +49,12 @@ extension PostDetailViewController {
         ) { [weak self] _ in
             self?.sharePost()
         }
+        let crossPostAction = UIAction(
+            title: NSLocalizedString("Cross-post", comment: "Overflow-menu action to re-share a post to another community"),
+            image: UIImage(systemName: "arrow.triangle.branch")
+        ) { [weak self] _ in
+            self?.crossPostPost()
+        }
         let selectTextAction = UIAction(
             title: NSLocalizedString("Select Text", comment: "Overflow-menu action to select the post's text"),
             image: UIImage(systemName: "character.cursor.ibeam")
@@ -57,7 +63,7 @@ extension PostDetailViewController {
         }
         let primaryGroup = UIMenu(
             options: .displayInline,
-            children: [addCommentAction, saveAction, shareAction, selectTextAction]
+            children: [addCommentAction, saveAction, shareAction, crossPostAction, selectTextAction]
         )
 
         let openInBrowserAction = UIAction(

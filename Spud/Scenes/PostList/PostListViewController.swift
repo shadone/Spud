@@ -1572,6 +1572,38 @@ class PostListViewController: UIViewController {
         present(composer, animated: true)
     }
 
+    /// Opens the new-post composer pre-filled with the post's title + url, so
+    /// the user can re-share it to another community. The feed row carries no
+    /// body, so the attribution is title + url only (matches lemmy-ui for a
+    /// no-body post) — the post-detail overflow menu's cross-post action
+    /// includes the quoted body since the full post is loaded there.
+    private func crossPostPost(serverPostId: Int64) {
+        let keychainId = viewModel.accountKeychainId
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to post", comment: "Sign-in gate title when a signed-out user tries to cross-post")
+            )
+            return
+        }
+        guard let row = viewModel.row(forServerPostId: serverPostId) else {
+            Haptics.warning()
+            return
+        }
+
+        Haptics.tap()
+        let composer = NewPostViewController.makeCrossPostSheet(
+            initialTitle: row.title,
+            initialUrl: row.url,
+            initialBody: crossPostBody(originalApId: row.originalPostUrl, originalBody: nil),
+            accountKeychainId: keychainId,
+            dependencies: dependencies.own
+        ) { [weak self] clientToken in
+            guard let window = self?.view.window as? MainWindow else { return }
+            window.displayPending(clientToken: clientToken, accountKeychainId: keychainId)
+        }
+        present(composer, animated: true)
+    }
+
     /// Pushes the post's community screen. Browsing is allowed signed-out, so
     /// this is not gated.
     private func visitCommunity(serverPostId: Int64) {
@@ -2111,6 +2143,13 @@ extension PostListViewController: UITableViewDelegate {
                     self?.sharePost(serverPostId: serverPostId)
                 }
 
+                let crossPostAction = UIAction(
+                    title: NSLocalizedString("Cross-post", comment: "Context-menu action to re-share a post to another community"),
+                    image: UIImage(systemName: "arrow.triangle.branch")
+                ) { [weak self] _ in
+                    self?.crossPostPost(serverPostId: serverPostId)
+                }
+
                 let row = self?.viewModel.row(forServerPostId: serverPostId)
 
                 let visitCommunityAction = UIAction(
@@ -2164,7 +2203,7 @@ extension PostListViewController: UITableViewDelegate {
                 // Grouped with inline submenus so each renders with a divider,
                 // matching the design's long-press menu layout.
                 let voteGroup = UIMenu(options: .displayInline, children: [upvoteAction, downvoteAction, saveAction])
-                let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction])
+                let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction, crossPostAction])
                 let navGroup = UIMenu(options: .displayInline, children: [visitCommunityAction, viewAuthorAction])
                 var hideChildren: [UIMenuElement] = [hideAction]
                 if let self, let communityName = row?.communityName, !communityName.isEmpty, row?.communityActorId != nil {

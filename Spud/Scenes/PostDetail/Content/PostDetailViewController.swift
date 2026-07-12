@@ -1774,6 +1774,36 @@ class PostDetailViewController: UIViewController {
         )
         present(composer, animated: true)
     }
+
+    /// Presents the new-post composer pre-filled with this post's title/url,
+    /// plus a quoted-body attribution (the full post is loaded here, unlike
+    /// the feed row), so the user can re-share it to another community. Sign-in
+    /// gated, community picker left open for the user to choose the cross-post
+    /// target. Uses the same durable-enqueue pending-post flow as the toolbar
+    /// compose action.
+    // internal: shared with PostDetailViewController+OverflowMenu
+    func crossPostPost() {
+        guard let row = viewModel.headerRow else { return }
+        let keychainId = viewModel.accountKeychainId
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(
+                title: NSLocalizedString("Sign in to post", comment: "Sign-in gate title when a signed-out user tries to cross-post")
+            )
+            return
+        }
+
+        let composer = NewPostViewController.makeCrossPostSheet(
+            initialTitle: row.title,
+            initialUrl: row.url,
+            initialBody: crossPostBody(originalApId: row.originalPostUrl, originalBody: row.body),
+            accountKeychainId: keychainId,
+            dependencies: dependencies.own
+        ) { [weak self] clientToken in
+            guard let window = self?.view.window as? MainWindow else { return }
+            window.displayPending(clientToken: clientToken, accountKeychainId: keychainId)
+        }
+        present(composer, animated: true)
+    }
 }
 
 // MARK: - Data source
