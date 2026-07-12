@@ -160,8 +160,6 @@ final class CustomInstanceEntryViewController: UIViewController {
             stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 24),
             stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
             stackView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 28),
-
-            continueButton.heightAnchor.constraint(equalToConstant: 52),
         ])
     }
 
