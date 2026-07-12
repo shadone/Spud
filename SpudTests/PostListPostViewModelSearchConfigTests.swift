@@ -16,7 +16,8 @@ import UIKit
 struct PostListPostViewModelSearchConfigTests {
     private func row(
         creatorName: String? = "alice",
-        creatorActorId: String? = "https://lemmy.world/u/alice"
+        creatorActorId: String? = "https://lemmy.world/u/alice",
+        isNsfw: Bool = false
     ) -> PostListRow {
         PostListRow(
             id: 1,
@@ -45,7 +46,7 @@ struct PostListPostViewModelSearchConfigTests {
             isFeaturedCommunity: false,
             isFeaturedLocal: false,
             isDeleted: false,
-            isNsfw: false,
+            isNsfw: isNsfw,
             published: Date(timeIntervalSince1970: 0)
         )
     }
@@ -116,5 +117,64 @@ struct PostListPostViewModelSearchConfigTests {
         let vm = viewModel(row: row())
         #expect(vm.authorLine == nil)
         #expect(vm.authorAccessibilityLabel == nil)
+    }
+
+    // MARK: - NSFW blur (defense-in-depth)
+
+    /// Mirrors `SearchViewController.makePostCell`'s defense-in-depth: when Show-NSFW is
+    /// off, the search cell passes `blurNsfw: blurPref || !showNsfw` and forces
+    /// `isRevealed: false`, so an NSFW post that somehow slips past the result filter is
+    /// still blurred — never a raw NSFW thumbnail to a user who opted out. `blurNsfw`
+    /// and `showNsfw` are independent prefs, so blur-off + Show-NSFW-off is reachable.
+    @Test
+    func nsfwPost_withShowNsfwOff_isForcedBlurred_evenWhenBlurPrefOff() {
+        let preferences = PreferencesService.ephemeral()
+        preferences.blurNsfw = false // blur preference OFF...
+        preferences.showNsfw = false // ...but Show-NSFW also OFF (opted out)
+
+        // The exact values the search cell computes for this pref state.
+        let forcedBlur = preferences.blurNsfw || !preferences.showNsfw
+        let forcedReveal = preferences.showNsfw && true
+        #expect(forcedBlur)
+        #expect(forcedReveal == false)
+
+        let vm = PostListPostViewModel(
+            row: row(isNsfw: true),
+            appearance: AppearanceService(preferencesService: preferences),
+            postContentDetector: PostContentDetectorService(),
+            blurNsfw: forcedBlur,
+            isRevealed: forcedReveal
+        )
+        #expect(vm.isThumbnailBlurred)
+    }
+
+    /// With Show-NSFW on and the blur preference on, an NSFW post is blurred (opted-in
+    /// blur), and a non-NSFW post is never blurred regardless of the prefs.
+    @Test
+    func nsfwPost_withShowNsfwOn_honorsBlurPreference() {
+        let preferences = PreferencesService.ephemeral()
+        preferences.blurNsfw = true
+        preferences.showNsfw = true
+
+        let forcedBlur = preferences.blurNsfw || !preferences.showNsfw
+        let appearance = AppearanceService(preferencesService: preferences)
+        let detector = PostContentDetectorService()
+
+        let nsfwVm = PostListPostViewModel(
+            row: row(isNsfw: true),
+            appearance: appearance,
+            postContentDetector: detector,
+            blurNsfw: forcedBlur,
+            isRevealed: preferences.showNsfw && false
+        )
+        #expect(nsfwVm.isThumbnailBlurred)
+
+        let sfwVm = PostListPostViewModel(
+            row: row(isNsfw: false),
+            appearance: appearance,
+            postContentDetector: detector,
+            blurNsfw: forcedBlur
+        )
+        #expect(sfwVm.isThumbnailBlurred == false)
     }
 }

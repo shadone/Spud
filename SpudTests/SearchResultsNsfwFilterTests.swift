@@ -10,10 +10,16 @@ import SpudUtilKit
 import Testing
 @testable import Spud
 
-/// Covers the search NSFW policy: NSFW *posts* are now KEPT (they render blurred
-/// through the shared feed cell), while NSFW *communities* are still withheld when
-/// the user has not opted in. Only the post behavior changed — posts used to be
-/// dropped alongside communities.
+/// Covers the search NSFW policy, which mirrors the feed exactly:
+/// - **Show-NSFW off** (`filteringNsfw(true)`): NSFW posts *and* communities are
+///   DROPPED — an opted-out user is never shown NSFW, matching the server-filtered
+///   feed.
+/// - **Show-NSFW on** (`filteringNsfw(false)`): NSFW posts are KEPT and stay
+///   `isNsfw`-marked so the shared feed cell blurs them per the blur preference.
+///
+/// Regression guard: a prior revision dropped only NSFW *communities* while keeping
+/// NSFW *posts* even with Show-NSFW off, so a raw NSFW thumbnail could reach a user
+/// who had opted out (with blur also off). These tests pin the drop-on-opt-out.
 @MainActor
 struct SearchResultsNsfwFilterTests {
     // MARK: Helpers
@@ -88,49 +94,50 @@ struct SearchResultsNsfwFilterTests {
     // MARK: Tests
 
     @Test
-    func filteringNsfw_true_keepsNsfwPostsMarkedForBlur_dropsNsfwCommunities() {
+    func filteringNsfw_true_dropsNsfwPostsAndCommunities() {
         var results = SearchResults()
         results.posts = [makeSfwPost(id: 1), makeNsfwPost(id: 2), makeSfwPost(id: 3)]
         results.communities = [makeSfwCommunity(id: 10), makeNsfwCommunity(id: 11)]
 
         let filtered = results.filteringNsfw(true)
 
-        // Posts are no longer dropped: the NSFW post is RETURNED, and it is still
-        // flagged NSFW so the shared feed cell blurs it (respecting the blur preference
-        // and tap-to-reveal) rather than hiding it.
-        #expect(filtered.posts.count == 3)
-        #expect(filtered.posts.contains { $0.isNsfw })
-        #expect(filtered.posts.first { $0.serverPostId == 2 }?.isNsfw == true)
+        // Show-NSFW off: the NSFW post is DROPPED entirely (never rendered to an
+        // opted-out user), and only the SFW posts survive.
+        #expect(filtered.posts.count == 2)
+        #expect(filtered.posts.allSatisfy { !$0.isNsfw })
+        #expect(filtered.posts.contains { $0.serverPostId == 2 } == false)
 
-        // Communities still drop: the community cell has no blur affordance.
+        // The NSFW community is likewise withheld.
         #expect(filtered.communities.count == 1)
         #expect(filtered.communities.allSatisfy { !$0.isNsfw })
     }
 
     @Test
-    func filteringNsfw_false_keepsAll() {
+    func filteringNsfw_false_keepsNsfwPostsMarkedForBlur() {
         var results = SearchResults()
         results.posts = [makeSfwPost(id: 1), makeNsfwPost(id: 2)]
         results.communities = [makeSfwCommunity(id: 10), makeNsfwCommunity(id: 11)]
 
         let filtered = results.filteringNsfw(false)
 
+        // Show-NSFW on: everything is kept, and the NSFW post is still flagged so the
+        // shared feed cell blurs it (per the blur preference / tap-to-reveal).
         #expect(filtered.posts.count == 2)
+        #expect(filtered.posts.first { $0.serverPostId == 2 }?.isNsfw == true)
         #expect(filtered.communities.count == 2)
     }
 
     @Test
-    func filteringNsfw_true_preservesPostsUsersAndComments() {
-        // Posts are kept (blurred, not dropped); users and comments have no NSFW flag
-        // and are left untouched. Only the NSFW community is withheld.
+    func filteringNsfw_true_dropsNsfwPost_leavesUsersAndCommentsUntouched() {
+        // The lone NSFW post and NSFW community are dropped; users and comments have no
+        // NSFW flag and are never filtered.
         var results = SearchResults()
         results.posts = [makeNsfwPost(id: 1)]
         results.communities = [makeNsfwCommunity(id: 10)]
 
         let filtered = results.filteringNsfw(true)
 
-        #expect(filtered.posts.count == 1)
-        #expect(filtered.posts[0].isNsfw)
+        #expect(filtered.posts.isEmpty)
         #expect(filtered.communities.isEmpty)
         #expect(filtered.users.isEmpty)
         #expect(filtered.comments.isEmpty)

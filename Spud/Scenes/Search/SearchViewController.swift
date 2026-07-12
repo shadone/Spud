@@ -413,21 +413,29 @@ final class SearchViewController: UIViewController {
         let row = result.row
         let serverPostRowId = row.serverPostId
         let serverPostId = result.serverPostId
+        // Defense-in-depth: the NSFW filter (`filteringNsfw`) already drops NSFW posts
+        // when Show-NSFW is off, so one should never reach this cell in that state. But
+        // if it ever did, force the blur on (and suppress reveal, below) so an opted-out
+        // user is never shown a raw NSFW thumbnail — `blurNsfw` and `showNsfw` are
+        // independent prefs (blur can be off while Show-NSFW is off).
+        let showNsfw = preferencesService.showNsfw
         let cellViewModel = PostListPostViewModel(
             row: row,
             appearance: appearanceService,
             postContentDetector: postContentDetector,
-            blurNsfw: preferencesService.blurNsfw,
-            isRevealed: revealedNsfwPostIds.contains(serverPostRowId),
+            blurNsfw: preferencesService.blurNsfw || !showNsfw,
+            isRevealed: showNsfw && revealedNsfwPostIds.contains(serverPostRowId),
             showsAuthor: true,
             showVoteButtonsOverride: false
         )
         cell.postContentView.configure(with: cellViewModel, imageService: imageService)
 
         // A blurred NSFW thumbnail reveals on tap; reconfigure just this row so the
-        // reveal sticks (search has no backing observation to re-emit it).
+        // reveal sticks (search has no backing observation to re-emit it). Reveal is
+        // gated on Show-NSFW: an opted-out user can never un-blur (defense-in-depth,
+        // paired with the forced blur above — normally no NSFW post reaches here then).
         cell.postContentView.revealNsfwTapped = { [weak self] in
-            guard let self else { return }
+            guard let self, preferencesService.showNsfw else { return }
             revealedNsfwPostIds.insert(serverPostRowId)
             var snapshot = dataSource.snapshot()
             snapshot.reconfigureItems([.post(result)])

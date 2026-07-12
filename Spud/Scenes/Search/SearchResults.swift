@@ -38,8 +38,9 @@ struct SearchPostResult: Hashable, Identifiable {
         row.title
     }
 
-    /// Whether the post (or its community) is NSFW. Now drives the cell's blur — the
-    /// result is no longer dropped from search.
+    /// Whether the post (or its community) is NSFW. Drives the cell's blur when the
+    /// post is *kept* (Show-NSFW on). When Show-NSFW is off the post is dropped from
+    /// search entirely (see ``SearchResults/filteringNsfw(_:)``), matching the feed.
     var isNsfw: Bool {
         row.isNsfw
     }
@@ -277,17 +278,25 @@ struct SearchResults {
         comments = response.comments.map(SearchCommentResult.init)
     }
 
-    /// Returns a copy with NSFW *communities* removed when the user has not opted in
-    /// (`show_nsfw` off). Lemmy's search API has no server NSFW filter, so this is
-    /// client-side.
+    /// Returns a copy with NSFW *posts and communities* removed when the user has not
+    /// opted in (`show_nsfw` off, so `removeNsfw` is true). Lemmy's search API has no
+    /// server NSFW filter, so this is client-side.
     ///
-    /// NSFW *posts* are deliberately kept: they render blurred through the shared feed
-    /// cell (respecting the user's blur preference and tap-to-reveal), matching how the
-    /// feed treats NSFW posts — rather than being dropped. Only communities are withheld
-    /// here, since the community result cell has no blur affordance.
+    /// This mirrors the feed's NSFW policy exactly. The feed only *shows* NSFW posts
+    /// when Show-NSFW is on (then blurs each per the blur preference); with Show-NSFW
+    /// off the server filters them out entirely. Search realizes the same policy
+    /// client-side:
+    /// - **Show-NSFW off** (`removeNsfw` true): drop NSFW posts *and* communities —
+    ///   respect the opt-out, never render NSFW to a user who turned it off.
+    /// - **Show-NSFW on** (`removeNsfw` false): keep NSFW posts; the shared feed cell
+    ///   blurs them per the `blurNsfw` preference (with tap-to-reveal). Communities are
+    ///   kept too — the community cell has no blur affordance, but the user opted in.
+    ///
+    /// Non-NSFW content is never dropped.
     func filteringNsfw(_ removeNsfw: Bool) -> SearchResults {
         guard removeNsfw else { return self }
         var copy = self
+        copy.posts = posts.filter { !$0.isNsfw }
         copy.communities = communities.filter { !$0.isNsfw }
         return copy
     }

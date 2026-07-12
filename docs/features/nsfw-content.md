@@ -52,11 +52,11 @@ across devices.
 - **Discovery gating: feeds, Discover, Search, and the community picker.** When Show NSFW is
   off, NSFW content is filtered across all discovery surfaces: the server filters it from feeds;
   the Discover directory and its network search drop NSFW communities client-side; the global
-  Search scene drops NSFW *communities* from its results client-side; and the community
+  Search scene drops NSFW *posts and communities* from its results client-side; and the community
   picker in the post composer drops NSFW communities from its search results client-side.
-  Search *posts*, however, are no longer dropped — an NSFW post result renders blurred through the
-  shared feed cell (respecting the blur preference and tap-to-reveal), the same way the feed treats
-  NSFW posts. Already-subscribed communities and deep links are unaffected — gating is about
+  When Show NSFW is on, Search keeps NSFW posts and renders each blurred through the shared feed
+  cell (respecting the blur preference and tap-to-reveal), exactly as the feed treats NSFW posts.
+  Already-subscribed communities and deep links are unaffected — gating is about
   discovery, not access.
 
 ### Blur NSFW
@@ -196,13 +196,19 @@ across devices.
 - **When** I flip the Blur NSFW toggle in Quick Switch or Settings
 - **Then** the overlay appears or disappears on visible NSFW items without the feed reloading
 
-### Search withholds NSFW communities (but blurs NSFW posts) when Show NSFW is off
+### Search drops NSFW posts and communities when Show NSFW is off
 
 - **Given** Show NSFW is off and I am on the Search tab
 - **When** I search for communities
 - **Then** NSFW communities are filtered from the list client-side
 - **When** I search for posts
-- **Then** NSFW posts are kept and rendered blurred through the shared feed cell (tap-to-reveal), rather than dropped
+- **Then** NSFW posts are dropped from the results client-side — never shown, raw or blurred — matching the server-filtered feed
+
+### Search blurs NSFW posts when Show NSFW is on
+
+- **Given** Show NSFW is on and the blur preference is on, and I am on the Search tab
+- **When** I search for posts that match an NSFW post
+- **Then** the NSFW post is kept and rendered blurred through the shared feed cell (tap-to-reveal), exactly as the feed treats NSFW posts
 
 ### Community picker drops NSFW communities when Show NSFW is off
 

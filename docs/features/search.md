@@ -19,7 +19,7 @@ Search the connected instance for posts, communities, users, or comments — or 
 - **Designed states.** The screen shows an initial prompt before any query, a spinner while a query is in flight, a no-results state that quotes the term that returned nothing, and an error state if the request fails.
 - **Inline subscribe from community results.** A community result row carries a Subscribe / Subscribed button. Tapping it always flips the row in place immediately and durably queues the change without leaving search. If the community is already cached locally (seen before in a feed or another screen), that tap also lands the shared database-backed flip instantly, same as everywhere else; if it was found only through this search, the durable send still fires in the background, but the database catches up once it lands rather than at tap time (see Scenarios and [Subscribe / unsubscribe](subscribe-unsubscribe.md)).
 - **Post rows are the shared feed cell.** A post result renders through the same view the feed uses, so a searched post shows the same rich information as in a feed — the `community@instance` handle, score, comment count, thumbnail (image / link preview / video / text placeholder), self-text preview, and the moderation / author-status badges — plus a quiet `@user@instance` author line under the title (which the feed omits). The trailing up/down vote arrows are **not** shown on search rows: a search row taps through to Post detail rather than voting in place. VoiceOver reads the row as one statement including the author.
-- **NSFW posts are blurred, not dropped.** An NSFW post result is kept and rendered blurred through the shared cell (respecting the blur preference and tap-to-reveal), the same way the feed treats NSFW posts, rather than being omitted. NSFW *communities* are still withheld from results when "Show NSFW" is off (a community row has no blur affordance). See [NSFW content visibility and blur](nsfw-content.md).
+- **NSFW posts follow the feed.** With "Show NSFW" **on**, an NSFW post result is kept and rendered blurred through the shared cell (respecting the blur preference and tap-to-reveal), exactly as the feed treats NSFW posts. With "Show NSFW" **off**, NSFW posts are dropped from results entirely — matching the feed (which the server filters) — so a user who opted out is never shown NSFW content, raw or blurred. NSFW *communities* are likewise withheld when "Show NSFW" is off. See [NSFW content visibility and blur](nsfw-content.md).
 - **Tapping a result navigates.** A post or comment result opens the post in Post detail; a community result opens the [Community screen](community-screen.md); a user result opens the [Person profile](person-profile.md). On a post row, tapping the thumbnail opens the post too (a blurred NSFW thumbnail reveals on the first tap instead).
 - **Paste a Lemmy URL to open it in Spud.** When the search field contains a Lemmy link — a post, comment, community, user, or a bare instance — an "Open in Spud" row appears above the results that opens it in-app on tap (resolving the object federally when needed) instead of a web browser. Both canonical URLs (`/post/<id>`, `/c/<name>`, `/u/<name>`, `/comment/<id>`) and the frontend post form some instances use (`/c/<community>/p/<id>/<slug>`) are recognized, including links to instances not in the local directory.
 - **Keyboard dismisses on scroll.** Dragging the results list dismisses the keyboard.
@@ -33,12 +33,19 @@ Search the connected instance for posts, communities, users, or comments — or 
 - **Then** after a short debounce the query runs and matching post rows appear
 - **And** each row is the same rich feed cell — title, `community@instance` handle, score, comment count, thumbnail, and status/author badges — with a `@user@instance` author line, and no vote arrows
 
-### An NSFW post result is blurred, not hidden
+### An NSFW post result is blurred when Show NSFW is on
 
-- **Given** the Posts scope and a query that matches an NSFW post, with the blur preference on
+- **Given** "Show NSFW" is on and the blur preference is on, the Posts scope, and a query that matches an NSFW post
 - **When** the results arrive
 - **Then** the NSFW post row is shown with its thumbnail blurred (rather than being dropped from the list)
 - **And** tapping the blurred thumbnail reveals it for the session
+
+### NSFW posts are hidden when Show NSFW is off
+
+- **Given** "Show NSFW" is off, the Posts scope, and a query that matches an NSFW post
+- **When** the results arrive
+- **Then** the NSFW post is dropped from the results entirely — never shown, raw or blurred — matching the server-filtered feed
+- **And** NSFW communities are likewise withheld from results
 
 ### Paste a Lemmy link to open it in Spud
 
@@ -95,7 +102,7 @@ Search the connected instance for posts, communities, users, or comments — or 
 
 ## Not supported / out of scope
 
-- **NSFW gating.** NSFW *posts* are no longer dropped — they render blurred through the shared feed cell (respecting the blur preference and tap-to-reveal), matching the feed. Only NSFW *communities* are still omitted from results when "Show NSFW" is off (the community row has no blur affordance). See [NSFW content visibility and blur](nsfw-content.md).
+- **NSFW gating mirrors the feed.** With "Show NSFW" off, NSFW posts *and* communities are dropped from results (an opted-out user never sees NSFW). With "Show NSFW" on, NSFW posts are kept and rendered blurred through the shared feed cell (respecting the blur preference and tap-to-reveal), matching the feed. See [NSFW content visibility and blur](nsfw-content.md).
 - No pagination on results — search returns a single page; there is no infinite scroll or "load more".
 - The result sort and listing type are fixed (top-of-all-time, All); there is no in-screen sort or listing picker for search.
 - Only community results expose an inline subscribe action; post, user, comment, and instance rows do not.
