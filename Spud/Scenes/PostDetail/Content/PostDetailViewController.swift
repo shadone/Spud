@@ -1311,6 +1311,16 @@ class PostDetailViewController: UIViewController {
             alertService.handle(error, for: .fetchComments)
         }
         await postInfoRefresh
+        // `refreshPostInfo()` re-reads `viewModel.crossPosts` as a plain
+        // one-shot assignment (not a GRDB observation), so it doesn't itself
+        // trigger a reaction loop's `applySnapshot()`. The header-row
+        // observation happens to cover most refreshes (a fresh PostView
+        // usually changes score/comment-count columns too), but a refresh
+        // whose ONLY delta is a gained/lost cross-post wouldn't touch those
+        // columns and so wouldn't re-emit. Apply explicitly (non-animated, the
+        // default) so the section is deterministic rather than riding along on
+        // an unrelated observation.
+        applySnapshot()
         refreshControl.endRefreshing()
     }
 
