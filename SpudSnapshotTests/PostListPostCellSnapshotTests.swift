@@ -195,6 +195,20 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - Cross-post affordance
+
+    /// The primary of two collapsed cross-post siblings (`CrossPostGrouper`)
+    /// shows the "Also in ..." affordance line under the subtitle. The default
+    /// empty `crossPostSiblingCommunityNames` used by every other test in this
+    /// file keeps `crossPostLabel` hidden and out of the layout — this is the
+    /// one case that exercises it present.
+    func test_crossPostAffordance() async {
+        await assertCell(
+            row(url: nil),
+            crossPostSiblingCommunityNames: ["photography", "pics"]
+        )
+    }
+
     // MARK: - Rendering
 
     private func assertCell(
@@ -202,6 +216,7 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         imageService: @autoclosure () -> ImageServiceType = ScriptedImageService([.failure]),
         density: PostDensity = .comfortable,
         showVoteButtons: Bool = true,
+        crossPostSiblingCommunityNames: [String] = [],
         testName: String = #function,
         line: UInt = #line
     ) async {
@@ -210,7 +225,8 @@ final class PostListPostCellSnapshotTests: XCTestCase {
                 row: row,
                 imageService: imageService(),
                 density: density,
-                showVoteButtons: showVoteButtons
+                showVoteButtons: showVoteButtons,
+                crossPostSiblingCommunityNames: crossPostSiblingCommunityNames
             )
             snapshot(cell, style: style, testName: testName, line: line)
         }
@@ -220,7 +236,8 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         row: PostListRow,
         imageService: ImageServiceType,
         density: PostDensity,
-        showVoteButtons: Bool = true
+        showVoteButtons: Bool = true,
+        crossPostSiblingCommunityNames: [String] = []
     ) async -> PostListPostCell {
         let cell = PostListPostCell(style: .default, reuseIdentifier: nil)
         // Pin the accent on the snapshot root: the `.image` strategy reparents
@@ -235,7 +252,15 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         // stays legible (white-on-transparent would vanish in dark mode).
         cell.contentView.backgroundColor = .systemBackground
 
-        cell.configure(with: makeViewModel(row: row, density: density, showVoteButtons: showVoteButtons), imageService: imageService)
+        cell.configure(
+            with: makeViewModel(
+                row: row,
+                density: density,
+                showVoteButtons: showVoteButtons,
+                crossPostSiblingCommunityNames: crossPostSiblingCommunityNames
+            ),
+            imageService: imageService
+        )
         await settle()
 
         return cell
@@ -279,7 +304,12 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         ])
     }
 
-    private func makeViewModel(row: PostListRow, density: PostDensity, showVoteButtons: Bool = true) -> PostListPostViewModel {
+    private func makeViewModel(
+        row: PostListRow,
+        density: PostDensity,
+        showVoteButtons: Bool = true,
+        crossPostSiblingCommunityNames: [String] = []
+    ) -> PostListPostViewModel {
         // A fresh, private UserDefaults suite per render so preference-backed
         // layout gates read their canonical defaults, isolated from the sim's
         // persisted state and from other tests. `thumbnailPosition` reads its
@@ -292,7 +322,8 @@ final class PostListPostCellSnapshotTests: XCTestCase {
         return PostListPostViewModel(
             row: row,
             appearance: appearance,
-            postContentDetector: PostContentDetectorService()
+            postContentDetector: PostContentDetectorService(),
+            crossPostSiblingCommunityNames: crossPostSiblingCommunityNames
         )
     }
 
