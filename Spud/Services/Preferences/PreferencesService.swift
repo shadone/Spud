@@ -91,6 +91,17 @@ protocol PreferencesServiceType: AnyObject {
     var showVoteButtons: Bool { get set }
     var showVoteButtonsStream: AsyncStream<Bool> { get }
 
+    /// Whether feed rows that link to the same `url` (Lemmy's definition of a
+    /// cross-post) are collapsed into one primary row with an "Also in N
+    /// communities" affordance. Default `true`. Client-side and same-page only —
+    /// the feed API carries no cross-post list, so a duplicate that lands on a
+    /// later page after grouping already ran on an earlier one still joins its
+    /// primary's group on the next `apply` (grouping recomputes over the full
+    /// loaded set each time), but two duplicates that are never loaded in the
+    /// same session are never grouped. See `docs/features/cross-posting.md`.
+    var groupCrossPostsInFeed: Bool { get set }
+    var groupCrossPostsInFeedStream: AsyncStream<Bool> { get }
+
     /// Whether posts and communities marked not-safe-for-work are shown in
     /// feeds and the community directory. Default `false` (hide NSFW). The feed
     /// fetch threads this through `getPosts(showNSFW:)`, so the filtering is
@@ -288,6 +299,13 @@ class PreferencesService: PreferencesServiceType {
     }
 
     @UserDefaultsBacked
+    var groupCrossPostsInFeed: Bool
+
+    var groupCrossPostsInFeedStream: AsyncStream<Bool> {
+        $groupCrossPostsInFeed
+    }
+
+    @UserDefaultsBacked
     var showNsfw: Bool
 
     var showNsfwStream: AsyncStream<Bool> {
@@ -396,6 +414,7 @@ class PreferencesService: PreferencesServiceType {
         _thumbnailPosition = .init(wrappedValue: .left, key: "thumbnailPosition", storage: storage)
         _postTextScale = .init(wrappedValue: 0, key: "postTextScale", storage: storage)
         _showVoteButtons = .init(wrappedValue: true, key: "showVoteButtons", storage: storage)
+        _groupCrossPostsInFeed = .init(wrappedValue: true, key: "groupCrossPostsInFeed", storage: storage)
         _showNsfw = .init(wrappedValue: false, key: "showNsfw", storage: storage)
         _blurNsfw = .init(wrappedValue: true, key: "blurNsfw", storage: storage)
         _fetchLinkEmbeds = .init(wrappedValue: true, key: "fetchLinkEmbeds", storage: storage)
