@@ -113,6 +113,9 @@ public extension AppDatabase {
         // v3, where the bare `Person.banned` set this — instead of only after a
         // separate `PersonView` (profile) import. `PostListRow`/`PostDetailHeaderRow`
         // read `isCreatorSiteBanned` from the joined `person.isBanned`.
+        // Coupling caveat: `isBanned` is now derived from the view's `creatorBanned` (the
+        // neutral bare `Person` no longer carries the site-ban), so a locally-synthesized
+        // `PostView` that defaults `creatorBanned` to `false` would clear a real ban.
         if var creatorRecord = try PersonRecord.fetchOne(db, key: creatorId) {
             creatorRecord.isBanned = view.creatorBanned
             try creatorRecord.update(db)

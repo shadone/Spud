@@ -171,6 +171,20 @@ public extension AppDatabase {
             siteId: siteId,
             in: db
         )
+        // The neutral bare `Person` carries no site-ban (v4 moved `banned` onto the
+        // views), but v4's `CommentView` exposes the creator's instance-wide ban as
+        // `creatorBanned`. Mirror it onto the creator's person row so the comment
+        // author-status SUSPENDED indicator lights up from a comment-tree import —
+        // matching v3, where the bare `Person.banned` set this — instead of only after a
+        // separate `PersonView` (profile) import. `PostDetailCommentRow` reads
+        // `isCreatorSiteBanned` from the joined `person.isBanned` (mirrors PostImporter).
+        // Coupling caveat: `isBanned` is now derived from the view's `creatorBanned` (the
+        // neutral bare `Person` no longer carries the site-ban), so a locally-synthesized
+        // `CommentView` that defaults `creatorBanned` to `false` would clear a real ban.
+        if var creatorRecord = try PersonRecord.fetchOne(db, key: creatorId) {
+            creatorRecord.isBanned = view.creatorBanned
+            try creatorRecord.update(db)
+        }
 
         let now = Date()
         let serverCommentId = Int64(view.comment.id)

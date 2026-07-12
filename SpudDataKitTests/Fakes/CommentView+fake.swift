@@ -18,6 +18,7 @@ extension Lemmy.CommentView {
         post: Lemmy.Post,
         community: Lemmy.Community,
         childCount: Int32,
+        creatorBanned: Bool = false,
         commentActions: CommentActions? = nil,
         communityActions: CommunityActions? = nil
     ) -> Lemmy.CommentView {
@@ -45,6 +46,7 @@ extension Lemmy.CommentView {
             creator: creator,
             post: post,
             community: community,
+            creatorBanned: creatorBanned,
             commentActions: commentActions,
             communityActions: communityActions
         )
