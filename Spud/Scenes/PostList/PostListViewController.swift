@@ -1207,6 +1207,11 @@ class PostListViewController: UIViewController {
         // so the dangerous lookup-empty-but-snapshot-populated window never opens.
         if !keepingContent {
             displayedRows.removeAll()
+            // `crossPostSiblings` is auxiliary lookup state for rows already in
+            // `displayedRows` (see its doc comment) — reset it in lockstep so a
+            // stale sibling map from the prior feed can't outlive the rows it
+            // was computed from.
+            crossPostSiblings.removeAll()
             clearPostItems()
         }
         viewModel.restartObservations(keepingContent: keepingContent)
