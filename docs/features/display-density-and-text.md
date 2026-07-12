@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [themes-and-accent.md](themes-and-accent.md), [post-thumbnails.md](post-thumbnails.md), [feeds-and-sorting.md](feeds-and-sorting.md), [swipe-actions.md](swipe-actions.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [themes-and-accent.md](themes-and-accent.md), [post-thumbnails.md](post-thumbnails.md), [feeds-and-sorting.md](feeds-and-sorting.md), [swipe-actions.md](swipe-actions.md), [cross-posting.md](cross-posting.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -13,6 +13,7 @@ Settings → Display tunes how the post list looks: cell density (Comfortable or
 - **Density: Comfortable or Compact.** Comfortable is the default, with generous cell margins and spacing. Compact tightens the margins and title/subtitle spacing and shaves the post font by one point, fitting more posts on screen.
 - **Thumbnail position: Left, Right, or Hidden.** Left is the default (thumbnail leading the text). Right moves it to the trailing edge. Hidden drops the thumbnail entirely, giving the title and subtitle the full width.
 - **Vote Buttons toggle.** When on (the default), explicit up/down vote arrows are shown on each post in the list. When off, they are hidden; swipe actions for voting remain available. The toggle applies live to visible cells.
+- **Group Cross-posts toggle.** When on (the default), posts that share the same link and are already loaded into the feed collapse into one row, with an "Also in ..." affordance and a context-menu jump to each collapsed sibling. When off, every post shows as its own row with no affordance. The toggle applies live — it re-filters the same loaded rows, no relaunch or feed reload. See [Cross-posting](cross-posting.md) ("Grouping cross-posts in the feed") for the full grouping rules, including the same-loaded-page limitation: grouping can only see posts already fetched into the current session, so two duplicates that never land in the same loaded pages are never grouped, toggle or not.
 - **Text size: a −3…+6 point override.** A slider adjusts the post text by whole points, from −3 to +6, relative to the system body size. The default is 0 (no override). It stacks on top of the device's Dynamic Type setting rather than replacing it; Compact density folds in its own −1 point on top of this.
 - **Changes apply live.** Reassigning density, thumbnail position, vote visibility, or text size reconfigures the post list's already-visible cells immediately — there is no relaunch and no need to leave the feed.
 - **Persisted.** All settings are stored and re-applied on the next launch.
