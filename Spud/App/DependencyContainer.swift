@@ -73,10 +73,24 @@ struct DependencyContainer:
         reachabilityMonitor = ReachabilityMonitor()
         siteService = SiteService(appDatabase: appDatabase)
         nodeInfoService = NodeInfoService(fetcher: LiveNodeInfoFetcher(), appDatabase: appDatabase)
+        // `nonisolated(unsafe)`: `ReminderService` (a `SpudDataKit` actor) reads
+        // this closure synchronously off-main, so it can't capture the
+        // `@MainActor`-isolated `preferencesService` directly - `reminderNotificationsEnabled`
+        // itself is `nonisolated` (genuinely thread-safe; see that property's doc
+        // comment), but `PreferencesServiceType` as a whole isn't `Sendable`, so
+        // the compiler can't verify capturing the reference is safe on its own.
+        // Trust is warranted here: only the one `nonisolated` property below is
+        // ever touched through this capture.
+        nonisolated(unsafe) let preferencesServiceForReminders = preferencesService
         accountService = AccountService(
             appDatabase: appDatabase,
             reachabilityMonitor: reachabilityMonitor,
-            nodeInfoService: nodeInfoService
+            nodeInfoService: nodeInfoService,
+            // Wires the real user preference through to `ReminderService`
+            // (see that actor's `notificationsEnabled` doc comment) - without
+            // this, every `ReminderService` defaults to always-enabled and
+            // the in-app toggle is inert.
+            reminderNotificationsEnabled: { preferencesServiceForReminders.reminderNotificationsEnabled }
         )
         schedulerService = SchedulerService(
             appDatabase: appDatabase,
