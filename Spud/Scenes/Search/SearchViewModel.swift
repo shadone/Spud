@@ -172,7 +172,7 @@ final class SearchViewModel {
             let response = try await lemmyService.search(
                 query: query,
                 type: type,
-                sort: .TopAll,
+                sort: nil,
                 listingType: .All,
                 page: 1
             )

@@ -369,7 +369,7 @@ actor RecordingLemmyService: LemmyServiceType {
     func search(
         query _: String,
         type _: Lemmy.SearchType,
-        sort _: Lemmy.SortType,
+        sort _: Lemmy.SortType?,
         listingType _: Lemmy.ListingType,
         page _: Int64
     ) async throws -> LemmyKit.SearchResults {
