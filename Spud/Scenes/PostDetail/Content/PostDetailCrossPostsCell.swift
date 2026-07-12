@@ -174,14 +174,7 @@ private final class CrossPostRowControl: UIControl {
         let handle = summary.qualifiedCommunityHandle
         handleLabel.text = handle
 
-        let metadata = String(
-            format: NSLocalizedString(
-                "%@ points · %@ comments",
-                comment: "Cross-post row metadata: score and comment count"
-            ),
-            CountFormatter.string(summary.score),
-            CountFormatter.string(summary.commentCount)
-        )
+        let metadata = "\(Self.pointsText(for: summary.score)) · \(Self.commentsText(for: summary.commentCount))"
         metadataLabel.text = metadata
 
         accessibilityLabel = String(
@@ -202,5 +195,40 @@ private final class CrossPostRowControl: UIControl {
     @objc
     private func highlightOff() {
         backgroundColor = .clear
+    }
+
+    /// Singular/plural score text, e.g. "1 point" / "128 points" (compact-
+    /// formatted for large scores via `CountFormatter`). Hand-rolled, matching
+    /// `PostDetailCrossPostsCell`'s section-title singular/plural approach —
+    /// the codebase has no stringsdict convention.
+    private static func pointsText(for score: Int64) -> String {
+        score == 1
+            ? NSLocalizedString(
+                "1 point",
+                comment: "Cross-post row metadata: score, singular"
+            )
+            : String(
+                format: NSLocalizedString(
+                    "%@ points",
+                    comment: "Cross-post row metadata: score, with a compact count"
+                ),
+                CountFormatter.string(score)
+            )
+    }
+
+    /// Singular/plural comment-count text, e.g. "1 comment" / "42 comments".
+    private static func commentsText(for commentCount: Int64) -> String {
+        commentCount == 1
+            ? NSLocalizedString(
+                "1 comment",
+                comment: "Cross-post row metadata: comment count, singular"
+            )
+            : String(
+                format: NSLocalizedString(
+                    "%@ comments",
+                    comment: "Cross-post row metadata: comment count, with a compact count"
+                ),
+                CountFormatter.string(commentCount)
+            )
     }
 }
