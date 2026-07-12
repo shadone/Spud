@@ -221,14 +221,7 @@ class MainWindow: UIWindow {
 
         guard let instance = InstanceActorId(from: "https://\(host)") else { return }
 
-        let row = SiteListRow(
-            id: 0,
-            instance: instance,
-            hostname: host,
-            name: nil,
-            descriptionText: nil,
-            iconUrl: nil
-        )
+        let row = SiteListRow.forTypedInstance(instance)
         let loginViewController = LoginViewController(row: row, dependencies: dependencies.nested)
         let navigationController = UINavigationController(rootViewController: loginViewController)
         rootViewController = navigationController

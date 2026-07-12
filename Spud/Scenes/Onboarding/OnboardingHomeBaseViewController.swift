@@ -168,6 +168,8 @@ final class OnboardingHomeBaseViewController: UIViewController {
         }
 
         stack.addArrangedSubview(makeBrowseAllRow())
+        stack.setCustomSpacing(4, after: stack.arrangedSubviews.last!)
+        stack.addArrangedSubview(makeEnterAddressRow())
         stack.setCustomSpacing(10, after: stack.arrangedSubviews.last!)
         stack.addArrangedSubview(makeReassuranceNote())
 
@@ -281,12 +283,32 @@ final class OnboardingHomeBaseViewController: UIViewController {
     // MARK: Browse all / reassurance rows
 
     private func makeBrowseAllRow() -> UIView {
+        makeFooterRow(
+            systemImageName: "magnifyingglass",
+            title: NSLocalizedString("Browse all servers", comment: "Onboarding browse all servers row")
+        ) { [weak self] in self?.browseAllTapped() }
+    }
+
+    /// Sibling to "Browse all servers": pushes `CustomInstanceEntryViewController`
+    /// directly so a user with a private, non-federated instance reaches the
+    /// address field in one tap from first-run onboarding.
+    private func makeEnterAddressRow() -> UIView {
+        makeFooterRow(
+            systemImageName: "plus.circle",
+            title: NSLocalizedString("Enter instance address", comment: "Onboarding enter instance address row")
+        ) { [weak self] in self?.enterAddressTapped() }
+    }
+
+    /// Shared builder for the two footer affordance rows: a secondary-label SF
+    /// Symbol, a semibold label, and a trailing chevron, matching in style and
+    /// hit-target size.
+    private func makeFooterRow(systemImageName: String, title: String, action: @escaping () -> Void) -> UIView {
         let control = UIControl()
-        control.addAction(UIAction { [weak self] _ in self?.browseAllTapped() }, for: .touchUpInside)
+        control.addAction(UIAction { _ in action() }, for: .touchUpInside)
 
         let icon = UIImageView(
             image: UIImage(
-                systemName: "magnifyingglass",
+                systemName: systemImageName,
                 withConfiguration: UIImage.SymbolConfiguration(weight: .semibold)
             )
         )
@@ -295,7 +317,7 @@ final class OnboardingHomeBaseViewController: UIViewController {
         icon.setContentHuggingPriority(.required, for: .horizontal)
 
         let label = UILabel()
-        label.text = NSLocalizedString("Browse all servers", comment: "Onboarding browse all servers row")
+        label.text = title
         label.font = .systemFont(ofSize: 14, weight: .semibold)
         label.textColor = .label
 
@@ -436,6 +458,11 @@ final class OnboardingHomeBaseViewController: UIViewController {
 
     private func browseAllTapped() {
         pushSiteList()
+    }
+
+    private func enterAddressTapped() {
+        let entry = CustomInstanceEntryViewController(dependencies: dependencies.nested)
+        navigationController?.pushViewController(entry, animated: true)
     }
 
     // MARK: Trait changes
