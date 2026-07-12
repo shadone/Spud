@@ -132,6 +132,7 @@ class PostDetailViewController: UIViewController {
         tableView.refreshControl = refreshControl
         tableView.register(PostDetailHeaderCell.self, forCellReuseIdentifier: PostDetailHeaderCell.reuseIdentifier)
         tableView.register(PostDetailNewSinceBannerCell.self, forCellReuseIdentifier: PostDetailNewSinceBannerCell.reuseIdentifier)
+        tableView.register(PostDetailCrossPostsCell.self, forCellReuseIdentifier: PostDetailCrossPostsCell.reuseIdentifier)
         tableView.register(PostDetailCommentCell.self, forCellReuseIdentifier: PostDetailCommentCell.reuseIdentifier)
         tableView.register(PostDetailCommentLoadingCell.self, forCellReuseIdentifier: PostDetailCommentLoadingCell.reuseIdentifier)
         tableView.register(PostDetailEmptyCommentsCell.self, forCellReuseIdentifier: PostDetailEmptyCommentsCell.reuseIdentifier)
@@ -878,6 +879,10 @@ class PostDetailViewController: UIViewController {
             snapshot.appendItems([.newSinceBanner], toSection: .header)
             snapshot.reconfigureItems([.newSinceBanner])
         }
+        if !viewModel.crossPosts.isEmpty {
+            snapshot.appendItems([.crossPostedTo], toSection: .header)
+            snapshot.reconfigureItems([.crossPostedTo])
+        }
         // Refresh content in place. Reconfigure (not reload) re-runs the cell
         // provider on the existing cells, avoiding the cross-dissolve that
         // reloadItems animates under `animatingDifferences: true` — that fade,
@@ -1372,6 +1377,19 @@ class PostDetailViewController: UIViewController {
         routeInternalLink(url)
     }
 
+    /// Opens a tapped cross-post by its `ap_id`, via the same internal-link
+    /// routing every other post-detail link uses (`.objectAtURL` federated
+    /// resolve, then `routeToPost` -> `openPost`). Works for a cross-post on any
+    /// instance, not just the current account's, and pushes on iPhone / opens
+    /// in the detail column on iPad like every other in-app post navigation.
+    private func openCrossPost(_ summary: CrossPostSummary) {
+        guard let apURL = URL(string: summary.apId) else {
+            logger.error("Cross-post tapped with an unparsable ap_id: \(summary.apId, privacy: .public)")
+            return
+        }
+        routeInternalLink(URL.SpudInternalLink.objectAtURL(url: apURL).url)
+    }
+
     private func pushPerson(personId: Lemmy.PersonID, instance: InstanceActorId) {
         let vc = PersonOrLoadingViewController(
             personId: personId,
@@ -1817,6 +1835,10 @@ extension PostDetailViewController {
     enum Item: Hashable {
         case header
         case newSinceBanner
+        /// The "Cross-posted to N communities" section. A plain marker (no
+        /// associated value, like `.commentsFailed`) — the cell provider reads
+        /// `viewModel.crossPosts` when configuring the cell.
+        case crossPostedTo
         case commentLoadingSkeleton
         case commentsEmpty
         /// The inline "couldn't load comments" failed-state row. A plain marker
@@ -1934,6 +1956,15 @@ extension PostDetailViewController {
                     accent: accent
                 )
                 cell.jumpTapped = { [weak self] in self?.jumpToFirstNewComment() }
+                return cell
+
+            case .crossPostedTo:
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: PostDetailCrossPostsCell.reuseIdentifier,
+                    for: indexPath
+                ) as! PostDetailCrossPostsCell
+                cell.configure(with: self?.viewModel.crossPosts ?? [])
+                cell.crossPostTapped = { [weak self] summary in self?.openCrossPost(summary) }
                 return cell
 
             case .commentLoadingSkeleton:

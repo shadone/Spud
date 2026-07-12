@@ -48,6 +48,19 @@ final class PostDetailViewModel {
     /// until the first emit (and when the post row is absent from the database).
     private(set) var headerRow: PostDetailHeaderRow?
 
+    /// This post's cross-posts (other posts sharing its link), last harvested
+    /// from `PostDetail.crossPosts` on a `fetchPostInfo` fetch and persisted to
+    /// the `postCrossPost` junction table. Drives the post-detail
+    /// "Cross-posted to N communities" section; empty when the post has none
+    /// (or hasn't been fetched with `fetchPostInfo` yet — e.g. opened straight
+    /// from an already-mirrored feed row).
+    ///
+    /// A one-shot read (``refreshCrossPosts()``), not a live GRDB observation:
+    /// cross-posts don't change while viewing a post, so it is enough to re-read
+    /// once the post's local row resolves (``startObservations()``) and again
+    /// after each pull-to-refresh (``refreshPostInfo()``).
+    private(set) var crossPosts: [CrossPostSummary] = []
+
     private(set) var commentSortType: Lemmy.CommentSortType
 
     /// True while a (non-pull-refresh) comment fetch is in flight. Pull-to-refresh
@@ -258,6 +271,7 @@ final class PostDetailViewModel {
 
         self.postRowId = postRowId
         recordVisit(keychainId: keychainId, serverPostId: serverPostId, postRowId: postRowId)
+        refreshCrossPosts()
 
         headerObservationTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -364,6 +378,16 @@ final class PostDetailViewModel {
 
     func setCommentSortType(_ sortType: Lemmy.CommentSortType) {
         commentSortType = sortType
+    }
+
+    /// One-shot refresh of ``crossPosts`` from the `postCrossPost` junction.
+    /// Called when the post's local row resolves (``startObservations()``) and
+    /// after ``refreshPostInfo()`` lands fresh cross-post data from the server.
+    private func refreshCrossPosts() {
+        crossPosts = appDatabase.crossPostSummariesSync(
+            forKeychainId: accountKeychainId,
+            serverPostId: Int64(serverPostId)
+        )
     }
 
     // MARK: - Collapse state (view-layer)
@@ -701,6 +725,7 @@ final class PostDetailViewModel {
     /// refresh failure never masks the comment-load error surface.
     func refreshPostInfo() async throws {
         try await lemmy.fetchPostInfo(serverPostId: serverPostId)
+        refreshCrossPosts()
     }
 
     /// Resolves the backing account's moderation capability from the server and
