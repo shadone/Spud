@@ -73,13 +73,15 @@ scrolling isn't cluttered by duplicates of the same link.
   on). Turning it off restores every collapsed row immediately, live — no relaunch or
   feed reload.
 - **Grouped by link, not by post.** Rows are grouped when their `url` (the post's
-  external link — Lemmy's own definition of a cross-post) matches after a conservative
-  normalization: the host is lowercased, a single trailing slash is stripped from the
-  path, and the fragment (`#...`) is dropped. The query string is always kept as-is, even
-  though that means two links differing only by a tracking parameter stay ungrouped —
-  when unsure whether two links are "the same," the feed prefers to show both rather than
-  risk merging two different posts. Text posts and posts with no link never group; each
-  always shows as its own row.
+  external link — Lemmy's own definition of a cross-post, which itself uses exact-url
+  matching) matches after a conservative normalization: the host is lowercased and a
+  single trailing slash is stripped from the path. The fragment (`#...`) and the query
+  string are always kept as-is, even though that means two links differing only by a
+  same-page anchor or a tracking parameter stay ungrouped — when unsure whether two links
+  are "the same," the feed prefers to show both rather than risk merging two different
+  posts (a hash-routed single-page app's `#/x` vs `#/y` are genuinely different pages, not
+  the same page with a different anchor). Text posts and posts with no link never group;
+  each always shows as its own row.
 - **First-seen row is the primary.** Within the feed's current order, the first row for a
   given link keeps its position and becomes the primary; every later row for the same
   link is removed from the visible list and becomes one of its collapsed siblings.

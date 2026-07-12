@@ -80,13 +80,20 @@ enum CrossPostGrouper {
     /// should never be grouped (nil, blank, or whitespace-only).
     ///
     /// Deliberately conservative — normalizing too aggressively risks merging
-    /// two posts that link to genuinely different things:
+    /// two posts that link to genuinely different things. Lemmy's own
+    /// cross-post detection is exact-url; this grouper only relaxes that in
+    /// the two cases below, where a false merge is essentially impossible:
     /// - **Host is lowercased** (`Example.com` and `example.com` are the same
     ///   host).
     /// - **A single trailing slash is stripped from the path**
     ///   (`/article` and `/article/` are the same page on almost every server).
-    /// - **The fragment is dropped** (`#section` is a same-page anchor, not a
-    ///   distinct resource).
+    /// - **The fragment is kept as-is** — on a conventional site `#section` is
+    ///   a same-page anchor, but a hash-routed single-page app encodes the
+    ///   entire route after `#` (e.g. `/#/x` vs `/#/y`), so dropping it would
+    ///   silently collapse two genuinely different pages into one group. A
+    ///   false split (two rows instead of one) is harmless — it just shows
+    ///   both; a false merge hides a real post behind the affordance, which is
+    ///   the failure mode this grouper avoids everywhere else.
     /// - **The query string is kept as-is** — a `?utm_source=...` or `?id=...`
     ///   difference can legitimately point at a different resource, and this
     ///   grouper has no way to tell a tracking param from a load-bearing one.
@@ -108,7 +115,6 @@ enum CrossPostGrouper {
             return trimmed
         }
         components.host = components.host?.lowercased()
-        components.fragment = nil
         if components.path.count > 1, components.path.hasSuffix("/") {
             components.path.removeLast()
         }

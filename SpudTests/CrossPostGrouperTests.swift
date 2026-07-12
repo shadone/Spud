@@ -201,10 +201,13 @@ struct CrossPostGrouperTests {
     }
 
     @Test
-    func normalizedKeyDropsFragment() {
+    func normalizedKeyKeepsFragment() {
+        // A fragment difference is treated as a genuinely different resource —
+        // same rationale as the query string (see CrossPostGrouper doc
+        // comment): dropping it risks false-merging a hash-routed SPA link.
         let withFragment = CrossPostGrouper.normalizedKey(for: "https://example.com/article#section-2")
         let withoutFragment = CrossPostGrouper.normalizedKey(for: "https://example.com/article")
-        #expect(withFragment == withoutFragment)
+        #expect(withFragment != withoutFragment)
     }
 
     @Test
@@ -226,6 +229,21 @@ struct CrossPostGrouperTests {
 
         #expect(result.displayed.map(\.serverPostId) == [1])
         #expect(result.siblingsByPrimary[1]?.map(\.serverPostId) == [2])
+    }
+
+    @Test
+    func hashRoutedSpaLinksWithDifferentFragmentsAreNotGrouped() {
+        // A hash-routed single-page app encodes its whole route after `#`
+        // (e.g. `/#/x` vs `/#/y` are different pages on the same site), so
+        // fragment-dropping would false-merge two genuinely different posts.
+        let rows = [
+            row(serverPostId: 1, url: "https://example.com/app/#/x"),
+            row(serverPostId: 2, url: "https://example.com/app/#/y"),
+        ]
+        let result = CrossPostGrouper.group(rows: rows)
+
+        #expect(result.displayed.map(\.serverPostId) == [1, 2])
+        #expect(result.siblingsByPrimary.isEmpty)
     }
 
     @Test
