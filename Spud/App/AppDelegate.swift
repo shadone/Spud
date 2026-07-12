@@ -4,12 +4,16 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import OSLog
 import SpudDataKit
 import UIKit
+import UserNotifications
 
 #if DEBUG
 import SBTUITestTunnelServer
 #endif
+
+private let logger = Logger.app
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -45,6 +49,11 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         coordinator.start()
+
+        // Own notification-tap routing / foreground presentation before any
+        // reminder is ever scheduled (Task 5) - a delegate set later than the
+        // first delivered notification would silently miss it.
+        UNUserNotificationCenter.current().delegate = self
 
         // Apply the local interaction-log retention policy in the background.
         // Best-effort: a failure just leaves old rows until the next launch.
@@ -88,5 +97,101 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // Called when the user discards a scene session.
         // If any sessions were discarded while the application was not running, this will be called shortly after application:didFinishLaunchingWithOptions.
         // Use this method to release any resources that were specific to the discarded scenes, as they will not return.
+    }
+}
+
+// MARK: - UNUserNotificationCenterDelegate (reminder tap routing)
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    /// Fires when the user taps a delivered reminder notification (or one of
+    /// its actions). Routes it through the same deep-link funnel every other
+    /// system entry point uses (`AppCoordinator.open`) - see
+    /// `routeNotificationTap(routingURLString:)`.
+    ///
+    /// `nonisolated`: `UNUserNotificationCenterDelegate` requirements are not
+    /// actor-isolated, but `AppDelegate` inherits `@MainActor` isolation from
+    /// `UIResponder` - a non-`nonisolated` witness fails to satisfy the
+    /// protocol under Swift 6 strict concurrency (the delegate call site
+    /// can't guarantee it's already on the main actor). The main-actor work
+    /// itself hops over via `Task { @MainActor in ... }`.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        // Pull the one Sendable value we need out of `userInfo`
+        // ([AnyHashable: Any], not Sendable) here, synchronously, so the
+        // Task closure below only captures a plain String? across the actor
+        // hop.
+        let routingURLString = response.notification.request.content
+            .userInfo[ReminderNotificationContent.userInfoRoutingURLKey] as? String
+        Task { @MainActor in
+            AppDelegate.routeNotificationTap(routingURLString: routingURLString)
+        }
+        completionHandler()
+    }
+
+    /// Without this override, a notification delivered while the app is in
+    /// the foreground is suppressed entirely by default - a reminder must
+    /// still surface (banner + Notification Center entry + sound) even while
+    /// the user is actively using the app.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound])
+    }
+
+    /// Decodes a tapped notification's `spudRoutingURL` userInfo payload
+    /// (written by `UNReminderNotificationScheduler.schedule`) and opens it
+    /// via `AppCoordinator.open`, mirroring how `SceneDelegate.scene(_:
+    /// openURLContexts:)` and `scene(_:continue:)` reach the same funnel for
+    /// deep links and Handoff/Spotlight.
+    ///
+    /// A cold launch races this against scene connection: `didReceive` can
+    /// fire before `SceneDelegate.scene(_:willConnectTo:)` has finished
+    /// standing up the `MainWindow`. Rather than drop the tap, poll briefly
+    /// for the window to appear (bounded, so an app that never connects a
+    /// scene at all can't leak a runaway task).
+    @MainActor
+    private static func routeNotificationTap(routingURLString: String?) {
+        guard
+            let routingURLString,
+            let url = URL(string: routingURLString)
+        else {
+            logger.error("Notification tap carried no usable routing URL")
+            return
+        }
+
+        if let window = activeMainWindow {
+            AppCoordinator.shared.open(url, in: window)
+            return
+        }
+
+        Task { @MainActor in
+            for _ in 0..<50 {
+                try? await Task.sleep(for: .milliseconds(100))
+                if let window = activeMainWindow {
+                    AppCoordinator.shared.open(url, in: window)
+                    return
+                }
+            }
+            logger.error("Notification tap: no active window appeared to route \(url.absoluteString, privacy: .public)")
+        }
+    }
+
+    /// The active `MainWindow`, if any. Mirrors the fallback
+    /// `PostListViewController+OfflineDownload.offlineDownloadWindow` uses to
+    /// anchor UI with no view of its own on screen: prefer a foreground-active
+    /// scene's key window, falling back to its first window.
+    @MainActor
+    private static var activeMainWindow: MainWindow? {
+        let windows = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive }
+            .flatMap(\.windows)
+            .compactMap { $0 as? MainWindow }
+        return windows.first(where: \.isKeyWindow) ?? windows.first
     }
 }

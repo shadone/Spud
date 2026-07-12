@@ -28,4 +28,5 @@ extension Logger {
     static let inbox = Logger(subsystem: subsystem, category: "Inbox")
     static let spotlight = Logger(subsystem: subsystem, category: "Spotlight")
     static let lifecycle = Logger(subsystem: subsystem, category: "Lifecycle")
+    static let reminders = Logger(subsystem: subsystem, category: "Reminders")
 }

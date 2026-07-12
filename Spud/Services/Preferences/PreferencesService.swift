@@ -173,6 +173,16 @@ protocol PreferencesServiceType: AnyObject {
     /// the user's last choice. Default `false` — capturing pages is slower and
     /// heavier than warming images, so it's opt-in.
     var offlineDownloadArchiveLinks: Bool { get set }
+
+    // MARK: Reminders
+
+    /// Whether "Remind Me…" reminders are delivered as OS local notifications.
+    /// Default `true`. Off does not delete existing reminders or stop them
+    /// from firing into the Inbox "Reminders" segment — it only gates
+    /// `ReminderService` from scheduling/requesting permission for the OS
+    /// notification side of a newly-set reminder.
+    var reminderNotificationsEnabled: Bool { get set }
+    var reminderNotificationsEnabledStream: AsyncStream<Bool> { get }
 }
 
 @MainActor
@@ -383,6 +393,15 @@ class PreferencesService: PreferencesServiceType {
     @UserDefaultsBacked
     var offlineDownloadArchiveLinks: Bool
 
+    // MARK: Reminders
+
+    @UserDefaultsBacked
+    var reminderNotificationsEnabled: Bool
+
+    var reminderNotificationsEnabledStream: AsyncStream<Bool> {
+        $reminderNotificationsEnabled
+    }
+
     /// Designated initializer. Injects the `UserDefaults` store that backs every
     /// `@UserDefaultsBacked` property so tests can run against a private,
     /// disposable suite instead of `.standard`. Each assignment must preserve the
@@ -435,6 +454,7 @@ class PreferencesService: PreferencesServiceType {
             key: "offlineDownloadArchiveLinks",
             storage: storage
         )
+        _reminderNotificationsEnabled = .init(wrappedValue: true, key: "reminderNotificationsEnabled", storage: storage)
 
         if let migrated = URLSanitizerConfig.migratingFromLegacyXcancel(
             legacyEnabled: rewriteTwitterLinksToXcancel,
