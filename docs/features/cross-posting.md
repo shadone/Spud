@@ -2,11 +2,11 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [New post](new-post.md), [Draft persistence](draft-persistence.md), [Community screen](community-screen.md)
+- **Related:** [New post](new-post.md), [Draft persistence](draft-persistence.md), [Community screen](community-screen.md), [Display density and text size](display-density-and-text.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md)
 
 ## What it does
 
-Two complementary halves. **Creating** a cross-post: re-share an existing post into
+Three complementary parts. **Creating** a cross-post: re-share an existing post into
 another community. A "Cross-post" action on the feed's long-press menu and on the open
 post's "•••" overflow menu opens the ordinary new-post composer, pre-filled with the
 source post's title and link (and, when the full post is available, an attribution
@@ -14,7 +14,10 @@ quoting its body), with the target community left for the user to choose. From t
 behaves exactly like composing a brand-new post. **Viewing** a post's existing
 cross-posts: when a post's server response reports other posts sharing its link, the
 open post shows a "Cross-posted to N communities" section listing each one, tappable to
-open it.
+open it. **Grouping** duplicates in the feed: when the same link is posted to more than
+one community and more than one of those posts is loaded into the feed at once, they
+collapse into a single row with an "Also in ..." affordance and a context-menu jump to
+each collapsed sibling — preference-gated, default on.
 
 ## Behavior and rules
 
@@ -59,6 +62,47 @@ open it.
   opens that post in-app (resolving it federated, so a cross-post hosted on a different
   instance opens correctly too), pushing on iPhone and opening in the detail column on
   iPad, like any other in-app post link.
+
+### Grouping cross-posts in the feed
+
+The same link is often posted to several communities. When more than one of those posts
+lands in the same loaded feed page (or pages), the feed collapses them into one row so
+scrolling isn't cluttered by duplicates of the same link.
+
+- **Preference-gated, default on.** "Group Cross-posts" in Settings → Display (default
+  on). Turning it off restores every collapsed row immediately, live — no relaunch or
+  feed reload.
+- **Grouped by link, not by post.** Rows are grouped when their `url` (the post's
+  external link — Lemmy's own definition of a cross-post) matches after a conservative
+  normalization: the host is lowercased, a single trailing slash is stripped from the
+  path, and the fragment (`#...`) is dropped. The query string is always kept as-is, even
+  though that means two links differing only by a tracking parameter stay ungrouped —
+  when unsure whether two links are "the same," the feed prefers to show both rather than
+  risk merging two different posts. Text posts and posts with no link never group; each
+  always shows as its own row.
+- **First-seen row is the primary.** Within the feed's current order, the first row for a
+  given link keeps its position and becomes the primary; every later row for the same
+  link is removed from the visible list and becomes one of its collapsed siblings.
+- **"Also in ..." affordance on the primary.** The primary's cell shows a quiet metadata
+  line naming the communities it's also posted to: "Also in c/community" for one sibling,
+  "Also in c/a, c/b" for two, or "Also in N communities" for three or more. Informational
+  only — it doesn't open anything by itself.
+- **Jump to a sibling from the context menu.** Long-pressing the primary's cell adds an
+  "Also posted in" submenu listing each collapsed sibling as `c/community@instance`;
+  tapping one opens that post in-app, exactly like tapping any other post.
+- **Same-page limitation, stated plainly.** The feed API returns no cross-post list
+  alongside a page of posts, so grouping can only see what's actually loaded — it
+  recomputes over the full loaded set on every feed update, so a duplicate that arrives
+  on a later page still joins its earlier primary's group once loaded, but two
+  duplicates that never land in the same session's loaded pages are never grouped. This
+  is a documented limitation of client-side, same-page grouping, not a bug.
+- **Runs after the hide-read filter.** A read post that's hidden by the "Hide Read Posts"
+  preference is removed before grouping runs, so it can never anchor a group as the
+  primary and is never counted as a collapsed sibling.
+- **Independent of "Cross-posts on a post."** This groups rows already loaded in the
+  *feed*; it has no bearing on the "Cross-posted to N communities" section on an *open*
+  post (above), which is a one-shot server read of a single post's siblings, not a
+  client-side same-page grouping.
 
 ## Scenarios
 
@@ -120,13 +164,50 @@ open it.
 - **When** the post is opened
 - **Then** no cross-posts section is shown
 
+### Two communities share a link, and the feed collapses them
+
+- **Given** the loaded feed contains a post in c/technology and a post in c/news that
+  both link to the same article, with "Group Cross-posts" on (the default)
+- **When** the feed renders
+- **Then** only the first of the two (in feed order) is shown, with an "Also in c/news"
+  (or "Also in c/technology", depending on which came first) line under it
+- **And** the second post's row does not appear
+
+### Turning the preference off shows both rows
+
+- **Given** the two-community grouping from the scenario above
+- **When** the user turns "Group Cross-posts" off in Settings → Display
+- **Then** the feed immediately shows both posts as separate rows again, with no
+  affordance line, live and without a reload
+
+### Jumping to a collapsed sibling from the context menu
+
+- **Given** a primary post's cell shows an "Also in ..." affordance
+- **When** the user long-presses it and chooses a community from the "Also posted in"
+  submenu
+- **Then** that community's post opens in-app, the same as tapping any other post in the
+  feed
+
+### Cross-posts that never load together stay ungrouped
+
+- **Given** the same link posted to two communities, but only one of those posts is in
+  any page the feed has loaded this session
+- **When** the feed renders
+- **Then** the loaded post shows with no "Also in ..." affordance — grouping only sees
+  posts the feed has actually fetched, not the link's full set of cross-posts server-side
+
 ## Not supported / out of scope
 
 - The feed's cross-post action seeds title + link only; only the post-detail overflow's
   cross-post (where the full post is already loaded) includes the quoted-body
   attribution.
-- No duplicate-cross-post detection and no suggested target community when creating a
-  cross-post — the user picks the community manually via the ordinary community picker.
+- No duplicate warning or suggested target community *when creating* a cross-post — the
+  user picks the community manually via the ordinary community picker. (This is
+  different from feed grouping, above, which collapses duplicates that are already
+  posted and already loaded into the feed; it has no bearing on composing.)
+- Feed grouping has no cross-instance awareness beyond what's already loaded — it doesn't
+  query other instances or the server for a link's full cross-post set the way the
+  post-detail "Cross-posted to N communities" section does.
 - The cross-posts section is a one-shot read taken when the post loads and on
   pull-to-refresh; it does not live-update if a cross-post is created elsewhere while the
   post is on screen.
