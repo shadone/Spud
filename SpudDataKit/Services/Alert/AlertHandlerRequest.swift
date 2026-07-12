@@ -38,6 +38,8 @@ public enum AlertHandlerRequest: String, CustomStringConvertible {
     case deleteComment
     case deletePost
     case fetchBlockedList
+    /// Setting or cancelling a "Remind Me…" time reminder (`ReminderService`).
+    case setReminder
 
     // Moderation actions.
     case removePost

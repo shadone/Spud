@@ -9,6 +9,41 @@ import SpudUIKit
 import SpudUtilKit
 import UIKit
 
+/// Folds the post-detail overflow menu's "Remind Me…" submenu into the shared
+/// dispatch protocol so it goes through the same `ReminderService` calls the
+/// feed's context menu uses. The overflow menu is cached on
+/// `overflowBarButtonItem` and rebuilt only on a header-row change (see the
+/// header reaction loop in the main file) - a set/cancel doesn't touch the
+/// header row, so `remindMeMenuDidChange()` explicitly rebuilds it to reflect
+/// the new "Cancel reminder" state.
+extension PostDetailViewController: PostReminderDispatching {
+    func remindMeMenuDidChange() {
+        overflowBarButtonItem.menu = makePostOverflowMenu()
+    }
+
+    /// The whole-post fields for the "Remind Me…" menu, gathered from the
+    /// current header row - nil (menu omitted) until the header row loads,
+    /// mirroring the mute submenu's own `communityActorId`/`communityName`
+    /// availability guard just below.
+    fileprivate func remindMeMenuTarget() -> RemindMeMenuTarget? {
+        guard let row = viewModel.headerRow, !row.title.isEmpty else { return nil }
+        // Prefer the community's own instance host; a community row with no
+        // resolvable actorId (rare) falls back to the account's home
+        // instance so `instanceHost` is never left empty.
+        let instanceHost = row.communityActorId.flatMap { InstanceActorId(from: $0)?.host }
+            ?? viewModel.accountScope.instanceActorId?.host
+            ?? ""
+        return RemindMeMenuTarget(
+            postServerId: Int64(viewModel.serverPostId),
+            apId: row.originalPostUrl,
+            title: row.title,
+            communityName: row.communityName,
+            instanceHost: instanceHost,
+            thumbnailUrl: row.thumbnailUrl
+        )
+    }
+}
+
 /// The nav-bar "•••" overflow menu, hosted on `PostDetailViewController`.
 ///
 /// `makePostOverflowMenu` is rebuilt from the current `viewModel.headerRow`
@@ -61,10 +96,11 @@ extension PostDetailViewController {
         ) { [weak self] _ in
             self?.presentTextSelection()
         }
-        let primaryGroup = UIMenu(
-            options: .displayInline,
-            children: [addCommentAction, saveAction, shareAction, crossPostAction, selectTextAction]
-        )
+        var primaryChildren: [UIMenuElement] = [addCommentAction, saveAction, shareAction, crossPostAction, selectTextAction]
+        if let target = remindMeMenuTarget() {
+            primaryChildren.append(makeRemindMeMenu(for: target))
+        }
+        let primaryGroup = UIMenu(options: .displayInline, children: primaryChildren)
 
         let openInBrowserAction = UIAction(
             title: NSLocalizedString("Open in Browser", comment: "Overflow-menu action to open the post in a browser"),
