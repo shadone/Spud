@@ -11,9 +11,10 @@ import XCTest
 @testable import Spud
 
 /// Snapshots of the Inbox "Reminders" segment: the empty-state placeholder,
-/// and `InboxReminderCell` in its two live states (`scheduled` shows a
-/// relative countdown to `fireAt`; `fired` shows "Tap to revisit"), each in
-/// light and dark.
+/// and `InboxReminderCell` in its four live states - `time`-kind `scheduled`
+/// (a relative countdown to `fireAt`) / `fired` ("Tap to revisit"), and
+/// `activity`-kind (Phase 2) `scheduled` ("Watching for new comments") /
+/// `fired` ("New comments · tap to catch up") - each in light and dark.
 ///
 /// Mirrors `InboxCellsSnapshotTests` (cell rendering, `StaticImageService` for
 /// deterministic thumbnail loading, no network) and `InboxGatedSnapshotTests`
@@ -72,6 +73,26 @@ final class RemindersSegmentSnapshotTests: XCTestCase {
 
     func test_fired() async {
         let cell = await makeReminderCell(reminder(status: .fired, unseen: true, fireAt: nil))
+        assertCell(cell)
+    }
+
+    func test_activityScheduled() async {
+        let cell = await makeReminderCell(reminder(
+            kind: .activity,
+            status: .scheduled,
+            unseen: false,
+            fireAt: nil
+        ))
+        assertCell(cell)
+    }
+
+    func test_activityFired() async {
+        let cell = await makeReminderCell(reminder(
+            kind: .activity,
+            status: .fired,
+            unseen: true,
+            fireAt: nil
+        ))
         assertCell(cell)
     }
 
@@ -157,6 +178,7 @@ final class RemindersSegmentSnapshotTests: XCTestCase {
     // MARK: - Fixtures
 
     private func reminder(
+        kind: ReminderRecord.Kind = .time,
         status: ReminderRecord.Status,
         unseen: Bool,
         fireAt: Date?
@@ -166,7 +188,7 @@ final class RemindersSegmentSnapshotTests: XCTestCase {
             postServerId: 42,
             apId: "https://lemmy.world/post/42",
             rootCommentServerId: ReminderRecord.wholePostSentinel,
-            kind: ReminderRecord.Kind.time.rawValue,
+            kind: kind.rawValue,
             status: status.rawValue,
             unseen: unseen,
             fireAt: fireAt,

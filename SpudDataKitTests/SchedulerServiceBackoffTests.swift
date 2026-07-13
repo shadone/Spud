@@ -278,9 +278,24 @@ private func unreachable(_ function: StaticString = #function) -> Never {
 @MainActor
 private final class BackoffAccountService: AccountServiceType {
     let stubbedLemmyService: any LemmyServiceType
+    let stubbedReminderService: ReminderService
 
-    init(lemmyService: any LemmyServiceType) {
+    /// `reminderService` is now reached unconditionally by `SchedulerService.
+    /// tick()`'s activity-reminder poll sweep (Task 3, Post Reminders Phase 2)
+    /// for every signed-in account - including this test's seeded account -
+    /// regardless of whether it has any due activity reminder, so this can no
+    /// longer `fatalError` on the assumption it's unused. A real `ReminderService`
+    /// backed by the test's own `appDatabase` is harmless here: with no `reminder`
+    /// rows seeded, `pollDueActivityReminders` finds nothing due and no-ops -
+    /// `accountId` is the caller's actual seeded row id (not a placeholder) so
+    /// that would still hold true even if a future test in this file seeds one.
+    init(lemmyService: any LemmyServiceType, appDatabase: AppDatabase, accountId: Int64) {
         stubbedLemmyService = lemmyService
+        stubbedReminderService = ReminderService(
+            accountId: accountId,
+            appDatabase: appDatabase,
+            scheduler: ReminderServiceTests.FakeReminderNotificationScheduler()
+        )
     }
 
     func lemmyService(forAccountKeychainId _: String) -> any LemmyServiceType {
@@ -288,7 +303,7 @@ private final class BackoffAccountService: AccountServiceType {
     }
 
     func reminderService(forAccountKeychainId _: String) -> ReminderService {
-        fatalError("reminderService not stubbed")
+        stubbedReminderService
     }
 
     func instanceActorId(forAccountKeychainId _: String) -> InstanceActorId? {
@@ -383,7 +398,7 @@ struct SchedulerServiceBackoffTests {
         let keychainId = "kc-backoff-test-1"
         let seedDate = Date(timeIntervalSince1970: 1_000_000)
 
-        try await appDatabase.writer.write { db in
+        let accountId: Int64 = try await appDatabase.writer.write { db in
             try db.execute(
                 sql: "INSERT INTO instance (actorId, createdAt) VALUES (?, ?)",
                 arguments: ["https://backoff-test.example.com", seedDate]
@@ -402,10 +417,11 @@ struct SchedulerServiceBackoffTests {
                     """,
                 arguments: [siteId, keychainId, seedDate, seedDate]
             )
+            return db.lastInsertedRowID
         }
 
         let fakeLemmyService = FetchSiteLemmyService()
-        let fakeAccountService = BackoffAccountService(lemmyService: fakeLemmyService)
+        let fakeAccountService = BackoffAccountService(lemmyService: fakeLemmyService, appDatabase: appDatabase, accountId: accountId)
         let fakeReachability = StaticReachabilityMonitor(isOnline: false)
         let clock = ClockBox(Date(timeIntervalSince1970: 2_000_000))
 

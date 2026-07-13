@@ -137,4 +137,47 @@ public extension AppDatabase {
             return overdue
         }
     }
+
+    /// Fires an activity reminder from the poll (`ReminderService.
+    /// pollDueActivityReminders`, Task 2): `status = .fired`, `unseen = true`
+    /// (lights the Inbox badge, mirrors `markReminderFired`), `lastNotifiedAt
+    /// = firedAt`, and re-arms the baseline (`baselineCount`/`baselineAt` reset
+    /// to the just-observed count/time) with `nextCheckAt` pushed forward by
+    /// `pollInterval` so the follow keeps polling rather than going stale. A
+    /// no-op if `id` doesn't exist (e.g. removed mid-poll).
+    func rearmActivityReminder(
+        id: Int64,
+        baselineCount: Int64,
+        baselineAt: Date,
+        nextCheckAt: Date,
+        firedAt: Date
+    ) async throws {
+        try await writer.write { db in
+            guard var record = try ReminderRecord.fetchOne(db, key: id) else {
+                return
+            }
+            record.status = ReminderRecord.Status.fired.rawValue
+            record.unseen = true
+            record.lastNotifiedAt = firedAt
+            record.baselineCount = baselineCount
+            record.baselineAt = baselineAt
+            record.nextCheckAt = nextCheckAt
+            try record.update(db)
+        }
+    }
+
+    /// Pushes an activity reminder's `nextCheckAt` forward without touching its
+    /// baseline or status - the no-fire (or fetch-failed) branch of
+    /// `ReminderService.pollDueActivityReminders`, so a follow that didn't
+    /// trip the smart rule this round is simply re-tried on the next due poll
+    /// rather than checked every tick. A no-op if `id` doesn't exist.
+    func bumpActivityNextCheck(id: Int64, nextCheckAt: Date) async throws {
+        try await writer.write { db in
+            guard var record = try ReminderRecord.fetchOne(db, key: id) else {
+                return
+            }
+            record.nextCheckAt = nextCheckAt
+            try record.update(db)
+        }
+    }
 }

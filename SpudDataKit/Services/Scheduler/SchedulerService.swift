@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import LemmyKit
 import OSLog
 import SpudUtilKit
 
@@ -119,6 +120,7 @@ public class SchedulerService: SchedulerServiceType {
 
         await fetchSiteInfoAndMyUserInfoForSignedInIfNeeded()
         await fetchSiteInfoForSignedOutIfNeeded()
+        await pollActivityRemindersSweep()
 
         let durationMs = Int(Date().timeIntervalSince(startedAt) * 1000)
         await diagnostics.record(
@@ -290,5 +292,87 @@ public class SchedulerService: SchedulerServiceType {
         for keychainId in staleKeychainIds {
             await gatedFetchSiteInfo(forAccountKeychainId: keychainId)
         }
+    }
+
+    // MARK: Activity reminder poll (Post Reminders Phase 2)
+
+    /// Drives `ReminderService.pollDueActivityReminders` once per pollable
+    /// account per tick - the foreground half of the whole-post "When there
+    /// are new comments" follow (spec §5.1/§5.3). Background polling
+    /// (`BGAppRefreshTask`) is a later phase; this only runs while the app is
+    /// in the foreground and the 5-minute tick fires.
+    ///
+    /// Accounts are enumerated via `pollableAccountKeychainIds()` - every
+    /// non-service account, BOTH signed-in and signed-out. Unlike the two
+    /// site-info sweeps (which only cover signed-in accounts, or gate
+    /// signed-out accounts on an unfetched/back-off site-info state), an
+    /// activity follow can be set while browsing signed out - `LemmyService.
+    /// fetchPostInfo` (`getPost`) is anonymous, and Phase-1 TIME reminders
+    /// already work signed-out - so this sweep reaches every real account, not
+    /// just `signedInAccountKeychainIds()` (which the signed-in site-info sweep
+    /// still uses, unchanged).
+    ///
+    /// Accounts are polled SEQUENTIALLY, not concurrently: `pollDueActivityReminders`
+    /// runs on the account's `ReminderService` actor, and firing two overlapping
+    /// polls for the same account (e.g. from a re-entrant tick) could double-fire
+    /// the same due reminder before the first poll's re-arm write lands. One poll
+    /// per account per tick keeps that impossible by construction.
+    ///
+    /// Only accounts with at least one due activity reminder do any network
+    /// work - `pollDueActivityReminders` early-returns on an empty due list -
+    /// so an idle tick (the common case, most posts have no activity follow)
+    /// is cheap: one GRDB read per account, no network call (`lemmyService(forAccountKeychainId:)`
+    /// itself is a cheap sync read - it's the network `fetchPostInfo` that's
+    /// skipped when nothing is due).
+    private func pollActivityRemindersSweep() async {
+        await diagnostics.record(
+            category: .reminder,
+            level: .debug,
+            event: "poll.sweep.start",
+            message: "Activity reminder poll sweep started",
+            instance: nil,
+            metadata: nil
+        )
+
+        let keychainIds: [String]
+        do {
+            keychainIds = try await appDatabase.pollableAccountKeychainIds()
+        } catch {
+            logger.error("Failed to query pollable accounts for activity reminder poll: \(String(describing: error), privacy: .public)")
+            keychainIds = []
+        }
+
+        for keychainId in keychainIds {
+            // Bind to locals before building the `@Sendable` fetcher closure below,
+            // so it captures these values directly rather than implicitly capturing
+            // `self` (a `@MainActor`, non-`Sendable` class) through the property
+            // accesses - required for this to type-check under Swift 6 strict
+            // concurrency.
+            let appDatabase = appDatabase
+            let lemmy = accountService.lemmyService(forAccountKeychainId: keychainId)
+            let fetcher: @Sendable (Int64) async -> Int? = { postServerId in
+                // Best-effort: a failed refresh just means the poll falls back to
+                // the previously-cached comment count (`postNumberOfCommentsSync`
+                // reads it below regardless) rather than skipping the account
+                // entirely - `pollDueActivityReminders` itself treats a `nil`
+                // fetcher result (not a thrown error) as "fetch failed" and bumps
+                // `nextCheckAt` without firing.
+                try? await lemmy.fetchPostInfo(serverPostId: Lemmy.PostID(postServerId))
+                return appDatabase.postNumberOfCommentsSync(forKeychainId: keychainId, serverPostId: postServerId)
+            }
+
+            await accountService
+                .reminderService(forAccountKeychainId: keychainId)
+                .pollDueActivityReminders(asOf: now(), commentCountFetcher: fetcher)
+        }
+
+        await diagnostics.record(
+            category: .reminder,
+            level: .debug,
+            event: "poll.sweep.finish",
+            message: "Activity reminder poll sweep finished",
+            instance: nil,
+            metadata: ["accountCount": String(keychainIds.count)]
+        )
     }
 }

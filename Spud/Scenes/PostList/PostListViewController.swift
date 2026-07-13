@@ -1937,7 +1937,8 @@ extension PostListViewController: PostReminderDispatching {
             title: row.title,
             communityName: row.communityName,
             instanceHost: instanceHost,
-            thumbnailUrl: row.thumbnailUrl
+            thumbnailUrl: row.thumbnailUrl,
+            numberOfComments: row.numberOfComments
         )
     }
 }

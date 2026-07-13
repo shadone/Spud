@@ -13,9 +13,11 @@ import Testing
 
 // MARK: - SchedulerService
 
-// SchedulerService has no test seam; coverage is integration-only.
-// The timer-driven tick loop fires private async methods and there is no
-// injectable seam for unit tests.
+// SchedulerService's diagnostic bookends (tick.start/finish, the activity-reminder
+// poll sweep's poll.sweep.start/finish) are covered directly: `tick()` is exposed
+// as package-internal precisely so tests can drive it without waiting on the real
+// Timer/asyncAfter - see SchedulerActivityPollTests, which constructs a real
+// SchedulerService with fakes and calls tick() end to end.
 
 // MARK: - UnreadCountService
 
