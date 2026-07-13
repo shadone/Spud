@@ -50,6 +50,7 @@ final class AccountScreenSnapshotTests: XCTestCase {
                 viewModel: viewModel,
                 accent: teal,
                 onEditProfile: { },
+                onReauth: { },
                 onSwitchAccount: { },
                 onOpenSaved: { },
                 onOpenActivity: { },

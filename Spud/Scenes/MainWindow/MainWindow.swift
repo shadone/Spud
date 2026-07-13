@@ -66,6 +66,9 @@ class MainWindow: UIWindow {
     private var splitViewController: MainWindowSplitViewController?
     private var defaultAccountObservationTask: Task<Void, Never>?
     private var unreadCountObservationTask: Task<Void, Never>?
+    /// Observes whether ANY real account currently needs re-login and drives the
+    /// Account tab's "!" badge.
+    private var reauthBadgeObservationTask: Task<Void, Never>?
     private var appThemeObservationTask: Task<Void, Never>?
     private var accentColorObservationTask: Task<Void, Never>?
     /// Observes the active account's permanent outbox failures (a vote/save/hide
@@ -146,6 +149,7 @@ class MainWindow: UIWindow {
 
         startObservingDefaultAccount()
         startObservingUnreadCount()
+        startObservingReauthBadge()
         startObservingAppTheme()
         startObservingAccentColor()
     }
@@ -153,6 +157,7 @@ class MainWindow: UIWindow {
     deinit {
         defaultAccountObservationTask?.cancel()
         unreadCountObservationTask?.cancel()
+        reauthBadgeObservationTask?.cancel()
         appThemeObservationTask?.cancel()
         accentColorObservationTask?.cancel()
         outboxFailureToastTask?.cancel()
@@ -402,6 +407,29 @@ class MainWindow: UIWindow {
         items[Self.inboxTabIndex].badgeValue = count.total > 0 ? "\(count.total)" : nil
     }
 
+    /// Live "any real account needs re-login" observation driving the Account
+    /// tab's "!" badge — mirrors `startObservingUnreadCount`, but is account-wide
+    /// (not tied to the currently-active account) since a re-login hint on a
+    /// backgrounded account should still surface.
+    private func startObservingReauthBadge() {
+        reauthBadgeObservationTask?.cancel()
+        let appDatabase = appDatabase
+        reauthBadgeObservationTask = Task { @MainActor [weak self] in
+            for await needsReauth in appDatabase.observeAnyAccountNeedsReauth() {
+                if Task.isCancelled { break }
+                self?.applyReauthBadge(needsReauth)
+            }
+        }
+    }
+
+    private func applyReauthBadge(_ needsReauth: Bool) {
+        guard
+            let items = tabBarController.tabBar.items,
+            items.indices.contains(Self.accountTabIndex)
+        else { return }
+        items[Self.accountTabIndex].badgeValue = needsReauth ? "!" : nil
+    }
+
     /// Subscribes to the active account's permanent outbox failures and surfaces
     /// each as a toast. Building the failure stream lazily constructs and
     /// `start()`s the outbox (enabling reachability-driven retry); we also drain
@@ -426,6 +454,28 @@ class MainWindow: UIWindow {
     }
 
     private func presentOutboxFailureToast(_ failure: OutboxFailure) {
+        // An expired/revoked session takes priority over the reason/kind switch
+        // below: the vote/save/hide itself was rolled back either way, but what
+        // the user needs to know is "log back in", not which specific action
+        // failed.
+        if failure.isAuthExpiry {
+            let keychainId = currentDefaultAccountKeychainId
+            ToastPresenter.shared.show(
+                NSLocalizedString("Session expired", comment: "Toast when an action failed because the session expired"),
+                actionTitle: NSLocalizedString("Re-login", comment: "Toast action to re-authenticate the account"),
+                in: self
+            ) { [weak self] in
+                guard let self, let keychainId else { return }
+                AccountReauthLauncher.present(
+                    forAccountKeychainId: keychainId,
+                    from: topmostPresenter(),
+                    accountService: accountService,
+                    dependencies: dependencies.nested
+                )
+            }
+            return
+        }
+
         let message: String
         if failure.reason == .notFound {
             message = NSLocalizedString(
@@ -447,6 +497,19 @@ class MainWindow: UIWindow {
             }
         }
         ToastPresenter.shared.show(message, in: self)
+    }
+
+    /// The view controller currently on top of the visible hierarchy, for
+    /// presenting a one-off modal (the re-auth login sheet) without stacking
+    /// behind an already-presented screen. Starts from the selected tab's root
+    /// (the same "current tab" notion `pushIntoCurrentContext` routes into) and
+    /// walks any presented chain (e.g. the account switcher sheet) to its tip.
+    private func topmostPresenter() -> UIViewController {
+        var presenter: UIViewController = tabBarController.selectedViewController ?? tabBarController
+        while let presented = presenter.presentedViewController {
+            presenter = presented
+        }
+        return presenter
     }
 
     /// Subscribes to the active account's permanent composer failures (a

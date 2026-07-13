@@ -29,6 +29,9 @@ final class AccountViewModel {
     /// Home instance hostname of the current account, e.g. "lemmy.world".
     private(set) var instanceHostname: String = ""
 
+    /// True when the active account's stored session expired and needs re-login.
+    private(set) var sessionNeedsReauth: Bool = false
+
     /// Resolved identity of the signed-in account's own person, once its
     /// `MyUserInfo` (and person row) has been imported. Nil for signed-out
     /// accounts or before the import lands.
@@ -112,6 +115,7 @@ final class AccountViewModel {
         isSignedIn = !record.isSignedOutAccountType
         instanceHostname = appDatabase.accountInstanceActorIdSync(forKeychainId: record.accountKeychainId)
             .flatMap { URL(string: $0)?.host } ?? ""
+        sessionNeedsReauth = record.sessionNeedsReauth && !record.isSignedOutAccountType
 
         if isSignedIn, let ids = appDatabase.accountOwnPersonIdsSync(forKeychainId: record.accountKeychainId) {
             ownPerson = OwnPerson(personRowId: ids.personRowId, serverPersonId: ids.serverPersonId)

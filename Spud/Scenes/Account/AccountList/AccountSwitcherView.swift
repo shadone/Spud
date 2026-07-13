@@ -40,6 +40,11 @@ struct AccountSwitcherView: View {
     /// account — you switch away from the active one rather than delete it,
     /// which keeps the app from ever being left without a default.
     let onRemove: (_ accountKeychainId: String) -> Void
+    /// Launches the in-place re-auth flow for a row whose `sessionNeedsReauth`
+    /// is set. Present alongside `onSelect` (rather than folded into it) since a
+    /// flagged row's "Re-login" affordance is a separate tap target from the row
+    /// itself, which still just switches to it.
+    let onReauth: (_ accountKeychainId: String) -> Void
     /// Opens the add-account flow (server picker -> log in / sign up).
     let onAddAccount: () -> Void
     /// Opens the anonymous-browse flow (server picker -> "Browse anonymously").
@@ -140,6 +145,8 @@ struct AccountSwitcherView: View {
     private func accountRow(_ row: AccountListRow) -> some View {
         AccountSwitcherAccountRow(row: row, accent: accent) {
             onSelect(row.accountKeychainId)
+        } onReauth: {
+            onReauth(row.accountKeychainId)
         }
         // The active account is the one you'd switch *to* — deleting it would
         // leave the app without a default, so only non-active rows are
@@ -166,6 +173,7 @@ private struct AccountSwitcherAccountRow: View {
     let row: AccountListRow
     let accent: Color
     let action: () -> Void
+    let onReauth: () -> Void
 
     var body: some View {
         Button(action: action) {
@@ -186,17 +194,45 @@ private struct AccountSwitcherAccountRow: View {
 
                 Spacer(minLength: 8)
 
+                if row.sessionNeedsReauth {
+                    Button {
+                        onReauth()
+                    } label: {
+                        Text(NSLocalizedString("Re-login", comment: "Account switcher per-account re-login affordance"))
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(accent)
+                    }
+                    .buttonStyle(.plain)
+                    // The row collapses into a single VoiceOver element
+                    // (`.accessibilityElement(children: .ignore)` below), which
+                    // discards this inner button. Hide it explicitly and expose
+                    // re-login as a custom action on the combined element instead,
+                    // so VoiceOver can still reach it.
+                    .accessibilityHidden(true)
+                }
+
                 RadioCheck(isSelected: row.isDefault, accent: accent)
             }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         // Combine the row into one VoiceOver element, label it with the human
-        // text, and surface selection as a trait (not by color alone) so the
-        // active account is announced as "selected".
+        // text (with a "needs re-login" clause when flagged), and surface
+        // selection as a trait (not by color alone) so the active account is
+        // announced as "selected".
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(accessibilityLabel))
         .accessibilityAddTraits(row.isDefault ? [.isButton, .isSelected] : .isButton)
+        // The visible "Re-login" button is hidden from VoiceOver (see above);
+        // surface it here as a custom action on the row's single element so a
+        // VoiceOver user on a flagged row can trigger re-login directly.
+        .accessibilityActions {
+            if row.sessionNeedsReauth {
+                Button(NSLocalizedString("Re-login", comment: "Account switcher re-login accessibility action")) {
+                    onReauth()
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -237,7 +273,15 @@ private struct AccountSwitcherAccountRow: View {
     }
 
     private var accessibilityLabel: String {
-        "\(primaryText), \(secondaryText)"
+        let base = "\(primaryText), \(secondaryText)"
+        guard row.sessionNeedsReauth else { return base }
+        // Announce the expired-session state on the combined element so a
+        // VoiceOver user hears WHY re-login is offered, not just the handle.
+        let needsReauth = NSLocalizedString(
+            "session expired, needs re-login",
+            comment: "Account switcher row accessibility clause when the account's session expired"
+        )
+        return "\(base), \(needsReauth)"
     }
 }
 
