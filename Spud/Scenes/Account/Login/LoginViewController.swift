@@ -298,12 +298,16 @@ class LoginViewController: UIViewController {
 
     init(
         row: SiteListRow,
+        initialUsername: String = "",
+        reauthTarget: LoginViewModel.ReauthTarget? = nil,
         dependencies: Dependencies
     ) {
         self.dependencies = (own: dependencies, nested: dependencies)
 
         viewModel = LoginViewModel(
             row: row,
+            initialUsername: initialUsername,
+            reauthTarget: reauthTarget,
             dependencies: self.dependencies.nested
         )
 
@@ -326,6 +330,9 @@ class LoginViewController: UIViewController {
         )
         navigationItem.leftBarButtonItem = cancelBarButtonItem
         navigationItem.title = NSLocalizedString("Log in", comment: "Login screen title")
+        if viewModel.reauthTarget != nil {
+            navigationItem.title = NSLocalizedString("Log back in", comment: "Re-login screen title")
+        }
 
         view.backgroundColor = Theme.background
 
@@ -370,6 +377,14 @@ class LoginViewController: UIViewController {
             self.applyBannerGradientColors()
             self.instanceHeaderCard.layer.borderColor = UIColor.separator.cgColor
             self.iconImageView.layer.borderColor = Theme.background.cgColor
+        }
+
+        // Re-logging in to an existing account is not a place to create a new
+        // one or switch to anonymous browsing -- hide both affordances.
+        if viewModel.reauthTarget != nil {
+            anonymousButton.isHidden = true
+            orDividerStackView.isHidden = true
+            registerLineLabel.isHidden = true
         }
     }
 
@@ -427,6 +442,7 @@ class LoginViewController: UIViewController {
 
     private func bindViewModel() {
         instanceNameLabel.text = viewModel.instanceName
+        usernameField.textField.text = viewModel.username
         applyBannerGradientColors()
 
         let anonymousTitle = String(
