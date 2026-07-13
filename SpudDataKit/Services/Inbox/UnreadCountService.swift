@@ -182,13 +182,17 @@ public final class UnreadCountService: UnreadCountServiceType {
     private func observeReminderCount(accountKeychainId: String) {
         guard observedAccountKeychainId != accountKeychainId else { return }
         stopObservingReminderCount()
-        observedAccountKeychainId = accountKeychainId
 
         guard let accountId = appDatabase.accountRowIdSync(forKeychainId: accountKeychainId) else {
+            // Don't mark this account as "observed" yet - the account row
+            // hasn't landed. Leaving `observedAccountKeychainId` nil lets the
+            // next refresh retry `accountRowIdSync` instead of short-circuiting
+            // on the guard above forever.
             reminderUnseenCount = 0
             applyBlendedCount()
             return
         }
+        observedAccountKeychainId = accountKeychainId
 
         let appDatabase = appDatabase
         reminderCountTask = Task { @MainActor [weak self] in
