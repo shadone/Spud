@@ -63,6 +63,17 @@ public class SchedulerService: SchedulerServiceType {
     /// Retains the subscription for the lifetime of the service.
     private var reachabilityTask: Task<Void, Never>?
 
+    /// Guards `pollActivityRemindersSweep()` against running twice at once.
+    /// `tick()` (the foreground 5-minute timer) and `runReminderPoll()` (the
+    /// Phase-4 `BGAppRefreshTask` handler) both call it, and although
+    /// `SchedulerService` is `@MainActor`, the sweep suspends across `await`
+    /// network fetches - so a second sweep can interleave with the first
+    /// while it's suspended, double-fetching a post and emitting a duplicate
+    /// `poll.fired` diagnostic (benign but wasteful). No atomic/lock is
+    /// needed: `SchedulerService` itself is `@MainActor`, so every read/write
+    /// of this flag is already serialized.
+    private var isReminderSweepInFlight = false
+
     // MARK: Functions
 
     public init(
@@ -315,11 +326,12 @@ public class SchedulerService: SchedulerServiceType {
     // MARK: Activity reminder poll (Post Reminders Phase 2)
 
     /// Drives `ReminderService.pollDueActivityReminders` once per pollable
-    /// account per tick - the foreground half of the "When there are new
-    /// comments" follow, whole-post AND comment-subtree (spec §5.1/§5.3;
-    /// Phase 3 added the subtree scope). Background polling
-    /// (`BGAppRefreshTask`) is a later phase; this only runs while the app is
-    /// in the foreground and the 5-minute tick fires.
+    /// account per sweep - the "When there are new comments" follow,
+    /// whole-post AND comment-subtree (spec §5.1/§5.3; Phase 3 added the
+    /// subtree scope). Called from both `tick()` (the foreground 5-minute
+    /// timer) and `runReminderPoll()` (the Phase-4 `BGAppRefreshTask`
+    /// handler), so this sweep is the single shared implementation for both
+    /// the foreground and background paths.
     ///
     /// Accounts are enumerated via `pollableAccountKeychainIds()` - every
     /// non-service account, BOTH signed-in and signed-out. Unlike the two
@@ -335,7 +347,10 @@ public class SchedulerService: SchedulerServiceType {
     /// runs on the account's `ReminderService` actor, and firing two overlapping
     /// polls for the same account (e.g. from a re-entrant tick) could double-fire
     /// the same due reminder before the first poll's re-arm write lands. One poll
-    /// per account per tick keeps that impossible by construction.
+    /// per account per sweep keeps that impossible by construction - and
+    /// `isReminderSweepInFlight` (checked at the top of this method) keeps two
+    /// SWEEPS (one from `tick()`, one from `runReminderPoll()`) from ever
+    /// running at once, closing the same gap at the cross-sweep level.
     ///
     /// Only accounts with at least one due activity reminder do any network
     /// work - `pollDueActivityReminders` early-returns on an empty due list -
@@ -344,6 +359,25 @@ public class SchedulerService: SchedulerServiceType {
     /// itself is a cheap sync read - it's the network `fetchPostInfo` that's
     /// skipped when nothing is due).
     private func pollActivityRemindersSweep() async {
+        guard !isReminderSweepInFlight else {
+            // `tick()` and `runReminderPoll()` overlapped (the first sweep is
+            // still suspended in an `await` below) - skip rather than run a
+            // second interleaved sweep, which would double-fetch and could
+            // emit a duplicate `poll.fired` diagnostic. See
+            // `isReminderSweepInFlight`'s doc comment.
+            await diagnostics.record(
+                category: .reminder,
+                level: .debug,
+                event: "poll.sweep.skipped",
+                message: "Activity reminder poll sweep skipped - a sweep is already in flight",
+                instance: nil,
+                metadata: nil
+            )
+            return
+        }
+        isReminderSweepInFlight = true
+        defer { isReminderSweepInFlight = false }
+
         await diagnostics.record(
             category: .reminder,
             level: .debug,
@@ -386,20 +420,24 @@ public class SchedulerService: SchedulerServiceType {
                     try? await lemmy.fetchPostInfo(serverPostId: Lemmy.PostID(postServerId))
                     return appDatabase.postNumberOfCommentsSync(forKeychainId: keychainId, serverPostId: postServerId)
                 } else {
-                    // `LemmyServiceType` exposes only a post-scoped `fetchComments`
-                    // (no `parentID`-scoped overload at this pinned LemmyKit
-                    // version), so refresh the whole tree under the post - it
-                    // re-imports every comment, including the subtree's root,
-                    // and `CommentImporter` persists each one's server
-                    // `child_count` (Task 1), so `commentChildCountSync` below
-                    // reads a fresh value afterward. Costs more than a
-                    // parent-scoped fetch would, but is the cheapest option
-                    // that exists today without a LemmyKit release + pin bump.
-                    // The sort order is irrelevant here (only `child_count` is
-                    // read back, the ordering is never rendered), so `.Hot` is
-                    // used as an arbitrary fixed choice.
-                    try? await lemmy.fetchComments(serverPostId: Lemmy.PostID(postServerId), sortType: .Hot)
-                    return appDatabase.commentChildCountSync(forKeychainId: keychainId, serverCommentId: rootCommentServerId)
+                    // `fetchSubtreeChildCount` paginates the post's comment
+                    // listing (bounded to `LemmyService.maxSubtreeChildCountPages`
+                    // pages) until it finds `rootCommentServerId`, and hands back
+                    // that page item's `child_count` directly - unlike the old
+                    // "refresh via fetchComments then read commentChildCountSync"
+                    // approach, this reaches a subtree root beyond page 1 of a v4
+                    // (cursor-paginated) listing too, not just a v3 backend's
+                    // single-response comment tree. The sort order is irrelevant
+                    // here (only `child_count` is read back, the ordering is
+                    // never rendered), so `.Hot` is used as an arbitrary fixed
+                    // choice. A subtree root that sorts past the page bound on a
+                    // v4 server is a documented, accepted limitation - see
+                    // `docs/features/reminders.md`.
+                    return await lemmy.fetchSubtreeChildCount(
+                        postServerId: Lemmy.PostID(postServerId),
+                        rootCommentServerId: rootCommentServerId,
+                        sortType: .Hot
+                    )
                 }
             }
 

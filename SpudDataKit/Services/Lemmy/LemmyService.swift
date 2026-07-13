@@ -62,6 +62,35 @@ public protocol LemmyServiceType: Actor {
         sortType: Lemmy.CommentSortType
     ) async throws
 
+    /// Fetch a comment-subtree's live `child_count` (descendant count) by
+    /// paginating a post's comment listing until `rootCommentServerId` is
+    /// found - a bounded, self-contained alternative to `fetchComments` for
+    /// the reminder poll's SUBTREE branch (`SchedulerService.
+    /// pollActivityRemindersSweep`). `fetchComments` requests only the FIRST
+    /// page of the listing - complete on a v3 backend (whose
+    /// `GetCommentsResponse` always returns the whole tree in one response),
+    /// but only page 1 of a cursor-paginated v4 listing, so a subtree root
+    /// past page 1 would never be refreshed there. See
+    /// `LemmyService.fetchSubtreeChildCount(postServerId:rootCommentServerId:sortType:)`
+    /// for the page bound and the best-effort-nil contract. Has a default
+    /// (always-nil) implementation, so conformers that never drive the
+    /// reminder poll's subtree branch don't need to implement it.
+    ///
+    /// - Parameters:
+    ///   - postServerId: the post the target comment belongs to.
+    ///   - rootCommentServerId: the subtree's root comment's server id.
+    ///   - sortType: sort order for the underlying listing request -
+    ///     irrelevant to the result (only `child_count` is read back), so
+    ///     callers may pass any fixed value.
+    /// - Returns: the root comment's live `child_count`, or nil if it
+    ///   couldn't be determined (not found within the page bound, or the
+    ///   fetch failed).
+    func fetchSubtreeChildCount(
+        postServerId: Lemmy.PostID,
+        rootCommentServerId: Int64,
+        sortType: Lemmy.CommentSortType
+    ) async -> Int?
+
     func fetchSiteInfo() async throws
 
     /// Fetch the instance's site info via the version-neutral `getSiteNeutral()`
@@ -544,6 +573,22 @@ public protocol LemmyServiceType: Actor {
     /// canonical URL, under this service's account. Comments resolve to
     /// `.comment` (deferred); unrecognised input resolves to `.unresolved`.
     func resolveObject(query: String) async throws -> ResolvedLemmyObject
+}
+
+public extension LemmyServiceType {
+    /// Default: no subtree refresh available - always nil, exactly like a
+    /// failed fetch. Only `LemmyService` (the real implementation) and test
+    /// doubles that specifically drive `SchedulerService`'s reminder-poll
+    /// subtree branch need to override this; every other conformer (view-model
+    /// fakes, unrelated scheduler fakes, ...) never reaches this call and can
+    /// rely on this default.
+    func fetchSubtreeChildCount(
+        postServerId _: Lemmy.PostID,
+        rootCommentServerId _: Int64,
+        sortType _: Lemmy.CommentSortType
+    ) async -> Int? {
+        nil
+    }
 }
 
 /// One page of a person's authored content, split by kind. Replaces the raw
@@ -1049,6 +1094,88 @@ public actor LemmyService: LemmyServiceType {
         if page.items.contains(where: \.comment.removed) {
             await mirrorCommentRemovalReasons(serverPostId: serverPostId)
         }
+    }
+
+    /// Bound on how many comment pages `fetchSubtreeChildCount` will follow
+    /// before giving up on locating the target root comment. A subtree root
+    /// beyond this many pages on a v4 (cursor-paginated) server is not found,
+    /// and the poll's refresh for that check quietly falls back to the
+    /// last-known count — a documented, accepted limitation (see
+    /// `docs/features/reminders.md`).
+    public static let maxSubtreeChildCountPages = 10
+
+    /// Fetch a comment-subtree's live `child_count` for the reminder poll's
+    /// SUBTREE branch (`SchedulerService.pollActivityRemindersSweep`), by
+    /// paginating `getCommentsNeutral` until `rootCommentServerId` is found.
+    ///
+    /// `fetchComments` requests only the first page of a post's comment
+    /// listing — fine on a v3 backend, whose `GetCommentsResponse` always
+    /// returns the whole tree in one response, but only PAGE 1 of a v4
+    /// (cursor-paginated) listing, so a subtree root that sorts past page 1
+    /// would never be refreshed there and its `child_count` would silently go
+    /// stale (a missed "new replies" notification, never a wrong fire). This
+    /// instead follows `Page.nextPage` cursors, bounded to
+    /// `maxSubtreeChildCountPages` pages, and reads the count straight off the
+    /// matching page item rather than round-tripping through the database
+    /// afterward — a deep subtree root may not even have a local `comment` row
+    /// cached yet.
+    ///
+    /// Best-effort: never throws. Returns nil if `rootCommentServerId` isn't
+    /// found within the page bound, or if any page fetch fails —
+    /// `pollDueActivityReminders` treats a nil result exactly like a thrown
+    /// `fetchComments` error would (bumps `nextCheckAt` without firing).
+    ///
+    /// - Parameters:
+    ///   - postServerId: the post the target comment belongs to.
+    ///   - rootCommentServerId: the subtree's root comment's server id.
+    ///   - sortType: sort order for the underlying listing request —
+    ///     irrelevant to the result (only `child_count` is read back), so
+    ///     callers may pass any fixed value.
+    /// - Returns: the root comment's live `child_count`, or nil.
+    public func fetchSubtreeChildCount(
+        postServerId: Lemmy.PostID,
+        rootCommentServerId: Int64,
+        sortType: Lemmy.CommentSortType
+    ) async -> Int? {
+        var pageCursor: LemmyKit.Cursor?
+
+        for _ in 0..<Self.maxSubtreeChildCountPages {
+            let page: Page<Lemmy.CommentView>
+            do {
+                page = try await api.getCommentsNeutral(
+                    postId: Int64(postServerId),
+                    sort: sortType.neutralCommentSort,
+                    pageCursor: pageCursor
+                )
+            } catch {
+                logger.error("""
+                    fetchSubtreeChildCount failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                    postId=\(postServerId, privacy: .public) rootCommentId=\(rootCommentServerId, privacy: .public). \
+                    \(String(describing: error), privacy: .public)
+                    """)
+                return nil
+            }
+
+            // Best-effort cache refresh; a failure here (e.g. no account/site
+            // row yet) must never block returning the count read directly
+            // from `page.items` below.
+            try? await mirrorCommentsToAppDatabase(
+                serverPostId: postServerId,
+                sortType: sortType,
+                comments: page.items
+            )
+
+            if let match = page.items.first(where: { $0.comment.id == rootCommentServerId }) {
+                return Int(match.comment.childCount)
+            }
+
+            guard let nextPage = page.nextPage else {
+                return nil
+            }
+            pageCursor = nextPage
+        }
+
+        return nil
     }
 
     /// Fetches moderator removal reasons for the post's removed comments from

@@ -257,3 +257,12 @@ mention.
   and set a new one; there's no "edit" affordance on an existing row yet.
 - **Cross-device sync** — reminders are on-device only; there's no backend, so setting a
   reminder (or follow) on one device doesn't create it on another.
+- **A thread follow's refresh is bounded, not exhaustive, on newer (v4) servers.** The
+  poll refreshes a comment-subtree follow's count by paging through the post's comment
+  listing until it finds the followed root comment, capped at a fixed number of pages.
+  On a v3 server this never matters — its comment listing always comes back as one
+  complete response. On a v4 server, a root comment that sorts past that page cap (an
+  unusually deep position in a very large, very active thread) won't be found that
+  check, so its count silently falls back to the last-known value instead of the live
+  one — same effect as a single failed refresh: never a false notification, only a
+  possible delay in a true one.

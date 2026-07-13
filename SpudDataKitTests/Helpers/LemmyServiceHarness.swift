@@ -17,12 +17,14 @@ enum LemmyServiceHarness {
         accountKeychainId: String,
         appDatabase: AppDatabase,
         accountIsSignedOut: Bool = false,
-        transport: any ClientTransport
+        transport: any ClientTransport,
+        apiVersion: ApiVersion = .v3
     ) -> LemmyService {
         let api = LemmyApi(
             instanceUrl: URL(string: "https://example.com")!,
             credential: accountIsSignedOut ? nil : LemmyCredential(jwt: "fake-jwt"),
-            transport: transport
+            transport: transport,
+            apiVersion: apiVersion
         )
         return LemmyService(
             accountKeychainId: accountKeychainId,
