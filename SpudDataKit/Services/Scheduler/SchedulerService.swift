@@ -350,7 +350,15 @@ public class SchedulerService: SchedulerServiceType {
             // concurrency.
             let appDatabase = appDatabase
             let lemmy = accountService.lemmyService(forAccountKeychainId: keychainId)
-            let fetcher: @Sendable (Int64) async -> Int? = { postServerId in
+            // Phase 3 generalized `pollDueActivityReminders`'s fetcher to also
+            // carry `rootCommentServerId`, so a subtree follow can be counted
+            // from the root comment's `child_count` instead of the post's
+            // `numberOfComments` - this sweep still only ever creates
+            // whole-post follows (the comment-menu entry point is a later
+            // task), so the parameter is accepted but not yet branched on;
+            // wiring the subtree branch (a comment-tree refresh +
+            // `commentChildCountSync`) is tracked as follow-up work.
+            let fetcher: @Sendable (Int64, Int64) async -> Int? = { postServerId, _ in
                 // Best-effort: a failed refresh just means the poll falls back to
                 // the previously-cached comment count (`postNumberOfCommentsSync`
                 // reads it below regardless) rather than skipping the account

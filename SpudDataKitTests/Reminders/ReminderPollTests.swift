@@ -97,7 +97,7 @@ struct ReminderPollTests {
         )
 
         // 16 - 10 = 6 new comments, over the threshold of 5.
-        await service.pollDueActivityReminders(asOf: now, commentCountFetcher: { _ in 16 })
+        await service.pollDueActivityReminders(asOf: now, commentCountFetcher: { _, _ in 16 })
 
         // Fired: an immediate notification posted with the "6 new comments" body.
         let postNowCalls = await scheduler.postNowCalls
@@ -143,7 +143,7 @@ struct ReminderPollTests {
         )
 
         // 11 - 10 = 1 new comment: below threshold and elapsed (1h) < fallback.
-        await service.pollDueActivityReminders(asOf: now, commentCountFetcher: { _ in 11 })
+        await service.pollDueActivityReminders(asOf: now, commentCountFetcher: { _, _ in 11 })
 
         let postNowCalls = await scheduler.postNowCalls
         #expect(postNowCalls.isEmpty)
@@ -178,7 +178,7 @@ struct ReminderPollTests {
         )
 
         // 13 - 10 = 3 new comments: below threshold, but elapsed (25h) >= fallback.
-        await service.pollDueActivityReminders(asOf: now, commentCountFetcher: { _ in 13 })
+        await service.pollDueActivityReminders(asOf: now, commentCountFetcher: { _, _ in 13 })
 
         let postNowCalls = await scheduler.postNowCalls
         #expect(postNowCalls.count == 1)
@@ -207,7 +207,7 @@ struct ReminderPollTests {
             nextCheckAt: now.addingTimeInterval(-60)
         )
 
-        await service.pollDueActivityReminders(asOf: now, commentCountFetcher: { _ in nil })
+        await service.pollDueActivityReminders(asOf: now, commentCountFetcher: { _, _ in nil })
 
         let postNowCalls = await scheduler.postNowCalls
         #expect(postNowCalls.isEmpty)
@@ -241,7 +241,7 @@ struct ReminderPollTests {
 
         // Even a huge new-comment count must not fire a not-due row: the fetcher
         // should never even be consulted (nextCheckAt is in the future).
-        await service.pollDueActivityReminders(asOf: now, commentCountFetcher: { _ in 9999 })
+        await service.pollDueActivityReminders(asOf: now, commentCountFetcher: { _, _ in 9999 })
 
         let postNowCalls = await scheduler.postNowCalls
         #expect(postNowCalls.isEmpty)
@@ -274,7 +274,7 @@ struct ReminderPollTests {
         )
 
         // 22 - 16 = 6 new since the last fire's baseline -> refires.
-        await service.pollDueActivityReminders(asOf: now, commentCountFetcher: { _ in 22 })
+        await service.pollDueActivityReminders(asOf: now, commentCountFetcher: { _, _ in 22 })
 
         let postNowCalls = await scheduler.postNowCalls
         #expect(postNowCalls.count == 1)
