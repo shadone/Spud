@@ -11,9 +11,23 @@ import SpudUtilKit
 
 private let logger = Logger.schedulerService
 
+/// `: Sendable` - every conformer is a `@MainActor` class, which is
+/// implicitly thread-safe (Swift synthesizes `Sendable` for `@MainActor`
+/// classes), but the existential `any SchedulerServiceType` doesn't inherit
+/// that automatically without the protocol itself declaring it. Needed so the
+/// Phase-4 `BGAppRefreshTask` handler (`ReminderBackgroundRefresh`, which
+/// runs off the main actor) can capture a `SchedulerServiceType` into its
+/// `Task { ... }` closure under Swift 6 strict concurrency.
 @MainActor
-public protocol SchedulerServiceType {
+public protocol SchedulerServiceType: Sendable {
     func startService()
+
+    /// Runs the activity-reminder poll sweep once, immediately. Public entry
+    /// point shared by the foreground 5-minute `tick()` and the Phase-4
+    /// `BGAppRefreshTask` handler (`Spud/Reminders/ReminderBackgroundRefresh.swift`)
+    /// so the background path reuses the exact same fire-rule / count-delta /
+    /// re-arm logic rather than reimplementing it.
+    func runReminderPoll() async
 }
 
 @MainActor
@@ -98,6 +112,10 @@ public class SchedulerService: SchedulerServiceType {
                 wasOnline = online
             }
         }
+    }
+
+    public func runReminderPoll() async {
+        await pollActivityRemindersSweep()
     }
 
     /// One scheduler tick: emits diagnostic bookends and dispatches the two
