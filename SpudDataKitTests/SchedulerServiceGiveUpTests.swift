@@ -286,9 +286,23 @@ private func giveUpUnreachable(_ function: StaticString = #function) -> Never {
 @MainActor
 private final class GiveUpAccountService: AccountServiceType {
     let stubbedLemmyService: any LemmyServiceType
+    let stubbedReminderService: ReminderService
 
-    init(lemmyService: any LemmyServiceType) {
+    /// `reminderService` is now reached unconditionally by `SchedulerService.
+    /// tick()`'s activity-reminder poll sweep (Task 3, Post Reminders Phase 2)
+    /// for every pollable account - signed-in AND signed-out, which is exactly
+    /// what this suite's seeded account is - regardless of whether it has any
+    /// due activity reminder, so this can no longer `fatalError` on the
+    /// assumption it's unused. A real `ReminderService` backed by the test's
+    /// own `appDatabase` is harmless here: with no `reminder` rows seeded,
+    /// `pollDueActivityReminders` finds nothing due and no-ops.
+    init(lemmyService: any LemmyServiceType, appDatabase: AppDatabase, accountId: Int64) {
         stubbedLemmyService = lemmyService
+        stubbedReminderService = ReminderService(
+            accountId: accountId,
+            appDatabase: appDatabase,
+            scheduler: ReminderServiceTests.FakeReminderNotificationScheduler()
+        )
     }
 
     func lemmyService(forAccountKeychainId _: String) -> any LemmyServiceType {
@@ -296,7 +310,7 @@ private final class GiveUpAccountService: AccountServiceType {
     }
 
     func reminderService(forAccountKeychainId _: String) -> ReminderService {
-        fatalError("reminderService not stubbed")
+        stubbedReminderService
     }
 
     func instanceActorId(forAccountKeychainId _: String) -> InstanceActorId? {
@@ -379,8 +393,11 @@ private final class GiveUpClockBox: @unchecked Sendable {
 struct SchedulerServiceGiveUpTests {
     /// Seed one non-ephemeral signed-out account whose home site is awaiting its
     /// first site-info import (`name IS NULL`), so it is eligible for the sweep.
-    /// Returns the site's row id so the test can read back the persisted state.
-    private func seedSignedOutSite(_ appDatabase: AppDatabase, keychainId: String) async throws -> Int64 {
+    /// Returns the site's and account's row ids - the site id so the test can
+    /// read back the persisted give-up state, the account id so `GiveUpAccountService`
+    /// can back its (now-unconditionally-reached) `ReminderService` stub with the
+    /// real seeded row rather than a placeholder.
+    private func seedSignedOutSite(_ appDatabase: AppDatabase, keychainId: String) async throws -> (siteId: Int64, accountId: Int64) {
         try await appDatabase.writer.write { db in
             var instance = InstanceRecord(actorId: "https://giveup-test.example.com", createdAt: Date(), updatedAt: Date())
             try instance.insert(db)
@@ -393,19 +410,20 @@ struct SchedulerServiceGiveUpTests {
                 isEphemeral: false
             )
             try account.insert(db)
-            return site.id!
+            return (siteId: site.id!, accountId: account.id!)
         }
     }
 
     private func makeService(
         appDatabase: AppDatabase,
         lemmyService: any LemmyServiceType,
+        accountId: Int64,
         diagnostics: DiagnosticLogSpy,
         clock: GiveUpClockBox
     ) -> SchedulerService {
         SchedulerService(
             appDatabase: appDatabase,
-            accountService: GiveUpAccountService(lemmyService: lemmyService),
+            accountService: GiveUpAccountService(lemmyService: lemmyService, appDatabase: appDatabase, accountId: accountId),
             alertService: NullAlertService(),
             diagnostics: diagnostics,
             now: { clock.date },
@@ -420,12 +438,12 @@ struct SchedulerServiceGiveUpTests {
     func permanentFailuresAbandonSiteAndRecordGiveUp() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let keychainId = "kc-giveup-permanent"
-        let siteId = try await seedSignedOutSite(appDatabase, keychainId: keychainId)
+        let (siteId, accountId) = try await seedSignedOutSite(appDatabase, keychainId: keychainId)
 
         let fakeLemmy = GiveUpLemmyService(httpStatusCode: 403)
         let diagnostics = DiagnosticLogSpy()
         let clock = GiveUpClockBox(Date(timeIntervalSince1970: 2_000_000))
-        let service = makeService(appDatabase: appDatabase, lemmyService: fakeLemmy, diagnostics: diagnostics, clock: clock)
+        let service = makeService(appDatabase: appDatabase, lemmyService: fakeLemmy, accountId: accountId, diagnostics: diagnostics, clock: clock)
 
         // Drive threshold + 2 ticks. Between each tick, step the clock 3 h forward —
         // well past every pre-abandonment back-off window (max ~40 min), so the
@@ -463,12 +481,12 @@ struct SchedulerServiceGiveUpTests {
     func transientFailuresNeverAbandon() async throws {
         let appDatabase = try AppDatabase.inMemory()
         let keychainId = "kc-giveup-transient"
-        let siteId = try await seedSignedOutSite(appDatabase, keychainId: keychainId)
+        let (siteId, accountId) = try await seedSignedOutSite(appDatabase, keychainId: keychainId)
 
         let fakeLemmy = GiveUpLemmyService(httpStatusCode: 503)
         let diagnostics = DiagnosticLogSpy()
         let clock = GiveUpClockBox(Date(timeIntervalSince1970: 2_000_000))
-        let service = makeService(appDatabase: appDatabase, lemmyService: fakeLemmy, diagnostics: diagnostics, clock: clock)
+        let service = makeService(appDatabase: appDatabase, lemmyService: fakeLemmy, accountId: accountId, diagnostics: diagnostics, clock: clock)
 
         // Drive many ticks, stepping past the short transient retry window (5 min)
         // each time so the sweep re-selects the site on every tick.

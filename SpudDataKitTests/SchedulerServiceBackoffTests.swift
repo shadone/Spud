@@ -286,11 +286,13 @@ private final class BackoffAccountService: AccountServiceType {
     /// regardless of whether it has any due activity reminder, so this can no
     /// longer `fatalError` on the assumption it's unused. A real `ReminderService`
     /// backed by the test's own `appDatabase` is harmless here: with no `reminder`
-    /// rows seeded, `pollDueActivityReminders` finds nothing due and no-ops.
-    init(lemmyService: any LemmyServiceType, appDatabase: AppDatabase) {
+    /// rows seeded, `pollDueActivityReminders` finds nothing due and no-ops -
+    /// `accountId` is the caller's actual seeded row id (not a placeholder) so
+    /// that would still hold true even if a future test in this file seeds one.
+    init(lemmyService: any LemmyServiceType, appDatabase: AppDatabase, accountId: Int64) {
         stubbedLemmyService = lemmyService
         stubbedReminderService = ReminderService(
-            accountId: 0,
+            accountId: accountId,
             appDatabase: appDatabase,
             scheduler: ReminderServiceTests.FakeReminderNotificationScheduler()
         )
@@ -396,7 +398,7 @@ struct SchedulerServiceBackoffTests {
         let keychainId = "kc-backoff-test-1"
         let seedDate = Date(timeIntervalSince1970: 1_000_000)
 
-        try await appDatabase.writer.write { db in
+        let accountId: Int64 = try await appDatabase.writer.write { db in
             try db.execute(
                 sql: "INSERT INTO instance (actorId, createdAt) VALUES (?, ?)",
                 arguments: ["https://backoff-test.example.com", seedDate]
@@ -415,10 +417,11 @@ struct SchedulerServiceBackoffTests {
                     """,
                 arguments: [siteId, keychainId, seedDate, seedDate]
             )
+            return db.lastInsertedRowID
         }
 
         let fakeLemmyService = FetchSiteLemmyService()
-        let fakeAccountService = BackoffAccountService(lemmyService: fakeLemmyService, appDatabase: appDatabase)
+        let fakeAccountService = BackoffAccountService(lemmyService: fakeLemmyService, appDatabase: appDatabase, accountId: accountId)
         let fakeReachability = StaticReachabilityMonitor(isOnline: false)
         let clock = ClockBox(Date(timeIntervalSince1970: 2_000_000))
 

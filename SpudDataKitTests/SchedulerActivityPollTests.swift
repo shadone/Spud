@@ -379,14 +379,15 @@ private final class ActivityPollClockBox: @unchecked Sendable {
 
 // MARK: - SchedulerActivityPollTests
 
-/// Verifies the Task 3 wiring: `SchedulerService.tick()` enumerates signed-in
-/// accounts, builds each account's `commentCountFetcher` from its
-/// `LemmyService` + `postNumberOfCommentsSync`, and drives
-/// `ReminderService.pollDueActivityReminders` once per account - resulting in a
-/// due activity reminder firing when the (pre-seeded) live comment count clears
-/// the smart rule. `ReminderPollTests` (Task 2) already exhaustively covers the
-/// poll's own fire/no-fire rule; this test is only about the scheduler
-/// reaching it correctly.
+/// Verifies the Task 3 wiring: `SchedulerService.tick()` enumerates pollable
+/// accounts (BOTH signed-in and signed-out, via `pollableAccountKeychainIds()`),
+/// builds each account's `commentCountFetcher` from its `LemmyService` +
+/// `postNumberOfCommentsSync`, and drives `ReminderService.pollDueActivityReminders`
+/// once per account - resulting in a due activity reminder firing when the
+/// (pre-seeded) live comment count clears the smart rule. `ReminderPollTests`
+/// (Task 2) already exhaustively covers the poll's own fire/no-fire rule; this
+/// test is only about the scheduler reaching it correctly, for both account
+/// types.
 ///
 /// The suite is `@MainActor` (`SchedulerService` is `@MainActor`) and
 /// serialized because the fake `AccountService` is also `@MainActor` -
@@ -400,16 +401,23 @@ struct SchedulerActivityPollTests {
     /// type-check there.
     private nonisolated static let postServerId: Int64 = 100
 
-    /// Seeds a signed-in, already-synced account (`isSignedOutAccountType = 0`,
-    /// `localAccountId` set, `updatedAt` = real now) plus a community and a post
-    /// whose `numberOfComments` is pre-set to `postCommentCount` - i.e. the value
+    /// Seeds an already-synced account (`localAccountId` set for a signed-in
+    /// account, `updatedAt` = real now) plus a community and a post whose
+    /// `numberOfComments` is pre-set to `postCommentCount` - i.e. the value
     /// `fetchPostInfo` would have refreshed it to, since the fake's
     /// `fetchPostInfo` is a no-op recorder rather than a real importer. Returns
     /// the account row id `ReminderService`/`ReminderRecord` key off.
+    ///
+    /// - Parameter isSignedOut: when `true`, seeds `isSignedOutAccountType = 1`
+    ///   with no `localAccountId` (signed-out accounts never have `MyUserInfo`) -
+    ///   used by `tickPollsDueActivityReminderForSignedOutAccount` to prove the
+    ///   sweep's `pollableAccountKeychainIds()` scope (both account types, not
+    ///   just signed-in) actually reaches a signed-out browsing account.
     private func seedGraph(
         _ appDatabase: AppDatabase,
         keychainId: String,
-        postCommentCount: Int64
+        postCommentCount: Int64,
+        isSignedOut: Bool = false
     ) async throws -> Int64 {
         try await appDatabase.writer.write { db in
             try db.execute(
@@ -427,19 +435,22 @@ struct SchedulerActivityPollTests {
                     VALUES (?, 10, 'alice', 0, 0, 0, 0, 0, 0, 0, ?, ?)
                 """, arguments: [siteId, Date(), Date()])
             let personId = db.lastInsertedRowID
-            // `localAccountId` non-nil + `updatedAt` = real now (NOT the test's
-            // fictional clock) so the SIGNED-IN site-info sweep - which runs
-            // right before the activity-reminder sweep inside `tick()` and
-            // selects on the same `isSignedOutAccountType = 0` scope - sees this
-            // account as neither "awaiting" (`localAccountId IS NULL`) nor
+            // `localAccountId` non-nil (signed-in only) + `updatedAt` = real now
+            // (NOT the test's fictional clock) so the SIGNED-IN site-info sweep -
+            // which runs right before the activity-reminder sweep inside `tick()`
+            // and selects on `isSignedOutAccountType = 0` - sees a signed-in
+            // account here as neither "awaiting" (`localAccountId IS NULL`) nor
             // "stale" (`updatedAt` older than a day) and leaves it alone. Not
             // load-bearing for correctness (the fake's `fetchSiteInfo()` is a
             // harmless no-op either way) but keeps the test from depending on
-            // that unrelated sweep's behavior at all.
+            // that unrelated sweep's behavior at all. A signed-out account is
+            // untouched by that sweep regardless (it filters on
+            // `isSignedOutAccountType = 0`), so `localAccountId` is simply nil.
+            let localAccountId: Int64? = isSignedOut ? nil : personId
             try db.execute(sql: """
                     INSERT INTO account (siteId, accountKeychainId, isDefault, isServiceAccount, isSignedOutAccountType, localAccountId, createdAt, updatedAt)
-                    VALUES (?, ?, 1, 0, 0, ?, ?, ?)
-                """, arguments: [siteId, keychainId, personId, Date(), Date()])
+                    VALUES (?, ?, 1, 0, ?, ?, ?, ?)
+                """, arguments: [siteId, keychainId, isSignedOut ? 1 : 0, localAccountId, Date(), Date()])
             let accountId = db.lastInsertedRowID
             try db.execute(sql: """
                     INSERT INTO community (accountId, communityId, name, actorId, isHidden, isLocal, isNsfw, isPostingRestrictedToMods, isRemoved, subscribedState, numberOfSubscribers, numberOfPosts, numberOfComments, createdAt, updatedAt)
@@ -488,12 +499,13 @@ struct SchedulerActivityPollTests {
         )
         let lemmyService = ActivityPollLemmyService()
         let accountService = ActivityPollAccountService(lemmyService: lemmyService, reminderService: reminderService)
+        let diagnostics = DiagnosticLogSpy()
 
         let scheduler = SchedulerService(
             appDatabase: appDatabase,
             accountService: accountService,
             alertService: NullAlertService(),
-            diagnostics: DiagnosticLogSpy(),
+            diagnostics: diagnostics,
             now: { clock.date },
             reachabilityMonitor: StaticReachabilityMonitor(isOnline: true)
         )
@@ -511,6 +523,88 @@ struct SchedulerActivityPollTests {
 
         // ...and the row was re-armed to `fired`/`unseen` with the baseline
         // reset to the just-observed count.
+        let stored = appDatabase.reminderSync(
+            accountId: accountId,
+            postServerId: Self.postServerId,
+            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            kind: ReminderRecord.Kind.activity.rawValue
+        )
+        #expect(stored?.status == ReminderRecord.Status.fired.rawValue)
+        #expect(stored?.unseen == true)
+        #expect(stored?.baselineCount == 16)
+
+        // The sweep emitted its diagnostic bookends, with the polled-account
+        // count in the finish metadata.
+        #expect(diagnostics.events(matching: "poll.sweep.start").count == 1)
+        let finishEvents = diagnostics.events(matching: "poll.sweep.finish")
+        #expect(finishEvents.count == 1)
+        #expect(finishEvents.first?.metadata?["accountCount"] == "1")
+    }
+
+    /// A SIGNED-OUT account's due activity reminder is still polled - the
+    /// review fix this test guards against: the sweep used to enumerate only
+    /// `signedInAccountKeychainIds()`, so a reminder set while browsing
+    /// signed out (Lemmy's `getPost` is anonymous, and Phase-1 TIME reminders
+    /// already work signed-out) would silently never poll. Otherwise identical
+    /// to `tickPollsDueActivityReminderAndFiresOnHigherCommentCount` - only
+    /// `seedGraph(isSignedOut: true)` differs.
+    @Test
+    func tickPollsDueActivityReminderForSignedOutAccount() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let keychainId = "kc-activity-poll-signed-out"
+
+        let accountId = try await seedGraph(
+            appDatabase,
+            keychainId: keychainId,
+            postCommentCount: 16,
+            isSignedOut: true
+        )
+
+        let clock = ActivityPollClockBox(Date(timeIntervalSince1970: 1_800_000_000))
+        let reminderRecord = ReminderRecord(
+            accountId: accountId,
+            postServerId: Self.postServerId,
+            apId: "https://activity-poll-test.example.com/post/100",
+            kind: ReminderRecord.Kind.activity.rawValue,
+            nextCheckAt: clock.date.addingTimeInterval(-60), // due
+            baselineCount: 10,
+            baselineAt: clock.date.addingTimeInterval(-3600),
+            status: ReminderRecord.Status.scheduled.rawValue,
+            titleSnapshot: "A great thread",
+            communityName: "news",
+            instanceHost: "activity-poll-test.example.com"
+        )
+        _ = try await appDatabase.upsertReminder(reminderRecord)
+
+        let notificationScheduler = ReminderServiceTests.FakeReminderNotificationScheduler()
+        let reminderService = ReminderService(
+            accountId: accountId,
+            appDatabase: appDatabase,
+            scheduler: notificationScheduler
+        )
+        let lemmyService = ActivityPollLemmyService()
+        let accountService = ActivityPollAccountService(lemmyService: lemmyService, reminderService: reminderService)
+
+        let scheduler = SchedulerService(
+            appDatabase: appDatabase,
+            accountService: accountService,
+            alertService: NullAlertService(),
+            diagnostics: DiagnosticLogSpy(),
+            now: { clock.date },
+            reachabilityMonitor: StaticReachabilityMonitor(isOnline: true)
+        )
+
+        await scheduler.tick()
+
+        // The sweep reached the signed-out account's post: the fetcher's
+        // `fetchPostInfo` call landed on `postServerId`.
+        let fetchCalls = await lemmyService.fetchPostInfoCalls
+        #expect(fetchCalls == [Self.postServerId])
+
+        // The poll fired exactly as it would for a signed-in account.
+        let postNowCalls = await notificationScheduler.postNowCalls
+        #expect(postNowCalls.count == 1)
+
         let stored = appDatabase.reminderSync(
             accountId: accountId,
             postServerId: Self.postServerId,

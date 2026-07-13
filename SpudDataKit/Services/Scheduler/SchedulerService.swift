@@ -296,17 +296,21 @@ public class SchedulerService: SchedulerServiceType {
 
     // MARK: Activity reminder poll (Post Reminders Phase 2)
 
-    /// Drives `ReminderService.pollDueActivityReminders` once per signed-in
+    /// Drives `ReminderService.pollDueActivityReminders` once per pollable
     /// account per tick - the foreground half of the whole-post "When there
     /// are new comments" follow (spec §5.1/§5.3). Background polling
     /// (`BGAppRefreshTask`) is a later phase; this only runs while the app is
     /// in the foreground and the 5-minute tick fires.
     ///
-    /// Accounts are enumerated the same way as the signed-in site-info sweep
-    /// (`fetchSiteInfoAndMyUserInfoForSignedInIfNeeded`) - `signedInAccountKeychainIds()`
-    /// mirrors that sweep's `isSignedOutAccountType = 0` scope, just without its
-    /// staleness filter, since the poll has its own per-follow due-gating
-    /// (`dueActivityRemindersSync`'s `nextCheckAt <= asOf`).
+    /// Accounts are enumerated via `pollableAccountKeychainIds()` - every
+    /// non-service account, BOTH signed-in and signed-out. Unlike the two
+    /// site-info sweeps (which only cover signed-in accounts, or gate
+    /// signed-out accounts on an unfetched/back-off site-info state), an
+    /// activity follow can be set while browsing signed out - `LemmyService.
+    /// fetchPostInfo` (`getPost`) is anonymous, and Phase-1 TIME reminders
+    /// already work signed-out - so this sweep reaches every real account, not
+    /// just `signedInAccountKeychainIds()` (which the signed-in site-info sweep
+    /// still uses, unchanged).
     ///
     /// Accounts are polled SEQUENTIALLY, not concurrently: `pollDueActivityReminders`
     /// runs on the account's `ReminderService` actor, and firing two overlapping
@@ -317,13 +321,24 @@ public class SchedulerService: SchedulerServiceType {
     /// Only accounts with at least one due activity reminder do any network
     /// work - `pollDueActivityReminders` early-returns on an empty due list -
     /// so an idle tick (the common case, most posts have no activity follow)
-    /// is cheap: one GRDB read per account, no `LemmyService` call.
+    /// is cheap: one GRDB read per account, no network call (`lemmyService(forAccountKeychainId:)`
+    /// itself is a cheap sync read - it's the network `fetchPostInfo` that's
+    /// skipped when nothing is due).
     private func pollActivityRemindersSweep() async {
+        await diagnostics.record(
+            category: .reminder,
+            level: .debug,
+            event: "poll.sweep.start",
+            message: "Activity reminder poll sweep started",
+            instance: nil,
+            metadata: nil
+        )
+
         let keychainIds: [String]
         do {
-            keychainIds = try await appDatabase.signedInAccountKeychainIds()
+            keychainIds = try await appDatabase.pollableAccountKeychainIds()
         } catch {
-            logger.error("Failed to query signed-in accounts for activity reminder poll: \(String(describing: error), privacy: .public)")
+            logger.error("Failed to query pollable accounts for activity reminder poll: \(String(describing: error), privacy: .public)")
             keychainIds = []
         }
 
@@ -350,5 +365,14 @@ public class SchedulerService: SchedulerServiceType {
                 .reminderService(forAccountKeychainId: keychainId)
                 .pollDueActivityReminders(asOf: now(), commentCountFetcher: fetcher)
         }
+
+        await diagnostics.record(
+            category: .reminder,
+            level: .debug,
+            event: "poll.sweep.finish",
+            message: "Activity reminder poll sweep finished",
+            instance: nil,
+            metadata: ["accountCount": String(keychainIds.count)]
+        )
     }
 }

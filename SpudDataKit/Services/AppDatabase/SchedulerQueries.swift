@@ -109,4 +109,35 @@ public extension AppDatabase {
                 """)
         }
     }
+
+    /// Keychain ids of every non-service REAL account - BOTH signed-in
+    /// (`isSignedOutAccountType = 0`) and signed-out (`= 1`). Drives the
+    /// activity-reminder poll sweep (`SchedulerService.pollActivityRemindersSweep`):
+    /// unlike the two site-info sweeps, an activity follow ("When there are new
+    /// comments") can be set while browsing signed out - `LemmyService.fetchPostInfo`
+    /// (`getPost`) is anonymous, and Phase-1 TIME reminders already work
+    /// signed-out - so the poll must reach every real account, not just
+    /// `signedInAccountKeychainIds()` (which the signed-in site-info sweep still
+    /// uses, unchanged).
+    ///
+    /// Excludes only **service accounts** (`isServiceAccount = 1`) - the
+    /// background rows `accountForSignedOut(isServiceAccount: true)` creates for
+    /// ownerless-site site-info fetches (`fetchSiteInfoForSignedOutIfNeeded`).
+    /// These back no user-facing browsing session, so they can never carry a
+    /// `reminder` row; polling them would be pure waste. Ephemeral one-off
+    /// browse accounts (`isEphemeral = 1`, from `bestAccountKeychainId`) are
+    /// deliberately NOT excluded here - unlike the site-info sweep (which would
+    /// otherwise fire an unconditional network probe for every such account),
+    /// this poll is cheap and due-gated (`dueActivityRemindersSync`'s
+    /// `nextCheckAt <= asOf`), and a reminder set during an ephemeral browsing
+    /// session is still a real reminder that must be polled.
+    func pollableAccountKeychainIds() async throws -> [String] {
+        try await writer.read { db in
+            try String.fetchAll(db, sql: """
+                    SELECT accountKeychainId
+                    FROM account
+                    WHERE isServiceAccount = 0
+                """)
+        }
+    }
 }

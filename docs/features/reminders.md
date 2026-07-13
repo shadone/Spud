@@ -103,7 +103,10 @@ Inbox tab's badge, just like an unread reply or mention.
 
 - **Activity ("when there are new comments") reminders** — following a post so it
   notifies you as new comments arrive is a later phase; today's "Remind Me…" menu is
-  time presets only.
+  time presets only. (The foreground poll this later phase builds on already lands
+  behind the scenes: like time reminders, it works whether you're signed in or just
+  browsing signed out, and only checks while Spud is in the foreground — the menu
+  item to actually set one is still to come.)
 - **Comment-subtree reminders** — targeting a specific comment thread (rather than the
   whole post) is a later phase.
 - **Background polling / `BGAppRefreshTask`** — not part of this phase; reminders are
