@@ -180,4 +180,31 @@ public extension AppDatabase {
             try record.update(db)
         }
     }
+
+    /// Deletes every reminder row (both kinds, whole-post and comment-subtree
+    /// alike) belonging to `accountId` - the account-teardown cleanup
+    /// (`ReminderService.removeAllReminders`, called from `AccountService.
+    /// logout`/`removeAccount`, Phase 4). `reminder.accountId` carries no
+    /// cascading foreign key (see `ReminderWritesTests`'s doc comment), so
+    /// without this a removed account's reminder rows - and any OS
+    /// notification request a time reminder scheduled - would silently
+    /// outlive the account.
+    ///
+    /// - Returns: The non-nil `notificationRequestId`s among the deleted rows
+    ///   (time reminders only - `setActivityReminder` always persists `nil`,
+    ///   see `ReminderService`), so the caller can cancel each one's pending
+    ///   OS notification request. A DB delete alone can't do that - the
+    ///   request lives in Notification Center, not the row.
+    @discardableResult
+    func removeAllReminders(accountId: Int64) async throws -> [String] {
+        try await writer.write { db in
+            let rows = try ReminderRecord
+                .filter(Column("accountId") == accountId)
+                .fetchAll(db)
+            try ReminderRecord
+                .filter(Column("accountId") == accountId)
+                .deleteAll(db)
+            return rows.compactMap(\.notificationRequestId)
+        }
+    }
 }

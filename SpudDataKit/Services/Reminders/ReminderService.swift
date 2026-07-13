@@ -424,4 +424,30 @@ public actor ReminderService {
             logger.error("pollDueActivityReminders: bumpActivityNextCheck(\(id)) failed: \(String(describing: error), privacy: .public)")
         }
     }
+
+    // MARK: - Account teardown (Phase 4)
+
+    /// Deletes every reminder of this account (both kinds, whole-post and
+    /// comment-subtree alike) and cancels each deleted time reminder's OS
+    /// notification request. The account-teardown counterpart to
+    /// `removeTimeReminder`/`removeActivityReminder` - called by
+    /// `AccountService.logout`/`removeAccount` before the account row itself
+    /// is deleted, so a logged-out or removed account never leaves an orphaned
+    /// reminder row (or, worse, an orphaned OS notification that still fires
+    /// for an account that no longer exists).
+    ///
+    /// Never throws: this runs as a best-effort side effect of tearing down an
+    /// account, fire-and-forget from a synchronous `@MainActor` caller (see
+    /// `AccountService`) - a DB failure here shouldn't block or crash the
+    /// logout/removal flow. On failure the rows are simply left behind
+    /// (orphaned, the exact condition this method exists to fix), same as
+    /// before this method existed.
+    public func removeAllReminders() async {
+        guard let requestIds = try? await appDatabase.removeAllReminders(accountId: accountId) else {
+            return
+        }
+        for requestId in requestIds {
+            await scheduler.cancel(requestId: requestId)
+        }
+    }
 }

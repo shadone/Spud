@@ -18,9 +18,26 @@ struct AccountServiceLogoutTests {
     private var appDatabase: AppDatabase
     private var sut: AccountService
 
+    /// Shared across every account's `ReminderService` (mirrors production:
+    /// `AccountService` builds one scheduler lazily and reuses it for every
+    /// account) - kept as a property so tests can inspect `cancelCalls` after
+    /// driving `logout`/`removeAccount`.
+    private let reminderScheduler = ReminderServiceTests.FakeReminderNotificationScheduler()
+
     init() throws {
         appDatabase = try AppDatabase.inMemory()
-        sut = AccountService(appDatabase: appDatabase)
+        // `logout`/`removeAccount` now resolve (and tear down) this account's
+        // `ReminderService` (Phase 4), which lazily builds the shared
+        // `ReminderNotificationScheduling` on first access - the default
+        // `UNReminderNotificationScheduler` calls
+        // `UNUserNotificationCenter.current()`, which crashes the bare
+        // `xctest` process these tests run under (no hosting app). Inject the
+        // fake instead, mirroring every other `ReminderService` test.
+        let scheduler = reminderScheduler
+        sut = AccountService(
+            appDatabase: appDatabase,
+            makeReminderNotificationScheduler: { scheduler }
+        )
     }
 
     /// Seeds one instance/site with the given accounts. Returns the keychain
@@ -61,6 +78,23 @@ struct AccountServiceLogoutTests {
                 .filter(Column("isDefault") == true)
                 .fetchOne(db)?
                 .accountKeychainId
+        }
+    }
+
+    private func reminderRowCount(accountId: Int64) async throws -> Int {
+        try await appDatabase.writer.read { db in
+            try ReminderRecord.filter(Column("accountId") == accountId).fetchCount(db)
+        }
+    }
+
+    /// `logout`/`removeAccount` are synchronous and tear down reminders
+    /// fire-and-forget in a detached `Task` (see their doc comments), so
+    /// there's no handle to `await` directly - poll with a short bound
+    /// instead of asserting immediately after the synchronous call returns.
+    private func waitUntilReminderRowCount(accountId: Int64, is expected: Int) async throws {
+        for _ in 0..<50 {
+            if try await reminderRowCount(accountId: accountId) == expected { return }
+            try await Task.sleep(for: .milliseconds(20))
         }
     }
 
@@ -114,5 +148,64 @@ struct AccountServiceLogoutTests {
         sut.logout(forAccountKeychainId: "signed-out")
 
         #expect(try accountExists(keychainId: "signed-out"), "logout should not remove a signed-out account")
+    }
+
+    /// End-to-end coverage of the Phase-4 wiring: `logout` resolves this
+    /// account's `ReminderService` and tears it down (deletes its reminder
+    /// rows, cancels the stored OS notification request) - not just that the
+    /// account row itself goes away.
+    @Test
+    func logoutCancelsAccountsReminders() async throws {
+        try await seed(accounts: [
+            (keychainId: "signed-in-1", isSignedOut: false, isDefault: true),
+            (keychainId: "signed-out", isSignedOut: true, isDefault: false),
+        ])
+        let accountId = try #require(appDatabase.accountRowIdSync(forKeychainId: "signed-in-1"))
+        _ = try await appDatabase.upsertReminder(ReminderRecord(
+            accountId: accountId,
+            postServerId: 100,
+            apId: "https://example.com/post/100",
+            kind: ReminderRecord.Kind.time.rawValue,
+            fireAt: Date(timeIntervalSince1970: 1_800_000_000),
+            status: ReminderRecord.Status.scheduled.rawValue,
+            notificationRequestId: "reminder-\(accountId)-100-0-time",
+            titleSnapshot: "A post",
+            communityName: "news",
+            instanceHost: "example.com"
+        ))
+
+        sut.logout(forAccountKeychainId: "signed-in-1")
+
+        try await waitUntilReminderRowCount(accountId: accountId, is: 0)
+        let cancelCalls = await reminderScheduler.cancelCalls
+        #expect(cancelCalls == ["reminder-\(accountId)-100-0-time"])
+    }
+
+    /// Mirrors `logoutCancelsAccountsReminders` for `removeAccount`, which
+    /// removes signed-out accounts too (unlike `logout`).
+    @Test
+    func removeAccountCancelsAccountsReminders() async throws {
+        try await seed(accounts: [
+            (keychainId: "signed-out", isSignedOut: true, isDefault: true),
+        ])
+        let accountId = try #require(appDatabase.accountRowIdSync(forKeychainId: "signed-out"))
+        _ = try await appDatabase.upsertReminder(ReminderRecord(
+            accountId: accountId,
+            postServerId: 200,
+            apId: "https://example.com/post/200",
+            kind: ReminderRecord.Kind.time.rawValue,
+            fireAt: Date(timeIntervalSince1970: 1_800_000_000),
+            status: ReminderRecord.Status.scheduled.rawValue,
+            notificationRequestId: "reminder-\(accountId)-200-0-time",
+            titleSnapshot: "A post",
+            communityName: "news",
+            instanceHost: "example.com"
+        ))
+
+        sut.removeAccount(forAccountKeychainId: "signed-out")
+
+        try await waitUntilReminderRowCount(accountId: accountId, is: 0)
+        let cancelCalls = await reminderScheduler.cancelCalls
+        #expect(cancelCalls == ["reminder-\(accountId)-200-0-time"])
     }
 }
