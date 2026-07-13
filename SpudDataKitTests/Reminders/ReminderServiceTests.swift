@@ -312,7 +312,11 @@ struct ReminderServiceTests {
     }
 }
 
-private extension ReminderServiceTests.FakeReminderNotificationScheduler {
+extension ReminderServiceTests.FakeReminderNotificationScheduler {
+    /// Test-only mutator for `granted` - not `private` (unlike a plain
+    /// property write, which would need no such helper) because this is an
+    /// `extension`, and `ReminderServiceActivityTests` (a sibling test file)
+    /// also drives the permission-denied path via this fake.
     func setGranted(_ value: Bool) {
         granted = value
     }

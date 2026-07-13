@@ -12,9 +12,10 @@ import Foundation
 /// notification in lock-step with the row. The Inbox "Reminders" segment and
 /// the "Remind Me…" menu (Task 6/7) are the only production callers.
 ///
-/// Phase 1 only sets/removes whole-post `time` reminders
-/// (`ReminderRecord.wholePostSentinel` / `Kind.time`); a later phase adds
-/// `activity` reminders and comment-subtree targets on this same actor.
+/// Phase 1 sets/removes whole-post `time` reminders
+/// (`ReminderRecord.wholePostSentinel` / `Kind.time`). Phase 2 adds whole-post
+/// `activity` reminders ("notify me as the discussion grows") on this same
+/// actor; a later phase adds comment-subtree targets.
 public actor ReminderService {
     private let accountId: Int64
     private let appDatabase: AppDatabase
@@ -157,5 +158,91 @@ public actor ReminderService {
     /// the OS notification delivery/tap.
     public func reconcileOverdue(asOf: Date) async throws {
         _ = try await appDatabase.reconcileOverdueTimeReminders(accountId: accountId, asOf: asOf)
+    }
+
+    // MARK: - Activity reminders (Phase 2)
+
+    /// Sets (or replaces) an activity reminder on the whole post
+    /// `postServerId`: "notify me as the discussion grows" (spec §3). Unlike
+    /// `setTimeReminder`, this schedules **no** up-front
+    /// `UNCalendarNotificationTrigger` - activity reminders fire ad-hoc from
+    /// the foreground poll (`pollDueActivityReminders`, added in a later
+    /// task), which reads `baselineCount`/`baselineAt` against the live
+    /// comment count and decides via `ReminderActivityRule.shouldFire`.
+    ///
+    /// Authorization is still requested just-in-time (mirrors
+    /// `setTimeReminder`, so the first "When there are new comments" tap is
+    /// also the first point the OS permission prompt can appear) but its
+    /// result never gates persistence here - there's no OS request to
+    /// conditionally make, only a future ad-hoc post the poll will attempt
+    /// once the row is due.
+    ///
+    /// Calling this a second time for the same post replaces the existing row
+    /// in place and re-baselines it (`baselineCount`/`baselineAt` reset to the
+    /// values passed here) - the unique key `(accountId, postServerId,
+    /// rootCommentServerId, kind)` is shared with `setTimeReminder`, so a post
+    /// can carry independent time and activity reminders at once (different
+    /// `kind`), each replacing only its own row.
+    ///
+    /// - Parameters:
+    ///   - postServerId: the target post's server-assigned id.
+    ///   - apId: the post's canonical ActivityPub URL, denormalized onto the
+    ///     row so a fired reminder can be opened without the (possibly
+    ///     evicted) local `post` cache row.
+    ///   - baselineCount: the post's comment count at the moment the follow is
+    ///     set - the poll's `new = commentsNow - baselineCount`.
+    ///   - titleSnapshot: the post's title, denormalized at set-time.
+    ///   - communityName: the post's community, bare name.
+    ///   - instanceHost: the community's home instance host.
+    ///   - thumbnailUrl: the post's thumbnail, if any, denormalized at set-time.
+    public func setActivityReminder(
+        postServerId: Int64,
+        apId: String,
+        baselineCount: Int64,
+        titleSnapshot: String,
+        communityName: String,
+        instanceHost: String,
+        thumbnailUrl: String?
+    ) async throws {
+        let now = Date()
+        let record = ReminderRecord(
+            accountId: accountId,
+            postServerId: postServerId,
+            apId: apId,
+            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            kind: ReminderRecord.Kind.activity.rawValue,
+            nextCheckAt: now.addingTimeInterval(ReminderActivityRule.pollInterval),
+            baselineCount: baselineCount,
+            baselineAt: now,
+            status: ReminderRecord.Status.scheduled.rawValue,
+            unseen: false,
+            notificationRequestId: nil,
+            titleSnapshot: titleSnapshot,
+            communityName: communityName,
+            instanceHost: instanceHost,
+            thumbnailUrl: thumbnailUrl
+        )
+        try await appDatabase.upsertReminder(record)
+
+        // Side-effect only: primes the OS permission prompt on first use so a
+        // later poll-fired notification isn't silently suppressed by a
+        // never-asked permission. The row above is already persisted
+        // regardless of the outcome.
+        _ = await isAuthorized()
+    }
+
+    /// Removes the whole-post activity reminder on `postServerId`, if any.
+    /// Unlike `removeTimeReminder`, there is no OS notification request to
+    /// cancel - activity reminders never carry a `notificationRequestId`
+    /// (`setActivityReminder` always persists it `nil`). A no-op (not a
+    /// throw) if no such reminder exists, so the "When there are new
+    /// comments" menu item can call it unconditionally on toggle-off.
+    public func removeActivityReminder(postServerId: Int64) async throws {
+        try await appDatabase.removeReminder(
+            accountId: accountId,
+            postServerId: postServerId,
+            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            kind: ReminderRecord.Kind.activity.rawValue
+        )
     }
 }
