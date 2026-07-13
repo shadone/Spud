@@ -290,10 +290,11 @@ public class AccountService: AccountServiceType {
     /// Backs `ReminderService`'s `notificationsEnabled` seam
     /// (`PreferencesService.reminderNotificationsEnabled`, mirrored via a
     /// closure — see `ReminderService`'s doc comment for why SpudDataKit can't
-    /// reference `PreferencesService` directly). Defaults to always-enabled;
-    /// `DependencyContainer` (the app-target call site that owns
-    /// `PreferencesService`) is the seam that should thread the live value
-    /// through — not yet wired, flagged as follow-up in Task 5's report.
+    /// reference `PreferencesService` directly). `DependencyContainer` (the
+    /// app-target call site that owns `PreferencesService`) threads the live
+    /// value through when constructing `AccountService`; the `{ true }`
+    /// default here is used only by tests and other non-app hosts that
+    /// construct `AccountService` directly.
     private let reminderNotificationsEnabled: @Sendable () -> Bool
 
     // MARK: Functions

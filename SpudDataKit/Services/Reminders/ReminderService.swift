@@ -26,12 +26,11 @@ public actor ReminderService {
     /// app target and this actor lives in `SpudDataKit`, which must never
     /// import the app (see the project's dependency-direction rule) - a
     /// closure lets a call site above the layer boundary supply the live
-    /// value without SpudDataKit knowing preferences exist. Defaults to
-    /// always-enabled so every existing/pinned three-argument `init(accountId:
-    /// appDatabase:scheduler:)` call site keeps compiling; the DI seam that
-    /// vends this actor per account (`AccountService`) currently leaves this at
-    /// its default too (see that file's doc comment) - wiring the real
-    /// preference through is flagged as follow-up work.
+    /// value without SpudDataKit knowing preferences exist. `DependencyContainer`
+    /// (the app-target call site that owns `PreferencesService`) wires the real
+    /// preference through to the DI seam that vends this actor per account
+    /// (`AccountService`); the `{ true }` default here is used only by tests
+    /// and other non-app hosts that construct `ReminderService` directly.
     private let notificationsEnabled: @Sendable () -> Bool
 
     public init(
