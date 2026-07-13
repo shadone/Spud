@@ -80,7 +80,12 @@ extension PostReminderDispatching {
         if hasActiveTimeReminder(postServerId: target.postServerId) {
             children.append(UIAction(
                 title: NSLocalizedString("Cancel reminder", comment: "Remind Me menu action to cancel an existing reminder on this post"),
-                image: UIImage(systemName: "bell.slash"),
+                // `alarm` rather than `bell.slash` - the latter is also
+                // `makeMuteCommunityMenu`'s "Mute community" symbol, and both
+                // actions can appear together in the same post-detail overflow
+                // menu, so sharing a symbol would make them hard to tell apart
+                // at a glance.
+                image: UIImage(systemName: "alarm"),
                 attributes: .destructive
             ) { [weak self] _ in
                 self?.cancelReminder(postServerId: target.postServerId)
@@ -88,7 +93,7 @@ extension PostReminderDispatching {
         }
 
         return UIMenu(
-            title: NSLocalizedString("Remind Me", comment: "Overflow/context-menu submenu title to set a reminder on a post"),
+            title: NSLocalizedString("Remind Me…", comment: "Overflow/context-menu submenu title to set a reminder on a post"),
             image: UIImage(systemName: "bell"),
             children: children
         )
@@ -118,6 +123,12 @@ extension PostReminderDispatching {
     ///   confirmation toast (a preset's `menuTitle`, or a formatted date for
     ///   a custom pick).
     private func setReminder(target: RemindMeMenuTarget, fireAt: Date, timeDescription: String) {
+        // Both the preset actions and the custom-time picker (via
+        // `presentRemindMeTimePicker`) funnel through here, so this single
+        // guard covers every "Remind Me…" surface (post detail and feed): a
+        // blank `apId` would produce a reminder with a broken routing URL, so
+        // treat it as a safe no-op instead of persisting a bad row.
+        guard !target.apId.isEmpty else { return }
         Haptics.tap()
         Task { [weak self] in
             guard let self else { return }
