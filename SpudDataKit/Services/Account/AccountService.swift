@@ -746,8 +746,14 @@ public class AccountService: AccountServiceType {
             )
         } catch {
             let error = AccountServiceLoginError(from: error)
-            if case .invalidLogin = error {
+            // Both are normal, expected outcomes of the login form, not failures
+            // worth logging: a wrong password, and a 2FA-protected account that
+            // needs a code (the view model catches .totp2faRequired to prompt).
+            switch error {
+            case .invalidLogin, .totp2faRequired:
                 throw error
+            default:
+                break
             }
             logger.error("""
                 Re-auth failed. instance=\(instance.actorId, privacy: .public). \
@@ -764,6 +770,16 @@ public class AccountService: AccountServiceType {
         // Reuse the EXISTING keychain id -- no ensureAccount, no new UUID, no
         // setDefaultAccount. This is what makes re-login in place, not a duplicate.
         writeCredential(LemmyCredential(jwt: jwt), forKeychainId: keychainId)
+        // Drop the cached service (and its tracked apiVersion + child outbox) so the
+        // stale-JWT authenticated api isn't reused -- the next lemmyService(...)
+        // rebuilds against the fresh credential. Re-auth keeps the same api version,
+        // so without this the cache HIT would return the old-JWT service and the
+        // getSite refresh below would re-trip the flag (v4 401 / v3 my_user==nil),
+        // leaving the "session expired" hint stuck after a SUCCESSFUL re-login.
+        // Mirrors logout/removeAccount. Keep reminderServices -- the account
+        // persists across re-auth; only the stale api must go.
+        lemmyServices[keychainId] = nil
+        lemmyServiceApiVersions[keychainId] = nil
         try? await appDatabase.setAccountSessionNeedsReauth(keychainId: keychainId, false)
         // Refresh site / my-user now (also clears the flag via the passive path).
         fetchInitialSiteInfo(forAccountKeychainId: keychainId)
