@@ -2,25 +2,26 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Mark inbox items read](inbox-mark-read.md), [Private messages](private-messages.md), [Background unread refresh](background-unread-refresh.md), [Replying](replying.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Mark inbox items read](inbox-mark-read.md), [Private messages](private-messages.md), [Background unread refresh](background-unread-refresh.md), [Replying](replying.md), [Reminders](reminders.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
 The Inbox is a tab that gathers everything addressed to your account: replies to your
-posts and comments, @-mentions of you, and private-message conversations. A segmented
-control switches between three scopes — Replies, Mentions, Messages — and the active
-scope's list is shown below it. Unread items are visually distinct, and the count of all
-unread items rides as a numeric badge on the Inbox tab, kept live. The Inbox requires a
+posts and comments, @-mentions of you, private-message conversations, and your own
+[reminders](reminders.md). A segmented control switches between four scopes — Replies,
+Mentions, Reminders, Messages — and the active scope's list is shown below it. Unread
+items are visually distinct, and the count of all unread items (including fired-unseen
+reminders) rides as a numeric badge on the Inbox tab, kept live. The Inbox requires a
 signed-in account; signed out, it shows a sign-in prompt instead of content.
 
 ## Behavior and rules
 
-- **Three scopes, one segmented control.** The control has Replies / Mentions / Messages. Selecting a segment swaps which list is displayed; switching is instant because every scope is loaded up front, not lazily per tap.
+- **Four scopes, one segmented control.** The control has Replies / Mentions / Reminders / Messages. Selecting a segment swaps which list is displayed; switching among Replies/Mentions/Messages is instant because those three scopes are loaded up front, not lazily per tap. The Reminders scope is likewise always ready — it's a standing local GRDB observation, not a fetch (see [Reminders](reminders.md)).
 - **All scopes load together.** Opening the Inbox (and each later appearance) loads replies, mentions, and conversations in parallel, and refreshes the unread count. Each scope tracks its own loading / loaded / error phase, so one scope failing does not blank the others.
 - **Replies and mentions are comment rows.** Each shows the author, the comment body, and an "in `<community>` · `<post title>`" context line. Tapping a row opens that comment's post in the post detail (and marks the row read — see [Mark inbox items read](inbox-mark-read.md)). These rows also support swipe-to-mark-read.
 - **Messages is a conversation list.** Private messages are grouped per correspondent into conversations, newest thread first, each row showing the correspondent's name, avatar, and the latest message as a preview. Tapping a row opens the DM thread (see [Private messages](private-messages.md)). DM conversations are marked read by opening the thread, not by swipe.
 - **Unread items stand out.** An unread reply/mention shows a blue dot, a tinted row background, and a semibold author name; an unread conversation shows a blue dot and a bolder name. Read items render plain.
-- **Unread badge on the tab.** The Inbox tab's badge shows the total unread count for the active account, or no badge when the total is zero. The count comes from the server's unread-count endpoint, is held by `UnreadCountService` as observable state, and the badge updates live whenever that count changes — on load, on marking items read, after sending, and on returning to the app. On a v3 instance the total is the sum of the per-kind counts (replies + mentions + private messages); on a native-v4 instance the server reports a single combined total with no per-kind breakdown — the badge shows that total either way.
+- **Unread badge on the tab.** The Inbox tab's badge shows the total unread count for the active account, or no badge when the total is zero. The count comes from the server's unread-count endpoint plus the local fired-and-unseen reminder count, is held by `UnreadCountService` as observable state, and the badge updates live whenever either contribution changes — on load, on marking items read, after sending, when a reminder fires or is seen, and on returning to the app. On a v3 instance the server portion is the sum of the per-kind counts (replies + mentions + private messages); on a native-v4 instance the server reports a single combined total with no per-kind breakdown — the reminder count blends into that total either way (see [Reminders](reminders.md)).
 - **Backend-neutral: works natively on both Lemmy v3 and v4.** The inbox reads whichever API the home instance speaks. On a Lemmy 0.19.x (v3) instance it uses the per-kind endpoints (replies, mentions, and — for the Messages scope — private messages, each carrying its own read id). On a Lemmy 1.0+ (native v4) instance it uses the unified notification inbox (filtered per scope), and each item is marked read by its notification id. The three scopes, rows, unread styling, and badge are identical either way — the wire difference is invisible to the user.
 - **Pull-to-refresh.** The Inbox list has a pull-to-refresh control that reloads all three scopes and the unread count.
 - **Per-appearance refresh.** Returning to the Inbox tab reloads all scopes so newly-arrived items appear and the badge stays accurate, without a manual pull.
