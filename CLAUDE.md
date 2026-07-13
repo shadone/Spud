@@ -118,6 +118,15 @@ comment count from the loaded comment tree** (self-healing reconciliation was
 considered and rejected — see auto-memory). Incidental `PostView`s (e.g.
 cross-posts) are batch-harvested via `AppDatabase.upsertPosts`.
 
+**Mirror-then-verify when a screen OBSERVES the write.** A per-fetch `mirror*`
+helper (`SpudDataKit/Services/Lemmy/`) may swallow persistence errors *only* if
+nothing downstream depends on the rows. If a screen/tab renders from a GRDB
+*observation* of them (not the fetch's returned response), the fetch MUST verify
+the write landed (`postRowIdSync`/`personRowIdSync`/`communityRowIdSync != nil`)
+and throw — else a swallowed write is a silent false-empty (feed cells, person
+Posts tab) or forever-spinner with no error. Best-effort swallow is fine only for
+create/moderation/subscribe paths that read the network response, not the DB.
+
 GRDB gotcha: never `row["a"] ?? row["b"]` with two column subscripts — a
 NULL *left* column wrongly collapses the whole expression to nil (a
 double-optional type-inference footgun) instead of falling through to the
@@ -282,6 +291,18 @@ stale snapshot). Only the per-account connection/identity lives on the scope;
 account *management* (`createFeed`, `defaultSortType`, login/logout) and the
 account-*selection* layer (`MainWindow`, account-list / preferences) call
 `AccountServiceType` directly.
+
+## Accounts / instances
+
+Login / register / anonymous browse are all keyed on a bare `InstanceActorId`
+carried in a `SiteListRow` — directory (Explorer) metadata (name/icon/stats) is
+decorative, and `AccountService.ensureSite(forInstance:)` stands up an account
+from a bare host with no `getSite`. Build a row for an arbitrary/typed host with
+`SiteListRow.forTypedInstance(_:)` (also used by the custom-instance entry flow +
+the `MainWindow` DEBUG seam). The NodeInfo non-Lemmy block
+(`AccountService.preflightHomeConnection` → `PlatformRouter`) runs before both
+login and register and is **fail-open** (unknown/unreachable → allow), so it never
+false-blocks a private/WAF'd Lemmy instance — it only blocks confirmed non-Lemmy.
 
 ## Strategic direction
 
