@@ -61,13 +61,14 @@ enum ReminderBackgroundRefresh {
         }
     }
 
-    /// Runs one poll sweep for a launched task, reschedules the next request,
-    /// and completes. `task.setTaskCompleted(success:)` is called EXACTLY
-    /// ONCE across the success and expiration paths - `completionGuard` (an
-    /// actor, not a plain `Bool`) is what enforces that, because the poll's
-    /// completion and the OS's expiration callback race on independent
-    /// threads (the OS can expire the task in the same instant the poll
-    /// finishes).
+    /// Reschedules the next request UNCONDITIONALLY - regardless of whether
+    /// this run succeeds or expires - then runs one poll sweep for a
+    /// launched task and completes. `task.setTaskCompleted(success:)` is
+    /// called EXACTLY ONCE across the success and expiration paths -
+    /// `completionGuard` (an actor, not a plain `Bool`) is what enforces
+    /// that, because the poll's completion and the OS's expiration callback
+    /// race on independent threads (the OS can expire the task in the same
+    /// instant the poll finishes).
     private static func handle(
         _ task: BGAppRefreshTask,
         schedulerService: SchedulerServiceType,
@@ -75,17 +76,25 @@ enum ReminderBackgroundRefresh {
     ) {
         let completionGuard = CompletionGuard()
 
+        // A BGAppRefreshTask never repeats on its own, and Apple's canonical
+        // pattern is to submit the next request up front, before running the
+        // work - not only from a success continuation. Scheduling ONLY on
+        // success (the previous shape) meant an EXPIRED run submitted
+        // nothing, so background polling silently stopped until the next
+        // foreground->background transition re-seeded it. Submission is
+        // idempotent (replaces any still-pending request), so scheduling here
+        // is safe even before this run's own poll has started. `schedule()`
+        // is `@MainActor` (it reaches `AppCoordinator.shared`); this `Task`
+        // isn't - it hops over explicitly.
+        Task {
+            await schedule()
+        }
+
         let pollTask = Task {
             await schedulerService.runReminderPoll()
 
-            // A BGAppRefreshTask never repeats on its own - reschedule the
-            // next request before reporting completion, since the OS may
-            // suspend the process immediately afterward. `schedule()` is
-            // `@MainActor` (it reaches `AppCoordinator.shared`), and this
-            // `Task` isn't - it hops over explicitly.
-            await schedule()
-
             guard await completionGuard.markCompletedIfFirst() else { return }
+            task.setTaskCompleted(success: true)
             await diagnostics.record(
                 category: .reminder,
                 level: .debug,
@@ -94,13 +103,20 @@ enum ReminderBackgroundRefresh {
                 instance: nil,
                 metadata: nil
             )
-            task.setTaskCompleted(success: true)
         }
 
         task.expirationHandler = {
             pollTask.cancel()
             Task {
                 guard await completionGuard.markCompletedIfFirst() else { return }
+                // iOS grants only a short window after `expirationHandler`
+                // fires before force-terminating the process (and
+                // penalizing future scheduling) - complete FIRST, then do
+                // the best-effort diagnostic write (a GRDB App-Group SQLite
+                // write that can block under WAL contention), so a slow
+                // write can never cost us the graceful
+                // `setTaskCompleted(success:)`.
+                task.setTaskCompleted(success: false)
                 await diagnostics.record(
                     category: .reminder,
                     level: .notice,
@@ -109,7 +125,6 @@ enum ReminderBackgroundRefresh {
                     instance: nil,
                     metadata: nil
                 )
-                task.setTaskCompleted(success: false)
             }
         }
     }
@@ -124,14 +139,15 @@ enum ReminderBackgroundRefresh {
     /// (mirroring how `SceneDelegate` already reaches the dependency graph),
     /// which is only safe to touch on the main actor. Both app-side callers
     /// (`AppDelegate.didFinishLaunching`, `SceneDelegate.sceneDidEnterBackground`)
-    /// are already on the main actor; the background-handler success path
-    /// `await`s across from its own `Task`.
+    /// are already on the main actor; the background handler calls it
+    /// unconditionally at entry from its own `Task`, so this also runs
+    /// regardless of how the launched task ends.
     @MainActor
     static func schedule() {
         let request = makeRequest(now: Date())
+        let diagnostics = AppCoordinator.shared.dependencies.diagnosticLog
         do {
             try BGTaskScheduler.shared.submit(request)
-            let diagnostics = AppCoordinator.shared.dependencies.diagnosticLog
             Task {
                 await diagnostics.record(
                     category: .reminder,
@@ -146,7 +162,19 @@ enum ReminderBackgroundRefresh {
             // Best-effort: BGTaskScheduler can refuse submission (e.g. no
             // simulator support, or the per-identifier pending-request cap) -
             // the foreground poll remains the reliable-while-open path either
-            // way, so a failed submit here is never fatal.
+            // way, so a failed submit here is never fatal. Still log it -
+            // otherwise a stuck pending-request cap silently stops background
+            // polling with no visibility in About -> Logs.
+            Task {
+                await diagnostics.record(
+                    category: .reminder,
+                    level: .notice,
+                    event: "bg.scheduleFailed",
+                    message: "Failed to submit next background reminder poll request",
+                    instance: nil,
+                    metadata: ["error": String(describing: error)]
+                )
+            }
         }
     }
 
@@ -165,7 +193,9 @@ enum ReminderBackgroundRefresh {
     /// (`SpudUtilKit`), because `Atomic`'s property-wrapper storage can't be
     /// shared-and-mutated from inside two independent closures under Swift 6
     /// (see `LinkEmbedServiceTests`'s `Flag` actor for the same pattern).
-    private actor CompletionGuard {
+    /// Internal (not `private`) so `ReminderBackgroundRefreshTests` can drive
+    /// it directly via `@testable import`.
+    actor CompletionGuard {
         private var completed = false
 
         /// Returns `true` (and flips the flag) only the first time it's

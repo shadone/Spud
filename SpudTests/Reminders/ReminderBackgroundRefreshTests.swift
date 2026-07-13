@@ -41,4 +41,20 @@ struct ReminderBackgroundRefreshTests {
     func refreshIntervalIsTwoHours() {
         #expect(ReminderBackgroundRefresh.refreshInterval == 2 * 60 * 60)
     }
+
+    /// Covers the exactly-once guarantee `CompletionGuard` provides to the
+    /// racing success/expiration completion paths in `handle` - the first
+    /// caller wins and flips the flag, every later caller is turned away.
+    @Test
+    func completionGuardMarksCompletedOnlyOnce() async {
+        let completionGuard = ReminderBackgroundRefresh.CompletionGuard()
+
+        let first = await completionGuard.markCompletedIfFirst()
+        let second = await completionGuard.markCompletedIfFirst()
+        let third = await completionGuard.markCompletedIfFirst()
+
+        #expect(first == true)
+        #expect(second == false)
+        #expect(third == false)
+    }
 }
