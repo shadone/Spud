@@ -142,6 +142,8 @@ struct InboxViewModelRemoveReminderTests {
     private let keychainId = "kc-inbox-remove-reminder-test"
     private static let postServerId: Int64 = 555
     private static let apId = "https://example.com/post/555"
+    private static let subtreeRootCommentServerId: Int64 = 42
+    private static let subtreeApId = "https://example.com/comment/42"
 
     // MARK: - Fixture
 
@@ -207,16 +209,104 @@ struct InboxViewModelRemoveReminderTests {
         return Fixture(viewModel: viewModel, appDatabase: appDatabase, accountId: accountId)
     }
 
+    /// Seeds an account row, then sets BOTH a WHOLE-POST reminder and a
+    /// SUBTREE reminder (distinct `rootCommentServerId`) of the same `kind`
+    /// on the same post - the review-fix scenario: before `removeReminder`
+    /// passed `item.rootCommentServerId` through, both removal methods fell
+    /// back to their `wholePostSentinel` default, so swiping the subtree row
+    /// wrongly deleted the co-existing whole-post reminder (or no-op'd, had
+    /// the whole-post reminder not existed) instead of removing the subtree
+    /// one.
+    private func makeSubtreeFixture(kind: ReminderRecord.Kind) async throws -> Fixture {
+        let appDatabase = try AppDatabase.inMemory()
+        let accountId = try await appDatabase.writer.write { db -> Int64 in
+            var instance = InstanceRecord(actorId: "https://reminder-remove-subtree-test.example.com")
+            try instance.insert(db)
+            var site = SiteRecord(instanceId: instance.id!)
+            try site.insert(db)
+            var account = AccountRecord(
+                siteId: site.id!,
+                accountKeychainId: keychainId,
+                isSignedOutAccountType: false
+            )
+            try account.insert(db)
+            return account.id!
+        }
+
+        let reminderService = ReminderService(
+            accountId: accountId,
+            appDatabase: appDatabase,
+            scheduler: NoOpReminderScheduler()
+        )
+        switch kind {
+        case .time:
+            try await reminderService.setTimeReminder(
+                postServerId: Self.postServerId,
+                apId: Self.apId,
+                fireAt: Date(timeIntervalSince1970: 2_000_000_000),
+                titleSnapshot: "A post title",
+                communityName: "news",
+                instanceHost: "example.com",
+                thumbnailUrl: nil
+            )
+            try await reminderService.setTimeReminder(
+                postServerId: Self.postServerId,
+                apId: Self.subtreeApId,
+                fireAt: Date(timeIntervalSince1970: 2_000_000_000),
+                titleSnapshot: "A post title",
+                communityName: "news",
+                instanceHost: "example.com",
+                thumbnailUrl: nil,
+                rootCommentServerId: Self.subtreeRootCommentServerId
+            )
+        case .activity:
+            try await reminderService.setActivityReminder(
+                postServerId: Self.postServerId,
+                apId: Self.apId,
+                baselineCount: 3,
+                titleSnapshot: "A post title",
+                communityName: "news",
+                instanceHost: "example.com",
+                thumbnailUrl: nil
+            )
+            try await reminderService.setActivityReminder(
+                postServerId: Self.postServerId,
+                apId: Self.subtreeApId,
+                baselineCount: 1,
+                titleSnapshot: "A post title",
+                communityName: "news",
+                instanceHost: "example.com",
+                thumbnailUrl: nil,
+                rootCommentServerId: Self.subtreeRootCommentServerId
+            )
+        }
+
+        let accountService = FakeRemoveReminderAccountService(reminderService: reminderService)
+        let scope = AccountScope(accountKeychainId: keychainId, accountService: accountService)
+        let viewModel = InboxViewModel(
+            accountScope: scope,
+            appDatabase: appDatabase,
+            isSignedIn: true,
+            myPersonId: nil,
+            alertService: NoOpAlertService(),
+            unreadCountService: NoOpUnreadCountService()
+        )
+        return Fixture(viewModel: viewModel, appDatabase: appDatabase, accountId: accountId)
+    }
+
     /// Builds the `ReminderListRow` `removeReminder` would receive for a live
     /// row of `kind` on the fixture's seeded post - mirrors the shape
     /// `observeReminderList` emits, with placeholder values for the fields
     /// `removeReminder` doesn't read.
-    private func row(kind: ReminderRecord.Kind) -> ReminderListRow {
+    private func row(
+        kind: ReminderRecord.Kind,
+        rootCommentServerId: Int64 = ReminderRecord.wholePostSentinel
+    ) -> ReminderListRow {
         ReminderListRow(
             id: 1,
             postServerId: Self.postServerId,
             apId: Self.apId,
-            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            rootCommentServerId: rootCommentServerId,
             kind: kind.rawValue,
             status: ReminderRecord.Status.scheduled.rawValue,
             unseen: false,
@@ -235,14 +325,15 @@ struct InboxViewModelRemoveReminderTests {
     private func waitUntilRemoved(
         _ appDatabase: AppDatabase,
         accountId: Int64,
-        kind: ReminderRecord.Kind
+        kind: ReminderRecord.Kind,
+        rootCommentServerId: Int64 = ReminderRecord.wholePostSentinel
     ) async {
         let deadline = Date().addingTimeInterval(2)
         while Date() < deadline {
             if appDatabase.reminderSync(
                 accountId: accountId,
                 postServerId: Self.postServerId,
-                rootCommentServerId: ReminderRecord.wholePostSentinel,
+                rootCommentServerId: rootCommentServerId,
                 kind: kind.rawValue
             ) == nil {
                 return
@@ -304,6 +395,72 @@ struct InboxViewModelRemoveReminderTests {
             kind: ReminderRecord.Kind.activity.rawValue
         )
         #expect(activityReminder != nil)
+    }
+
+    /// Swiping a SUBTREE (Phase 3) activity row removes only that subtree's
+    /// reminder - the whole-post activity reminder on the same post
+    /// survives. Regression coverage for the review-fix: `removeReminder`
+    /// used to omit `rootCommentServerId` when calling
+    /// `removeActivityReminder`, so it fell back to the `wholePostSentinel`
+    /// default and deleted the whole-post row instead of the subtree row the
+    /// user actually swiped.
+    @Test
+    func removeReminder_onSubtreeActivityRow_removesOnlySubtreeReminder() async throws {
+        let fixture = try await makeSubtreeFixture(kind: .activity)
+
+        fixture.viewModel.removeReminder(row(kind: .activity, rootCommentServerId: Self.subtreeRootCommentServerId))
+        await waitUntilRemoved(
+            fixture.appDatabase,
+            accountId: fixture.accountId,
+            kind: .activity,
+            rootCommentServerId: Self.subtreeRootCommentServerId
+        )
+
+        let subtreeReminder = fixture.appDatabase.reminderSync(
+            accountId: fixture.accountId,
+            postServerId: Self.postServerId,
+            rootCommentServerId: Self.subtreeRootCommentServerId,
+            kind: ReminderRecord.Kind.activity.rawValue
+        )
+        #expect(subtreeReminder == nil)
+
+        let wholePostReminder = fixture.appDatabase.reminderSync(
+            accountId: fixture.accountId,
+            postServerId: Self.postServerId,
+            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            kind: ReminderRecord.Kind.activity.rawValue
+        )
+        #expect(wholePostReminder != nil)
+    }
+
+    /// Same coverage as above, for a SUBTREE time row.
+    @Test
+    func removeReminder_onSubtreeTimeRow_removesOnlySubtreeReminder() async throws {
+        let fixture = try await makeSubtreeFixture(kind: .time)
+
+        fixture.viewModel.removeReminder(row(kind: .time, rootCommentServerId: Self.subtreeRootCommentServerId))
+        await waitUntilRemoved(
+            fixture.appDatabase,
+            accountId: fixture.accountId,
+            kind: .time,
+            rootCommentServerId: Self.subtreeRootCommentServerId
+        )
+
+        let subtreeReminder = fixture.appDatabase.reminderSync(
+            accountId: fixture.accountId,
+            postServerId: Self.postServerId,
+            rootCommentServerId: Self.subtreeRootCommentServerId,
+            kind: ReminderRecord.Kind.time.rawValue
+        )
+        #expect(subtreeReminder == nil)
+
+        let wholePostReminder = fixture.appDatabase.reminderSync(
+            accountId: fixture.accountId,
+            postServerId: Self.postServerId,
+            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            kind: ReminderRecord.Kind.time.rawValue
+        )
+        #expect(wholePostReminder != nil)
     }
 }
 

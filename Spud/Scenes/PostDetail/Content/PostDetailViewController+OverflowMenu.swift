@@ -43,6 +43,43 @@ extension PostDetailViewController: PostReminderDispatching {
             numberOfComments: row.numberOfComments
         )
     }
+
+    /// The "Remind Me…" submenu for a specific comment's long-press context
+    /// menu (Phase 3), scoped to that comment's subtree - nil when the
+    /// comment lacks a resolvable server id or ap_id (e.g. a "load more"
+    /// placeholder, or mid-load) or the post header hasn't loaded yet, in
+    /// which case the caller omits the submenu entirely. Mirrors
+    /// `commentModerationMenu`'s single-optional-return shape so the comment
+    /// context-menu builder (main file) can wire it the same way:
+    /// `self?.commentRemindMeMenu(for: commentRow)`.
+    ///
+    /// Post-level fields (title/community/instanceHost/thumbnail) are the
+    /// POST's own, same as the whole-post target above; only `apId` (the
+    /// comment's ap_id, so a fired reminder's tap scrolls to the comment via
+    /// `objectAtURL`), `rootCommentServerId`, and `numberOfComments` (the
+    /// comment's own `childCount` - the subtree's baseline) are the
+    /// comment's.
+    func commentRemindMeMenu(for commentRow: PostDetailCommentRow) -> UIMenu? {
+        guard
+            let serverCommentId = commentRow.serverCommentId,
+            let commentApId = commentRow.originalCommentUrl, !commentApId.isEmpty,
+            let headerRow = viewModel.headerRow, !headerRow.title.isEmpty
+        else { return nil }
+        let instanceHost = headerRow.communityActorId.flatMap { InstanceActorId(from: $0)?.host }
+            ?? viewModel.accountScope.instanceActorId?.host
+            ?? ""
+        let target = RemindMeMenuTarget(
+            postServerId: Int64(viewModel.serverPostId),
+            apId: commentApId,
+            title: headerRow.title,
+            communityName: headerRow.communityName,
+            instanceHost: instanceHost,
+            thumbnailUrl: headerRow.thumbnailUrl,
+            numberOfComments: commentRow.childCount ?? 0,
+            rootCommentServerId: serverCommentId
+        )
+        return makeRemindMeMenu(for: target)
+    }
 }
 
 /// The nav-bar "•••" overflow menu, hosted on `PostDetailViewController`.

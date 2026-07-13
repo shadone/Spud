@@ -18,7 +18,11 @@ private let logger = Logger.reminders
 /// Phase 1 sets/removes whole-post `time` reminders
 /// (`ReminderRecord.wholePostSentinel` / `Kind.time`). Phase 2 adds whole-post
 /// `activity` reminders ("notify me as the discussion grows") on this same
-/// actor; a later phase adds comment-subtree targets.
+/// actor. Phase 3 generalizes both kinds to an optional comment-subtree
+/// target via `rootCommentServerId` (defaulted to `wholePostSentinel` so
+/// every Phase-1/2 call site keeps compiling unchanged) - a post can carry a
+/// whole-post reminder AND independent subtree reminders at once, each keyed
+/// by `(accountId, postServerId, rootCommentServerId, kind)`.
 public actor ReminderService {
     private let accountId: Int64
     private let appDatabase: AppDatabase
@@ -60,13 +64,17 @@ public actor ReminderService {
         self.diagnostics = diagnostics ?? DiagnosticLog(appDatabase: appDatabase)
     }
 
-    /// The stable `notificationRequestId` for a whole-post time reminder on
-    /// `postServerId` under this account - stable across repeated
-    /// set/cancel/re-set cycles so `scheduler.schedule` naturally replaces any
-    /// still-pending request for the same target (matches
-    /// `UNUserNotificationCenter.add`'s identifier-replaces semantics).
-    private func notificationRequestId(forPostServerId postServerId: Int64) -> String {
-        "reminder-\(accountId)-\(postServerId)-\(ReminderRecord.wholePostSentinel)-\(ReminderRecord.Kind.time.rawValue)"
+    /// The stable `notificationRequestId` for a time reminder on
+    /// `postServerId` (whole-post, or a comment subtree when
+    /// `rootCommentServerId` is not `wholePostSentinel`) under this account -
+    /// stable across repeated set/cancel/re-set cycles so `scheduler.schedule`
+    /// naturally replaces any still-pending request for the same target
+    /// (matches `UNUserNotificationCenter.add`'s identifier-replaces
+    /// semantics). Including `rootCommentServerId` means a whole-post and a
+    /// subtree reminder on the same post get distinct OS notification ids, so
+    /// setting/cancelling one never touches the other.
+    private func notificationRequestId(forPostServerId postServerId: Int64, rootCommentServerId: Int64) -> String {
+        "reminder-\(accountId)-\(postServerId)-\(rootCommentServerId)-\(ReminderRecord.Kind.time.rawValue)"
     }
 
     /// Whether the OS notification should (still) be scheduled: the user
@@ -108,6 +116,11 @@ public actor ReminderService {
     ///   - communityName: the post's community, bare name.
     ///   - instanceHost: the community's home instance host.
     ///   - thumbnailUrl: the post's thumbnail, if any, denormalized at set-time.
+    ///   - rootCommentServerId: `ReminderRecord.wholePostSentinel` (the
+    ///     default) for a whole-post reminder, or a comment's server id to
+    ///     scope this reminder to that comment's subtree (Phase 3). Part of
+    ///     the unique key, so a whole-post reminder and one or more subtree
+    ///     reminders coexist independently on the same post.
     public func setTimeReminder(
         postServerId: Int64,
         apId: String,
@@ -115,15 +128,16 @@ public actor ReminderService {
         titleSnapshot: String,
         communityName: String,
         instanceHost: String,
-        thumbnailUrl: String?
+        thumbnailUrl: String?,
+        rootCommentServerId: Int64 = ReminderRecord.wholePostSentinel
     ) async throws {
-        let requestId = notificationRequestId(forPostServerId: postServerId)
+        let requestId = notificationRequestId(forPostServerId: postServerId, rootCommentServerId: rootCommentServerId)
 
         let record = ReminderRecord(
             accountId: accountId,
             postServerId: postServerId,
             apId: apId,
-            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            rootCommentServerId: rootCommentServerId,
             kind: ReminderRecord.Kind.time.rawValue,
             fireAt: fireAt,
             status: ReminderRecord.Status.scheduled.rawValue,
@@ -149,15 +163,21 @@ public actor ReminderService {
         await scheduler.schedule(requestId: requestId, fireAt: fireAt, content: content)
     }
 
-    /// Removes the whole-post time reminder on `postServerId`, if any, and
-    /// cancels its OS notification request. A no-op (not a throw) if no such
-    /// reminder exists, so the "Remind Me…" menu's "Cancel reminder" action
-    /// can call it unconditionally.
-    public func removeTimeReminder(postServerId: Int64) async throws {
+    /// Removes the time reminder on `postServerId` (whole-post, or a comment
+    /// subtree when `rootCommentServerId` is not `wholePostSentinel`), if any,
+    /// and cancels its OS notification request. A no-op (not a throw) if no
+    /// such reminder exists, so the "Remind Me…" menu's "Cancel reminder"
+    /// action can call it unconditionally. Scoped by `rootCommentServerId` -
+    /// removing a subtree reminder never touches a whole-post reminder on the
+    /// same post, or a subtree reminder on a different comment.
+    public func removeTimeReminder(
+        postServerId: Int64,
+        rootCommentServerId: Int64 = ReminderRecord.wholePostSentinel
+    ) async throws {
         guard let requestId = try await appDatabase.removeReminder(
             accountId: accountId,
             postServerId: postServerId,
-            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            rootCommentServerId: rootCommentServerId,
             kind: ReminderRecord.Kind.time.rawValue
         ) else {
             return
@@ -209,6 +229,12 @@ public actor ReminderService {
     ///   - communityName: the post's community, bare name.
     ///   - instanceHost: the community's home instance host.
     ///   - thumbnailUrl: the post's thumbnail, if any, denormalized at set-time.
+    ///   - rootCommentServerId: `ReminderRecord.wholePostSentinel` (the
+    ///     default) for a whole-post follow, or a comment's server id to
+    ///     scope this follow to that comment's subtree (Phase 3) - `baselineCount`
+    ///     is then the comment's `child_count` (descendant count), and the
+    ///     poll (`pollDueActivityReminders`) re-reads it via the fetcher's
+    ///     subtree branch instead of the post's `numberOfComments`.
     public func setActivityReminder(
         postServerId: Int64,
         apId: String,
@@ -216,14 +242,15 @@ public actor ReminderService {
         titleSnapshot: String,
         communityName: String,
         instanceHost: String,
-        thumbnailUrl: String?
+        thumbnailUrl: String?,
+        rootCommentServerId: Int64 = ReminderRecord.wholePostSentinel
     ) async throws {
         let now = Date()
         let record = ReminderRecord(
             accountId: accountId,
             postServerId: postServerId,
             apId: apId,
-            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            rootCommentServerId: rootCommentServerId,
             kind: ReminderRecord.Kind.activity.rawValue,
             nextCheckAt: now.addingTimeInterval(ReminderActivityRule.pollInterval),
             baselineCount: baselineCount,
@@ -245,30 +272,38 @@ public actor ReminderService {
         _ = await isAuthorized()
     }
 
-    /// Removes the whole-post activity reminder on `postServerId`, if any.
-    /// Unlike `removeTimeReminder`, there is no OS notification request to
-    /// cancel - activity reminders never carry a `notificationRequestId`
-    /// (`setActivityReminder` always persists it `nil`). A no-op (not a
-    /// throw) if no such reminder exists, so the "When there are new
-    /// comments" menu item can call it unconditionally on toggle-off.
-    public func removeActivityReminder(postServerId: Int64) async throws {
+    /// Removes the activity reminder on `postServerId` (whole-post, or a
+    /// comment subtree when `rootCommentServerId` is not `wholePostSentinel`),
+    /// if any. Unlike `removeTimeReminder`, there is no OS notification
+    /// request to cancel - activity reminders never carry a
+    /// `notificationRequestId` (`setActivityReminder` always persists it
+    /// `nil`). A no-op (not a throw) if no such reminder exists, so the "When
+    /// there are new comments" menu item can call it unconditionally on
+    /// toggle-off.
+    public func removeActivityReminder(
+        postServerId: Int64,
+        rootCommentServerId: Int64 = ReminderRecord.wholePostSentinel
+    ) async throws {
         try await appDatabase.removeReminder(
             accountId: accountId,
             postServerId: postServerId,
-            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            rootCommentServerId: rootCommentServerId,
             kind: ReminderRecord.Kind.activity.rawValue
         )
     }
 
     /// The stable `notificationRequestId` an activity reminder's ad-hoc fire
-    /// posts under. Unlike ``notificationRequestId(forPostServerId:)`` this is
-    /// never persisted on the row (`setActivityReminder` always writes
-    /// `notificationRequestId = nil` - there's no single pending OS request to
-    /// track, the poll posts a fresh one each time it fires) - it only needs
-    /// to be stable enough that back-to-back fires for the same post replace
-    /// rather than pile up in Notification Center.
-    private func activityNotificationRequestId(forPostServerId postServerId: Int64) -> String {
-        "reminder-\(accountId)-\(postServerId)-\(ReminderRecord.wholePostSentinel)-\(ReminderRecord.Kind.activity.rawValue)"
+    /// posts under. Unlike ``notificationRequestId(forPostServerId:rootCommentServerId:)``
+    /// this is never persisted on the row (`setActivityReminder` always
+    /// writes `notificationRequestId = nil` - there's no single pending OS
+    /// request to track, the poll posts a fresh one each time it fires) - it
+    /// only needs to be stable enough that back-to-back fires for the same
+    /// target replace rather than pile up in Notification Center. Including
+    /// `rootCommentServerId` keeps a whole-post follow's and a subtree
+    /// follow's ad-hoc posts independent, same rationale as the time-reminder
+    /// id above.
+    private func activityNotificationRequestId(forPostServerId postServerId: Int64, rootCommentServerId: Int64) -> String {
+        "reminder-\(accountId)-\(postServerId)-\(rootCommentServerId)-\(ReminderRecord.Kind.activity.rawValue)"
     }
 
     /// Polls every activity reminder due for a check (`nextCheckAt <= asOf`)
@@ -291,17 +326,21 @@ public actor ReminderService {
     ///     (`baselineAt`, `nextCheckAt`, `lastNotifiedAt`) derives from this,
     ///     not the real wall clock, so tests can drive the rule
     ///     deterministically.
-    ///   - commentCountFetcher: resolves a post's live comment count, or nil
+    ///   - commentCountFetcher: resolves a target's live comment count, or nil
     ///     on failure (offline, server error, etc.) - a best-effort skip, not
-    ///     a fatal error. `@Sendable` because the production closure
-    ///     (`SchedulerService`, a later task) is built on a different actor
-    ///     and crosses into this actor's isolation to be awaited here; it
-    ///     wraps `LemmyService.fetchPostInfo` (refreshes `PostRecord.
+    ///     a fatal error. Called with each due row's `postServerId` AND
+    ///     `rootCommentServerId` so the caller can branch between the
+    ///     whole-post count and a subtree's `child_count` (Phase 3) -
+    ///     `@Sendable` because the production closure (`SchedulerService`) is
+    ///     built on a different actor and crosses into this actor's isolation
+    ///     to be awaited here; for a whole-post row it wraps
+    ///     `LemmyService.fetchPostInfo` (refreshes `PostRecord.
     ///     numberOfComments`) followed by `postNumberOfCommentsSync` (reads it
-    ///     back).
+    ///     back), and for a subtree row a comment-tree refresh followed by
+    ///     `commentChildCountSync`.
     public func pollDueActivityReminders(
         asOf: Date,
-        commentCountFetcher: @Sendable (Int64) async -> Int?
+        commentCountFetcher: @Sendable (_ postServerId: Int64, _ rootCommentServerId: Int64) async -> Int?
     ) async {
         let due = appDatabase.dueActivityRemindersSync(accountId: accountId, asOf: asOf)
         let nextCheckAt = asOf.addingTimeInterval(ReminderActivityRule.pollInterval)
@@ -309,7 +348,7 @@ public actor ReminderService {
         for reminder in due {
             guard let id = reminder.id else { continue }
 
-            guard let commentsNowRaw = await commentCountFetcher(reminder.postServerId) else {
+            guard let commentsNowRaw = await commentCountFetcher(reminder.postServerId, reminder.rootCommentServerId) else {
                 await bumpNextCheck(id: id, nextCheckAt: nextCheckAt)
                 await diagnostics.record(
                     category: .reminder,
@@ -338,10 +377,14 @@ public actor ReminderService {
                     communityName: reminder.communityName,
                     instanceHost: reminder.instanceHost,
                     apId: reminder.apId,
-                    newCount: newComments
+                    newCount: newComments,
+                    rootCommentServerId: reminder.rootCommentServerId
                 )
                 await scheduler.postNow(
-                    requestId: activityNotificationRequestId(forPostServerId: reminder.postServerId),
+                    requestId: activityNotificationRequestId(
+                        forPostServerId: reminder.postServerId,
+                        rootCommentServerId: reminder.rootCommentServerId
+                    ),
                     content: content
                 )
 

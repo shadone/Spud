@@ -297,8 +297,9 @@ public class SchedulerService: SchedulerServiceType {
     // MARK: Activity reminder poll (Post Reminders Phase 2)
 
     /// Drives `ReminderService.pollDueActivityReminders` once per pollable
-    /// account per tick - the foreground half of the whole-post "When there
-    /// are new comments" follow (spec §5.1/§5.3). Background polling
+    /// account per tick - the foreground half of the "When there are new
+    /// comments" follow, whole-post AND comment-subtree (spec §5.1/§5.3;
+    /// Phase 3 added the subtree scope). Background polling
     /// (`BGAppRefreshTask`) is a later phase; this only runs while the app is
     /// in the foreground and the 5-minute tick fires.
     ///
@@ -350,15 +351,38 @@ public class SchedulerService: SchedulerServiceType {
             // concurrency.
             let appDatabase = appDatabase
             let lemmy = accountService.lemmyService(forAccountKeychainId: keychainId)
-            let fetcher: @Sendable (Int64) async -> Int? = { postServerId in
+            // Phase 3: the fetcher branches on `rootCommentServerId` so a
+            // subtree follow is counted from the root comment's `child_count`
+            // instead of the post's `numberOfComments`. This sweep still only
+            // ever creates whole-post follows itself (the comment-menu entry
+            // point that creates subtree follows is a later task), but a
+            // subtree row created via that future entry point is polled
+            // correctly by this same sweep already.
+            let fetcher: @Sendable (Int64, Int64) async -> Int? = { postServerId, rootCommentServerId in
                 // Best-effort: a failed refresh just means the poll falls back to
-                // the previously-cached comment count (`postNumberOfCommentsSync`
-                // reads it below regardless) rather than skipping the account
-                // entirely - `pollDueActivityReminders` itself treats a `nil`
-                // fetcher result (not a thrown error) as "fetch failed" and bumps
-                // `nextCheckAt` without firing.
-                try? await lemmy.fetchPostInfo(serverPostId: Lemmy.PostID(postServerId))
-                return appDatabase.postNumberOfCommentsSync(forKeychainId: keychainId, serverPostId: postServerId)
+                // the previously-cached comment count (read below regardless)
+                // rather than skipping the account entirely - `pollDueActivityReminders`
+                // itself treats a `nil` fetcher result (not a thrown error) as
+                // "fetch failed" and bumps `nextCheckAt` without firing.
+                if rootCommentServerId == ReminderRecord.wholePostSentinel {
+                    try? await lemmy.fetchPostInfo(serverPostId: Lemmy.PostID(postServerId))
+                    return appDatabase.postNumberOfCommentsSync(forKeychainId: keychainId, serverPostId: postServerId)
+                } else {
+                    // `LemmyServiceType` exposes only a post-scoped `fetchComments`
+                    // (no `parentID`-scoped overload at this pinned LemmyKit
+                    // version), so refresh the whole tree under the post - it
+                    // re-imports every comment, including the subtree's root,
+                    // and `CommentImporter` persists each one's server
+                    // `child_count` (Task 1), so `commentChildCountSync` below
+                    // reads a fresh value afterward. Costs more than a
+                    // parent-scoped fetch would, but is the cheapest option
+                    // that exists today without a LemmyKit release + pin bump.
+                    // The sort order is irrelevant here (only `child_count` is
+                    // read back, the ordering is never rendered), so `.Hot` is
+                    // used as an arbitrary fixed choice.
+                    try? await lemmy.fetchComments(serverPostId: Lemmy.PostID(postServerId), sortType: .Hot)
+                    return appDatabase.commentChildCountSync(forKeychainId: keychainId, serverCommentId: rootCommentServerId)
+                }
             }
 
             await accountService

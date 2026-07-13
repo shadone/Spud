@@ -13,21 +13,46 @@ import SpudDataKit
 /// unit-testable without hosting a cell.
 ///
 /// Branches on `kind` (Phase 2 adds the `activity` branch alongside Phase 1's
-/// `time` one):
-/// - **time**: a relative countdown to `fireAt` ("in 2 days") while
-///   `scheduled`, or "Tap to revisit" once `fired`.
-/// - **activity**: "Watching for new comments" while `scheduled`, or "New
-///   comments · tap to catch up" once `fired`. Phase 2 keeps this simple -
-///   the row doesn't carry a live new-comment count, so the fired string
-///   doesn't quote a number (unlike the ad-hoc push notification body, which
-///   does; see `ReminderNotificationFactory.activityReminderContent`).
+/// `time` one), and - within `activity` - on whether the reminder is scoped
+/// to a comment subtree rather than the whole post (Phase 3,
+/// `rootCommentServerId != ReminderRecord.wholePostSentinel`):
+/// - **time, whole-post**: a relative countdown to `fireAt` ("in 2 days")
+///   while `scheduled`, or "Tap to revisit" once `fired`.
+/// - **time, subtree**: same countdown/"Tap to revisit" wording as
+///   whole-post - a plain time reminder reads the same regardless of scope,
+///   it's still just "at this time, look again" (only tapping it differs -
+///   it opens the post scrolled to the thread).
+/// - **activity, whole-post**: "Watching for new comments" while
+///   `scheduled`, or "New comments · tap to catch up" once `fired`.
+/// - **activity, subtree**: "Watching a thread for new replies" while
+///   `scheduled`, or "New replies · tap to catch up" once `fired` - names the
+///   thread scope explicitly so a subtree follow's row is never confused with
+///   a whole-post one in the same segment.
+///
+/// Phase 2/3 both keep this simple - the row doesn't carry a live new-count,
+/// so the fired string doesn't quote a number (unlike the ad-hoc push
+/// notification body, which does; see
+/// `ReminderNotificationFactory.activityReminderContent`).
 enum ReminderStatusText {
     static func describe(for reminder: ReminderListRow, now: Date = Date()) -> String {
+        let isSubtree = reminder.rootCommentServerId != ReminderRecord.wholePostSentinel
+
         if reminder.kind == ReminderRecord.Kind.activity.rawValue {
-            return reminder.status == ReminderRecord.Status.fired.rawValue
+            if reminder.status == ReminderRecord.Status.fired.rawValue {
+                return isSubtree
+                    ? NSLocalizedString(
+                        "New replies · tap to catch up",
+                        comment: "Inbox reminder row status: a comment-thread (subtree) activity reminder has fired"
+                    )
+                    : NSLocalizedString(
+                        "New comments · tap to catch up",
+                        comment: "Inbox reminder row status: an activity (new-comments) reminder has fired"
+                    )
+            }
+            return isSubtree
                 ? NSLocalizedString(
-                    "New comments · tap to catch up",
-                    comment: "Inbox reminder row status: an activity (new-comments) reminder has fired"
+                    "Watching a thread for new replies",
+                    comment: "Inbox reminder row status: a comment-thread (subtree) activity reminder is live"
                 )
                 : NSLocalizedString(
                     "Watching for new comments",

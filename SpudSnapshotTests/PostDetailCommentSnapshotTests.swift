@@ -357,7 +357,8 @@ final class PostDetailCommentSnapshotTests: XCTestCase {
             creatorPersonId: creatorPersonId,
             creatorActorId: "https://lemmy.world",
             moreChildCount: nil,
-            moreParentId: nil
+            moreParentId: nil,
+            childCount: nil
         )
     }
 }

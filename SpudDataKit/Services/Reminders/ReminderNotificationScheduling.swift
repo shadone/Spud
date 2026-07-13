@@ -90,7 +90,8 @@ public enum ReminderNotificationFactory {
     }
 
     /// Builds the content for a fired activity reminder (Phase 2's "notify me
-    /// as the discussion grows"), posted ad-hoc by the foreground poll
+    /// as the discussion grows", generalized in Phase 3 to a comment
+    /// subtree's "new replies" follow), posted ad-hoc by the foreground poll
     /// (`ReminderService.pollDueActivityReminders`) rather than scheduled
     /// up-front.
     ///
@@ -103,29 +104,51 @@ public enum ReminderNotificationFactory {
     ///     (`ReminderRecord.apId`), turned into a
     ///     `URL.SpudInternalLink.objectAtURL` deep-link, same as
     ///     ``timeReminderContent(titleSnapshot:communityName:instanceHost:apId:)``.
+    ///     For a subtree follow the caller passes the COMMENT's ap_id instead
+    ///     (Task 4), so the tap still opens the post scrolled to that comment.
     ///   - newCount: the number of new comments observed since the reminder's
     ///     baseline (`ReminderActivityRule.shouldFire`'s `newComments`). Never
     ///     0 in practice - the rule never fires on zero new comments.
+    ///   - rootCommentServerId: `ReminderRecord.wholePostSentinel` (the
+    ///     default) for a whole-post follow, or a comment's server id for a
+    ///     subtree follow - only used to pick the body copy ("new comments"
+    ///     vs "new replies"); it plays no part in the deep link.
     public static func activityReminderContent(
         titleSnapshot: String,
         communityName: String,
         instanceHost: String,
         apId: String,
-        newCount: Int
+        newCount: Int,
+        rootCommentServerId: Int64 = ReminderRecord.wholePostSentinel
     ) -> ReminderNotificationContent {
+        let isSubtree = rootCommentServerId != ReminderRecord.wholePostSentinel
+
         // Two separate localized formats (rather than stitching a pluralized
-        // noun into one template) so a singular "1 new comment" doesn't read
-        // "1 new comments" - both use positional specifiers so the count can
-        // still be reordered relative to the community handle in translation.
-        let bodyFormat = newCount == 1
-            ? NSLocalizedString(
-                "%1$d new comment · c/%2$@@%3$@",
-                comment: "Fired activity-reminder notification body, singular; %1$d is always 1, %2$@ is the community name, %3$@ is its instance host"
-            )
-            : NSLocalizedString(
-                "%1$d new comments · c/%2$@@%3$@",
-                comment: "Fired activity-reminder notification body, plural; %1$d is the new-comment count, %2$@ is the community name, %3$@ is its instance host"
-            )
+        // noun into one template) so a singular "1 new comment"/"1 new reply"
+        // doesn't read "1 new comments"/"1 new replies" - both use positional
+        // specifiers so the count can still be reordered relative to the
+        // community handle in translation.
+        let bodyFormat: String = if isSubtree {
+            newCount == 1
+                ? NSLocalizedString(
+                    "%1$d new reply · c/%2$@@%3$@",
+                    comment: "Fired subtree-activity-reminder notification body, singular; %1$d is always 1, %2$@ is the community name, %3$@ is its instance host"
+                )
+                : NSLocalizedString(
+                    "%1$d new replies · c/%2$@@%3$@",
+                    comment: "Fired subtree-activity-reminder notification body, plural; %1$d is the new-reply count, %2$@ is the community name, %3$@ is its instance host"
+                )
+        } else {
+            newCount == 1
+                ? NSLocalizedString(
+                    "%1$d new comment · c/%2$@@%3$@",
+                    comment: "Fired activity-reminder notification body, singular; %1$d is always 1, %2$@ is the community name, %3$@ is its instance host"
+                )
+                : NSLocalizedString(
+                    "%1$d new comments · c/%2$@@%3$@",
+                    comment: "Fired activity-reminder notification body, plural; %1$d is the new-comment count, %2$@ is the community name, %3$@ is its instance host"
+                )
+        }
         let body = String(format: bodyFormat, newCount, communityName, instanceHost)
 
         guard let apURL = URL(string: apId) else {

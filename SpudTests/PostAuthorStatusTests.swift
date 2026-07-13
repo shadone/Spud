@@ -66,7 +66,8 @@ struct PostAuthorStatusTests {
             creatorPersonId: 1,
             creatorActorId: "https://lemmy.world",
             moreChildCount: nil,
-            moreParentId: nil
+            moreParentId: nil,
+            childCount: nil
         )
         let appearance = AppearanceService(preferencesService: PreferencesService.ephemeral())
         // postCreatorPersonId nil => never OP, so the comment badges hold only

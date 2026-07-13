@@ -1,8 +1,8 @@
 # Reminders
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** partial — Phases 1-2 of a multi-phase design: time-based ("remind me later") reminders, and a whole-post "When there are new comments" activity follow, both on a whole post only. Comment-subtree targeting and background polling are planned for later phases; see Not supported below.
-- **Related:** [Inbox](inbox.md), [docs/superpowers/specs/2026-07-12-post-reminders-design.md](../superpowers/specs/2026-07-12-post-reminders-design.md), [docs/superpowers/plans/2026-07-12-post-reminders-phase1.md](../superpowers/plans/2026-07-12-post-reminders-phase1.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase2.md](../superpowers/plans/2026-07-13-post-reminders-phase2.md)
+- **Status:** partial — Phases 1-3 of a multi-phase design: time-based ("remind me later") reminders and a "When there are new comments" activity follow, either on the whole post OR scoped to a single comment thread. Background polling (`BGAppRefreshTask`) is planned for a later phase; see Not supported below.
+- **Related:** [Inbox](inbox.md), [docs/superpowers/specs/2026-07-12-post-reminders-design.md](../superpowers/specs/2026-07-12-post-reminders-design.md), [docs/superpowers/plans/2026-07-12-post-reminders-phase1.md](../superpowers/plans/2026-07-12-post-reminders-phase1.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase2.md](../superpowers/plans/2026-07-13-post-reminders-phase2.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase3.md](../superpowers/plans/2026-07-13-post-reminders-phase3.md)
 
 ## What it does
 
@@ -24,6 +24,13 @@ mention.
   already set on that post, a destructive "Cancel reminder" action. Choosing a preset or
   a picked time shows a brief confirmation toast ("Reminder set — Tomorrow"); cancelling
   shows "Reminder cleared."
+- **Follow a single comment thread instead of the whole post.** The same "Remind Me…"
+  submenu also appears on a comment's long-press context menu — same items, same copy,
+  but every action now targets that comment's subtree (the comment and all of its
+  descendants) rather than the whole post. A post can carry a whole-post reminder AND one
+  or more thread-scoped reminders on different comments at once, each set, checkmarked,
+  and cancelled independently. The submenu is omitted (not shown, not disabled) on a
+  comment that isn't fully loaded yet (e.g. a "load more" placeholder).
 - **"When there are new comments" is a self-toggling follow, independent of time
   reminders.** Unlike the time presets, it's a single menu item that checkmarks when live
   and toggles on tap — choosing it follows the post ("You'll be notified of new
@@ -37,7 +44,10 @@ mention.
   **1** new comment that's been sitting unnotified for **24 hours** — whichever comes
   first. Zero new comments never fires. Once it fires, the count re-baselines from the
   comment total at that moment, so the next notification again needs a fresh 5-or-24h's
-  worth of activity.
+  worth of activity. A thread-scoped follow applies the identical rule against that root
+  comment's own descendant count instead of the post's total, and — like the whole-post
+  case — counts **every** new descendant, including your own replies to the thread; it
+  isn't limited to other people's comments.
 - **Checked by a foreground poll, not push.** There's no reminders backend, so nothing
   can push a "new comments" event to your device. Instead, while Spud is in the
   foreground, a periodic sweep (piggybacking on the existing 5-minute scheduler tick)
@@ -72,15 +82,21 @@ mention.
 - **The Reminders segment.** A dedicated segment in the Inbox tab's segmented control
   (after Mentions), separate from Replies/Mentions/Messages so reminders never mix with
   Lemmy notifications. Time reminders and activity follows appear side by side as
-  separate rows (a post following both shows up twice). Each row shows the post's
-  thumbnail, title, and `c/<community>@<instance>` handle, plus a status line whose text
-  depends on the kind: a time reminder shows a relative countdown ("in 2 days") while
-  still scheduled, or "Tap to revisit" once fired; an activity follow shows "Watching for
-  new comments" while live, or "New comments · tap to catch up" once the rule fires (no
-  live count on the row — see [Not supported](#not-supported--out-of-scope)).
-  Fired-and-unseen rows sort first; the rest sort soonest-due first. Tapping a row opens
-  the post. Swipe left to remove a reminder or follow (cancels its notification too, if
-  one was scheduled).
+  separate rows (a post following both shows up twice, and a thread-scoped follow is its
+  own additional row). Each row shows the post's thumbnail, title, and
+  `c/<community>@<instance>` handle, plus a status line whose text depends on the kind and
+  scope: a whole-post time reminder shows a relative countdown ("in 2 days") while still
+  scheduled, or "Tap to revisit" once fired — a thread-scoped time reminder reads
+  identically, since the countdown itself doesn't depend on scope. A whole-post activity
+  follow shows "Watching for new comments" while live, or "New comments · tap to catch up"
+  once the rule fires; a thread-scoped one instead shows "Watching a thread for new
+  replies" while live, or "New replies · tap to catch up" once fired, so a followed thread
+  is never mistaken for a followed whole post in the same list (no live count on the row —
+  see [Not supported](#not-supported--out-of-scope)). Fired-and-unseen rows sort first; the
+  rest sort soonest-due first. Tapping a row opens the post — a thread-scoped reminder
+  opens the post scrolled to (and briefly highlighting) that comment, same as opening a
+  comment permalink. Swipe left to remove a reminder or follow (cancels its notification
+  too, if one was scheduled).
 - **The badge only counts fired-and-unseen reminders.** A scheduled (not yet due)
   reminder never contributes to the badge — only a reminder that has fired and hasn't
   been seen in the Reminders segment yet. The reminder contribution is blended into the
@@ -175,10 +191,40 @@ mention.
 - **Then** the follow is created and polled exactly as it would be for a signed-in
   account — activity follows don't require sign-in
 
+### Follow a single comment thread
+
+- **Given** I am viewing a post and long-press a comment that has 4 replies so far
+- **When** I choose "Remind Me…" → "When there are new comments" from the comment's
+  context menu
+- **Then** a confirmation toast shows ("You'll be notified of new comments.")
+- **And** the follow's baseline is set to 4 (that comment's current descendant count) —
+  only replies to the thread posted after this point count toward the notify rule
+- **And** the post also appears in the Inbox's Reminders segment as a separate row,
+  showing "Watching a thread for new replies" as its status
+- **And** the whole post itself can still independently carry its own "When there are new
+  comments" follow (or not) — following the thread doesn't touch it
+
+### A thread follow fires and opens scrolled to the comment
+
+- **Given** I'm following a comment thread (baseline 4 replies) and the smart rule's
+  threshold is met
+- **When** the poll re-checks that comment's descendant count
+- **Then** a system notification is delivered (if granted), and the reminder's row in the
+  Reminders segment reads "New replies · tap to catch up"
+- **And** tapping the notification (or the Reminders-segment row) opens the post scrolled
+  to, and briefly highlighting, that comment — not just the top of the post
+- **And** the baseline re-arms to the descendant count at fire time
+
+### A comment thread can also get a time reminder
+
+- **Given** I am viewing a post and long-press a comment
+- **When** I choose "Remind Me…" → "Tomorrow" from the comment's context menu
+- **Then** a confirmation toast shows ("Reminder set — Tomorrow"), and when it fires,
+  tapping it opens the post scrolled to that comment (not the whole-post behavior of
+  opening at the top)
+
 ## Not supported / out of scope
 
-- **Comment-subtree reminders** — targeting a specific comment thread (rather than the
-  whole post) is a later phase.
 - **Background polling / `BGAppRefreshTask`** — the activity follow's poll only runs
   while Spud is in the foreground (piggybacking on the existing 5-minute scheduler tick);
   there's no background task, so a post's comment count is only ever re-checked the next
