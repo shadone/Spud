@@ -18,6 +18,7 @@ public enum DiagnosticCategory: String, Sendable, CaseIterable, Codable {
     case unread
     case spotlight
     case lifecycle
+    case reminder
 }
 
 /// Severity of a diagnostic event, ordered from least to most severe.

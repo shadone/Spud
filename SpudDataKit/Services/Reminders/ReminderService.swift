@@ -5,6 +5,9 @@
 //
 
 import Foundation
+import OSLog
+
+private let logger = Logger.reminders
 
 /// Per-account actor owning the "remind me later" reminder lifecycle: it
 /// composes the durable `reminder` table writes (`ReminderWrites.swift`) with
@@ -34,16 +37,27 @@ public actor ReminderService {
     /// and other non-app hosts that construct `ReminderService` directly.
     private let notificationsEnabled: @Sendable () -> Bool
 
+    /// Structured diagnostics for the activity poll (`poll.fired`,
+    /// `poll.fetchFailed` - spec §5.3). `diagnostics: nil` (the default) wires
+    /// a real `DiagnosticLog` against the same `appDatabase` this actor
+    /// already holds, so production call sites (`AccountService.
+    /// reminderService(forAccountKeychainId:)`) get working diagnostics with
+    /// no extra plumbing; tests that want to assert on emitted events inject a
+    /// spy explicitly.
+    private let diagnostics: DiagnosticLogging
+
     public init(
         accountId: Int64,
         appDatabase: AppDatabase,
         scheduler: ReminderNotificationScheduling,
-        notificationsEnabled: @escaping @Sendable () -> Bool = { true }
+        notificationsEnabled: @escaping @Sendable () -> Bool = { true },
+        diagnostics: DiagnosticLogging? = nil
     ) {
         self.accountId = accountId
         self.appDatabase = appDatabase
         self.scheduler = scheduler
         self.notificationsEnabled = notificationsEnabled
+        self.diagnostics = diagnostics ?? DiagnosticLog(appDatabase: appDatabase)
     }
 
     /// The stable `notificationRequestId` for a whole-post time reminder on
@@ -244,5 +258,127 @@ public actor ReminderService {
             rootCommentServerId: ReminderRecord.wholePostSentinel,
             kind: ReminderRecord.Kind.activity.rawValue
         )
+    }
+
+    /// The stable `notificationRequestId` an activity reminder's ad-hoc fire
+    /// posts under. Unlike ``notificationRequestId(forPostServerId:)`` this is
+    /// never persisted on the row (`setActivityReminder` always writes
+    /// `notificationRequestId = nil` - there's no single pending OS request to
+    /// track, the poll posts a fresh one each time it fires) - it only needs
+    /// to be stable enough that back-to-back fires for the same post replace
+    /// rather than pile up in Notification Center.
+    private func activityNotificationRequestId(forPostServerId postServerId: Int64) -> String {
+        "reminder-\(accountId)-\(postServerId)-\(ReminderRecord.wholePostSentinel)-\(ReminderRecord.Kind.activity.rawValue)"
+    }
+
+    /// Polls every activity reminder due for a check (`nextCheckAt <= asOf`)
+    /// and applies the smart rule (spec §3): refreshes each target's comment
+    /// count via `commentCountFetcher`, and either fires (posts the activity
+    /// notification, re-arms the baseline, pushes `nextCheckAt` forward) or -
+    /// on a fetch failure or a rule miss - just pushes `nextCheckAt` forward so
+    /// the follow is retried on the next due sweep. `pollInterval`
+    /// (`ReminderActivityRule`) is the single throttle both branches push by,
+    /// so a follow is never checked more than once per interval regardless of
+    /// how often this method is called.
+    ///
+    /// Never throws: a per-row DB write failure is logged and the poll moves
+    /// on to the next row rather than aborting the whole sweep (this is a
+    /// best-effort background poll, not a user-initiated action with someone
+    /// waiting on the result).
+    ///
+    /// - Parameters:
+    ///   - asOf: the poll's reference "now" - every timestamp this call writes
+    ///     (`baselineAt`, `nextCheckAt`, `lastNotifiedAt`) derives from this,
+    ///     not the real wall clock, so tests can drive the rule
+    ///     deterministically.
+    ///   - commentCountFetcher: resolves a post's live comment count, or nil
+    ///     on failure (offline, server error, etc.) - a best-effort skip, not
+    ///     a fatal error. `@Sendable` because the production closure
+    ///     (`SchedulerService`, a later task) is built on a different actor
+    ///     and crosses into this actor's isolation to be awaited here; it
+    ///     wraps `LemmyService.fetchPostInfo` (refreshes `PostRecord.
+    ///     numberOfComments`) followed by `postNumberOfCommentsSync` (reads it
+    ///     back).
+    public func pollDueActivityReminders(
+        asOf: Date,
+        commentCountFetcher: @Sendable (Int64) async -> Int?
+    ) async {
+        let due = appDatabase.dueActivityRemindersSync(accountId: accountId, asOf: asOf)
+        let nextCheckAt = asOf.addingTimeInterval(ReminderActivityRule.pollInterval)
+
+        for reminder in due {
+            guard let id = reminder.id else { continue }
+
+            guard let commentsNowRaw = await commentCountFetcher(reminder.postServerId) else {
+                await bumpNextCheck(id: id, nextCheckAt: nextCheckAt)
+                await diagnostics.record(
+                    category: .reminder,
+                    level: .notice,
+                    event: "poll.fetchFailed",
+                    message: "Activity reminder poll could not refresh the comment count",
+                    instance: reminder.instanceHost,
+                    metadata: ["postServerId": String(reminder.postServerId)]
+                )
+                continue
+            }
+            let commentsNow = Int64(commentsNowRaw)
+
+            // `baselineCount`/`baselineAt` are only nil for a malformed row
+            // (an activity reminder always sets both at creation) - fall back
+            // to "no new comments yet" / "just now" rather than crashing the
+            // poll on force-unwrap.
+            let baselineCount = reminder.baselineCount ?? commentsNow
+            let baselineAt = reminder.baselineAt ?? asOf
+            let newComments = Int(commentsNow) - Int(baselineCount)
+            let elapsed = asOf.timeIntervalSince(baselineAt)
+
+            if ReminderActivityRule.shouldFire(newComments: newComments, elapsed: elapsed) {
+                let content = ReminderNotificationFactory.activityReminderContent(
+                    titleSnapshot: reminder.titleSnapshot,
+                    communityName: reminder.communityName,
+                    instanceHost: reminder.instanceHost,
+                    apId: reminder.apId,
+                    newCount: newComments
+                )
+                await scheduler.postNow(
+                    requestId: activityNotificationRequestId(forPostServerId: reminder.postServerId),
+                    content: content
+                )
+
+                do {
+                    try await appDatabase.rearmActivityReminder(
+                        id: id,
+                        baselineCount: commentsNow,
+                        baselineAt: asOf,
+                        nextCheckAt: nextCheckAt,
+                        firedAt: asOf
+                    )
+                } catch {
+                    logger.error("pollDueActivityReminders: rearmActivityReminder(\(id)) failed: \(String(describing: error), privacy: .public)")
+                }
+
+                await diagnostics.record(
+                    category: .reminder,
+                    level: .info,
+                    event: "poll.fired",
+                    message: "Activity reminder fired",
+                    instance: reminder.instanceHost,
+                    metadata: ["postServerId": String(reminder.postServerId), "newComments": String(newComments)]
+                )
+            } else {
+                await bumpNextCheck(id: id, nextCheckAt: nextCheckAt)
+            }
+        }
+    }
+
+    /// Shared no-fire path for `pollDueActivityReminders`: pushes `nextCheckAt`
+    /// forward without touching the baseline, logging (not throwing) on write
+    /// failure so a single bad row can't abort the sweep.
+    private func bumpNextCheck(id: Int64, nextCheckAt: Date) async {
+        do {
+            try await appDatabase.bumpActivityNextCheck(id: id, nextCheckAt: nextCheckAt)
+        } catch {
+            logger.error("pollDueActivityReminders: bumpActivityNextCheck(\(id)) failed: \(String(describing: error), privacy: .public)")
+        }
     }
 }

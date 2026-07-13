@@ -88,6 +88,56 @@ public enum ReminderNotificationFactory {
         let routingURL = URL.SpudInternalLink.objectAtURL(url: apURL).url
         return ReminderNotificationContent(title: titleSnapshot, body: body, routingURLString: routingURL.absoluteString)
     }
+
+    /// Builds the content for a fired activity reminder (Phase 2's "notify me
+    /// as the discussion grows"), posted ad-hoc by the foreground poll
+    /// (`ReminderService.pollDueActivityReminders`) rather than scheduled
+    /// up-front.
+    ///
+    /// - Parameters:
+    ///   - titleSnapshot: the post's title, denormalized onto the reminder
+    ///     record at set-time (`ReminderRecord.titleSnapshot`).
+    ///   - communityName: the post's community, bare name (no `!`/`@`).
+    ///   - instanceHost: the community's home instance host.
+    ///   - apId: the post's canonical ActivityPub URL
+    ///     (`ReminderRecord.apId`), turned into a
+    ///     `URL.SpudInternalLink.objectAtURL` deep-link, same as
+    ///     ``timeReminderContent(titleSnapshot:communityName:instanceHost:apId:)``.
+    ///   - newCount: the number of new comments observed since the reminder's
+    ///     baseline (`ReminderActivityRule.shouldFire`'s `newComments`). Never
+    ///     0 in practice - the rule never fires on zero new comments.
+    public static func activityReminderContent(
+        titleSnapshot: String,
+        communityName: String,
+        instanceHost: String,
+        apId: String,
+        newCount: Int
+    ) -> ReminderNotificationContent {
+        // Two separate localized formats (rather than stitching a pluralized
+        // noun into one template) so a singular "1 new comment" doesn't read
+        // "1 new comments" - both use positional specifiers so the count can
+        // still be reordered relative to the community handle in translation.
+        let bodyFormat = newCount == 1
+            ? NSLocalizedString(
+                "%1$d new comment · c/%2$@@%3$@",
+                comment: "Fired activity-reminder notification body, singular; %1$d is always 1, %2$@ is the community name, %3$@ is its instance host"
+            )
+            : NSLocalizedString(
+                "%1$d new comments · c/%2$@@%3$@",
+                comment: "Fired activity-reminder notification body, plural; %1$d is the new-comment count, %2$@ is the community name, %3$@ is its instance host"
+            )
+        let body = String(format: bodyFormat, newCount, communityName, instanceHost)
+
+        guard let apURL = URL(string: apId) else {
+            // Should never happen in practice - see the matching guard in
+            // `timeReminderContent`.
+            logger.error("activityReminderContent: apId is not a valid URL: \(apId, privacy: .public)")
+            return ReminderNotificationContent(title: titleSnapshot, body: body, routingURLString: "")
+        }
+
+        let routingURL = URL.SpudInternalLink.objectAtURL(url: apURL).url
+        return ReminderNotificationContent(title: titleSnapshot, body: body, routingURLString: routingURL.absoluteString)
+    }
 }
 
 /// Schedules/cancels the OS local notification behind a reminder. Injected
@@ -112,6 +162,17 @@ public protocol ReminderNotificationScheduling: Sendable {
     /// identifier semantics), which is how `ReminderService` re-schedules a
     /// reminder that's set a second time for the same target.
     func schedule(requestId: String, fireAt: Date, content: ReminderNotificationContent) async
+
+    /// Posts a local notification for `content` **immediately**, identified by
+    /// `requestId`. Used by the activity-reminder poll
+    /// (`ReminderService.pollDueActivityReminders`) when
+    /// `ReminderActivityRule.shouldFire` trips - unlike `schedule`, there is
+    /// no future `fireAt` to wait for; the poll already observed the
+    /// fired condition just now. Distinct from `schedule`'s
+    /// `UNCalendarNotificationTrigger` path used by time reminders, which
+    /// fires at a specific wall-clock date even if the app never runs again
+    /// before then.
+    func postNow(requestId: String, content: ReminderNotificationContent) async
 
     /// Cancels a previously-scheduled notification request by id. A no-op if
     /// no such request is pending (e.g. it already fired, or permission was
@@ -170,6 +231,28 @@ public final class UNReminderNotificationScheduler: ReminderNotificationScheduli
             try await center.add(request)
         } catch {
             logger.error("schedule(\(requestId, privacy: .public)) failed: \(String(describing: error), privacy: .public)")
+        }
+    }
+
+    public func postNow(requestId: String, content: ReminderNotificationContent) async {
+        let notificationContent = UNMutableNotificationContent()
+        notificationContent.title = content.title
+        notificationContent.body = content.body
+        notificationContent.sound = .default
+        notificationContent.userInfo = [ReminderNotificationContent.userInfoRoutingURLKey: content.routingURLString]
+
+        // A short (rather than nil) time-interval trigger: `UNUserNotificationCenter`
+        // requires a non-zero interval, and a 1-second delay is indistinguishable
+        // from "now" to the user while still going through the normal trigger path
+        // (nil triggers deliver instantly but are documented as best suited to
+        // silent/background pushes, not user-visible alerts).
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+
+        let request = UNNotificationRequest(identifier: requestId, content: notificationContent, trigger: trigger)
+        do {
+            try await center.add(request)
+        } catch {
+            logger.error("postNow(\(requestId, privacy: .public)) failed: \(String(describing: error), privacy: .public)")
         }
     }
 

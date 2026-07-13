@@ -432,6 +432,7 @@ private extension DiagnosticCategory {
         case .unread: "Unread"
         case .spotlight: "Spotlight"
         case .lifecycle: "Lifecycle"
+        case .reminder: "Reminders"
         }
     }
 }

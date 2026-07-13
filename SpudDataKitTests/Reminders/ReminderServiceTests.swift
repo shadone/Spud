@@ -25,6 +25,7 @@ struct ReminderServiceTests {
         /// permission-denied path.
         var granted = true
         private(set) var scheduleCalls: [(requestId: String, fireAt: Date, content: ReminderNotificationContent)] = []
+        private(set) var postNowCalls: [(requestId: String, content: ReminderNotificationContent)] = []
         private(set) var cancelCalls: [String] = []
 
         func requestAuthorization() async -> Bool {
@@ -37,6 +38,10 @@ struct ReminderServiceTests {
 
         func schedule(requestId: String, fireAt: Date, content: ReminderNotificationContent) async {
             scheduleCalls.append((requestId: requestId, fireAt: fireAt, content: content))
+        }
+
+        func postNow(requestId: String, content: ReminderNotificationContent) async {
+            postNowCalls.append((requestId: requestId, content: content))
         }
 
         func cancel(requestId: String) async {

@@ -167,6 +167,7 @@ public struct DiagnosticLog: DiagnosticLogging {
     /// - `.unread` → `Logger.inbox`
     /// - `.spotlight` → `Logger.spotlight` (added to Logger.swift for this feature)
     /// - `.lifecycle` → `Logger.lifecycle` (added to Logger.swift for this feature)
+    /// - `.reminder` → `Logger.reminders` (Post Reminders Phase 2 poll)
     public func logger(for category: DiagnosticCategory) -> Logger {
         switch category {
         case .outbox: Logger.outbox
@@ -177,6 +178,7 @@ public struct DiagnosticLog: DiagnosticLogging {
         case .unread: Logger.inbox
         case .spotlight: Logger.spotlight
         case .lifecycle: Logger.lifecycle
+        case .reminder: Logger.reminders
         }
     }
 }
