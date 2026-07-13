@@ -314,6 +314,10 @@ private final class FakeGatingAccountService: AccountServiceType {
         lemmyServiceDouble
     }
 
+    func reminderService(forAccountKeychainId _: String) -> ReminderService {
+        fatalError("reminderService not stubbed")
+    }
+
     func instanceCapabilities(forAccountKeychainId _: String) -> InstanceCapabilities {
         capabilities
     }

@@ -10,6 +10,7 @@ import Foundation
 enum InboxScope: Int, CaseIterable {
     case replies
     case mentions
+    case reminders
     case messages
 
     var title: String {
@@ -18,6 +19,8 @@ enum InboxScope: Int, CaseIterable {
             NSLocalizedString("Replies", comment: "Inbox scope: comment replies")
         case .mentions:
             NSLocalizedString("Mentions", comment: "Inbox scope: mentions")
+        case .reminders:
+            NSLocalizedString("Reminders", comment: "Inbox scope: post reminders")
         case .messages:
             NSLocalizedString("Messages", comment: "Inbox scope: private messages")
         }

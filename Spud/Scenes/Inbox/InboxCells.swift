@@ -292,6 +292,207 @@ final class InboxConversationCell: UITableViewCell {
     }
 }
 
+/// A reminder row in the Inbox "Reminders" segment: the target post's
+/// thumbnail, title, and `c/<community>@<instance>` handle, plus a status
+/// line - a relative "in 2 days" countdown while `scheduled`, or "Tap to
+/// revisit" once `fired` (the same actionable state that lit the tab badge
+/// until the segment was opened). An unread-style dot marks a still-unseen
+/// fired reminder, matching `InboxCommentCell`/`InboxConversationCell`'s
+/// visual language for "something new happened here".
+final class InboxReminderCell: UITableViewCell {
+    static let reuseIdentifier = "InboxReminderCell"
+
+    private let unseenDot: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.backgroundColor = .systemBlue
+        view.layer.cornerRadius = 4
+        view.isHidden = true
+        return view
+    }()
+
+    private let thumbnailView: UIImageView = {
+        let view = UIImageView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.contentMode = .scaleAspectFill
+        view.clipsToBounds = true
+        view.layer.cornerRadius = 8
+        view.backgroundColor = .secondarySystemFill
+        view.image = UIImage(systemName: "photo")
+        view.tintColor = .tertiaryLabel
+        return view
+    }()
+
+    private let titleLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 2
+        label.font = .preferredFont(forTextStyle: .body)
+        label.textColor = .label
+        label.adjustsFontForContentSizeCategory = true
+        return label
+    }()
+
+    private let communityLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 1
+        label.font = .preferredFont(forTextStyle: .footnote)
+        label.textColor = .secondaryLabel
+        label.adjustsFontForContentSizeCategory = true
+        return label
+    }()
+
+    private let statusLabel: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.numberOfLines = 1
+        label.font = .preferredFont(forTextStyle: .subheadline)
+        label.adjustsFontForContentSizeCategory = true
+        return label
+    }()
+
+    private var thumbnailTask: Task<Void, Never>?
+
+    private static let thumbnailSize = CGSize(width: 56, height: 56)
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        accessoryType = .disclosureIndicator
+
+        // A `UIStackView` (not label-to-label anchors), matching
+        // `InboxCommentCell`/`InboxConversationCell`: its `intrinsicContentSize`
+        // is computed directly from the arranged subviews, which is what lets
+        // `systemLayoutSizeFitting` measure the column correctly even though
+        // `thumbnailView` is a fixed-size sibling. An explicit label-to-label
+        // anchor chain (title.bottom -> community.top, community.bottom ->
+        // status.top, status.bottom == marginsGuide.bottom, all required) was
+        // tried first and consistently mis-measured: with the test harness's
+        // `cell.frame.height = 2000` planting a *real*, required
+        // `contentView.height == 2000` constraint, the anchor chain has no
+        // single authoritative size signal to fall back on, so
+        // `systemLayoutSizeFitting` resolves the resulting required/required
+        // conflict by silently stretching `statusLabel` to ~1900pt instead of
+        // shrinking `contentView` - clipping the status line out of the
+        // rendered cell entirely. The stack view doesn't hit this because its
+        // own intrinsic-size override is authoritative regardless.
+        let textStack = UIStackView(arrangedSubviews: [titleLabel, communityLabel, statusLabel])
+        textStack.translatesAutoresizingMaskIntoConstraints = false
+        textStack.axis = .vertical
+        textStack.spacing = 2
+
+        contentView.addSubview(unseenDot)
+        contentView.addSubview(thumbnailView)
+        contentView.addSubview(textStack)
+
+        NSLayoutConstraint.activate([
+            unseenDot.widthAnchor.constraint(equalToConstant: 8),
+            unseenDot.heightAnchor.constraint(equalToConstant: 8),
+            unseenDot.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 6),
+            unseenDot.topAnchor.constraint(equalTo: contentView.layoutMarginsGuide.topAnchor, constant: 6),
+
+            thumbnailView.widthAnchor.constraint(equalToConstant: Self.thumbnailSize.width),
+            thumbnailView.heightAnchor.constraint(equalToConstant: Self.thumbnailSize.height),
+            thumbnailView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
+            thumbnailView.topAnchor.constraint(equalTo: contentView.layoutMarginsGuide.topAnchor),
+            thumbnailView.bottomAnchor.constraint(lessThanOrEqualTo: contentView.layoutMarginsGuide.bottomAnchor),
+
+            textStack.leadingAnchor.constraint(equalTo: thumbnailView.trailingAnchor, constant: 12),
+            textStack.trailingAnchor.constraint(equalTo: contentView.layoutMarginsGuide.trailingAnchor),
+            textStack.topAnchor.constraint(equalTo: contentView.layoutMarginsGuide.topAnchor),
+            textStack.bottomAnchor.constraint(equalTo: contentView.layoutMarginsGuide.bottomAnchor),
+        ])
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    /// `titleLabel.numberOfLines == 2`'s intrinsic height is only correct once
+    /// `preferredMaxLayoutWidth` matches its real constrained width: a
+    /// multi-line `UILabel`'s `intrinsicContentSize` reports the UNWRAPPED
+    /// (single-line) size unless something has told it what width to wrap at,
+    /// and `systemLayoutSizeFitting` (the snapshot tests' - and any
+    /// self-sizing table view's - cell-height measurement idiom) does not
+    /// reliably feed a solved constraint width back into that property before
+    /// reading intrinsic size. Left unset, a title whose text straddles the
+    /// 1-vs-2-line boundary measures as 1 line (undercounting the row's real
+    /// height) while the subsequent real layout pass still wraps it to 2,
+    /// silently squeezing `statusLabel` out of the rendered cell.
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        titleLabel.preferredMaxLayoutWidth = titleLabel.bounds.width
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        thumbnailTask?.cancel()
+        thumbnailTask = nil
+        thumbnailView.image = UIImage(systemName: "photo")
+    }
+
+    func configure(with reminder: ReminderListRow, imageService: ImageServiceType) {
+        titleLabel.text = reminder.titleSnapshot
+        communityLabel.text = "c/\(reminder.communityName)@\(reminder.instanceHost)"
+        unseenDot.isHidden = !reminder.unseen
+
+        let status = Self.statusDescription(for: reminder)
+        statusLabel.text = status
+        let isFired = reminder.status == ReminderRecord.Status.fired.rawValue
+        statusLabel.textColor = isFired ? .systemBlue : .secondaryLabel
+        statusLabel.font = isFired
+            ? UIFont.preferredFont(forTextStyle: .subheadline).withWeight(.semibold)
+            : .preferredFont(forTextStyle: .subheadline)
+
+        isAccessibilityElement = true
+        accessibilityTraits = .button
+        var label = String(
+            format: NSLocalizedString(
+                "Reminder: %@, %@",
+                comment: "Inbox reminder row accessibility label; first %@ is the post title, second %@ is the status (e.g. \"in 2 days\" or \"Tap to revisit\")"
+            ),
+            reminder.titleSnapshot,
+            status
+        )
+        // Mirrors InboxCommentCell/InboxConversationCell's unread dot: convey
+        // the blue unseen dot as text so VoiceOver users get the same "something
+        // new happened here" signal as sighted users.
+        if reminder.unseen {
+            label += ", " + NSLocalizedString("New", comment: "Inbox reminder row accessibility: the reminder is unseen")
+        }
+        accessibilityLabel = label
+
+        thumbnailTask?.cancel()
+        guard let urlString = reminder.thumbnailUrl, let url = URL(string: urlString) else { return }
+        thumbnailTask = Task { [weak self] in
+            for await state in imageService.fetch(url, downsampleTo: Self.thumbnailSize) {
+                if Task.isCancelled { return }
+                if case let .ready(image) = state {
+                    self?.thumbnailView.image = image
+                }
+            }
+        }
+    }
+
+    /// "Tap to revisit" once fired (the actionable state); otherwise a
+    /// relative countdown to `fireAt` ("in 2 days") while still scheduled.
+    /// Shared by the visible status label and the accessibility label so the
+    /// two can never drift apart.
+    private static func statusDescription(for reminder: ReminderListRow) -> String {
+        guard reminder.status != ReminderRecord.Status.fired.rawValue else {
+            return NSLocalizedString("Tap to revisit", comment: "Inbox reminder row status: the reminder has fired")
+        }
+        guard let fireAt = reminder.fireAt else { return "" }
+        // Built locally rather than as a stored formatter - a plain (non
+        // `@MainActor`) `static let` formatter fails Swift 6 strict
+        // concurrency, and a relative countdown must be evaluated against
+        // "now" on every render anyway (it can't be cached).
+        let formatter = RelativeDateTimeFormatter()
+        return formatter.localizedString(for: fireAt, relativeTo: Date())
+    }
+}
+
 private extension UIFont {
     func withWeight(_ weight: UIFont.Weight) -> UIFont {
         let descriptor = fontDescriptor.addingAttributes([

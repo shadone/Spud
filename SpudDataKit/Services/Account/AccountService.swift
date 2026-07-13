@@ -121,6 +121,13 @@ public protocol AccountServiceType: AnyObject {
     /// matches `keychainId`. Crashes if no such account is registered.
     func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType
 
+    /// Resolves the (cached) `ReminderService` for the account whose
+    /// `accountKeychainId` matches `keychainId` - mirrors
+    /// `lemmyService(forAccountKeychainId:)`'s per-account caching. Crashes if
+    /// no such account is registered (same assumption `lemmyService` makes: a
+    /// screen only ever reaches this through an already-resolved account).
+    func reminderService(forAccountKeychainId keychainId: String) -> ReminderService
+
     /// The account's preferred listing type. Falls back to the site's
     /// `defaultPostListingType`, then to `.All` if neither is set.
     func defaultListingType(forAccountKeychainId keychainId: String) -> Lemmy.ListingType
@@ -259,17 +266,52 @@ public class AccountService: AccountServiceType {
     /// path. See `lemmyService(forAccountKeychainId:)` for the self-healing use.
     private var lemmyServiceApiVersions: [String: LemmyKit.ApiVersion] = [:]
 
+    private var reminderServices: [String: ReminderService] = [:]
+
+    /// Builds the (shared) `ReminderNotificationScheduling` behind every
+    /// account's `ReminderService`. A **factory closure**, not a stored
+    /// instance, and evaluated lazily via `reminderNotificationScheduler`
+    /// below rather than at `init` - `UNReminderNotificationScheduler.init`
+    /// calls `UNUserNotificationCenter.current()`, which crashes the bare
+    /// `xctest` process every unit-test target runs under (no hosting app),
+    /// so defaulting this to an eagerly-constructed instance would crash
+    /// EVERY test that constructs an `AccountService`, not just ones that
+    /// touch reminders. Mirrors `LemmyService.outboxService()`'s
+    /// build-on-first-use pattern.
+    private let makeReminderNotificationScheduler: @Sendable () -> ReminderNotificationScheduling
+
+    /// The lazily-built, then-shared `ReminderNotificationScheduling` - built
+    /// on first access via `makeReminderNotificationScheduler`, then reused
+    /// for every account (it just wraps `UNUserNotificationCenter.current()`,
+    /// itself a shared singleton), unlike `lemmyServices`/`LemmyApi` which are
+    /// genuinely per-account.
+    private lazy var reminderNotificationScheduler: ReminderNotificationScheduling = makeReminderNotificationScheduler()
+
+    /// Backs `ReminderService`'s `notificationsEnabled` seam
+    /// (`PreferencesService.reminderNotificationsEnabled`, mirrored via a
+    /// closure — see `ReminderService`'s doc comment for why SpudDataKit can't
+    /// reference `PreferencesService` directly). `DependencyContainer` (the
+    /// app-target call site that owns `PreferencesService`) threads the live
+    /// value through when constructing `AccountService`; the `{ true }`
+    /// default here is used only by tests and other non-app hosts that
+    /// construct `AccountService` directly.
+    private let reminderNotificationsEnabled: @Sendable () -> Bool
+
     // MARK: Functions
 
     public convenience init(
         appDatabase: AppDatabase,
         reachabilityMonitor: ReachabilityMonitoring = StaticReachabilityMonitor(isOnline: true),
-        nodeInfoService: NodeInfoServiceType? = nil
+        nodeInfoService: NodeInfoServiceType? = nil,
+        makeReminderNotificationScheduler: @escaping @Sendable () -> ReminderNotificationScheduling = { UNReminderNotificationScheduler() },
+        reminderNotificationsEnabled: @escaping @Sendable () -> Bool = { true }
     ) {
         self.init(
             appDatabase: appDatabase,
             reachabilityMonitor: reachabilityMonitor,
-            nodeInfoService: nodeInfoService
+            nodeInfoService: nodeInfoService,
+            makeReminderNotificationScheduler: makeReminderNotificationScheduler,
+            reminderNotificationsEnabled: reminderNotificationsEnabled
         ) { instanceUrl, credential, apiVersion in
             LemmyApi(
                 instanceUrl: instanceUrl,
@@ -285,12 +327,16 @@ public class AccountService: AccountServiceType {
         credentialStore: CredentialStore = KeychainCredentialStore(),
         reachabilityMonitor: ReachabilityMonitoring = StaticReachabilityMonitor(isOnline: true),
         nodeInfoService: NodeInfoServiceType? = nil,
+        makeReminderNotificationScheduler: @escaping @Sendable () -> ReminderNotificationScheduling = { UNReminderNotificationScheduler() },
+        reminderNotificationsEnabled: @escaping @Sendable () -> Bool = { true },
         makeApi: @escaping @MainActor (_ instanceUrl: URL, _ credential: LemmyCredential?, _ apiVersion: LemmyKit.ApiVersion) -> LemmyApi
     ) {
         self.appDatabase = appDatabase
         self.credentialStore = credentialStore
         self.reachabilityMonitor = reachabilityMonitor
         platformRouter = nodeInfoService.map { PlatformRouter(nodeInfoService: $0) }
+        self.makeReminderNotificationScheduler = makeReminderNotificationScheduler
+        self.reminderNotificationsEnabled = reminderNotificationsEnabled
         self.makeApi = makeApi
     }
 
@@ -564,6 +610,27 @@ public class AccountService: AccountServiceType {
         return service
     }
 
+    /// Resolves (or lazily builds) the per-account `ReminderService` for
+    /// `keychainId`. Unlike `lemmyService(forAccountKeychainId:)` there's no
+    /// per-account network config to go stale, so - once built - the cached
+    /// instance is reused for the life of the process.
+    public func reminderService(forAccountKeychainId keychainId: String) -> ReminderService {
+        if let cached = reminderServices[keychainId] {
+            return cached
+        }
+        guard let accountId = appDatabase.accountRowIdSync(forKeychainId: keychainId) else {
+            fatalError("reminderService(forAccountKeychainId:) called for an unregistered account \(keychainId)")
+        }
+        let service = ReminderService(
+            accountId: accountId,
+            appDatabase: appDatabase,
+            scheduler: reminderNotificationScheduler,
+            notificationsEnabled: reminderNotificationsEnabled
+        )
+        reminderServices[keychainId] = service
+        return service
+    }
+
     /// Derives which LemmyKit API version to dispatch through for the account
     /// matching `keychainId`, from the site version last mirrored from getSite —
     /// the same signal Phase 1's capability detection uses. A parsed Lemmy major
@@ -766,6 +833,7 @@ public class AccountService: AccountServiceType {
         // authenticated api isn't reused.
         lemmyServices[keychainId] = nil
         lemmyServiceApiVersions[keychainId] = nil
+        reminderServices[keychainId] = nil
 
         deleteCredential(forKeychainId: keychainId)
         do {
@@ -796,6 +864,7 @@ public class AccountService: AccountServiceType {
         // authenticated api isn't reused.
         lemmyServices[keychainId] = nil
         lemmyServiceApiVersions[keychainId] = nil
+        reminderServices[keychainId] = nil
 
         // Signed-out accounts have no keychain credential to clear.
         if !isSignedOut(forAccountKeychainId: keychainId) {

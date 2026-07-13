@@ -287,6 +287,10 @@ private final class BackoffAccountService: AccountServiceType {
         stubbedLemmyService
     }
 
+    func reminderService(forAccountKeychainId _: String) -> ReminderService {
+        fatalError("reminderService not stubbed")
+    }
+
     func instanceActorId(forAccountKeychainId _: String) -> InstanceActorId? {
         InstanceActorId(from: "https://backoff-test.example.com")
     }

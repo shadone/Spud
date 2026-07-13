@@ -62,6 +62,7 @@ final class InboxViewController: UIViewController {
         case reply(InboxReplyItem)
         case mention(InboxMentionItem)
         case conversation(InboxConversation)
+        case reminder(ReminderListRow)
     }
 
     private lazy var segmentedControl: UISegmentedControl = {
@@ -80,6 +81,7 @@ final class InboxViewController: UIViewController {
         tableView.delegate = self
         tableView.register(InboxCommentCell.self, forCellReuseIdentifier: InboxCommentCell.reuseIdentifier)
         tableView.register(InboxConversationCell.self, forCellReuseIdentifier: InboxConversationCell.reuseIdentifier)
+        tableView.register(InboxReminderCell.self, forCellReuseIdentifier: InboxReminderCell.reuseIdentifier)
         return tableView
     }()
 
@@ -239,7 +241,9 @@ final class InboxViewController: UIViewController {
             for await _ in ObservationStream.values(of: {
                 (
                     viewModel.repliesPhase, viewModel.mentionsPhase, viewModel.messagesPhase,
+                    viewModel.remindersPhase,
                     viewModel.replies, viewModel.mentions, viewModel.conversations,
+                    viewModel.reminders,
                     viewModel.isLoadingMore
                 )
             }) {
@@ -256,6 +260,7 @@ final class InboxViewController: UIViewController {
         case .replies: viewModel.repliesPhase
         case .mentions: viewModel.mentionsPhase
         case .messages: viewModel.messagesPhase
+        case .reminders: viewModel.remindersPhase
         }
     }
 
@@ -264,6 +269,7 @@ final class InboxViewController: UIViewController {
         case .replies: viewModel.replies.isEmpty
         case .mentions: viewModel.mentions.isEmpty
         case .messages: viewModel.conversations.isEmpty
+        case .reminders: viewModel.reminders.isEmpty
         }
     }
 
@@ -282,7 +288,10 @@ final class InboxViewController: UIViewController {
         // to `.loaded` (empty) when gated, since nothing was fetched - without
         // this check that would fall through to the ordinary `.empty` state
         // ("No replies" etc.) instead of explaining why the inbox is gated.
-        guard !viewModel.isInboxGated else {
+        // The Reminders scope is exempt: it's a purely local, durable feature
+        // with no server dependency, so it renders normally even on an
+        // instance whose Lemmy inbox endpoints are gated.
+        guard !viewModel.isInboxGated || viewModel.scope == .reminders else {
             loadingIndicator.stopAnimating()
             refreshControl.endRefreshing()
             applySnapshot([])
@@ -319,6 +328,13 @@ final class InboxViewController: UIViewController {
     /// fires on every scope change and on signed-out.
     private func updateNavigationItems() {
         guard viewModel.isSignedIn else {
+            navigationItem.rightBarButtonItems = nil
+            return
+        }
+        // Reminders have no "read" state (only "seen", auto-cleared on entering
+        // the segment - see `InboxViewModel.scopeChanged`) and no compose action,
+        // so neither bar button applies here.
+        guard viewModel.scope != .reminders else {
             navigationItem.rightBarButtonItems = nil
             return
         }
@@ -364,6 +380,8 @@ final class InboxViewController: UIViewController {
             items = viewModel.mentions.map(Item.mention)
         case .messages:
             items = viewModel.conversations.map(Item.conversation)
+        case .reminders:
+            items = viewModel.reminders.map(Item.reminder)
         }
         applySnapshot(items)
     }
@@ -410,6 +428,13 @@ final class InboxViewController: UIViewController {
                 config.secondaryText = NSLocalizedString(
                     "Private conversations show up here.",
                     comment: "Inbox empty messages message"
+                )
+            case .reminders:
+                config.image = UIImage(systemName: "bell")
+                config.text = NSLocalizedString("No reminders", comment: "Inbox empty reminders title")
+                config.secondaryText = NSLocalizedString(
+                    "Set a reminder from a post's \u{201C}Remind Me\u{2026}\u{201D} menu and it shows up here.",
+                    comment: "Inbox empty reminders message"
                 )
             }
             contentUnavailableConfiguration = config
@@ -489,6 +514,14 @@ final class InboxViewController: UIViewController {
                 ) as! InboxConversationCell
                 cell.configure(with: conversation, imageService: imageService)
                 return cell
+
+            case let .reminder(reminder):
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: InboxReminderCell.reuseIdentifier,
+                    for: indexPath
+                ) as! InboxReminderCell
+                cell.configure(with: reminder, imageService: imageService)
+                return cell
             }
         }
     }
@@ -548,6 +581,22 @@ final class InboxViewController: UIViewController {
         guard let window = view.window as? MainWindow else { return }
         window.display(serverPostId: serverPostId, accountKeychainId: accountKeychainId)
     }
+
+    /// Opens a reminder's target post via the same `AppCoordinator` deep-link
+    /// funnel every other system entry point uses, rather than `MainWindow`
+    /// directly - a reminder's `apId` is a canonical ActivityPub URL (not a
+    /// locally-known server post id, and possibly for a post whose local `post`
+    /// cache row has since been evicted), so it routes through
+    /// `.objectAtURL`'s `resolve_object` resolution rather than
+    /// `window.display(serverPostId:)`.
+    private func openReminder(_ reminder: ReminderListRow) {
+        guard
+            let window = view.window as? MainWindow,
+            let apURL = URL(string: reminder.apId)
+        else { return }
+        let routingURL = URL.SpudInternalLink.objectAtURL(url: apURL).url
+        AppCoordinator.shared.open(routingURL, in: window)
+    }
 }
 
 // MARK: - UITableViewDelegate
@@ -598,6 +647,10 @@ extension InboxViewController: UITableViewDelegate {
                 dependencies: dependencies.nested
             )
             navigationController?.pushViewController(threadVC, animated: true)
+
+        case let .reminder(reminder):
+            Haptics.tap()
+            openReminder(reminder)
         }
     }
 
@@ -616,6 +669,8 @@ extension InboxViewController: UITableViewDelegate {
             return markReadSwipe { [weak self] in self?.viewModel.markMentionRead(mention) }
         case .conversation:
             return nil
+        case let .reminder(reminder):
+            return removeReminderSwipe { [weak self] in self?.viewModel.removeReminder(reminder) }
         }
     }
 
@@ -631,5 +686,20 @@ extension InboxViewController: UITableViewDelegate {
         markRead.backgroundColor = .systemBlue
         markRead.image = UIImage(systemName: "envelope.open")
         return UISwipeActionsConfiguration(actions: [markRead])
+    }
+
+    /// Destructive swipe to cancel a reminder (Reminders segment only) - mirrors
+    /// `markReadSwipe`'s shape but removes the row rather than marking it read.
+    private func removeReminderSwipe(_ action: @escaping () -> Void) -> UISwipeActionsConfiguration {
+        let remove = UIContextualAction(
+            style: .destructive,
+            title: NSLocalizedString("Remove", comment: "Inbox swipe action: remove a reminder")
+        ) { _, _, completion in
+            Haptics.tap()
+            action()
+            completion(true)
+        }
+        remove.image = UIImage(systemName: "bell.slash")
+        return UISwipeActionsConfiguration(actions: [remove])
     }
 }

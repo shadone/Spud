@@ -173,6 +173,25 @@ protocol PreferencesServiceType: AnyObject {
     /// the user's last choice. Default `false` — capturing pages is slower and
     /// heavier than warming images, so it's opt-in.
     var offlineDownloadArchiveLinks: Bool { get set }
+
+    // MARK: Reminders
+
+    /// Whether "Remind Me…" reminders are delivered as OS local notifications.
+    /// Default `true`. Off does not delete existing reminders or stop them
+    /// from firing into the Inbox "Reminders" segment — it only gates
+    /// `ReminderService` from scheduling/requesting permission for the OS
+    /// notification side of a newly-set reminder.
+    ///
+    /// `nonisolated` (unlike every other preference here) because
+    /// `ReminderService` - a `SpudDataKit` actor with no `Spud`/MainActor
+    /// dependency - reads it synchronously off-main via the `@Sendable () ->
+    /// Bool` closure `DependencyContainer` threads into `AccountService.init`.
+    /// Safe without `await`: the backing `@UserDefaultsBacked` property
+    /// wrapper's storage is a lock-guarded `Broadcaster` (see that type's doc
+    /// comment), so the read never touches unsynchronized state - only the
+    /// enclosing class's blanket `@MainActor` would otherwise require it.
+    nonisolated var reminderNotificationsEnabled: Bool { get set }
+    var reminderNotificationsEnabledStream: AsyncStream<Bool> { get }
 }
 
 @MainActor
@@ -383,6 +402,30 @@ class PreferencesService: PreferencesServiceType {
     @UserDefaultsBacked
     var offlineDownloadArchiveLinks: Bool
 
+    // MARK: Reminders
+
+    /// Manually-declared (not `@UserDefaultsBacked`-sugared) backing for
+    /// `reminderNotificationsEnabled`, because the property-wrapper attribute
+    /// can't carry a `nonisolated` modifier ("'nonisolated' is not supported
+    /// on properties with property wrappers"). `nonisolated(unsafe)` is
+    /// honest here, not a workaround: `UserDefaultsBacked`'s storage is a
+    /// lock-guarded `Broadcaster` (see that type's doc comment) - genuinely
+    /// thread-safe - so reading/writing it off the main actor is safe; only
+    /// the enclosing class's blanket `@MainActor` would otherwise require a
+    /// hop. See the protocol requirement's doc comment for why this one
+    /// preference (uniquely) needs to be readable without `await`.
+    private nonisolated(unsafe) var _reminderNotificationsEnabledBacking =
+        UserDefaultsBacked<Bool>(wrappedValue: true, key: "reminderNotificationsEnabled")
+
+    nonisolated var reminderNotificationsEnabled: Bool {
+        get { _reminderNotificationsEnabledBacking.wrappedValue }
+        set { _reminderNotificationsEnabledBacking.wrappedValue = newValue }
+    }
+
+    var reminderNotificationsEnabledStream: AsyncStream<Bool> {
+        _reminderNotificationsEnabledBacking.projectedValue
+    }
+
     /// Designated initializer. Injects the `UserDefaults` store that backs every
     /// `@UserDefaultsBacked` property so tests can run against a private,
     /// disposable suite instead of `.standard`. Each assignment must preserve the
@@ -435,6 +478,7 @@ class PreferencesService: PreferencesServiceType {
             key: "offlineDownloadArchiveLinks",
             storage: storage
         )
+        _reminderNotificationsEnabledBacking = .init(wrappedValue: true, key: "reminderNotificationsEnabled", storage: storage)
 
         if let migrated = URLSanitizerConfig.migratingFromLegacyXcancel(
             legacyEnabled: rewriteTwitterLinksToXcancel,

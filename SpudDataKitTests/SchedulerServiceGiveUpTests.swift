@@ -295,6 +295,10 @@ private final class GiveUpAccountService: AccountServiceType {
         stubbedLemmyService
     }
 
+    func reminderService(forAccountKeychainId _: String) -> ReminderService {
+        fatalError("reminderService not stubbed")
+    }
+
     func instanceActorId(forAccountKeychainId _: String) -> InstanceActorId? {
         InstanceActorId(from: "https://giveup-test.example.com")
     }

@@ -1910,6 +1910,38 @@ extension PostListViewController: PostSaveDispatching {
     }
 }
 
+// MARK: - PostReminderDispatching
+
+/// Folds the feed's "Remind Me…" context-menu item into the shared dispatch
+/// protocol so it goes through the same `ReminderService` calls the post
+/// detail overflow menu uses. The context menu is rebuilt fresh on every
+/// long-press (`contextMenuConfigurationForRowAt`), so unlike post detail's
+/// cached overflow-menu button, there's nothing to explicitly rebuild here.
+extension PostListViewController: PostReminderDispatching {
+    func remindMeMenuDidChange() { }
+
+    /// The whole-post fields for the "Remind Me…" menu, built from the feed
+    /// row at `serverPostId` - nil if the row isn't loaded (long-press raced
+    /// a row eviction), in which case the caller omits the submenu.
+    fileprivate func remindMeMenuTarget(serverPostId: Int64) -> RemindMeMenuTarget? {
+        guard let row = viewModel.row(forServerPostId: serverPostId) else { return nil }
+        // Prefer the community's own instance host; a community row with no
+        // resolvable actorId (rare) falls back to the account's home
+        // instance so `instanceHost` is never left empty.
+        let instanceHost = row.communityActorId.flatMap { InstanceActorId(from: $0)?.host }
+            ?? viewModel.accountScope.instanceActorId?.host
+            ?? ""
+        return RemindMeMenuTarget(
+            postServerId: row.serverPostId,
+            apId: row.originalPostUrl,
+            title: row.title,
+            communityName: row.communityName,
+            instanceHost: instanceHost,
+            thumbnailUrl: row.thumbnailUrl
+        )
+    }
+}
+
 // MARK: - UITableView Delegate
 
 extension PostListViewController: UITableViewDelegate {
@@ -2252,7 +2284,11 @@ extension PostListViewController: UITableViewDelegate {
 
                 // Grouped with inline submenus so each renders with a divider,
                 // matching the design's long-press menu layout.
-                let voteGroup = UIMenu(options: .displayInline, children: [upvoteAction, downvoteAction, saveAction])
+                var voteChildren: [UIMenuElement] = [upvoteAction, downvoteAction, saveAction]
+                if let self, let target = remindMeMenuTarget(serverPostId: serverPostId) {
+                    voteChildren.append(makeRemindMeMenu(for: target))
+                }
+                let voteGroup = UIMenu(options: .displayInline, children: voteChildren)
                 let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction, crossPostAction])
                 var navChildren: [UIMenuElement] = [visitCommunityAction, viewAuthorAction]
                 // "Also posted in" jump submenu — only when this post is a

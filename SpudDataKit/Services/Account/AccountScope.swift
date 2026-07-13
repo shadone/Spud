@@ -43,6 +43,14 @@ public struct AccountScope {
         accountService.lemmyService(forAccountKeychainId: accountKeychainId)
     }
 
+    /// The account's `ReminderService` (cached per account) - set/remove time
+    /// reminders and reconcile overdue ones. Used by the "Remind Me…" menu
+    /// (post detail + feed), the Inbox "Reminders" segment, and the
+    /// launch/foreground reconcile trigger.
+    public var reminderService: ReminderService {
+        accountService.reminderService(forAccountKeychainId: accountKeychainId)
+    }
+
     /// Whether this is a signed-out (anonymous) account. Read live, so sign-in
     /// gates fail safe even if the account is removed out from under the scope.
     public var isSignedOut: Bool {
