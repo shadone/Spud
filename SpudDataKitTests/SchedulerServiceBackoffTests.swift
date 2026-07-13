@@ -278,9 +278,22 @@ private func unreachable(_ function: StaticString = #function) -> Never {
 @MainActor
 private final class BackoffAccountService: AccountServiceType {
     let stubbedLemmyService: any LemmyServiceType
+    let stubbedReminderService: ReminderService
 
-    init(lemmyService: any LemmyServiceType) {
+    /// `reminderService` is now reached unconditionally by `SchedulerService.
+    /// tick()`'s activity-reminder poll sweep (Task 3, Post Reminders Phase 2)
+    /// for every signed-in account - including this test's seeded account -
+    /// regardless of whether it has any due activity reminder, so this can no
+    /// longer `fatalError` on the assumption it's unused. A real `ReminderService`
+    /// backed by the test's own `appDatabase` is harmless here: with no `reminder`
+    /// rows seeded, `pollDueActivityReminders` finds nothing due and no-ops.
+    init(lemmyService: any LemmyServiceType, appDatabase: AppDatabase) {
         stubbedLemmyService = lemmyService
+        stubbedReminderService = ReminderService(
+            accountId: 0,
+            appDatabase: appDatabase,
+            scheduler: ReminderServiceTests.FakeReminderNotificationScheduler()
+        )
     }
 
     func lemmyService(forAccountKeychainId _: String) -> any LemmyServiceType {
@@ -288,7 +301,7 @@ private final class BackoffAccountService: AccountServiceType {
     }
 
     func reminderService(forAccountKeychainId _: String) -> ReminderService {
-        fatalError("reminderService not stubbed")
+        stubbedReminderService
     }
 
     func instanceActorId(forAccountKeychainId _: String) -> InstanceActorId? {
@@ -405,7 +418,7 @@ struct SchedulerServiceBackoffTests {
         }
 
         let fakeLemmyService = FetchSiteLemmyService()
-        let fakeAccountService = BackoffAccountService(lemmyService: fakeLemmyService)
+        let fakeAccountService = BackoffAccountService(lemmyService: fakeLemmyService, appDatabase: appDatabase)
         let fakeReachability = StaticReachabilityMonitor(isOnline: false)
         let clock = ClockBox(Date(timeIntervalSince1970: 2_000_000))
 

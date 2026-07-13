@@ -88,4 +88,25 @@ public extension AppDatabase {
                 """, arguments: [cutoff])
         }
     }
+
+    /// Keychain ids of every signed-in account (`isSignedOutAccountType = 0`),
+    /// regardless of `MyUserInfo` staleness. Unlike `signedInAccountsAwaitingMyUserInfo`
+    /// / `signedInAccountsStale` (which filter down to the subset due for a
+    /// site-info refresh), this returns the full signed-in account set - the
+    /// activity-reminder poll sweep (`SchedulerService.pollActivityRemindersSweep`)
+    /// has its own due-gating per follow (`dueActivityRemindersSync`'s
+    /// `nextCheckAt <= asOf`), so it needs every account to check, not a
+    /// staleness-filtered subset. The `isSignedOutAccountType = 0` filter mirrors
+    /// the signed-in site-info sweep's account scope (and, as a side effect,
+    /// already excludes service accounts - `accountForSignedOut(isServiceAccount:)`
+    /// always creates them as `isSignedOutAccountType = 1`).
+    func signedInAccountKeychainIds() async throws -> [String] {
+        try await writer.read { db in
+            try String.fetchAll(db, sql: """
+                    SELECT accountKeychainId
+                    FROM account
+                    WHERE isSignedOutAccountType = 0
+                """)
+        }
+    }
 }
