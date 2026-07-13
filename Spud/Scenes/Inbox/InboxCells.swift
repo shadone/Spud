@@ -447,7 +447,7 @@ final class InboxReminderCell: UITableViewCell {
 
         isAccessibilityElement = true
         accessibilityTraits = .button
-        accessibilityLabel = String(
+        var label = String(
             format: NSLocalizedString(
                 "Reminder: %@, %@",
                 comment: "Inbox reminder row accessibility label; first %@ is the post title, second %@ is the status (e.g. \"in 2 days\" or \"Tap to revisit\")"
@@ -455,6 +455,13 @@ final class InboxReminderCell: UITableViewCell {
             reminder.titleSnapshot,
             status
         )
+        // Mirrors InboxCommentCell/InboxConversationCell's unread dot: convey
+        // the blue unseen dot as text so VoiceOver users get the same "something
+        // new happened here" signal as sighted users.
+        if reminder.unseen {
+            label += ", " + NSLocalizedString("New", comment: "Inbox reminder row accessibility: the reminder is unseen")
+        }
+        accessibilityLabel = label
 
         thumbnailTask?.cancel()
         guard let urlString = reminder.thumbnailUrl, let url = URL(string: urlString) else { return }
