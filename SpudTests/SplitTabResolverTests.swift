@@ -107,7 +107,7 @@ struct FakeDependencies:
             reachabilityMonitor: reachabilityMonitor,
             webArchiveStore: nil
         )
-        unreadCountService = UnreadCountService(accountService: accountService, diagnostics: diagnosticLog)
+        unreadCountService = UnreadCountService(accountService: accountService, appDatabase: appDatabase, diagnostics: diagnosticLog)
         explorerService = ExplorerService(appDatabase: appDatabase)
         nodeInfoService = StubNodeInfoService()
     }

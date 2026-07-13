@@ -50,13 +50,43 @@ public final class UnreadCountService: UnreadCountServiceType {
     private let accountService: AccountServiceType
 
     @ObservationIgnored
+    private let appDatabase: AppDatabase
+
+    @ObservationIgnored
     private let diagnostics: DiagnosticLogging
+
+    /// The last-fetched server-side unread count (replies/mentions/DMs),
+    /// tracked separately from the blended `unreadCount` so a reminder-count
+    /// change (a reminder firing, or the Reminders segment marking its fired
+    /// items seen) can recompute the badge total on its own, without waiting
+    /// for - or triggering - a network `refresh()`.
+    @ObservationIgnored
+    private var serverCount: UnreadCount = .zero
+
+    /// The active account's fired-and-unseen reminder count, blended into
+    /// `unreadCount.total` so a fired reminder lights the Inbox tab exactly
+    /// like an unread reply/mention. Kept live by a standing
+    /// `observeUnseenReminderCount` subscription (`observeReminderCount`),
+    /// not by polling - the badge reacts immediately to a reconcile, a fresh
+    /// fire, or `markRemindersSeen`.
+    @ObservationIgnored
+    private var reminderUnseenCount: Int = 0
+
+    @ObservationIgnored
+    private var reminderCountTask: Task<Void, Never>?
+    /// The account currently backing `reminderCountTask` - guards against
+    /// tearing down and restarting the observation on every `refresh()` call
+    /// for the SAME account (e.g. every Inbox `viewWillAppear`).
+    @ObservationIgnored
+    private var observedAccountKeychainId: String?
 
     public init(
         accountService: AccountServiceType,
+        appDatabase: AppDatabase,
         diagnostics: DiagnosticLogging
     ) {
         self.accountService = accountService
+        self.appDatabase = appDatabase
         self.diagnostics = diagnostics
     }
 
@@ -64,9 +94,14 @@ public final class UnreadCountService: UnreadCountServiceType {
         guard !accountKeychainId.isEmpty else { return }
 
         guard !accountService.isSignedOut(forAccountKeychainId: accountKeychainId) else {
+            stopObservingReminderCount()
+            serverCount = .zero
+            reminderUnseenCount = 0
             unreadCount = .zero
             return
         }
+
+        observeReminderCount(accountKeychainId: accountKeychainId)
 
         let instance = accountService.instanceActorId(forAccountKeychainId: accountKeychainId)?.hostWithPort
 
@@ -83,10 +118,13 @@ public final class UnreadCountService: UnreadCountServiceType {
             let count = try await accountService
                 .lemmyService(forAccountKeychainId: accountKeychainId)
                 .unreadCount()
-            unreadCount = count
+            serverCount = count
+            applyBlendedCount()
             // Read `total` directly — never re-sum the per-kind fields: a v4
             // backend reports only a combined total (per-kind are zero there), so
             // summing would log 0 for exactly the instances that report a total.
+            // Logs the server-reported total (not the reminder-blended badge) -
+            // this event is about the server refresh specifically.
             let total = count.total
             await diagnostics.record(
                 category: .unread,
@@ -120,15 +158,65 @@ public final class UnreadCountService: UnreadCountServiceType {
         // the badge count, so recomputing total from the (zero) per-kind fields
         // would wrongly wipe the badge on the first item marked read.
         let removed = replies + mentions + privateMessages
-        unreadCount = UnreadCount(
-            replies: max(0, unreadCount.replies - replies),
-            mentions: max(0, unreadCount.mentions - mentions),
-            privateMessages: max(0, unreadCount.privateMessages - privateMessages),
-            total: max(0, unreadCount.total - removed)
+        serverCount = UnreadCount(
+            replies: max(0, serverCount.replies - replies),
+            mentions: max(0, serverCount.mentions - mentions),
+            privateMessages: max(0, serverCount.privateMessages - privateMessages),
+            total: max(0, serverCount.total - removed)
         )
+        applyBlendedCount()
     }
 
     public func reset() {
-        unreadCount = .zero
+        // "Mark all read" is a Lemmy-server concept (replies/mentions/DMs);
+        // reminders are seen/unseen independently via the Reminders segment,
+        // so only the server-side count resets here.
+        serverCount = .zero
+        applyBlendedCount()
+    }
+
+    /// (Re)starts the live `observeUnseenReminderCount` stream for
+    /// `accountKeychainId`, unless it's already the account being observed. A
+    /// not-yet-imported account (no row to resolve) just zeroes the reminder
+    /// contribution rather than blocking the caller.
+    private func observeReminderCount(accountKeychainId: String) {
+        guard observedAccountKeychainId != accountKeychainId else { return }
+        stopObservingReminderCount()
+        observedAccountKeychainId = accountKeychainId
+
+        guard let accountId = appDatabase.accountRowIdSync(forKeychainId: accountKeychainId) else {
+            reminderUnseenCount = 0
+            applyBlendedCount()
+            return
+        }
+
+        let appDatabase = appDatabase
+        reminderCountTask = Task { @MainActor [weak self] in
+            for await count in appDatabase.observeUnseenReminderCount(accountId: accountId) {
+                if Task.isCancelled { break }
+                self?.reminderUnseenCount = count
+                self?.applyBlendedCount()
+            }
+        }
+    }
+
+    private func stopObservingReminderCount() {
+        reminderCountTask?.cancel()
+        reminderCountTask = nil
+        observedAccountKeychainId = nil
+    }
+
+    /// Recomputes the published `unreadCount` from the last-known
+    /// `serverCount` and `reminderUnseenCount`. The per-kind fields stay
+    /// server-only (a reminder is neither a reply, a mention, nor a DM); only
+    /// `total` - the badge value `MainWindow.applyUnreadBadge` reads - picks
+    /// up the reminder contribution.
+    private func applyBlendedCount() {
+        unreadCount = UnreadCount(
+            replies: serverCount.replies,
+            mentions: serverCount.mentions,
+            privateMessages: serverCount.privateMessages,
+            total: serverCount.total + reminderUnseenCount
+        )
     }
 }

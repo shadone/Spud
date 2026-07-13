@@ -109,7 +109,7 @@ struct DependencyContainer:
             // (links fall back to Safari/browser); it is never fatal here.
             webArchiveStore: try? OfflineWebArchiveStore(appDatabase: appDatabase)
         )
-        unreadCountService = UnreadCountService(accountService: accountService, diagnostics: diagnosticLog)
+        unreadCountService = UnreadCountService(accountService: accountService, appDatabase: appDatabase, diagnostics: diagnosticLog)
         explorerService = ExplorerService(appDatabase: appDatabase)
     }
 

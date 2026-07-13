@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import GRDB
 import LemmyKit
 import SpudUtilKit
 import Testing
@@ -375,7 +376,7 @@ struct UnreadCountServiceDiagnosticsTests {
         let spy = DiagnosticLogSpy()
         let lemmy = StubLemmyService(mode: .success(UnreadCount(replies: 3, mentions: 1, privateMessages: 2)))
         let accountService = StubAccountService(lemmyService: lemmy)
-        let service = UnreadCountService(accountService: accountService, diagnostics: spy)
+        let service = try UnreadCountService(accountService: accountService, appDatabase: AppDatabase.inMemory(), diagnostics: spy)
 
         await service.refresh(accountKeychainId: keychainId)
 
@@ -406,7 +407,7 @@ struct UnreadCountServiceDiagnosticsTests {
         let error = LemmyApiError.unknownServerError(httpStatusCode: 403, error: nil)
         let lemmy = StubLemmyService(mode: .failure(error))
         let accountService = StubAccountService(lemmyService: lemmy)
-        let service = UnreadCountService(accountService: accountService, diagnostics: spy)
+        let service = try UnreadCountService(accountService: accountService, appDatabase: AppDatabase.inMemory(), diagnostics: spy)
 
         await service.refresh(accountKeychainId: keychainId)
 
@@ -423,6 +424,104 @@ struct UnreadCountServiceDiagnosticsTests {
 
         // No finish event on failure.
         #expect(spy.events(matching: "refresh.finish").isEmpty)
+    }
+
+    // MARK: - Reminder count blend (Task 7)
+
+    /// A fired-and-unseen reminder blends into `unreadCount.total` - lighting
+    /// the Inbox tab exactly like an unread reply/mention - and the blend
+    /// updates LIVE off the standing `observeUnseenReminderCount` subscription
+    /// `refresh()` starts, with no second `refresh()` call needed to pick up a
+    /// later fire or `markRemindersSeen`.
+    @Test
+    func refresh_blendsFiredUnseenReminderCountIntoTotalAndStaysLive() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let accountId = try await Self.seedAccount(appDatabase: appDatabase, keychainId: keychainId)
+
+        let lemmy = StubLemmyService(mode: .success(UnreadCount(replies: 1, mentions: 0, privateMessages: 0)))
+        let accountService = StubAccountService(lemmyService: lemmy)
+        let service = UnreadCountService(accountService: accountService, appDatabase: appDatabase, diagnostics: DiagnosticLogSpy())
+
+        await service.refresh(accountKeychainId: keychainId)
+        #expect(service.unreadCount.total == 1, "no reminders yet - total is server-only")
+
+        // A fired-unseen reminder appears (mirrors a notification firing, or
+        // `ReminderService.reconcileOverdue` flipping a past-due one).
+        _ = try await appDatabase.upsertReminder(Self.makeFiredUnseenReminder(accountId: accountId))
+        await Self.waitUntil(timeout: 2) { service.unreadCount.total == 2 }
+        #expect(service.unreadCount.total == 2)
+        // Per-kind fields stay server-only - a reminder is neither a reply,
+        // mention, nor DM.
+        #expect(service.unreadCount.replies == 1)
+
+        // Opening the Reminders segment marks it seen - the badge drops back
+        // down without another `refresh()`.
+        try await appDatabase.markRemindersSeen(accountId: accountId)
+        await Self.waitUntil(timeout: 2) { service.unreadCount.total == 1 }
+        #expect(service.unreadCount.total == 1)
+    }
+
+    /// A signed-out account's badge is always zero, with no reminder
+    /// contribution even if the (now-inert) account has fired-unseen rows.
+    @Test
+    func refresh_signedOutIgnoresReminderCount() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let accountId = try await Self.seedAccount(appDatabase: appDatabase, keychainId: keychainId)
+        _ = try await appDatabase.upsertReminder(Self.makeFiredUnseenReminder(accountId: accountId))
+
+        let lemmy = StubLemmyService(mode: .success(UnreadCount(replies: 0, mentions: 0, privateMessages: 0)))
+        let accountService = StubAccountService(isSignedOut: true, lemmyService: lemmy)
+        let service = UnreadCountService(accountService: accountService, appDatabase: appDatabase, diagnostics: DiagnosticLogSpy())
+
+        await service.refresh(accountKeychainId: keychainId)
+
+        #expect(service.unreadCount.total == 0)
+    }
+
+    // MARK: - Fixtures
+
+    private static func seedAccount(appDatabase: AppDatabase, keychainId: String) async throws -> Int64 {
+        try await appDatabase.writer.write { db in
+            var instance = InstanceRecord(actorId: "https://lemmy.test")
+            try instance.insert(db)
+            var site = SiteRecord(instanceId: instance.id!)
+            try site.insert(db)
+            var account = AccountRecord(
+                siteId: site.id!,
+                accountKeychainId: keychainId,
+                isSignedOutAccountType: false
+            )
+            try account.insert(db)
+            return account.id!
+        }
+    }
+
+    private static func makeFiredUnseenReminder(accountId: Int64) -> ReminderRecord {
+        ReminderRecord(
+            accountId: accountId,
+            postServerId: 42,
+            apId: "https://lemmy.test/post/42",
+            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            kind: ReminderRecord.Kind.time.rawValue,
+            fireAt: Date(timeIntervalSince1970: 1_800_000_000),
+            status: ReminderRecord.Status.fired.rawValue,
+            unseen: true,
+            titleSnapshot: "A reminder",
+            communityName: "news",
+            instanceHost: "lemmy.test"
+        )
+    }
+
+    /// Polls `condition` until it's true or `timeout` elapses - the reminder
+    /// blend updates asynchronously off a GRDB `ValueObservation`, so a bare
+    /// synchronous assertion right after the write can race the observation's
+    /// dispatch.
+    private static func waitUntil(timeout: TimeInterval, _ condition: @MainActor () -> Bool) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+        }
     }
 }
 

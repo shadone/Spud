@@ -15,7 +15,7 @@ private let logger = Logger.appDatabase
 /// `thumbnailUrl` are copied straight from the record (already denormalized at
 /// write time), so the segment renders and opens a reminder without touching
 /// the (possibly evicted) `post` cache row.
-public struct ReminderListRow: Sendable, Equatable, Identifiable {
+public struct ReminderListRow: Sendable, Equatable, Hashable, Identifiable {
     public let id: Int64
     public let postServerId: Int64
     public let apId: String

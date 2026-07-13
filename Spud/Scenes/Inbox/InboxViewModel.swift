@@ -26,10 +26,16 @@ final class InboxViewModel {
     private(set) var repliesPhase: InboxPhase = .loading
     private(set) var mentionsPhase: InboxPhase = .loading
     private(set) var messagesPhase: InboxPhase = .loading
+    private(set) var remindersPhase: InboxPhase = .loading
 
     private(set) var replies: [InboxReplyItem] = []
     private(set) var mentions: [InboxMentionItem] = []
     private(set) var conversations: [InboxConversation] = []
+    /// The account's reminders, fired-and-unseen first then soonest-due,
+    /// straight from the durable `reminder` table (`observeReminderList`) -
+    /// unlike replies/mentions/messages, this scope has no server fetch: the
+    /// long-lived GRDB observation IS the data source. See `loadAll()`.
+    private(set) var reminders: [ReminderListRow] = []
 
     /// True while a `loadMore()` fetch for the conversation list is in flight, so
     /// the Messages scope's view controller can show a bottom spinner and gate
@@ -85,6 +91,12 @@ final class InboxViewModel {
     /// Long-lived GRDB observation of pending outbound DMs across all recipients.
     @ObservationIgnored
     private var outboundObservationTask: Task<Void, Never>?
+    /// Long-lived GRDB observation backing the Reminders segment
+    /// (`observeReminderList`). Started once (`startRemindersObservationIfNeeded`)
+    /// and left running for the life of the screen - reminders are local-only,
+    /// so there's no per-appearance re-fetch the way replies/mentions/messages have.
+    @ObservationIgnored
+    private var remindersObservationTask: Task<Void, Never>?
 
     /// Latest snapshot of confirmed conversations from `observeConversations`.
     @ObservationIgnored
@@ -137,20 +149,33 @@ final class InboxViewModel {
         messagesFetchTask?.cancel()
         conversationsObservationTask?.cancel()
         outboundObservationTask?.cancel()
+        remindersObservationTask?.cancel()
     }
 
+    /// Switches the active segment. Entering the Reminders segment marks its
+    /// fired items seen (clears the tab badge's reminder contribution -
+    /// `UnreadCountService` observes the same `unseenReminderCountSync` query
+    /// and drops the badge live, with no explicit refresh needed here).
     func scopeChanged(_ newScope: InboxScope) {
         guard newScope != scope else { return }
         scope = newScope
+        if newScope == .reminders {
+            markRemindersSeen()
+        }
     }
 
     /// Loads (or reloads) every scope. Called on appear and on pull-to-refresh.
     /// Reads `accountScope.capabilities` once (it is a live per-access DB read;
     /// see the type's doc comment) and, when the instance doesn't support the
-    /// inbox endpoints, skips all three fetches and exposes `isInboxGated` /
-    /// `gatedHost` for the view controller's explain-don't-hide state instead.
+    /// inbox endpoints, skips the three SERVER-backed fetches and exposes
+    /// `isInboxGated` / `gatedHost` for the view controller's explain-don't-hide
+    /// state instead. Reminders are unaffected by that gate - the durable
+    /// `reminder` table has no server dependency (Phase 1 has no backend at
+    /// all), so its observation starts unconditionally, ahead of the gate check.
     func loadAll() {
         guard isSignedIn else { return }
+        startRemindersObservationIfNeeded()
+
         let capabilities = accountScope.capabilities
         guard capabilities.can(.inbox) else {
             isInboxGated = true
@@ -396,6 +421,66 @@ final class InboxViewModel {
         //     promote to `.loaded`).
         if hasReceivedConversations, messagesPhase != .error || !conversations.isEmpty {
             messagesPhase = .loaded
+        }
+    }
+
+    // MARK: Reminders
+
+    /// Starts the long-lived `observeReminderList` stream once. Unlike the
+    /// other three scopes there is no server round-trip - the durable
+    /// `reminder` table already reflects every set/removed/fired reminder, so
+    /// a single observation (started on first `loadAll()`) is the entire data
+    /// path. A repeated call (every `loadAll()`, e.g. pull-to-refresh or a
+    /// later appearance) is a no-op once the task is running.
+    private func startRemindersObservationIfNeeded() {
+        guard remindersObservationTask == nil else { return }
+        guard let accountId else {
+            // No account row resolved yet - nothing to observe. Loaded (empty)
+            // rather than stuck loading, matching the Messages scope's
+            // no-account-row branch.
+            remindersPhase = .loaded
+            return
+        }
+        remindersObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await rows in appDatabase.observeReminderList(accountId: accountId) {
+                if Task.isCancelled { break }
+                reminders = rows
+                remindersPhase = .loaded
+            }
+        }
+    }
+
+    /// Clears `unseen` on every fired reminder of the account - called when
+    /// the Reminders segment is entered (`scopeChanged`). Best-effort: a
+    /// failure just leaves the badge stale until the next attempt, mirroring
+    /// the launch/foreground reconcile calls elsewhere in the app.
+    private func markRemindersSeen() {
+        guard let accountId else { return }
+        let appDatabase = appDatabase
+        Task {
+            do {
+                try await appDatabase.markRemindersSeen(accountId: accountId)
+            } catch {
+                logger.error("Mark reminders seen failed: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
+    /// Swipe-to-remove for a Reminders row: cancels the reminder (and its OS
+    /// notification, if any) via the account's `ReminderService`. The durable
+    /// observation re-emits without the removed row, so no local optimistic
+    /// splice is needed here (contrast `markReplyRead`/`markMentionRead`, which
+    /// mutate transient in-memory arrays).
+    func removeReminder(_ item: ReminderListRow) {
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await accountScope.reminderService.removeTimeReminder(postServerId: item.postServerId)
+            } catch {
+                logger.error("Remove reminder failed: \(String(describing: error), privacy: .public)")
+                alertService.handle(error, for: .setReminder)
+            }
         }
     }
 
