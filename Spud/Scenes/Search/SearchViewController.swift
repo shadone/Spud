@@ -57,7 +57,13 @@ final class SearchViewController: UIViewController {
         dependencies.own.imageService
     }
 
-    private var appDatabase: AppDatabase {
+    /// `internal` (not `private`): it witnesses `PostReminderDispatching.appDatabase`
+    /// (`PostContextMenuHost` conformance below), and a protocol witness must be at
+    /// least as visible as the protocol requirement even when the conformance is
+    /// declared in the same file (mirrors `PostListViewController`'s identical
+    /// non-private `appDatabase`/`alertService`/`appearanceService`, made internal
+    /// for the same reason).
+    var appDatabase: AppDatabase {
         dependencies.own.appDatabase
     }
 
@@ -580,6 +586,253 @@ final class SearchViewController: UIViewController {
     }
 }
 
+// MARK: - PostSaveDispatching
+
+extension SearchViewController: PostSaveDispatching {
+    var postActionsAccountScope: AccountScope {
+        viewModel.accountScope
+    }
+
+    var postActionsAlertService: AlertServiceType {
+        alertService
+    }
+
+    func currentSavedState(serverPostId: Int64) -> Bool {
+        postContextRow(forServerPostId: serverPostId)?.isSaved ?? false
+    }
+}
+
+// MARK: - PostReminderDispatching
+
+/// Search's context menu is rebuilt fresh on every long-press (like the
+/// feed's), so there's no cached menu to refresh when a reminder changes.
+extension SearchViewController: PostReminderDispatching {
+    func remindMeMenuDidChange() { }
+
+    /// The whole-post fields for the "Remind Me…" menu, built from the search
+    /// result row at `serverPostId` - nil if the row isn't loaded (long-press
+    /// raced a new query replacing the result set). Mirrors the feed's
+    /// `remindMeMenuTarget`.
+    func remindMeMenuTarget(serverPostId: Int64) -> RemindMeMenuTarget? {
+        guard let row = postContextRow(forServerPostId: serverPostId) else { return nil }
+        // Prefer the community's own instance host; fall back to the account's
+        // home instance so `instanceHost` is never left empty (mirrors the
+        // feed's `remindMeMenuTarget`).
+        let instanceHost = row.communityActorId.flatMap { InstanceActorId(from: $0)?.host }
+            ?? viewModel.accountScope.instanceActorId?.host
+            ?? ""
+        return RemindMeMenuTarget(
+            postServerId: row.serverPostId,
+            apId: row.originalPostUrl,
+            title: row.title,
+            communityName: row.communityName,
+            instanceHost: instanceHost,
+            thumbnailUrl: row.thumbnailUrl,
+            numberOfComments: row.numberOfComments
+        )
+    }
+}
+
+// MARK: - PostContextMenuHost
+
+/// Adopts the shared `PostContextMenuBuilder` for a search post result's
+/// long-press menu, reaching feed parity (plan Task 2). Search has no
+/// cross-post grouping or moderation context, so `postCrossPostSiblingsSubmenu`
+/// / `postModerationSubmenu` are left at `PostContextMenuHost`'s nil defaults.
+/// Every action below mirrors its `PostListViewController` counterpart
+/// (`PostListViewController.swift:1608-1837`), adapted to Search's
+/// `viewModel.accountScope` / `dependencies` seams.
+extension SearchViewController: PostContextMenuHost {
+    /// The search result row for `serverPostId`, or nil if it isn't (or is no
+    /// longer) among the current results — e.g. a long-press raced a new
+    /// query replacing the result set.
+    func postContextRow(forServerPostId serverPostId: Int64) -> PostListRow? {
+        viewModel.results.posts.first { $0.row.serverPostId == serverPostId }?.row
+    }
+
+    func postReply(serverPostId: Int64) {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(title: NSLocalizedString("Sign in to comment", comment: "Sign-in gate title when a signed-out user tries to comment"))
+            return
+        }
+        Haptics.tap()
+        let composer = ComposerViewController.makeSheet(
+            target: .postReply(serverPostId: Lemmy.PostID(serverPostId)),
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.own
+        )
+        present(composer, animated: true)
+    }
+
+    func postShare(serverPostId: Int64) {
+        // Mirrors `PostListViewController.sharePost`: prefer the row's `ap_id`
+        // permalink, falling back to the account's home-instance actor id (a
+        // raw actor-id STRING, distinct from `AccountScope.instanceActorId`'s
+        // typed `InstanceActorId` -- read via the same `AppDatabase` sync
+        // helper the feed's view model uses).
+        guard let url = LinkURL.forPost(
+            instance: preferencesService.shareLinkInstance,
+            originalPostUrl: postContextRow(forServerPostId: serverPostId)?.originalPostUrl,
+            serverPostId: serverPostId,
+            instanceActorId: appDatabase.accountInstanceActorIdSync(forKeychainId: accountKeychainId)
+        ) else {
+            Haptics.warning()
+            return
+        }
+        presentShareSheet(for: url)
+    }
+
+    func postCrossPost(serverPostId: Int64) {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(title: NSLocalizedString("Sign in to post", comment: "Sign-in gate title when a signed-out user tries to cross-post"))
+            return
+        }
+        guard let row = postContextRow(forServerPostId: serverPostId) else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        // `NewPostViewController.Dependencies` needs `HasPreferencesService`,
+        // which only `NestedDependencies` carries (Search's own
+        // `OwnDependencies` doesn't) -- `.nested`, not `.own`.
+        let composer = NewPostViewController.makeCrossPostSheet(
+            initialTitle: row.title,
+            initialUrl: row.url,
+            initialBody: crossPostBody(originalApId: row.originalPostUrl, originalBody: nil),
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        ) { [weak self] clientToken in
+            guard let self, let window = view.window as? MainWindow else { return }
+            window.displayPending(clientToken: clientToken, accountKeychainId: accountKeychainId)
+        }
+        present(composer, animated: true)
+    }
+
+    func postVisitCommunity(serverPostId: Int64) {
+        guard
+            let row = postContextRow(forServerPostId: serverPostId),
+            let actorId = row.communityActorId,
+            let instance = InstanceActorId(from: actorId)
+        else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        pushCommunity(name: row.communityName, instance: instance)
+    }
+
+    func postViewAuthor(serverPostId: Int64) {
+        guard
+            let row = postContextRow(forServerPostId: serverPostId),
+            let actorId = row.creatorActorId,
+            let instance = InstanceActorId(from: actorId)
+        else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        pushPerson(personId: Lemmy.PersonID(row.creatorPersonId), instance: instance)
+    }
+
+    func postHide(serverPostId: Int64) {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(title: NSLocalizedString("Sign in to hide posts", comment: "Sign-in gate title when a signed-out user tries to hide a post"))
+            return
+        }
+        // Read live at action time (no caching in the VC) - see AccountScope's
+        // doc comment.
+        guard viewModel.accountScope.capabilities.can(.hidePosts) else {
+            presentCapabilityGate(
+                for: .hidePosts,
+                host: viewModel.accountScope.instanceActorId?.hostWithPort,
+                sourceView: nil
+            )
+            return
+        }
+        Task { [weak self] in
+            guard let self else { return }
+            Haptics.tap()
+            do {
+                try await viewModel.accountScope.lemmyService
+                    .hidePost(serverPostId: Lemmy.PostID(serverPostId), hidden: true)
+            } catch {
+                alertService.handle(error, for: .hidePost)
+            }
+        }
+    }
+
+    func postBlockAuthor(serverPostId: Int64) {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(title: NSLocalizedString("Sign in to block", comment: "Sign-in gate title when a signed-out user tries to block"))
+            return
+        }
+        guard let row = postContextRow(forServerPostId: serverPostId) else { return }
+        let handle = row.creatorName ?? NSLocalizedString("this user", comment: "Fallback author handle when the name is unknown")
+        presentDestructiveConfirmation(
+            title: String(format: NSLocalizedString("Block %@?", comment: "Block user confirmation title"), handle),
+            message: NSLocalizedString(
+                "You won't see posts or comments from this user. You can unblock them later.",
+                comment: "Block user confirmation message"
+            ),
+            confirmTitle: NSLocalizedString("Block", comment: "Block user confirm button"),
+            sourceView: view
+        ) { [weak self] in
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    try await viewModel.accountScope.lemmyService
+                        .setBlocked(serverPersonId: Lemmy.PersonID(row.creatorPersonId), blocked: true)
+                } catch {
+                    alertService.handle(error, for: .setBlockedPerson)
+                }
+            }
+        }
+    }
+
+    func postReport(serverPostId: Int64) {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(title: NSLocalizedString("Sign in to report", comment: "Sign-in gate title when a signed-out user tries to report"))
+            return
+        }
+        presentReportReasonAlert(
+            title: NSLocalizedString("Report post", comment: "Report post dialog title"),
+            message: NSLocalizedString("Tell the moderators why you're reporting this post.", comment: "Report post dialog message")
+        ) { [weak self] reason in
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    try await viewModel.accountScope.lemmyService
+                        .reportPost(serverPostId: Lemmy.PostID(serverPostId), reason: reason)
+                    Haptics.success()
+                    presentReportSubmittedConfirmation()
+                } catch {
+                    alertService.handle(error, for: .reportPost)
+                }
+            }
+        }
+    }
+
+    /// Mutes the post's community for `duration` (client-local, not sign-in
+    /// gated). Calls the same `AppDatabase` mute API the feed's
+    /// `PostListViewModel.muteCommunity(communityActorId:until:)` does --
+    /// synchronous, so no `Task` wrapper is needed.
+    func postMuteCommunity(serverPostId: Int64, duration: MuteDuration) {
+        guard
+            let row = postContextRow(forServerPostId: serverPostId),
+            let actorId = row.communityActorId
+        else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        appDatabase.muteCommunitySync(
+            forKeychainId: accountKeychainId,
+            communityActorId: actorId,
+            until: duration.until
+        )
+    }
+}
+
 // MARK: - UITableViewDelegate
 
 extension SearchViewController: UITableViewDelegate {
@@ -622,6 +875,32 @@ extension SearchViewController: UITableViewDelegate {
             // Reuse the open-URL instance row's path: push the in-app instance
             // screen for the Explorer record carried by the result.
             openInstance(record: result.record)
+        }
+    }
+
+    /// Attaches the shared post long-press menu to a `.post` row, reaching
+    /// feed parity (plan Task 2). Only `.post` is wired here -- the other
+    /// result kinds return nil until Tasks 3-6 fill them in.
+    func tableView(
+        _ tableView: UITableView,
+        contextMenuConfigurationForRowAt indexPath: IndexPath,
+        point: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard let item = dataSource.itemIdentifier(for: indexPath) else { return nil }
+        switch item {
+        case let .post(result):
+            let general = appearanceService.general
+            return UIContextMenuConfiguration(identifier: indexPath as NSCopying, previewProvider: nil) { [weak self] _ in
+                guard let self else { return nil }
+                return PostContextMenuBuilder.menu(
+                    forServerPostId: result.row.serverPostId,
+                    host: self,
+                    upvoteIcon: general.upvoteIcon,
+                    downvoteIcon: general.downvoteIcon
+                )
+            }
+        case .community, .user, .comment, .instance, .openURL:
+            return nil
         }
     }
 }

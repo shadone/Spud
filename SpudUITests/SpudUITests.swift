@@ -111,6 +111,21 @@ class SpudUITests: XCTestCase {
                 ),
                 response: SBTStubResponse(fileNamed: "resolve-object-community-tincidunt.json")
             )
+
+            // Search's `.posts` scope (the default) hits the neutral search
+            // surface's v3 path, `GET /api/v3/search?q=<query>&type_=Posts` (no
+            // `sort` param -- a nil sort omits it, letting the server apply its
+            // default). Returns the SAME post 1549703 / tincidunt community /
+            // finibus creator fixture the feed stubs above use, so a search
+            // result's context menu resolves the identical "Visit c/tincidunt".
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: "discuss.tchncs.de/api/v3/search",
+                    query: ["q=tincidunt", "type_=Posts"],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "search-posts-tincidunt.json")
+            )
         }
     }
 
@@ -245,6 +260,55 @@ class SpudUITests: XCTestCase {
         XCTAssertTrue(
             visitAction.waitForExistence(timeout: 5),
             "Post context menu should offer 'Visit c/tincidunt'"
+        )
+        visitAction.tap()
+
+        let navBar = app.navigationBars
+
+        let overflowButton = navBar.buttons["More"]
+        XCTAssertTrue(
+            overflowButton.waitForExistence(timeout: 10),
+            "Community navbar should show the overflow (More) menu button"
+        )
+
+        let sortButton = navBar.buttons["Sort posts"]
+        XCTAssertTrue(
+            sortButton.exists,
+            "Community navbar should show the post sort button"
+        )
+    }
+
+    /// Search's post-result rows must carry the SAME shared long-press context
+    /// menu as the feed (Task 2 of the search-context-menus initiative:
+    /// `SearchViewController` conforms to `PostContextMenuHost` and attaches
+    /// `PostContextMenuBuilder`'s menu via `contextMenuConfigurationForRowAt`).
+    /// This is the Search-side sibling of
+    /// `test_VisitCommunityFromPostContextMenu_showsNavbarActions`: search for a
+    /// post, long-press its search-result row, choose "Visit c/tincidunt", and
+    /// land on the full community screen with its navbar actions -- proving the
+    /// menu is wired end to end (not just present-but-inert), and reusing that
+    /// test's regression guard against the resolve-then-show wrapper embedding
+    /// its content as a child (which drops the navbar actions silently).
+    func test_Search_PostResultContextMenu_VisitCommunity() {
+        let searchTab = app.buttons["Search"].firstMatch
+        XCTAssertTrue(searchTab.waitForExistence(timeout: 10), "Search tab button not found")
+        searchTab.tap()
+
+        let searchField = app.searchFields.firstMatch
+        XCTAssertTrue(searchField.waitForExistence(timeout: 10), "Search field not found")
+        searchField.tap()
+        searchField.typeText("tincidunt")
+
+        let postCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
+        XCTAssertTrue(postCell.waitForExistence(timeout: 10), "Search should return the stubbed post result")
+
+        // Long-press the search result to open its context menu, then choose its community.
+        postCell.press(forDuration: 1.2)
+
+        let visitAction = app.buttons["Visit c/tincidunt"]
+        XCTAssertTrue(
+            visitAction.waitForExistence(timeout: 5),
+            "Search post-result context menu should offer 'Visit c/tincidunt'"
         )
         visitAction.tap()
 
