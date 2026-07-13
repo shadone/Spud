@@ -205,7 +205,8 @@ final class SearchResultCellsSnapshotTests: XCTestCase {
                 subscribersText: "48.2K",
                 iconUrl: iconUrl,
                 followState: .notFollowing,
-                isNsfw: false
+                isNsfw: false,
+                communityUrl: "https://lemmy.world/c/photography"
             ),
             imageService: StaticImageService()
         )

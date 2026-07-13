@@ -74,6 +74,15 @@ struct SearchCommunityResult: Hashable, Identifiable {
     let iconUrl: URL?
     let followState: FollowState
     let isNsfw: Bool
+    /// The community's federation actor id (e.g.
+    /// `https://lemmy.world/c/tincidunt`). Used as the client-local mute-database
+    /// key (mirrors `CommunityListRow.communityUrl`) and as the Share / Copy Link
+    /// destination in the long-press context menu.
+    let communityUrl: String
+    /// Whether the signed-in viewer has blocked this community. Sourced from the
+    /// live per-viewer `Lemmy.CommunityView` (unlike Discover's Explorer-directory
+    /// rows, which carry no per-viewer relationship state).
+    let isBlocked: Bool
 
     var id: Lemmy.CommunityID {
         serverCommunityId
@@ -91,7 +100,9 @@ struct SearchCommunityResult: Hashable, Identifiable {
         subscribersText: String,
         iconUrl: URL?,
         followState: FollowState,
-        isNsfw: Bool
+        isNsfw: Bool,
+        communityUrl: String,
+        isBlocked: Bool = false
     ) {
         self.serverCommunityId = serverCommunityId
         self.name = name
@@ -101,6 +112,8 @@ struct SearchCommunityResult: Hashable, Identifiable {
         self.iconUrl = iconUrl
         self.followState = followState
         self.isNsfw = isNsfw
+        self.communityUrl = communityUrl
+        self.isBlocked = isBlocked
     }
 
     init?(view: Lemmy.CommunityView) {
@@ -119,6 +132,8 @@ struct SearchCommunityResult: Hashable, Identifiable {
         iconUrl = community.iconUrl.flatMap { URL(string: $0) }
         followState = view.followState
         isNsfw = community.nsfw
+        communityUrl = community.apId
+        isBlocked = view.isBlocked
     }
 }
 

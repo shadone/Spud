@@ -126,6 +126,19 @@ class SpudUITests: XCTestCase {
                 ),
                 response: SBTStubResponse(fileNamed: "search-posts-tincidunt.json")
             )
+
+            // Search's `.communities` scope hits the same neutral v3 search path with
+            // `type_=Communities`. Returns the same tincidunt `CommunityView` fixture
+            // the "Visit c/tincidunt" tests use, so a community search result's context
+            // menu resolves through the SAME already-stubbed `resolve_object` above.
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: "discuss.tchncs.de/api/v3/search",
+                    query: ["q=tincidunt", "type_=Communities"],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "search-communities-tincidunt.json")
+            )
         }
     }
 
@@ -311,6 +324,64 @@ class SpudUITests: XCTestCase {
             "Search post-result context menu should offer 'Visit c/tincidunt'"
         )
         visitAction.tap()
+
+        let navBar = app.navigationBars
+
+        let overflowButton = navBar.buttons["More"]
+        XCTAssertTrue(
+            overflowButton.waitForExistence(timeout: 10),
+            "Community navbar should show the overflow (More) menu button"
+        )
+
+        let sortButton = navBar.buttons["Sort posts"]
+        XCTAssertTrue(
+            sortButton.exists,
+            "Community navbar should show the post sort button"
+        )
+    }
+
+    /// Search's community-result rows carry the SAME shared long-press context
+    /// menu as Discover's directory rows (Task 3 of the search-context-menus
+    /// initiative: `SearchViewController` conforms to `CommunityContextMenuHost`
+    /// and attaches `CommunityContextMenuBuilder`'s menu via
+    /// `contextMenuConfigurationForRowAt`). Mirrors
+    /// `test_Search_PostResultContextMenu_VisitCommunity`: search for a
+    /// community, switch to the Communities scope, long-press its search-result
+    /// row, choose "Open Community", and land on the full community screen with
+    /// its navbar actions -- proving the menu is wired end to end and reusing
+    /// that test's regression guard against the resolve-then-show wrapper
+    /// embedding its content as a child (which drops the navbar actions
+    /// silently).
+    func test_Search_CommunityResultContextMenu_OpenCommunity() {
+        let searchTab = app.buttons["Search"].firstMatch
+        XCTAssertTrue(searchTab.waitForExistence(timeout: 10), "Search tab button not found")
+        searchTab.tap()
+
+        let searchField = app.searchFields.firstMatch
+        XCTAssertTrue(searchField.waitForExistence(timeout: 10), "Search field not found")
+        searchField.tap()
+        searchField.typeText("tincidunt")
+
+        // Switch from the default Posts scope to Communities. The scope bar
+        // renders inside the search bar's own navigation-bar area, so scope it
+        // to `navigationBars` to disambiguate from the sidebar/tab-bar
+        // "Communities" button, which shares the same accessibility label.
+        let communitiesScope = app.navigationBars.buttons["Communities"]
+        XCTAssertTrue(communitiesScope.waitForExistence(timeout: 10), "Communities search scope button not found")
+        communitiesScope.tap()
+
+        let communityCell = app.cell(containing: "tincidunt")
+        XCTAssertTrue(communityCell.waitForExistence(timeout: 10), "Search should return the stubbed community result")
+
+        // Long-press the search result to open its context menu, then open the community.
+        communityCell.press(forDuration: 1.2)
+
+        let openAction = app.buttons["Open Community"]
+        XCTAssertTrue(
+            openAction.waitForExistence(timeout: 5),
+            "Search community-result context menu should offer 'Open Community'"
+        )
+        openAction.tap()
 
         let navBar = app.navigationBars
 

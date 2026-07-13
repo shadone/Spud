@@ -469,6 +469,18 @@ final class SearchViewController: UIViewController {
         window.display(serverPostId: serverPostId, accountKeychainId: accountKeychainId)
     }
 
+    /// Pushes the Community screen for a search `.community` result. Shared by
+    /// the row tap and the long-press menu's "Open Community" action.
+    private func openCommunity(_ result: SearchCommunityResult) {
+        let vc = CommunityOrLoadingViewController(
+            communityName: result.name,
+            instance: result.instance,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
     // MARK: Actions
 
     private func setSubscribed(result: SearchCommunityResult, subscribe: Bool, cell: SearchCommunityCell?) {
@@ -833,6 +845,83 @@ extension SearchViewController: PostContextMenuHost {
     }
 }
 
+// MARK: - CommunityContextMenuHost
+
+/// Adopts the shared `CommunityContextMenuBuilder` for a search `.community`
+/// result's long-press menu (plan Task 3), mirroring Discover's
+/// `CommunityContextMenu` item-for-item. Unlike Discover's Explorer-directory
+/// rows, a search result carries live per-viewer state (`followState`,
+/// `serverCommunityId`) straight from the network response, so subscribe/block
+/// call `LemmyService` directly instead of first resolving a bare name.
+extension SearchViewController: CommunityContextMenuHost {
+    func communityOpen(_ result: SearchCommunityResult) {
+        Haptics.tap()
+        openCommunity(result)
+    }
+
+    /// Reuses the existing subscribe-button gating/dispatch (`setSubscribed(result:subscribe:cell:)`
+    /// at `:474`), passing `cell: nil` since the long-press menu has no cell to
+    /// optimistically update.
+    func communitySetSubscribed(_ result: SearchCommunityResult, subscribed: Bool) {
+        setSubscribed(result: result, subscribe: subscribed, cell: nil)
+    }
+
+    /// Client-local mute state, keyed by the community's federation actor id
+    /// (mirrors `DiscoverViewModel.isMuted(_:)`).
+    func communityIsMuted(_ result: SearchCommunityResult) -> Bool {
+        appDatabase.isCommunityMutedSync(
+            forKeychainId: accountKeychainId,
+            communityActorId: result.communityUrl
+        )
+    }
+
+    func communityMute(_ result: SearchCommunityResult, duration: MuteDuration) {
+        Haptics.tap()
+        appDatabase.muteCommunitySync(
+            forKeychainId: accountKeychainId,
+            communityActorId: result.communityUrl,
+            until: duration.until
+        )
+    }
+
+    func communityUnmute(_ result: SearchCommunityResult) {
+        Haptics.tap()
+        appDatabase.unmuteCommunitySync(
+            forKeychainId: accountKeychainId,
+            communityActorId: result.communityUrl
+        )
+    }
+
+    /// Blocks the community on the signed-in account, gated on sign-in and a
+    /// destructive confirmation (mirrors `postBlockAuthor`'s pattern for the
+    /// person-block overload).
+    func communityBlock(_ result: SearchCommunityResult) {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(title: NSLocalizedString("Sign in to block", comment: "Sign-in gate title when a signed-out user tries to block"))
+            return
+        }
+        presentDestructiveConfirmation(
+            title: String(format: NSLocalizedString("Block %@?", comment: "Block community confirmation title"), "c/\(result.name)"),
+            message: NSLocalizedString(
+                "You won't see posts or comments from this community. You can unblock it later.",
+                comment: "Block community confirmation message"
+            ),
+            confirmTitle: NSLocalizedString("Block", comment: "Block community confirm button"),
+            sourceView: view
+        ) { [weak self] in
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    try await viewModel.accountScope.lemmyService
+                        .setBlocked(serverCommunityId: result.serverCommunityId, blocked: true)
+                } catch {
+                    alertService.handle(error, for: .setBlockedCommunity)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - UITableViewDelegate
 
 extension SearchViewController: UITableViewDelegate {
@@ -850,13 +939,7 @@ extension SearchViewController: UITableViewDelegate {
             openPost(serverPostId: result.serverPostId)
 
         case let .community(result):
-            let vc = CommunityOrLoadingViewController(
-                communityName: result.name,
-                instance: result.instance,
-                accountKeychainId: accountKeychainId,
-                dependencies: dependencies.nested
-            )
-            navigationController?.pushViewController(vc, animated: true)
+            openCommunity(result)
 
         case let .user(result):
             let vc = PersonOrLoadingViewController(
@@ -878,9 +961,9 @@ extension SearchViewController: UITableViewDelegate {
         }
     }
 
-    /// Attaches the shared post long-press menu to a `.post` row, reaching
-    /// feed parity (plan Task 2). Only `.post` is wired here -- the other
-    /// result kinds return nil until Tasks 3-6 fill them in.
+    /// Attaches the shared post/community long-press menus to `.post` and
+    /// `.community` rows, reaching feed/Discover parity (plan Tasks 2-3). The
+    /// other result kinds return nil until Tasks 4-6 fill them in.
     func tableView(
         _ tableView: UITableView,
         contextMenuConfigurationForRowAt indexPath: IndexPath,
@@ -899,7 +982,12 @@ extension SearchViewController: UITableViewDelegate {
                     downvoteIcon: general.downvoteIcon
                 )
             }
-        case .community, .user, .comment, .instance, .openURL:
+        case let .community(result):
+            return UIContextMenuConfiguration(identifier: indexPath as NSCopying, previewProvider: nil) { [weak self] _ in
+                guard let self else { return nil }
+                return CommunityContextMenuBuilder.menu(for: result, host: self)
+            }
+        case .user, .comment, .instance, .openURL:
             return nil
         }
     }
