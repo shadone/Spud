@@ -472,15 +472,28 @@ final class InboxViewModel {
     }
 
     /// Swipe-to-remove for a Reminders row: cancels the reminder (and its OS
-    /// notification, if any) via the account's `ReminderService`. The durable
-    /// observation re-emits without the removed row, so no local optimistic
-    /// splice is needed here (contrast `markReplyRead`/`markMentionRead`, which
-    /// mutate transient in-memory arrays).
+    /// notification, if any) via the account's `ReminderService`. Dispatches
+    /// by `item.kind` (mirrors `PostReminderDispatching`'s toggle) - a `time`
+    /// row calls `removeTimeReminder`, an `activity` row calls
+    /// `removeActivityReminder`. This segment now surfaces both kinds
+    /// (Phase 2 added activity/"new comments" follows alongside time
+    /// reminders), and a post can carry one of each independently, so always
+    /// calling `removeTimeReminder` would either no-op on an activity-only row
+    /// or wrongly delete a co-existing time reminder while leaving the
+    /// activity follow in place. The durable observation re-emits without the
+    /// removed row, so no local optimistic splice is needed here (contrast
+    /// `markReplyRead`/`markMentionRead`, which mutate transient in-memory
+    /// arrays).
     func removeReminder(_ item: ReminderListRow) {
         Task { [weak self] in
             guard let self else { return }
             do {
-                try await accountScope.reminderService.removeTimeReminder(postServerId: item.postServerId)
+                switch item.kind {
+                case ReminderRecord.Kind.activity.rawValue:
+                    try await accountScope.reminderService.removeActivityReminder(postServerId: item.postServerId)
+                default:
+                    try await accountScope.reminderService.removeTimeReminder(postServerId: item.postServerId)
+                }
             } catch {
                 logger.error("Remove reminder failed: \(String(describing: error), privacy: .public)")
                 alertService.handle(error, for: .setReminder)
