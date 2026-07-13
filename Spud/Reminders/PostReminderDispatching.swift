@@ -9,23 +9,64 @@ import SpudDataKit
 import SpudUIKit
 import UIKit
 
-/// The denormalized whole-post fields needed to set a "Remind Me…" time or
-/// activity reminder (spec §4 / `ReminderService.setTimeReminder`/
-/// `setActivityReminder`), gathered by the conformer from its own row model
-/// (`PostDetailHeaderRow` in post detail, `PostListRow` in the feed) so the
-/// shared menu builder below never needs to know about either row type.
+/// The denormalized whole-post (or comment-subtree, Phase 3) fields needed to
+/// set a "Remind Me…" time or activity reminder (spec §4 /
+/// `ReminderService.setTimeReminder`/`setActivityReminder`), gathered by the
+/// conformer from its own row model (`PostDetailHeaderRow` in post detail,
+/// `PostListRow` in the feed, or `PostDetailCommentRow` for a comment's
+/// subtree) so the shared menu builder below never needs to know about any of
+/// the row types.
 struct RemindMeMenuTarget {
     let postServerId: Int64
+    /// The reminder's routing/permalink URL - the POST's ap_id for a
+    /// whole-post target, or the COMMENT's ap_id (`originalCommentUrl`) for a
+    /// subtree target, so a fired subtree reminder's notification tap opens
+    /// the post scrolled to that comment (`objectAtURL` classification).
     let apId: String
     let title: String
     let communityName: String
     let instanceHost: String
     let thumbnailUrl: String?
     /// The row's current comment count - the fallback baseline for
-    /// `setActivityReminder` when a fresher `postNumberOfCommentsSync` read
-    /// comes back nil (e.g. the post row was evicted between long-press and
-    /// tap).
+    /// `setActivityReminder` when a fresher sync read comes back nil (e.g.
+    /// the post/comment row was evicted between long-press and tap). For a
+    /// whole-post target this is the post's comment count; for a subtree
+    /// target it's the root comment's `childCount` (descendant count).
     let numberOfComments: Int64
+    /// `ReminderRecord.wholePostSentinel` (the default) for a whole-post
+    /// "Remind Me…" (post-detail overflow menu / feed cell long-press), or a
+    /// comment's server id to scope the reminder to that comment's SUBTREE
+    /// (Phase 3, comment long-press context menu). Threaded through every
+    /// `ReminderService` call and the `activeReminderKindsSync` checkmark
+    /// read below, so a whole-post reminder and one or more subtree
+    /// reminders (on different comments) coexist independently on the same
+    /// post - existing whole-post callers that don't pass this get the
+    /// sentinel and are unaffected.
+    let rootCommentServerId: Int64
+
+    /// - Parameter rootCommentServerId: defaults to
+    ///   `ReminderRecord.wholePostSentinel` so every existing whole-post
+    ///   caller (post detail, feed cell) compiles unchanged; only the
+    ///   comment context menu (Phase 3) passes a comment's server id.
+    init(
+        postServerId: Int64,
+        apId: String,
+        title: String,
+        communityName: String,
+        instanceHost: String,
+        thumbnailUrl: String?,
+        numberOfComments: Int64,
+        rootCommentServerId: Int64 = ReminderRecord.wholePostSentinel
+    ) {
+        self.postServerId = postServerId
+        self.apId = apId
+        self.title = title
+        self.communityName = communityName
+        self.instanceHost = instanceHost
+        self.thumbnailUrl = thumbnailUrl
+        self.numberOfComments = numberOfComments
+        self.rootCommentServerId = rootCommentServerId
+    }
 }
 
 /// Shared "Remind Me…" (whole post) menu building + dispatch for every screen
@@ -90,14 +131,14 @@ extension PostReminderDispatching {
                         comment: "Remind Me menu action to follow a post and be notified as its discussion grows"
                     ),
                     image: UIImage(systemName: "bubble.left.and.bubble.right"),
-                    state: hasActiveActivityReminder(postServerId: target.postServerId) ? .on : .off
+                    state: hasActiveActivityReminder(target: target) ? .on : .off
                 ) { [weak self] _ in
                     self?.toggleActivityReminder(target: target)
                 }
             }
         }
 
-        if hasActiveTimeReminder(postServerId: target.postServerId) {
+        if hasActiveTimeReminder(target: target) {
             children.append(UIAction(
                 title: NSLocalizedString("Cancel reminder", comment: "Remind Me menu action to cancel an existing reminder on this post"),
                 // `alarm` rather than `bell.slash` - the latter is also
@@ -108,7 +149,7 @@ extension PostReminderDispatching {
                 image: UIImage(systemName: "alarm"),
                 attributes: .destructive
             ) { [weak self] _ in
-                self?.cancelReminder(postServerId: target.postServerId)
+                self?.cancelReminder(postServerId: target.postServerId, rootCommentServerId: target.rootCommentServerId)
             })
         }
 
@@ -119,26 +160,32 @@ extension PostReminderDispatching {
         )
     }
 
-    /// Whether a live (still-`scheduled`) time reminder exists on the whole
-    /// post `postServerId` under the current account — drives the menu's
+    /// Whether a live (still-`scheduled`) time reminder exists on `target`'s
+    /// scope (the whole post, or - Phase 3 - the comment subtree named by its
+    /// `rootCommentServerId`) under the current account — drives the menu's
     /// "Cancel reminder" affordance. A synchronous GRDB read (mirrors the
     /// pattern used to gate the moderation submenu), safe to call while
     /// building a `UIMenu`.
-    private func hasActiveTimeReminder(postServerId: Int64) -> Bool {
-        activeReminderKinds(postServerId: postServerId).contains(ReminderRecord.Kind.time.rawValue)
+    private func hasActiveTimeReminder(target: RemindMeMenuTarget) -> Bool {
+        activeReminderKinds(target: target).contains(ReminderRecord.Kind.time.rawValue)
     }
 
     /// Whether a live activity reminder (`scheduled` **or** `fired` - a fired
-    /// follow keeps polling, see `activeReminderKindsSync`) exists on the
-    /// whole post `postServerId` under the current account — drives the "When
-    /// there are new comments" action's checkmark. Sibling of
+    /// follow keeps polling, see `activeReminderKindsSync`) exists on
+    /// `target`'s scope under the current account — drives the "When there
+    /// are new comments" action's checkmark. Sibling of
     /// `hasActiveTimeReminder`; the two kinds are independent so each reads
     /// (and checkmarks) its own state.
-    private func hasActiveActivityReminder(postServerId: Int64) -> Bool {
-        activeReminderKinds(postServerId: postServerId).contains(ReminderRecord.Kind.activity.rawValue)
+    private func hasActiveActivityReminder(target: RemindMeMenuTarget) -> Bool {
+        activeReminderKinds(target: target).contains(ReminderRecord.Kind.activity.rawValue)
     }
 
-    private func activeReminderKinds(postServerId: Int64) -> Set<String> {
+    /// Reads the active reminder kinds for `(target.postServerId,
+    /// target.rootCommentServerId)` - a whole-post target and a subtree
+    /// target on the same post never see each other's kinds, so a subtree
+    /// follow's checkmark can never leak onto (or be masked by) the
+    /// whole-post menu, or a sibling subtree on a different comment.
+    private func activeReminderKinds(target: RemindMeMenuTarget) -> Set<String> {
         guard
             let accountId = appDatabase.accountRowIdSync(forKeychainId: postActionsAccountScope.accountKeychainId)
         else {
@@ -146,8 +193,8 @@ extension PostReminderDispatching {
         }
         return appDatabase.activeReminderKindsSync(
             accountId: accountId,
-            postServerId: postServerId,
-            rootCommentServerId: ReminderRecord.wholePostSentinel
+            postServerId: target.postServerId,
+            rootCommentServerId: target.rootCommentServerId
         )
     }
 
@@ -174,7 +221,8 @@ extension PostReminderDispatching {
                     titleSnapshot: target.title,
                     communityName: target.communityName,
                     instanceHost: target.instanceHost,
-                    thumbnailUrl: target.thumbnailUrl
+                    thumbnailUrl: target.thumbnailUrl,
+                    rootCommentServerId: target.rootCommentServerId
                 )
                 remindMeMenuDidChange()
                 showReminderToast(String(
@@ -190,16 +238,21 @@ extension PostReminderDispatching {
         }
     }
 
-    /// Cancels the whole-post time reminder, if any, showing a confirmation
-    /// toast and refreshing the caller's cached menu. A no-op (not an error)
-    /// if no reminder exists, so this can always be wired to the destructive
-    /// "Cancel reminder" action without a race check.
-    private func cancelReminder(postServerId: Int64) {
+    /// Cancels the time reminder on `postServerId`'s scope (whole-post, or -
+    /// Phase 3 - the comment subtree named by `rootCommentServerId`), if any,
+    /// showing a confirmation toast and refreshing the caller's cached menu.
+    /// A no-op (not an error) if no reminder exists, so this can always be
+    /// wired to the destructive "Cancel reminder" action without a race
+    /// check.
+    private func cancelReminder(postServerId: Int64, rootCommentServerId: Int64) {
         Haptics.tap()
         Task { [weak self] in
             guard let self else { return }
             do {
-                try await postActionsAccountScope.reminderService.removeTimeReminder(postServerId: postServerId)
+                try await postActionsAccountScope.reminderService.removeTimeReminder(
+                    postServerId: postServerId,
+                    rootCommentServerId: rootCommentServerId
+                )
                 remindMeMenuDidChange()
                 showReminderToast(NSLocalizedString("Reminder cleared.", comment: "Toast confirming a reminder was cancelled"))
             } catch {
@@ -208,38 +261,56 @@ extension PostReminderDispatching {
         }
     }
 
-    /// Toggles the whole-post activity ("When there are new comments") follow:
-    /// sets it if not already active, removes it if it is. Unlike the time
-    /// reminder's separate preset/cancel actions, this single menu item is
-    /// both the setter and the unsetter - re-reads the live active state at
-    /// tap time (rather than trusting the checkmark computed when the menu
-    /// was built) so a stale cached menu can never toggle the wrong direction.
-    /// A no-op if `target.apId` is blank, mirroring `setReminder`'s guard.
+    /// Toggles the activity ("When there are new comments") follow on
+    /// `target`'s scope (whole-post, or - Phase 3 - the comment subtree named
+    /// by `rootCommentServerId`): sets it if not already active, removes it
+    /// if it is. Unlike the time reminder's separate preset/cancel actions,
+    /// this single menu item is both the setter and the unsetter - re-reads
+    /// the live active state at tap time (rather than trusting the checkmark
+    /// computed when the menu was built) so a stale cached menu can never
+    /// toggle the wrong direction. A no-op if `target.apId` is blank,
+    /// mirroring `setReminder`'s guard.
     private func toggleActivityReminder(target: RemindMeMenuTarget) {
         guard !target.apId.isEmpty else { return }
         Haptics.tap()
-        let isCurrentlyActive = hasActiveActivityReminder(postServerId: target.postServerId)
+        let isCurrentlyActive = hasActiveActivityReminder(target: target)
         Task { [weak self] in
             guard let self else { return }
             do {
                 if isCurrentlyActive {
-                    try await postActionsAccountScope.reminderService.removeActivityReminder(postServerId: target.postServerId)
+                    try await postActionsAccountScope.reminderService.removeActivityReminder(
+                        postServerId: target.postServerId,
+                        rootCommentServerId: target.rootCommentServerId
+                    )
                     remindMeMenuDidChange()
                     showReminderToast(NSLocalizedString(
                         "Stopped following.",
                         comment: "Toast confirming a post's activity (new-comments) reminder was removed"
                     ))
                 } else {
-                    // Baseline against the freshest comment count we have: a
-                    // live sync read if the post is cached locally, falling
-                    // back to the row's own count (gathered when the menu's
-                    // target was built) if not.
-                    let baselineCount = Int64(
-                        appDatabase.postNumberOfCommentsSync(
-                            forKeychainId: postActionsAccountScope.accountKeychainId,
-                            serverPostId: target.postServerId
-                        ) ?? Int(target.numberOfComments)
-                    )
+                    // Baseline against the freshest count we have: a live sync
+                    // read if the target is cached locally, falling back to
+                    // the row's own count (gathered when the menu's target was
+                    // built) if not. A whole-post target baselines against the
+                    // post's `numberOfComments`; a subtree target (Phase 3)
+                    // baselines against the root COMMENT's `childCount`
+                    // (descendant count) instead - the poll's count source for
+                    // that scope (see `ReminderService.setActivityReminder`).
+                    let baselineCount = if target.rootCommentServerId == ReminderRecord.wholePostSentinel {
+                        Int64(
+                            appDatabase.postNumberOfCommentsSync(
+                                forKeychainId: postActionsAccountScope.accountKeychainId,
+                                serverPostId: target.postServerId
+                            ) ?? Int(target.numberOfComments)
+                        )
+                    } else {
+                        Int64(
+                            appDatabase.commentChildCountSync(
+                                forKeychainId: postActionsAccountScope.accountKeychainId,
+                                serverCommentId: target.rootCommentServerId
+                            ) ?? Int(target.numberOfComments)
+                        )
+                    }
                     try await postActionsAccountScope.reminderService.setActivityReminder(
                         postServerId: target.postServerId,
                         apId: target.apId,
@@ -247,7 +318,8 @@ extension PostReminderDispatching {
                         titleSnapshot: target.title,
                         communityName: target.communityName,
                         instanceHost: target.instanceHost,
-                        thumbnailUrl: target.thumbnailUrl
+                        thumbnailUrl: target.thumbnailUrl,
+                        rootCommentServerId: target.rootCommentServerId
                     )
                     remindMeMenuDidChange()
                     showReminderToast(NSLocalizedString(

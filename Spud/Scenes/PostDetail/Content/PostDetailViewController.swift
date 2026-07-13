@@ -1064,7 +1064,8 @@ class PostDetailViewController: UIViewController {
             creatorPersonId: row.creatorPersonId,
             creatorActorId: row.creatorActorId,
             moreChildCount: row.moreChildCount,
-            moreParentId: row.moreParentId
+            moreParentId: row.moreParentId,
+            childCount: row.childCount
         )
     }
 
@@ -2231,6 +2232,14 @@ extension PostDetailViewController: UITableViewDelegate {
                     self?.shareComment(serverCommentId: serverCommentId)
                 }
                 var children: [UIMenuElement] = [upvoteAction, downvoteAction, replyAction, saveAction, shareAction]
+                // "Remind Me…" scoped to this comment's thread (Phase 3) -
+                // mirrors the post overflow menu's placement (right after the
+                // primary interaction actions, before ownership/moderation).
+                // Omitted (not disabled) when the comment lacks a resolvable
+                // server id or ap_id.
+                if let remindMenu = self?.commentRemindMeMenu(for: commentRow) {
+                    children.append(remindMenu)
+                }
                 if isOwnComment {
                     // Your own comment: offer Edit + Delete (or Restore if already
                     // deleted). Editing a deleted comment isn't offered. Delete is

@@ -44,7 +44,7 @@ struct PostDetailViewModelExpandAncestorsTests {
             published: Date(timeIntervalSince1970: 1_000_000 + publishedOffset),
             creatorName: "u\(id)", creatorPersonId: id,
             creatorActorId: "https://example.test",
-            moreChildCount: nil, moreParentId: nil
+            moreChildCount: nil, moreParentId: nil, childCount: nil
         )
     }
 

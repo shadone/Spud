@@ -214,6 +214,13 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
     /// the parent comment id. Both nil for normal rows.
     public let moreChildCount: Int64?
     public let moreParentId: Int64?
+    /// Server-reported descendant count (`CommentRecord.childCount`,
+    /// `v36_commentChildCount`) - the comment's own subtree size, used as the
+    /// baseline when this comment becomes the ROOT of a "Remind Me… → When
+    /// there are new comments" subtree follow (Phase 3). nil for a "load
+    /// more" placeholder, or a comment not yet re-fetched since the column
+    /// was added.
+    public let childCount: Int64?
 
     public init(
         id: Int64,
@@ -241,7 +248,8 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
         creatorPersonId: Int64?,
         creatorActorId: String?,
         moreChildCount: Int64?,
-        moreParentId: Int64?
+        moreParentId: Int64?,
+        childCount: Int64?
     ) {
         self.id = id
         self.position = position
@@ -269,6 +277,7 @@ public struct PostDetailCommentRow: Sendable, Equatable, Identifiable {
         self.creatorActorId = creatorActorId
         self.moreChildCount = moreChildCount
         self.moreParentId = moreParentId
+        self.childCount = childCount
     }
 }
 
@@ -422,6 +431,7 @@ public extension AppDatabase {
                             comment.localCommentId         AS serverCommentId,
                             comment.body                   AS body,
                             comment.originalCommentUrl     AS originalCommentUrl,
+                            comment.childCount              AS childCount,
                             comment.score                  AS score,
                             comment.voteStatus             AS voteStatus,
                             comment.isSaved                AS isSaved,
@@ -477,7 +487,8 @@ public extension AppDatabase {
                         creatorPersonId: row["creatorPersonId"],
                         creatorActorId: row["creatorActorId"],
                         moreChildCount: row["moreChildCount"],
-                        moreParentId: row["moreParentId"]
+                        moreParentId: row["moreParentId"],
+                        childCount: row["childCount"]
                     )
                 }
             }

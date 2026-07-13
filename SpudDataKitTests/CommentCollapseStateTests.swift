@@ -38,7 +38,8 @@ struct CommentCollapseStateTests {
             creatorPersonId: more ? nil : id,
             creatorActorId: more ? nil : "https://example.test",
             moreChildCount: more ? 3 : nil,
-            moreParentId: more ? 1 : nil
+            moreParentId: more ? 1 : nil,
+            childCount: nil
         )
     }
 

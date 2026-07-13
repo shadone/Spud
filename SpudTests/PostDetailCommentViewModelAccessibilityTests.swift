@@ -40,7 +40,8 @@ struct PostDetailCommentViewModelAccessibilityTests {
             creatorPersonId: 1,
             creatorActorId: "https://lemmy.world",
             moreChildCount: nil,
-            moreParentId: nil
+            moreParentId: nil,
+            childCount: nil
         )
     }
 
