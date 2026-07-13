@@ -13,7 +13,7 @@ import Testing
 /// plan (Task 6).
 struct RemindMeMenuTests {
     @Test
-    func itemsAreThePresetsInSpecOrderFollowedByCustomTime() {
+    func itemsAreThePresetsInSpecOrderFollowedByCustomTimeThenActivity() {
         #expect(RemindMeMenu.items() == [
             .preset(.inThreeHours),
             .preset(.thisEvening),
@@ -21,6 +21,7 @@ struct RemindMeMenuTests {
             .preset(.inTwoDays),
             .preset(.inAWeek),
             .customTime,
+            .activityNewComments,
         ])
     }
 }

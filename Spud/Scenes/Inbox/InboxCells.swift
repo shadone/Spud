@@ -294,11 +294,15 @@ final class InboxConversationCell: UITableViewCell {
 
 /// A reminder row in the Inbox "Reminders" segment: the target post's
 /// thumbnail, title, and `c/<community>@<instance>` handle, plus a status
-/// line - a relative "in 2 days" countdown while `scheduled`, or "Tap to
-/// revisit" once `fired` (the same actionable state that lit the tab badge
-/// until the segment was opened). An unread-style dot marks a still-unseen
-/// fired reminder, matching `InboxCommentCell`/`InboxConversationCell`'s
-/// visual language for "something new happened here".
+/// line whose text depends on the reminder's `kind` (`ReminderStatusText`) -
+/// for a `time` reminder, a relative "in 2 days" countdown while `scheduled`,
+/// or "Tap to revisit" once `fired`; for an `activity` reminder (Phase 2),
+/// "Watching for new comments" while `scheduled`, or "New comments · tap to
+/// catch up" once `fired`. `fired` is the same actionable state that lit the
+/// tab badge until the segment was opened, for either kind. An unread-style
+/// dot marks a still-unseen fired reminder, matching
+/// `InboxCommentCell`/`InboxConversationCell`'s visual language for
+/// "something new happened here".
 final class InboxReminderCell: UITableViewCell {
     static let reuseIdentifier = "InboxReminderCell"
 
@@ -437,7 +441,7 @@ final class InboxReminderCell: UITableViewCell {
         communityLabel.text = "c/\(reminder.communityName)@\(reminder.instanceHost)"
         unseenDot.isHidden = !reminder.unseen
 
-        let status = Self.statusDescription(for: reminder)
+        let status = ReminderStatusText.describe(for: reminder)
         statusLabel.text = status
         let isFired = reminder.status == ReminderRecord.Status.fired.rawValue
         statusLabel.textColor = isFired ? .systemBlue : .secondaryLabel
@@ -473,23 +477,6 @@ final class InboxReminderCell: UITableViewCell {
                 }
             }
         }
-    }
-
-    /// "Tap to revisit" once fired (the actionable state); otherwise a
-    /// relative countdown to `fireAt` ("in 2 days") while still scheduled.
-    /// Shared by the visible status label and the accessibility label so the
-    /// two can never drift apart.
-    private static func statusDescription(for reminder: ReminderListRow) -> String {
-        guard reminder.status != ReminderRecord.Status.fired.rawValue else {
-            return NSLocalizedString("Tap to revisit", comment: "Inbox reminder row status: the reminder has fired")
-        }
-        guard let fireAt = reminder.fireAt else { return "" }
-        // Built locally rather than as a stored formatter - a plain (non
-        // `@MainActor`) `static let` formatter fails Swift 6 strict
-        // concurrency, and a relative countdown must be evaluated against
-        // "now" on every render anyway (it can't be cached).
-        let formatter = RelativeDateTimeFormatter()
-        return formatter.localizedString(for: fireAt, relativeTo: Date())
     }
 }
 
