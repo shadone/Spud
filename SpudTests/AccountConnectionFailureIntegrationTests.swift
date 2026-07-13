@@ -29,6 +29,14 @@ private final class ThrowingAccountService: AccountServiceType {
         throw error
     }
 
+    func reauthenticate(keychainId _: String, username _: String, password _: String, totp2faToken _: String?) async throws {
+        throw error
+    }
+
+    func username(forAccountKeychainId _: String) -> String? {
+        nil
+    }
+
     func register(
         atInstance _: InstanceActorId,
         username _: String,

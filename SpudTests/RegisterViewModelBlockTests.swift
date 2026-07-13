@@ -47,6 +47,11 @@ private final class BlockingAccountService: AccountServiceType {
     func seedSignedInDefaultAccount(atInstance _: InstanceActorId) { }
     #endif
     func login(atInstance _: InstanceActorId, username _: String, password _: String, totp2faToken _: String?) async throws { }
+    func reauthenticate(keychainId _: String, username _: String, password _: String, totp2faToken _: String?) async throws { }
+    func username(forAccountKeychainId _: String) -> String? {
+        nil
+    }
+
     func passwordReset(atInstance _: InstanceActorId, email _: String) async throws { }
     func logout(forAccountKeychainId _: String) { }
     func removeAccount(forAccountKeychainId _: String) { }
