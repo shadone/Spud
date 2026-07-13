@@ -39,8 +39,16 @@ private final class NullAlertService: AlertServiceType, @unchecked Sendable {
 ///   `LemmyServicePostCounterHarvestTests`); this test is about the scheduler's
 ///   WIRING (enumerate accounts -> build the fetcher -> drive the poll), which
 ///   Task 2's `ReminderPollTests` doesn't cover.
+/// - `fetchComments(serverPostId:sortType:)` (Task 3, the subtree branch) mirrors
+///   the same no-op-recorder shape: it records the call so the test can assert
+///   the subtree fetcher reached the right post, but performs no DB write - the
+///   test pre-seeds the `comment` row with the "already refreshed" `childCount`
+///   directly, since exercising `LemmyService`'s real `getComments` ->
+///   `CommentImporter.childCount` import path is out of scope here (covered by
+///   Task 1's `CommentChildCountTests`).
 private actor ActivityPollLemmyService: LemmyServiceType {
     private(set) var fetchPostInfoCalls: [Int64] = []
+    private(set) var fetchCommentsCalls: [Int64] = []
 
     func fetchSiteInfo() async throws { }
 
@@ -278,8 +286,8 @@ private actor ActivityPollLemmyService: LemmyServiceType {
         activityPollUnreachable()
     }
 
-    func fetchComments(serverPostId _: Lemmy.PostID, sortType _: Lemmy.CommentSortType) async throws {
-        activityPollUnreachable()
+    func fetchComments(serverPostId: Lemmy.PostID, sortType _: Lemmy.CommentSortType) async throws {
+        fetchCommentsCalls.append(Int64(serverPostId))
     }
 }
 
@@ -465,6 +473,32 @@ struct SchedulerActivityPollTests {
         }
     }
 
+    /// Seeds a `comment` row anchored to `seedGraph`'s post, with `childCount`
+    /// pre-set to the value a real `fetchComments` + `CommentImporter` would
+    /// have refreshed it to - the subtree counterpart of `seedGraph`'s
+    /// `postCommentCount` parameter (which models `fetchPostInfo` having
+    /// already run). `rootCommentServerId` is the comment's server id
+    /// (`localCommentId`), the same value a subtree `ReminderRecord` carries.
+    private func seedCommentRow(
+        _ appDatabase: AppDatabase,
+        accountId: Int64,
+        rootCommentServerId: Int64,
+        childCount: Int64
+    ) async throws {
+        try await appDatabase.writer.write { db in
+            let postId = try Int64.fetchOne(
+                db,
+                sql: "SELECT id FROM post WHERE accountId = ? AND postId = ?",
+                arguments: [accountId, Self.postServerId]
+            )!
+            let creatorId = try Int64.fetchOne(db, sql: "SELECT id FROM person LIMIT 1")!
+            try db.execute(sql: """
+                    INSERT INTO comment (postId, creatorId, localCommentId, body, published, createdAt, updatedAt, childCount)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, arguments: [postId, creatorId, rootCommentServerId, "root comment body", Date(), Date(), Date(), childCount])
+        }
+    }
+
     @Test
     func tickPollsDueActivityReminderAndFiresOnHigherCommentCount() async throws {
         let appDatabase = try AppDatabase.inMemory()
@@ -614,5 +648,87 @@ struct SchedulerActivityPollTests {
         #expect(stored?.status == ReminderRecord.Status.fired.rawValue)
         #expect(stored?.unseen == true)
         #expect(stored?.baselineCount == 16)
+    }
+
+    /// Task 3: a due SUBTREE activity reminder (`rootCommentServerId != wholePostSentinel`)
+    /// takes the fetcher's other branch - `fetchComments` (not `fetchPostInfo`)
+    /// and `commentChildCountSync` (not `postNumberOfCommentsSync`) - and fires
+    /// on the root comment's higher `child_count`, independently of the
+    /// whole-post branch exercised by `tickPollsDueActivityReminderAndFiresOnHigherCommentCount`.
+    @Test
+    func tickPollsDueSubtreeActivityReminderAndFiresOnHigherChildCount() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let keychainId = "kc-activity-poll-subtree"
+        let rootCommentServerId: Int64 = 42
+
+        // The post itself has no whole-post follow, so its `numberOfComments`
+        // is irrelevant here - only the root comment's `childCount` is read.
+        let accountId = try await seedGraph(appDatabase, keychainId: keychainId, postCommentCount: 0)
+
+        // The root comment's live `childCount` is already 9 by the time the
+        // poll reads it back - modelling `fetchComments` having refreshed it -
+        // while the reminder's baseline is 3: 6 new, over the threshold of 5.
+        try await seedCommentRow(appDatabase, accountId: accountId, rootCommentServerId: rootCommentServerId, childCount: 9)
+
+        let clock = ActivityPollClockBox(Date(timeIntervalSince1970: 1_800_000_000))
+        let reminderRecord = ReminderRecord(
+            accountId: accountId,
+            postServerId: Self.postServerId,
+            apId: "https://activity-poll-test.example.com/comment/\(rootCommentServerId)",
+            rootCommentServerId: rootCommentServerId,
+            kind: ReminderRecord.Kind.activity.rawValue,
+            nextCheckAt: clock.date.addingTimeInterval(-60), // due
+            baselineCount: 3,
+            baselineAt: clock.date.addingTimeInterval(-3600),
+            status: ReminderRecord.Status.scheduled.rawValue,
+            titleSnapshot: "A great thread",
+            communityName: "news",
+            instanceHost: "activity-poll-test.example.com"
+        )
+        _ = try await appDatabase.upsertReminder(reminderRecord)
+
+        let notificationScheduler = ReminderServiceTests.FakeReminderNotificationScheduler()
+        let reminderService = ReminderService(
+            accountId: accountId,
+            appDatabase: appDatabase,
+            scheduler: notificationScheduler
+        )
+        let lemmyService = ActivityPollLemmyService()
+        let accountService = ActivityPollAccountService(lemmyService: lemmyService, reminderService: reminderService)
+        let diagnostics = DiagnosticLogSpy()
+
+        let scheduler = SchedulerService(
+            appDatabase: appDatabase,
+            accountService: accountService,
+            alertService: NullAlertService(),
+            diagnostics: diagnostics,
+            now: { clock.date },
+            reachabilityMonitor: StaticReachabilityMonitor(isOnline: true)
+        )
+
+        await scheduler.tick()
+
+        // The sweep took the subtree branch: `fetchComments` was called (on
+        // the post the comment lives under), and `fetchPostInfo` was NOT.
+        let fetchCommentsCalls = await lemmyService.fetchCommentsCalls
+        #expect(fetchCommentsCalls == [Self.postServerId])
+        let fetchPostInfoCalls = await lemmyService.fetchPostInfoCalls
+        #expect(fetchPostInfoCalls.isEmpty)
+
+        // The poll fired: an immediate notification was posted...
+        let postNowCalls = await notificationScheduler.postNowCalls
+        #expect(postNowCalls.count == 1)
+
+        // ...and the SUBTREE row was re-armed to `fired`/`unseen` with the
+        // baseline reset to the just-observed `childCount`.
+        let stored = appDatabase.reminderSync(
+            accountId: accountId,
+            postServerId: Self.postServerId,
+            rootCommentServerId: rootCommentServerId,
+            kind: ReminderRecord.Kind.activity.rawValue
+        )
+        #expect(stored?.status == ReminderRecord.Status.fired.rawValue)
+        #expect(stored?.unseen == true)
+        #expect(stored?.baselineCount == 9)
     }
 }
