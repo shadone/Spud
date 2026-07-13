@@ -69,8 +69,8 @@ public enum ReminderNotificationFactory {
     ) -> ReminderNotificationContent {
         let body = String(
             format: NSLocalizedString(
-                "c/%@@%@ · Tap to revisit",
-                comment: "Fired reminder notification body; first %@ is the community name, second %@ is its instance host"
+                "c/%1$@@%2$@ · Tap to revisit",
+                comment: "Fired reminder notification body; %1$@ is the community name, %2$@ is its instance host"
             ),
             communityName,
             instanceHost
