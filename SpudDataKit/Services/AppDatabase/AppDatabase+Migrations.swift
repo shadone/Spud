@@ -939,6 +939,21 @@ extension AppDatabase {
             try db.create(index: "index_reminder_on_fireAt", on: "reminder", columns: ["fireAt"])
         }
 
+        migrator.registerMigration("v36_commentChildCount") { db in
+            // Persists the Lemmy comment's server `child_count` (total descendant
+            // count) alongside the comment row. Phase-1 already read this value
+            // off the fetched `CommentView` to size the "load more" placeholder's
+            // `moreChildCount` (see `CommentElementRecord`), but never stored it on
+            // the comment itself. Phase 3 needs a durable per-comment count to
+            // baseline/poll a comment-SUBTREE "new comments" reminder the same way
+            // `post.numberOfComments` backs the whole-post one. Nullable,
+            // additive-only, no backfill: existing rows stay NULL until the next
+            // `getComments` re-import repopulates them (see `CommentImporter.apply`).
+            try db.alter(table: "comment") { t in
+                t.add(column: "childCount", .integer)
+            }
+        }
+
         return migrator
     }
 }

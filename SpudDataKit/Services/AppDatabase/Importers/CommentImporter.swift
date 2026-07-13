@@ -233,6 +233,11 @@ public extension AppDatabase {
     ) {
         record.body = view.comment.content
         record.originalCommentUrl = view.comment.apId
+        // Same source Phase-1 already read to size the "load more" placeholder
+        // (`moreChildCount: view.comment.childCount` in `upsertComments` above) -
+        // now also persisted on the comment row itself so a subtree reminder can
+        // read/poll it without rebuilding the whole tree (`commentChildCountSync`).
+        record.childCount = view.comment.childCount
         record.published = view.comment.publishedAt
 
         record.score = view.comment.score

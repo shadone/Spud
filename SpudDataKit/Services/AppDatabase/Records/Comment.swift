@@ -35,6 +35,13 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
     /// comment isn't removed or the mod gave no reason.
     public var removedReason: String?
     public var originalCommentUrl: String?
+    /// Server-reported descendant count (Lemmy `Comment.childCount`) - the total
+    /// number of replies anywhere below this comment, not just direct children.
+    /// Nullable: rows written before `v36_commentChildCount` stay nil until the
+    /// next `getComments` fetch re-imports this comment. Backs a comment-subtree
+    /// "new comments" reminder's baseline/poll (see `commentChildCountSync`),
+    /// mirroring how `PostRecord.numberOfComments` backs the whole-post one.
+    public var childCount: Int64?
     public var published: Date
     public var createdAt: Date
     public var updatedAt: Date
@@ -59,6 +66,7 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
         isCreatorBlocked: Bool = false,
         removedReason: String? = nil,
         originalCommentUrl: String? = nil,
+        childCount: Int64? = nil,
         published: Date,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
@@ -82,6 +90,7 @@ public struct CommentRecord: Codable, Sendable, Equatable, Identifiable {
         self.isCreatorBlocked = isCreatorBlocked
         self.removedReason = removedReason
         self.originalCommentUrl = originalCommentUrl
+        self.childCount = childCount
         self.published = published
         self.createdAt = createdAt
         self.updatedAt = updatedAt

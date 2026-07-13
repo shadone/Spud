@@ -161,4 +161,35 @@ public extension AppDatabase {
             return nil
         }
     }
+
+    /// The live `CommentRecord.childCount` (server descendant count) for
+    /// `(account, serverCommentId)` - the count source for a comment-SUBTREE
+    /// activity reminder's baseline/poll, mirroring `postNumberOfCommentsSync`
+    /// for the whole-post case. Resolves the account from `keychainId` first,
+    /// then scopes the comment lookup through its parent post's `accountId` (a
+    /// comment's `localCommentId` is only unique within a post, mirroring
+    /// `LemmyServiceQueries.commentVoteStatus`'s join). nil if the account or
+    /// comment row is unknown, OR the comment hasn't been re-fetched since
+    /// `v36_commentChildCount` added the column (both collapse to nil - GRDB's
+    /// non-optional `Int64.fetchOne` already treats "row is NULL" the same as
+    /// "no row").
+    func commentChildCountSync(forKeychainId keychainId: String, serverCommentId: Int64) -> Int? {
+        do {
+            return try writer.read { db -> Int? in
+                guard let accountId = try Self.accountRowId(forKeychainId: keychainId, in: db) else {
+                    return nil
+                }
+                let count: Int64? = try Int64.fetchOne(db, sql: """
+                        SELECT comment.childCount
+                        FROM comment
+                        JOIN post ON post.id = comment.postId
+                        WHERE post.accountId = ? AND comment.localCommentId = ?
+                    """, arguments: [accountId, serverCommentId])
+                return count.map(Int.init)
+            }
+        } catch {
+            logger.error("commentChildCountSync failed: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
 }
