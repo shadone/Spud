@@ -1286,6 +1286,16 @@ public actor LemmyService: LemmyServiceType {
                 instance: api.instanceHostname,
                 metadata: metadata
             )
+            // A genuine auth-expiry (v4 GET /account 401) flags the account for
+            // re-login. A WAF 403 is NOT auth (AuthExpiry excludes it), so this
+            // never fires on the benign background 403. Signed-out accounts have
+            // no session to expire.
+            if !accountIsSignedOut, AuthExpiry.isAuthExpiry(error) {
+                try? await appDatabase.setAccountSessionNeedsReauth(
+                    keychainId: accountIdentifierForLogging,
+                    true
+                )
+            }
             throw LemmyServiceError(from: error)
         }
 
@@ -1307,6 +1317,17 @@ public actor LemmyService: LemmyServiceType {
             }
         } catch {
             logger.error("AppDatabase fetchSiteInfo upsert failed: \(String(describing: error), privacy: .public)")
+        }
+
+        // Self-heal: a signed-in refresh that returned my_user proves the token
+        // is good -> clear any stale flag. A signed-in refresh that SUCCEEDED but
+        // returned no my_user (v3 token rejected) -> set it. Signed-out accounts
+        // never carry the flag.
+        if !accountIsSignedOut {
+            try? await appDatabase.setAccountSessionNeedsReauth(
+                keychainId: accountIdentifierForLogging,
+                myUser == nil
+            )
         }
 
         return siteInfo

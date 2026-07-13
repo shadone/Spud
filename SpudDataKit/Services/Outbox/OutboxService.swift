@@ -20,6 +20,9 @@ public struct OutboxFailure: Sendable, Equatable {
     public let entityServerId: Int64
     public let kind: OutboxKind
     public let reason: OutboxFailureReason
+    /// True when the permanent failure was a genuine expired/revoked session
+    /// (not a WAF 403). Drives MainWindow's "Session expired" re-login toast.
+    public let isAuthExpiry: Bool
 }
 
 public protocol OutboxServiceType: Actor {
@@ -248,6 +251,13 @@ public actor OutboxService: OutboxServiceType {
                         instance: instance,
                         metadata: metadata
                     )
+                    // Flag the account for re-login when this permanent failure is
+                    // a genuine auth-expiry. AuthExpiry excludes a bare 403, so a
+                    // WAF-blocked write never trips it.
+                    let isAuthExpiry = AuthExpiry.isAuthExpiry(error)
+                    if isAuthExpiry {
+                        try? await appDatabase.setAccountSessionNeedsReauth(accountId: accountId, true)
+                    }
                     try? await appDatabase.rollbackOutboxOperation(record)
                     // A permanently-rolled-back vote removes its activity log entry.
                     if op.kind == .vote {
@@ -276,7 +286,8 @@ public actor OutboxService: OutboxServiceType {
                         entityType: op.entityType,
                         entityServerId: op.entityServerId,
                         kind: op.kind,
-                        reason: reason
+                        reason: reason,
+                        isAuthExpiry: isAuthExpiry
                     ))
                 }
             }
