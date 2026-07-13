@@ -1793,21 +1793,10 @@ class PostListViewController: UIViewController {
         }
     }
 
-    /// The "Mute <community> >" submenu offering the timed durations. Muting is
-    /// a local view concern, so it isn't sign-in gated.
-    private func makeMuteCommunityMenu(serverPostId: Int64, communityName: String) -> UIMenu {
-        let actions = MuteDuration.allCases.map { duration in
-            UIAction(title: duration.menuTitle) { [weak self] _ in
-                self?.muteCommunity(serverPostId: serverPostId, duration: duration)
-            }
-        }
-        return UIMenu(
-            title: String(format: NSLocalizedString("Mute %@", comment: "Context-menu action to mute a community; %@ is the c/ community handle"), "c/\(communityName)"),
-            image: UIImage(systemName: "bell.slash"),
-            children: actions
-        )
-    }
-
+    /// Mutes the post's community for `duration`. Muting is a local view
+    /// concern, so it isn't sign-in gated. Called by the shared
+    /// `postMuteCommunitySubmenu` default (`PostContextMenuBuilder.swift`),
+    /// which builds the "Mute <community> >" duration submenu itself.
     private func muteCommunity(serverPostId: Int64, duration: MuteDuration) {
         guard
             let row = viewModel.row(forServerPostId: serverPostId),
@@ -1922,8 +1911,11 @@ extension PostListViewController: PostReminderDispatching {
 
     /// The whole-post fields for the "Remind Me…" menu, built from the feed
     /// row at `serverPostId` - nil if the row isn't loaded (long-press raced
-    /// a row eviction), in which case the caller omits the submenu.
-    fileprivate func remindMeMenuTarget(serverPostId: Int64) -> RemindMeMenuTarget? {
+    /// a row eviction), in which case the caller omits the submenu. Also
+    /// satisfies `PostContextMenuHost.remindMeMenuTarget(serverPostId:)`, so it
+    /// must be at least `internal` (not `fileprivate`) to witness that
+    /// requirement.
+    func remindMeMenuTarget(serverPostId: Int64) -> RemindMeMenuTarget? {
         guard let row = viewModel.row(forServerPostId: serverPostId) else { return nil }
         // Prefer the community's own instance host; a community row with no
         // resolvable actorId (rare) falls back to the account's home
@@ -1940,6 +1932,63 @@ extension PostListViewController: PostReminderDispatching {
             thumbnailUrl: row.thumbnailUrl,
             numberOfComments: row.numberOfComments
         )
+    }
+}
+
+// MARK: - PostContextMenuHost
+
+/// Adopts the shared `PostContextMenuBuilder` for the feed's long-press menu.
+/// The feed keeps its own cross-post-siblings and moderation submenus (state
+/// only it tracks); `postRemindMeSubmenu`/`postMuteCommunitySubmenu` come from
+/// the shared default implementations.
+extension PostListViewController: PostContextMenuHost {
+    func postContextRow(forServerPostId serverPostId: Int64) -> PostListRow? {
+        viewModel.row(forServerPostId: serverPostId)
+    }
+
+    func postReply(serverPostId: Int64) {
+        replyToPost(serverPostId: serverPostId)
+    }
+
+    func postShare(serverPostId: Int64) {
+        sharePost(serverPostId: serverPostId)
+    }
+
+    func postCrossPost(serverPostId: Int64) {
+        crossPostPost(serverPostId: serverPostId)
+    }
+
+    func postVisitCommunity(serverPostId: Int64) {
+        visitCommunity(serverPostId: serverPostId)
+    }
+
+    func postViewAuthor(serverPostId: Int64) {
+        viewAuthor(serverPostId: serverPostId)
+    }
+
+    func postHide(serverPostId: Int64) {
+        hidePost(serverPostId: serverPostId)
+    }
+
+    func postBlockAuthor(serverPostId: Int64) {
+        blockAuthor(serverPostId: serverPostId)
+    }
+
+    func postReport(serverPostId: Int64) {
+        reportPost(serverPostId: serverPostId)
+    }
+
+    func postMuteCommunity(serverPostId: Int64, duration: MuteDuration) {
+        muteCommunity(serverPostId: serverPostId, duration: duration)
+    }
+
+    /// Feed-only submenus keep the feed's existing behavior (override the nil defaults).
+    func postCrossPostSiblingsSubmenu(serverPostId: Int64) -> UIMenu? {
+        crossPostSiblingsMenu(serverPostId: serverPostId)
+    }
+
+    func postModerationSubmenu(serverPostId: Int64) -> UIMenu? {
+        postModerationMenu(serverPostId: serverPostId)
     }
 }
 
@@ -2185,137 +2234,15 @@ extension PostListViewController: UITableViewDelegate {
             previewProvider: { [weak self] in self?.postPreviewViewController(at: indexPath) },
             actionProvider: { [weak self] _ in
                 guard
-                    case let .post(serverPostId) = self?.dataSource.itemIdentifier(for: indexPath)
+                    let self,
+                    case let .post(serverPostId) = dataSource.itemIdentifier(for: indexPath)
                 else { return nil }
-
-                let upvoteAction = UIAction(
-                    title: NSLocalizedString("Upvote", comment: ""),
-                    image: generalAppearance.upvoteIcon
-                ) { [weak self] _ in
-                    Task { await self?.vote(serverPostId: serverPostId, action: .upvote) }
-                }
-
-                let downvoteAction = UIAction(
-                    title: NSLocalizedString("Downvote", comment: ""),
-                    image: generalAppearance.downvoteIcon
-                ) { [weak self] _ in
-                    Task { await self?.vote(serverPostId: serverPostId, action: .downvote) }
-                }
-
-                let isSaved = self?.viewModel.row(forServerPostId: serverPostId)?.isSaved ?? false
-                let saveAction = UIAction(
-                    title: isSaved
-                        ? NSLocalizedString("Unsave", comment: "Context-menu action to unsave a post")
-                        : NSLocalizedString("Save", comment: "Context-menu action to save a post"),
-                    image: UIImage(systemName: isSaved ? "bookmark.slash" : "bookmark")
-                ) { [weak self] _ in
-                    self?.toggleSaved(serverPostId: serverPostId)
-                }
-
-                let replyAction = UIAction(
-                    title: NSLocalizedString("Reply", comment: "Context-menu action to reply to a post"),
-                    image: UIImage(systemName: "arrowshape.turn.up.left")
-                ) { [weak self] _ in
-                    self?.replyToPost(serverPostId: serverPostId)
-                }
-
-                let shareAction = UIAction(
-                    title: NSLocalizedString("Share", comment: "Context-menu action to share a post"),
-                    image: UIImage(systemName: "square.and.arrow.up")
-                ) { [weak self] _ in
-                    self?.sharePost(serverPostId: serverPostId)
-                }
-
-                let crossPostAction = UIAction(
-                    title: NSLocalizedString("Cross-post", comment: "Context-menu action to re-share a post to another community"),
-                    image: UIImage(systemName: "arrow.triangle.branch")
-                ) { [weak self] _ in
-                    self?.crossPostPost(serverPostId: serverPostId)
-                }
-
-                let row = self?.viewModel.row(forServerPostId: serverPostId)
-
-                let visitCommunityAction = UIAction(
-                    title: String(
-                        format: NSLocalizedString("Visit %@", comment: "Context-menu action to open a post's community; %@ is the c/ community handle"),
-                        // Map over the optional `row`, not `row?.communityName`:
-                        // `communityName` is a non-optional String, so
-                        // `row?.communityName.map` would resolve to Collection.map
-                        // (over Characters) and render as an array description.
-                        row.map { "c/\($0.communityName)" } ?? NSLocalizedString("community", comment: "Generic community noun")
-                    ),
-                    image: UIImage(systemName: "person.3")
-                ) { [weak self] _ in
-                    self?.visitCommunity(serverPostId: serverPostId)
-                }
-
-                let viewAuthorAction = UIAction(
-                    title: row?.creatorName.map {
-                        String(format: NSLocalizedString("View %@", comment: "Context-menu action to open a post author's profile; %@ is the u/ author handle"), "u/\($0)")
-                    } ?? NSLocalizedString("View author", comment: "Context-menu action to open a post author's profile"),
-                    image: UIImage(systemName: "person.crop.circle")
-                ) { [weak self] _ in
-                    self?.viewAuthor(serverPostId: serverPostId)
-                }
-
-                let hideAction = UIAction(
-                    title: NSLocalizedString("Hide", comment: "Context-menu action to hide a post from the feed"),
-                    image: UIImage(systemName: "eye.slash")
-                ) { [weak self] _ in
-                    self?.hidePost(serverPostId: serverPostId)
-                }
-
-                let blockAction = UIAction(
-                    title: row?.creatorName.map {
-                        String(format: NSLocalizedString("Block %@", comment: "Context-menu action to block a post author; %@ is the u/ author handle"), "u/\($0)")
-                    } ?? NSLocalizedString("Block author", comment: "Context-menu action to block a post author"),
-                    image: UIImage(systemName: "hand.raised"),
-                    attributes: .destructive
-                ) { [weak self] _ in
-                    self?.blockAuthor(serverPostId: serverPostId)
-                }
-
-                let reportAction = UIAction(
-                    title: NSLocalizedString("Report", comment: "Context-menu action to report a post"),
-                    image: UIImage(systemName: "flag"),
-                    attributes: .destructive
-                ) { [weak self] _ in
-                    self?.reportPost(serverPostId: serverPostId)
-                }
-
-                // Grouped with inline submenus so each renders with a divider,
-                // matching the design's long-press menu layout.
-                var voteChildren: [UIMenuElement] = [upvoteAction, downvoteAction, saveAction]
-                if let self, let target = remindMeMenuTarget(serverPostId: serverPostId) {
-                    voteChildren.append(makeRemindMeMenu(for: target))
-                }
-                let voteGroup = UIMenu(options: .displayInline, children: voteChildren)
-                let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction, crossPostAction])
-                var navChildren: [UIMenuElement] = [visitCommunityAction, viewAuthorAction]
-                // "Also posted in" jump submenu — only when this post is a
-                // cross-post-grouping primary with collapsed siblings. Task 1's
-                // `crossPostAction` above CREATES a new cross-post; this
-                // navigates to ones that already exist, so the two never
-                // conflate despite sharing a symbol.
-                if let crossPostMenu = self?.crossPostSiblingsMenu(serverPostId: serverPostId) {
-                    navChildren.append(crossPostMenu)
-                }
-                let navGroup = UIMenu(options: .displayInline, children: navChildren)
-                var hideChildren: [UIMenuElement] = [hideAction]
-                if let self, let communityName = row?.communityName, !communityName.isEmpty, row?.communityActorId != nil {
-                    hideChildren.append(makeMuteCommunityMenu(serverPostId: serverPostId, communityName: communityName))
-                }
-                let hideGroup = UIMenu(options: .displayInline, children: hideChildren)
-                let safetyGroup = UIMenu(options: .displayInline, children: [blockAction, reportAction])
-
-                var children: [UIMenuElement] = [voteGroup, shareGroup, navGroup, hideGroup]
-                // Moderation submenu, only when the account moderates this
-                // post's community (or is an admin).
-                if let modMenu = self?.postModerationMenu(serverPostId: serverPostId) {
-                    children.append(modMenu)
-                }
-                children.append(safetyGroup)
-                return UIMenu(title: "", children: children)
+                return PostContextMenuBuilder.menu(
+                    forServerPostId: serverPostId,
+                    host: self,
+                    upvoteIcon: generalAppearance.upvoteIcon,
+                    downvoteIcon: generalAppearance.downvoteIcon
+                )
             }
         )
     }
