@@ -55,6 +55,16 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         // first delivered notification would silently miss it.
         UNUserNotificationCenter.current().delegate = self
 
+        // Register the background reminder poll's launch handler - iOS
+        // requires every identifier declared in Info.plist's
+        // `BGTaskSchedulerPermittedIdentifiers` to be registered synchronously
+        // here, before this method returns (Post Reminders Phase 4).
+        ReminderBackgroundRefresh.register(
+            schedulerService: coordinator.dependencies.schedulerService,
+            diagnostics: coordinator.dependencies.diagnosticLog
+        )
+        ReminderBackgroundRefresh.schedule()
+
         // Apply the local interaction-log retention policy in the background.
         // Best-effort: a failure just leaves old rows until the next launch.
         Task {

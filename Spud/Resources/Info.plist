@@ -82,6 +82,19 @@
 		<string>info.ddenis.Spud.viewCommunity</string>
 		<string>info.ddenis.Spud.viewPerson</string>
 	</array>
+	<!-- Post Reminders Phase 4: lets a "new comments" activity follow poll and -->
+	<!-- fire a notification even while the app is closed. No paid entitlement - -->
+	<!-- `fetch` background mode + the declared task identifier below is all a -->
+	<!-- BGAppRefreshTask needs. Timing is OS-opportunistic (see -->
+	<!-- ReminderBackgroundRefresh's doc comment). -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>info.ddenis.Spud.reminderPoll</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

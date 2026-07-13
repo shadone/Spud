@@ -1,8 +1,8 @@
 # Reminders
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** partial — Phases 1-3 of a multi-phase design: time-based ("remind me later") reminders and a "When there are new comments" activity follow, either on the whole post OR scoped to a single comment thread. Background polling (`BGAppRefreshTask`) is planned for a later phase; see Not supported below.
-- **Related:** [Inbox](inbox.md), [docs/superpowers/specs/2026-07-12-post-reminders-design.md](../superpowers/specs/2026-07-12-post-reminders-design.md), [docs/superpowers/plans/2026-07-12-post-reminders-phase1.md](../superpowers/plans/2026-07-12-post-reminders-phase1.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase2.md](../superpowers/plans/2026-07-13-post-reminders-phase2.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase3.md](../superpowers/plans/2026-07-13-post-reminders-phase3.md)
+- **Status:** shipped — all four planned phases: time-based ("remind me later") reminders, a "When there are new comments" activity follow (whole post OR a single comment thread), a best-effort background poll, and account-teardown cleanup.
+- **Related:** [Inbox](inbox.md), [docs/superpowers/specs/2026-07-12-post-reminders-design.md](../superpowers/specs/2026-07-12-post-reminders-design.md), [docs/superpowers/plans/2026-07-12-post-reminders-phase1.md](../superpowers/plans/2026-07-12-post-reminders-phase1.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase2.md](../superpowers/plans/2026-07-13-post-reminders-phase2.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase3.md](../superpowers/plans/2026-07-13-post-reminders-phase3.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase4.md](../superpowers/plans/2026-07-13-post-reminders-phase4.md)
 
 ## What it does
 
@@ -53,10 +53,17 @@ mention.
   foreground, a periodic sweep (piggybacking on the existing 5-minute scheduler tick)
   re-checks each followed post's comment count — throttled to at most once per ~30
   minutes per post — and applies the rule above. This means a burst of comments is
-  noticed on a delay (the next foreground check), not instantly, and a followed post is
-  never checked at all while Spud is fully quit or backgrounded for a long stretch; it
-  catches up the next time you open the app. Works whether you're signed in or just
-  browsing signed out — the poll doesn't require an account.
+  noticed on a delay (the next foreground check), not instantly. Works whether you're
+  signed in or just browsing signed out — the poll doesn't require an account.
+- **Best-effort background delivery.** Beyond the foreground poll, Spud also asks iOS to
+  occasionally wake it in the background (a `BGAppRefreshTask`) to run the exact same
+  check, so a follow can still notify you even while Spud is closed. This is honestly
+  opportunistic, not a guarantee: iOS decides if and when it actually runs — it requires
+  Background App Refresh to be enabled for Spud (Settings app → General → Background App
+  Refresh), and even then the OS can delay it by hours, or skip it entirely, based on
+  your usage patterns and battery state. The foreground poll above remains the reliable
+  path whenever Spud is open; treat the background wake-up as a bonus catch-up, not
+  something to rely on for time-sensitive follows.
 - **Time presets resolve relative to now.** "This evening" means today at 18:00, unless
   it's already past ~17:00, in which case it falls back to three hours from now so the
   reminder never fires immediately or in the past. "Pick a time…" rejects any time that
@@ -70,6 +77,11 @@ mention.
   syncs across your devices) and survives app relaunches. Because of this, the
   Reminders segment works even on an instance whose other Inbox features (replies,
   mentions, messages) are unavailable.
+- **Removing or logging out of an account cancels its reminders.** Reminders and
+  follows are per-account. Logging out of a signed-in account, or removing any account
+  (signed-in or signed-out) from the account list, deletes every one of that account's
+  reminders and follows and cancels their scheduled OS notifications, so nothing keeps
+  firing for an account that's no longer in the app.
 - **Delivery: a real OS notification, or in-app only.** The first time you set a
   reminder, Spud asks for notification permission. If you grant it, a reminder delivers
   a system notification at its scheduled time — title is the post's title, body names
@@ -223,15 +235,21 @@ mention.
   tapping it opens the post scrolled to that comment (not the whole-post behavior of
   opening at the top)
 
+### Removing an account cancels its reminders
+
+- **Given** a signed-in account has a scheduled time reminder and an active "When there
+  are new comments" follow
+- **When** I log out of that account, or remove it from the account list
+- **Then** both are deleted, and the time reminder's scheduled OS notification is
+  cancelled, so nothing fires for that account afterward
+
 ## Not supported / out of scope
 
-- **Background polling / `BGAppRefreshTask`** — the activity follow's poll only runs
-  while Spud is in the foreground (piggybacking on the existing 5-minute scheduler tick);
-  there's no background task, so a post's comment count is only ever re-checked the next
-  time the app is opened or foregrounded, not while it's quit or backgrounded. This is a
-  best-effort, honestly-limited notification, not a guaranteed real-time one — treat it
-  as "Spud will catch you up the next time you open it," not "you'll be notified the
-  moment it happens."
+- **Guaranteed background delivery.** The `BGAppRefreshTask` background poll is
+  opportunistic, not a guaranteed real-time one — iOS can delay or skip it, and it
+  requires Background App Refresh to be enabled. Treat it as "Spud will try to catch you
+  up even when closed," not "you'll be notified the moment it happens"; the foreground
+  poll remains the only reliably-timed path.
 - **A live new-comment count on the Reminders-segment row.** A fired activity follow's
   row just reads "New comments · tap to catch up" — it doesn't say how many, unlike the
   push notification's body, which does.

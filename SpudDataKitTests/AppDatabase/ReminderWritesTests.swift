@@ -140,6 +140,49 @@ struct ReminderWritesTests {
         #expect(result == nil)
     }
 
+    // MARK: - removeAllReminders
+
+    /// The account-teardown cleanup (Phase 4): deletes every row of the
+    /// account regardless of kind, returns only the non-nil
+    /// `notificationRequestId`s among them (a `time` reminder has one, an
+    /// `activity` reminder never does), and leaves another account's rows
+    /// untouched.
+    @Test
+    func removeAllRemindersDeletesEveryKindAndReturnsOnlyNonNilRequestIds() async throws {
+        let db = try AppDatabase.inMemory()
+
+        _ = try await db.upsertReminder(Self.makeRecord(
+            postServerId: 1, kind: .time, notificationRequestId: "reminder-1-1-0-time"
+        ))
+        _ = try await db.upsertReminder(Self.makeRecord(
+            postServerId: 2, kind: .activity, notificationRequestId: nil
+        ))
+        // A different account's row must survive.
+        _ = try await db.upsertReminder(Self.makeRecord(
+            accountId: 2, postServerId: 3, kind: .time, notificationRequestId: "reminder-2-3-0-time"
+        ))
+
+        let removedRequestIds = try await db.removeAllReminders(accountId: 1)
+        #expect(removedRequestIds == ["reminder-1-1-0-time"])
+
+        let remainingForAccount1 = try await db.writer.read { db in
+            try ReminderRecord.filter(Column("accountId") == 1).fetchCount(db)
+        }
+        #expect(remainingForAccount1 == 0)
+
+        let otherAccountReminder = db.reminderSync(accountId: 2, postServerId: 3, rootCommentServerId: 0, kind: "time")
+        #expect(otherAccountReminder != nil)
+    }
+
+    /// An account with no reminders returns an empty array, not a throw.
+    @Test
+    func removeAllRemindersOnAccountWithNoRowsReturnsEmpty() async throws {
+        let db = try AppDatabase.inMemory()
+
+        let removedRequestIds = try await db.removeAllReminders(accountId: 999)
+        #expect(removedRequestIds.isEmpty)
+    }
+
     // MARK: - markReminderFired
 
     @Test

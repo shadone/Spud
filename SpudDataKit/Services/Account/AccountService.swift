@@ -829,6 +829,21 @@ public class AccountService: AccountServiceType {
         let instanceActorId = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId)
         let fallbackKeychainId = appDatabase.fallbackAccountKeychainIdSync(excludingKeychainId: keychainId)
 
+        // Cancel this account's reminders (rows + their OS notification
+        // requests) before dropping the cached ReminderService and deleting
+        // the account row below - reminder.accountId carries no cascading
+        // foreign key, so without this the rows (and any scheduled OS
+        // notification behind a time reminder) would silently outlive the
+        // account. Resolve the service now, while the account row still
+        // exists (reminderService(forAccountKeychainId:) may need to look up
+        // its row id on first touch), and capture the resolved actor so it
+        // survives the cache clear right below. logout is a synchronous
+        // @MainActor method, so the actual teardown runs fire-and-forget in a
+        // detached Task; it's best-effort (removeAllReminders never throws)
+        // and doesn't block the rest of this method.
+        let reminderServiceToTearDown = reminderService(forAccountKeychainId: keychainId)
+        Task { await reminderServiceToTearDown.removeAllReminders() }
+
         // Drop the cached service (and its tracked apiVersion) so a stale
         // authenticated api isn't reused.
         lemmyServices[keychainId] = nil
@@ -854,11 +869,29 @@ public class AccountService: AccountServiceType {
     public func removeAccount(forAccountKeychainId keychainId: String) {
         assert(Thread.current.isMainThread)
 
+        // Guard against a double-invocation (e.g. a fast double-tap on
+        // swipe-to-delete): once the account row is gone, `reminderService`
+        // below would `fatalError` on an uncached, unregistered keychainId.
+        // A second call has nothing left to tear down, so no-op cleanly -
+        // mirrors `logout`'s `isSignedOut` early-return above.
+        guard appDatabase.accountRowIdSync(forKeychainId: keychainId) != nil else {
+            logger.debug("removeAccount no-op for already-removed account")
+            return
+        }
+
         let wasDefault = currentDefaultAccountKeychainId() == keychainId
 
         // Resolve a fallback before removing, in case this was the default.
         let instanceActorId = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId)
         let fallbackKeychainId = appDatabase.fallbackAccountKeychainIdSync(excludingKeychainId: keychainId)
+
+        // Cancel this account's reminders before dropping the cached
+        // ReminderService and deleting the account row below - see the
+        // matching comment in `logout` for why (no cascading FK on
+        // reminder.accountId) and why this resolves the service now and tears
+        // it down fire-and-forget in a detached Task.
+        let reminderServiceToTearDown = reminderService(forAccountKeychainId: keychainId)
+        Task { await reminderServiceToTearDown.removeAllReminders() }
 
         // Drop the cached service (and its tracked apiVersion) so a stale
         // authenticated api isn't reused.
