@@ -869,6 +869,16 @@ public class AccountService: AccountServiceType {
     public func removeAccount(forAccountKeychainId keychainId: String) {
         assert(Thread.current.isMainThread)
 
+        // Guard against a double-invocation (e.g. a fast double-tap on
+        // swipe-to-delete): once the account row is gone, `reminderService`
+        // below would `fatalError` on an uncached, unregistered keychainId.
+        // A second call has nothing left to tear down, so no-op cleanly -
+        // mirrors `logout`'s `isSignedOut` early-return above.
+        guard appDatabase.accountRowIdSync(forKeychainId: keychainId) != nil else {
+            logger.debug("removeAccount no-op for already-removed account")
+            return
+        }
+
         let wasDefault = currentDefaultAccountKeychainId() == keychainId
 
         // Resolve a fallback before removing, in case this was the default.

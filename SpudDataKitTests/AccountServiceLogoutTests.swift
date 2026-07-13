@@ -208,4 +208,30 @@ struct AccountServiceLogoutTests {
         let cancelCalls = await reminderScheduler.cancelCalls
         #expect(cancelCalls == ["reminder-\(accountId)-200-0-time"])
     }
+
+    /// Regression coverage for the must-fix crash: `removeAccount` deletes the
+    /// account row synchronously, so a second invocation for the same
+    /// keychainId (e.g. a fast double-tap on swipe-to-delete) used to find no
+    /// cached `ReminderService` AND no account row, and `reminderService(forAccountKeychainId:)`
+    /// would `fatalError`. The guard at the top of `removeAccount` makes the
+    /// second call a clean no-op instead.
+    @Test
+    func removeAccountIsNoOpOnDoubleInvocation() async throws {
+        try await seed(accounts: [
+            (keychainId: "signed-in-1", isSignedOut: false, isDefault: true),
+        ])
+
+        sut.removeAccount(forAccountKeychainId: "signed-in-1")
+        sut.removeAccount(forAccountKeychainId: "signed-in-1")
+
+        #expect(try !accountExists(keychainId: "signed-in-1"))
+    }
+
+    /// A `removeAccount` call for a keychainId that was never registered (no
+    /// account row, no cached `ReminderService`) must no-op cleanly rather than
+    /// crash - the same guard covers this as the double-invocation case above.
+    @Test
+    func removeAccountIsNoOpForUnregisteredAccount() {
+        sut.removeAccount(forAccountKeychainId: "never-registered")
+    }
 }

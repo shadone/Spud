@@ -443,7 +443,11 @@ public actor ReminderService {
     /// (orphaned, the exact condition this method exists to fix), same as
     /// before this method existed.
     public func removeAllReminders() async {
-        guard let requestIds = try? await appDatabase.removeAllReminders(accountId: accountId) else {
+        let requestIds: [String]
+        do {
+            requestIds = try await appDatabase.removeAllReminders(accountId: accountId)
+        } catch {
+            logger.error("removeAllReminders failed: \(String(describing: error), privacy: .public)")
             return
         }
         for requestId in requestIds {
