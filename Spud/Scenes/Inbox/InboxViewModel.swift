@@ -361,9 +361,13 @@ final class InboxViewModel {
 
     private func startConversationsObservation() {
         guard let accountId else { return }
-        conversationsObservationTask = Task { @MainActor [weak self] in
-            guard let self else { return }
+        // Capture `appDatabase` strongly and re-`guard let self` per iteration so
+        // the never-ending `for await` does NOT hoist a strong `self` across its
+        // await suspensions (that would retain the VM via its own stored task and
+        // leak it on every account switch, which mints a fresh VM).
+        conversationsObservationTask = Task { @MainActor [weak self, appDatabase] in
             for await rows in appDatabase.observeConversations(accountId: accountId) {
+                guard let self else { return }
                 if Task.isCancelled { break }
                 confirmedConversations = rows
                 hasReceivedConversations = true
@@ -374,9 +378,9 @@ final class InboxViewModel {
 
     private func startOutboundDirectMessagesObservation() {
         let accountKeychainId = accountScope.accountKeychainId
-        outboundObservationTask = Task { @MainActor [weak self] in
-            guard let self else { return }
+        outboundObservationTask = Task { @MainActor [weak self, appDatabase] in
             for await rows in appDatabase.observeOutboundDirectMessages(accountKeychainId: accountKeychainId) {
+                guard let self else { return }
                 if Task.isCancelled { break }
                 outboundDMs = rows
                 recomputeConversations()
@@ -441,9 +445,9 @@ final class InboxViewModel {
             remindersPhase = .loaded
             return
         }
-        remindersObservationTask = Task { @MainActor [weak self] in
-            guard let self else { return }
+        remindersObservationTask = Task { @MainActor [weak self, appDatabase] in
             for await rows in appDatabase.observeReminderList(accountId: accountId) {
+                guard let self else { return }
                 if Task.isCancelled { break }
                 reminders = rows
                 remindersPhase = .loaded
